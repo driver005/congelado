@@ -2,7 +2,7 @@
   "version": 8,
   "configurePresets": [
     {
-      "name": "debug",
+      "name": "Debug",
       "displayName": "Debug",
       "description": "Using compilers: C = /usr/bin/gcc, CXX = /usr/bin/g++",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -15,7 +15,7 @@
       }
     },
     {
-      "name": "release",
+      "name": "Release",
       "displayName": "Release",
       "description": "Using compilers: C = /usr/bin/gcc, CXX = /usr/bin/g++",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -31,13 +31,13 @@
   "buildPresets": [
     {
       "name": "default",
-      "configurePreset": "debug"
+      "configurePreset": "Debug"
     }
   ],
   "testPresets": [
     {
       "name": "default",
-      "configurePreset": "debug",
+      "configurePreset": "Debug",
       "output": {
         "outputOnFailure": true
       },
@@ -50,7 +50,7 @@
   "packagePresets": [
     {
       "name": "default",
-      "configurePreset": "debug",
+      "configurePreset": "Debug",
       "generators": [
         "TGZ"
       ]
@@ -62,7 +62,7 @@
       "steps": [
         {
           "type": "configure",
-          "name": "debug"
+          "name": "Debug"
         },
         {
           "type": "build",

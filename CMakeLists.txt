@@ -14,6 +14,7 @@ message(STATUS "Using compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VE
 include(cmake/options.cmake)
 include(cmake/props.cmake)
 include(cmake/cache.cmake)
+include(cmake/conan.cmake)
 
 # === GLOBAL VARS ===
 set(target congelado)  
