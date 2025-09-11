@@ -1,0 +1,82 @@
+{
+  "version": 8,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Using compilers: C = /usr/bin/gcc, CXX = /usr/bin/g++",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "CMAKE_C_COMPILER": "/usr/bin/gcc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/g++",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CONGELADO_BUILD_STATIC_LIB": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Using compilers: C = /usr/bin/gcc, CXX = /usr/bin/g++",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "CMAKE_C_COMPILER": "/usr/bin/gcc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/g++",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CONGELADO_BUILD_STATIC_LIB": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "default",
+      "configurePreset": "debug",
+      "generators": [
+        "TGZ"
+      ]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        },
+        {
+          "type": "package",
+          "name": "default"
+        }
+      ]
+    }
+  ]
+}
