@@ -1,5 +1,13 @@
 {
   "files.associations": {
-    "iostream": "cpp"
-  }
+    "iostream": "cpp",
+    "functional": "cpp",
+    "algorithm": "cpp",
+    "*.inc": "cpp",
+    "type_traits": "cpp"
+  },
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/**",
+    "/home/adrian/.conan2/**",
+  ],
 }

@@ -11,14 +11,15 @@ message(STATUS "Using compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VE
 # cmake -DCMAKE_TOOLCHAIN_FILE=path/to/toolchain.cmake ..
 # OR LOOK INTO "CMakePresets.json"
 
-include(cmake/options.cmake)
-include(cmake/props.cmake)
-include(cmake/cache.cmake)
-include(cmake/conan.cmake)
-
 # === GLOBAL VARS ===
 set(target congelado)  
 set(SOURCES src/main.cc)
+
+message(STATUS "Target is: '${target}'")
+
+include(cmake/options.cmake)
+include(cmake/props.cmake)
+include(cmake/cache.cmake)
 
 # === GENERATE LIBRARY ===
 add_library(${target} SHARED ${SOURCES})
@@ -28,6 +29,9 @@ if(CONGELADO_BUILD_STATIC_LIB)
   add_library(${target}_static STATIC ${SOURCES})
   add_library(congelado::${target}_static ALIAS ${target}_static)
 endif()
+
+# === INCLUDE AFTER TARGET WAS CREATED ===
+include(cmake/conan.cmake)
 
 # === ADD PROJECT CODE ===
 add_props(
