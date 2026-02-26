@@ -1,0 +1,22 @@
+module(
+    name = "congelado",
+    version = "0.1.0",
+    compatibility_level = 1,
+)
+
+# Deps
+bazel_dep(name = "grpc", version = "1.74.1")
+bazel_dep(name = "protobuf", version = "33.4")
+bazel_dep(name = "simdjson", version = "4.2.4")
+
+# Rules
+bazel_dep(name = "rules_cc", version = "0.2.16")
+
+# Editor
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    branch = "main",
+)
+

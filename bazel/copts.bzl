@@ -1,0 +1,5 @@
+COPTS = [
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+]

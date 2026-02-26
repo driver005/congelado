@@ -1,2 +1,6 @@
-out/
+build/
 conan/graph.txt
+.vscode
+.git
+.cache
+compile_commands.json

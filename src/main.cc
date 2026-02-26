@@ -1,17 +1,18 @@
 #include "congelado.h"
+#include <print>
 
 class ProcessIMPL : public expcmake::RouteGuide::Service {
   ::grpc::Status GetFeature(::grpc::ServerContext *,
                             const ::expcmake::Address *,
                             ::expcmake::Address *response) {
-    fmt::println("called");
+    // fmt::println("called");
     response->set_name("test");
     return grpc::Status::OK;
   }
 };
 
 int main() {
-  fmt::print(fg(fmt::terminal_color::cyan), "Hello fmt {}!\n", FMT_VERSION);
+  std::println("Hello from congelado!");
 
   ProcessIMPL service;
   grpc::ServerBuilder builder;
