@@ -1,6 +1,10 @@
 # This must be a 'startup' option and must come before 'build' flags
 startup --output_base=./build
 
+# Reuse results from previous builds
+build --disk_cache=~/.cache/bazel-disk
+build --repository_cache=~/.cache/bazel-repo
+
 build --client_env=CC=clang
 
 build --per_file_copt=external/.*@-w

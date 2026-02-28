@@ -10,6 +10,7 @@ def congelado(hdrs = [], deps = []):
         deps = [
             "@grpc//:grpc++",
             "@protobuf//:protobuf",
+            "@concurrentqueue",
         ] + deps,
         visibility = ["//visibility:public"],
     )
