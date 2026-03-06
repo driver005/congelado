@@ -1,72 +1,98 @@
-#include "concurrentqueue.h"
-#include <atomic>
+#include <cassert>
+#include <cstdlib>
 #include <iostream>
-#include <print> // C++23
-#include <ranges>
-#include <thread>
-#include <vector>
+#include <print>
 
-using namespace std::chrono_literals;
+import page;
+import atomic_list;
+
+#define BLOCK_SIZE 32
+
+template <typename TAlign> [[nodiscard]] static void *aligned_malloc(std::size_t size) {
+  constexpr std::size_t alignment = alignof(TAlign);
+  constexpr bool needs_manual_align = alignment > alignof(std::max_align_t);
+
+  if constexpr (needs_manual_align) {
+    std::println("Alignment needed for type with alignment {}.", alignof(TAlign));
+    // Round size up to a multiple of alignment (required by std::aligned_alloc)
+    std::size_t aligned_size = (size + alignment - 1) & ~(alignment - 1);
+    return std::aligned_alloc(alignment, aligned_size);
+  } else {
+    std::println("No special alignment needed for type with alignment {}.", alignof(TAlign));
+    return std::malloc(size);
+  }
+}
+
+template <typename TAlign> static void aligned_free(void *ptr) {
+  std::free(ptr); // std::aligned_alloc memory is freed with std::free directly
+}
+
+template <typename U> [[nodiscard]] static U *create() {
+  void *p = aligned_malloc<U>(sizeof(U));
+  return p ? new (p) U : nullptr;
+}
+
+template <typename U, typename... Args> [[nodiscard]] static U *create(Args &&...args) {
+  void *p = aligned_malloc<U>(sizeof(U));
+  return p ? new (p) U(std::forward<Args>(args)...) : nullptr;
+}
+
+template <typename U> static void destroy(U *ptr) {
+  if (!ptr)
+    return;
+  ptr->~U();
+  aligned_free<U>(ptr);
+}
+struct AlignedNode : Node {
+  int value{0};
+  explicit AlignedNode(int v) : value(v) {}
+};
+
+struct TestNode : Node {
+  int value{0};
+  explicit TestNode(int v) : value(v) {}
+};
 
 int main() {
-  // Configuration
-  const int num_producers = 8;
-  const int num_consumers = 8;
-  const int items_per_producer = 250'000;
-  const int total_items = num_producers * items_per_producer;
+  Page<TestNode> page_stack;
+  Page<TestNode> *page = create<Page<TestNode>>();
 
-  moodycamel::ConcurrentQueue<int> queue;
-  std::atomic<int> total_consumed{0};
-  std::atomic<long long> sum_consumed{0};
+  std::println("Testing page:");
+  std::println("Size of page: {}", sizeof(page_stack));
+  std::println("Heap sizeof page: {}", sizeof(*page));
 
-  std::print("Starting stress test with {} producers and {} consumers...\n",
-             num_producers, num_consumers);
+  std::println("\nTesting over-aligned allocation (alignas(32)):");
+  AlignedNode *an = create<AlignedNode>(42);
+  std::println("address:     {:#x}", reinterpret_cast<std::uintptr_t>(an));
+  std::println("alignment:   {}", alignof(AlignedNode));
+  std::println("is aligned:  {}", reinterpret_cast<std::uintptr_t>(an) % alignof(AlignedNode) == 0);
+  std::println("value:       {}", an->value);
+  destroy(an);
 
-  // 1. Launch Producers using C++23 ranges for the loop
-  std::vector<std::jthread> producers;
-  for ([[maybe_unused]] auto i : std::views::iota(0, num_producers)) {
-    producers.emplace_back([&queue, items_per_producer]() {
-      for (auto j : std::views::iota(0, items_per_producer)) {
-        // Enqueue unique values to ensure we can verify sum later
-        queue.enqueue(1);
-      }
-    });
-  }
+  aligned_free<Page<TestNode>>(page);
 
-  // 2. Launch Consumers
-  std::vector<std::jthread> consumers;
-  for ([[maybe_unused]] auto i : std::views::iota(0, num_consumers)) {
-    consumers.emplace_back(
-        [&queue, &total_consumed, &sum_consumed, total_items]() {
-          int item;
-          // Modern busy-wait loop
-          while (total_consumed.load(std::memory_order_relaxed) < total_items) {
-            if (queue.try_dequeue(item)) {
-              sum_consumed.fetch_add(item, std::memory_order_relaxed);
-              total_consumed.fetch_add(1, std::memory_order_relaxed);
-            } else {
-              // Micro-sleep or hint to CPU to save power during high contention
-              std::this_thread::yield();
-            }
-          }
-        });
-  }
+  AtomicList pool;
 
-  // Join all threads
-  producers.clear();
-  consumers.clear();
+  auto seed = [&](TestNode *node) { pool.add(node); };
+  seed(new TestNode(1));
+  seed(new TestNode(2));
+  seed(new TestNode(3));
 
-  // 3. Validation using std::println
-  std::println("\n--- Test Results ---");
-  std::println("Expected items: {:L}", total_items);
-  std::println("Actual items:   {:L}", total_consumed.load());
+  TestNode *node = static_cast<TestNode *>(pool.try_get());
+  assert(node != nullptr);
+  std::cout << "Got node value: " << node->value << "\n";
 
-  if (sum_consumed.load() == total_items) {
-    std::println("✅ SUCCESS: All items accounted for.");
-  } else {
-    std::println("❌ FAILURE: Expected sum {}, but got {}", total_items,
-                 sum_consumed.load());
-  }
+  node = static_cast<TestNode *>(pool.try_get());
+  assert(node != nullptr);
+  std::cout << "Got node value: " << node->value << "\n";
+
+  node = static_cast<TestNode *>(pool.try_get());
+  assert(node != nullptr);
+  std::cout << "Got node value: " << node->value << "\n";
+
+  node = static_cast<TestNode *>(pool.try_get());
+  assert(node == nullptr);
+  std::cout << "Pool empty: ok\n";
 
   return 0;
 }

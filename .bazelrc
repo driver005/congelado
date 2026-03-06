@@ -5,14 +5,23 @@ startup --output_base=./build
 build --disk_cache=~/.cache/bazel-disk
 build --repository_cache=~/.cache/bazel-repo
 
-build --client_env=CC=clang
-
 build --per_file_copt=external/.*@-w
 build --host_per_file_copt=external/.*@-w
 build --experimental_cc_static_library
 
+build:debug --copt=-g
+build:debug --strip=never
+build:debug --compilation_mode=dbg
+
 # for platform-appropriate cxxopts
 common --enable_platform_specific_config
+
+# TODO: Only for me in testing
+build --cxxopt='-std=c++23'
+build --host_cxxopt='-std=c++23'
+
+build --experimental_cpp_modules
+build --features=cpp_modules
 
 build:windows --cxxopt='/std:c++23'
 build:windows --host_cxxopt='/std:c++23'
@@ -27,7 +36,8 @@ build:freebsd   --host_cxxopt='-std=c++23'
 build:android --noenable_platform_specific_config
 build:ios --noenable_platform_specific_config
 
-build --client_env=CC=clang
+build --action_env=CC=clang-21
+build --action_env=CXX=clang++-21
 build --copt=-DGRPC_BAZEL_BUILD
 build --host_copt=-DGRPC_BAZEL_BUILD
 build --action_env=GRPC_BAZEL_RUNTIME=1

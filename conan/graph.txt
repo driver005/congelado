@@ -1,0 +1,5 @@
+======== Outdated dependencies ========
+cmake
+    Current versions:  cmake/4.2.3, cmake/3.31.11
+    Latest in remote(s):  cmake/4.2.3 - conancenter
+    Version ranges: cmake/[>=3.16 <4], cmake/[>=3.16], cmake/[>=3.22], cmake/[>=3.25]

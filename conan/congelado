@@ -1,8 +1,9 @@
 [settings]
-arch=x86_64
-build_type=Debug
-compiler=gcc
-compiler.cppstd=gnu17
-compiler.libcxx=libstdc++11
-compiler.version=13
 os=Linux
+arch=x86_64
+compiler=clang
+compiler.version=21
+compiler.cppstd=gnu23
+compiler.libcxx=libstdc++11
+build_type=Debug
+

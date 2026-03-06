@@ -1,6 +1,8 @@
+# Xmake cache
+.xmake/
 build/
-conan/graph.txt
-.vscode
-.git
-.cache
-compile_commands.json
+
+# MacOS Cache
+.DS_Store
+
+
