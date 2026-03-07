@@ -1,18 +1,14 @@
-module;
+module; // Start of Global Module Fragment
 
-// Global module fragment for non-modular headers (standard library)
-#include <atomic>
 #include <climits>
-#include <cstddef>
-#include <limits>
-#include <type_traits>
 
 export module pager;
 
-// Import your other modularized dependencies
+import std;
+import consts;
 import page;
 import atomic_list;
-import constants;
+import consts;
 
 export enum class AllocationMode { CanAlloc = 0, CannotAlloc = 1 };
 

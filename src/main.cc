@@ -1,12 +1,15 @@
+
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <print>
 
+// --- END of Global Module Fragment ---
+
+// 1. Imports first
+import node;
 import page;
 import atomic_list;
-
-#define BLOCK_SIZE 32
 
 template <typename TAlign> [[nodiscard]] static void *aligned_malloc(std::size_t size) {
   constexpr std::size_t alignment = alignof(TAlign);

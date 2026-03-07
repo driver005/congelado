@@ -1,9 +1,6 @@
-module;
-
-#include <atomic>
-#include <cstddef>
-
 export module node;
+
+import std;
 
 export struct Node {
   std::atomic<Node *> m_next;

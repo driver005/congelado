@@ -247,17 +247,13 @@ template <typename T> template <AllocationMode Mode> std::size_t Pager<T>::deque
   return actual_count;
 }
 
-template <typename T> std::size_t Pager<T>::size() const noexcept {
-  return m_writer.load(std::memory_order_relaxed) - m_reader.load(std::memory_order_relaxed);
-}
-
 template <typename T> template <AllocationMode Mode> void Pager<T>::remove_page() {
   auto *old_page = m_head;
 
   m_head = m_head->m_next;
   m_base.fetch_add(BLOCK_SIZE, std::memory_order_release);
 
-  if constexpr (Mode == CannotAlloc) {
+  if constexpr (Mode == AllocationMode::CannotAlloc) {
     if (old_page->dynamicly_allocated) {
       delete old_page;
     }
@@ -271,7 +267,7 @@ template <typename T> template <AllocationMode Mode> bool Pager<T>::add_new_page
   if (page) {
     return true;
   }
-  if constexpr (Mode == CannotAlloc) {
+  if constexpr (Mode == AllocationMode::CannotAlloc) {
     return allocate_page();
   }
 

@@ -1,16 +1,9 @@
-module;
 // https://github.com/cameron314/concurrentqueue/concurrentqueue.h#L1450
-
-#include <atomic>
-#include <cassert>
-#include <cstddef>
-
 export module atomic_list;
 
+import std;
 import node;
-
-static constexpr std::size_t REFS_MASK = ~static_cast<std::size_t>(0) >> 1;
-static constexpr std::size_t SHOULD_BE_ON_LIST = ~REFS_MASK;
+import consts;
 
 export class AtomicList {
 public:

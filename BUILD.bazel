@@ -1,9 +1,0 @@
-load("//bazel:congelado.bzl", "congelado")
-load("//bazel:editor.bzl", "setup_editor")
-
-setup_editor()
-
-congelado(
-    deps = ["//proto:address_lib"],
-)
-
