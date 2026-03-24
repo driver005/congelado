@@ -1,101 +1,156 @@
-
-#include <cassert>
-#include <cstdlib>
-#include <iostream>
-#include <print>
-
-// --- END of Global Module Fragment ---
-
-// 1. Imports first
-import node;
-import page;
-import atomic_list;
-
-template <typename TAlign> [[nodiscard]] static void *aligned_malloc(std::size_t size) {
-  constexpr std::size_t alignment = alignof(TAlign);
-  constexpr bool needs_manual_align = alignment > alignof(std::max_align_t);
-
-  if constexpr (needs_manual_align) {
-    std::println("Alignment needed for type with alignment {}.", alignof(TAlign));
-    // Round size up to a multiple of alignment (required by std::aligned_alloc)
-    std::size_t aligned_size = (size + alignment - 1) & ~(alignment - 1);
-    return std::aligned_alloc(alignment, aligned_size);
-  } else {
-    std::println("No special alignment needed for type with alignment {}.", alignof(TAlign));
-    return std::malloc(size);
-  }
-}
-
-template <typename TAlign> static void aligned_free(void *ptr) {
-  std::free(ptr); // std::aligned_alloc memory is freed with std::free directly
-}
-
-template <typename U> [[nodiscard]] static U *create() {
-  void *p = aligned_malloc<U>(sizeof(U));
-  return p ? new (p) U : nullptr;
-}
-
-template <typename U, typename... Args> [[nodiscard]] static U *create(Args &&...args) {
-  void *p = aligned_malloc<U>(sizeof(U));
-  return p ? new (p) U(std::forward<Args>(args)...) : nullptr;
-}
-
-template <typename U> static void destroy(U *ptr) {
-  if (!ptr)
-    return;
-  ptr->~U();
-  aligned_free<U>(ptr);
-}
-struct AlignedNode : Node {
-  int value{0};
-  explicit AlignedNode(int v) : value(v) {}
-};
-
-struct TestNode : Node {
-  int value{0};
-  explicit TestNode(int v) : value(v) {}
-};
+// #include <cstdint>
+// #include <stdio.h>
+//
+// import std;
+// import server.http2;
+// import server.http3;
+// import tls;
+//
+// // ── helpers ───────────────────────────────────────────────────────────────────
+//
+// static std::string find_header(const std::vector<server::http2::Header> &hdrs, std::string_view name,
+//                                std::string_view fallback = "") {
+//   for (const auto &h : hdrs)
+//     if (h.name == name)
+//       return h.value;
+//   return std::string(fallback);
+// }
+//
+// void ensure_certs(std::string_view cert, std::string_view key) {
+//   if (std::filesystem::exists(cert) && std::filesystem::exists(key)) {
+//     return;
+//   }
+//
+//   std::println("Certs not found. Generating self-signed certificates...");
+//
+//
+//   // Constructing the openssl command
+//   std::string cmd = std::format("openssl req -x509 -newkey rsa:2048 -keyout {} -out {} "
+//                                 "-days 365 -nodes -subj \"/CN=localhost\" 2>/dev/null",
+//                                 key, cert);
+//
+//   int result = std::system(cmd.c_str());
+//
+//   if (result != 0 || !std::filesystem::exists(cert)) {
+//     throw std::runtime_error("Failed to generate self-signed certificates. Is openssl installed?");
+//   }
+//
+//   std::println("Generated {} and {}", cert, key);
+// }
+//
+// // ── shared request handler ────────────────────────────────────────────────────
+//
+// static server::http2::Response handle(server::http2::Request req) {
+//   std::println("[{}] {} {}", req.authority, req.method, req.path);
+//
+//   if (req.method == "GET" && req.path == "/")
+//     return server::http2::Response::text(200, "<!doctype html><h1>congelado HTTP/2 + HTTP/3</h1>", "text/html");
+//
+//   if (req.method == "GET" && req.path == "/health")
+//     return server::http2::Response::text(200, R"({"status":"ok"})", "application/json");
+//
+//   if (req.method == "POST" && req.path == "/echo") {
+//     auto ct = find_header(req.headers, "content-type", "application/octet-stream");
+//     server::http2::Response resp;
+//     resp.status = 200;
+//     resp.headers.push_back({"content-type", std::move(ct)});
+//     resp.body = std::move(req.body);
+//     return resp;
+//   }
+//
+//   if (req.method == "GET" && req.path == "/headers") {
+//     std::string json = R"({"headers":{)";
+//     bool first = true;
+//     for (const auto &h : req.headers) {
+//       if (!first)
+//         json += ',';
+//       json += '"' + h.name + "\":\"" + h.value + '"';
+//       first = false;
+//     }
+//     json += "}}";
+//     return server::http2::Response::text(200, json, "application/json");
+//   }
+//
+//   return server::http2::Response::text(404, R"({"error":"not found"})", "application/json");
+// }
+//
+// // ── main ──────────────────────────────────────────────────────────────────────
+//
+// int main(int argc, char *argv[]) {
+//   std::string cert = "cert.pem";
+//   std::string key = "key.pem";
+//   std::uint16_t h2port = 8443;
+//   std::uint16_t h3port = 8444;
+//
+//   if (argv != nullptr) {
+//     if (argc > 1)
+//       cert = argv[1];
+//     if (argc > 2)
+//       key = argv[2];
+//     if (argc > 3)
+//       h2port = static_cast<std::uint16_t>(std::stoi(argv[3]));
+//     if (argc > 4)
+//       h3port = static_cast<std::uint16_t>(std::stoi(argv[4]));
+//   }
+//
+//   try {
+//     ensure_certs(cert, key);
+//   } catch (const std::exception &e) {
+//     std::println(stderr, "Error: {}", e.what());
+//     return 1;
+//   }
+//
+//   // ── HTTP/2 TLS context (ALPN: h2, managed by server.tls) ─────────────────
+//   transport::tls::SslCtx h2ctx;
+//   try {
+//     h2ctx = transport::tls::SslCtx::from_files(cert, key);
+//   } catch (const std::exception &e) {
+//     std::println(stderr, "TLS init failed: {}", e.what());
+//     return 1;
+//   }
+//
+//   // ── HTTP/3 server (ALPN: h3, TLS 1.3, QUIC via OpenSSL 3.6) ─────────────
+//   // TLS context is managed internally by server::http3::Server —
+//   // cert/key are passed directly to the constructor.
+//   server::http3::Server h3srv{cert, key, h3port};
+//   h3srv.get("/", handle);
+//   h3srv.get("/health", handle);
+//   h3srv.post("/echo", handle);
+//   h3srv.get("/headers", handle);
+//
+//   // HTTP/3 event loop runs on a dedicated thread — OpenSSL QUIC is
+//   // single-threaded per listener; the loop blocks on select().
+//   std::jthread h3thread([&h3srv]() {
+//     try {
+//       h3srv.run();
+//     } catch (const std::exception &e) {
+//       std::println(stderr, "HTTP/3 fatal: {}", e.what());
+//     }
+//   });
+//
+//   std::println("HTTP/3 (QUIC) listening on :{}", h3port);
+//
+//   // ── HTTP/2 server (main thread, one std::thread per connection) ───────────
+//   try {
+//     auto h2srv = server::http2::Server::listen(h2port, h2ctx, handle);
+//     std::println("HTTP/2  (TLS) listening on :{}", h2port);
+//     std::println("Routes:");
+//     std::println("  GET  /         — HTML home page");
+//     std::println("  GET  /health   — JSON health check");
+//     std::println("  POST /echo     — echo request body");
+//     std::println("  GET  /headers  — dump request headers");
+//     h2srv.run();
+//   } catch (const std::exception &e) {
+//     std::println(stderr, "HTTP/2 fatal: {}", e.what());
+//     return 1;
+//   }
+//   // h3thread joins automatically via jthread destructor
+// }
+//
+//
+import std;
 
 int main() {
-  Page<TestNode> page_stack;
-  Page<TestNode> *page = create<Page<TestNode>>();
-
-  std::println("Testing page:");
-  std::println("Size of page: {}", sizeof(page_stack));
-  std::println("Heap sizeof page: {}", sizeof(*page));
-
-  std::println("\nTesting over-aligned allocation (alignas(32)):");
-  AlignedNode *an = create<AlignedNode>(42);
-  std::println("address:     {:#x}", reinterpret_cast<std::uintptr_t>(an));
-  std::println("alignment:   {}", alignof(AlignedNode));
-  std::println("is aligned:  {}", reinterpret_cast<std::uintptr_t>(an) % alignof(AlignedNode) == 0);
-  std::println("value:       {}", an->value);
-  destroy(an);
-
-  aligned_free<Page<TestNode>>(page);
-
-  AtomicList pool;
-
-  auto seed = [&](TestNode *node) { pool.add(node); };
-  seed(new TestNode(1));
-  seed(new TestNode(2));
-  seed(new TestNode(3));
-
-  TestNode *node = static_cast<TestNode *>(pool.try_get());
-  assert(node != nullptr);
-  std::cout << "Got node value: " << node->value << "\n";
-
-  node = static_cast<TestNode *>(pool.try_get());
-  assert(node != nullptr);
-  std::cout << "Got node value: " << node->value << "\n";
-
-  node = static_cast<TestNode *>(pool.try_get());
-  assert(node != nullptr);
-  std::cout << "Got node value: " << node->value << "\n";
-
-  node = static_cast<TestNode *>(pool.try_get());
-  assert(node == nullptr);
-  std::cout << "Pool empty: ok\n";
-
+  std::println("Hello, congelado!");
   return 0;
 }

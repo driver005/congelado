@@ -2,9 +2,9 @@ CONAN_PROVIDER=out/conan_provider.cmake
 CMAKE_PRESET=Debug
 BUILD_DIR=out/build/$(CMAKE_PRESET)
 
-.PHONY: all download build clean info-outdated update editor test
+.PHONY: all download build clean info-outdated update editor dev test
 
-all: build
+all: dev
 
 dependency:
 	yay -S xmake conan libc++ --noconfirm
@@ -13,8 +13,13 @@ dependency:
 install:
 	xmake f -c -v
 
-build:
+dev: build editor
+
+run:
 	xmake run
+
+build:
+	xmake build
 
 benchmark:
 	xmake run benchmark
@@ -28,5 +33,9 @@ info-outdated:
 editor:
 	xmake project -k compile_commands
 
+clean-conan:
+	conan remove "*" -f
+
 clean:
-	rm -rf build/ ~/.conan2/ ~/.xmake/
+	xmake clean
+	# rm -rf build/ ~/.xmake/
