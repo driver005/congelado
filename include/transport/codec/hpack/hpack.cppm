@@ -79,23 +79,23 @@ class Hpack {
         while (pos < data.size()) {
             auto [rep_type, new_variant] = get_representation_type(data, pos);
             switch (rep_type) {
-            case shared::PrefixHelper::IndexedField:
+            case shared::PrefixHelper::HpackIndexedField:
                 push_field(decode_indexed(data, pos));
                 break;
-            case shared::PrefixHelper::LiteralWithIndexing: {
+            case shared::PrefixHelper::HpackLiteralWithIndexing: {
                 shared::HeaderField field =
                     new_variant ? decode_incremental_new(data, pos) : decode_incremental(data, pos);
                 m_decoding_table.insert(std::string{field.name()}, std::string{field.value()});
                 push_field(std::move(field));
                 break;
             }
-            case shared::PrefixHelper::LiteralWithoutIndexing:
+            case shared::PrefixHelper::HpackLiteralWithoutIndexing:
                 push_field(new_variant ? decode_without_indexing_new(data, pos) : decode_without_indexing(data, pos));
                 break;
-            case shared::PrefixHelper::LiteralNeverIndexed:
+            case shared::PrefixHelper::HpackLiteralNeverIndexed:
                 push_field(new_variant ? decode_never_indexed_new(data, pos) : decode_never_indexed(data, pos));
                 break;
-            case shared::PrefixHelper::DynamicTableSizeUpdate:
+            case shared::PrefixHelper::HpackDynamicTableSizeUpdate:
                 m_decoding_table.set_max_size(decode_table_size_update(data, pos));
                 break;
             }
@@ -125,8 +125,8 @@ class Hpack {
         bool new_variant = false;
 
         // IndexedField and DynamicTableSizeUpdate have no new-variant form.
-        if (rep_type != shared::PrefixHelper::IndexedField &&
-            rep_type != shared::PrefixHelper::DynamicTableSizeUpdate) {
+        if (rep_type != shared::PrefixHelper::HpackIndexedField &&
+            rep_type != shared::PrefixHelper::HpackDynamicTableSizeUpdate) {
             // All non-prefix bits are 0 → new variant (literal name follows).
             if (!(rep & ~std::to_underlying(rep_type))) {
                 ++pos; // consume the type byte
@@ -166,20 +166,20 @@ class Hpack {
     // 1xxxxxxx
     template <std::output_iterator<std::uint8_t> Out>
     void encode_indexed(UInt idx, Out out) {
-        shared::raw::Atom<UInt, Width>::encode_int(idx, 7u, shared::PrefixHelper::IndexedField, out);
+        shared::raw::Atom<UInt, Width>::encode_int(idx, 7u, shared::PrefixHelper::HpackIndexedField, out);
     }
 
     // 01xxxxxx + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_incremental(UInt idx, std::string_view value, Out out) {
-        shared::raw::Atom<UInt, Width>::encode_int(idx, 6u, shared::PrefixHelper::LiteralWithIndexing, out);
+        shared::raw::Atom<UInt, Width>::encode_int(idx, 6u, shared::PrefixHelper::HpackLiteralWithIndexing, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
 
     // 01000000 + name string + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_incremental_new(std::string_view name, std::string_view value, Out out) {
-        *out++ = std::to_underlying(shared::PrefixHelper::LiteralWithIndexing);
+        *out++ = std::to_underlying(shared::PrefixHelper::HpackLiteralWithIndexing);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, name, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
@@ -187,14 +187,14 @@ class Hpack {
     // 0000xxxx + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_without_indexing(UInt idx, std::string_view value, Out out) {
-        shared::raw::Atom<UInt, Width>::encode_int(idx, 4u, shared::PrefixHelper::LiteralWithoutIndexing, out);
+        shared::raw::Atom<UInt, Width>::encode_int(idx, 4u, shared::PrefixHelper::HpackLiteralWithoutIndexing, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
 
     // 00000000 + name string + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_without_indexing_new(std::string_view name, std::string_view value, Out out) {
-        *out++ = std::to_underlying(shared::PrefixHelper::LiteralWithoutIndexing);
+        *out++ = std::to_underlying(shared::PrefixHelper::HpackLiteralWithoutIndexing);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, name, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
@@ -202,14 +202,14 @@ class Hpack {
     // 0001xxxx + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_never_indexed(UInt idx, std::string_view value, Out out) {
-        shared::raw::Atom<UInt, Width>::encode_int(idx, 4u, shared::PrefixHelper::LiteralNeverIndexed, out);
+        shared::raw::Atom<UInt, Width>::encode_int(idx, 4u, shared::PrefixHelper::HpackLiteralNeverIndexed, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
 
     // 00010000 + name string + value string
     template <std::output_iterator<std::uint8_t> Out>
     void encode_never_indexed_new(std::string_view name, std::string_view value, Out out) {
-        *out++ = std::to_underlying(shared::PrefixHelper::LiteralNeverIndexed);
+        *out++ = std::to_underlying(shared::PrefixHelper::HpackLiteralNeverIndexed);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, name, out);
         shared::raw::Atom<UInt, Width>::encode_stirng(&m_huffman, value, out);
     }
@@ -217,7 +217,7 @@ class Hpack {
     // 001xxxxx
     template <std::output_iterator<std::uint8_t> Out>
     void encode_table_size_update(UInt size, Out out) {
-        shared::raw::Atom<UInt, Width>::encode_int(size, 5u, shared::PrefixHelper::DynamicTableSizeUpdate, out);
+        shared::raw::Atom<UInt, Width>::encode_int(size, 5u, shared::PrefixHelper::HpackDynamicTableSizeUpdate, out);
     }
 
     // Decode primitives
@@ -283,7 +283,7 @@ class Hpack {
     }
 
     // 001xxxxx
-    std::size_t decode_table_size_update(std::span<const std::uint8_t> data, std::size_t &pos) {
+    UInt decode_table_size_update(std::span<const std::uint8_t> data, std::size_t &pos) {
         const auto new_size = shared::raw::Atom<UInt, Width>::decode_int(data, pos, 5u);
         if (new_size > m_decoding_table.max_size())
             throw error::http::TableSizeError{new_size, m_decoding_table.max_size()};

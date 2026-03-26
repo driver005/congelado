@@ -1,23 +1,24 @@
 module;
 
-#include <cerrno>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
-export module server.udp:posix;
+export module udp:win32;
 
 import std;
 import socket;
-import modules.net;
 import :types;
 
-namespace server::udp {
+namespace transport::udp {
 
 Server Server::bind(std::string_view ip, std::uint16_t port) {
     Server s;
     s.m_sock.create_udp();
     s.m_sock.set_reuseaddr(true);
-    s.m_sock.bind(base::Endpoint(ip, port, SOCK_DGRAM));
+    s.m_sock.bind(base::Endpoint(ip, port));
     return s;
 }
 
@@ -42,30 +43,34 @@ std::ptrdiff_t Server::sendto(const void *data, std::size_t len, const base::End
 
 void Server::join_multicast(std::string_view group, std::string_view iface) {
     ip_mreq mreq{};
-    ::inet_pton(AF_INET, group.data(), &mreq.imr_multiaddr);
-    ::inet_pton(AF_INET, iface.data(), &mreq.imr_interface);
-    if (::setsockopt(static_cast<int>(m_sock.native_fd()), IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
-        throw base::SocketError(errno, "setsockopt(IP_ADD_MEMBERSHIP)");
+    ::InetPtonA(AF_INET, group.data(), &mreq.imr_multiaddr);
+    ::InetPtonA(AF_INET, iface.data(), &mreq.imr_interface);
+    if (::setsockopt(static_cast<SOCKET>(m_sock.native_fd()), IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                     reinterpret_cast<const char *>(&mreq), sizeof(mreq)) == SOCKET_ERROR)
+        throw base::SocketError(::WSAGetLastError(), "setsockopt(IP_ADD_MEMBERSHIP)");
 }
 
 void Server::leave_multicast(std::string_view group, std::string_view iface) {
     ip_mreq mreq{};
-    ::inet_pton(AF_INET, group.data(), &mreq.imr_multiaddr);
-    ::inet_pton(AF_INET, iface.data(), &mreq.imr_interface);
-    if (::setsockopt(static_cast<int>(m_sock.native_fd()), IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
-        throw base::SocketError(errno, "setsockopt(IP_DROP_MEMBERSHIP)");
+    ::InetPtonA(AF_INET, group.data(), &mreq.imr_multiaddr);
+    ::InetPtonA(AF_INET, iface.data(), &mreq.imr_interface);
+    if (::setsockopt(static_cast<SOCKET>(m_sock.native_fd()), IPPROTO_IP, IP_DROP_MEMBERSHIP,
+                     reinterpret_cast<const char *>(&mreq), sizeof(mreq)) == SOCKET_ERROR)
+        throw base::SocketError(::WSAGetLastError(), "setsockopt(IP_DROP_MEMBERSHIP)");
 }
 
 void Server::set_multicast_ttl(std::uint8_t ttl) {
-    ::setsockopt(static_cast<int>(m_sock.native_fd()), IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+    ::setsockopt(static_cast<SOCKET>(m_sock.native_fd()), IPPROTO_IP, IP_MULTICAST_TTL,
+                 reinterpret_cast<const char *>(&ttl), sizeof(ttl));
 }
 
 void Server::set_recv_buf(int bytes) {
-    ::setsockopt(static_cast<int>(m_sock.native_fd()), SOL_SOCKET, SO_RCVBUF, &bytes, sizeof(bytes));
+    ::setsockopt(static_cast<SOCKET>(m_sock.native_fd()), SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char *>(&bytes),
+                 sizeof(bytes));
 }
 
 void Server::close() noexcept { m_sock.close(); }
 void Server::set_nonblocking(bool on) { m_sock.set_nonblocking(on); }
 void Server::set_recv_timeout(base::timeout_t t) noexcept { m_sock.set_recv_timeout(t); }
 
-} // namespace server::udp
+} // namespace transport::udp

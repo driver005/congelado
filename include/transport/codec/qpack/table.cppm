@@ -3,7 +3,7 @@ export module qpack:table;
 import std;
 import shared;
 
-export namespace codec::quic::qpack {
+export namespace codec::qpack::table {
 
 inline constexpr std::array<std::pair<std::string_view, std::string_view>, 99> k_static_table = {{
     /* 0  */ {":authority", ""},
@@ -225,10 +225,10 @@ class HeaderTable {
     }
 
     [[nodiscard]] std::size_t insert_count() const noexcept { return static_cast<std::size_t>(m_dyn.insert_count()); }
-    [[nodiscard]] std::size_t capacity() const noexcept { return m_dyn.max_size(); }
     [[nodiscard]] std::size_t used() const noexcept { return m_dyn.current_size(); }
     [[nodiscard]] std::size_t dynamic_count() const noexcept { return m_dyn.size(); }
     [[nodiscard]] std::size_t blocked_count() const noexcept { return m_blocked.size(); }
+    [[nodiscard]] std::size_t max_size() const noexcept { return m_dyn.max_size(); }
 
   private:
     struct BlockedStream {
@@ -240,4 +240,4 @@ class HeaderTable {
     std::vector<BlockedStream> m_blocked;
 };
 
-} // namespace codec::quic::qpack
+} // namespace codec::qpack::table

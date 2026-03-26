@@ -42,6 +42,9 @@ class SearchResult {
 template <int W>
 concept DecodeWidth = W > 0 && (W & (W - 1)) == 0 && 8 % W == 0;
 
+template <typename T>
+concept CastableToUint8 = std::convertible_to<T, std::uint8_t>;
+
 class HeaderField {
   public:
     HeaderField(std::string name, std::string value) : m_name{std::move(name)}, m_value{std::move(value)} {
@@ -78,43 +81,74 @@ class HeaderField {
 //   Checks are done from most-specific to least-specific so that
 //   overlapping masks never mis-classify a byte.
 enum class PrefixHelper : std::uint8_t {
-    // Binary 10000000
-    IndexedField = 0x80,
+    /* --- HPACK (HTTP/2) Specific --- */
+    HpackIndexedField = 0x80,           // 1....... (N=7)
+    HpackLiteralWithIndexing = 0x40,    // 01...... (N=6)
+    HpackDynamicTableSizeUpdate = 0x20, // 001..... (N=5)
+    HpackLiteralNeverIndexed = 0x10,    // 0001.... (N=4)
+    HpackLiteralWithoutIndexing = 0x00, // 0000.... (N=4)
 
-    // Binary 01000000
-    LiteralWithIndexing = 0x40,
+    /* --- QPACK (HTTP/3) Request Stream --- */
+    QpackIndexedField = 0x80,            // 1....... (N=7)
+    QpackLiteralWithStaticName = 0x40,   // 01...... (N=6)
+    QpackLiteralWithDynamicName = 0x10,  // 0001.... (N=4)
+    QpackLiteralWithPostBaseName = 0x20, // 001..... (N=5)
+    QpackLiteralName = 0x08,             // 00001... (N=3)
+    QpackLiteralPostBaseName = 0x00,     // 00000... (N=3)
 
-    // Binary 00100000
-    DynamicTableSizeUpdate = 0x20,
+    /* --- QPACK (HTTP/3) Encoder Stream --- */
+    QpackEncInsertWithStaticName = 0x80,  // 1....... (N=7)
+    QpackEncInsertWithDynamicName = 0x40, // 01...... (N=6)
+    QpackEncInsertLiteralName = 0x00,     // 00...... (N=6)
+    QpackEncDuplicate = 0x40,             // 01...... (N=6)
+    QpackEncSetCapacity = 0x20,           // 001..... (N=5)
 
-    // Binary 00010000
-    LiteralNeverIndexed = 0x10,
+    /* --- QPACK (HTTP/3) Decoder Stream --- */
+    QpackDecHeaderAck = 0x80,            // 1....... (N=7)
+    QpackDecStreamCancellation = 0x40,   // 01...... (N=6)
+    QpackDecInsertCountIncrement = 0x00, // 00...... (N=6)
 
-    // Binary 00000000
-    LiteralWithoutIndexing = 0x00,
+    /* --- Shared Decoder / Encoder stream --- */
+    QpackDynamicTableSizeUpdate = 0x20, // 001..... (N=5)
 
-    // Binary 10000000
-    HuffmanString = 0x80,
-
-    // Binary 00000000
-    RawString = 0x00,
+    /* --- Shared String Constants --- */
+    HuffmanEnabled = 0x80, // 1.......
+    HuffmanDisabled = 0x00 // 0.......
 };
 
 /// Detect the representation type from the first byte of a field block.
 [[nodiscard]] PrefixHelper detect_representation(std::uint8_t b) {
-    if (b & std::to_underlying(PrefixHelper::IndexedField)) {
-        return PrefixHelper::IndexedField;
-    } else if (b & std::to_underlying(PrefixHelper::IndexedField)) {
-        return PrefixHelper::LiteralWithIndexing;
-    } else if (b & std::to_underlying(PrefixHelper::IndexedField)) {
-        return PrefixHelper::DynamicTableSizeUpdate;
-    } else if (b & std::to_underlying(PrefixHelper::IndexedField)) {
-        return PrefixHelper::LiteralNeverIndexed;
-    } else if (b & std::to_underlying(PrefixHelper::IndexedField)) {
-        return PrefixHelper::LiteralWithoutIndexing;
+    if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
+        return PrefixHelper::HpackIndexedField;
+    } else if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
+        return PrefixHelper::HpackLiteralWithIndexing;
+    } else if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
+        return PrefixHelper::HpackDynamicTableSizeUpdate;
+    } else if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
+        return PrefixHelper::HpackLiteralNeverIndexed;
+    } else if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
+        return PrefixHelper::HpackLiteralWithoutIndexing;
     }
 
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
+
+// Operator overloads for PrefixHelper
+constexpr std::uint8_t operator|(PrefixHelper lhs, std::uint8_t rhs) { return static_cast<std::uint8_t>(lhs) | rhs; }
+
+constexpr std::uint8_t operator|(std::uint8_t lhs, PrefixHelper rhs) { return lhs | static_cast<std::uint8_t>(rhs); }
+
+constexpr std::uint8_t operator|(PrefixHelper lhs, PrefixHelper rhs) {
+    return static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs);
+}
+
+constexpr PrefixHelper &operator|=(PrefixHelper &lhs, std::uint8_t rhs) {
+    lhs = static_cast<PrefixHelper>(static_cast<std::uint8_t>(lhs) | rhs);
+    return lhs;
+}
+
+constexpr std::uint8_t operator&(PrefixHelper lhs, std::uint8_t rhs) { return static_cast<std::uint8_t>(lhs) & rhs; }
+
+constexpr std::uint8_t operator&(std::uint8_t lhs, PrefixHelper rhs) { return lhs & static_cast<std::uint8_t>(rhs); }
 
 } // namespace codec::shared

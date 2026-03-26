@@ -21,16 +21,23 @@ struct TlsError : std::runtime_error {
     }
 };
 
+
+/**
+ * @brief Managed OpenSSL Context
+ */
 class SslCtx {
   public:
     SslCtx() = default;
+    explicit SslCtx(::SSL_CTX *ctx) : m_ctx(ctx) {}
     ~SslCtx() {
         if (m_ctx)
             ::SSL_CTX_free(m_ctx);
     }
+
     SslCtx(const SslCtx &) = delete;
     SslCtx &operator=(const SslCtx &) = delete;
     SslCtx(SslCtx &&o) noexcept : m_ctx(std::exchange(o.m_ctx, nullptr)) {}
+
     SslCtx &operator=(SslCtx &&o) noexcept {
         if (this != &o) {
             if (m_ctx)
@@ -40,83 +47,39 @@ class SslCtx {
         return *this;
     }
 
-    // Base factory — protocol layers supply the SSL_METHOD and optional ALPN callback.
-    // Default method is TLS_server_method() (TLS 1.2+), which is compatible with both h2 and h3.
-    static SslCtx from_files(std::string_view cert_pem, std::string_view key_pem,
-                             const SSL_METHOD *method = TLS_server_method(),
-                             SSL_CTX_alpn_select_cb_func alpn_cb = nullptr);
+    static SslCtx from_files(std::string_view cert, std::string_view key,
+                             const ::SSL_METHOD *method = ::TLS_server_method(),
+                             ::SSL_CTX_alpn_select_cb_func alpn_cb = nullptr) {
+        ::SSL_CTX *ctx = ::SSL_CTX_new(method);
+        if (!ctx)
+            throw TlsError("SSL_CTX_new");
 
-    [[nodiscard]] SSL_CTX *get() const noexcept { return m_ctx; }
+        if (::SSL_CTX_use_certificate_chain_file(ctx, cert.data()) != 1) {
+            ::SSL_CTX_free(ctx);
+            throw TlsError("SSL_CTX_use_certificate_chain_file");
+        }
+        if (::SSL_CTX_use_PrivateKey_file(ctx, key.data(), SSL_FILETYPE_PEM) != 1) {
+            ::SSL_CTX_free(ctx);
+            throw TlsError("SSL_CTX_use_PrivateKey_file");
+        }
+
+        ::SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+        if (alpn_cb)
+            ::SSL_CTX_set_alpn_select_cb(ctx, alpn_cb, nullptr);
+
+        return SslCtx{ctx};
+    }
+
+    [[nodiscard]] ::SSL_CTX *get() const {
+        if (!m_ctx)
+            throw TlsError("SslCtx::get() called on invalid context");
+        return m_ctx;
+    }
+
     [[nodiscard]] bool valid() const noexcept { return m_ctx != nullptr; }
 
-  protected:
-    explicit SslCtx(SSL_CTX *ctx) : m_ctx(ctx) {}
-    SSL_CTX *m_ctx{nullptr};
-};
-
-// ── Connection ────────────────────────────────────────────────────────────────
-class Connection {
-  public:
-    static Connection upgrade(transport::tcp::Connection &&tcp, SSL_CTX *ctx);
-
-    Connection() = default;
-    ~Connection() { close(); }
-    Connection(const Connection &) = delete;
-    Connection &operator=(const Connection &) = delete;
-    Connection(Connection &&o) noexcept : m_tcp(std::move(o.m_tcp)), m_ssl(std::exchange(o.m_ssl, nullptr)) {}
-    Connection &operator=(Connection &&o) noexcept {
-        if (this != &o) {
-            close();
-            m_tcp = std::move(o.m_tcp);
-            m_ssl = std::exchange(o.m_ssl, nullptr);
-        }
-        return *this;
-    }
-
-    [[nodiscard]] std::ptrdiff_t send(std::span<const std::byte> buf);
-    [[nodiscard]] std::ptrdiff_t recv(std::span<std::byte> buf);
-    void close() noexcept;
-
-    [[nodiscard]] bool valid() const noexcept { return m_ssl != nullptr; }
-    [[nodiscard]] std::string peer_addr() const { return m_tcp.peer(); }
-    [[nodiscard]] SSL *ssl() const noexcept { return m_ssl; }
-
-    // Negotiated ALPN protocol ("h2", "http/1.1", "h3", …). Empty if none.
-    [[nodiscard]] std::string_view alpn() const noexcept {
-        const unsigned char *data{};
-        unsigned int len{};
-        ::SSL_get0_alpn_selected(m_ssl, &data, &len);
-        return {reinterpret_cast<const char *>(data), len};
-    }
-
-  protected:
-    Connection(transport::tcp::Connection &&tcp, SSL *ssl) : m_tcp(std::move(tcp)), m_ssl(ssl) {}
-
-    transport::tcp::Connection m_tcp{};
-    SSL *m_ssl{nullptr};
-};
-
-// ── Server ────────────────────────────────────────────────────────────────────
-class Server {
-  public:
-    static Server listen(std::string_view ip, std::uint16_t port, SslCtx &ctx, int backlog = 128);
-    static Server listen(std::uint16_t port, SslCtx &ctx, int backlog = 128);
-
-    Server() = default;
-    Server(const Server &) = delete;
-    Server &operator=(const Server &) = delete;
-    Server(Server &&) noexcept = default;
-    Server &operator=(Server &&) noexcept = default;
-    ~Server() = default;
-
-    [[nodiscard]] Connection accept();
-    void set_nonblocking(bool on);
-    [[nodiscard]] bool valid() const noexcept { return m_tcp.valid(); }
-    void close() noexcept { m_tcp.close(); }
-
   private:
-    transport::tcp::Server m_tcp{};
-    SSL_CTX *m_ctx{nullptr};
+    ::SSL_CTX *m_ctx{nullptr};
 };
 
 } // namespace transport::tls

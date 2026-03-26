@@ -1,9 +1,6 @@
-module;
-#include <type_traits>
-export module hpack:types;
+export module qpack:types;
+
 import std;
-import error;
-import :consts;
 
 // Some header that are recommended
 constexpr std::string_view NEVER_INDEXED[] = {
@@ -13,7 +10,7 @@ constexpr std::string_view NEVER_INDEXED[] = {
     "set-cookie",
 };
 
-export namespace codec::hpack {
+export namespace codec::qpack {
 
 enum class EncodePolicy : std::uint8_t {
     WithIndexing,
@@ -28,4 +25,4 @@ enum class EncodePolicy : std::uint8_t {
 
     return EncodePolicy::WithIndexing;
 }
-} // namespace codec::hpack
+} // namespace codec::qpack

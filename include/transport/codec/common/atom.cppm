@@ -33,8 +33,9 @@ class Atom {
     // | 0 |    Value-(2^N-1) MSB      |
     // +---+---------------------------+
 
-    template <std::output_iterator<std::uint8_t> Out>
-    static void encode_int(UInt data, std::uint8_t prefix_size, PrefixHelper prefix_data, Out out) {
+    template <std::output_iterator<std::uint8_t> Out, typename PrefixType>
+        requires CastableToUint8<PrefixType>
+    static void encode_int(UInt data, std::uint8_t prefix_size, PrefixType prefix_data, Out out) {
         if (prefix_size < 1 || prefix_size > 8)
             throw std::invalid_argument("prefix must be in range [1,8] (inclusive)");
 
@@ -44,7 +45,8 @@ class Atom {
         const std::uint8_t mask = static_cast<std::uint8_t>(max_prefix);
 
         // Extract Enum type
-        const std::uint8_t prefix = std::to_underlying(prefix_data);
+        constexpr std::uint8_t prefix =
+            std::is_same_v<PrefixType, std::uint8_t> ? prefix_data : static_cast<std::uint8_t>(prefix_data);
 
         // if I < 2^N - 1, encode I on N bits
         //    else
@@ -158,7 +160,7 @@ class Atom {
             // TODO: wait for cpp26 and use std::narrowing_cast
             assert(encoded.size() <= std::numeric_limits<UInt>::max());
             // Write length then Huffman bytes directly into out.
-            encode_int<Out>(encoded.size(), 7, PrefixHelper::HuffmanString, out);
+            encode_int<Out>(encoded.size(), 7, PrefixHelper::HuffmanEnabled, out);
 
             for (std::uint8_t byte : encoded) {
                 *out++ = byte;
@@ -166,7 +168,7 @@ class Atom {
         } else {
             // TODO: wait for cpp26 and use std::narrowing_cast
             assert(str.size() <= std::numeric_limits<UInt>::max());
-            encode_int<Out>(str.size(), 7, PrefixHelper::RawString, out);
+            encode_int<Out>(str.size(), 7, PrefixHelper::HuffmanDisabled, out);
 
             for (std::uint8_t ch : str) {
                 *out++ = ch;

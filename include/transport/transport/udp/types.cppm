@@ -1,9 +1,9 @@
-export module server.udp:types;
+export module udp:types;
 
 import std;
 import socket;
 
-namespace server::udp {
+namespace transport::udp {
 
 export class Server {
   public:
@@ -38,12 +38,14 @@ export class Server {
     void set_recv_buf(int bytes);
     void set_recv_timeout(base::timeout_t t) noexcept;
 
+    [[nodiscard]] int native_fd() const noexcept { return static_cast<int>(m_sock.native_fd()); }
     [[nodiscard]] bool valid() const noexcept { return m_sock.valid(); }
 
     void close() noexcept;
+
 
   private:
     base::Socket m_sock{};
 };
 
-} // namespace server::udp
+} // namespace transport::udp
