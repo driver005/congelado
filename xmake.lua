@@ -11,13 +11,13 @@ local conan = {
 	settings = {
 		"compiler=clang",
 		"compiler.version=20",
-		"compiler.cppstd=gnu23",
+		"compiler.cppstd=gnu26",
 	},
 	settings_build = {
 		"os=Linux",
 		"compiler=clang",
 		"compiler.version=20",
-		"compiler.cppstd=gnu23",
+		"compiler.cppstd=gnu26",
 	},
 	options = {
 		"openssl/*:enable_quic=True",
@@ -50,11 +50,11 @@ add_requires("conan::libnghttp2/1.66.0", { alias = "nghttp2", configs = conan })
 add_requires("conan::nghttp3/1.12.0", { alias = "nghttp3", configs = conan })
 add_requires("conan::simdjson/4.2.4", { alias = "simdjson", configs = conan })
 add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
-add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
+-- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 
 -- 3. Global Compilation Settings
-set_languages("c++23", "c11")
+set_languages("c++26", "c11")
 set_warnings("all", "extra", "error")
 
 if is_plat("linux", "macosx") then

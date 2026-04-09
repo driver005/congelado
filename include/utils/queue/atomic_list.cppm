@@ -5,8 +5,8 @@ import std;
 import node;
 import consts;
 
-export class AtomicList {
 
+export class AtomicList {
   public:
     Node *try_get() noexcept {
         auto head = m_head.load(std::memory_order_acquire);

@@ -9,7 +9,7 @@ import std;
 import socket;
 import :types;
 
-namespace transport::tcp {
+namespace  tcp {
 
 std::ptrdiff_t Connection::send(std::span<const std::byte> buf, int flags) { return m_sock.send(buf, flags); }
 
@@ -52,4 +52,4 @@ Connection Server::accept() {
 void Server::close() noexcept { m_sock.close(); }
 void Server::set_nonblocking(bool on) { m_sock.set_nonblocking(on); }
 
-} // namespace transport::tcp
+} // namespace  tcp

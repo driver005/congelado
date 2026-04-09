@@ -1,3 +1,3 @@
-export module error;
+export module transport_error;
 
 export import :http;

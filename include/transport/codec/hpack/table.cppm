@@ -1,172 +1,141 @@
 export module hpack:table;
+
 import std;
+import transport_codec_shared;
+import transport_shared;
 import :consts;
-import shared;
 
-export namespace codec::hpack::table {
+export namespace transport::codec::hpack {
 
-inline constexpr std::array<std::pair<std::string_view, std::string_view>, 61> k_static_table = {{
-    /* 0  */ {":authority", ""},
-    /* 1  */ {":method", "GET"},
-    /* 2  */ {":method", "POST"},
-    /* 3  */ {":path", "/"},
-    /* 4  */ {":path", "/index.html"},
-    /* 5  */ {":scheme", "http"},
-    /* 6  */ {":scheme", "https"},
-    /* 7  */ {":status", "200"},
-    /* 8  */ {":status", "204"},
-    /* 9  */ {":status", "206"},
-    /* 10 */ {":status", "304"},
-    /* 11 */ {":status", "400"},
-    /* 12 */ {":status", "404"},
-    /* 13 */ {":status", "500"},
-    /* 14 */ {"accept-charset", ""},
-    /* 15 */ {"accept-encoding", "gzip, deflate"},
-    /* 16 */ {"accept-language", ""},
-    /* 17 */ {"accept-ranges", ""},
-    /* 18 */ {"accept", ""},
-    /* 19 */ {"access-control-allow-origin", ""},
-    /* 20 */ {"age", ""},
-    /* 21 */ {"allow", ""},
-    /* 22 */ {"authorization", ""},
-    /* 23 */ {"cache-control", ""},
-    /* 24 */ {"content-disposition", ""},
-    /* 25 */ {"content-encoding", ""},
-    /* 26 */ {"content-language", ""},
-    /* 27 */ {"content-length", ""},
-    /* 28 */ {"content-location", ""},
-    /* 29 */ {"content-range", ""},
-    /* 30 */ {"content-type", ""},
-    /* 31 */ {"cookie", ""},
-    /* 32 */ {"date", ""},
-    /* 33 */ {"etag", ""},
-    /* 34 */ {"expect", ""},
-    /* 35 */ {"expires", ""},
-    /* 36 */ {"from", ""},
-    /* 37 */ {"host", ""},
-    /* 38 */ {"if-match", ""},
-    /* 39 */ {"if-modified-since", ""},
-    /* 40 */ {"if-none-match", ""},
-    /* 41 */ {"if-range", ""},
-    /* 42 */ {"if-unmodified-since", ""},
-    /* 43 */ {"last-modified", ""},
-    /* 44 */ {"link", ""},
-    /* 45 */ {"location", ""},
-    /* 46 */ {"max-forwards", ""},
-    /* 47 */ {"proxy-authenticate", ""},
-    /* 48 */ {"proxy-authorization", ""},
-    /* 49 */ {"range", ""},
-    /* 50 */ {"referer", ""},
-    /* 51 */ {"refresh", ""},
-    /* 52 */ {"retry-after", ""},
-    /* 53 */ {"server", ""},
-    /* 54 */ {"set-cookie", ""},
-    /* 55 */ {"strict-transport-security", ""},
-    /* 56 */ {"transfer-encoding", ""},
-    /* 57 */ {"user-agent", ""},
-    /* 58 */ {"vary", ""},
-    /* 59 */ {"via", ""},
-    /* 60 */ {"www-authenticate", ""},
-}};
+inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> k_static_table = {
+    /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authority, ""),
+    /* 1  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "GET"),
+    /* 2  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "POST"),
+    /* 3  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Path, "/"),
+    /* 4  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Path, "/index.html"),
+    /* 5  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Scheme, "http"),
+    /* 6  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Scheme, "https"),
+    /* 7  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "200"),
+    /* 8  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "204"),
+    /* 9  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "206"),
+    /* 10 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "304"),
+    /* 11 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "400"),
+    /* 12 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "404"),
+    /* 13 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "500"),
+    /* 14 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptCharset, ""),
+    /* 15 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptEncoding, "gzip, deflate"),
+    /* 16 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptLanguage, ""),
+    /* 17 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptRanges, ""),
+    /* 18 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Accept, ""),
+    /* 19 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowOrigin, ""),
+    /* 20 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Age, ""),
+    /* 21 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Allow, ""),
+    /* 22 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authorization, ""),
+    /* 23 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, ""),
+    /* 24 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentDisposition, ""),
+    /* 25 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentEncoding, ""),
+    /* 26 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentLanguage, ""),
+    /* 27 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentLength, ""),
+    /* 28 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentLocation, ""),
+    /* 29 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentRange, ""),
+    /* 30 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, ""),
+    /* 31 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Cookie, ""),
+    /* 32 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Date, ""),
+    /* 33 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ETag, ""),
+    /* 34 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Expect, ""),
+    /* 35 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Expires, ""),
+    /* 36 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::From, ""),
+    /* 37 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Host, ""),
+    /* 38 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfMatch, ""),
+    /* 39 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfModifiedSince, ""),
+    /* 40 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfNoneMatch, ""),
+    /* 41 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfRange, ""),
+    /* 42 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfUnmodifiedSince, ""),
+    /* 43 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::LastModified, ""),
+    /* 44 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Link, ""),
+    /* 45 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Location, ""),
+    /* 46 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::MaxForwards, ""),
+    /* 47 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ProxyAuthenticate, ""),
+    /* 48 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ProxyAuthorization, ""),
+    /* 49 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Range, ""),
+    /* 50 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Referer, ""),
+    /* 51 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Refresh, ""),
+    /* 52 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::RetryAfter, ""),
+    /* 53 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Server, ""),
+    /* 54 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SetCookie, ""),
+    /* 55 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::StrictTransportSecurity, ""),
+    /* 56 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::TransferEncoding, ""),
+    /* 57 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::UserAgent, ""),
+    /* 58 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Vary, ""),
+    /* 59 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Via, ""),
+    /* 60 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::WwwAuthenticate, ""),
+};
 
-using HpackStatic = shared::table::StaticTable<k_static_table>;
+using HPackStatic = shared_codec::table::StaticTable<k_static_table>;
 
-// ─────────────────────────────────────────────────────────────────────────────
 // HeaderTable — RFC 7541 unified index space
-//
-// search() returns a SearchResult (std::size_t) where shared::table::sr_index() is the
-// 1-based RFC index into the unified static + dynamic space.
-//
-// Static table results: shared::table::sr_index() in [1..61]
-// Dynamic table results: shared::table::sr_index() in [62..]
-// ─────────────────────────────────────────────────────────────────────────────
-class HeaderTable {
+class HPackTable {
   public:
-    explicit HeaderTable(std::size_t max_size = DEFAULT_MAX_TABLE_SIZE) : m_dyn{max_size} {}
+    explicit HPackTable(std::size_t max_size = DEFAULT_MAX_TABLE_SIZE) : m_dyn{max_size} {}
 
-    // ── Lookup by 1-based RFC index ───────────────────────────────────────────
-
-    [[nodiscard]] std::optional<std::pair<std::string_view, std::string_view>>
-    operator[](std::size_t idx) const noexcept {
+    [[nodiscard]] std::optional<shared::http::HeaderEntry> operator[](std::size_t idx) const noexcept {
         if (idx == 0)
             return std::nullopt;
-        if (idx <= HpackStatic::STATIC_SIZE)
-            return HpackStatic::at(idx - 1);
-        if (const auto *e = m_dyn.at_pos(idx - HpackStatic::STATIC_SIZE - 1))
-            return std::make_pair(e->name(), e->value());
+
+        if (idx <= HPackStatic::STATIC_SIZE)
+            return HPackStatic::at(idx - 1);
+
+        if (const auto field = m_dyn.at_positon(idx - HPackStatic::STATIC_SIZE - 1); field.has_value())
+            return field;
+
         return std::nullopt;
     }
 
-    [[nodiscard]] std::pair<std::string_view, std::string_view> at(std::size_t idx) const {
+    [[nodiscard]] shared::http::HeaderEntry at(std::size_t idx) const {
         if (auto r = (*this)[idx])
             return *r;
         throw std::out_of_range{"hpack::HeaderTable: invalid index"};
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
-    // Returns SearchResult{} if not found.
-    // sr_index() = 1-based RFC index on hit.
-    // sr_is_static() / shared::table::sr_full_match() describe the match quality.
-    //
-    // Priority: static exact > dynamic exact > static name > dynamic name.
 
-    [[nodiscard]] shared::SearchResult search(std::string_view name, std::string_view value) const noexcept {
-        // 1. Static exact → sr_index = orig_idx + 1 (0→1-based)
-        if (auto r = HpackStatic::find(name, value))
-            return shared::SearchResult{
-                r.index() + 1,
-                true,
-                true,
-            };
-
-        // 2. Dynamic exact → sr_index = STATIC_SIZE + deque_pos + 1
-        if (auto r = m_dyn.search(name, value); r.found() && r.is_full_match()) {
-            // sr_index(r) from DynamicTable is abs = gen-1
-            // gen = abs + 1, pos = gen_to_pos(gen)
-            const std::size_t pos = m_dyn.gen_to_pos(r.index() + 1);
-            return shared::SearchResult{
-                HpackStatic::STATIC_SIZE + pos + 1,
-                false,
-                true,
-            };
+    [[nodiscard]] shared_codec::SearchResult search(std::string_view name, std::string_view value) const noexcept {
+        if (auto result = HPackStatic::search_full_match<shared_codec::IndexCalculation::HPack>(name, value);
+            result.found()) {
+            return result;
         }
 
-        // 3. Static name-only
-        if (auto r = HpackStatic::find_name(name))
-            return shared::SearchResult{
-                r.index() + 1,
-                true,
-                false,
-            };
-
-        // 4. Dynamic name-only
-        if (auto r = m_dyn.search(name, {}); r.found()) {
-            const std::size_t pos = m_dyn.gen_to_pos(r.index() + 1);
-            return shared::SearchResult{
-                HpackStatic::STATIC_SIZE + pos + 1,
-                false,
-                false,
-            };
+        if (auto result = m_dyn.search_full_match<shared_codec::IndexCalculation::HPack>(name, value); result.found()) {
+            return result;
         }
 
-        return shared::SearchResult{};
+        if (auto result = HPackStatic::search_name_only<shared_codec::IndexCalculation::HPack>(name); result.found()) {
+            return result;
+        }
+
+        if (auto result = m_dyn.search_name_only<shared_codec::IndexCalculation::HPack>(name); result.found()) {
+            return result;
+        }
+
+        return shared_codec::SearchResult::none();
     }
 
-    // ── Mutation ──────────────────────────────────────────────────────────────
+    std::size_t insert(std::string_view name, std::string_view value) {
+        return m_dyn.insert<shared_codec::IndexCalculation::HPack>(name, value);
+    }
 
-    void insert(std::string name, std::string value) { m_dyn.insert(std::move(name), std::move(value)); }
+    std::size_t insert(shared::http::Token token, std::string_view value) {
+        return m_dyn.insert<shared_codec::IndexCalculation::HPack>(std::move(token), value);
+    }
 
     void set_max_size(std::size_t new_max) { m_dyn.set_max_size(new_max); }
 
-    // ── Accessors ─────────────────────────────────────────────────────────────
-
-    [[nodiscard]] std::size_t max_size() const noexcept { return m_dyn.max_size(); }
-    [[nodiscard]] std::size_t current_size() const noexcept { return m_dyn.current_size(); }
-    [[nodiscard]] std::size_t dynamic_count() const noexcept { return m_dyn.size(); }
-    [[nodiscard]] std::size_t total_entries() const noexcept { return HpackStatic::STATIC_SIZE + m_dyn.size(); }
+    [[nodiscard]] std::size_t max_size() const noexcept { return m_dyn.get_max_size(); }
+    [[nodiscard]] std::size_t current_size() const noexcept { return m_dyn.get_current_size(); }
+    [[nodiscard]] std::size_t dynamic_count() const noexcept { return m_dyn.get_size(); }
+    [[nodiscard]] std::size_t total_entries() const noexcept { return HPackStatic::STATIC_SIZE + m_dyn.get_size(); }
 
   private:
-    shared::table::DynamicTable m_dyn;
+    shared_codec::table::DynamicTable m_dyn;
 };
 
-} // namespace codec::hpack::table
+} // namespace transport::codec::hpack

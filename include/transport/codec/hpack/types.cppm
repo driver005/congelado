@@ -2,7 +2,7 @@ module;
 #include <type_traits>
 export module hpack:types;
 import std;
-import error;
+import transport_error;
 import :consts;
 
 // Some header that are recommended
@@ -13,7 +13,7 @@ constexpr std::string_view NEVER_INDEXED[] = {
     "set-cookie",
 };
 
-export namespace codec::hpack {
+export namespace transport::codec::hpack {
 
 enum class EncodePolicy : std::uint8_t {
     WithIndexing,

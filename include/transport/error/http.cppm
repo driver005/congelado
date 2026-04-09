@@ -1,8 +1,8 @@
-export module error:http;
+export module transport_error:http;
 
 import std;
 
-export namespace error::http {
+export namespace transport::error::http {
 
 // HTTP/2 Error Codes as defined in RFC 9113
 enum class Http2ErrorCode : std::uint32_t {
@@ -49,11 +49,47 @@ enum class Http2ErrorCode : std::uint32_t {
     HTTP_1_1_REQUIRED = 0x0d
 };
 
+constexpr Http2ErrorCode get_http2_error_code(std::uint32_t code) {
+    switch (code) {
+    case std::to_underlying(Http2ErrorCode::NO_ERROR_CODE):
+        return Http2ErrorCode::NO_ERROR_CODE;
+    case std::to_underlying(Http2ErrorCode::PROTOCOL_ERROR):
+        return Http2ErrorCode::PROTOCOL_ERROR;
+    case std::to_underlying(Http2ErrorCode::INTERNAL_ERROR):
+        return Http2ErrorCode::INTERNAL_ERROR;
+    case std::to_underlying(Http2ErrorCode::FLOW_CONTROL_ERROR):
+        return Http2ErrorCode::FLOW_CONTROL_ERROR;
+    case std::to_underlying(Http2ErrorCode::SETTINGS_TIMEOUT):
+        return Http2ErrorCode::SETTINGS_TIMEOUT;
+    case std::to_underlying(Http2ErrorCode::STREAM_CLOSED):
+        return Http2ErrorCode::STREAM_CLOSED;
+    case std::to_underlying(Http2ErrorCode::FRAME_SIZE_ERROR):
+        return Http2ErrorCode::FRAME_SIZE_ERROR;
+    case std::to_underlying(Http2ErrorCode::REFUSED_STREAM):
+        return Http2ErrorCode::REFUSED_STREAM;
+    case std::to_underlying(Http2ErrorCode::CANCEL):
+        return Http2ErrorCode::CANCEL;
+    case std::to_underlying(Http2ErrorCode::COMPRESSION_ERROR):
+        return Http2ErrorCode::COMPRESSION_ERROR;
+    case std::to_underlying(Http2ErrorCode::CONNECT_ERROR):
+        return Http2ErrorCode::CONNECT_ERROR;
+    case std::to_underlying(Http2ErrorCode::ENHANCE_YOUR_CALM):
+        return Http2ErrorCode::ENHANCE_YOUR_CALM;
+    case std::to_underlying(Http2ErrorCode::INADEQUATE_SECURITY):
+        return Http2ErrorCode::INADEQUATE_SECURITY;
+    case std::to_underlying(Http2ErrorCode::HTTP_1_1_REQUIRED):
+        return Http2ErrorCode::HTTP_1_1_REQUIRED;
+    default:
+        // Default to INTERNAL_ERROR for unknown codes
+        return Http2ErrorCode::INTERNAL_ERROR;
+    }
+}
+
 // Base class for HTTP/2 protocol errors
 class Http2Exception : public std::runtime_error {
   public:
     Http2Exception(Http2ErrorCode code, const std::string &msg) : std::runtime_error(msg), error_code(code) {}
-    Http2ErrorCode code() const { return error_code; }
+    Http2ErrorCode get_code() const { return error_code; }
 
   private:
     Http2ErrorCode error_code;
@@ -63,17 +99,25 @@ class Http2Exception : public std::runtime_error {
 class StreamError : public Http2Exception {
   public:
     StreamError(std::uint32_t stream_id, Http2ErrorCode code, const std::string &msg)
-        : Http2Exception(code, msg), stream_id(stream_id) {}
-    std::uint32_t streamId() const { return stream_id; }
+        : Http2Exception(code, msg), m_stream_id{stream_id} {}
+
+    std::uint32_t get_stream_id() const { return m_stream_id; }
 
   private:
-    std::uint32_t stream_id;
+    std::uint32_t m_stream_id;
 };
 
+inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1u << 31) - 1; // 2147483647 (2^31 - 1)
 // Represents a Connection Error (Section 5.4.1) [2]
 class ConnectionError : public Http2Exception {
   public:
-    using Http2Exception::Http2Exception;
+    ConnectionError(Http2ErrorCode code, const std::string &msg, std::uint32_t last_stream_id = MAX_CONNECTED_STREAMS)
+        : Http2Exception{code, msg}, m_last_stream_id{last_stream_id} {}
+
+    std::uint32_t get_last_stream_id() const { return m_last_stream_id; }
+
+  private:
+    std::uint32_t m_last_stream_id;
 };
 
 // Base class for all HPACK decoding errors
@@ -83,9 +127,10 @@ class DecodeError : public std::runtime_error {
 };
 
 // Invalid index — index 0 or index beyond table size
+template <std::unsigned_integral UInt = std::uint32_t>
 class InvalidIndexError : public DecodeError {
   public:
-    explicit InvalidIndexError(std::size_t index)
+    explicit InvalidIndexError(UInt index)
         : DecodeError{std::format("hpack: invalid index {}", index)}, m_index{index} {}
 
     std::size_t index() const noexcept { return m_index; }
@@ -140,4 +185,12 @@ class StringDecodeError : public DecodeError {
     explicit StringDecodeError(std::string msg)
         : DecodeError{std::format("hpack: string decode error — {}", std::move(msg))} {}
 };
-} // namespace error::http
+
+
+class CompressionError : public std::runtime_error {
+  public:
+    explicit CompressionError(std::string msg) : std::runtime_error{std::move(msg)} {}
+};
+
+
+} // namespace transport::error::http
