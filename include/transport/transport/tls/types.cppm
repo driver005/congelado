@@ -27,56 +27,63 @@ struct TlsError : std::runtime_error {
  */
 class SslCtx {
   public:
-    SslCtx() = default;
-    explicit SslCtx(::SSL_CTX *ctx) : m_ctx(ctx) {}
+    explicit SslCtx(const ::SSL_METHOD *method = ::TLS_server_method(), std::filesystem::path dir = ".") {
+        m_ctx = ::SSL_CTX_new(method);
+        if (!m_ctx)
+            throw TlsError("SSL_CTX_new failed");
+
+        ::SSL_CTX_set_min_proto_version(m_ctx, TLS1_2_VERSION);
+
+        ensure_credentials(dir);
+    }
+
     ~SslCtx() {
         if (m_ctx)
             ::SSL_CTX_free(m_ctx);
     }
 
-    SslCtx(const SslCtx &) = delete;
-    SslCtx &operator=(const SslCtx &) = delete;
-    SslCtx(SslCtx &&o) noexcept : m_ctx(std::exchange(o.m_ctx, nullptr)) {}
+    // Logic to ensure certs exist using CLI
+    void ensure_credentials(const std::filesystem::path &dir) {
+        auto cert = dir / "server.crt";
+        auto key = dir / "server.key";
 
-    SslCtx &operator=(SslCtx &&o) noexcept {
-        if (this != &o) {
-            if (m_ctx)
-                ::SSL_CTX_free(m_ctx);
-            m_ctx = std::exchange(o.m_ctx, nullptr);
+        if (!std::filesystem::exists(cert) || !std::filesystem::exists(key)) {
+            std::println(std::clog, "Credentials missing. Generating via openssl CLI...");
+
+            // Modern C++: Use std::format to construct the shell command
+            std::string cmd = std::format("openssl req -x509 -newkey rsa:2048 -nodes -keyout \"{}\" -out \"{}\" "
+                                          "-days 365 -subj \"/CN=localhost\" 2>/dev/null",
+                                          key.string(), cert.string());
+
+            if (std::system(cmd.data()) != 0) {
+                throw TlsError("Failed to execute openssl command. Is it installed?");
+            }
         }
-        return *this;
+
+        load_file(cert, key);
     }
 
-    static SslCtx from_files(std::string_view cert, std::string_view key,
-                             const ::SSL_METHOD *method = ::TLS_server_method(),
-                             ::SSL_CTX_alpn_select_cb_func alpn_cb = nullptr) {
-        ::SSL_CTX *ctx = ::SSL_CTX_new(method);
-        if (!ctx)
-            throw TlsError("SSL_CTX_new");
+    void load_file(const std::filesystem::path &cert, const std::filesystem::path &key) {
+        if (::SSL_CTX_use_certificate_chain_file(m_ctx, cert.c_str()) != 1)
+            throw TlsError("Failed to load generated certificate");
 
-        if (::SSL_CTX_use_certificate_chain_file(ctx, cert.data()) != 1) {
-            ::SSL_CTX_free(ctx);
-            throw TlsError("SSL_CTX_use_certificate_chain_file");
-        }
-        if (::SSL_CTX_use_PrivateKey_file(ctx, key.data(), SSL_FILETYPE_PEM) != 1) {
-            ::SSL_CTX_free(ctx);
-            throw TlsError("SSL_CTX_use_PrivateKey_file");
-        }
-
-        ::SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-        if (alpn_cb)
-            ::SSL_CTX_set_alpn_select_cb(ctx, alpn_cb, nullptr);
-
-        return SslCtx{ctx};
+        if (::SSL_CTX_use_PrivateKey_file(m_ctx, key.c_str(), SSL_FILETYPE_PEM) != 1)
+            throw TlsError("Failed to load generated private key");
     }
 
-    [[nodiscard]] ::SSL_CTX *get() const {
+    void set_alpn_callback(::SSL_CTX_alpn_select_cb_func cb, void *arg = nullptr) {
         if (!m_ctx)
-            throw TlsError("SslCtx::get() called on invalid context");
-        return m_ctx;
+            throw TlsError("Cannot set ALPN on invalid context");
+        ::SSL_CTX_set_alpn_select_cb(m_ctx, cb, arg);
     }
 
-    [[nodiscard]] bool valid() const noexcept { return m_ctx != nullptr; }
+    // Modern helper: if you want to set the protocols directly as a vector/span
+    void set_alpn_protos(std::span<const unsigned char> next_protos) {
+        // This is for the client-side or specific server setups
+        ::SSL_CTX_set_alpn_protos(m_ctx, next_protos.data(), next_protos.size());
+    }
+
+    [[nodiscard]] ::SSL_CTX *get() const noexcept { return m_ctx; }
 
   private:
     ::SSL_CTX *m_ctx{nullptr};

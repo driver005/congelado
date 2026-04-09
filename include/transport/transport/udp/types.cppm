@@ -3,7 +3,7 @@ export module udp:types;
 import std;
 import socket;
 
-namespace transport::udp {
+namespace  udp {
 
 export class Server {
   public:
@@ -48,4 +48,4 @@ export class Server {
     base::Socket m_sock{};
 };
 
-} // namespace transport::udp
+} // namespace  udp

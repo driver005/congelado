@@ -12,7 +12,7 @@ import std;
 import socket;
 import :types;
 
-namespace transport::udp {
+namespace  udp {
 
 Server Server::bind(std::string_view ip, std::uint16_t port) {
     Server s;
@@ -73,4 +73,4 @@ void Server::close() noexcept { m_sock.close(); }
 void Server::set_nonblocking(bool on) { m_sock.set_nonblocking(on); }
 void Server::set_recv_timeout(base::timeout_t t) noexcept { m_sock.set_recv_timeout(t); }
 
-} // namespace transport::udp
+} // namespace  udp

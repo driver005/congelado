@@ -34,8 +34,10 @@ editor:
 	xmake project -k compile_commands
 
 clean-conan:
-	conan remove "*" -f
+	conan remove "*"
 
 clean:
 	xmake clean
-	# rm -rf build/ ~/.xmake/
+
+clean-all: clean-conan
+	rm -rf build/ ~/.xmake/

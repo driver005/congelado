@@ -3,7 +3,7 @@ export module tcp:types;
 import std;
 import socket;
 
-namespace transport::tcp {
+namespace tcp {
 
 export class Connection {
   public:
@@ -66,4 +66,4 @@ export class Server {
     base::Socket m_sock{};
 };
 
-} // namespace transport::tcp
+} // namespace  tcp
