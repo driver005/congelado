@@ -1,12 +1,9 @@
-export module contracts:types;
+export module contract:types;
 
 import std;
+import shared;
 
-export namespace contracts {
-
-using WorkerFunction = std::function<void()>;
-using ReleaseFunction = std::function<void()>;
-using ErrorHandler = std::function<void(std::exception_ptr)>;
+export namespace contract {
 
 enum class ContractState : std::uint64_t {
     IDLE = 0x00000000ull,      // No flags set - initial/unscheduled state
@@ -24,7 +21,7 @@ constexpr ContractState operator&(ContractState a, ContractState b) {
 
 class Worker {
   public:
-    Worker(WorkerFunction worker, ContractState state) noexcept
+    Worker(shared::WorkerFunction worker, ContractState state) noexcept
         : m_worker{std::move(worker)}, m_flags{std::to_underlying(state)} {}
 
     void operator()() const {
@@ -82,7 +79,7 @@ class Worker {
     [[nodiscard]] bool is_released() const noexcept { return has_any(ContractState::RELEASED); }
 
   private:
-    WorkerFunction m_worker;
+    shared::WorkerFunction m_worker;
     std::atomic<std::uint64_t> m_flags;
 };
-} // namespace contracts
+} // namespace contract

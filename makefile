@@ -21,6 +21,14 @@ run:
 build:
 	xmake build
 
+#Configuration
+
+windows:
+	xmake f -p mingw --toolchain=mingw -c -v
+
+linux:
+	xmake f -p linux -c -v
+
 benchmark:
 	xmake run benchmark
 
