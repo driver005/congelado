@@ -55,5 +55,5 @@ export {
     using ::ntohs;
 
     // ssize_t is not defined by Winsock; define a compatible alias
-    using ssize_t = int;
+    // using ssize_t = int;
 }

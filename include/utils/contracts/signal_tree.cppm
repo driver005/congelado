@@ -1,10 +1,10 @@
-export module contracts:signal_tree;
+export module contract:signal_tree;
 
 import std;
 import :consts;
 import :types;
 
-export namespace contracts {
+export namespace contract {
 
 /**
  * @brief Unified Node template that acts either as a Router or a Branch.
@@ -179,4 +179,4 @@ class SignalTree {
     std::array<Node<true>, num_routers> m_routers;
     std::atomic<std::uint32_t> m_next_id;
 };
-} // namespace contracts
+} // namespace contract

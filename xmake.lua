@@ -1,18 +1,17 @@
 set_project("congelado")
 set_version("0.1.0")
 
--- 1. Global Scoped Settings
 add_rules("mode.debug", "mode.release")
 set_defaultmode("debug")
 
-set_toolchains("clang")
+if is_plat("linux") then
+	set_toolchains("clang")
+elseif is_plat("windows", "mingw") then
+	set_config("sdk", "/opt/llvm-mingw")
+	set_toolchains("clang")
+end
 
 local conan = {
-	settings = {
-		"compiler=clang",
-		"compiler.version=20",
-		"compiler.cppstd=gnu26",
-	},
 	settings_build = {
 		"os=Linux",
 		"compiler=clang",
@@ -22,22 +21,36 @@ local conan = {
 	options = {
 		"openssl/*:enable_quic=True",
 	},
-	conf = { "tools.build:compiler_executables={'c':'clang','cpp':'clang++'}" },
+	-- conf = { "tools.build:compiler_executables={'c':'clang','cpp':'clang++'}" },
 	build = "missing",
 }
 
-if is_plat("windows") then
-	table.insert(conan.settings, "os=Windows")
-	table.insert(conan.settings, "arch=x86_64")
-	table.insert(conan.settings, "compiler.runtime=mingw")
+if is_plat("windows", "mingw") then
+	conan.settings = {
+		"os=Windows",
+		"compiler=clang",
+		"compiler.version=20",
+		"compiler.cppstd=gnu26",
+		"compiler.libcxx=libstdc++11",
+	}
+
 	conan.conf = {
+		"tools.build:compiler_executables={'c':'/opt/llvm-mingw/bin/clang','cpp':'/opt/llvm-mingw/bin/clang++','rc':'/opt/llvm-mingw/bin/x86_64-w64-mingw32-windres'}",
 		"tools.build:cflags=['--target=x86_64-w64-mingw32']",
 		"tools.build:cxxflags=['--target=x86_64-w64-mingw32']",
 		"tools.build:exelinkflags=['--target=x86_64-w64-mingw32','-fuse-ld=lld']",
-		"tools.build:compiler_executables={'c':'clang','cpp':'clang++'}",
+		"tools.cmake.cmaketoolchain:system_name=Windows",
+		"tools.cmake.cmaketoolchain:generator=Unix Makefiles",
 	}
 else
-	table.insert(conan.settings, "os=Linux")
+	conan.settings = {
+		"os=Linux",
+		"compiler=clang",
+		"compiler.version=20",
+		"compiler.cppstd=gnu26",
+		"compiler.libcxx=libstdc++11",
+	}
+
 	conan.conf = {
 		"tools.build:compiler_executables={'c':'clang','cpp':'clang++'}",
 	}
@@ -53,35 +66,77 @@ add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 -- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 
--- 3. Global Compilation Settings
 set_languages("c++26", "c11")
 set_warnings("all", "extra", "error")
 
 if is_plat("linux", "macosx") then
 	-- Ensures debug paths are relative for reproducibility
 	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+elseif is_plat("mingw") then
+	add_cxflags("-Wno-unknown-pragmas")
 end
 
--- Use the policies exactly as named in your 'xmake l' output
 set_policy("build.c++.modules", true)
-set_policy("build.c++.modules.std", true) -- Explicitly ensure this is on
+set_policy("build.c++.modules.std", true)
 set_policy("generator.compile_commands", true)
 
+if is_plat("mingw") then
+	after_build(function(target)
+		local conan_root = path.join(os.getenv("HOME"), ".conan2", "p", "b")
+		for _, dir in ipairs(os.dirs(path.join(conan_root, "proto*", "p", "lib"))) do
+			for _, lib in ipairs({ "utf8_validity", "utf8_range" }) do
+				local src = path.join(dir, "lib" .. lib .. ".a")
+				local dst = path.join(dir, "liblib" .. lib .. ".a")
+				if os.isfile(src) and not os.isfile(dst) then
+					os.ln(src, dst)
+				end
+			end
+		end
+	end)
+end
+
+-- rule("protobuf_utf8_fix")
+-- on_load(function(target)
+-- 	if is_plat("mingw") then
+-- 		target:add("ldflags", "-l:libutf8_validity.a", "-l:libutf8_range.a", { force = true })
+-- 	end
+-- end)
+-- rule_end()
+--
+-- add_rules("protobuf_utf8_fix")
+
 local posix_module_files = {
-	"include/module/socket.cppm",
-	"include/module/netinet.cppm",
-	"include/module/arpa.cppm",
-	"include/module/netdb.cppm",
-	"include/module/unistd.cppm",
-	"include/module/fcntl.cppm",
-	"include/module/errno.cppm",
-	"include/module/cstring.cppm",
+	"include/modules/socket.cppm",
+	"include/modules/net.cppm",
+	"include/modules/netdb.cppm",
+	"include/modules/unistd.cppm",
+	"include/modules/fcntl.cppm",
+	"include/modules/errno.cppm",
+	"include/modules/cstring.cppm",
+	"include/transport/base/leverage/uring.cppm",
 }
 
 target("congelado_lib")
 set_kind("static")
 set_policy("build.c++.modules.std", true)
--- add_cxflags("-fpermissive", "-pthread", "-ldl")
+add_cxflags("-fpermissive")
+
+if is_plat("windows", "mingw") then
+	add_syslinks("ws2_32", "mswsock", "stdc++", "gcc_s")
+	add_defines("_WIN32_WINNT=0x0A00")
+	add_cxflags("--target=x86_64-w64-mingw32")
+	add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
+else
+	add_links("uring", "pthread", "dl", "ssl", "crypto")
+end
+
+-- if is_plat("mingw") then
+-- 	-- Remove the problematic links and add them with correct syntax
+-- 	add_links("protobuf", "protoc", "upb") -- main protobuf libs
+-- 	add_ldflags("-l:libutf8_validity.a", "-l:libutf8_range.a", { force = true })
+-- end
+
+add_defines("CLANG_ITERATE_MODULES")
 
 -- Explicitly tell Xmake .cmpp files are C++ module interfaces
 add_files("include/**.cppm", { public = true })
@@ -89,7 +144,7 @@ add_files("src/**.cc")
 
 remove_files("src/main.cc")
 
-if is_plat("windows") then
+if is_plat("windows", "mingw") then
 	remove_files("include/**/posix.cppm")
 	for _, f in ipairs(posix_module_files) do
 		remove_files(f)
@@ -98,7 +153,9 @@ else
 	remove_files("include/**/win32.cppm")
 	remove_files("include/modules/winsock2.cppm")
 end
+
 add_includedirs("include", { public = true })
+
 add_packages(
 	"fmt",
 	"simdjson",
@@ -127,17 +184,20 @@ add_deps("congelado_lib")
 add_packages("fmt", "simdjson")
 target_end()
 
-for _, testfile in ipairs(os.files("tests/**.cc")) do
-	local testname = path.basename(testfile)
-	target(testname)
-	set_kind("binary")
-	set_policy("build.c++.modules.std", true)
-	add_files(testfile)
-	add_packages("catch2")
-	add_deps("congelado_lib")
-	-- Templates are instantiated in the test binary, not the lib.
-	-- The lib provides module interfaces; the binary emits the symbols.
-	add_cxflags("-fpermissive")
-	add_tests("default")
-	target_end()
+if is_plat("linux") then
+	for _, testfile in ipairs(os.files("tests/**.cc")) do
+		local testname = path.basename(testfile)
+		target(testname)
+		set_kind("binary")
+		set_policy("build.c++.modules.std", true)
+		add_files(testfile)
+		add_packages("catch2")
+		add_deps("congelado_lib")
+		add_cxflags("-fpermissive")
+		-- if is_plat("mingw") then
+		-- 	add_ldflags("-l:libutf8_validity.a", "-l:libutf8_range.a", { force = true })
+		-- end
+		add_tests("default")
+		target_end()
+	end
 end

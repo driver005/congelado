@@ -1,5 +1,10 @@
 CompileFlags:
   Add:
     - -stdlib=libc++
+    - -isystem/usr/include/c++/v1
+    - -isystem/usr/include
+  CompilationDatabase: "."
+
 Index:
-  Background: "Skip"
+  Background: Build
+  StandardLibrary: Yes

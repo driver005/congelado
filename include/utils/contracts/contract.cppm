@@ -1,54 +1,14 @@
-export module contracts;
+export module contract;
 
 export import :signal_tree;
 export import :types;
 
 import std;
+import shared;
 import :consts;
 
-namespace contracts {
 
-class WorkContractGroupInterface {
-  public:
-    virtual ~WorkContractGroupInterface() = default;
-
-    virtual void schedule(std::uint32_t id) = 0;
-    virtual void deschedule(std::uint32_t id) = 0;
-    virtual void release(std::uint32_t id) = 0;
-};
-
-} // namespace contracts
-
-export namespace contracts::this_contract {
-
-thread_local WorkContractGroupInterface *current = nullptr;
-
-thread_local std::uint32_t current_id = std::numeric_limits<std::uint32_t>::max();
-
-void shedule() {
-    if (!current)
-        throw std::runtime_error("No current contract context for scheduling");
-
-    current->schedule(current_id);
-}
-
-void deschedule() {
-    if (!current)
-        throw std::runtime_error("No current contract context for descheduling");
-
-    current->deschedule(current_id);
-}
-
-void release() {
-    if (!current)
-        throw std::runtime_error("No current contract context for releasing");
-
-    current->release(current_id);
-}
-
-} // namespace contracts::this_contract
-
-export namespace contracts {
+export namespace contract {
 
 template <std::size_t MaxCapacity = 1024>
 class ContractGroup;
@@ -72,14 +32,15 @@ class Contract {
 
 
 template <std::size_t MaxCapacity = 1024>
-class ContractGroup : WorkContractGroupInterface {
+class ContractGroup : shared::HandlerInterface {
   public:
     ContractGroup() : m_signal_tree{}, m_workers{}, m_releasers{}, m_errors{} {}
 
-    void init() { this_contract::current = this; }
+    void init() { shared::this_handler::current = this; }
 
-    Contract<MaxCapacity> create_contract(WorkerFunction worker, ContractState state = ContractState::SCHEDULED,
-                                          ReleaseFunction releaser = nullptr, ErrorHandler error_handler = nullptr) {
+    Contract<MaxCapacity> create_contract(shared::WorkerFunction worker, ContractState state = ContractState::SCHEDULED,
+                                          shared::ReleaseFunction releaser = nullptr,
+                                          shared::ErrorHandler error_handler = nullptr) {
         const std::uint32_t id = add_worker(Worker{worker, state}, releaser, error_handler);
         return Contract<MaxCapacity>{*this, id};
     }
@@ -124,7 +85,7 @@ class ContractGroup : WorkContractGroupInterface {
         if (worker.try_claim_execution()) {
             m_signal_tree.deschedule(*ready_id);
 
-            this_contract::current_id = *ready_id;
+            shared::this_handler::current_id = *ready_id;
 
             try {
                 if (worker.is_released()) {
@@ -142,7 +103,7 @@ class ContractGroup : WorkContractGroupInterface {
                 }
             }
 
-            this_contract::current_id = std::numeric_limits<std::uint32_t>::max();
+            shared::this_handler::current_id = std::numeric_limits<std::uint32_t>::max();
 
             worker.complete_execution();
         }
@@ -150,7 +111,7 @@ class ContractGroup : WorkContractGroupInterface {
 
 
   private:
-    std::uint32_t add_worker(Worker worker, ReleaseFunction releaser, ErrorHandler error_handler) {
+    std::uint32_t add_worker(Worker worker, shared::ReleaseFunction releaser, shared::ErrorHandler error_handler) {
         std::uint32_t id = m_signal_tree.free_contract_id();
         m_workers[id] = std::move(worker);
         m_releasers[id] = std::move(releaser);
@@ -160,33 +121,16 @@ class ContractGroup : WorkContractGroupInterface {
 
     SignalTree<MaxCapacity> m_signal_tree;
     std::array<Worker, MaxCapacity> m_workers;
-    std::array<ReleaseFunction, MaxCapacity> m_releasers;
-    std::array<ErrorHandler, MaxCapacity> m_errors;
+    std::array<shared::ReleaseFunction, MaxCapacity> m_releasers;
+    std::array<shared::ErrorHandler, MaxCapacity> m_errors;
 };
 
-class ContractBase {
+class ContractPattern {
   public:
-    virtual ~ContractBase() = default;
-
-    /**
-     * @brief Hooks this class into a WorkContractGroup and returns a managed Contract handle.
-     * @tparam MaxCapacity The capacity of the group.
-     * @param group Reference to the WorkContractGroup.
-     * @param state Initial state (defaults to SCHEDULED).
-     * @return A Contract<MaxCapacity> object representing the registered task.
-     */
     template <std::size_t MaxCapacity>
-    [[nodiscard]] auto register_contract(ContractGroup<MaxCapacity> &group,
-                                         ContractState state = ContractState::SCHEDULED) {
-        return group.create_contract(on_execute(), state, on_released(), on_error());
+    static auto install(shared::HandlerBase &handler, ContractGroup<MaxCapacity> &group, int state) {
+        return group.create_contract(handler.on_execute(), state, handler.on_released(), handler.on_error());
     }
-
-  protected:
-    virtual WorkerFunction on_execute() = 0;
-
-    virtual ReleaseFunction on_released() noexcept { return nullptr; }
-
-    virtual ErrorHandler on_error() { return nullptr; }
 };
 
-} // namespace contracts
+} // namespace contract
