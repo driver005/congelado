@@ -5,7 +5,7 @@ import io_codec_shared;
 import io_shared;
 import :types;
 
-export namespace transport::codec::qpack {
+export namespace io::codec::qpack {
 
 inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 99> k_static_table = {
     /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authority, ""),
@@ -272,4 +272,4 @@ class QPackTable {
     shared_codec::table::DynamicTable m_dyn;
 };
 
-} // namespace transport::codec::qpack
+} // namespace io::codec::qpack

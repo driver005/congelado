@@ -15,7 +15,7 @@ export module io_base_leverage:win32;
 import std;
 import :types;
 
-export namespace transport::base::leverage {
+export namespace io::base::leverage {
 
 using LPFN_CONNECTEX = BOOL(PASCAL FAR *)(SOCKET s, const struct sockaddr FAR *name, int namelen, PVOID lpSendBuffer,
                                           DWORD dwSendDataLength, LPDWORD lpdwBytesSent, LPOVERLAPPED lpOverlapped);
@@ -714,4 +714,4 @@ int Leverager<Context>::unregister_buffers() noexcept {
     return 0;
 }
 
-} // namespace transport::base::leverage
+} // namespace io::base::leverage

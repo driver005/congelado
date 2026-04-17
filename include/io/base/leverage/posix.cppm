@@ -13,7 +13,7 @@ import std;
 import :types;
 import :uring;
 
-export namespace transport::base::leverage {
+export namespace io::base::leverage {
 
 
 // Pending operation structure
@@ -479,6 +479,7 @@ void Leverager<Context>::stop() {
     m_running = false;
 }
 
+
 template <>
 void Leverager<Context>::register_files(std::span<const int> fds) {
     int ret = liburing::io_uring_register_files(m_context.get_ring(), fds.data(), static_cast<unsigned>(fds.size()));
@@ -509,7 +510,16 @@ int Leverager<Context>::unregister_buffers() noexcept {
     return liburing::io_uring_unregister_buffers(m_context.get_ring());
 }
 
-// io_uring &template <> Leverager<Context>::get_handle() noexcept { return m_ring; }
 
+template <>
+void Leverager<Context>::register_file(int fd) {
+    register_files({&fd, 1});
+}
 
-} // namespace transport::base::leverage
+template <>
+void Leverager<Context>::unregister_file(unsigned int fd) noexcept {
+    int sentinel = -1;
+    register_files_update(fd, {&sentinel, 1});
+}
+
+} // namespace io::base::leverage

@@ -8,7 +8,7 @@ import io_layer_shared;
 import :consts;
 import :frame;
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
 
 class Settings {
   public:
@@ -56,8 +56,8 @@ class Settings {
     template <std::output_iterator<std::uint8_t> Out>
     Out encode(Out out) const {
         auto emit = [&](const std::uint16_t &id, const std::uint32_t &val) {
-            shared_layer::Atom<std::uint16_t>::write_big_endian(out, id, 2);
-            shared_layer::Atom<std::uint32_t>::write_big_endian(out, val, 4);
+            shared_layer::Atom<std::uint16_t>::write_big_endian(out, id);
+            shared_layer::Atom<std::uint32_t>::write_big_endian(out, val);
         };
 
         if (m_header_table_size != DEFAULT_HEADER_TABLE_SIZE)
@@ -162,4 +162,4 @@ class Settings {
     std::int32_t m_delta_window_on_settings;
 };
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

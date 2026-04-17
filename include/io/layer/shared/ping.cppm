@@ -2,14 +2,14 @@ export module io_layer_shared:ping;
 
 import std;
 
-export namespace transport::shared_layer::ping {
+export namespace io::shared_layer::ping {
 
 class PingTracker {
   public:
     using Clock = std::chrono::steady_clock;
     using TimePoint = Clock::time_point;
     using Duration = Clock::duration;
-    using Payload = std::array<std::uint8_t, 8>;
+    using Payload = std::array<std::byte, 8>;
 
     struct RttStats {
         Duration srtt{};   ///< smoothed RTT (EWMA, α=0.125)
@@ -172,4 +172,4 @@ class PingTracker {
     bool m_timed_out{false};
 };
 
-} // namespace transport::shared_layer::ping
+} // namespace io::shared_layer::ping

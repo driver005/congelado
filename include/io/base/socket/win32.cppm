@@ -14,7 +14,7 @@ import std;
 import io_error;
 import :consts;
 
-export namespace transport::base::socket {
+export namespace io::base::socket {
 
 using ioctl_setting = u_long;
 using buffsize_t = int;
@@ -173,4 +173,4 @@ inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     }
 }
 
-} // namespace transport::base::socket
+} // namespace io::base::socket

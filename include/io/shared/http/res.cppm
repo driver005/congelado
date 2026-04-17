@@ -7,7 +7,7 @@ import :consts;
 import :http_header;
 import :http_types;
 
-export namespace transport::shared::http {
+export namespace io::shared::http {
 
 class HttpResponse : public ::shared::Response {
   public:
@@ -55,4 +55,4 @@ class HttpResponse : public ::shared::Response {
     std::vector<std::uint8_t> m_body;
 };
 
-} // namespace transport::shared::http
+} // namespace io::shared::http

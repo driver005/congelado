@@ -12,7 +12,7 @@ export module io_base_socket:consts;
 
 import std;
 
-export namespace transport::base::socket {
+export namespace io::base::socket {
 
 inline constexpr bool DEBUG = false;
 
@@ -25,4 +25,4 @@ inline constexpr int INVALID_SOCKET = -1;
 inline constexpr int SOCKET_ERROR = -1;
 #endif
 
-} // namespace transport::base::socket
+} // namespace io::base::socket

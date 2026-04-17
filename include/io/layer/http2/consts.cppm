@@ -2,7 +2,7 @@ export module io_layer_http2:consts;
 
 import std;
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
 
 inline constexpr std::uint8_t HEADER_SIZE = 9;
 
@@ -14,4 +14,4 @@ inline constexpr std::uint32_t MAX_INITIAL_WINDOW_SIZE = (1u << 31) - 1;     // 
 
 inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1u << 31) - 1; // 2147483647 (2^31 - 1)
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

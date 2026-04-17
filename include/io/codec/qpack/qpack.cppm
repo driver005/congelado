@@ -9,7 +9,7 @@ import io_shared;
 
 static constexpr std::string COOKIE_SEPARATOR = "; ";
 
-export namespace transport::codec::qpack {
+export namespace io::codec::qpack {
 
 template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
@@ -588,4 +588,4 @@ class QPack {
     UInt m_known_received_count;
     std::shared_ptr<shared::http::HeaderField<>> m_cookie_index;
 };
-} // namespace transport::codec::qpack
+} // namespace io::codec::qpack

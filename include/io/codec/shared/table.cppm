@@ -6,7 +6,7 @@ import io_shared;
 import :types;
 import :consts;
 
-namespace transport::shared_codec::table {
+namespace io::shared_codec::table {
 
 template <typename... Ts>
 struct overloaded : Ts... {
@@ -145,9 +145,9 @@ concept StaticHeaderTable = requires(T table) {
 
 using QpackMap = hashmap::swiss::SwissHashMap<HeaderKey, std::size_t, HeaderHasher, HeaderEqual>;
 
-} // namespace transport::shared_codec::table
+} // namespace io::shared_codec::table
 
-export namespace transport::shared_codec::table {
+export namespace io::shared_codec::table {
 
 template <const auto &Table>
     requires StaticHeaderTable<decltype(Table)>
@@ -368,4 +368,4 @@ class DynamicTable {
     QpackMap m_map;
 };
 
-} // namespace transport::shared_codec::table
+} // namespace io::shared_codec::table

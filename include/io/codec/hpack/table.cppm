@@ -5,7 +5,7 @@ import io_codec_shared;
 import io_shared;
 import :consts;
 
-export namespace transport::codec::hpack {
+export namespace io::codec::hpack {
 
 inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> k_static_table = {
     /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authority, ""),
@@ -138,4 +138,4 @@ class HPackTable {
     shared_codec::table::DynamicTable m_dyn;
 };
 
-} // namespace transport::codec::hpack
+} // namespace io::codec::hpack

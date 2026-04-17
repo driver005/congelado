@@ -39,7 +39,7 @@ export import :win32;
 export import :posix;
 #endif
 
-export namespace transport::base::socket {
+export namespace io::base::socket {
 
 enum class Protocol { TCP = 0, UDP = 1, TLS = 2, QUIC = 3 };
 
@@ -584,6 +584,7 @@ class Socket {
                 }
                 return SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED);
             }
+
             return SocketStatus(VALUES::ERRORED);
         } else {
             return SocketStatus(VALUES::VALID);
@@ -1118,4 +1119,4 @@ class Socket {
     [[no_unique_address]] OsPayload m_os;
 };
 
-} // namespace transport::base::socket
+} // namespace io::base::socket

@@ -8,3 +8,6 @@ CompileFlags:
 Index:
   Background: Build
   StandardLibrary: Yes
+
+Diagnostics:
+  Suppress: ["ovl_ambiguous_call", "ambiguous_reversed_operator"]

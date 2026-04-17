@@ -3,7 +3,7 @@ export module io_io:buffer;
 import std;
 import :consts;
 
-export namespace transport::base::io {
+export namespace io::base::io {
 
 class BufferOverflowException : public std::runtime_error {
   public:
@@ -92,4 +92,4 @@ class RingBuffer {
     std::atomic<std::size_t> m_tail{0};
 };
 
-} // namespace transport::base::io
+} // namespace io::base::io

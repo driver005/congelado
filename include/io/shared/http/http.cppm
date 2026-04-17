@@ -7,8 +7,8 @@ export import :http_types;
 
 import std;
 
-export namespace transport::shared::http {
+export namespace io::shared::http {
 
 using Dispatcher = std::function<HttpResponse(HttpRequest &)>;
 
-} // namespace transport::shared::http
+} // namespace io::shared::http

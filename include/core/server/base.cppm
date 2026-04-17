@@ -1,4 +1,4 @@
-export module io_server;
+export module core_server;
 
 export import :router;
 export import :builder;

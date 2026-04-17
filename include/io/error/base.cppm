@@ -6,7 +6,7 @@ export module io_error:base;
 
 import std;
 
-export namespace transport::error {
+export namespace io::error {
 
 template <bool use_exception = false, bool abort_on_error = false, typename Fn = std::monostate>
     requires(std::is_same_v<Fn, std::monostate> || std::invocable<Fn, std::string_view, void *>)
@@ -39,4 +39,4 @@ class TlsError : std::runtime_error {
     }
 };
 
-} // namespace transport::error
+} // namespace io::error

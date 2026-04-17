@@ -13,7 +13,7 @@ constexpr std::string_view NEVER_INDEXED[] = {
     "set-cookie",
 };
 
-export namespace transport::codec::hpack {
+export namespace io::codec::hpack {
 
 enum class EncodePolicy : std::uint8_t {
     WithIndexing,

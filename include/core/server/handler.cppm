@@ -1,13 +1,13 @@
 module;
 #include <cstddef>
-export module io_server:handler;
+export module core_server:handler;
 
 import std;
 import shared;
 import :consts;
 import :types;
 
-export namespace transport::server {
+export namespace core::server {
 
 template <typename Request, typename Response, std::uint8_t MaxHandlerSize = 8>
 class Handler {
@@ -74,8 +74,6 @@ class HandlerPool {
     constexpr auto begin() const noexcept { return m_handler.begin(); }
     constexpr auto end() const noexcept { return m_handler.begin() + m_handler_index; }
 
-    // Response &execute(const Request &req) const noexcept { return run_step(req, 0); }
-
     constexpr std::uint8_t &get_size() noexcept { return m_handler_index; }
 
   private:
@@ -83,4 +81,4 @@ class HandlerPool {
     std::uint8_t m_handler_index;
 };
 
-} // namespace transport::server
+} // namespace core::server

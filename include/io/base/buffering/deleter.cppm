@@ -2,7 +2,7 @@ export module io_base_buffering:deleter;
 
 import std;
 
-export namespace transport::base::buffering {
+export namespace io::base::buffering {
 
 class Deleter {
   public:
@@ -52,4 +52,4 @@ class Deleter {
     Internal *m_internal;
 };
 
-} // namespace transport::base::buffering
+} // namespace io::base::buffering
