@@ -1,6 +1,6 @@
 module;
 #include <cstddef>
-export module io_server:router;
+export module core_server:router;
 
 import std;
 import :types;
@@ -9,7 +9,7 @@ import :consts;
 import :middleware;
 
 
-namespace transport::server {
+namespace core::server {
 
 constexpr auto split_path(std::string_view path) noexcept {
     return std::views::concat(std::views::single(std::string_view{"/"}),
@@ -31,9 +31,9 @@ constexpr std::uint32_t fnv1a(std::string_view s) noexcept {
         h = h * 33u ^ static_cast<std::uint8_t>(c);
     return h;
 }
-} // namespace transport::server
+} // namespace core::server
 
-export namespace transport::server {
+export namespace core::server {
 
 template <typename Request, typename Response>
 class RouterNode {
@@ -194,7 +194,6 @@ class RouteHandler {
                              const Handler<Request, Response, 8> &handler,
                              const Middleware<Request, Response, MiddlewareSize> &middleware,
                              std::uint8_t children_size) noexcept {
-
         RouterNode<Request, Response> node{
             kind,
             path,
@@ -230,4 +229,4 @@ class RouteHandler {
     std::uint8_t m_table_index;
 };
 
-} // namespace transport::server
+} // namespace core::server

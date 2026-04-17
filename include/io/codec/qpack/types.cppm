@@ -10,7 +10,7 @@ constexpr std::string_view NEVER_INDEXED[] = {
     "set-cookie",
 };
 
-export namespace transport::codec::qpack {
+export namespace io::codec::qpack {
 
 enum class EncodePolicy : std::uint8_t {
     WithIndexing,
@@ -28,4 +28,4 @@ enum class EncodePolicy : std::uint8_t {
 
 enum class IndexType { Static, DynamicRelative, DynamicPostBase };
 
-} // namespace transport::codec::qpack
+} // namespace io::codec::qpack

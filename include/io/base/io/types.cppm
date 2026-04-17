@@ -16,7 +16,7 @@ import std;
 import :buffer;
 import :consts;
 
-export namespace transport::base::io {
+export namespace io::base::io {
 
 // ─── Op tag encoding ──────────────────────────────────────────────────────────
 //
@@ -114,4 +114,4 @@ class IO {
     State state_;
 };
 
-} // namespace transport::base::io
+} // namespace io::base::io

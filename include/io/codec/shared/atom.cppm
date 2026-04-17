@@ -8,7 +8,7 @@ import std;
 import :types;
 import :huffman;
 
-export namespace transport::shared_codec::raw {
+export namespace io::shared_codec::raw {
 
 template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires DecodeWidth<Width>
@@ -213,4 +213,4 @@ class Atom {
     };
 };
 
-} // namespace transport::shared_codec::raw
+} // namespace io::shared_codec::raw

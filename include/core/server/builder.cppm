@@ -1,13 +1,13 @@
 module;
 #include <cstddef>
-export module io_server:builder;
+export module core_server:builder;
 
 import std;
 import :types;
 import :router;
 import :server;
 
-export namespace transport::server {
+export namespace core::server {
 
 
 template <typename Request, typename Response, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddlewareSize = 10>
@@ -21,9 +21,6 @@ template <typename Request, typename Response, std::size_t RouterSize = 256, std
 class RouterContext {
   public:
     constexpr RouterContext() : m_routes{}, m_router_size{2}, m_highest_router_number{1}, m_base_router_children{0} {};
-
-    // constexpr void use(shared::MiddlewareFn<Request, Response> middleware) {
-    // m_middlewares.push(std::move(middleware)); }
 
     constexpr std::size_t add_route(Route<Request, Response> route) {
         const auto idx = m_router_size++;
@@ -443,4 +440,4 @@ class ServerBuilder {
     Route<Request, Response> m_root_route;
     Route<Request, Response> m_fallback_route;
 };
-} // namespace transport::server
+} // namespace core::server

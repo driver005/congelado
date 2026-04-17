@@ -3,7 +3,7 @@ import std;
 import io_error;
 import :types;
 
-namespace transport::shared_codec::huffman {
+namespace io::shared_codec::huffman {
 
 inline constexpr std::uint32_t SYM_COUNT = 257;
 inline constexpr std::uint32_t SYM_EOS = 256;
@@ -241,9 +241,9 @@ consteval TransTable<W> build_table() {
     return table;
 }
 
-} // namespace transport::shared_codec::huffman
+} // namespace io::shared_codec::huffman
 
-export namespace transport::shared_codec::huffman {
+export namespace io::shared_codec::huffman {
 
 template <int W = 4>
     requires DecodeWidth<W>
@@ -346,4 +346,4 @@ class Huffman {
     }
 };
 
-} // namespace transport::shared_codec::huffman
+} // namespace io::shared_codec::huffman

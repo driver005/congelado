@@ -1,10 +1,10 @@
-export module io_server:server;
+export module core_server:server;
 
 import std;
 import io_base_leverage;
 import :router;
 
-export namespace transport::server {
+export namespace core::server {
 
 template <typename Request, typename Response>
 class Server {
@@ -17,8 +17,8 @@ class Server {
 
   private:
     RouteHandler<Request, Response> m_handler;
-    base::leverage::Leverager<base::leverage::Context> m_leverager;
+    io::base::leverage::Leverager<io::base::leverage::Context> m_leverager;
 };
 
 
-} // namespace transport::server
+} // namespace core::server

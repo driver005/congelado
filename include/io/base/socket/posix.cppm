@@ -12,7 +12,7 @@ export module io_base_socket:posix;
 import std;
 import io_error;
 
-export namespace transport::base::socket {
+export namespace io::base::socket {
 
 using ioctl_setting = int;
 using buffsize_t = size_t;
@@ -51,4 +51,4 @@ inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     }
 }
 
-} // namespace transport::base::socket
+} // namespace io::base::socket

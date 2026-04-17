@@ -27,7 +27,7 @@ export module io_base_leverage:types;
 import std;
 import shared;
 
-export namespace transport::base::leverage {
+export namespace io::base::leverage {
 
 enum class op_type : int {
     read,
@@ -388,6 +388,9 @@ class Leverager : public shared::HandlerBase {
     void poll();
     void stop();
 
+    void register_file(int fd);
+    void unregister_file(unsigned int fd) noexcept;
+
     void register_files(std::span<const int> fds);
     void register_files_update(unsigned off, std::span<int> files);
     int unregister_files() noexcept;
@@ -415,4 +418,4 @@ class Leverager : public shared::HandlerBase {
     bool m_running;
 };
 
-} // namespace transport::base::leverage
+} // namespace io::base::leverage

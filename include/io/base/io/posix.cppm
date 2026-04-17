@@ -11,7 +11,7 @@ import :types;
 import :buffer;
 import :consts;
 
-export namespace transport::base::io {
+export namespace io::base::io {
 
 struct PosixState {
     io_uring ring{};
@@ -50,9 +50,9 @@ struct PosixState {
 
 using PlatformIO = IO<PosixState>;
 
-} // namespace transport::base::io
+} // namespace io::base::io
 
-namespace transport::base::io {
+namespace io::base::io {
 
 template <>
 IO<PosixState>::IO(RingBuffer &buffer, unsigned entries) {
@@ -194,4 +194,4 @@ std::uintptr_t IO<PosixState>::native_handle() const noexcept {
     return reinterpret_cast<std::uintptr_t>(&state_.ring);
 }
 
-} // namespace transport::base::io
+} // namespace io::base::io

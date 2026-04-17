@@ -4,7 +4,7 @@ import std;
 import :consts;
 import io_error;
 
-export namespace transport::shared_codec {
+export namespace io::shared_codec {
 
 enum class IndexCalculation { QPack, HPack };
 
@@ -189,4 +189,4 @@ constexpr std::uint8_t operator&(PrefixHelper lhs, std::uint8_t rhs) { return st
 
 constexpr std::uint8_t operator&(std::uint8_t lhs, PrefixHelper rhs) { return lhs & static_cast<std::uint8_t>(rhs); }
 
-} // namespace transport::shared_codec
+} // namespace io::shared_codec

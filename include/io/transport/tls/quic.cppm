@@ -9,7 +9,7 @@ import std;
 import io_udp;
 import :types;
 
-export namespace transport::base::tls::quic {
+export namespace io::base::tls::quic {
 /**
  * @brief UDP-specific QUIC Connection
  */
@@ -89,4 +89,4 @@ class Server {
     udp::Server m_udp;
     ::SSL_CTX *m_ctx;
 };
-} // namespace transport::base::tls::quic
+} // namespace io::base::tls::quic

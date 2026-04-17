@@ -38,9 +38,9 @@ class ContractGroup : shared::HandlerInterface {
 
     void init() { shared::this_handler::current = this; }
 
-    Contract<MaxCapacity> create_contract(shared::WorkerFunction worker, ContractState state = ContractState::SCHEDULED,
-                                          shared::ReleaseFunction releaser = nullptr,
-                                          shared::ErrorHandler error_handler = nullptr) {
+    Contract<MaxCapacity> create_contract(shared::WorkerFunction worker, shared::ReleaseFunction releaser = nullptr,
+                                          shared::ErrorHandler error_handler = nullptr,
+                                          ContractState state = ContractState::SCHEDULED) {
         const std::uint32_t id = add_worker(Worker{worker, state}, releaser, error_handler);
         return Contract<MaxCapacity>{*this, id};
     }

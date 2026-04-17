@@ -2,7 +2,7 @@ export module io_codec_shared:consts;
 
 import std;
 
-export namespace transport::shared_codec {
+export namespace io::shared_codec {
 
 constexpr std::size_t PRIME = 31;
 

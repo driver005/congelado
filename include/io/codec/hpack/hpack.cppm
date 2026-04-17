@@ -9,7 +9,7 @@ import io_codec_shared;
 
 static constexpr std::string COOKIE_SEPARATOR = "; ";
 
-export namespace transport::codec::hpack {
+export namespace io::codec::hpack {
 
 template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
@@ -30,7 +30,7 @@ class Hpack {
 
                     using FieldType = std::decay_t<decltype(*ptr)>;
 
-                    if constexpr (std::is_same_v<FieldType, transport::shared::http::HeaderField<true>>) {
+                    if constexpr (std::is_same_v<FieldType, io::shared::http::HeaderField<true>>) {
                         if (ptr->get_name() == "cookie") {
                             encode_cookies(ptr->get_value(), out);
                             return;
@@ -364,4 +364,4 @@ class Hpack {
     std::reference_wrapper<shared::http::HttpResponse> m_response;
 };
 
-} // namespace transport::codec::hpack
+} // namespace io::codec::hpack

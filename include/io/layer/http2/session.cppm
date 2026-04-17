@@ -1,3 +1,7 @@
+module;
+// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
+#include <ranges>
+
 export module io_layer_http2:session;
 
 import std;
@@ -6,7 +10,10 @@ import io_codec_hpack;
 import :settings;
 import :stream;
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
+// pushed into session at construction
+// ReadFunctor  — std::function<void(buffering::BufferView, std::size_t)>
+// SendFunctor  — std::function<void(const Frame<FrameRole::Sender>&)>
 
 template <bool IsServer = true>
 class Session {
@@ -23,7 +30,7 @@ class Session {
 
         while (m_running) {
             try {
-                std::array<std::uint8_t, 9> header_bytes;
+                std::array<std::byte, 9> header_bytes;
                 if (!receive_exact(std::as_writable_bytes(std::span{header_bytes}))) {
                     m_running = false;
                     break;
@@ -32,7 +39,7 @@ class Session {
 
                 std::println("Sending on Stream ID {} ", header.get_stream_id());
 
-                std::vector<std::uint8_t> frame_data;
+                std::vector<std::byte> frame_data;
                 frame_data.reserve(header.get_length());
 
                 if (header.get_length() > 0) {
@@ -79,33 +86,39 @@ class Session {
             } catch (const error::http::ConnectionError &e) {
                 m_running = false;
 
-                std::vector<std::uint8_t> goaway_payload{};
-                goaway_payload.reserve(8);
-                auto it = goaway_payload.begin();
-                shared_layer::Atom<>::write_big_endian(it, e.get_last_stream_id(), 4);
-                shared_layer::Atom<>::write_big_endian(it, std::to_underlying(e.get_code()), 4);
+                std::array<std::byte, 8> payload;
+                shared_layer::Atom<>::write_big_endian(payload | std::views::take(4), e.get_last_stream_id());
+                shared_layer::Atom<>::write_big_endian(payload | std::views::drop(4), std::to_underlying(e.get_code()));
 
-                auto frame = Frame<shared_layer::FrameRole::Sender>{
-                    FrameHeader{8, shared_layer::FrameType::GOAWAY, 0, 0}, goaway_payload};
+                auto frame = Frame<shared_layer::FrameRole::Sender>{}
+                                 .add_header(FrameHeader{}
+                                                 .add_length(8)
+                                                 .add_type(shared_layer::FrameType::GOAWAY)
+                                                 .add_flags(0)
+                                                 .add_stream_id(0))
+                                 .add_payload(payload)
+                                 .build();
+
 
                 send_frame(frame);
-
                 m_conn.close();
-
                 break;
             } catch (const error::http::StreamError &e) {
-                std::vector<std::uint8_t> payload;
-                payload.reserve(4);
+                std::array<std::byte, 4> payload;
 
-                auto it = std::back_inserter(payload);
-                shared_layer::Atom<>::write_big_endian(it, std::to_underlying(e.get_code()), 4);
+                shared_layer::Atom<>::write_big_endian(payload, std::to_underlying(e.get_code()));
 
-                auto frame = Frame<shared_layer::FrameRole::Sender>{
-                    FrameHeader{4, shared_layer::FrameType::RST_STREAM, 0, e.get_stream_id()}, payload};
+                auto frame = Frame<shared_layer::FrameRole::Sender>{}
+                                 .add_header(FrameHeader{}
+                                                 .add_length(4)
+                                                 .add_type(shared_layer::FrameType::RST_STREAM)
+                                                 .add_flags(0)
+                                                 .add_stream_id(e.get_stream_id()))
+                                 .add_payload(payload)
+                                 .build();
 
                 send_frame(frame);
                 mark_stream_closed(e.get_stream_id());
-
                 continue;
             }
         }
@@ -114,32 +127,36 @@ class Session {
 
   private:
     void response(std::uint32_t stream_id) {
-        std::vector<std::uint8_t> hpack;
-        hpack.reserve(32);
-
-        // :status: 200  (indexed, §6.1)
-        hpack.push_back(0x88);
-
-        // content-type: text/plain  (literal with incremental indexing, §6.2.1)
-        // static index 31 = content-type
-        hpack.push_back(0x40 | 31);                     // name  = idx 31
-        hpack.push_back(static_cast<std::uint8_t>(10)); // "text/plain" len
-        for (char c : std::string_view{"text/plain"})
-            hpack.push_back(static_cast<std::uint8_t>(c));
-
-        Frame<shared_layer::FrameRole::Sender> headers_frame{
-            FrameHeader{static_cast<std::uint32_t>(hpack.size()), shared_layer::FrameType::HEADERS,
-                        shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM, stream_id},
-            hpack};
-
-        std::println("Prepared response HEADERS frame with payload size {}", hpack.size());
-
-        std::vector<std::uint8_t> payload;
-
-        auto it = std::back_inserter(payload);
-
-        headers_frame.encode(it);
-        std::println("Encoded HEADERS frame with payload size {}", payload.size());
+        // std::vector<std::byte> hpack{};
+        // hpack.reserve(32);
+        //
+        // // :status: 200  (indexed, §6.1)
+        // hpack.push_back(0x88);
+        //
+        // // content-type: text/plain  (literal with incremental indexing, §6.2.1)
+        // // static index 31 = content-type
+        // hpack.push_back(0x40 | 31);                     // name  = idx 31
+        // hpack.push_back(static_cast<std::uint8_t>(10)); // "text/plain" len
+        // for (char c : std::string_view{"text/plain"})
+        //     hpack.push_back(static_cast<std::uint8_t>(c));
+        //
+        // std::span<std::byte> hpack_span{hpack};
+        // Frame<shared_layer::FrameRole::Sender> headers_frame{
+        //     FrameHeader{static_cast<std::uint32_t>(hpack.size()), shared_layer::FrameType::HEADERS,
+        //                 shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM, stream_id},
+        //     hpack_span};
+        //
+        // std::println("Prepared response HEADERS frame with payload size {}", hpack.size());
+        //
+        // std::vector<std::uint8_t> payload;
+        //
+        // auto it = std::back_inserter(payload);
+        //
+        // headers_frame.encode(it);
+        // std::println("Encoded HEADERS frame with payload size {}", payload.size());
+        //
+        //
+        std::println("Sending response on Stream ID {} ", stream_id);
 
         // m_conn.send(std::as_bytes(std::span{payload}));
     }
@@ -187,14 +204,20 @@ class Session {
 
 
     void send_settings() {
-        std::vector<std::uint8_t> payload;
+        std::vector<std::byte> payload;
+        //
+        // m_local_settings.encode(std::back_inserter(payload));
 
-        m_local_settings.encode(std::back_inserter(payload));
+        auto frame = Frame<shared_layer::FrameRole::Sender>{}
+                         .add_header(FrameHeader{}
+                                         .add_length(static_cast<std::uint32_t>(payload.size()))
+                                         .add_type(shared_layer::FrameType::SETTINGS)
+                                         .add_flags(0)
+                                         .add_stream_id(0))
+                         .add_payload(payload)
+                         .build();
 
-        Frame<shared_layer::FrameRole::Sender> settings_frame{
-            {static_cast<std::uint32_t>(payload.size()), shared_layer::FrameType::SETTINGS, 0, 0}, std::move(payload)};
-
-        send_frame(settings_frame);
+        send_frame(frame);
     }
 
     bool receive_exact(std::span<std::byte> target) {
@@ -214,9 +237,8 @@ class Session {
     }
 
     void send_frame(const Frame<shared_layer::FrameRole::Sender> &frame) {
-        std::vector<std::uint8_t> frame_bytes;
-        auto it = std::back_inserter(frame_bytes);
-        frame.encode(it);
+        std::vector<std::byte> frame_bytes;
+        frame.encode(frame_bytes);
         // TODO: This is a temporary solution. We should implement a proper write buffer and handle partial writes.
         // m_conn.send(std::as_bytes(std::span{frame_bytes}));
     }
@@ -226,7 +248,7 @@ class Session {
             throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"};
 
         if (auto it = m_streams.find(id); it != m_streams.end()) {
-            it->second.reset();
+            return it->second.reset();
         }
 
         throw error::http::ConnectionError{
@@ -247,4 +269,4 @@ class Session {
     Stream<false> m_connection_stream;
 };
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

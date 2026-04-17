@@ -9,7 +9,7 @@ import std;
 import io_tcp;
 import io_error;
 
-export namespace transport::base::tls {
+export namespace io::base::tls {
 
 
 /**
@@ -79,4 +79,4 @@ class SslCtx {
     ::SSL_CTX *m_ctx{nullptr};
 };
 
-} // namespace transport::base::tls
+} // namespace io::base::tls

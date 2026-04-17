@@ -1,3 +1,7 @@
+module;
+// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
+#include <ranges>
+
 export module io_layer_http2:stream;
 
 import std;
@@ -18,7 +22,7 @@ static constexpr T make_conditional(Args &&...args) {
     }
 }
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
 
 
 class StreamBasedHelper {
@@ -94,22 +98,27 @@ class Stream {
         case shared_layer::FrameType::GOAWAY: {
             m_remote_settings.get().set_trigger_goaway_after_stream_id(frame.get_stream_id());
 
-            std::vector<std::uint8_t> goaway_payload{};
-            goaway_payload.reserve(8);
-            auto it = goaway_payload.begin();
-            shared_layer::Atom<>::write_big_endian(it, frame.get_stream_id(), 4);
-            shared_layer::Atom<>::write_big_endian(it, std::to_underlying(connection_error_code), 4);
+            std::array<std::byte, 8> payload;
+            shared_layer::Atom<>::write_big_endian(payload | std::views::take(4), frame.get_stream_id());
+            shared_layer::Atom<>::write_big_endian(payload | std::views::drop(4),
+                                                   std::to_underlying(connection_error_code));
 
-            return std::make_optional(Frame<shared_layer::FrameRole::Sender>{
-                FrameHeader{8, shared_layer::FrameType::GOAWAY, 0, 0}, goaway_payload});
+            return std::make_optional(Frame<shared_layer::FrameRole::Sender>{}
+                                          .add_header(FrameHeader{}
+                                                          .add_length(8)
+                                                          .add_type(shared_layer::FrameType::GOAWAY)
+                                                          .add_flags(0)
+                                                          .add_stream_id(0))
+                                          .add_payload(payload)
+                                          .build());
         }
 
         case shared_layer::FrameType::PING: {
             const auto &flags = header.get_flags();
 
             if (flags & shared_layer::Flags::ACK) {
-                auto payload_view = std::span<const std::uint8_t, 8>(frame.get_payload().data(), 8);
-                std::array<std::uint8_t, 8> payload_array;
+                auto payload_view = std::span<const std::byte, 8>(frame.get_payload().data(), 8);
+                std::array<std::byte, 8> payload_array;
                 std::ranges::copy(payload_view, payload_array.begin());
 
                 if (!m_remote_settings.get().ping_tracker().on_ack(payload_array)) {
@@ -118,8 +127,15 @@ class Stream {
                 }
             } else {
                 m_remote_settings.get().ping_tracker().note_activity();
-                return std::make_optional(Frame<shared_layer::FrameRole::Sender>{
-                    FrameHeader{8, shared_layer::FrameType::PING, shared_layer::Flags::ACK, 0}, frame.get_payload()});
+
+                return std::make_optional(Frame<shared_layer::FrameRole::Sender>{}
+                                              .add_header(FrameHeader{}
+                                                              .add_length(8)
+                                                              .add_type(shared_layer::FrameType::PING)
+                                                              .add_flags(shared_layer::Flags::ACK)
+                                                              .add_stream_id(0))
+                                              .add_payload(frame.get_payload())
+                                              .build());
             }
 
             break;
@@ -183,7 +199,7 @@ class Stream {
         case shared_layer::FrameType::CONTINUATION: {
             if (frame.get_payload_size() > 0) {
                 try {
-                    m_stream_helper.get_hpack().decode(frame.get_payload());
+                    m_stream_helper.get_hpack().decode(frame.get_payload_as_u8());
                 } catch (error::http::Http2Exception &e) {
                     throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
                                                    std::format("HPACK decoding error: {}", e.what()));
@@ -329,7 +345,7 @@ class Stream {
         m_send_window += increment;
     }
 
-    void append_received_data(std::vector<std::uint8_t> data) {
+    void append_received_data(std::span<const std::byte> data) {
         if (!m_state_machine.can_receive_data()) {
             throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::STREAM_CLOSED,
                                            "Received data on stream not in receiving state");
@@ -351,7 +367,7 @@ class Stream {
         return static_cast<std::uint32_t>(m_remote_settings.get().initial_window_size() - m_recv_window);
     }
 
-    std::vector<std::uint8_t> take_received_data() { return std::move(m_recv_buffer); }
+    std::vector<std::byte> take_received_data() { return std::move(m_recv_buffer); }
 
     const std::int32_t &send_window() const noexcept { return m_send_window; }
     const std::int32_t &recv_window() const noexcept { return m_recv_window; }
@@ -368,14 +384,13 @@ class Stream {
         }
     }
 
-    std::vector<std::uint8_t> m_recv_buffer;
+    std::vector<std::byte> m_recv_buffer;
     StreamStateMachine m_state_machine;
     std::int32_t m_send_window;
     std::int32_t m_recv_window;
     std::reference_wrapper<Settings> m_remote_settings;
 
     [[no_unique_address]] StreamHelper m_stream_helper;
-    // [[no_unique_address]] ConnectionSettingsPtr m_remote_settings;
 };
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

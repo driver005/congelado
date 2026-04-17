@@ -4,7 +4,7 @@ import std;
 import io_layer_shared;
 import :frame;
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
 
 class StreamStateMachine {
   public:
@@ -151,4 +151,4 @@ class StreamStateMachine {
     shared_layer::StreamState m_state;
 };
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

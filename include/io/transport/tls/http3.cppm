@@ -16,7 +16,7 @@ inline int alpn_cb_h3(::SSL *, const unsigned char **out, unsigned char *outlen,
     return SSL_TLSEXT_ERR_NOACK;
 }
 
-export namespace transport::base::tls::http3 {
+export namespace io::base::tls::http3 {
 
 // Produces a SslCtx configured for h3 over QUIC.
 // Pass the result to your QUIC server layer (SSL_new / SSL_listen).
@@ -28,4 +28,4 @@ export namespace transport::base::tls::http3 {
     return ctx;
 }
 
-} // namespace transport::base::tls::http3
+} // namespace io::base::tls::http3

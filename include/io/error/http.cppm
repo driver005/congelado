@@ -2,7 +2,7 @@ export module io_error:http;
 
 import std;
 
-export namespace transport::error::http {
+export namespace io::error::http {
 
 // HTTP/2 Error Codes as defined in RFC 9113
 enum class Http2ErrorCode : std::uint32_t {
@@ -193,4 +193,4 @@ class CompressionError : public std::runtime_error {
 };
 
 
-} // namespace transport::error::http
+} // namespace io::error::http

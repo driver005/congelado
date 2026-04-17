@@ -9,7 +9,7 @@ import :consts;
 import :http_header;
 import :http_types;
 
-export namespace transport::shared::http {
+export namespace io::shared::http {
 
 class HttpRequest : public ::shared::Request {
   public:
@@ -97,4 +97,4 @@ class HttpRequest : public ::shared::Request {
     hashmap::swiss::SwissHashMap<std::string_view, std::shared_ptr<HeaderField<false>>> m_headers;
 };
 
-} // namespace transport::shared::http
+} // namespace io::shared::http

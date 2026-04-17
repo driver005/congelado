@@ -3,52 +3,101 @@ export module io_layer_http2:frame;
 import std;
 import io_layer_shared;
 import io_error;
+import shared;
 import :consts;
 
-export namespace transport::layer::http2 {
+export namespace io::layer::http2 {
 
 class FrameHeader {
   public:
+    FrameHeader() : m_length{0}, m_type{shared_layer::FrameType::DATA}, m_flags{0}, m_stream_id{0} {}
+
     FrameHeader(std::uint32_t length, shared_layer::FrameType type, std::uint8_t flags, std::uint32_t stream_id)
         : m_length(length), m_type(type), m_flags(flags) {
         set_stream_id(stream_id);
     }
 
-    // Getters
-    const std::uint32_t &get_length() const noexcept { return m_length; }
-    const shared_layer::FrameType &get_type() const noexcept { return m_type; }
-    const std::uint8_t &get_flags() const noexcept { return m_flags; }
-    const std::uint32_t &get_stream_id() const noexcept { return m_stream_id; }
+    FrameHeader &&add_length(std::uint32_t len) && noexcept {
+        m_length = len;
+        return std::move(*this);
+    }
 
-    // Setters
-    void set_length(std::uint32_t len) noexcept { m_length = len; }
-    void set_type(shared_layer::FrameType t) noexcept { m_type = t; }
-    void set_flags(std::uint8_t f) noexcept { m_flags = f; }
-    void set_stream_id(std::uint32_t id) noexcept { m_stream_id = id & 0x7FFFFFFF; }
+    FrameHeader &&add_type(shared_layer::FrameType type) && noexcept {
+        m_type = type;
+        return std::move(*this);
+    }
 
-    static FrameHeader from_bytes(std::span<const std::uint8_t, HEADER_SIZE> data, std::uint32_t max_frame_size) {
-        std::uint32_t len = shared_layer::Atom<>::read_big_endian(data.subspan<0, 3>());
+    FrameHeader &&add_flags(std::uint8_t flags) && noexcept {
+        m_flags = flags;
+        return std::move(*this);
+    }
+
+    FrameHeader &&add_stream_id(std::uint32_t stream_id) && noexcept {
+        set_stream_id(stream_id);
+        return std::move(*this);
+    }
+
+    template <shared::ByteRangeReader R>
+    static FrameHeader from_bytes(R &&range, std::uint32_t max_frame_size) {
+        if (std::ranges::size(range) < HEADER_SIZE) {
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                                               "Incomplete frame header");
+        }
+
+        std::uint32_t len = shared_layer::Atom<>::read_big_endian(range | std::views::take(3));
 
         if (len > max_frame_size) {
             throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
                                                "Frame length exceeds SETTINGS_MAX_FRAME_SIZE");
         }
-        std::uint32_t id = shared_layer::Atom<>::read_big_endian(data.subspan<5, 4>()) & 0x7FFFFFFF;
-        return {len, static_cast<shared_layer::FrameType>(data[3]), data[4], id};
+
+        auto type = static_cast<shared_layer::FrameType>(range[3]);
+        auto flags = std::to_integer<std::uint8_t>(range[4]);
+        std::uint32_t id =
+            shared_layer::Atom<>::read_big_endian(range | std::views::drop(5) | std::views::take(4)) & 0x7FFFFFFF;
+
+        return {len, type, flags, id};
     }
 
-    template <std::output_iterator<std::uint8_t> OutputIt>
-    void to_bytes(OutputIt it) const {
-        // Write Length (24-bit / 3 bytes)
-        shared_layer::Atom<>::write_big_endian(it, m_length, 3);
-
-        // Write Type and Flags (1 byte each)
-        *it++ = static_cast<std::uint8_t>(m_type);
-        *it++ = m_flags;
-
-        // Write Stream ID (31-bit / 4 bytes)
-        shared_layer::Atom<>::write_big_endian(it, m_stream_id, 4);
+    template <shared::ByteIteratorReader It>
+    static FrameHeader from_bytes(It &it, std::uint32_t max_frame_size) {
+        auto header = from_bytes(std::views::counted(it, HEADER_SIZE), max_frame_size);
+        std::advance(it, HEADER_SIZE);
+        return header;
     }
+
+    template <shared::ByteRangeWriter R>
+    void to_bytes(R &&range) const {
+        shared_layer::Atom<>::write_big_endian(range | std::views::take(3), m_length);
+
+        // 2. Write Type (1 byte)
+        shared_layer::Atom<std::uint8_t>::write_big_endian(range | std::views::drop(3) | std::views::take(1),
+                                                           std::to_underlying(m_type));
+        // 3. Write Flags (1 byte)
+        shared_layer::Atom<std::uint8_t>::write_big_endian(range | std::views::drop(4) | std::views::take(1), m_flags);
+
+        // 4. Write Stream ID (31-bit / 4 bytes)
+        // Masking bit 31 as per HTTP/2 spec
+        shared_layer::Atom<>::write_big_endian(range | std::views::drop(5) | std::views::take(4),
+                                               m_stream_id & 0x7FFFFFFF);
+    }
+
+
+    template <shared::ByteIteratorWriter It>
+    void to_bytes(It &it) const {
+        to_bytes(std::views::counted(it, HEADER_SIZE));
+        std::advance(it, HEADER_SIZE);
+    }
+
+    const std::uint32_t &get_length() const noexcept { return m_length; }
+    const shared_layer::FrameType &get_type() const noexcept { return m_type; }
+    const std::uint8_t &get_flags() const noexcept { return m_flags; }
+    const std::uint32_t &get_stream_id() const noexcept { return m_stream_id; }
+
+    void set_length(std::uint32_t len) noexcept { m_length = len; }
+    void set_type(shared_layer::FrameType t) noexcept { m_type = t; }
+    void set_flags(std::uint8_t f) noexcept { m_flags = f; }
+    void set_stream_id(std::uint32_t id) noexcept { m_stream_id = id & 0x7FFFFFFF; }
 
   private:
     std::uint32_t m_length;
@@ -61,34 +110,52 @@ class FrameHeader {
 template <shared_layer::FrameRole Role>
 class Frame {
   public:
-    Frame(FrameHeader header, std::vector<std::uint8_t> payload)
+    Frame() : m_header{}, m_payload{} {}
+
+    Frame(FrameHeader header, std::span<const std::byte> payload)
         : m_header(std::move(header)), m_payload(std::move(payload)) {
         validate();
     }
 
-    template <std::output_iterator<std::uint8_t> OutputIt>
-    void encode(OutputIt &it) const {
+    Frame &&add_header(FrameHeader header) && noexcept {
+        m_header = std::move(header);
+        return std::move(*this);
+    }
+
+    Frame &&add_payload(std::span<const std::byte> payload) && noexcept {
+        m_payload = std::move(payload);
+        return std::move(*this);
+    }
+
+    Frame &&build() && noexcept {
+        validate();
+        return std::move(*this);
+    }
+
+    template <shared::ByteRangeReader R>
+    void encode(R &&range) const {
+        m_header.to_bytes(range);
+        std::copy(m_payload.begin(), m_payload.end(), std::ranges::begin(range) + HEADER_SIZE);
+    }
+
+    template <shared::ByteIteratorWriter It>
+    void encode(It &it) const {
         m_header.to_bytes(it);
         std::copy(m_payload.begin(), m_payload.end(), it);
     }
 
-    static Frame decode(std::span<const std::uint8_t> data, const std::uint32_t &max_frame_size) {
-        if (data.size() < HEADER_SIZE) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "Buffer smaller than HTTP/2 header");
-        }
-
-        auto header = FrameHeader::from_bytes(data.subspan<0, HEADER_SIZE>(), max_frame_size);
+    template <shared::ByteRangeReader R>
+    static Frame decode(R &&range, const std::uint32_t &max_frame_size) {
+        auto header = FrameHeader::from_bytes(range | std::views::take(HEADER_SIZE), max_frame_size);
         const std::uint32_t payload_len = header.get_length();
 
         // Verify total length
-        if (data.size() < HEADER_SIZE + payload_len) {
+        if (std::ranges::size(range) < HEADER_SIZE + payload_len) {
             throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
                                                "Buffer contains truncated payload");
         }
 
-        // Extract payload using span-based iterators
-        std::vector<std::uint8_t> payload(data.begin() + HEADER_SIZE, data.begin() + HEADER_SIZE + payload_len);
+        std::span<const std::byte> payload{range | std::views::drop(HEADER_SIZE) | std::views::take(payload_len)};
 
         return Frame(std::move(header), std::move(payload));
     }
@@ -108,7 +175,13 @@ class Frame {
     }
 
     const FrameHeader &get_header() const noexcept { return m_header; }
-    const std::vector<std::uint8_t> &get_payload() const noexcept { return m_payload; }
+    std::span<const std::byte> get_payload() const noexcept { return m_payload; }
+    // TODO: This is a bit hacky, but it avoids unnecessary copying when we know the payload is actually bytes (e.g. for
+    // HPACK).
+    std::span<const std::uint8_t> get_payload_as_u8() const noexcept {
+        return std::span<const std::uint8_t>{reinterpret_cast<const std::uint8_t *>(m_payload.data()),
+                                             m_payload.size()};
+    }
     const std::uint32_t &get_payload_size() const noexcept { return m_header.get_length(); }
     const std::uint32_t &get_stream_id() const noexcept { return m_header.get_stream_id(); }
 
@@ -181,7 +254,7 @@ class Frame {
             if (m_header.get_length() < 1)
                 throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
                                                    "DATA too short for padding", get_stream_id());
-            if (m_payload[0] >= m_header.get_length())
+            if (std::to_integer<std::uint32_t>(m_payload[0]) >= m_header.get_length())
                 throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR, "Padding exceeds frame",
                                                    get_stream_id());
         }
@@ -207,7 +280,7 @@ class Frame {
                                                "HEADERS length too short", get_stream_id());
 
         if (m_header.get_flags() & shared_layer::Flags::PADDED) {
-            if (m_payload[0] >= m_header.get_length())
+            if (std::to_integer<std::uint32_t>(m_payload[0]) >= m_header.get_length())
                 throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    "Padding exceeds payload size", get_stream_id());
         }
@@ -307,7 +380,7 @@ class Frame {
     }
 
     FrameHeader m_header;
-    std::vector<std::uint8_t> m_payload;
+    std::span<const std::byte> m_payload;
 };
 
-} // namespace transport::layer::http2
+} // namespace io::layer::http2

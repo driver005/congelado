@@ -1,8 +1,8 @@
-export module io_server:types;
+export module core_server:types;
 
 import std;
 
-export namespace transport::server {
+export namespace core::server {
 
 enum class MethodBitMask : std::uint8_t {
     GET = 1 << 0,
@@ -28,4 +28,4 @@ enum class Method : std::uint8_t {
 };
 
 
-} // namespace transport::server
+} // namespace core::server

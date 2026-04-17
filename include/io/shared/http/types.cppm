@@ -2,7 +2,7 @@ export module io_shared:http_types;
 
 import std;
 
-export namespace transport::shared::http {
+export namespace io::shared::http {
 
 // HTTP method as a typed enum — method_raw holds the original string for
 // extension methods (PATCH, custom verbs, etc.) that don't map to the enum.
@@ -456,4 +456,4 @@ constexpr std::string_view token_to_string(const Token &tk) noexcept {
     }
 }
 
-} // namespace transport::shared::http
+} // namespace io::shared::http

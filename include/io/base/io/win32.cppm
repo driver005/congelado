@@ -20,7 +20,7 @@ import :types;
 import :buffer;
 import :consts;
 
-export namespace transport::base::io {
+export namespace io::base::io {
 
 // ─── WsaGuard ────────────────────────────────────────────────────────────────
 
@@ -114,11 +114,11 @@ struct Win32State {
 
 using PlatformIO = IO<Win32State>;
 
-} // namespace transport::base::io
+} // namespace io::base::io
 
 // ─── IO<Win32State> method bodies ─────────────────────────────────────────────
 
-namespace transport::base::io {
+namespace io::base::io {
 
 template <>
 IO<Win32State>::IO(RingBuffer &buffer, unsigned /*entries — IOCP queue is unbounded*/) {
@@ -283,4 +283,4 @@ std::uintptr_t IO<Win32State>::native_handle() const noexcept {
     return reinterpret_cast<std::uintptr_t>(state_.iocp);
 }
 
-} // namespace transport::base::io
+} // namespace io::base::io

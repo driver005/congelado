@@ -56,7 +56,7 @@ constexpr auto operator&(OpenFlags a, OpenFlags b) noexcept -> OpenFlags {
 // result >= 0  →  success (bytes transferred, new fd, etc.)
 // result <  0  →  negated error code (errno on Linux, GetLastError on Windows)
 
-using Completion = std::move_only_function<void(int result) noexcept>;
+using Completion = std::function<void(int result) noexcept>;
 
 // ─── IoServiceBase ────────────────────────────────────────────────────────────
 // CRTP base.  The concrete backend (Linux or Windows) inherits from this and

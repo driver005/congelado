@@ -5,7 +5,7 @@ import io_error;
 import :consts;
 import :http_types;
 
-export namespace transport::shared::http {
+export namespace io::shared::http {
 
 template <bool IsStatic = false>
 class HeaderField {
@@ -61,4 +61,4 @@ class HeaderField {
 
 // Export a common type for header entries, which can be either static or dynamic
 using HeaderEntry = std::variant<std::shared_ptr<HeaderField<true>>, std::shared_ptr<HeaderField<false>>>;
-} // namespace transport::shared::http
+} // namespace io::shared::http

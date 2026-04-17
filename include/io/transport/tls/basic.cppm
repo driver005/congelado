@@ -20,7 +20,7 @@ import io_io;
 import io_error;
 import :types;
 
-export namespace transport::base::tls::basic {
+export namespace io::base::tls::basic {
 
 class Connection {
   public:
@@ -36,7 +36,7 @@ class Connection {
 
     // ── Upgrade (server-side TLS handshake) ──────────────────────────────────
 
-    static Connection upgrade(tcp::Connection &&tcp_conn, ::SSL_CTX *ctx, io::PlatformIO &io) {
+    static Connection upgrade(tcp::Connection &&tcp_conn, ::SSL_CTX *ctx, ::io::base::io::PlatformIO &io) {
         ::BIO *rbio = ::BIO_new(::BIO_s_mem());
         ::BIO *wbio = ::BIO_new(::BIO_s_mem());
         if (!rbio || !wbio) {
@@ -203,4 +203,4 @@ class Server {
     ::SSL_CTX *m_ctx;
 };
 
-} // namespace transport::base::tls::basic
+} // namespace io::base::tls::basic

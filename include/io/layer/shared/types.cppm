@@ -2,7 +2,7 @@ export module io_layer_shared:types;
 
 import std;
 
-export namespace transport::shared_layer {
+export namespace io::shared_layer {
 
 enum class StreamState : std::uint8_t {
     Idle,
@@ -37,4 +37,4 @@ enum class FrameType : std::uint8_t {
     CONTINUATION = 0x9
 };
 
-} // namespace transport::shared_layer
+} // namespace io::shared_layer

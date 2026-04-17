@@ -1,10 +1,10 @@
-export module io_server:middleware;
+export module core_server:middleware;
 
 import std;
 import shared;
 import :types;
 
-export namespace transport::server {
+export namespace core::server {
 
 template <shared::IsRequest Request, shared::IsResponse Response, std::uint8_t MiddlewareSize>
 class Middleware {
@@ -57,4 +57,4 @@ class Middleware {
     std::uint8_t m_middleware_index;
 };
 
-} // namespace transport::server
+} // namespace core::server

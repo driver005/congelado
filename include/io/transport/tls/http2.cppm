@@ -17,7 +17,7 @@ inline int alpn_cb_h2(::SSL *, const unsigned char **out, unsigned char *outlen,
     return SSL_TLSEXT_ERR_NOACK;
 }
 
-export namespace transport::base::tls::http2 {
+export namespace io::base::tls::http2 {
 
 // Produces a SslCtx configured for h2/http1.1 over TLS.
 // Pass the result directly to  tls::Server::listen().
@@ -30,4 +30,4 @@ export namespace transport::base::tls::http2 {
     // return  tls::SslCtx::from_files(cert_pem, key_pem, ::TLS_server_method(), alpn_cb_h2);
 }
 
-} // namespace transport::base::tls::http2
+} // namespace io::base::tls::http2
