@@ -11,7 +11,7 @@ class BufferView {
     class Iterator {
       public:
         using iterator_category = std::forward_iterator_tag;
-        using value_type = const std::byte;
+        using value_type = std::byte;
         using difference_type = std::ptrdiff_t;
         using pointer = const std::byte *;
         using reference = const std::byte &;
@@ -35,8 +35,13 @@ class BufferView {
             return *this;
         }
 
-        bool operator==(const Iterator &other) const noexcept { return m_node == other.m_node && m_off == other.m_off; }
+        Iterator operator++(int) noexcept {
+            Iterator temp = *this;
+            ++(*this);
+            return temp;
+        }
 
+        bool operator==(const Iterator &other) const noexcept { return m_node == other.m_node && m_off == other.m_off; }
         bool operator==(std::default_sentinel_t) const noexcept { return m_node == nullptr; }
 
 
@@ -48,6 +53,10 @@ class BufferView {
         std::size_t m_off;
     };
 
+    struct Sentinel {
+        bool operator==(const Iterator &it) const noexcept { return it == std::default_sentinel; }
+    };
+
     BufferView() : m_begin{}, m_size{0} {}
 
     BufferView(BufferNode *head, std::size_t offset, std::size_t total_size)
@@ -57,7 +66,15 @@ class BufferView {
     void expand(std::size_t additional_bytes) noexcept { m_size += additional_bytes; }
 
     [[nodiscard]] Iterator begin() const noexcept { return m_begin; }
-    [[nodiscard]] std::default_sentinel_t end() const noexcept { return std::default_sentinel; }
+    [[nodiscard]] Sentinel end() const noexcept { return {}; }
+    [[nodiscard]] std::size_t size() const noexcept { return m_size; }
+    [[nodiscard]] bool empty() const noexcept { return m_size == 0; }
+
+    [[nodiscard]] std::optional<BufferNode *> peek() const noexcept {
+        if (m_begin == end())
+            return std::nullopt;
+        return m_begin.get_node();
+    }
 
     [[nodiscard]] std::optional<BufferNode> next() noexcept {
         if (m_begin == end())
@@ -69,7 +86,21 @@ class BufferView {
         return result;
     }
 
-    [[nodiscard]] std::size_t get_size() const noexcept { return m_size; }
+    void pop_front() noexcept {
+        if (m_begin == end())
+            return;
+        BufferNode *node = m_begin.get_node();
+        ++m_begin;
+        delete node;
+    }
+
+    [[nodiscard]] const std::byte *peek_contiguous(std::size_t size) const {
+        // Ensure we have at least one node and it is large enough
+        if (m_size >= size && m_begin != end() && m_begin.get_node()->get_size() >= size) {
+            return reinterpret_cast<const std::byte *>(m_begin.get_node()->get_data());
+        }
+        return nullptr;
+    }
 
   private:
     Iterator m_begin;

@@ -82,6 +82,7 @@ add_requires("conan::simdjson/4.2.4", { alias = "simdjson", configs = conan })
 add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 -- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
+add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 
 set_languages("c++26", "c11")
 set_warnings("all", "extra", "error")
@@ -150,6 +151,7 @@ add_packages(
 	"nghttp2",
 	"ngtcp2",
 	"nghttp3",
+	"backward",
 	{ public = true }
 )
 

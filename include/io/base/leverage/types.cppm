@@ -13,6 +13,7 @@ module;
 #include <windows.h>
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
+
 #else
 #include <errno.h>
 #include <linux/time_types.h>
@@ -69,6 +70,7 @@ constexpr socket_t invalid_socket = -1;
 #endif
 
 #ifdef _WIN32
+
 struct iovec {
     void *iov_base;
     size_t iov_len;
@@ -274,117 +276,94 @@ inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = fal
 template <typename SharedContext>
 class Leverager : public shared::HandlerBase {
   public:
-    /** Init io_service
-     * @param entries Maximum pending operations (Linux: io_uring queue size, Windows: IOCP concurrency hint)
-     * @param flags Platform-specific flags (Linux: io_uring flags, Windows: ignored)
-     * @param wq_fd Platform-specific (Linux: attach to existing wq, Windows: ignored)
-     */
     Leverager(int entries = 64, std::uint32_t flags = 0, std::uint32_t wq_fd = 0);
 
-    /** Destroy io_service */
     ~Leverager() noexcept;
 
-    // Non-copyable, non-movable
     Leverager(const Leverager &) = delete;
     Leverager &operator=(const Leverager &) = delete;
     Leverager(Leverager &&) = delete;
     Leverager &operator=(Leverager &&) = delete;
 
     // Async operation methods
-    void async_readv(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
-                     std::uint8_t iflags = 0);
+    void readv(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
+               std::uint8_t iflags = 0);
 
-    void async_readv2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
-                      std::uint8_t iflags = 0);
+    void readv2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
+                std::uint8_t iflags = 0);
 
-    void async_writev(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
-                      std::uint8_t iflags = 0);
+    void writev(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
+                std::uint8_t iflags = 0);
 
-    void async_writev2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
-                       std::uint8_t iflags = 0);
+    void writev2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
+                 std::uint8_t iflags = 0);
 
-    void async_read(int fd, void *buf, unsigned nbytes, off_t offset, completion_callback cb, std::uint8_t iflags = 0);
+    void read(int fd, void *buf, unsigned nbytes, off_t offset, completion_callback cb, std::uint8_t iflags = 0);
 
-    void async_write(int fd, const void *buf, unsigned nbytes, off_t offset, completion_callback cb,
-                     std::uint8_t iflags = 0);
+    void write(int fd, const void *buf, unsigned nbytes, off_t offset, completion_callback cb, std::uint8_t iflags = 0);
 
-    void async_read_fixed(int fd, void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback cb,
-                          std::uint8_t iflags = 0);
-
-    void async_write_fixed(int fd, const void *buf, unsigned nbytes, off_t offset, int buf_index,
-                           completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_fsync(int fd, unsigned fsync_flags, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned sync_range_flags,
-                               completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback cb,
-                       std::uint8_t iflags = 0);
-
-    void async_recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
+    void read_fixed(int fd, void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback cb,
                     std::uint8_t iflags = 0);
 
-    void async_send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
-                    std::uint8_t iflags = 0);
+    void write_fixed(int fd, const void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback cb,
+                     std::uint8_t iflags = 0);
 
-    void async_poll(int fd, short poll_mask, completion_callback cb, std::uint8_t iflags = 0);
+    void fsync(int fd, unsigned fsync_flags, completion_callback cb, std::uint8_t iflags = 0);
 
-    void async_yield(completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_accept(int fd, sockaddr *addr, socklen_t *addrlen, int flags, completion_callback cb,
-                      std::uint8_t iflags = 0);
-
-    void async_connect(int fd, sockaddr *addr, socklen_t addrlen, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_timeout(__kernel_timespec *ts, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_openat(int dfd, const char *path, int flags, mode_t mode, completion_callback cb,
-                      std::uint8_t iflags = 0);
-
-    void async_close(int fd, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf,
-                     completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out, size_t nbytes, unsigned flags,
-                      completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_tee(int fd_in, int fd_out, size_t nbytes, unsigned flags, completion_callback cb,
-                   std::uint8_t iflags = 0);
-
-    void async_shutdown(int fd, int how, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_renameat(int olddfd, const char *oldpath, int newdfd, const char *newpath, unsigned flags,
-                        completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback cb, std::uint8_t iflags = 0);
-
-    void async_symlinkat(const char *target, int newdirfd, const char *linkpath, completion_callback cb,
+    void sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned sync_range_flags, completion_callback cb,
                          std::uint8_t iflags = 0);
 
-    void async_linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags,
-                      completion_callback cb, std::uint8_t iflags = 0);
+    void recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags = 0);
 
-    void async_unlinkat(int dfd, const char *path, unsigned flags, completion_callback cb, std::uint8_t iflags = 0);
+    void sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags = 0);
 
-    void async_msg_ring(int fd, unsigned len, std::uint64_t data, unsigned flags, completion_callback cb,
-                        std::uint8_t iflags = 0);
+    void recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
+              std::uint8_t iflags = 0);
 
-    int readv(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset);
-    int writev(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset);
-    int read(int fd, void *buf, unsigned nbytes, off_t offset);
-    int write(int fd, const void *buf, unsigned nbytes, off_t offset);
-    int fsync(int fd, unsigned fsync_flags);
-    int close(int fd);
-    int openat(int dfd, const char *path, int flags, mode_t mode);
-    int accept(int fd, sockaddr *addr, socklen_t *addrlen, int flags = 0);
-    int connect(int fd, sockaddr *addr, socklen_t addrlen);
+    void send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
+              std::uint8_t iflags = 0);
+
+    void poll(int fd, short poll_mask, completion_callback cb, std::uint8_t iflags = 0);
+
+    void yield(completion_callback cb, std::uint8_t iflags = 0);
+
+    void accept(int fd, sockaddr *addr, socklen_t *addrlen, int flags, completion_callback cb, std::uint8_t iflags = 0);
+
+    void connect(int fd, sockaddr *addr, socklen_t addrlen, completion_callback cb, std::uint8_t iflags = 0);
+
+    void timeout(__kernel_timespec *ts, completion_callback cb, std::uint8_t iflags = 0);
+
+    void openat(int dfd, const char *path, int flags, mode_t mode, completion_callback cb, std::uint8_t iflags = 0);
+
+    void close(int fd, completion_callback cb, std::uint8_t iflags = 0);
+
+    void statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf, completion_callback cb,
+               std::uint8_t iflags = 0);
+
+    void splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out, size_t nbytes, unsigned flags,
+                completion_callback cb, std::uint8_t iflags = 0);
+
+    void tee(int fd_in, int fd_out, size_t nbytes, unsigned flags, completion_callback cb, std::uint8_t iflags = 0);
+
+    void shutdown(int fd, int how, completion_callback cb, std::uint8_t iflags = 0);
+
+    void renameat(int olddfd, const char *oldpath, int newdfd, const char *newpath, unsigned flags,
+                  completion_callback cb, std::uint8_t iflags = 0);
+
+    void mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback cb, std::uint8_t iflags = 0);
+
+    void symlinkat(const char *target, int newdirfd, const char *linkpath, completion_callback cb,
+                   std::uint8_t iflags = 0);
+
+    void linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, completion_callback cb,
+                std::uint8_t iflags = 0);
+
+    void unlinkat(int dfd, const char *path, unsigned flags, completion_callback cb, std::uint8_t iflags = 0);
+
+    void msg_ring(int fd, unsigned len, std::uint64_t data, unsigned flags, completion_callback cb,
+                  std::uint8_t iflags = 0);
 
     void run();
-    void run_once();
     void poll();
     void stop();
 
@@ -401,9 +380,11 @@ class Leverager : public shared::HandlerBase {
     [[nodiscard]] SharedContext &context() noexcept { return m_context; }
     [[nodiscard]] const SharedContext &context() const noexcept { return m_context; }
 
+    std::string_view name() const noexcept override { return "Leverager"; }
+
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            run_once();
+            run();
             shared::this_handler::shedule();
         };
     }

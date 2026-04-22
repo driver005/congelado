@@ -10,22 +10,55 @@ constexpr std::size_t kGroupWidth = 16;
 
 export namespace hashmap::swiss {
 
+template <typename K, typename V>
+struct Entry {
+    Entry(K k, V v) : m_key(std::move(k)), m_value(std::move(v)) {}
+
+    K &key() { return m_key; }
+    const K &key() const { return m_key; }
+    V &value() { return m_value; }
+    const V &value() const { return m_value; }
+
+    // NOTE: used by compiler-generated get<I> for structured bindings, not intended for direct use.
+    template <std::size_t I>
+    auto &get() {
+        if constexpr (I == 0)
+            return m_key;
+        else
+            return m_value;
+    }
+
+    // NOTE: used by compiler-generated get<I> for structured bindings, not intended for direct use.
+    template <std::size_t I>
+    const auto &get() const {
+        if constexpr (I == 0)
+            return m_key;
+        else
+            return m_value;
+    }
+
+  private:
+    K m_key;
+    V m_value;
+};
+
+// NOTE: used by compiler-generated get<I> for structured bindings, not intended for direct use.
+template <std::size_t I, typename K, typename V>
+auto &get(Entry<K, V> &e) {
+    return e.template get<I>();
+}
+
+// NOTE: used by compiler-generated get<I> for structured bindings, not intended for direct use.
+template <std::size_t I, typename K, typename V>
+const auto &get(const Entry<K, V> &e) {
+    return e.template get<I>();
+}
+
 template <typename K, typename V, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>,
           typename ValueEqual = std::equal_to<V>>
 class SwissHashMap {
   public:
-    struct Entry {
-        Entry(K k, V v) : m_key(std::move(k)), m_value(std::move(v)) {}
-
-        K &key() { return m_key; }
-        const K &key() const { return m_key; }
-        V &value() { return m_value; }
-        const V &value() const { return m_value; }
-
-      private:
-        K m_key;
-        V m_value;
-    };
+    using Entry = Entry<K, V>;
 
     // Raw uninitialised storage for one Entry — no K or V construction until
     // placement new fires in insert_impl. alignas ensures placement new is valid.
@@ -38,6 +71,61 @@ class SwissHashMap {
         kDeleted = 0x7E,
         kSentinel = 0xFE,
     };
+
+    template <bool IsConst>
+    class IteratorBase {
+        using MapPtr = std::conditional_t<IsConst, const SwissHashMap *, SwissHashMap *>;
+        using EntryRef = std::conditional_t<IsConst, const Entry &, Entry &>;
+        using EntryPtr = std::conditional_t<IsConst, const Entry *, Entry *>;
+
+        MapPtr m_map;
+        std::size_t m_idx;
+
+        void advance() {
+            while (m_idx < m_map->capacity_) {
+                std::uint8_t c = m_map->ctrl_[m_idx];
+                if (c != SwissHashMap::kEmpty && c != SwissHashMap::kDeleted && c != SwissHashMap::kSentinel)
+                    break;
+                ++m_idx;
+            }
+        }
+
+      public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = Entry;
+        using difference_type = std::ptrdiff_t;
+        using reference = EntryRef;
+        using pointer = EntryPtr;
+
+        IteratorBase(MapPtr map, std::size_t idx) : m_map(map), m_idx(idx) { advance(); }
+
+        reference operator*() const { return m_map->slot(m_idx); }
+        pointer operator->() const { return &m_map->slot(m_idx); }
+
+        IteratorBase &operator++() {
+            ++m_idx;
+            advance();
+            return *this;
+        }
+        IteratorBase operator++(int) {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const IteratorBase &o) const { return m_idx == o.m_idx; }
+        bool operator!=(const IteratorBase &o) const { return m_idx != o.m_idx; }
+    };
+
+    using iterator = IteratorBase<false>;
+    using const_iterator = IteratorBase<true>;
+
+    iterator begin() { return {this, 0}; }
+    iterator end() { return {this, capacity_}; }
+    const_iterator begin() const { return {this, 0}; }
+    const_iterator end() const { return {this, capacity_}; }
+    const_iterator cbegin() const { return begin(); }
+    const_iterator cend() const { return end(); }
 
     SwissHashMap() : capacity_(0), size_(0) {}
 
@@ -180,6 +268,9 @@ class SwissHashMap {
     std::size_t capacity_;
     std::size_t size_;
 
+    template <bool>
+    friend class IteratorBase;
+
     Entry &slot(std::size_t i) { return *std::launder(reinterpret_cast<Entry *>(&slots_raw_[i])); }
     const Entry &slot(std::size_t i) const { return *std::launder(reinterpret_cast<const Entry *>(&slots_raw_[i])); }
 
@@ -265,3 +356,18 @@ class SwissHashMap {
 };
 
 } // namespace hashmap::swiss
+
+namespace std {
+
+// NOTE: this tells the compiler the size to use structured bindings
+template <typename K, typename V>
+struct tuple_size<hashmap::swiss::Entry<K, V>> : std::integral_constant<std::size_t, 2> {};
+
+// NOTE: this tells the compiler the types to use for structured bindings
+template <std::size_t I, typename K, typename V>
+struct tuple_element<I, hashmap::swiss::Entry<K, V>> {
+    // Simple swith at compile time via std::conditional_t to return the correct type based on the index I
+    using type = std::conditional_t<I == 0, K, V>;
+};
+
+} // namespace std

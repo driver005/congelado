@@ -30,9 +30,9 @@ concept HandlerController =
         { a.schedule(id) } -> std::same_as<void>;
         { a.deschedule(id) } -> std::same_as<void>;
         { a.release(id) } -> std::same_as<void>;
-    } && requires(T a, shared::WorkerFunction work, shared::ReleaseFunction release, shared::ErrorHandler error,
-                  OptionalArgs... opt_args) {
-        { a.create(work, release, error, opt_args...) } -> HandlerTemplate;
+    } && requires(T a, std::string_view name, shared::WorkerFunction work, shared::ReleaseFunction release,
+                  shared::ErrorHandler error, OptionalArgs... opt_args) {
+        { a.create(name, work, release, error, opt_args...) } -> HandlerTemplate;
     };
 
 
@@ -47,10 +47,11 @@ class HandlerBase {
   public:
     virtual ~HandlerBase() = default;
 
-    template <typename TPattern, typename... Args>
-        requires ExecutionPattern<TPattern, Args...>
-    auto plug_into(Args &&...args) -> HandlerTemplate auto {
-        return TPattern::install(*this, std::forward<Args>(args)...);
+    virtual std::string_view name() const noexcept = 0;
+
+    template <HandlerController TController, typename... Args>
+    auto create(TController &controller, Args &&...args) -> HandlerTemplate auto {
+        return controller.create(name(), on_execute(), on_released(), on_error(), std::forward<Args>(args)...);
     }
 
     virtual WorkerFunction on_execute() = 0;
@@ -70,22 +71,28 @@ thread_local inline HandlerInterface *current = nullptr;
 thread_local inline std::uint32_t current_id = std::numeric_limits<std::uint32_t>::max();
 
 inline void shedule() {
-    if (!current)
-        throw std::runtime_error("No current contract context for scheduling");
+    if (!current) {
+        throw std::runtime_error(
+            std::format("No current contract context for scheduling in thread `{}`", std::this_thread::get_id()));
+    }
 
     current->schedule(current_id);
 }
 
 inline void deschedule() {
-    if (!current)
-        throw std::runtime_error("No current contract context for descheduling");
+    if (!current) {
+        throw std::runtime_error(
+            std::format("No current contract context for descheduling in thread `{}`", std::this_thread::get_id()));
+    }
 
     current->deschedule(current_id);
 }
 
 inline void release() {
-    if (!current)
-        throw std::runtime_error("No current contract context for releasing");
+    if (!current) {
+        throw std::runtime_error(
+            std::format("No current contract context for releaseing in thread `{}`", std::this_thread::get_id()));
+    }
 
     current->release(current_id);
 }

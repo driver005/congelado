@@ -7,7 +7,14 @@ export namespace io::layer::http2 {
 inline constexpr std::uint8_t HEADER_SIZE = 9;
 
 // "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-inline constexpr std::string_view HTTP2_CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+// Ensure this is an array of std::byte
+inline constexpr std::array<std::byte, 24> HTTP2_CONNECTION_PREFACE = [] {
+    std::string_view sv = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+    std::array<std::byte, 24> arr{};
+    for (std::size_t i = 0; i < 24; ++i)
+        arr[i] = static_cast<std::byte>(sv[i]);
+    return arr;
+}();
 
 inline constexpr std::uint32_t DEFAULT_INITIAL_WINDOW_SIZE = (1u << 16) - 1; // 65535 (2^16 - 1)
 inline constexpr std::uint32_t MAX_INITIAL_WINDOW_SIZE = (1u << 31) - 1;     // 2147483647 (2^31 - 1)
