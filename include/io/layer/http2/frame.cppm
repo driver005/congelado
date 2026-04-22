@@ -1,3 +1,9 @@
+module;
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <utility>
+#include <vector>
 export module io_layer_http2:frame;
 
 import std;
@@ -51,8 +57,8 @@ class FrameHeader {
                                                "Frame length exceeds SETTINGS_MAX_FRAME_SIZE");
         }
 
-        auto type = static_cast<shared_layer::FrameType>(range[3]);
-        auto flags = std::to_integer<std::uint8_t>(range[4]);
+        auto type = static_cast<shared_layer::FrameType>(*std::ranges::next(std::ranges::begin(range), 3));
+        auto flags = static_cast<std::uint8_t>(*std::ranges::next(std::ranges::begin(range), 4));
         std::uint32_t id =
             shared_layer::Atom<>::read_big_endian(range | std::views::drop(5) | std::views::take(4)) & 0x7FFFFFFF;
 
@@ -82,13 +88,13 @@ class FrameHeader {
                                                m_stream_id & 0x7FFFFFFF);
     }
 
-
     template <shared::ByteIteratorWriter It>
     void to_bytes(It &it) const {
         to_bytes(std::views::counted(it, HEADER_SIZE));
         std::advance(it, HEADER_SIZE);
     }
 
+    constexpr std::size_t get_size() const noexcept { return HEADER_SIZE; }
     const std::uint32_t &get_length() const noexcept { return m_length; }
     const shared_layer::FrameType &get_type() const noexcept { return m_type; }
     const std::uint8_t &get_flags() const noexcept { return m_flags; }
@@ -112,7 +118,7 @@ class Frame {
   public:
     Frame() : m_header{}, m_payload{} {}
 
-    Frame(FrameHeader header, std::span<const std::byte> payload)
+    Frame(FrameHeader header, std::vector<std::byte> payload)
         : m_header(std::move(header)), m_payload(std::move(payload)) {
         validate();
     }
@@ -122,8 +128,10 @@ class Frame {
         return std::move(*this);
     }
 
-    Frame &&add_payload(std::span<const std::byte> payload) && noexcept {
-        m_payload = std::move(payload);
+    template <std::ranges::contiguous_range R>
+        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
+    Frame &&add_payload(R &&payload) && noexcept {
+        m_payload.assign(std::ranges::begin(payload), std::ranges::end(payload));
         return std::move(*this);
     }
 
@@ -135,17 +143,17 @@ class Frame {
     template <shared::ByteRangeReader R>
     void encode(R &&range) const {
         m_header.to_bytes(range);
-        std::copy(m_payload.begin(), m_payload.end(), std::ranges::begin(range) + HEADER_SIZE);
+        std::ranges::move(m_payload, std::ranges::begin(range | std::views::drop(HEADER_SIZE)));
     }
 
     template <shared::ByteIteratorWriter It>
     void encode(It &it) const {
         m_header.to_bytes(it);
-        std::copy(m_payload.begin(), m_payload.end(), it);
+        std::move(m_payload.begin(), m_payload.end(), it);
     }
 
     template <shared::ByteRangeReader R>
-    static Frame decode(R &&range, const std::uint32_t &max_frame_size) {
+    static Frame decode_pre_header(R &&range, const std::uint32_t &max_frame_size) {
         auto header = FrameHeader::from_bytes(range | std::views::take(HEADER_SIZE), max_frame_size);
         const std::uint32_t payload_len = header.get_length();
 
@@ -155,9 +163,31 @@ class Frame {
                                                "Buffer contains truncated payload");
         }
 
-        std::span<const std::byte> payload{range | std::views::drop(HEADER_SIZE) | std::views::take(payload_len)};
-
+        std::vector<std::byte> payload = range | std::views::drop(HEADER_SIZE) | std::views::take(payload_len) |
+                                         std::ranges::to<std::vector<std::byte>>();
         return Frame(std::move(header), std::move(payload));
+    }
+
+    template <shared::ByteIteratorReader It>
+    static Frame decode_pre_header(It &it, const std::uint32_t &max_frame_size) {
+        return decode_pre_header(std::ranges::subrange(it, std::default_sentinel), max_frame_size);
+    }
+
+    template <shared::ByteRangeReader R>
+    static Frame decode_post_header(R &&range, FrameHeader header) {
+        const std::uint32_t payload_len = header.get_length();
+        if (std::ranges::distance(range) < payload_len) {
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                                               "Buffer contains truncated payload");
+        }
+        std::vector<std::byte> payload =
+            range | std::views::take(payload_len) | std::ranges::to<std::vector<std::byte>>();
+        return Frame(std::move(header), std::move(payload));
+    }
+
+    template <shared::ByteIteratorReader It>
+    static Frame decode_post_header(It &it, FrameHeader header) {
+        return decode_post_header(std::ranges::subrange(it, std::default_sentinel), std::move(header));
     }
 
     std::uint32_t get_window_increament() const {
@@ -174,16 +204,18 @@ class Frame {
         return inc;
     }
 
+    const std::uint32_t &get_stream_id() const noexcept { return m_header.get_stream_id(); }
+    const std::uint32_t &get_payload_size() const noexcept { return m_header.get_length(); }
     const FrameHeader &get_header() const noexcept { return m_header; }
+    std::size_t get_size() const noexcept { return get_payload_size() + get_header().get_size(); }
     std::span<const std::byte> get_payload() const noexcept { return m_payload; }
-    // TODO: This is a bit hacky, but it avoids unnecessary copying when we know the payload is actually bytes (e.g. for
-    // HPACK).
+
+    // TODO: This is a bit hacky, but it avoids unnecessary copying when we know the payload is actually bytes (e.g.
+    // for HPACK).
     std::span<const std::uint8_t> get_payload_as_u8() const noexcept {
         return std::span<const std::uint8_t>{reinterpret_cast<const std::uint8_t *>(m_payload.data()),
                                              m_payload.size()};
     }
-    const std::uint32_t &get_payload_size() const noexcept { return m_header.get_length(); }
-    const std::uint32_t &get_stream_id() const noexcept { return m_header.get_stream_id(); }
 
   private:
     void validate() {
@@ -380,7 +412,7 @@ class Frame {
     }
 
     FrameHeader m_header;
-    std::span<const std::byte> m_payload;
+    std::vector<std::byte> m_payload;
 };
 
 } // namespace io::layer::http2

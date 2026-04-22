@@ -5,53 +5,34 @@ module;
 export module io_layer_http2:session;
 
 import std;
-import io_tls;
 import io_codec_hpack;
+import io_base_buffering;
+import shared;
 import :settings;
 import :stream;
 
 export namespace io::layer::http2 {
-// pushed into session at construction
-// ReadFunctor  — std::function<void(buffering::BufferView, std::size_t)>
-// SendFunctor  — std::function<void(const Frame<FrameRole::Sender>&)>
 
-template <bool IsServer = true>
 class Session {
   public:
-    explicit Session(base::tls::basic::Connection &&conn)
-        : m_conn(std::move(conn)), m_running{true}, m_local_settings{Settings{}}, m_remote_settings{Settings{}},
-          m_closed_streams{}, m_header_buffer{}, m_decoding_table{codec::hpack::HPackTable{}},
-          m_encoding_table{codec::hpack::HPackTable{}},
-          m_connection_stream{Stream<false>{0, m_decoding_table, m_encoding_table, m_remote_settings, false}} {}
+    explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback)
+        : m_running{true}, m_local_settings{Settings{}}, m_remote_settings{Settings{}}, m_closed_streams{},
+          m_header_buffer{}, m_decoding_table{codec::hpack::HPackTable{}}, m_encoding_table{codec::hpack::HPackTable{}},
+          m_connection_stream{Stream<false>{0, m_decoding_table, m_encoding_table, m_remote_settings, false}},
+          m_submiter{std::move(send_callback)}, m_closer{std::move(close_callback)}, m_safe_header{std::nullopt} {}
 
 
-    void loop() {
-        handshake();
-
-        while (m_running) {
-            try {
-                std::array<std::byte, 9> header_bytes;
-                if (!receive_exact(std::as_writable_bytes(std::span{header_bytes}))) {
-                    m_running = false;
-                    break;
+    void receive(base::buffering::BufferView view) {
+        try {
+            if (!m_safe_header.has_value()) {
+                auto header_opt = receive_header(view);
+                if (!header_opt.has_value()) {
+                    return;
                 }
-                auto header = FrameHeader::from_bytes(header_bytes, m_local_settings.max_frame_size());
+
+                auto header = header_opt.value();
 
                 std::println("Sending on Stream ID {} ", header.get_stream_id());
-
-                std::vector<std::byte> frame_data;
-                frame_data.reserve(header.get_length());
-
-                if (header.get_length() > 0) {
-                    frame_data.resize(header.get_length());
-                    auto payload_span = std::as_writable_bytes(std::span{frame_data});
-
-                    if (!receive_exact(payload_span)) {
-                        throw error::http::ConnectionError{error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                                           "Connection closed during payload transfer",
-                                                           header.get_stream_id()};
-                    }
-                }
 
                 if (header.get_stream_id() > m_remote_settings.trigger_goaway_after_stream_id()) {
                     throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
@@ -69,61 +50,72 @@ class Session {
                     }
                 }
 
-                auto frame = Frame<shared_layer::FrameRole::Receiver>{std::move(header), std::move(frame_data)};
-
-                if (header.get_stream_id() == 0) {
-                    if (auto frm = m_connection_stream.handle_frame(frame); frm.has_value()) {
-                        send_frame(frm.value());
-                    }
-                } else {
-                    auto &stream = get_or_create_stream(header.get_stream_id());
-                    stream.handle_frame(frame, false, m_connection_stream);
-
-                    if (stream.is_remote_done()) {
-                        response(stream.get_stream_id());
-                    }
-                }
-            } catch (const error::http::ConnectionError &e) {
-                m_running = false;
-
-                std::array<std::byte, 8> payload;
-                shared_layer::Atom<>::write_big_endian(payload | std::views::take(4), e.get_last_stream_id());
-                shared_layer::Atom<>::write_big_endian(payload | std::views::drop(4), std::to_underlying(e.get_code()));
-
-                auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                                 .add_header(FrameHeader{}
-                                                 .add_length(8)
-                                                 .add_type(shared_layer::FrameType::GOAWAY)
-                                                 .add_flags(0)
-                                                 .add_stream_id(0))
-                                 .add_payload(payload)
-                                 .build();
-
-
-                send_frame(frame);
-                m_conn.close();
-                break;
-            } catch (const error::http::StreamError &e) {
-                std::array<std::byte, 4> payload;
-
-                shared_layer::Atom<>::write_big_endian(payload, std::to_underlying(e.get_code()));
-
-                auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                                 .add_header(FrameHeader{}
-                                                 .add_length(4)
-                                                 .add_type(shared_layer::FrameType::RST_STREAM)
-                                                 .add_flags(0)
-                                                 .add_stream_id(e.get_stream_id()))
-                                 .add_payload(payload)
-                                 .build();
-
-                send_frame(frame);
-                mark_stream_closed(e.get_stream_id());
-                continue;
+                m_safe_header = std::move(header_opt);
             }
+
+            auto frame_opt = receive_frame(view);
+            if (!frame_opt.has_value()) {
+                return;
+            }
+
+            auto frame = frame_opt.value();
+            auto stream_id = frame.get_header().get_stream_id();
+
+            if (stream_id == 0) {
+                if (auto frm = m_connection_stream.handle_frame(frame); frm.has_value()) {
+                    send_frame(std::move(frm.value()));
+                }
+            } else {
+                auto &stream = get_or_create_stream(stream_id);
+                stream.handle_frame(frame, false, m_connection_stream);
+
+                if (stream.is_remote_done()) {
+                    response(stream.get_stream_id());
+                }
+            }
+        } catch (const error::http::ConnectionError &e) {
+            close(e.get_code(), e.get_last_stream_id());
+        } catch (const error::http::StreamError &e) {
+            std::array<std::byte, 4> payload;
+
+            shared_layer::Atom<>::write_big_endian(payload, std::to_underlying(e.get_code()));
+
+            auto frame = Frame<shared_layer::FrameRole::Sender>{}
+                             .add_header(FrameHeader{}
+                                             .add_length(4)
+                                             .add_type(shared_layer::FrameType::RST_STREAM)
+                                             .add_flags(0)
+                                             .add_stream_id(e.get_stream_id()))
+                             .add_payload(payload)
+                             .build();
+
+            send_frame(std::move(frame));
+            mark_stream_closed(e.get_stream_id());
         }
     }
 
+    void send(base::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
+
+    void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0) {
+        m_running = false;
+
+        std::array<std::byte, 8> payload;
+        shared_layer::Atom<>::write_big_endian(payload | std::views::take(4), stream_id);
+        shared_layer::Atom<>::write_big_endian(payload | std::views::drop(4), std::to_underlying(code));
+
+        auto frame =
+            Frame<shared_layer::FrameRole::Sender>{}
+                .add_header(
+                    FrameHeader{}.add_length(8).add_type(shared_layer::FrameType::GOAWAY).add_flags(0).add_stream_id(0))
+                .add_payload(payload)
+                .build();
+
+        send_frame(std::move(frame));
+        m_closer();
+    }
+
+    const Settings &get_local_settings() const noexcept { return m_local_settings; }
+    Settings &get_local_settings() noexcept { return m_local_settings; }
 
   private:
     void response(std::uint32_t stream_id) {
@@ -162,26 +154,6 @@ class Session {
     }
 
 
-    void handshake() {
-        if constexpr (IsServer) {
-            send_settings();
-            // std::array<std::uint8_t, 24> buf{};
-            // TODO: We should implement a proper read buffer and handle partial reads instead of assuming that the
-            // entire preface is received in one go.
-            // if (m_conn.recv(std::as_writable_bytes(std::span{buf})) == 0 ||
-            //     !std::ranges::equal(buf, HTTP2_CONNECTION_PREFACE)) {
-            //     throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-            //                                        "Client did not send valid HTTP/2 connection preface"};
-            // }
-        } else {
-            // TODO: We should implement a proper write buffer and handle partial writes instead of assuming that the
-            // entire preface is sent in one go.
-            // m_conn.send(std::as_bytes(std::span{HTTP2_CONNECTION_PREFACE}));
-            send_settings();
-        }
-    }
-
-
     Stream<> &get_or_create_stream(const std::uint32_t &id) {
         if (id == 0)
             throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"};
@@ -202,45 +174,31 @@ class Session {
         return *(new_it->second);
     }
 
+    std::optional<FrameHeader> receive_header(base::buffering::BufferView &target) {
+        if (target.size() < HEADER_SIZE)
+            return std::nullopt;
 
-    void send_settings() {
-        std::vector<std::byte> payload;
-        //
-        // m_local_settings.encode(std::back_inserter(payload));
-
-        auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                         .add_header(FrameHeader{}
-                                         .add_length(static_cast<std::uint32_t>(payload.size()))
-                                         .add_type(shared_layer::FrameType::SETTINGS)
-                                         .add_flags(0)
-                                         .add_stream_id(0))
-                         .add_payload(payload)
-                         .build();
-
-        send_frame(frame);
+        auto it = target.begin();
+        return FrameHeader::from_bytes(it, m_local_settings.max_frame_size());
     }
 
-    bool receive_exact(std::span<std::byte> target) {
-        std::size_t offset = 0;
-        while (offset < target.size()) {
-            // We only ask for the remaining bytes (target.size() - offset)
-            // TODO: This is a temporary solution. We should implement a proper read buffer and handle partial reads
-            // instead of assuming that the entire target can be received in one go.
-            // std::size_t received =
-            // m_conn.recv(target.subspan(offset));
 
-            // if (received == 0)
-            //     return false;
-            // offset += received;
-        }
-        return true;
+    // only call if m_safe_headers is set
+    std::optional<Frame<shared_layer::FrameRole::Receiver>> receive_frame(base::buffering::BufferView &target) {
+        if (target.size() < m_safe_header->get_length())
+            return std::nullopt;
+
+        auto it = target.begin();
+        auto header = m_safe_header.value();
+        m_safe_header.reset();
+        return Frame<shared_layer::FrameRole::Receiver>::decode_post_header(it, header);
     }
 
-    void send_frame(const Frame<shared_layer::FrameRole::Sender> &frame) {
-        std::vector<std::byte> frame_bytes;
-        frame.encode(frame_bytes);
-        // TODO: This is a temporary solution. We should implement a proper write buffer and handle partial writes.
-        // m_conn.send(std::as_bytes(std::span{frame_bytes}));
+    // Last stop for a frame delete after!!!
+    void send_frame(const Frame<shared_layer::FrameRole::Sender> frame) {
+        base::buffering::BufferNode node{frame.get_size()};
+        frame.encode(node);
+        m_submiter(std::move(node));
     }
 
     void mark_stream_closed(std::uint32_t id) {
@@ -257,7 +215,6 @@ class Session {
             m_remote_settings.trigger_goaway_after_stream_id()};
     }
 
-    base::tls::basic::Connection m_conn;
     bool m_running;
     Settings m_local_settings;
     Settings m_remote_settings;
@@ -267,6 +224,9 @@ class Session {
     codec::hpack::HPackTable m_decoding_table;
     codec::hpack::HPackTable m_encoding_table;
     Stream<false> m_connection_stream;
+    ::shared::SendCallback m_submiter;
+    ::shared::CloseCallback m_closer;
+    std::optional<FrameHeader> m_safe_header;
 };
 
 } // namespace io::layer::http2

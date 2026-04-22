@@ -5,6 +5,7 @@ export module io_layer_http2:settings;
 import std;
 import io_error;
 import io_layer_shared;
+import shared;
 import :consts;
 import :frame;
 
@@ -53,41 +54,55 @@ class Settings {
         }
     }
 
-    template <std::output_iterator<std::uint8_t> Out>
-    Out encode(Out out) const {
+    template <shared::ByteRangeWriter R>
+    void encode(R &&range) const {
         auto emit = [&](const std::uint16_t &id, const std::uint32_t &val) {
-            shared_layer::Atom<std::uint16_t>::write_big_endian(out, id);
-            shared_layer::Atom<std::uint32_t>::write_big_endian(out, val);
+            shared_layer::Atom<std::uint16_t>::write_big_endian(range, id);
+            shared_layer::Atom<std::uint32_t>::write_big_endian(range, val);
         };
 
-        if (m_header_table_size != DEFAULT_HEADER_TABLE_SIZE)
+        if (m_header_table_size != DEFAULT_HEADER_TABLE_SIZE) {
             emit(0x1, m_header_table_size);
+        }
 
-        if (!m_enable_push)
+        if (!m_enable_push) {
             emit(0x2, 0);
+        }
 
-        if (m_max_concurrent_streams != std::numeric_limits<std::uint32_t>::max())
+        if (m_max_concurrent_streams != std::numeric_limits<std::uint32_t>::max()) {
             emit(0x3, m_max_concurrent_streams);
+        }
 
-        if (m_initial_window_size != DEFAULT_INITIAL_WINDOW_SIZE)
+        if (m_initial_window_size != DEFAULT_INITIAL_WINDOW_SIZE) {
             emit(0x4, m_initial_window_size);
+        }
 
-        if (m_max_frame_size != MIN_FRAME_SIZE)
+        if (m_max_frame_size != MIN_FRAME_SIZE) {
             emit(0x5, m_max_frame_size);
+        }
 
-        if (m_max_header_list_size != std::numeric_limits<std::uint32_t>::max())
+        if (m_max_header_list_size != std::numeric_limits<std::uint32_t>::max()) {
             emit(0x6, m_max_header_list_size);
+        }
+    }
 
-        return out;
+    template <shared::ByteIteratorWriter It>
+    void encode(It &it) const {
+        encode(std::ranges::subrange(it, std::default_sentinel));
     }
 
 
     Frame<shared_layer::FrameRole::Sender> decode(const Frame<shared_layer::FrameRole::Receiver> &frame) {
-        auto payload = std::span{frame.get_payload()};
+        auto payload = frame.get_payload();
+        for (auto setting_range : payload | std::views::chunk(6)) {
+            if (std::ranges::distance(setting_range) < 6) {
+                break;
+            }
 
-        for (std::size_t i = 0; i < payload.size(); i += 6) {
-            const std::uint16_t id = shared_layer::Atom<std::uint16_t>::read_big_endian(payload.subspan(i, 2));
-            const std::uint32_t value = shared_layer::Atom<std::uint32_t>::read_big_endian(payload.subspan(i + 2, 4));
+            const std::uint16_t id =
+                shared_layer::Atom<std::uint16_t>::read_big_endian(setting_range | std::views::take(2));
+            const std::uint32_t value =
+                shared_layer::Atom<std::uint32_t>::read_big_endian(setting_range | std::views::drop(2));
 
             apply(id, value);
         }
@@ -96,7 +111,13 @@ class Settings {
     }
 
     static Frame<shared_layer::FrameRole::Sender> generate_ack() {
-        return Frame<shared_layer::FrameRole::Sender>{FrameHeader{0, shared_layer::FrameType::SETTINGS, 0x01, 0}, {}};
+        return Frame<shared_layer::FrameRole::Sender>{}
+            .add_header(FrameHeader{}
+                            .add_length(0)
+                            .add_type(shared_layer::FrameType::SETTINGS)
+                            .add_flags(shared_layer::Flags::ACK)
+                            .add_stream_id(0))
+            .build();
     }
 
     void set_trigger_goaway_after_stream_id(const std::uint32_t &stream_id) noexcept {

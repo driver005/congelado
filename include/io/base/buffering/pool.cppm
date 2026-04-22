@@ -15,8 +15,20 @@ class BufferPool {
 
     BufferPool(const BufferPool &) = delete;
     BufferPool &operator=(const BufferPool &) = delete;
-    BufferPool(BufferPool &&) = delete;
-    BufferPool &operator=(BufferPool &&) = delete;
+
+    BufferPool(BufferPool &&other) noexcept
+        : m_min_size{other.m_min_size}, m_max_size{other.m_max_size}, m_current_size{other.m_current_size},
+          m_tail{std::exchange(other.m_tail, nullptr)}, m_view{std::move(other.m_view)} {}
+    BufferPool &operator=(BufferPool &&other) noexcept {
+        if (this != &other) {
+            m_min_size = other.m_min_size;
+            m_max_size = other.m_max_size;
+            m_current_size = other.m_current_size;
+            m_tail = std::exchange(other.m_tail, nullptr);
+            m_view = std::move(other.m_view);
+        }
+        return *this;
+    }
 
     [[nodiscard]] std::optional<BufferNode *> acquire() noexcept {
         if (m_tail->get_remaining() > 0) {

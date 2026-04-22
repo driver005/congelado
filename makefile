@@ -15,6 +15,13 @@ install:
 
 dev: build editor
 
+config-debug:
+	xmake f -m debug --debugger=gdb
+
+
+debug: config-debug 
+	xmake run -D -d congelado
+
 run:
 	xmake run
 

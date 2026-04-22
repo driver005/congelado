@@ -11,6 +11,7 @@ export module io_base_socket:posix;
 
 import std;
 import io_error;
+import core_logger;
 
 export namespace io::base::socket {
 
@@ -37,7 +38,7 @@ inline int get_error_code() { return errno; }
 inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     int flags = fcntl(socket, F_GETFL, 0);
     if (flags == -1) {
-        error::handle_error("Failed to get socket flags");
+        core::logger::error("Socket - Posix", "Failed to get socket flags");
     }
 
     if (non_blocking) {
@@ -47,8 +48,10 @@ inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     }
 
     if (fcntl(socket, F_SETFL, flags) < 0) {
-        error::handle_error("Failed to set socket non-blocking");
+        core::logger::error("Socket - Posix", "Failed to set socket non-blocking");
     }
+
+    core::logger::debug("Socket - Posix", "Socket `{}` set non-blocking to `{}`", socket, non_blocking);
 }
 
 } // namespace io::base::socket
