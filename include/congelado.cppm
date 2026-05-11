@@ -17,42 +17,6 @@ import hashmap;
 
 export namespace app {
 
-// class Server {
-//   public:
-//     Server() : m_table{} { init(); }
-//
-//   private:
-//     void init() {
-//         printf("Hello, Congelado!\n");
-//         auto contract_group = core::contract::ContractGroup<>{};
-//         auto thread_pool = core::contract::ContractThreadPool{contract_group};
-//         auto leverager = io::base::leverage::Leverager<io::base::leverage::Context>{};
-//
-//         io::base::flow::sync::FlowSocket<core::contract::ContractGroup<>, io::base::socket::Protocol::TLS>
-//         socket_flow{
-//             io::base::socket::Endpoint{"localhost", 8080}, leverager, contract_group};
-//
-//         socket_flow.add_on_accept([&](shared::SendCallback send, shared::CloseCallback close) -> shared::ReadCallback
-//         {
-//             io::layer::http2::Flow flow{std::move(send), std::move(close)};
-//
-//             auto read_callback = flow.on_read();
-//
-//             m_table.push_back(std::move(flow));
-//
-//             return read_callback;
-//         });
-//
-//         socket_flow.build();
-//
-//         m_socket_flow = std::move(socket_flow);
-//     }
-//
-//     std::vector<io::layer::http2::Flow> m_table;
-//     std::optional<io::base::flow::sync::FlowSocket<core::contract::ContractGroup<>, io::base::socket::Protocol::TLS>>
-//         m_socket_flow;
-// };
-
 class Server {
   public:
     Server()
@@ -66,10 +30,9 @@ class Server {
         io::base::flow::sync::FlowSocket<core::contract::ContractGroup<>, io::base::socket::Protocol::TLS> flow{
             io::base::socket::Endpoint{"localhost", 8080}, m_leverager, m_contract_group};
         flow.add_on_accept([&](shared::SendCallback send, shared::CloseCallback close) -> shared::ReadCallback {
-            io::layer::http2::Flow f{std::move(send), std::move(close)};
-            auto read_callback = f.on_read();
-            m_table.push_back(std::move(f));
-            return read_callback;
+            std::println("New connection accepted, creating HTTP/2 flow");
+            return m_table.emplace_back(std::make_unique<io::layer::http2::Flow>(std::move(send), std::move(close)))
+                ->on_read();
         });
         flow.build();
 
@@ -79,7 +42,7 @@ class Server {
     core::contract::ContractGroup<> m_contract_group;
     core::contract::ContractThreadPool<> m_thread_pool;
     io::base::leverage::Leverager<io::base::leverage::Context> m_leverager;
-    std::vector<io::layer::http2::Flow> m_table;
+    std::deque<std::unique_ptr<io::layer::http2::Flow>> m_table;
     io::base::flow::sync::FlowSocket<core::contract::ContractGroup<>, io::base::socket::Protocol::TLS> m_socket_flow;
 };
 

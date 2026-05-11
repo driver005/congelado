@@ -75,8 +75,9 @@ class ContractGroup : shared::HandlerInterface {
             core::logger::fatal("ContractGroup", "Worker with ID {} is already scheduled", id);
 
         core::logger::info("ContractGroup", "Worker with ID `{}` is scheduled", id);
-        m_signal_tree.schedule(id);
-        m_workers[id].add_flags(ContractState::SCHEDULED);
+        if (m_workers[id].schedule()) {
+            m_signal_tree.schedule(id);
+        };
     }
 
     void deschedule(std::uint32_t id) override {
@@ -99,7 +100,7 @@ class ContractGroup : shared::HandlerInterface {
     }
 
 
-    void process_next_contract(std::uint64_t bias_flags) {
+    void process_next_contract(std::uint64_t &bias_flags) {
         // This is a fast, lock-free bit-scan.
         auto ready_id = m_signal_tree.next(bias_flags);
 
@@ -120,7 +121,7 @@ class ContractGroup : shared::HandlerInterface {
 
             if (worker.is_released()) {
                 core::logger::info("ContractGroup", "Worker with ID `{}` is being released", *ready_id);
-                AutoEraseContract eraseGuard{*ready_id, worker, releaser, error, m_signal_tree};
+                AutoEraseContract erase_guard{*ready_id, worker, releaser, error, m_signal_tree};
                 try {
                     if (releaser) {
                         releaser();
@@ -137,7 +138,7 @@ class ContractGroup : shared::HandlerInterface {
                 }
             } else {
                 core::logger::info("ContractGroup", "Worker with ID `{}` is being executed", *ready_id);
-                AutoClearExecuteFlag clearGuard{worker, *ready_id, m_signal_tree};
+                AutoClearExecuteFlag clear_guard{worker, *ready_id, m_signal_tree};
                 try {
                     worker();
                 } catch (...) {
@@ -228,10 +229,11 @@ class ContractThreadPool {
   private:
     void worker_loop() {
         core::logger::info("ContractThreadPool", "Worker thread `{}` started", std::this_thread::get_id());
+        std::uint64_t dynamic_bias = 0;
         // Ensure the ContractGroup is initialized in this thread context
         m_group.get().init();
         while (m_running) {
-            m_group.get().process_next_contract(0);
+            m_group.get().process_next_contract(dynamic_bias);
 
             // Optional: Sleep briefly to prevent busy-waiting when no contracts are ready
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));

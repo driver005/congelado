@@ -1,13 +1,46 @@
 module;
-#include <cstdint>
+// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
+#include <ranges>
+
 export module io_layer_http2:settings;
 
 import std;
 import io_error;
 import io_layer_shared;
 import shared;
+import core_logger;
+import utils_codec;
 import :consts;
 import :frame;
+
+export namespace io::layer::http2 {
+
+enum class SettingsState : std::uint8_t { UNACKNOWLEDGED = 0, ACKNOWLEDGED = 1, IMPLEMENTED = 2 };
+
+}
+
+template <>
+struct std::formatter<io::layer::http2::SettingsState> {
+    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(io::layer::http2::SettingsState state, FormatContext &ctx) const {
+        std::string_view name = "UNKNOWN";
+        switch (state) {
+            using enum io::layer::http2::SettingsState;
+        case UNACKNOWLEDGED:
+            name = "UNACKNOWLEDGED";
+            break;
+        case ACKNOWLEDGED:
+            name = "ACKNOWLEDGED";
+            break;
+        case IMPLEMENTED:
+            name = "IMPLEMENTED";
+            break;
+        }
+        return std::format_to(ctx.out(), "{}", name);
+    }
+};
 
 export namespace io::layer::http2 {
 
@@ -16,101 +49,63 @@ class Settings {
     explicit Settings()
         : m_header_table_size{DEFAULT_HEADER_TABLE_SIZE}, m_enable_push{true}, m_max_concurrent_streams{100},
           m_initial_window_size{DEFAULT_INITIAL_WINDOW_SIZE}, m_max_frame_size{MIN_FRAME_SIZE},
-          m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()},
-          m_trigger_goaway_after_stream_id{MAX_CONNECTED_STREAMS}, m_acknowledged_settings{false},
-          m_ping_tracker{shared_layer::ping::PingTracker{}}, m_delta_window_on_settings{0} {}
+          m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()}, m_state{SettingsState::UNACKNOWLEDGED},
+          m_trigger_goaway_after_stream_id{MAX_CONNECTED_STREAMS}, m_delta_window_on_settings{0} {
+        core::logger::debug("Settings - HTTP/2",
+                            "Default constructor called with state `{}` and default values for all settings", m_state);
+    }
 
     void apply(std::uint16_t id, std::uint32_t value) {
         switch (id) {
-        case 0x1:
+        case 0x1: {
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_HEADER_TABLE_SIZE with value `{}`", value);
             m_header_table_size = value;
             return;
-        case 0x2:
-            if (value > 1)
+        }
+        case 0x2: {
+            if (value > 1) {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    "SETTINGS_ENABLE_PUSH must be 0 or 1"};
+            }
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_ENABLE_PUSH with value `{}`", value);
             m_enable_push = (value == 1);
             return;
-        case 0x3:
+        }
+        case 0x3: {
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_CONCURRENT_STREAMS with value `{}`", value);
             m_max_concurrent_streams = value;
             return;
-        case 0x4:
-            if (value > MAX_INITIAL_WINDOW_SIZE)
+        }
+        case 0x4: {
+            if (value > MAX_INITIAL_WINDOW_SIZE) {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
                                                    "SETTINGS_INITIAL_WINDOW_SIZE exceeds 2^31-1"};
+            }
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_INITIAL_WINDOW_SIZE with value `{}`", value);
             m_initial_window_size = value;
             return;
-        case 0x5:
-            if (value < MIN_FRAME_SIZE || value > MAX_FRAME_SIZE)
+        }
+        case 0x5: {
+            if (value < MIN_FRAME_SIZE || value > MAX_FRAME_SIZE) {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    "SETTINGS_MAX_FRAME_SIZE must be in [16384, 2^24-1]"};
+            }
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_FRAME_SIZE with value `{}`", value);
             m_max_frame_size = value;
             return;
-        case 0x6:
+        }
+        case 0x6: {
+            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_HEADER_LIST_SIZE with value `{}`", value);
             m_max_header_list_size = value;
             return;
+        }
         default:
             return;
         }
     }
 
-    template <shared::ByteRangeWriter R>
-    void encode(R &&range) const {
-        auto emit = [&](const std::uint16_t &id, const std::uint32_t &val) {
-            shared_layer::Atom<std::uint16_t>::write_big_endian(range, id);
-            shared_layer::Atom<std::uint32_t>::write_big_endian(range, val);
-        };
-
-        if (m_header_table_size != DEFAULT_HEADER_TABLE_SIZE) {
-            emit(0x1, m_header_table_size);
-        }
-
-        if (!m_enable_push) {
-            emit(0x2, 0);
-        }
-
-        if (m_max_concurrent_streams != std::numeric_limits<std::uint32_t>::max()) {
-            emit(0x3, m_max_concurrent_streams);
-        }
-
-        if (m_initial_window_size != DEFAULT_INITIAL_WINDOW_SIZE) {
-            emit(0x4, m_initial_window_size);
-        }
-
-        if (m_max_frame_size != MIN_FRAME_SIZE) {
-            emit(0x5, m_max_frame_size);
-        }
-
-        if (m_max_header_list_size != std::numeric_limits<std::uint32_t>::max()) {
-            emit(0x6, m_max_header_list_size);
-        }
-    }
-
-    template <shared::ByteIteratorWriter It>
-    void encode(It &it) const {
-        encode(std::ranges::subrange(it, std::default_sentinel));
-    }
-
-
-    Frame<shared_layer::FrameRole::Sender> decode(const Frame<shared_layer::FrameRole::Receiver> &frame) {
-        auto payload = frame.get_payload();
-        for (auto setting_range : payload | std::views::chunk(6)) {
-            if (std::ranges::distance(setting_range) < 6) {
-                break;
-            }
-
-            const std::uint16_t id =
-                shared_layer::Atom<std::uint16_t>::read_big_endian(setting_range | std::views::take(2));
-            const std::uint32_t value =
-                shared_layer::Atom<std::uint32_t>::read_big_endian(setting_range | std::views::drop(2));
-
-            apply(id, value);
-        }
-
-        return generate_ack();
-    }
-
     static Frame<shared_layer::FrameRole::Sender> generate_ack() {
+        core::logger::debug("Settings - HTTP/2", "Generating SETTINGS ACK frame");
         return Frame<shared_layer::FrameRole::Sender>{}
             .add_header(FrameHeader{}
                             .add_length(0)
@@ -121,30 +116,46 @@ class Settings {
     }
 
     void set_trigger_goaway_after_stream_id(const std::uint32_t &stream_id) noexcept {
+        core::logger::debug("Settings - HTTP/2", "Setting trigger_goaway_after_stream_id to `{}` (current value: `{}`)",
+                            stream_id, m_trigger_goaway_after_stream_id);
         m_trigger_goaway_after_stream_id = stream_id;
     }
 
-    void mark_acknowledged() noexcept { m_acknowledged_settings = true; }
 
-    bool is_setting_acknowledged() const noexcept { return m_acknowledged_settings; }
+    void set_delta_window_on_settings(const std::int32_t &delta) noexcept {
+        core::logger::debug("Settings - HTTP/2", "Setting delta_window_on_settings to `{}` (current value: `{}`)",
+                            delta, m_delta_window_on_settings);
+        m_delta_window_on_settings = delta;
+    }
 
-    void set_delta_window_on_settings(const std::int32_t &delta) noexcept { m_delta_window_on_settings = delta; }
+    void set_state(const SettingsState &state) noexcept {
+        core::logger::debug("Settings - HTTP/2", "Setting settings state to `{}` (current state: `{}`)", state,
+                            m_state);
+        m_state = state;
+    }
 
-    const std::uint32_t &header_table_size() const noexcept { return m_header_table_size; }
-    const bool &enable_push() const noexcept { return m_enable_push; }
-    const std::uint32_t &max_concurrent_streams() const noexcept { return m_max_concurrent_streams; }
-    const std::uint32_t &initial_window_size() const noexcept { return m_initial_window_size; }
-    const std::uint32_t &max_frame_size() const noexcept { return m_max_frame_size; }
-    const std::uint32_t &max_header_list_size() const noexcept { return m_max_header_list_size; }
-    const std::uint32_t &trigger_goaway_after_stream_id() const noexcept { return m_trigger_goaway_after_stream_id; }
+    [[nodiscard]] bool is_finished() const noexcept {
+        std::println("is_finished: current settings state: {}", m_state);
+        return m_state == SettingsState::IMPLEMENTED;
+    }
+    [[nodiscard]] bool is_acknowledged() const noexcept {
+        std::println("is_acknowledged: current settings state: {}", m_state);
+        return m_state == SettingsState::ACKNOWLEDGED;
+    }
+
+    [[nodiscard]] const std::uint32_t &header_table_size() const noexcept { return m_header_table_size; }
+    [[nodiscard]] const bool &enable_push() const noexcept { return m_enable_push; }
+    [[nodiscard]] const std::uint32_t &max_concurrent_streams() const noexcept { return m_max_concurrent_streams; }
+    [[nodiscard]] const std::uint32_t &initial_window_size() const noexcept { return m_initial_window_size; }
+    [[nodiscard]] const std::uint32_t &max_frame_size() const noexcept { return m_max_frame_size; }
+    [[nodiscard]] const std::uint32_t &max_header_list_size() const noexcept { return m_max_header_list_size; }
+    [[nodiscard]] const std::uint32_t &trigger_goaway_after_stream_id() const noexcept {
+        return m_trigger_goaway_after_stream_id;
+    }
     shared_layer::ping::PingTracker &ping_tracker() noexcept { return m_ping_tracker; }
-    const std::int32_t &delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
+    [[nodiscard]] const std::int32_t &delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
 
   private:
-    static constexpr std::uint32_t DEFAULT_HEADER_TABLE_SIZE = 4096;
-    static constexpr std::uint32_t MIN_FRAME_SIZE = 1u << 14;       // 16384 (2^14)
-    static constexpr std::uint32_t MAX_FRAME_SIZE = (1u << 24) - 1; // 16777215 (2^24 - 1)
-
     // SETTINGS_HEADER_TABLE_SIZE (0x1)
     // Maximum size of the HPACK dynamic table the sender is willing to use.
     // Default: 4096.  No upper bound specified by the RFC.
@@ -177,10 +188,81 @@ class Settings {
     std::uint32_t m_max_header_list_size;
 
 
+    SettingsState m_state;
     std::uint32_t m_trigger_goaway_after_stream_id;
-    bool m_acknowledged_settings;
     shared_layer::ping::PingTracker m_ping_tracker;
     std::int32_t m_delta_window_on_settings;
+};
+
+
+struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdaptor> {
+    explicit constexpr ReadSettingsAdaptor() {}
+
+    // Use one frame.get_paload
+    template <std::ranges::viewable_range R>
+    Settings operator()(R &&data) const {
+        Settings settings{};
+        for (auto setting_range : data | std::views::chunk(6)) {
+            if (std::ranges::distance(setting_range) < 6) {
+                break;
+            }
+
+            const std::uint16_t SETTING_ID =
+                setting_range | std::views::take(2) | utils::codec::ReadBigEndianAdaptor<std::uint16_t>{};
+            const std::uint32_t VALUE = setting_range | std::views::drop(2) | utils::codec::ReadBigEndianAdaptor<>{};
+
+            settings.apply(SETTING_ID, VALUE);
+        }
+
+        return settings;
+    }
+};
+
+
+struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAdaptor> {
+    explicit constexpr WriteSettingsAdaptor(Settings &settings) : m_settings{settings} {}
+
+    template <std::ranges::viewable_range R>
+    auto operator()(R &&range) const {
+        std::vector<std::byte> settings_bytes;
+
+        auto emit = [&](const std::uint16_t SETTING_ID, const std::uint32_t VALUE) {
+            auto entry = std::views::empty<std::byte> | utils::codec::WriteBigEndianAdaptor<std::uint16_t>{SETTING_ID} |
+                         utils::codec::WriteBigEndianAdaptor<std::uint32_t>{VALUE} |
+                         std::ranges::to<std::vector<std::byte>>();
+
+            settings_bytes.insert(settings_bytes.end(), entry.begin(), entry.end());
+        };
+
+        if (m_settings.get().header_table_size() != DEFAULT_HEADER_TABLE_SIZE) {
+            emit(0x1, m_settings.get().header_table_size());
+        }
+
+        if (!m_settings.get().enable_push()) {
+            emit(0x2, 0);
+        }
+
+        if (m_settings.get().max_concurrent_streams() != std::numeric_limits<std::uint32_t>::max()) {
+            emit(0x3, m_settings.get().max_concurrent_streams());
+        }
+
+        if (m_settings.get().initial_window_size() != DEFAULT_INITIAL_WINDOW_SIZE) {
+            emit(0x4, m_settings.get().initial_window_size());
+        }
+
+        if (m_settings.get().max_frame_size() != MIN_FRAME_SIZE) {
+            emit(0x5, m_settings.get().max_frame_size());
+        }
+
+        if (m_settings.get().max_header_list_size() != std::numeric_limits<std::uint32_t>::max()) {
+            emit(0x6, m_settings.get().max_header_list_size());
+        }
+
+        return std::views::concat(std::forward<R>(range), std::move(settings_bytes));
+    }
+
+  private:
+    std::reference_wrapper<Settings> m_settings;
 };
 
 } // namespace io::layer::http2

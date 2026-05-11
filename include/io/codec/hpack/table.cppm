@@ -7,7 +7,7 @@ import :consts;
 
 export namespace io::codec::hpack {
 
-inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> k_static_table = {
+inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> STATIC_TABLE = {
     /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authority, ""),
     /* 1  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "GET"),
     /* 2  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "POST"),
@@ -71,7 +71,7 @@ inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> k_
     /* 60 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::WwwAuthenticate, ""),
 };
 
-using HPackStatic = shared_codec::table::StaticTable<k_static_table>;
+using HPackStatic = shared_codec::table::StaticTable<STATIC_TABLE>;
 
 // HeaderTable — RFC 7541 unified index space
 class HPackTable {
@@ -79,40 +79,45 @@ class HPackTable {
     explicit HPackTable(std::size_t max_size = DEFAULT_MAX_TABLE_SIZE) : m_dyn{max_size} {}
 
     [[nodiscard]] std::optional<shared::http::HeaderEntry> operator[](std::size_t idx) const noexcept {
-        if (idx == 0)
+        if (idx == 0) {
             return std::nullopt;
+        }
 
-        if (idx <= HPackStatic::STATIC_SIZE)
+        if (idx <= HPackStatic::STATIC_SIZE) {
             return HPackStatic::at(idx - 1);
+        }
 
-        if (const auto field = m_dyn.at_positon(idx - HPackStatic::STATIC_SIZE - 1); field.has_value())
-            return field;
+        if (const auto FIELD = m_dyn.at_positon(idx - HPackStatic::STATIC_SIZE - 1); FIELD.has_value()) {
+            return FIELD;
+        }
 
         return std::nullopt;
     }
 
     [[nodiscard]] shared::http::HeaderEntry at(std::size_t idx) const {
-        if (auto r = (*this)[idx])
-            return *r;
+        if (auto field = (*this)[idx]) {
+            return *field;
+        }
         throw std::out_of_range{"hpack::HeaderTable: invalid index"};
     }
 
 
     [[nodiscard]] shared_codec::SearchResult search(std::string_view name, std::string_view value) const noexcept {
-        if (auto result = HPackStatic::search_full_match<shared_codec::IndexCalculation::HPack>(name, value);
+        if (auto result = HPackStatic::search_full_match<shared_codec::IndexCalculation::H_PACK>(name, value);
             result.found()) {
             return result;
         }
 
-        if (auto result = m_dyn.search_full_match<shared_codec::IndexCalculation::HPack>(name, value); result.found()) {
+        if (auto result = m_dyn.search_full_match<shared_codec::IndexCalculation::H_PACK>(name, value);
+            result.found()) {
             return result;
         }
 
-        if (auto result = HPackStatic::search_name_only<shared_codec::IndexCalculation::HPack>(name); result.found()) {
+        if (auto result = HPackStatic::search_name_only<shared_codec::IndexCalculation::H_PACK>(name); result.found()) {
             return result;
         }
 
-        if (auto result = m_dyn.search_name_only<shared_codec::IndexCalculation::HPack>(name); result.found()) {
+        if (auto result = m_dyn.search_name_only<shared_codec::IndexCalculation::H_PACK>(name); result.found()) {
             return result;
         }
 
@@ -120,11 +125,11 @@ class HPackTable {
     }
 
     std::size_t insert(std::string_view name, std::string_view value) {
-        return m_dyn.insert<shared_codec::IndexCalculation::HPack>(name, value);
+        return m_dyn.insert<shared_codec::IndexCalculation::H_PACK>(name, value);
     }
 
     std::size_t insert(shared::http::Token token, std::string_view value) {
-        return m_dyn.insert<shared_codec::IndexCalculation::HPack>(std::move(token), value);
+        return m_dyn.insert<shared_codec::IndexCalculation::H_PACK>(std::move(token), value);
     }
 
     void set_max_size(std::size_t new_max) { m_dyn.set_max_size(new_max); }

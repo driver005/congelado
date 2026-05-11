@@ -1,3 +1,5 @@
+module;
+#include <immintrin.h>
 export module core_contract:signal_tree;
 
 import std;
@@ -76,8 +78,10 @@ class Node {
     void deschedule(std::uint32_t local_id) noexcept {
         if constexpr (IsRouter) {
             const std::uint8_t branch_idx = static_cast<std::uint8_t>((local_id >> 6) & 0x07);
-            std::uint64_t expected = m_value.load(std::memory_order_acquire);
 
+            m_children[branch_idx].deschedule(local_id & 0x3F);
+
+            std::uint64_t expected = m_value.load(std::memory_order_acquire);
             while (true) {
                 const std::uint8_t count = static_cast<std::uint8_t>((expected >> (branch_idx * 8)) & 0xFF);
                 if (count == 0) {
@@ -94,7 +98,6 @@ class Node {
                     break;
                 }
             }
-            m_children[branch_idx].deschedule(local_id & 0x3F);
         } else {
             const std::uint8_t bit = static_cast<std::uint8_t>(local_id & 0x3F);
             m_value.fetch_and(~(1ULL << bit), std::memory_order_release);
@@ -102,27 +105,37 @@ class Node {
         }
     }
 
-    [[nodiscard]] std::optional<std::uint32_t> select_child_index(std::uint64_t bias_flags,
-                                                                  std::uint32_t accumulator = 0) const noexcept {
+    [[nodiscard]] std::optional<std::uint32_t> select_child_index(std::uint64_t &bias, std::uint32_t accumulator = 0,
+                                                                  std::uint64_t bias_bit = BIAS_FLAG) const noexcept {
         const std::uint64_t val = m_value.load(std::memory_order_acquire);
         if (val == 0) {
             return std::nullopt;
         }
 
-        const bool prefer_right = (bias_flags & BIAS_FLAG) != 0;
 
         if constexpr (IsRouter) {
-            for (int i = 0; i < 8; ++i) {
-                const std::uint8_t idx = prefer_right ? (7 - i) : i;
-                const std::uint8_t count = static_cast<std::uint8_t>((val >> (idx * 8)) & 0xFF);
+            auto idx = calculate_bias(val, bias, bias_bit);
 
-                if (count > 0) {
-                    if (auto result = m_children[idx].select_child_index(bias_flags, (accumulator << 3) | idx)) {
-                        return result;
-                    }
-                }
+            if (auto result = m_children[idx].select_child_index(bias, (accumulator << 3) | idx, bias_bit >> 1)) {
+                return result;
             }
         } else {
+            const bool prefer_right = (bias & bias_bit) != 0;
+            const int total = std::popcount(val);
+            const int half = total / 2;
+            const std::uint64_t low_mask = (1ULL << half) - 1;
+            const std::uint64_t right_half = _pdep_u64(low_mask, val);
+            const std::uint64_t left_half = val & ~right_half;
+            const bool intended_choose_right = ((prefer_right && right_half != 0) || (left_half == 0ULL));
+
+            if (intended_choose_right) {
+                // Chose right this time, prefer left next time
+                bias &= ~bias_bit;
+            } else {
+                // Chose left this time, prefer right next time
+                bias |= bias_bit;
+            }
+
             const std::uint8_t bit_idx = prefer_right ? static_cast<std::uint8_t>(63 - std::countl_zero(val))
                                                       : static_cast<std::uint8_t>(std::countr_zero(val));
             core::logger::debug("SignalTree - Node", "Found ready bit `{}`", bit_idx);
@@ -133,6 +146,42 @@ class Node {
     }
 
   private:
+    std::uint8_t calculate_bias(const std::uint64_t &val, std::uint64_t &bias, std::uint64_t &bias_bit,
+                                std::uint8_t blocks = 4, std::uint8_t base_shift = 0) const noexcept {
+        const bool prefer_right = (bias & bias_bit) != 0;
+        const std::uint64_t mask_lower = ((1ULL << (blocks * 8)) - 1) << (base_shift * 8);
+        const std::uint64_t right_half = val & mask_lower;
+        const std::uint64_t left_half = (val & ~mask_lower) >> (blocks * 8);
+
+        const bool choose_right = ((prefer_right && (right_half != 0)) || (left_half == 0ULL));
+        if (choose_right) {
+            bias &= ~bias_bit;
+        } else {
+            bias |= bias_bit;
+        }
+
+        // Test with more than 64!
+        // std::print("Router Value: {:064b}\n", val);
+        // std::print("Right Half: {:064b}\n", right_half);
+        // std::print("Left Half: {:064b}\n", left_half);
+        // std::print("Prefer Right: {}, Choose Right: {}\n", prefer_right, choose_right);
+        // std::print("Blocks: {}, Base Shift: {}\n", blocks, base_shift);
+        // std::print("Bias Before: {:064b}\n", bias);
+        // std::print("Bias Bit: {:064b}\n", bias_bit);
+        // std::print("Mask Lower: {:064b}\n", mask_lower);
+
+        bias_bit >>= 1;
+
+        if (blocks > 1) {
+            auto idx =
+                calculate_bias(val, bias, bias_bit, blocks / 2, choose_right ? base_shift : (base_shift + blocks));
+            if (!choose_right) {
+                idx += blocks;
+            }
+            return idx;
+        }
+        return !choose_right;
+    }
     std::atomic<std::uint64_t> m_value;
     [[no_unique_address]] std::conditional_t<IsRouter, std::vector<Node<false>>, std::monostate> m_children;
 };
@@ -175,15 +224,15 @@ class SignalTree {
         }
     }
 
-    [[nodiscard]] std::optional<std::uint32_t> next(std::uint64_t bias) const {
+    [[nodiscard]] std::optional<std::uint32_t> next(std::uint64_t &bias) const {
         const bool prefer_right = (bias & BIAS_FLAG) != 0;
 
         for (std::size_t i = 0; i < num_routers; ++i) {
             const std::size_t idx = prefer_right ? (num_routers - 1 - i) : i;
-            if (auto result = m_routers[idx].select_child_index(bias)) {
-                core::logger::debug("SignalTree", "Next ready worker ID is `{}` with bias `{}`", *result + (idx * 512),
-                                    bias);
-                return static_cast<std::uint32_t>(*result + (idx * 512));
+            if (auto result = m_routers[idx].select_child_index(bias, idx, BIAS_FLAG >> 1)) {
+                core::logger::debug("SignalTree", "Next ready worker ID is `{}` with bias `{}`", *result, bias);
+                bias ^= BIAS_FLAG;
+                return result;
             }
         }
 

@@ -1,6 +1,7 @@
 module;
 
 #include <format>
+#include <utility>
 
 export module core_contract:types;
 
@@ -117,6 +118,14 @@ class Worker {
     void remove_flags(ContractState state) noexcept {
         // Use bitwise NOT on the underlying type to clear the bit
         m_flags.fetch_and(~std::to_underlying(state), std::memory_order_acq_rel);
+    }
+
+    bool schedule() noexcept {
+        auto prev = fetch_or(ContractState::SCHEDULED);
+        if (std::to_underlying(prev & (ContractState::SCHEDULED | ContractState::EXECUTING)) == 0) {
+            return true;
+        }
+        return false;
     }
 
     bool try_claim_execution() noexcept {

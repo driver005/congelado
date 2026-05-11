@@ -21,4 +21,8 @@ inline constexpr std::uint32_t MAX_INITIAL_WINDOW_SIZE = (1u << 31) - 1;     // 
 
 inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1u << 31) - 1; // 2147483647 (2^31 - 1)
 
+inline constexpr std::uint32_t DEFAULT_HEADER_TABLE_SIZE = 4096;
+inline constexpr std::uint32_t MIN_FRAME_SIZE = 1u << 14;       // 16384 (2^14)
+inline constexpr std::uint32_t MAX_FRAME_SIZE = (1u << 24) - 1; // 16777215 (2^24 - 1)
+
 } // namespace io::layer::http2
