@@ -32,7 +32,6 @@ class Atom {
     // +---+---------------------------+
     // | 0 |    Value-(2^N-1) MSB      |
     // +---+---------------------------+
-
     template <std::output_iterator<std::uint8_t> Out, typename PrefixType>
         requires CastableToUint8<PrefixType>
     static void encode_int(UInt data, std::uint8_t prefix_size, PrefixType prefix_data, Out out) {
@@ -170,7 +169,7 @@ class Atom {
             // TODO: wait for cpp26 and use std::narrowing_cast
             assert(encoded.size() <= std::numeric_limits<UInt>::max());
             // Write length then Huffman bytes directly into out.
-            encode_int<Out>(encoded.size(), prefix_size, PrefixHelper::HuffmanEnabled, out);
+            encode_int<Out>(encoded.size(), prefix_size, PrefixHelper::HUFFMAN_ENABLED, out);
 
             for (std::uint8_t byte : encoded) {
                 *out++ = byte;
@@ -178,7 +177,7 @@ class Atom {
         } else {
             // TODO: wait for cpp26 and use std::narrowing_cast
             assert(str.size() <= std::numeric_limits<UInt>::max());
-            encode_int<Out>(str.size(), prefix_size, PrefixHelper::HuffmanDisabled, out);
+            encode_int<Out>(str.size(), prefix_size, PrefixHelper::HUFFMAN_DISABLED, out);
 
             for (std::uint8_t ch : str) {
                 *out++ = ch;

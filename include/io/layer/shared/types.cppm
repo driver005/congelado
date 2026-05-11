@@ -38,3 +38,105 @@ enum class FrameType : std::uint8_t {
 };
 
 } // namespace io::shared_layer
+
+export template <>
+struct std::formatter<io::shared_layer::StreamState> {
+    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(io::shared_layer::StreamState s, FormatContext &ctx) const {
+        using enum io::shared_layer::StreamState;
+        std::string_view name;
+        switch (s) {
+        case Idle: {
+            name = "Idle";
+            break;
+        }
+        case Open: {
+            name = "Open";
+            break;
+        }
+        case HalfClosedLocal: {
+            name = "HalfClosedLocal";
+            break;
+        }
+        case HalfClosedRemote: {
+            name = "HalfClosedRemote";
+            break;
+        }
+        case Closed: {
+            name = "Closed";
+            break;
+        }
+        case ReservedLocal: {
+            name = "ReservedLocal";
+            break;
+        }
+        case ReservedRemote: {
+            name = "ReservedRemote";
+            break;
+        }
+        default: {
+            name = "UNKNOWN";
+            break;
+        }
+        }
+        return std::format_to(ctx.out(), "{}", name);
+    }
+};
+
+export template <>
+struct std::formatter<io::shared_layer::FrameType> {
+    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(io::shared_layer::FrameType t, FormatContext &ctx) const {
+        using enum io::shared_layer::FrameType;
+        std::string_view name;
+        switch (t) {
+        case DATA: {
+            name = "DATA";
+            break;
+        }
+        case HEADERS: {
+            name = "HEADERS";
+            break;
+        }
+        case PRIORITY: {
+            name = "PRIORITY (DEPRECATED)";
+            break;
+        }
+        case RST_STREAM: {
+            name = "RST_STREAM";
+            break;
+        }
+        case SETTINGS: {
+            name = "SETTINGS";
+            break;
+        }
+        case PUSH_PROMISE: {
+            name = "PUSH_PROMISE";
+            break;
+        }
+        case PING: {
+            name = "PING";
+            break;
+        }
+        case GOAWAY: {
+            name = "GOAWAY";
+            break;
+        }
+        case WINDOW_UPDATE: {
+            name = "WINDOW_UPDATE";
+            break;
+        }
+        case CONTINUATION: {
+            name = "CONTINUATION";
+            break;
+        }
+        default: {
+            name = "UNKNOWN";
+            break;
+        }
+        }
+        return std::format_to(ctx.out(), "{}", name);
+    }
+};

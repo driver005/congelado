@@ -17,41 +17,6 @@ class Receiver : public shared::HandlerBase {
         core::logger::debug("Receiver created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
-    Receiver &&add_on_read(shared::ReadCallback on_read) && {
-        m_on_read = std::move(on_read);
-        return std::move(*this);
-    }
-
-    void add_on_read(shared::ReadCallback on_read) & { m_on_read = std::move(on_read); }
-
-    Receiver &&add_on_error(shared::ErrorCallback on_error) && {
-        m_on_error = std::move(on_error);
-        return std::move(*this);
-    }
-
-    void add_on_error(shared::ErrorCallback on_error) & { m_on_error = std::move(on_error); }
-
-    Receiver &&build() && {
-        if (!m_on_read) {
-            throw std::runtime_error("Read callback must be set before building the Receiver");
-        }
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Receiver");
-        }
-        attach();
-        return std::move(*this);
-    }
-
-    void build() & {
-        if (!m_on_read) {
-            throw std::runtime_error("Read callback must be set before building the Receiver");
-        }
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Receiver");
-        }
-        attach();
-    }
-
     Receiver(Worker &worker, shared::ReadCallback on_read, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_read{std::move(on_read)}, m_on_error{std::move(on_error)}, m_fatal{false} {
         core::logger::debug("Receiver created for worker with FD `{}`", m_worker.get().get_fd());
@@ -64,18 +29,23 @@ class Receiver : public shared::HandlerBase {
 
     Receiver(const Receiver &) = delete;
     Receiver &operator=(const Receiver &) = delete;
+    Receiver(Receiver &&) = delete;
+    Receiver &operator=(Receiver &&) = delete;
 
-    Receiver(Receiver &&other) noexcept
-        : m_worker{other.m_worker}, m_on_read{std::move(other.m_on_read)}, m_fatal{std::move(other.m_fatal)} {}
+    void add_on_read(shared::ReadCallback on_read) { m_on_read = std::move(on_read); }
 
-    Receiver &operator=(Receiver &&other) noexcept {
-        if (this != &other) {
-            m_worker = other.m_worker;
-            m_on_read = std::move(other.m_on_read);
-            m_fatal = std::move(other.m_fatal);
+    void add_on_error(shared::ErrorCallback on_error) { m_on_error = std::move(on_error); }
+
+    void build() {
+        if (!m_on_read) {
+            throw std::runtime_error("Read callback must be set before building the Receiver");
         }
-        return *this;
+        if (!m_on_error) {
+            throw std::runtime_error("Error callback must be set before building the Receiver");
+        }
+        attach();
     }
+
 
     std::string_view name() const noexcept override { return "Receiver - Async"; }
 
@@ -101,8 +71,8 @@ class Receiver : public shared::HandlerBase {
     }
 
     shared::ErrorHandler on_error() override {
-        core::logger::debug("Receiver", "FD `{}` on_error is being executed", m_worker.get().get_fd());
         return [this](std::exception_ptr eptr) {
+            core::logger::debug("Receiver", "FD `{}` on_error is being executed", m_worker.get().get_fd());
             if (!eptr)
                 return;
             try {
@@ -141,20 +111,13 @@ class Receiver : public shared::HandlerBase {
     void arm_read() {
         auto slot = m_pool.acquire();
 
-        if (auto opt_slot = slot.value(); slot.has_value()) {
-            core::logger::info("Receiver", "FD `{}` attempting to read up to {} bytes", m_worker.get().get_fd(),
-                               opt_slot->get_size());
-            m_worker.get().async_read(opt_slot->get_data(), static_cast<unsigned>(opt_slot->get_size()), 0,
-                                      [this](int result) mutable { on_read_complete(result); });
-        } else {
-            core::logger::warning("Receiver", "FD `{}` failed to acquire buffer slot for reading",
-                                  m_worker.get().get_fd());
-            m_fatal = true;
-            m_on_error(m_worker.get().get_fd(), std::to_underlying(socket::VALUES::ERRORED));
-        }
+        core::logger::info("Receiver", "FD `{}` attempting to read up to {} bytes", m_worker.get().get_fd(),
+                           slot->get_limit());
+        m_worker.get().async_read(slot->get_data(), static_cast<unsigned>(slot->get_limit()), 0,
+                                  [this, slot](int result) mutable { on_read_complete(slot, result); });
     }
 
-    void on_read_complete(int result) {
+    void on_read_complete(buffering::BufferNode *node, int result) {
         if (result <= 0) {
             core::logger::warning("Receiver", "FD `{}` read operation failed with error `{}`", m_worker.get().get_fd(),
                                   result);
@@ -167,7 +130,7 @@ class Receiver : public shared::HandlerBase {
 
         core::logger::info("Receiver", "FD `{}` read {} bytes", m_worker.get().get_fd(), bytes);
 
-        m_pool.notify_read(bytes);
+        m_pool.notify_read(node, bytes);
         m_on_read(m_pool.get_view());
     }
 

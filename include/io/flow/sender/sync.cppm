@@ -14,50 +14,36 @@ template <typename Worker, typename Status, typename... Args>
     requires interfaces::io::SyncSendable<Worker, Status, Args...>
 class Sender : public shared::HandlerBase {
   public:
-    Sender(Worker &worker) : m_worker{worker}, m_pool{}, m_on_error{nullptr}, m_stalled{false}, m_closed{true} {}
-
-    Sender &&add_on_error(shared::ErrorCallback on_error) && {
-        m_on_error = std::move(on_error);
-        return std::move(*this);
-    }
-
-    void add_on_error(shared::ErrorCallback on_error) & { m_on_error = std::move(on_error); }
-
-    Sender &&build() && {
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Sender");
-        }
-        return std::move(*this);
-    }
-
-    void build() & {
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Sender");
-        }
+    Sender(Worker &worker) : m_worker{worker}, m_pool{}, m_on_error{nullptr}, m_stalled{false}, m_closed{false} {
+        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Sender(Worker &worker, shared::ErrorCallback on_error)
-        : m_worker{worker}, m_pool{}, m_on_error{std::move(on_error)}, m_stalled{false}, m_closed{true} {}
+        : m_worker{worker}, m_pool{}, m_on_error{std::move(on_error)}, m_stalled{false}, m_closed{false} {
+        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
+        build();
+    }
+
+    ~Sender() { core::logger::debug("Sender", "Destructor called for worker with FD `{}`", m_worker.get().get_fd()); }
 
     Sender(const Sender &) = delete;
     Sender &operator=(const Sender &) = delete;
+    Sender(Sender &&) = delete;
+    Sender &operator=(Sender &&) = delete;
 
-    Sender(Sender &&other) noexcept
-        : m_worker{other.m_worker}, m_pool{std::move(other.m_pool)}, m_on_error{std::move(other.m_on_error)},
-          m_stalled{std::move(other.m_stalled)}, m_closed{std::move(other.m_closed)} {}
+    void add_on_error(shared::ErrorCallback on_error) & { m_on_error = std::move(on_error); }
 
-    Sender &operator=(Sender &&other) noexcept {
-        if (this != &other) {
-            m_worker = other.m_worker;
-            m_pool = std::move(other.m_pool);
-            m_on_error = std::move(other.m_on_error);
-            m_stalled = std::move(other.m_stalled);
-            m_closed = std::move(other.m_closed);
+    void build() {
+        if (!m_on_error) {
+            throw std::runtime_error("Error callback must be set before building the Sender");
         }
-        return *this;
     }
 
-    void send(buffering::BufferNode slot) { m_pool.push(std::move(slot)); }
+    void send(buffering::BufferNode slot) {
+        core::logger::debug("Sender", "FD `{}` adding node to send pool with size `{}`", m_worker.get().get_fd(),
+                            slot.get_written());
+        m_pool.push(std::move(slot));
+    }
 
     std::string_view name() const noexcept override { return "Sender - Sync"; }
 
@@ -78,8 +64,8 @@ class Sender : public shared::HandlerBase {
     }
 
     shared::ErrorHandler on_error() override {
-        core::logger::debug("Sender", "FD `{}` on_error is being executed", m_worker.get().get_fd());
         return [this](std::exception_ptr eptr) {
+            core::logger::debug("Sender", "FD `{}` on_error is being executed", m_worker.get().get_fd());
             if (!eptr)
                 return;
             try {
@@ -115,7 +101,11 @@ class Sender : public shared::HandlerBase {
         return true;
     }
 
-    void set_closed() noexcept { m_closed = true; }
+    void set_closed() noexcept {
+        core::logger::debug("Sender", "FD `{}` is being marked as closed and so is the Sender too",
+                            m_worker.get().get_fd());
+        m_closed = true;
+    }
 
     [[nodiscard]] bool get_stalled() const noexcept { return m_stalled; }
     [[nodiscard]] bool get_closed() const noexcept { return m_closed; }
@@ -130,39 +120,40 @@ class Sender : public shared::HandlerBase {
             return;
         }
 
-        auto view = m_pool.get_view();
+        auto &view = m_pool.get_view();
+        auto [data, size] = view.front();
 
-        auto slot_opt = view.peek();
-
-        if (auto slot = slot_opt.value(); slot_opt) {
-            auto [result, status] =
-                m_worker.get().sync_send(slot->get_data(), static_cast<std::size_t>(slot->get_size()));
-
-            switch (status.get_status()) {
-            case socket::VALUES::VALID: {
-                core::logger::info("Sender", "FD `{}` sent {} bytes ", m_worker.get().get_fd(), result);
-                view.pop_front();
-                m_stalled = false;
-                return;
-            }
-            case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED: {
-                core::logger::info("Sender", "FD `{}` send would have blocked, you need to retry when writable",
-                                   m_worker.get().get_fd());
-                m_stalled = false;
-                return;
-            }
-            case socket::VALUES::ERRORED:
-            case socket::VALUES::CLEANLY_DISCONNECTED:
-            case socket::VALUES::TIMED_OUT:
-                core::logger::warning("Sender", "FD `{}` send operation failed with error `{}`",
-                                      m_worker.get().get_fd(), result);
-                m_closed = true;
-                m_on_error(m_worker.get().get_fd(), status.get_value());
-                return;
-            }
-        } else {
+        if (!data || size == 0) {
             core::logger::info("Sender", "FD `{}` has no data to send", m_worker.get().get_fd());
             m_stalled = false;
+            return;
+        }
+
+        core::logger::debug("Sender", "FD `{}` attempting to send {} bytes", m_worker.get().get_fd(), size);
+
+        auto [result, status] = m_worker.get().sync_send(data, size);
+
+        switch (status.get_status()) {
+        case socket::VALUES::VALID: {
+            core::logger::info("Sender", "FD `{}` send {} bytes ", m_worker.get().get_fd(), result);
+            view.consume(result);
+            m_stalled = false;
+            return;
+        }
+        case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED: {
+            core::logger::info("Sender", "FD `{}` send would have blocked, you need to retry when writable",
+                               m_worker.get().get_fd());
+            m_stalled = false;
+            return;
+        }
+        case socket::VALUES::ERRORED:
+        case socket::VALUES::CLEANLY_DISCONNECTED:
+        case socket::VALUES::TIMED_OUT:
+            core::logger::warning("Sender", "FD `{}` send operation failed with error `{}`", m_worker.get().get_fd(),
+                                  result);
+            m_closed = true;
+            m_on_error(m_worker.get().get_fd(), status.get_value());
+            return;
         }
     }
 

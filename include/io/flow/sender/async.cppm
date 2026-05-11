@@ -18,57 +18,36 @@ template <typename Worker, typename Status, typename... Args>
 class Sender : public shared::HandlerBase {
   public:
     Sender(Worker &worker) : m_worker{worker}, m_pool{}, m_on_error{nullptr}, m_fatal{false} {
-        core::logger::debug("Sender", "created for worker with FD `{}`", m_worker.get().get_fd());
-    }
-
-    Sender &&add_on_error(shared::ErrorCallback on_error) && {
-        m_on_error = std::move(on_error);
-        return std::move(*this);
-    }
-
-    void add_on_error(shared::ErrorCallback on_error) & { m_on_error = std::move(on_error); }
-
-    Sender &&build() && {
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Sender");
-        }
-        attach();
-        return std::move(*this);
-    }
-
-    void build() & {
-        if (!m_on_error) {
-            throw std::runtime_error("Error callback must be set before building the Sender");
-        }
-        attach();
+        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Sender(Worker &worker, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_error{std::move(on_error)}, m_fatal{false} {
-        core::logger::debug("Sender", "created for worker with FD `{}`", m_worker.get().get_fd());
+        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
         attach();
     }
 
-    ~Sender() { core::logger::debug("Sender", "destructor called for worker with FD `{}`", m_worker.get().get_fd()); }
+    ~Sender() { core::logger::debug("Sender", "Destructor called for worker with FD `{}`", m_worker.get().get_fd()); }
 
     Sender(const Sender &) = delete;
     Sender &operator=(const Sender &) = delete;
+    Sender(Sender &&) = delete;
+    Sender &operator=(Sender &&) = delete;
 
-    Sender(Sender &&other) noexcept
-        : m_worker{other.m_worker}, m_pool{std::move(other.m_pool)}, m_on_error{std::move(other.m_on_error)},
-          m_fatal{std::move(other.m_fatal)} {}
+    void add_on_error(shared::ErrorCallback on_error) { m_on_error = std::move(on_error); }
 
-    Sender &operator=(Sender &&other) noexcept {
-        if (this != &other) {
-            m_worker = other.m_worker;
-            m_pool = std::move(other.m_pool);
-            m_on_error = std::move(other.m_on_error);
-            m_fatal = std::move(other.m_fatal);
+    void build() {
+        if (!m_on_error) {
+            throw std::runtime_error("Error callback must be set before building the Sender");
         }
-        return *this;
+        attach();
     }
 
-    void send(buffering::BufferNode slot) { m_pool.push(std::move(slot)); }
+    void send(buffering::BufferNode slot) {
+        core::logger::debug("Sender", "FD `{}` adding node to send pool with size `{}`", m_worker.get().get_fd(),
+                            slot.get_written());
+        m_pool.push(std::move(slot));
+    }
 
 
     std::string_view name() const noexcept override { return "Sender - Async"; }
@@ -138,18 +117,16 @@ class Sender : public shared::HandlerBase {
 
   private:
     void arm_write() {
-        auto view = m_pool.get_view();
+        auto [data, size] = m_pool.get_view().front();
 
-        auto slot_opt = view.peek();
-
-        if (auto slot = slot_opt.value(); slot_opt) {
-            core::logger::info("Sender", "FD `{}` attempting to send {} bytes", m_worker.get().get_fd(),
-                               slot->get_size());
-            m_worker.get().async_send(slot->get_data(), static_cast<unsigned>(slot->get_size()),
-                                      [this](int result) mutable { on_write_complete(result); });
-        } else {
+        if (!data || size == 0) {
             core::logger::info("Sender", "FD `{}` no data to send", m_worker.get().get_fd());
+            return;
         }
+
+        core::logger::info("Sender", "FD `{}` attempting to send {} bytes", m_worker.get().get_fd(), size);
+        m_worker.get().async_send(data, static_cast<unsigned>(size),
+                                  [this](int result) mutable { on_write_complete(result); });
     }
 
     void on_write_complete(int result) {
@@ -167,7 +144,7 @@ class Sender : public shared::HandlerBase {
         }
 
         core::logger::info("Sender", "FD `{}` sent {} bytes", m_worker.get().get_fd(), result);
-        m_pool.get_view().pop_front();
+        m_pool.get_view().consume(result);
     }
 
     std::reference_wrapper<Worker> m_worker;

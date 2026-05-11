@@ -7,10 +7,9 @@ namespace io::shared_codec::huffman {
 
 inline constexpr std::uint32_t SYM_COUNT = 257;
 inline constexpr std::uint32_t SYM_EOS = 256;
-inline constexpr std::uint32_t SYM_NONE = 0xFFFF'FFFEu;
-inline constexpr std::uint32_t SYM_INVALID = 0xFFFF'FFFFu;
+inline constexpr std::uint32_t SYM_NONE = 0xFFFF'FFFEU;
+inline constexpr std::uint32_t SYM_INVALID = 0xFFFF'FFFFU;
 
-// Upper bounds for compile-time arrays.
 inline constexpr std::size_t TRIE_CAP = 600;
 inline constexpr std::size_t TABLE_CAP = 9600;
 
@@ -148,93 +147,95 @@ inline constexpr std::pair<std::uint32_t, std::uint8_t> CODES[SYM_COUNT] = {
 };
 
 struct TrieNode {
-    int child[2] = {-1, -1};
-    std::uint32_t sym = SYM_NONE;
+    int m_child[2] = {-1, -1};
+    std::uint32_t m_sym = SYM_NONE;
 };
 
 struct Trie {
-    std::array<TrieNode, TRIE_CAP> nodes{};
-    std::size_t size = 1;
+    std::array<TrieNode, TRIE_CAP> m_nodes{};
+    std::size_t m_size = 1;
 };
 
-consteval Trie build_trie() {
-    Trie t;
-    for (std::uint32_t sym = 0; sym < SYM_COUNT; ++sym) {
-        const auto [bits, len] = CODES[sym];
+// TODO: make consteval
+Trie build_trie() {
+    Trie trie;
+    for (auto [sym, entry] : std::views::enumerate(CODES)) {
+        const auto [code, len] = entry;
         int cur = 0;
-        for (int i = len - 1; i >= 0; --i) {
-            const int b = (bits >> i) & 1;
-            if (t.nodes[cur].child[b] < 0) {
-                t.nodes[cur].child[b] = static_cast<int>(t.size++);
-            }
-            cur = t.nodes[cur].child[b];
+        for (int shift : std::views::iota(0, static_cast<int>(len)) | std::views::reverse) {
+            const int BIT = (code >> shift) & 1;
+            if (trie.m_nodes[cur].m_child[BIT] < 0)
+                trie.m_nodes[cur].m_child[BIT] = static_cast<int>(trie.m_size++);
+            cur = trie.m_nodes[cur].m_child[BIT];
         }
-        t.nodes[cur].sym = sym;
+        trie.m_nodes[cur].m_sym = static_cast<std::uint32_t>(sym);
     }
-    return t;
+    return trie;
 }
-
 
 template <int W>
 struct TransTable {
     static constexpr int CHUNK_COUNT = 1 << W;
-    std::array<std::pair<std::uint16_t, std::uint16_t>, TABLE_CAP> entries{};
-    std::uint16_t row_count = 0;
+    std::array<std::pair<std::uint16_t, std::uint16_t>, TABLE_CAP> m_entries{};
+    std::uint16_t m_row_count = 0;
 };
 
+// TODO: make consteval
 template <int W>
-consteval TransTable<W> build_table() {
+TransTable<W> build_table() {
     constexpr int CHUNKS = TransTable<W>::CHUNK_COUNT;
-    constexpr Trie trie = build_trie();
+    Trie trie = build_trie();
     TransTable<W> table;
 
-    std::array<int, TRIE_CAP> node_to_row;
+    std::array<int, TRIE_CAP> node_to_row{};
     node_to_row.fill(-1);
     std::array<int, TRIE_CAP> queue{};
-    int q_head = 0, q_tail = 0;
+    int q_head = 0;
+    int q_tail = 0;
 
     auto alloc_row = [&](int node) -> int {
-        const int row = static_cast<int>(table.row_count++);
-        node_to_row[node] = row;
-        return row;
+        const int ROW = static_cast<int>(table.m_row_count++);
+        node_to_row[node] = ROW;
+        return ROW;
     };
 
     alloc_row(0);
     queue[q_tail++] = 0;
 
     while (q_head < q_tail) {
-        const int start_node = queue[q_head++];
-        const int row = node_to_row[start_node];
+        const int START = queue[q_head++];
+        const int ROW = node_to_row[START];
 
-        for (int chunk = 0; chunk < CHUNKS; ++chunk) {
-            int cur = start_node;
+        for (int chunk : std::views::iota(0, CHUNKS)) {
+            int cur = START;
             std::uint32_t emitted_sym = SYM_NONE;
             bool invalid = false;
 
-            for (int i = W - 1; i >= 0; --i) {
-                const int bit = (chunk >> i) & 1;
-                const int next = trie.nodes[cur].child[bit];
-                if (next < 0) {
+            for (int shift : std::views::iota(0, W) | std::views::reverse) {
+                const int BIT = (chunk >> shift) & 1;
+                const int NEXT = trie.m_nodes[cur].m_child[BIT];
+                if (NEXT < 0) {
                     invalid = true;
                     break;
                 }
-                cur = next;
-                if (trie.nodes[cur].sym != SYM_NONE) {
-                    emitted_sym = trie.nodes[cur].sym;
+                cur = NEXT;
+                if (trie.m_nodes[cur].m_sym != SYM_NONE) {
+                    emitted_sym = trie.m_nodes[cur].m_sym;
                     cur = 0;
                 }
             }
 
-            const std::size_t slot = static_cast<std::size_t>(row) * CHUNKS + chunk;
+            const std::size_t SLOT = (static_cast<std::size_t>(ROW) * CHUNKS) + chunk;
             if (invalid) {
-                table.entries[slot] = {0xFFFFu, 0xFFFFu};
+                table.m_entries[SLOT] = {0xFFFFU, 0xFFFFU};
             } else {
                 if (node_to_row[cur] < 0) {
                     alloc_row(cur);
                     queue[q_tail++] = cur;
                 }
-                std::uint16_t sym16 = (emitted_sym == SYM_NONE) ? 0xFFFEu : static_cast<std::uint16_t>(emitted_sym);
-                table.entries[slot] = {static_cast<std::uint16_t>(node_to_row[cur]), sym16};
+                const std::uint16_t SYM16 =
+                    (emitted_sym == SYM_NONE) ? 0xFFFEU : static_cast<std::uint16_t>(emitted_sym);
+                table.m_entries[SLOT] = {static_cast<std::uint16_t>(node_to_row[cur]), SYM16};
             }
         }
     }
@@ -245,105 +246,210 @@ consteval TransTable<W> build_table() {
 
 export namespace io::shared_codec::huffman {
 
-template <int W = 4>
-    requires DecodeWidth<W>
-class Huffman {
-
+// HuffmanEncodeView
+//
+// Lazy std::byte-producing range over an input char/byte sequence.
+//
+// Algorithm: 64-bit MSB-first accumulator.
+template <std::ranges::input_range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, std::byte>
+class HuffmanEncodeView {
   public:
-    Huffman() = default;
+    class Iterator {
+      public:
+        using value_type = std::byte;
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::input_iterator_tag;
+        using iterator_concept = std::input_iterator_tag;
 
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode(std::string_view input, Out out) const noexcept {
-        std::uint64_t buf = 0;
-        int bits = 0;
+        Iterator() = default;
 
-        for (const unsigned char chr : input) {
-            const auto &[code_bits, code_len] = CODES[chr];
-            buf = (buf << code_len) | code_bits;
-            bits += code_len;
-
-            while (bits >= 8) {
-                bits -= 8;
-                *out++ = static_cast<std::uint8_t>(buf >> bits);
-            }
-        }
-        if (bits > 0) {
-            *out++ = static_cast<std::uint8_t>((buf << (8 - bits)) | (0xFF >> bits));
-        }
-    }
-
-    [[nodiscard]] std::string decode(std::span<const std::uint8_t> data) const {
-        if (data.empty())
-            return {};
-
-        std::string result;
-        result.reserve(data.size() + (data.size() >> 1));
-
-        std::uint32_t state = 0;
-        int padding_bits = 0;
-
-        const std::uint8_t *ptr = data.data();
-        const std::uint8_t *end = ptr + data.size();
-
-        while (ptr < end - 1) {
-            unsigned int temp = *ptr++;
-            for (int i = 0; i < CHUNKS_PER_BYTE; ++i) {
-                const int chunk = (temp >> (8 - W)) & CHUNK_MASK;
-                apply_step(state, chunk, result, padding_bits, false);
-                temp <<= W;
-            }
+        explicit Iterator(R &base)
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_bits{}, m_shift{}, m_done{} {
+            advance();
         }
 
-        unsigned int last_byte = *ptr;
-        for (int i = 0; i < CHUNKS_PER_BYTE; ++i) {
-            const int chunk = (last_byte >> (8 - W)) & CHUNK_MASK;
-            apply_step(state, chunk, result, padding_bits, true);
-            last_byte <<= W;
+        [[nodiscard]] std::byte operator*() const noexcept {
+            return std::byte{static_cast<unsigned char>(m_bits >> (m_shift - 8))};
         }
 
-        if (padding_bits > 7) [[unlikely]]
-            throw error::http::HuffmanDecodeError{"padding exceeds 7 bits"};
+        Iterator &operator++() {
+            m_shift -= 8;
+            advance();
+            return *this;
+        }
 
-        if (state != 0) [[unlikely]] {
-            if (padding_bits == 0) {
-                throw error::http::HuffmanDecodeError{"stream ends mid-symbol"};
+        void operator++(int) { ++*this; }
+
+        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_done; }
+
+      private:
+        void advance() {
+            if (m_inner == m_end) {
+                if (m_shift == 0) {
+                    m_done = true;
+                    return;
+                }
+                const int PAD = 8 - m_shift;
+                m_bits = (m_bits << PAD) | ((1U << PAD) - 1U);
+                m_shift = 8;
+            } else {
+                const auto [code, len] = CODES[std::to_integer<unsigned char>(*m_inner++)];
+                m_bits = (m_bits << len) | static_cast<std::uint64_t>(code);
+                m_shift += static_cast<int>(len);
             }
         }
 
-        std::println("Decoded Huffman header with the result - `{}`", result);
+        std::ranges::iterator_t<R> m_inner;
+        std::ranges::sentinel_t<R> m_end;
+        std::uint64_t m_bits;
+        int m_shift;
+        bool m_done;
+    };
 
-        return result;
-    }
+    HuffmanEncodeView() = default;
+    explicit HuffmanEncodeView(R base) : m_base{std::move(base)} {}
+
+    ~HuffmanEncodeView() = default;
+
+    HuffmanEncodeView(const HuffmanEncodeView &) = delete;
+    HuffmanEncodeView &operator=(const HuffmanEncodeView &) = delete;
+    HuffmanEncodeView(HuffmanEncodeView &&) = default;
+    HuffmanEncodeView &operator=(HuffmanEncodeView &&) = default;
+
+    [[nodiscard]] Iterator begin() { return Iterator{m_base}; }
+    [[nodiscard]] std::default_sentinel_t end() const noexcept { return {}; }
 
   private:
+    R m_base;
+};
+
+template <std::ranges::input_range R>
+HuffmanEncodeView(R &&) -> HuffmanEncodeView<std::views::all_t<R>>;
+
+// HuffmanDecodeView
+//
+// Lazy char-producing range over a std::byte input sequence.
+//
+// Algorithm: W-bit chunk FSM, buffer-drain pattern.
+template <int W, std::ranges::input_range R>
+    requires DecodeWidth<W> && std::same_as<std::ranges::range_value_t<R>, std::byte>
+class HuffmanDecodeView {
+  public:
     static constexpr int CHUNKS = 1 << W;
-    static constexpr auto TABLE = build_table<W>();
     static constexpr int CHUNKS_PER_BYTE = 8 / W;
     static constexpr int CHUNK_MASK = CHUNKS - 1;
+    // TODO: make constexpr when GCC supports it
+    inline static const TransTable<W> TABLE = build_table<W>();
 
-    inline void apply_step(std::uint32_t &state, int chunk, std::string &result, int &padding_bits,
-                           bool is_last) const {
-        const auto &entry = TABLE.entries[(state << W) | chunk];
-        state = entry.first;
-        const std::uint16_t sym = entry.second;
+    class Iterator {
+      public:
+        using value_type = char;
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::input_iterator_tag;
+        using iterator_concept = std::input_iterator_tag;
 
-        if (sym < 256) [[likely]] {
-            result.push_back(static_cast<char>(sym));
-            padding_bits = 0;
-        } else if (sym == 0xFFFEu) [[likely]] {
-            if (is_last) {
-                if (chunk == CHUNK_MASK) {
-                    padding_bits += W;
-                } else if (state != 0) {
-                    throw error::http::HuffmanDecodeError{"invalid padding bits (must be 1s)"};
-                }
-            }
-        } else if (sym == 256) {
-            throw error::http::HuffmanDecodeError{"EOS found in stream"};
-        } else [[unlikely]] {
-            throw error::http::HuffmanDecodeError{"Invalid Huffman code"};
+        Iterator() = default;
+
+        explicit Iterator(R &base)
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_chunk_idx{0}, m_current{}, m_done{},
+              m_padding_bits{} {}
+
+        [[nodiscard]] char operator*() const noexcept { return m_current; }
+
+        Iterator &operator++() {
+            advance();
+            return *this;
         }
+
+        void operator++(int) { ++*this; }
+
+        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_done; }
+
+      private:
+        void advance() {
+            if (m_inner == m_end) {
+                if (m_chunk_idx != 0) {
+                    throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+                }
+                if (m_fsm != 0 && m_padding_bits > 7) {
+                    throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+                }
+                m_done = true;
+                return;
+            }
+
+            const int CHUNK = CHUNK_MASK & (std::to_integer<unsigned>(*m_inner) >> (8 - (W * (m_chunk_idx + 1))));
+
+            if (++m_chunk_idx == CHUNKS_PER_BYTE) {
+                ++m_inner;
+                m_chunk_idx = 0;
+            }
+
+            const auto &[ns, sym] = TABLE.m_entries[(static_cast<std::size_t>(m_fsm) * CHUNKS) + CHUNK];
+            m_fsm = ns;
+
+            if (sym < 256U) [[likely]] {
+                m_current = static_cast<char>(sym);
+                m_padding_bits = 0;
+            } else if (sym == 0xFFFFU) [[unlikely]] {
+                throw error::http::HuffmanDecodeError{"invalid Huffman code"};
+            } else if (sym == static_cast<std::uint16_t>(SYM_EOS)) {
+                throw error::http::HuffmanDecodeError{"EOS symbol in stream"};
+            } else {
+                m_padding_bits += W;
+            }
+        }
+
+        std::ranges::iterator_t<R> m_inner;
+        std::ranges::sentinel_t<R> m_end;
+        std::uint32_t m_fsm{};
+        int m_chunk_idx;
+        char m_current;
+        bool m_done;
+        int m_padding_bits;
+    };
+
+    HuffmanDecodeView() = default;
+    explicit HuffmanDecodeView(R &&base) : m_base{std::forward<R>(base)} {}
+
+    ~HuffmanDecodeView() = default;
+
+    HuffmanDecodeView(const HuffmanDecodeView &) = delete;
+    HuffmanDecodeView &operator=(const HuffmanDecodeView &) = delete;
+    HuffmanDecodeView(HuffmanDecodeView &&) = default;
+    HuffmanDecodeView &operator=(HuffmanDecodeView &&) = default;
+
+    [[nodiscard]] Iterator begin() { return Iterator{m_base}; }
+    [[nodiscard]] std::default_sentinel_t end() const noexcept { return {}; }
+
+  private:
+    R m_base;
+};
+
+struct HuffmanEncodeAdaptor : std::ranges::range_adaptor_closure<HuffmanEncodeAdaptor> {
+    template <std::ranges::viewable_range R>
+        requires std::convertible_to<std::ranges::range_value_t<R>, std::byte>
+    [[nodiscard]] auto operator()(R &&range) const {
+        return HuffmanEncodeView<std::views::all_t<R>>{std::views::all(std::forward<R>(range))};
     }
+};
+
+template <int W = 4>
+    requires DecodeWidth<W>
+struct HuffmanDecodeAdaptor : std::ranges::range_adaptor_closure<HuffmanDecodeAdaptor<W>> {
+    template <std::ranges::viewable_range R>
+        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
+    [[nodiscard]] auto operator()(R &&range) const {
+        return HuffmanDecodeView<W, std::views::all_t<R>>{std::views::all(std::forward<R>(range))};
+    }
+};
+
+template <int W = 4>
+    requires DecodeWidth<W>
+struct Huffman {
+    [[nodiscard]] static HuffmanEncodeAdaptor encode() noexcept { return {}; }
+    [[nodiscard]] static HuffmanDecodeAdaptor<W> decode() noexcept { return {}; }
 };
 
 } // namespace io::shared_codec::huffman

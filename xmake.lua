@@ -83,6 +83,7 @@ add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 -- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
+add_requires("microsoft-gsl", { configs = conan })
 
 set_languages("c++26", "c11")
 set_warnings("all", "extra", "error")
@@ -109,7 +110,12 @@ elseif is_plat("mingw") then
 	end)
 end
 
+if is_arch("x86_64") then
+	add_cxflags("-mbmi2")
+end
+
 target("congelado_lib")
+set_policy("build.sanitizer.address", true)
 set_kind("static")
 add_cxflags("-fpermissive")
 
@@ -152,6 +158,7 @@ add_packages(
 	"ngtcp2",
 	"nghttp3",
 	"backward",
+	"microsoft-gsl",
 	{ public = true }
 )
 

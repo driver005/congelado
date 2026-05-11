@@ -10,16 +10,6 @@ class StreamStateMachine {
   public:
     explicit StreamStateMachine(std::uint32_t stream_id) : m_id{stream_id}, m_state{shared_layer::StreamState::Idle} {}
 
-    const shared_layer::StreamState &get_state() const noexcept { return m_state; }
-    const std::uint32_t &id() const noexcept { return m_id; }
-    bool is_open() const noexcept { return m_state == shared_layer::StreamState::Open; }
-    bool can_send_data() const noexcept {
-        return m_state == shared_layer::StreamState::Open || m_state == shared_layer::StreamState::HalfClosedRemote;
-    }
-    bool can_receive_data() const noexcept {
-        return m_state == shared_layer::StreamState::Open || m_state == shared_layer::StreamState::HalfClosedLocal;
-    }
-    bool is_closed() const noexcept { return m_state == shared_layer::StreamState::Closed; }
 
     template <shared_layer::FrameRole Role>
     shared_layer::StreamState advance(const Frame<Role> &frame, bool is_local) {
@@ -55,9 +45,8 @@ class StreamStateMachine {
                                       : shared_layer::StreamState::ReservedRemote);
             }
             // Anything else on an idle stream is a PROTOCOL_ERROR (§5.1).
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Frame type {} received on idle stream", static_cast<int>(type)), m_id);
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Frame type `{}` received on idle stream", type), m_id);
 
         case shared_layer::StreamState::Open:
             if (end_stream)
@@ -100,9 +89,9 @@ class StreamStateMachine {
             if (!is_local &&
                 (type == shared_layer::FrameType::WINDOW_UPDATE || type == shared_layer::FrameType::RST_STREAM))
                 return m_state; // peer may send these
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Illegal frame type {} on reserved (local) stream", static_cast<int>(type)), m_id);
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Illegal frame type `{}` on reserved (local) stream", type),
+                                               m_id);
 
         case shared_layer::StreamState::ReservedRemote:
             if (!is_local && type == shared_layer::FrameType::HEADERS)
@@ -110,9 +99,10 @@ class StreamStateMachine {
             if (is_local &&
                 (type == shared_layer::FrameType::WINDOW_UPDATE || type == shared_layer::FrameType::RST_STREAM))
                 return m_state;
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Illegal frame type {} on reserved (remote) stream", static_cast<int>(type)), m_id);
+
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Illegal frame type `{}` on reserved (remote) stream", type),
+                                               m_id);
 
         case shared_layer::StreamState::Closed:
             // WINDOW_UPDATE and RST_STREAM may arrive briefly after closure
@@ -124,15 +114,25 @@ class StreamStateMachine {
             // DATA or HEADERS on a closed stream → connection error
             if (!is_local && (type == shared_layer::FrameType::DATA || type == shared_layer::FrameType::HEADERS)) {
                 throw error::http::ConnectionError(error::http::Http2ErrorCode::STREAM_CLOSED,
-                                                   std::format("Received {} on closed stream", static_cast<int>(type)),
-                                                   m_id);
+                                                   std::format("Received `{}` on closed stream", type), m_id);
             }
             // Anything else: connection error per §5.1
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Frame type {} received on closed stream", static_cast<int>(type)), m_id);
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Frame type `{}` received on closed stream", type), m_id);
         }
     }
+
+    const shared_layer::StreamState &get_state() const noexcept { return m_state; }
+    const std::uint32_t &id() const noexcept { return m_id; }
+
+    bool is_open() const noexcept { return m_state == shared_layer::StreamState::Open; }
+    bool can_send_data() const noexcept {
+        return m_state == shared_layer::StreamState::Open || m_state == shared_layer::StreamState::HalfClosedRemote;
+    }
+    bool can_receive_data() const noexcept {
+        return m_state == shared_layer::StreamState::Open || m_state == shared_layer::StreamState::HalfClosedLocal;
+    }
+    bool is_closed() const noexcept { return m_state == shared_layer::StreamState::Closed; }
 
   private:
     shared_layer::StreamState apply(shared_layer::StreamState next) noexcept {
@@ -142,9 +142,8 @@ class StreamStateMachine {
 
     void require_not_idle(shared_layer::FrameType type) const {
         if (m_state == shared_layer::StreamState::Idle)
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Frame type {} received on idle stream", static_cast<int>(type)), m_id);
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Frame type `{}` received on idle stream", type), m_id);
     }
 
     std::uint32_t m_id;

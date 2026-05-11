@@ -192,5 +192,77 @@ class CompressionError : public std::runtime_error {
     explicit CompressionError(std::string msg) : std::runtime_error{std::move(msg)} {}
 };
 
-
 } // namespace io::error::http
+
+export template <>
+struct std::formatter<io::error::http::Http2ErrorCode> {
+    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(io::error::http::Http2ErrorCode e, FormatContext &ctx) const {
+        using enum io::error::http::Http2ErrorCode;
+        std::string_view name;
+        switch (e) {
+        case NO_ERROR_CODE: {
+            name = "NO_ERROR_CODE";
+            break;
+        }
+        case PROTOCOL_ERROR: {
+            name = "PROTOCOL_ERROR";
+            break;
+        }
+        case INTERNAL_ERROR: {
+            name = "INTERNAL_ERROR";
+            break;
+        }
+        case FLOW_CONTROL_ERROR: {
+            name = "FLOW_CONTROL_ERROR";
+            break;
+        }
+        case SETTINGS_TIMEOUT: {
+            name = "SETTINGS_TIMEOUT";
+            break;
+        }
+        case STREAM_CLOSED: {
+            name = "STREAM_CLOSED";
+            break;
+        }
+        case FRAME_SIZE_ERROR: {
+            name = "FRAME_SIZE_ERROR";
+            break;
+        }
+        case REFUSED_STREAM: {
+            name = "REFUSED_STREAM";
+            break;
+        }
+        case CANCEL: {
+            name = "CANCEL";
+            break;
+        }
+        case COMPRESSION_ERROR: {
+            name = "COMPRESSION_ERROR";
+            break;
+        }
+        case CONNECT_ERROR: {
+            name = "CONNECT_ERROR";
+            break;
+        }
+        case ENHANCE_YOUR_CALM: {
+            name = "ENHANCE_YOUR_CALM";
+            break;
+        }
+        case INADEQUATE_SECURITY: {
+            name = "INADEQUATE_SECURITY";
+            break;
+        }
+        case HTTP_1_1_REQUIRED: {
+            name = "HTTP_1_1_REQUIRED";
+            break;
+        }
+        default: {
+            name = "UNKNOWN";
+            break;
+        }
+        }
+        return std::format_to(ctx.out(), "{}", name);
+    }
+};

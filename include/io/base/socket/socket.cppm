@@ -1,9 +1,11 @@
 module;
 
 #include <cassert>
+#include <cstdint>
 #include <openssl/err.h>
 #include <openssl/quic.h>
 #include <openssl/ssl.h>
+#include <utility>
 
 #if defined(_WIN32)
 
@@ -33,7 +35,7 @@ import io_error;
 import core_logger;
 import io_base_leverage;
 import shared;
-import :consts;
+export import :consts;
 
 #if defined(_WIN32)
 export import :win32;
@@ -41,10 +43,30 @@ export import :win32;
 export import :posix;
 #endif
 
+class SSLAutoInitializer {
+  public:
+    SSLAutoInitializer() {
+        int ssl_init = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
+
+        int crypto_init = OPENSSL_init_crypto(
+            OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS, nullptr);
+
+        if (ssl_init == 0 || crypto_init == 0) {
+            throw std::runtime_error(
+                "Failed to initialize OpenSSL libraries (Fatal - plesae check online or create a new issue)");
+            ERR_print_errors_fp(stderr);
+        }
+        std::println("OpenSSL libraries initialized successfully (DevInfo)");
+    }
+};
+
+static const SSLAutoInitializer AUTO_INIT;
+
+
 export namespace io::base::socket {
 
-enum class Protocol { TCP = 0, UDP = 1, TLS = 2, QUIC = 3 };
-enum class WaitMode { AS_SOON_AS_ARRIVED, WAIT_FOR_WHOLE_MESSAGE };
+enum class Protocol : std::uint8_t { TCP = 0, UDP = 1, TLS = 2, QUIC = 3 };
+enum class WaitMode : std::uint8_t { AS_SOON_AS_ARRIVED, WAIT_FOR_WHOLE_MESSAGE };
 [[nodiscard]] constexpr bool is_waiting(WaitMode mode) noexcept { return mode == WaitMode::WAIT_FOR_WHOLE_MESSAGE; }
 
 class AddressInfo {
@@ -59,9 +81,9 @@ class AddressInfo {
     void set_data(const sockaddr_storage &adrinf) { m_adrinf = adrinf; }
     void set_size(const socklen_t &sock_size) { m_sock_size = sock_size; }
 
-    const sockaddr_storage &get_data() const noexcept { return m_adrinf; }
+    [[nodiscard]] const sockaddr_storage &get_data() const noexcept { return m_adrinf; }
     sockaddr_storage &get_data() noexcept { return m_adrinf; }
-    const socklen_t &get_size() const noexcept { return m_sock_size; }
+    [[nodiscard]] const socklen_t &get_size() const noexcept { return m_sock_size; }
     socklen_t &get_size() noexcept { return m_sock_size; }
 
   private:
@@ -69,25 +91,27 @@ class AddressInfo {
     socklen_t m_sock_size;
 };
 
-enum class Event : int { READ = 0x1, WRITE = 0x2, EXCEPT = 0x4 };
+enum class Event : std::uint8_t { READ = 0x1, WRITE = 0x2, EXCEPT = 0x4 };
 
 class Endpoint {
   public:
-    Endpoint() : m_address{}, m_port{0} {}
+    Endpoint() : m_port{0} {}
 
-    Endpoint(std::string_view address, std::uint16_t port) : m_address(std::move(address)), m_port(port) {}
+    Endpoint(std::string_view address, std::uint16_t port) : m_address{address}, m_port{port} {}
 
     Endpoint(std::string_view address) {
-        const auto separator = address.find_last_of(':');
+        const auto SEPARATOR = address.find_last_of(':');
 
-        if (separator == std::string_view::npos)
+        if (SEPARATOR == std::string_view::npos) {
             core::logger::fatal("SocketLib", "Endpoint: invalid address format");
-        if (separator == address.size() - 1)
+        }
+        if (SEPARATOR == address.size() - 1) {
             core::logger::fatal("SocketLib", "Endpoint: missing port number");
+        }
 
-        m_address = address.substr(0, separator);
+        m_address = address.substr(0, SEPARATOR);
 
-        std::string_view port_view = address.substr(separator + 1);
+        std::string_view port_view = address.substr(SEPARATOR + 1);
         std::uint16_t parsed_port = 0;
 
         auto [ptr, ec] = std::from_chars(port_view.data(), port_view.data() + port_view.size(), parsed_port);
@@ -106,20 +130,20 @@ class Endpoint {
     }
 
     Endpoint(const SOCKADDR *address) {
-        if (!address) {
+        if (address == nullptr) {
             core::logger::fatal("SocketLib", "Null address passed to Endpoint");
             return;
         }
 
         switch (address->sa_family) {
         case AF_INET: {
-            auto addr = (SOCKADDR_IN *)address;
+            auto *addr = (SOCKADDR_IN *)address;
             m_address = inet_ntoa(addr->sin_addr);
             m_port = ntohs(addr->sin_port);
             break;
         }
         case AF_INET6: {
-            auto addr = (sockaddr_in6 *)address;
+            auto *addr = (sockaddr_in6 *)address;
             char buf[INET6_ADDRSTRLEN];
             m_address = inet_ntop(AF_INET6, &addr->sin6_addr, buf, sizeof(buf));
             m_port = ntohs(addr->sin6_port);
@@ -135,10 +159,10 @@ class Endpoint {
         }
     }
 
-    std::string to_string() const { return std::format("{}:{}", m_address, m_port); }
+    [[nodiscard]] std::string to_string() const { return std::format("{}:{}", m_address, m_port); }
 
-    const std::string &get_address() const noexcept { return m_address; }
-    const std::uint16_t &get_port() const noexcept { return m_port; }
+    [[nodiscard]] const std::string &get_address() const noexcept { return m_address; }
+    [[nodiscard]] const std::uint16_t &get_port() const noexcept { return m_port; }
 
   private:
     std::string m_address;
@@ -159,20 +183,26 @@ class SocketStatus {
     SocketStatus(bool is_valid) : m_value(is_valid ? VALUES::VALID : VALUES::ERRORED) {}
     SocketStatus(VALUES value) : m_value(value) {}
 
+    ~SocketStatus() = default;
+
     SocketStatus(const SocketStatus &) = default;
     SocketStatus(SocketStatus &&) = default;
+    SocketStatus &operator=(const SocketStatus &) = default;
+    SocketStatus &operator=(SocketStatus &&) = default;
 
     operator bool() const noexcept { return std::to_underlying(m_value) > 0; }
-    std::int8_t get_value() const noexcept { return std::to_underlying(m_value); }
+    [[nodiscard]] std::int8_t get_value() const noexcept { return std::to_underlying(m_value); }
     bool operator==(VALUES val) const noexcept { return m_value == val; }
 
-    bool is_valid() const noexcept { return m_value == VALUES::VALID; }
-    bool is_errored() const noexcept { return m_value == VALUES::ERRORED; }
-    bool is_cleanly_disconnected() const noexcept { return m_value == VALUES::CLEANLY_DISCONNECTED; }
-    bool would_have_blocked() const noexcept { return m_value == VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED; }
-    bool is_timed_out() const noexcept { return m_value == VALUES::TIMED_OUT; }
+    [[nodiscard]] bool is_valid() const noexcept { return m_value == VALUES::VALID; }
+    [[nodiscard]] bool is_errored() const noexcept { return m_value == VALUES::ERRORED; }
+    [[nodiscard]] bool is_cleanly_disconnected() const noexcept { return m_value == VALUES::CLEANLY_DISCONNECTED; }
+    [[nodiscard]] bool would_have_blocked() const noexcept {
+        return m_value == VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED;
+    }
+    [[nodiscard]] bool is_timed_out() const noexcept { return m_value == VALUES::TIMED_OUT; }
 
-    const VALUES &get_status() const noexcept { return m_value; }
+    [[nodiscard]] const VALUES &get_status() const noexcept { return m_value; }
     VALUES &get_status() noexcept { return m_value; }
 
   private:
@@ -180,25 +210,15 @@ class SocketStatus {
 };
 
 
-class InitializeSSL {
-  public:
-    InitializeSSL() {
-        OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-        OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS,
-                            nullptr);
-    };
-};
-
-template <Protocol protocol, bool RootSocket = false>
+template <Protocol Protocol, bool RootSocket = false>
 class Socket {
   public:
     Socket()
-        : m_socket{INVALID_SOCKET}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr}, m_endpoint{},
-          m_address_info_hint{}, m_address_info_result{nullptr}, m_socket_address_info{nullptr},
-          m_socket_input_buffer{}, m_socket_input_buffer_length{0}, m_leverager{std::nullopt}, m_ktls_tx{false},
-          m_ktls_rx{false}, m_os{} {}
+        : m_socket{INVALID_SOCKET}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr}, m_address_info_hint{},
+          m_address_info_result{nullptr}, m_socket_address_info{nullptr}, m_socket_input_buffer{},
+          m_socket_input_buffer_length{0}, m_leverager{std::nullopt}, m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {}
 
-    Socket(const Endpoint &endpoint,
+    Socket(Endpoint endpoint,
            std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager = std::nullopt)
         : m_socket{INVALID_SOCKET}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr}, m_endpoint{std::move(endpoint)},
           m_address_info_hint{}, m_address_info_result{nullptr}, m_socket_address_info{nullptr},
@@ -210,13 +230,13 @@ class Socket {
 
         // Don't use AI_ADDRCONFIG if connecting to loopback
         // See https://fedoraproject.org/wiki/QA/Networking/NameResolution/ADDRCONFIG
-        const std::string_view address = m_endpoint.get_address();
-        if (address == "localhost" || address == "localhost.localdomain" || address == "localhost6" ||
-            address == "localhost6.localdomain6" || address == "127.0.0.1" || address == "::1") {
+        const std::string_view ADDRESS = m_endpoint.get_address();
+        if (ADDRESS == "localhost" || ADDRESS == "localhost.localdomain" || ADDRESS == "localhost6" ||
+            ADDRESS == "localhost6.localdomain6" || ADDRESS == "127.0.0.1" || ADDRESS == "::1") {
             m_address_info_hint.ai_flags = 0;
         }
 
-        if (getaddrinfo(address.data(), std::to_string(m_endpoint.get_port()).data(), &m_address_info_hint,
+        if (getaddrinfo(ADDRESS.data(), std::to_string(m_endpoint.get_port()).data(), &m_address_info_hint,
                         &m_address_info_result) != 0) {
             core::logger::error("SocketLib", "Failed to resolve address");
         }
@@ -322,9 +342,9 @@ class Socket {
 
     ~Socket() {
         core::logger::debug("SocketLib", "Destroying socket");
-        if constexpr (protocol != Protocol::QUIC || RootSocket) {
+        if constexpr (Protocol != Protocol::QUIC || RootSocket) {
             sync_close();
-            if (m_address_info_result) {
+            if (m_address_info_result != nullptr) {
                 freeaddrinfo(m_address_info_result);
             }
         }
@@ -352,7 +372,7 @@ class Socket {
     }
 
     void set_tcp_no_delay(bool no_delay = true) const {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             int optval = no_delay ? 1 : 0;
             if (setsockopt(m_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char *>(&optval), sizeof(optval)) !=
                 0) {
@@ -373,20 +393,51 @@ class Socket {
         core::logger::info("SocketLib", "Socket `{}` status checked - error code `{}`", m_socket, error);
     }
 
-    bool load_certificate(const char *cert_file, const char *key_file) {
-        if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
-            if (!m_ssl_ctx)
-                return false;
-            if (SSL_CTX_use_certificate_chain_file(m_ssl_ctx, cert_file) != 1) {
-                core::logger::error("SocketLib", "Failed to load certificate chain from file");
+    void generate_certificate(std::string_view cert_path, std::string_view key_path) {
+        if (std::filesystem::exists(key_path) && std::filesystem::exists(cert_path)) {
+            core::logger::info("Security", "SSL material already exists, skipping generation.");
+            return;
+        }
+
+        std::string command =
+            std::format("openssl req -x509 -newkey rsa:2048 -keyout {} -out {} -days 365 -nodes -subj '/CN=localhost'",
+                        key_path, cert_path);
+
+        core::logger::info("Security", "Generating new SSL material...");
+
+        int result = std::system(command.c_str());
+
+        if (result == 0 && std::filesystem::exists(cert_path) && std::filesystem::file_size(cert_path) > 0) {
+            core::logger::info("SocketLib", "SSL material generated successfully.");
+        } else {
+            core::logger::fatal("SocketLib", "Failed to generate SSL material via OpenSSL CLI.");
+        }
+    }
+
+
+    bool load_certificate(std::string_view cert_file, std::string_view key_file) {
+        if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
+            if (m_ssl_ctx == nullptr) {
+                core::logger::fatal("SocketLib", "SSL context is not initialized, cannot load certificate");
+            }
+            if (SSL_CTX_use_certificate_chain_file(m_ssl_ctx, cert_file.data()) != 1) {
+                char err_buf[256];
+                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+                core::logger::error("SocketLib", "Failed to load chain: {}", err_buf);
                 return false;
             }
-            if (SSL_CTX_use_PrivateKey_file(m_ssl_ctx, key_file, SSL_FILETYPE_PEM) != 1) {
-                core::logger::error("SocketLib", "Failed to load private key from file");
+            if (SSL_CTX_use_PrivateKey_file(m_ssl_ctx, key_file.data(), SSL_FILETYPE_PEM) != 1) {
+                char err_buf[256];
+                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+                core::logger::error("SocketLib", "Failed to load key: {}", err_buf);
                 return false;
             }
             if (SSL_CTX_check_private_key(m_ssl_ctx) != 1) {
-                core::logger::error("SocketLib", "Private key does not match the certificate public key");
+                char err_buf[256];
+                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+                core::logger::error("SocketLib",
+                                    "Key/Cert Mismatch: Private key does not match public key. Detailed Error: {}",
+                                    err_buf);
                 return false;
             }
 
@@ -398,25 +449,55 @@ class Socket {
         core::logger::fatal("SocketLib", "Loading certificates is only supported for TLS and QUIC protocols");
     }
 
-    void bind() {
+    void bind([[maybe_unused]] bool allow_unauthorized = false) {
         if (m_socket_address_info == nullptr) {
             core::logger::error("SocketLib", "No valid address info to bind to");
         }
 
-        if (::bind(m_socket, m_socket_address_info->ai_addr,
-                   static_cast<socklen_t>(m_socket_address_info->ai_addrlen)) == SOCKET_ERROR) {
+        if (::bind(m_socket, m_socket_address_info->ai_addr, m_socket_address_info->ai_addrlen) == SOCKET_ERROR) {
             core::logger::error("SocketLib", "Failed to bind socket");
         }
 
-        if constexpr (protocol == Protocol::TLS) {
+        if constexpr (Protocol == Protocol::TLS) {
             m_ssl_ctx = SSL_CTX_new(TLS_server_method());
-            if (!m_ssl_ctx) {
+            if (m_ssl_ctx == nullptr) {
                 core::logger::error("SocketLib", "Failed to create SSL context");
             }
 
-            SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+                if (where & SSL_CB_ALERT) {
+                    const char *type = (where & SSL_CB_READ) ? "read" : "write";
+                    core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type, (void *)ssl,
+                                          SSL_alert_type_string_long(ret), SSL_alert_desc_string_long(ret));
+                }
+            });
+
+            if (!m_alpn_wire_format.empty()) {
+                // TODO: fix printing here
+                core::logger::info("SocketLib", "Setting ALPN protocols for TLS socket. These could be: {}",
+                                   m_alpn_wire_format);
+                SSL_CTX_set_alpn_select_cb(
+                    m_ssl_ctx,
+                    [](SSL *, const unsigned char **out, unsigned char *outlen, const unsigned char *client,
+                       unsigned int inlen, void *arg) -> int {
+                        auto &wire = *static_cast<std::vector<unsigned char> *>(arg);
+                        if (SSL_select_next_proto(const_cast<unsigned char **>(out), outlen, wire.data(),
+                                                  static_cast<unsigned int>(wire.size()), client,
+                                                  inlen) == OPENSSL_NPN_NEGOTIATED) {
+                            return SSL_TLSEXT_ERR_OK;
+                        }
+                        return SSL_TLSEXT_ERR_NOACK;
+                    },
+                    &m_alpn_wire_format);
+            }
+
+            if (allow_unauthorized) {
+                SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_NONE, nullptr);
+            } else {
+                SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+            }
             SSL_CTX_set_default_verify_paths(m_ssl_ctx);
-        } else if constexpr (protocol == Protocol::QUIC) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
             add_quic_bio();
         }
 
@@ -425,12 +506,12 @@ class Socket {
     }
 
     void join(const Endpoint &endpoint, std::string_view group = "") {
-        if constexpr (protocol != Protocol::UDP) {
+        if constexpr (Protocol != Protocol::UDP) {
             core::logger::fatal("SocketLib", "Joining multicast groups is only supported for UDP protocol");
         }
 
-        addrinfo *multicast_addr_info;
-        addrinfo *local_addr_info;
+        addrinfo *multicast_addr_info{};
+        addrinfo *local_addr_info{};
         addrinfo hints = {};
         hints.ai_family = PF_UNSPEC;
         hints.ai_flags = AI_NUMERICHOST;
@@ -456,7 +537,7 @@ class Socket {
 
         if (multicast_addr_info->ai_family == AF_INET &&
             multicast_addr_info->ai_addrlen == sizeof(struct sockaddr_in)) {
-            struct ip_mreq mreq;
+            struct ip_mreq mreq{};
 
             std::memcpy(&mreq.imr_multiaddr, &((struct sockaddr_in *)multicast_addr_info->ai_addr)->sin_addr,
                         sizeof(mreq.imr_multiaddr));
@@ -473,7 +554,7 @@ class Socket {
             }
         } else if (multicast_addr_info->ai_family == AF_INET6 &&
                    multicast_addr_info->ai_addrlen == sizeof(struct sockaddr_in6)) {
-            struct ipv6_mreq mreq6;
+            struct ipv6_mreq mreq6{};
 
             std::memcpy(&mreq6.ipv6mr_multiaddr, &((struct sockaddr_in6 *)multicast_addr_info->ai_addr)->sin6_addr,
                         sizeof(mreq6.ipv6mr_multiaddr));
@@ -481,7 +562,7 @@ class Socket {
             if (group.empty()) {
                 mreq6.ipv6mr_interface = 0;
             } else {
-                struct addrinfo *group_addr_info;
+                struct addrinfo *group_addr_info{};
                 if (getaddrinfo(group.data(), nullptr, nullptr, &group_addr_info) != 0) {
                     core::logger::error("SocketLib", "Failed to resolve group address for multicast");
                 }
@@ -505,24 +586,32 @@ class Socket {
     }
 
     void listen() {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             if (::listen(m_socket, SOMAXCONN) == SOCKET_ERROR) {
                 core::logger::error("SocketLib", "Failed to listen on socket");
             }
             core::logger::info("SocketLib", "Socket `{}` is now listening for connections on `{}:{}`", m_socket,
                                m_endpoint.get_address(), m_endpoint.get_port());
-        } else if constexpr (protocol == Protocol::QUIC) {
-            if (!m_bio) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
+            if (m_bio == nullptr) {
                 core::logger::error("SocketLib", "BIO must be initialized before listening for QUIC");
             }
 
             m_ssl_ctx = SSL_CTX_new(OSSL_QUIC_server_method());
-            if (!m_ssl_ctx) {
+            if (m_ssl_ctx == nullptr) {
                 core::logger::error("SocketLib", "Failed to create SSL context for QUIC");
             }
 
+            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+                if (where & SSL_CB_ALERT) {
+                    const char *type = (where & SSL_CB_READ) ? "read" : "write";
+                    core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type, (void *)ssl,
+                                          SSL_alert_type_string_long(ret), SSL_alert_desc_string_long(ret));
+                }
+            });
+
             m_ssl = SSL_new(m_ssl_ctx);
-            if (!m_ssl) {
+            if (m_ssl == nullptr) {
                 core::logger::error("SocketLib", "Failed to create SSL object for QUIC");
             }
 
@@ -536,56 +625,61 @@ class Socket {
         }
     }
 
-    SocketStatus select(int fd, std::uint64_t timeout_ms) const noexcept {
-        fd_set readfds, writefds, exceptfds;
-        fd_set *p_read, *p_write, *p_except = nullptr;
+    [[nodiscard]] SocketStatus select(int fd, std::uint64_t timeout_ms) const noexcept {
+        fd_set readfds;
+        fd_set writefds;
+        fd_set exceptfds;
 
-        if (fd & std::to_underlying(Event::READ)) {
+        fd_set *p_read = nullptr;
+        fd_set *p_write = nullptr;
+        fd_set *p_except = nullptr;
+
+        if ((fd & std::to_underlying(Event::READ)) != 0) {
             FD_ZERO(&readfds);
             FD_SET(m_socket, &readfds);
             p_read = &readfds;
         }
-        if (fd & std::to_underlying(Event::WRITE)) {
+        if ((fd & std::to_underlying(Event::WRITE)) != 0) {
             FD_ZERO(&writefds);
             FD_SET(m_socket, &writefds);
             p_write = &writefds;
         }
-        if (fd & std::to_underlying(Event::EXCEPT)) {
+        if ((fd & std::to_underlying(Event::EXCEPT)) != 0) {
             FD_ZERO(&exceptfds);
             FD_SET(m_socket, &exceptfds);
             p_except = &exceptfds;
         }
 
-        struct timeval tv;
+        struct timeval tv{};
         tv.tv_sec = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
 
         int result = ::select(static_cast<int>(m_socket + 1), p_read, p_write, p_except, &tv);
         if (result < 0) {
-            const auto err = get_error_code();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+            const auto ERR = get_error_code();
+            if (ERR == EINTR || ERR == EAGAIN || ERR == EWOULDBLOCK) {
                 core::logger::warning("SocketLib",
                                       "Select on socket `{}` would have blocked or was interrupted, no events ready",
                                       m_socket);
-                return SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED);
+                return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
-            core::logger::warning("SocketLib", "Critical failure in select() syscall with error code `{}`", err);
-            return SocketStatus(VALUES::ERRORED);
+            core::logger::warning("SocketLib", "Critical failure in select() syscall with error code `{}`", ERR);
+            return {VALUES::ERRORED};
         } else if (result == 0) {
             core::logger::warning("SocketLib", "Select on socket `{}` timed out after {} ms with no events ready",
                                   m_socket, timeout_ms);
-            return SocketStatus(VALUES::TIMED_OUT);
+            return {VALUES::TIMED_OUT};
         }
 
         core::logger::info("SocketLib", "Select on socket `{}` returned with events ready", m_socket);
-        return SocketStatus(VALUES::VALID);
+        return {VALUES::VALID};
     }
 
     SocketStatus sync_connect(std::uint64_t timeout = 0) {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS || protocol == Protocol::QUIC) {
-            auto current = m_socket_address_info;
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
+            auto *current = m_socket_address_info;
             if (connect<false>(current, timeout) != SocketStatus(VALUES::VALID)) {
-                for (auto addr = m_address_info_result->ai_next; addr != nullptr; addr = addr->ai_next) {
+                for (auto *addr = m_address_info_result->ai_next; addr != nullptr; addr = addr->ai_next) {
                     // Already checked this one, skip it
                     if (addr == current) {
                         continue;
@@ -600,30 +694,30 @@ class Socket {
                 core::logger::error("SocketLib", "Failed to connect to any resolved address");
             }
 
-            if constexpr (protocol == Protocol::TLS) {
+            if constexpr (Protocol == Protocol::TLS) {
                 if (!setup_tls()) {
-                    return SocketStatus(VALUES::ERRORED);
+                    return {VALUES::ERRORED};
                 }
-            } else if constexpr (protocol == Protocol::QUIC) {
+            } else if constexpr (Protocol == Protocol::QUIC) {
                 add_quic_bio();
 
                 if (!setup_quic()) {
-                    return SocketStatus(VALUES::ERRORED);
+                    return {VALUES::ERRORED};
                 }
             }
 
             core::logger::info("SocketLib", "Socket `{}` connected to `{}:{}`", m_socket, m_endpoint.get_address(),
                                m_endpoint.get_port());
-            return SocketStatus(VALUES::VALID);
+            return {VALUES::VALID};
         } else {
             core::logger::fatal("SocketLib", "Connect is only supported for TCP, TLS, QUIC protocols");
         }
     }
 
     void async_connect(std::move_only_function<void(SocketStatus)> callback, std::uint8_t iflags = 0) noexcept {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS || protocol == Protocol::QUIC) {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
             if (m_leverager) {
-                auto current = m_socket_address_info ? m_socket_address_info : m_address_info_result;
+                auto *current = (m_socket_address_info != nullptr) ? m_socket_address_info : m_address_info_result;
 
                 set_non_blocking(true);
 
@@ -633,12 +727,12 @@ class Socket {
                     if (res == 0) {
                         m_socket_address_info = current;
 
-                        if constexpr (protocol == Protocol::TLS) {
+                        if constexpr (Protocol == Protocol::TLS) {
                             if (!setup_tls()) {
                                 callback(SocketStatus(VALUES::ERRORED));
                                 return;
                             }
-                        } else if constexpr (protocol == Protocol::QUIC) {
+                        } else if constexpr (Protocol == Protocol::QUIC) {
                             add_quic_bio();
                             if (!setup_quic()) {
                                 callback(SocketStatus(VALUES::ERRORED));
@@ -685,12 +779,10 @@ class Socket {
 
                     set_non_blocking(true);
 
-                    m_leverager->get().connect(m_socket, current->ai_addr, static_cast<socklen_t>(current->ai_addrlen),
-                                               *attempt, iflags);
+                    m_leverager->get().connect(m_socket, current->ai_addr, current->ai_addrlen, *attempt, iflags);
                 };
 
-                m_leverager->get().connect(m_socket, current->ai_addr, static_cast<socklen_t>(current->ai_addrlen),
-                                           *attempt, iflags);
+                m_leverager->get().connect(m_socket, current->ai_addr, current->ai_addrlen, *attempt, iflags);
             } else {
                 core::logger::fatal("SocketLib", "m_leverager is not set so async funtion calls cannot be used");
             }
@@ -709,55 +801,63 @@ class Socket {
     ///
     /// For plain tcp sockets this is a no-op and always returns valid.
     SocketStatus sync_handshake(bool *wait_for_write = nullptr) noexcept {
-        if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
-            if (!m_ssl) {
+        if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
+            if (m_ssl == nullptr) {
                 core::logger::warning("SocketLib", "SSL object is not initialized for handshake");
-                return SocketStatus(VALUES::ERRORED);
+                return {VALUES::ERRORED};
             }
 
             int ret = SSL_do_handshake(m_ssl);
             if (ret == 1) {
-                if constexpr (protocol == Protocol::TLS) {
+                if constexpr (Protocol == Protocol::TLS) {
                     m_ktls_tx = BIO_get_ktls_send(SSL_get_wbio(m_ssl));
                     m_ktls_rx = BIO_get_ktls_recv(SSL_get_rbio(m_ssl));
                     if (m_ktls_tx) {
                         core::logger::info("SocketLib", "Socket `{}` kTLS TX active", m_socket);
+                    } else {
+                        core::logger::info("SocketLib", "Socket `{}` kTLS TX could not be activated", m_socket);
                     }
                     if (m_ktls_rx) {
                         core::logger::info("SocketLib", "Socket `{}` kTLS RX active", m_socket);
+                    } else {
+                        core::logger::info("SocketLib", "Socket `{}` kTLS RX could not be activated", m_socket);
                     }
                 }
                 core::logger::info("SocketLib", "Socket `{}` completed handshake successfully", m_socket);
-                return SocketStatus(VALUES::VALID);
+                return {VALUES::VALID};
             }
 
             int err = SSL_get_error(m_ssl, ret);
             if (err == SSL_ERROR_WANT_READ) {
-                if (wait_for_write) {
+                if (wait_for_write != nullptr) {
                     *wait_for_write = false;
                 }
-                core::logger::info("SocketLib", "Socket `{}` handshake not complete, waiting for it to be readable",
-                                   m_socket);
-                return SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED);
+                core::logger::info(
+                    "SocketLib",
+                    "Socket `{}` handshake not complete, waiting for it to be readable (SSL - Pending: {}, Want: {})",
+                    m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
+                return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
             if (err == SSL_ERROR_WANT_WRITE) {
-                if (wait_for_write) {
+                if (wait_for_write != nullptr) {
                     *wait_for_write = true;
                 }
-                core::logger::info("SocketLib", "Socket `{}` handshake not complete, waiting for it to be writable",
-                                   m_socket);
-                return SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED);
+                core::logger::info(
+                    "SocketLib",
+                    "Socket `{}` handshake not complete, waiting for it to be writable (SSL - Pending: {}, Want: {})",
+                    m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
+                return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
 
-            core::logger::warning("SocketLib", "Socket `{}` handshake failed with error code `{}`", m_socket, err);
-            return SocketStatus(VALUES::ERRORED);
+            // core::logger::warning("SocketLib", "Socket `{}` handshake failed with error code `{}`", m_socket, err);
+            return {VALUES::ERRORED};
         } else {
             core::logger::fatal("SocketLib", "Socket `{}` is a plain TCP socket, no handshake needed", m_socket);
         }
     }
 
     void async_handshake(std::move_only_function<void(SocketStatus)> callback, std::uint8_t iflags = 0) noexcept {
-        if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
+        if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
             if (m_leverager) {
                 auto attempt = std::make_shared<std::function<void(int)>>();
                 *attempt = [this, callback = std::move(callback), iflags, attempt](int res, std::uint32_t) mutable {
@@ -795,39 +895,39 @@ class Socket {
     }
 
     bool is_handshake_done() const noexcept {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::QUIC) {
-            return m_ssl && SSL_is_init_finished(m_ssl);
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::QUIC) {
+            return (m_ssl != nullptr) && (SSL_is_init_finished(m_ssl) != 0);
         }
         return true;
     }
 
-    Socket<protocol> sync_accept() const {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
+    Socket<Protocol> sync_accept() const {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             sockaddr_storage client_addr{};
             socklen_t addr_len = sizeof(client_addr);
 
             SOCKET client_fd = ::accept(m_socket, reinterpret_cast<sockaddr *>(&client_addr), &addr_len);
             if (client_fd == INVALID_SOCKET) {
-                const auto err = get_error_code();
+                const auto ERR = get_error_code();
 
-                if (err == EWOULDBLOCK || err == EAGAIN || err == EINTR) {
+                if (ERR == EWOULDBLOCK || ERR == EAGAIN || ERR == EINTR) {
                     core::logger::info("SocketLib",
                                        "Accept on socket `{}` would have blocked, no incoming connections ready",
                                        m_socket);
-                    return Socket<protocol>{};
+                    return Socket<Protocol>{};
                 }
 
-                core::logger::error("SocketLib", "Critical failure in accept() syscall with error code `{}`", err);
+                core::logger::error("SocketLib", "Critical failure in accept() syscall with error code `{}`", ERR);
             }
 
-            if constexpr (protocol == Protocol::TLS) {
+            if constexpr (Protocol == Protocol::TLS) {
                 SSL *client_ssl = SSL_new(m_ssl_ctx);
-                if (!client_ssl) {
+                if (client_ssl == nullptr) {
                     closesocket(client_fd);
                     core::logger::error("SocketLib", "Failed to create SSL object for accepted connection");
                 }
 
-                if (!SSL_set_fd(client_ssl, client_fd)) {
+                if (SSL_set_fd(client_ssl, client_fd) == 0) {
                     SSL_free(client_ssl);
                     closesocket(client_fd);
                     core::logger::error("SocketLib", "Failed to associate SSL object with accepted socket");
@@ -839,34 +939,34 @@ class Socket {
                 core::logger::info("SocketLib", "Accepted new TLS connection on socket `{}` from `{}:{}`", m_socket,
                                    endpoint.get_address(), endpoint.get_port());
 
-                return Socket<protocol>{client_fd, client_ssl, std::move(endpoint)};
+                return Socket<Protocol>{client_fd, client_ssl, std::move(endpoint)};
             }
 
             auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(&client_addr));
             core::logger::info("SocketLib", "Accepted new TCP connection on socket `{}` from `{}:{}`", m_socket,
                                endpoint.get_address(), endpoint.get_port());
 
-            return Socket<protocol>{client_fd, std::move(endpoint)};
-        } else if constexpr (protocol == Protocol::QUIC) {
-            if (!m_ssl) {
+            return Socket<Protocol>{client_fd, std::move(endpoint)};
+        } else if constexpr (Protocol == Protocol::QUIC) {
+            if (m_ssl == nullptr) {
                 core::logger::error("SocketLib", "Socket `{}` SSL object is not initialized for QUIC accept", m_socket);
             }
 
             SSL *client_ssl = SSL_accept_connection(m_ssl, 0);
-            if (!client_ssl) {
+            if (client_ssl == nullptr) {
                 core::logger::error("SocketLib", "Socket `{}` failed to accept new QUIC connection ", m_socket);
             }
 
             core::logger::info("SocketLib", "Socket `{}` accepted new QUIC connection", m_socket);
-            return Socket<protocol>{m_socket, client_ssl};
+            return Socket<Protocol>{m_socket, client_ssl};
 
         } else {
             core::logger::fatal("SocketLib", "Accept is only supported for TCP, TLS and QUIC protocols");
         }
     }
 
-    void async_accept(std::move_only_function<void(Socket<protocol>)> callback, std::uint8_t iflags = 0) noexcept {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
+    void async_accept(std::move_only_function<void(Socket<Protocol>)> callback, std::uint8_t iflags = 0) noexcept {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             if (m_leverager) {
                 auto client_addr = std::make_shared<sockaddr_storage>();
                 auto addr_len = std::make_shared<socklen_t>(sizeof(sockaddr_storage));
@@ -875,32 +975,32 @@ class Socket {
                     m_socket, reinterpret_cast<sockaddr *>(client_addr.get()), addr_len.get(), 0,
                     [this, client_addr, addr_len, callback = std::move(callback)](int res, std::uint32_t) mutable {
                         if (res < 0) {
-                            const auto err = get_error_code();
+                            const auto ERR = get_error_code();
 
-                            if (err == EWOULDBLOCK || err == EAGAIN || err == EINTR) {
+                            if (ERR == EWOULDBLOCK || ERR == EAGAIN || ERR == EINTR) {
                                 core::logger::info(
                                     "SocketLib",
                                     "Accept on socket `{}` would have blocked, no incoming connections ready",
                                     m_socket);
-                                callback(Socket<protocol>{});
+                                callback(Socket<Protocol>{});
                                 return;
                             }
 
                             core::logger::warning("SocketLib", "Socket `{}` critical failure in async accept",
                                                   m_socket);
-                            callback(Socket<protocol>{});
+                            callback(Socket<Protocol>{});
                             return;
                         }
 
-                        SOCKET client_fd = static_cast<SOCKET>(res);
+                        auto client_fd = static_cast<SOCKET>(res);
 
-                        if constexpr (protocol == Protocol::TLS) {
+                        if constexpr (Protocol == Protocol::TLS) {
                             SSL *client_ssl = SSL_new(m_ssl_ctx);
                             if (!client_ssl) {
                                 closesocket(client_fd);
                                 core::logger::warning("SocketLib",
                                                       "Failed to create SSL object for accepted connection");
-                                callback(Socket<protocol>{});
+                                callback(Socket<Protocol>{});
                                 return;
                             }
 
@@ -909,7 +1009,7 @@ class Socket {
                                 closesocket(client_fd);
                                 core::logger::warning("SocketLib",
                                                       "Failed to associate SSL object with accepted socket");
-                                callback(Socket<protocol>{});
+                                callback(Socket<Protocol>{});
                                 return;
                             }
 
@@ -918,31 +1018,31 @@ class Socket {
                             auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(client_addr.get()));
                             core::logger::info("SocketLib", "Accepted new TLS connection on socket `{}` from `{}:{}`",
                                                m_socket, endpoint.get_address(), endpoint.get_port());
-                            callback(Socket<protocol>{client_fd, client_ssl, std::move(endpoint), m_leverager});
+                            callback(Socket<Protocol>{client_fd, client_ssl, std::move(endpoint), m_leverager});
                             return;
                         }
                         auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(client_addr.get()));
                         core::logger::info("SocketLib", "Accepted new TCP connection on socket `{}` from `{}:{}`",
                                            m_socket, endpoint.get_address(), endpoint.get_port());
 
-                        callback(Socket<protocol>{client_fd, std::move(endpoint), m_leverager});
+                        callback(Socket<Protocol>{client_fd, std::move(endpoint), m_leverager});
                     },
                     iflags);
             } else {
                 core::logger::fatal("SocketLib", "m_leverager is not set so async funtion calls cannot be used");
             }
-        } else if constexpr (protocol == Protocol::QUIC) {
-            if (!m_ssl) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
+            if (m_ssl == nullptr) {
                 core::logger::error("SocketLib", "Socket `{}` SSL object is not initialized for QUIC accept", m_socket);
             }
 
             SSL *client_ssl = SSL_accept_connection(m_ssl, 0);
-            if (!client_ssl) {
+            if (client_ssl == nullptr) {
                 core::logger::error("SocketLib", "Socket `{}` failed to accept new QUIC connection ", m_socket);
             }
 
             core::logger::info("SocketLib", "Socket `{}` accepted new QUIC connection", m_socket);
-            return Socket<protocol>{m_socket, client_ssl};
+            return Socket<Protocol>{m_socket, client_ssl};
 
         } else {
             core::logger::fatal("SocketLib", "Accept is only supported for TCP, TLS and QUIC protocols");
@@ -955,19 +1055,19 @@ class Socket {
         std::size_t sent_bytes{0};
         int ssl_call_result{0};
 
-        if constexpr (protocol == Protocol::TCP) {
+        if constexpr (Protocol == Protocol::TCP) {
             sent_bytes = ::send(m_socket, reinterpret_cast<const char *>(buffer), static_cast<buffsize_t>(length), 0);
-        } else if constexpr (protocol == Protocol::TLS) {
+        } else if constexpr (Protocol == Protocol::TLS) {
             if (m_ktls_tx) {
                 sent_bytes =
                     ::send(m_socket, reinterpret_cast<const char *>(buffer), static_cast<buffsize_t>(length), 0);
             } else {
                 ssl_call_result = SSL_write_ex(m_ssl, reinterpret_cast<const void *>(buffer), length, &sent_bytes);
             }
-        } else if constexpr (protocol == Protocol::QUIC) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
             ssl_call_result = SSL_write_ex(m_ssl, reinterpret_cast<const void *>(buffer), length, &sent_bytes);
-        } else if constexpr (protocol == Protocol::UDP) {
-            if (addr) {
+        } else if constexpr (Protocol == Protocol::UDP) {
+            if (addr != nullptr) {
                 sent_bytes = ::sendto(m_socket, reinterpret_cast<const char *>(buffer), static_cast<buffsize_t>(length),
                                       0, reinterpret_cast<const sockaddr *>(&addr->get_data()), addr->get_size());
             } else {
@@ -978,38 +1078,55 @@ class Socket {
         }
 
         if (!m_ktls_tx) {
-            if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
+            if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
                 if (ssl_call_result <= 0) {
-                    const int ssl_err = SSL_get_error(m_ssl, ssl_call_result);
+                    const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
-                    core::logger::warning("SocketLib", "SSL_write_ex on socket `{}` failed with error code `{}`",
-                                          m_socket, ssl_err);
-
-                    switch (ssl_err) {
-                    case SSL_ERROR_WANT_READ:
-                    case SSL_ERROR_WANT_WRITE:
+                    switch (SSL_ERR) {
+                    case SSL_ERROR_WANT_READ: {
+                        core::logger::warning("SocketLib",
+                                              "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                         return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-
-                    case SSL_ERROR_ZERO_RETURN:
+                    }
+                    case SSL_ERROR_WANT_WRITE: {
+                        core::logger::warning("SocketLib",
+                                              "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
+                        return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                    }
+                    case SSL_ERROR_ZERO_RETURN: {
+                        core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer",
+                                           m_socket);
                         return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-
+                    }
                     case SSL_ERROR_SYSCALL: {
                         if (get_error_code() == EWOULDBLOCK) {
+                            core::logger::warning("SocketLib",
+                                                  "Sending on socket `{}` would have blocked, no data available (SSL - "
+                                                  "Pending: {}, Want: {})",
+                                                  m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                             return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                         }
 
+                        core::logger::warning(
+                            "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with system error code `{}`",
+                            m_socket, get_error_code());
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
                     }
-
-                    default:
+                    default: {
+                        core::logger::warning("SocketLib",
+                                              "Socket `{}` critical failure in SSL_write_ex() with SSL error code `{}`",
+                                              m_socket, SSL_ERR);
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
+                    }
                     }
                 }
             }
         } else {
             if (sent_bytes < 0) {
-                const auto err = get_error_code();
-                if (err == EWOULDBLOCK) {
+                const auto ERR = get_error_code();
+                if (ERR == EWOULDBLOCK) {
                     core::logger::warning(
                         "SocketLib", "Send on socket `{}` would have blocked, no buffer space available", m_socket);
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
@@ -1027,8 +1144,8 @@ class Socket {
                     std::move_only_function<void(std::size_t, SocketStatus)> callback, AddressInfo *addr = nullptr,
                     std::uint8_t iflags = 0) noexcept {
         if (m_leverager) {
-            if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
-                if constexpr (protocol == Protocol::TLS) {
+            if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
+                if constexpr (Protocol == Protocol::TLS) {
                     if (!m_ktls_tx) {
                         core::logger::fatal("SocketLib",
                                             "Async send is not supported for TLS sockets without kTLS enabled due to "
@@ -1040,8 +1157,8 @@ class Socket {
                     m_socket, buffer, static_cast<unsigned>(length), 0,
                     [this, callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
                         if (sent_bytes < 0) {
-                            const auto err = get_error_code();
-                            if (err == EWOULDBLOCK) {
+                            const auto ERR = get_error_code();
+                            if (ERR == EWOULDBLOCK) {
                                 core::logger::warning(
                                     "SocketLib", "Send on socket `{}` would have blocked, no buffer space available",
                                     m_socket);
@@ -1058,8 +1175,8 @@ class Socket {
                         callback(sent_bytes, SocketStatus(VALUES::VALID));
                     },
                     iflags);
-            } else if constexpr (protocol == Protocol::UDP) {
-                if (addr) {
+            } else if constexpr (Protocol == Protocol::UDP) {
+                if (addr != nullptr) {
                     iovec iov{};
                     iov.iov_base = const_cast<std::byte *>(buffer);
                     iov.iov_len = length;
@@ -1074,8 +1191,8 @@ class Socket {
                         m_socket, &msg, 0,
                         [this, callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
                             if (sent_bytes < 0) {
-                                const auto err = get_error_code();
-                                if (err == EWOULDBLOCK) {
+                                const auto ERR = get_error_code();
+                                if (ERR == EWOULDBLOCK) {
                                     core::logger::warning(
                                         "SocketLib",
                                         "Send on socket `{}` would have blocked, no buffer space available", m_socket);
@@ -1107,8 +1224,8 @@ class Socket {
                         m_socket, &msg, 0,
                         [this, callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
                             if (sent_bytes < 0) {
-                                const auto err = get_error_code();
-                                if (err == EWOULDBLOCK) {
+                                const auto ERR = get_error_code();
+                                if (ERR == EWOULDBLOCK) {
                                     core::logger::warning(
                                         "SocketLib",
                                         "Send on socket `{}` would have blocked, no buffer space available", m_socket);
@@ -1126,7 +1243,7 @@ class Socket {
                         },
                         iflags);
                 }
-            } else if constexpr (protocol == Protocol::QUIC) {
+            } else if constexpr (Protocol == Protocol::QUIC) {
                 auto attempt = std::make_shared<std::function<void(int)>>();
                 *attempt = [this, buffer, length, callback = std::move(callback), iflags,
                             attempt](int res, std::uint32_t) mutable {
@@ -1146,33 +1263,52 @@ class Socket {
                     }
 
                     if (sent_bytes <= 0) {
-                        const int ssl_err = SSL_get_error(m_ssl, sent_bytes);
+                        const int SSL_ERR = SSL_get_error(m_ssl, sent_bytes);
 
-                        core::logger::warning("SocketLib", "SSL_write_ex on socket `{}` failed with error code `{}`",
-                                              m_socket, ssl_err);
-
-                        switch (ssl_err) {
-                        case SSL_ERROR_WANT_READ:
+                        switch (SSL_ERR) {
+                        case SSL_ERROR_WANT_READ: {
+                            core::logger::warning(
+                                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                m_socket, SSL_pending(m_ssl));
                             m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
                             break;
-                        case SSL_ERROR_WANT_WRITE:
+                        }
+                        case SSL_ERROR_WANT_WRITE: {
+                            core::logger::warning(
+                                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                m_socket, SSL_pending(m_ssl));
                             m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
                             break;
-                        case SSL_ERROR_ZERO_RETURN:
+                        }
+                        case SSL_ERROR_ZERO_RETURN: {
+                            core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer",
+                                               m_socket);
                             callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
                             break;
-
+                        }
                         case SSL_ERROR_SYSCALL: {
                             if (get_error_code() == EWOULDBLOCK) {
+                                core::logger::warning("SocketLib",
+                                                      "Sending on socket `{}` would have blocked, no data available "
+                                                      "(SSL - Pending: {}, Want: {})",
+                                                      m_socket, SSL_pending(m_ssl));
                                 callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                                 break;
                             }
 
+                            core::logger::warning(
+                                "SocketLib",
+                                "Socket `{}` critical failure in SSL_write_ex() with system error code `{}`", m_socket,
+                                get_error_code());
                             callback(0, SocketStatus(VALUES::ERRORED));
                             break;
                         }
-                        default:
+                        default: {
+                            core::logger::warning(
+                                "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with SSL error code `{}`",
+                                m_socket, SSL_ERR);
                             callback(0, SocketStatus(VALUES::ERRORED));
+                        }
                         }
                     }
                 };
@@ -1192,8 +1328,8 @@ class Socket {
     std::pair<std::size_t, SocketStatus> sync_receive(Out out, const std::size_t length,
                                                       const std::size_t start_offset = 0, AddressInfo *addr = nullptr) {
         std::advance(out, start_offset);
-        const auto max_length = length - start_offset;
-        if (max_length < 0) {
+        const auto MAX_LENGTH = length - start_offset;
+        if (MAX_LENGTH < 0) {
             core::logger::error("SocketLib", "Start offset {} is greater than the total buffer length {}", start_offset,
                                 length);
             return std::make_pair(0, SocketStatus(VALUES::ERRORED));
@@ -1202,25 +1338,25 @@ class Socket {
         std::size_t received_bytes{0};
         int ssl_call_result{0};
 
-        if constexpr (protocol == Protocol::TCP) {
+        if constexpr (Protocol == Protocol::TCP) {
             received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),
-                                    static_cast<buffsize_t>(max_length), 0);
-        } else if constexpr (protocol == Protocol::TCP) {
+                                    static_cast<buffsize_t>(MAX_LENGTH), 0);
+        } else if constexpr (Protocol == Protocol::TLS) {
             if (m_ktls_rx) {
                 received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),
-                                        static_cast<buffsize_t>(max_length), 0);
+                                        static_cast<buffsize_t>(MAX_LENGTH), 0);
             } else {
                 ssl_call_result =
-                    SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)), max_length, &received_bytes);
+                    SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)), MAX_LENGTH, &received_bytes);
             }
-        } else if constexpr (protocol == Protocol::QUIC) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
             ssl_call_result =
-                SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)), max_length, &received_bytes);
-        } else if constexpr (protocol == Protocol::UDP) {
+                SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)), MAX_LENGTH, &received_bytes);
+        } else if constexpr (Protocol == Protocol::UDP) {
             m_socket_input_buffer_length = sizeof(m_socket_input_buffer);
 
             received_bytes = ::recvfrom(
-                m_socket, reinterpret_cast<char *>(std::to_address(out)), static_cast<buffsize_t>(max_length), 0,
+                m_socket, reinterpret_cast<char *>(std::to_address(out)), static_cast<buffsize_t>(MAX_LENGTH), 0,
                 reinterpret_cast<sockaddr *>(&m_socket_input_buffer), &m_socket_input_buffer_length);
             if (addr) {
                 addr->set(m_socket_input_buffer, m_socket_input_buffer_length);
@@ -1228,49 +1364,65 @@ class Socket {
         }
 
         if (!m_ktls_rx) {
-            if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
+            if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
                 if (ssl_call_result <= 0) {
-                    const int ssl_err = SSL_get_error(m_ssl, ssl_call_result);
+                    const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
-                    core::logger::warning("SocketLib", "SSL_read_ex on socket `{}` failed with error code `{}`",
-                                          m_socket, ssl_err);
-
-                    switch (ssl_err) {
-                    case SSL_ERROR_WANT_READ:
-                    case SSL_ERROR_WANT_WRITE:
+                    switch (SSL_ERR) {
+                    case SSL_ERROR_WANT_READ: {
+                        core::logger::warning("SocketLib",
+                                              "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                         return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-
-                    case SSL_ERROR_ZERO_RETURN:
+                    }
+                    case SSL_ERROR_WANT_WRITE: {
+                        core::logger::warning("SocketLib",
+                                              "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
+                        return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                    }
+                    case SSL_ERROR_ZERO_RETURN: {
+                        core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer",
+                                           m_socket);
                         return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-
+                    }
                     case SSL_ERROR_SYSCALL: {
-                        const auto err = get_error_code();
-                        if (err == EWOULDBLOCK || err == EAGAIN) {
+                        const auto ERR = get_error_code();
+                        if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
+                            core::logger::warning("SocketLib",
+                                                  "Receive on socket `{}` would have blocked, no data available (SSL - "
+                                                  "Pending: {}, Want: {})",
+                                                  m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                             return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                         }
 
+                        core::logger::warning("SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
+                                              m_socket, ERR);
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
                     }
-
-                    default:
+                    default: {
+                        core::logger::warning("SocketLib",
+                                              "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
+                                              m_socket, SSL_ERR);
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
+                    }
                     }
                 }
             }
         } else {
             if (received_bytes < 0) {
-                const auto err = get_error_code();
-                if (err == EWOULDBLOCK || err == EAGAIN) {
+                const auto ERR = get_error_code();
+                if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                     core::logger::warning("SocketLib", "Receive on socket `{}` would have blocked, no data available",
                                           m_socket);
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 }
                 core::logger::warning("SocketLib", "Socket `{}` critical failure in recv() syscall", m_socket);
                 return std::make_pair(0, SocketStatus(VALUES::ERRORED));
-            } else if (received_bytes == 0) {
-                core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer", m_socket);
-                return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
             }
+
+            core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer", m_socket);
+            return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
         }
 
         core::logger::info("SocketLib", "Socket `{}` received {} bytes ", m_socket, received_bytes);
@@ -1284,7 +1436,7 @@ class Socket {
         std::size_t received_bytes{0};
         int ssl_call_result{0};
 
-        if constexpr (protocol == Protocol::TCP) {
+        if constexpr (Protocol == Protocol::TCP) {
             int flags = 0;
 
             if (is_waiting(wait)) {
@@ -1303,7 +1455,7 @@ class Socket {
             if constexpr (is_windows) {
                 set_non_blocking(false);
             }
-        } else if constexpr (protocol == Protocol::TLS) {
+        } else if constexpr (Protocol == Protocol::TLS) {
             if (m_ktls_rx) {
                 int flags = 0;
 
@@ -1336,7 +1488,7 @@ class Socket {
                 }
             }
 
-        } else if constexpr (protocol == Protocol::QUIC) {
+        } else if constexpr (Protocol == Protocol::QUIC) {
             if (!is_waiting(wait)) {
                 SSL_set_mode(m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
             }
@@ -1347,7 +1499,7 @@ class Socket {
             if (!is_waiting(wait)) {
                 SSL_clear_mode(m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
             }
-        } else if constexpr (protocol == Protocol::UDP) {
+        } else if constexpr (Protocol == Protocol::UDP) {
             m_socket_input_buffer_length = sizeof(m_socket_input_buffer);
 
             int flags = 0;
@@ -1369,49 +1521,64 @@ class Socket {
         }
 
         if (!m_ktls_rx) {
-            if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
+            if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
                 if (ssl_call_result <= 0) {
-                    const int ssl_err = SSL_get_error(m_ssl, ssl_call_result);
+                    const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
-                    core::logger::warning("SocketLib", "SSL_read_ex on socket `{}` failed with error code `{}`",
-                                          m_socket, ssl_err);
-
-                    switch (ssl_err) {
-                    case SSL_ERROR_WANT_READ:
-                    case SSL_ERROR_WANT_WRITE:
+                    switch (SSL_ERR) {
+                    case SSL_ERROR_WANT_READ: {
+                        core::logger::warning("SocketLib",
+                                              "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                         return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-
-                    case SSL_ERROR_ZERO_RETURN:
+                    }
+                    case SSL_ERROR_WANT_WRITE: {
+                        core::logger::warning("SocketLib",
+                                              "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                              m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
+                        return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                    }
+                    case SSL_ERROR_ZERO_RETURN: {
+                        core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer",
+                                           m_socket);
                         return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-
+                    }
                     case SSL_ERROR_SYSCALL: {
-                        const auto err = get_error_code();
-                        if (err == EWOULDBLOCK || err == EAGAIN) {
+                        const auto ERR = get_error_code();
+                        if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
+                            core::logger::warning("SocketLib",
+                                                  "Receive on socket `{}` would have blocked, no data available (SSL - "
+                                                  "Pending: {}, Want: {})",
+                                                  m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
                             return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                         }
 
+                        core::logger::warning("SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
+                                              m_socket, ERR);
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
                     }
-
-                    default:
+                    default: {
+                        core::logger::warning("SocketLib",
+                                              "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
+                                              m_socket, SSL_ERR);
                         return std::make_pair(0, SocketStatus(VALUES::ERRORED));
+                    }
                     }
                 }
             }
         } else {
             if (received_bytes < 0) {
-                const auto err = get_error_code();
-                if (err == EWOULDBLOCK || err == EAGAIN) {
+                const auto ERR = get_error_code();
+                if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                     core::logger::warning("SocketLib", "Receive on socket `{}` would have blocked, no data available",
                                           m_socket);
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 }
                 core::logger::warning("SocketLib", "Socket `{}` critical failure in recv() syscall", m_socket);
                 return std::make_pair(0, SocketStatus(VALUES::ERRORED));
-            } else if (received_bytes == 0) {
-                core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer", m_socket);
-                return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
             }
+            core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer", m_socket);
+            return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
         }
 
         core::logger::info("SocketLib", "Socket `{}` received {} bytes ", m_socket, received_bytes);
@@ -1423,8 +1590,8 @@ class Socket {
                        std::move_only_function<void(std::size_t, SocketStatus)> callback,
                        std::uint8_t iflags = 0) noexcept {
         if (m_leverager) {
-            if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
-                if constexpr (protocol == Protocol::TLS) {
+            if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
+                if constexpr (Protocol == Protocol::TLS) {
                     if (!m_ktls_rx) {
                         core::logger::fatal(
                             "SocketLib", "Async receive is not supported for TLS sockets without kTLS enabled due to "
@@ -1436,8 +1603,8 @@ class Socket {
                     m_socket, reinterpret_cast<char *>(std::to_address(out)), static_cast<unsigned>(length), 0,
                     [this, callback = std::move(callback)](int received_bytes, std::uint32_t) mutable {
                         if (received_bytes < 0) {
-                            const auto err = get_error_code();
-                            if (err == EWOULDBLOCK || err == EAGAIN) {
+                            const auto ERR = get_error_code();
+                            if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                                 core::logger::warning("SocketLib",
                                                       "Receive on socket `{}` would have blocked, no data available",
                                                       m_socket);
@@ -1454,7 +1621,7 @@ class Socket {
                         }
                     },
                     iflags);
-            } else if constexpr (protocol == Protocol::UDP) {
+            } else if constexpr (Protocol == Protocol::UDP) {
                 iovec iov{};
                 iov.iov_base = reinterpret_cast<char *>(std::to_address(out));
                 iov.iov_len = length;
@@ -1469,8 +1636,8 @@ class Socket {
                     m_socket, &msg, 0,
                     [this, callback = std::move(callback)](int received_bytes, std::uint32_t) mutable {
                         if (received_bytes < 0) {
-                            const auto err = get_error_code();
-                            if (err == EWOULDBLOCK || err == EAGAIN) {
+                            const auto ERR = get_error_code();
+                            if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                                 core::logger::warning("SocketLib",
                                                       "Receive on socket `{}` would have blocked, no data available",
                                                       m_socket);
@@ -1487,7 +1654,7 @@ class Socket {
                         }
                     },
                     iflags);
-            } else if constexpr (protocol == Protocol::QUIC) {
+            } else if constexpr (Protocol == Protocol::QUIC) {
                 auto attempt = std::make_shared<std::function<void(int)>>();
                 *attempt = [this, out, length, callback = std::move(callback), iflags, attempt](int res,
                                                                                                 std::uint32_t) mutable {
@@ -1508,33 +1675,51 @@ class Socket {
                     }
 
                     if (received_bytes <= 0) {
-                        const int ssl_err = SSL_get_error(m_ssl, received_bytes);
+                        const int SSL_ERR = SSL_get_error(m_ssl, received_bytes);
 
-                        core::logger::warning("SocketLib", "SSL_read_ex on socket `{}` failed with error code `{}`",
-                                              m_socket, ssl_err);
-
-                        switch (ssl_err) {
-                        case SSL_ERROR_WANT_READ:
+                        switch (SSL_ERR) {
+                        case SSL_ERROR_WANT_READ: {
+                            core::logger::warning(
+                                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                m_socket, SSL_pending(m_ssl));
                             m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
                             break;
-                        case SSL_ERROR_WANT_WRITE:
+                        }
+                        case SSL_ERROR_WANT_WRITE: {
+                            core::logger::warning(
+                                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                                m_socket, SSL_pending(m_ssl));
                             m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
                             break;
-                        case SSL_ERROR_ZERO_RETURN:
+                        }
+                        case SSL_ERROR_ZERO_RETURN: {
+                            core::logger::info("SocketLib", "Socket `{}` has been cleanly disconnected by the peer",
+                                               m_socket);
                             callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
                             break;
-
+                        }
                         case SSL_ERROR_SYSCALL: {
-                            if (get_error_code() == EWOULDBLOCK) {
+                            auto err = get_error_code();
+                            if (err == EWOULDBLOCK) {
+                                core::logger::warning("SocketLib",
+                                                      "Receive on socket `{}` would have blocked, no data available "
+                                                      "(SSL - Pending: {}, Want: {})",
+                                                      m_socket, SSL_pending(m_ssl));
                                 callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                                 break;
                             }
 
+                            core::logger::warning("SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
+                                                  m_socket, err);
                             callback(0, SocketStatus(VALUES::ERRORED));
                             break;
                         }
-                        default:
+                        default: {
+                            core::logger::warning("SocketLib",
+                                                  "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
+                                                  m_socket, SSL_ERR);
                             callback(0, SocketStatus(VALUES::ERRORED));
+                        }
                         }
                     }
                 };
@@ -1551,24 +1736,24 @@ class Socket {
 
     void sync_close() {
         if (m_socket != INVALID_SOCKET) {
-            if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
-                if (m_ssl) {
+            if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
+                if (m_ssl != nullptr) {
                     SSL_set_shutdown(m_ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
                     SSL_shutdown(m_ssl);
                     SSL_free(m_ssl);
                 }
 
-                if (m_ssl_ctx) {
+                if (m_ssl_ctx != nullptr) {
                     SSL_CTX_free(m_ssl_ctx);
                 }
 
-                if constexpr (protocol == Protocol::QUIC) {
-                    if (m_bio) {
+                if constexpr (Protocol == Protocol::QUIC) {
+                    if (m_bio != nullptr) {
                         BIO_free(m_bio);
                     }
                 }
             }
-            if constexpr (protocol != Protocol::QUIC || RootSocket) {
+            if constexpr (Protocol != Protocol::QUIC || RootSocket) {
                 if (closesocket(m_socket) == SOCKET_ERROR) {
                     core::logger::error("SocketLib", "Socket `{}` failed to close", m_socket);
                 }
@@ -1582,25 +1767,25 @@ class Socket {
 
     void async_close(std::function<void(bool)> callback, std::uint8_t iflags = 0) noexcept {
         if (m_socket != INVALID_SOCKET) {
-            if constexpr (protocol == Protocol::TLS || protocol == Protocol::QUIC) {
-                if (m_ssl) {
+            if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
+                if (m_ssl != nullptr) {
                     SSL_set_shutdown(m_ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
                     SSL_shutdown(m_ssl);
                     SSL_free(m_ssl);
                 }
 
-                if (m_ssl_ctx) {
+                if (m_ssl_ctx != nullptr) {
                     SSL_CTX_free(m_ssl_ctx);
                 }
 
-                if constexpr (protocol == Protocol::QUIC) {
-                    if (m_bio) {
+                if constexpr (Protocol == Protocol::QUIC) {
+                    if (m_bio != nullptr) {
                         BIO_free(m_bio);
                     }
                 }
             }
 
-            if constexpr (protocol != Protocol::QUIC || RootSocket) {
+            if constexpr (Protocol != Protocol::QUIC || RootSocket) {
                 m_leverager->get().close(
                     m_socket,
                     [this, callback = std::move(callback)](int res, std::uint32_t) mutable {
@@ -1619,7 +1804,7 @@ class Socket {
     }
 
     void shutdown() {
-        if constexpr (protocol != Protocol::QUIC || RootSocket) {
+        if constexpr (Protocol != Protocol::QUIC || RootSocket) {
             if (m_socket != INVALID_SOCKET) {
                 if (::shutdown(m_socket, SHUT_RDWR) == SOCKET_ERROR) {
                     core::logger::error("SocketLib", "Socket `{}` failed to shutdown", m_socket);
@@ -1633,7 +1818,7 @@ class Socket {
     }
 
     void async_shutdown(std::function<void(bool)> callback, std::uint8_t iflags = 0) {
-        if constexpr (protocol != Protocol::QUIC || !RootSocket) {
+        if constexpr (Protocol != Protocol::QUIC || !RootSocket) {
             if (m_socket != INVALID_SOCKET) {
                 m_leverager->get().shutdown(
                     m_socket, SHUT_RDWR,
@@ -1653,19 +1838,19 @@ class Socket {
         core::logger::fatal("SocketLib", "Shutdown is not supported for QUIC or non-root sockets");
     }
 
-    const Endpoint &get_endpoint() const noexcept { return m_endpoint; }
+    [[nodiscard]] const Endpoint &get_endpoint() const noexcept { return m_endpoint; }
     Endpoint &get_endpoint() noexcept { return m_endpoint; }
 
-    Endpoint get_recived_endpoint() const {
-        if constexpr (protocol == Protocol::TCP) {
+    [[nodiscard]] Endpoint get_recived_endpoint() const {
+        if constexpr (Protocol == Protocol::TCP) {
             return get_endpoint();
-        } else if constexpr (protocol == Protocol::UDP) {
-            const SOCKADDR *addr = reinterpret_cast<const SOCKADDR *>(&m_socket_input_buffer);
+        } else if constexpr (Protocol == Protocol::UDP) {
+            const auto *addr = reinterpret_cast<const SOCKADDR *>(&m_socket_input_buffer);
             return Endpoint{addr};
         }
     }
 
-    std::size_t get_pending_bytes() const {
+    [[nodiscard]] std::size_t get_pending_bytes() const {
         ioctl_setting pending_bytes = 0;
         if (ioctlsocket(m_socket, FIONREAD, &pending_bytes) < 0) {
             core::logger::error("SocketLib", "Failed to get pending bytes");
@@ -1676,48 +1861,48 @@ class Socket {
 
         if (pending_bytes > 0) {
             return static_cast<std::size_t>(pending_bytes);
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     void set_alpn_protos(const std::vector<std::string> &protocols) {
-        alpn_wire_format.clear();
+        m_alpn_wire_format.clear();
         for (const auto &proto : protocols) {
             if (proto.length() > 255) {
                 core::logger::error("SocketLib", "ALPN protocol name invalid or too long");
             }
 
             core::logger::info("SocketLib", "Socket `{}` adding ALPN protocol `{}`", m_socket, proto);
-            alpn_wire_format.push_back(static_cast<unsigned char>(proto.length()));
-            alpn_wire_format.insert(alpn_wire_format.end(), proto.begin(), proto.end());
+            m_alpn_wire_format.push_back(static_cast<unsigned char>(proto.length()));
+            m_alpn_wire_format.insert(m_alpn_wire_format.end(), proto.begin(), proto.end());
         }
     }
 
-    void add_alpn_proto(const std::string_view alpn) {
-        if (alpn.empty() || alpn.length() > 255) {
+    void add_alpn_proto(const std::string_view ALPN) {
+        if (ALPN.empty() || ALPN.length() > 255) {
             core::logger::error("SocketLib", "ALPN protocol name invalid or too long");
             return;
         }
 
-        core::logger::info("SocketLib", "Socket `{}` adding ALPN protocol `{}`", m_socket, alpn);
-        alpn_wire_format.push_back(static_cast<unsigned char>(alpn.length()));
-        alpn_wire_format.insert(alpn_wire_format.end(), alpn.begin(), alpn.end());
+        core::logger::info("SocketLib", "Socket `{}` adding ALPN protocol `{}`", m_socket, ALPN);
+        m_alpn_wire_format.push_back(static_cast<unsigned char>(ALPN.length()));
+        m_alpn_wire_format.insert(m_alpn_wire_format.end(), ALPN.begin(), ALPN.end());
     }
 
-    static Protocol get_protocol() noexcept { return protocol; }
+    static enum Protocol get_protocol() noexcept { return Protocol; }
     SOCKET &get_fd() noexcept { return m_socket; }
-    const SOCKET &get_fd() const noexcept { return m_socket; }
+    [[nodiscard]] const SOCKET &get_fd() const noexcept { return m_socket; }
 
     constexpr bool operator==(const Socket &other) const noexcept { return m_socket == other.m_socket; }
-    bool is_valid() const noexcept { return m_socket != INVALID_SOCKET; }
-    inline operator bool() const noexcept { return is_valid(); }
+    [[nodiscard]] bool is_valid() const noexcept { return m_socket != INVALID_SOCKET; }
+
+    operator bool() const noexcept { return is_valid(); }
 
   private:
-    template <bool create_socket = true>
+    template <bool CreateSocket = true>
     SocketStatus connect(addrinfo *addr, std::uint64_t timeout) noexcept {
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
-            if constexpr (create_socket) {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
+            if constexpr (CreateSocket) {
                 core::logger::info("SocketLib", "Closing existing socket `{}` to attempt connection to new address",
                                    m_socket);
                 sync_close();
@@ -1727,7 +1912,7 @@ class Socket {
 
             if (m_socket == INVALID_SOCKET) {
                 core::logger::warning("SocketLib", "Failed to create socket for connection attempt");
-                return SocketStatus(VALUES::ERRORED);
+                return {VALUES::ERRORED};
             }
 
             m_socket_address_info = addr;
@@ -1746,11 +1931,12 @@ class Socket {
                                        "with timeout of {} ms",
                                        m_socket, timeout);
 
-                    struct timeval tv;
+                    struct timeval tv{};
                     tv.tv_sec = timeout / 1000;
                     tv.tv_usec = (timeout % 1000) * 1000;
 
-                    fd_set writefds, exceptfds;
+                    fd_set writefds;
+                    fd_set exceptfds;
                     FD_ZERO(&writefds);
                     FD_SET(m_socket, &writefds);
                     FD_ZERO(&exceptfds);
@@ -1779,12 +1965,12 @@ class Socket {
                 m_socket_address_info = nullptr;
                 core::logger::warning("SocketLib", "Connect attempt on socket `{}` failed with error code `{}`",
                                       m_socket, err);
-                return SocketStatus(VALUES::ERRORED);
+                return {VALUES::ERRORED};
             }
 
             core::logger::info("SocketLib", "Socket `{}` successfully connected to `{}:{}`", m_socket,
                                m_endpoint.get_address(), m_endpoint.get_port());
-            return SocketStatus(VALUES::VALID);
+            return {VALUES::VALID};
         } else {
             core::logger::fatal("SocketLib", "Connect is only supported for TCP and TLS protocols");
         }
@@ -1794,10 +1980,10 @@ class Socket {
         int sock_type{};
         int iprotocol{};
 
-        if constexpr (protocol == Protocol::TCP || protocol == Protocol::TLS) {
+        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             sock_type = SOCK_STREAM;
             iprotocol = IPPROTO_TCP;
-        } else if constexpr (protocol == Protocol::UDP || protocol == Protocol::QUIC) {
+        } else if constexpr (Protocol == Protocol::UDP || Protocol == Protocol::QUIC) {
             sock_type = SOCK_DGRAM;
             iprotocol = IPPROTO_UDP;
         }
@@ -1811,7 +1997,7 @@ class Socket {
 
     void add_quic_bio() {
         m_bio = BIO_new(BIO_s_datagram());
-        if (!m_bio) {
+        if (m_bio == nullptr) {
             core::logger::error("SocketLib", "Failed to create BIO for QUIC socket");
         }
         BIO_set_fd(m_bio, static_cast<SOCKET>(m_socket), BIO_NOCLOSE);
@@ -1821,12 +2007,25 @@ class Socket {
     }
 
     bool setup_tls()
-        requires(protocol == Protocol::TLS)
+        requires(Protocol == Protocol::TLS)
     {
         m_ssl_ctx = SSL_CTX_new(TLS_client_method());
-        if (!m_ssl_ctx) {
+        if (m_ssl_ctx == nullptr) {
             core::logger::warning("SocketLib", "Failed to create SSL context");
             return false;
+        }
+
+        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+            if (where & SSL_CB_ALERT) {
+                const char *type = (where & SSL_CB_READ) ? "read" : "write";
+                core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type, (void *)ssl,
+                                      SSL_alert_type_string_long(ret), SSL_alert_desc_string_long(ret));
+            }
+        });
+
+        if (!m_alpn_wire_format.empty()) {
+            core::logger::info("SocketLib", "Setting ALPN protocols for TLS socket: {}", m_alpn_wire_format);
+            SSL_CTX_set_alpn_protos(m_ssl_ctx, m_alpn_wire_format.data(), m_alpn_wire_format.size());
         }
 
         SSL_CTX_set_options(m_ssl_ctx, SSL_OP_ENABLE_KTLS);
@@ -1835,12 +2034,12 @@ class Socket {
         SSL_CTX_set_default_verify_paths(m_ssl_ctx);
 
         m_ssl = SSL_new(m_ssl_ctx);
-        if (!m_ssl) {
+        if (m_ssl == nullptr) {
             core::logger::warning("SocketLib", "Failed to create SSL object");
             return false;
         }
 
-        if (!SSL_set_fd(m_ssl, m_socket)) {
+        if (SSL_set_fd(m_ssl, m_socket) == 0) {
             core::logger::warning("SocketLib", "Failed to associate SSL object with socket");
             return false;
         }
@@ -1857,21 +2056,34 @@ class Socket {
     }
 
     bool setup_quic()
-        requires(protocol == Protocol::QUIC)
+        requires(Protocol == Protocol::QUIC)
     {
         add_quic_bio();
 
         m_ssl_ctx = SSL_CTX_new(OSSL_QUIC_client_method());
-        if (!m_ssl_ctx) {
+        if (m_ssl_ctx == nullptr) {
             core::logger::warning("SocketLib", "Failed to create SSL context for QUIC");
             return false;
+        }
+
+        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+            if (where & SSL_CB_ALERT) {
+                const char *type = (where & SSL_CB_READ) ? "read" : "write";
+                core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type, (void *)ssl,
+                                      SSL_alert_type_string_long(ret), SSL_alert_desc_string_long(ret));
+            }
+        });
+
+        if (!m_alpn_wire_format.empty()) {
+            core::logger::info("SocketLib", "Setting ALPN protocols for TLS socket: {}", m_alpn_wire_format);
+            SSL_CTX_set_alpn_protos(m_ssl_ctx, m_alpn_wire_format.data(), m_alpn_wire_format.size());
         }
 
         SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER, nullptr);
         SSL_CTX_set_default_verify_paths(m_ssl_ctx);
 
         m_ssl = SSL_new(m_ssl_ctx);
-        if (!m_ssl) {
+        if (m_ssl == nullptr) {
             core::logger::warning("SocketLib", "Failed to create SSL object for QUIC");
             return false;
         }
@@ -1899,7 +2111,7 @@ class Socket {
     addrinfo *m_socket_address_info;
     sockaddr_storage m_socket_input_buffer;
     socklen_t m_socket_input_buffer_length;
-    std::vector<unsigned char> alpn_wire_format;
+    std::vector<unsigned char> m_alpn_wire_format;
     std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> m_leverager;
     bool m_ktls_tx;
     bool m_ktls_rx;

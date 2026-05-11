@@ -6,7 +6,7 @@ import :handler;
 
 export namespace shared {
 
-using ReadCallback = std::move_only_function<void(io::base::buffering::BufferView)>;
+using ReadCallback = std::move_only_function<void(io::base::buffering::BufferView &)>;
 using SendCallback = std::move_only_function<void(io::base::buffering::BufferNode &&)>;
 using CloseCallback = std::move_only_function<void()>;
 using ErrorCallback = std::move_only_function<void(int, int)>;

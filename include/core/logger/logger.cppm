@@ -30,42 +30,42 @@ export namespace core::logger {
 
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void log(shared::LogLevel level, std::format_string<Args...> fmt, Args &&...args) {
+void log(shared::LogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept {
     write_to_plugin(level, std::format(fmt, std::forward<Args>(args)...));
 }
 
 // INFO
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void info(std::string_view name, std::format_string<Args...> fmt, Args &&...args) {
+void info(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(shared::LogLevel::Info, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
 
 // DEBUG
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void debug(std::string_view name, std::format_string<Args...> fmt, Args &&...args) {
+void debug(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(shared::LogLevel::Debug, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
 
 // WARNING
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void warning(std::string_view name, std::format_string<Args...> fmt, Args &&...args) {
+void warning(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(shared::LogLevel::Warning, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
 
 // ERROR
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void error(std::string_view name, std::format_string<Args...> fmt, Args &&...args) {
+void error(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(shared::LogLevel::Error, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
 
 // FATAL
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
-void fatal(std::string_view name, std::format_string<Args...> fmt, Args &&...args) {
+void fatal(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(shared::LogLevel::Fatal, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
 

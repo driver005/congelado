@@ -2,6 +2,7 @@ export module io_layer_http2:flow;
 
 import std;
 import shared;
+import core_logger;
 import :handshake;
 import :session;
 
@@ -13,18 +14,25 @@ class Flow {
         : m_session{std::move(send), std::move(close)},
           m_handshake{m_session.get_local_settings(),
                       [this](base::buffering::BufferNode &&node) { m_session.send(std::move(node)); }},
-          m_handshake_completed{false} {}
+          m_handshake_completed{false} {
+        core::logger::debug("Flow - HTTP/2", "Created with send and close callbacks");
+    }
 
     ::shared::ReadCallback on_read() {
-        return [this](base::buffering::BufferView view) {
+        return [this](base::buffering::BufferView &view) {
+            core::logger::info("Flow - HTTP/2", "Received data to process, size `{}`", view.size());
             if (!m_handshake_completed) {
+                core::logger::debug("Flow - HTTP/2", "Performing handshake");
                 auto result = m_handshake.process(view);
                 if (result == HandshakeState::Completed) {
+                    core::logger::info("Flow - HTTP/2", "Handshake completed successfully");
                     m_handshake_completed = true;
                 } else if (result == HandshakeState::PrefaceError) {
+                    core::logger::error("Flow - HTTP/2", "Handshake failed due to invalid preface");
                     m_session.close(error::http::Http2ErrorCode::PROTOCOL_ERROR);
                 }
             } else {
+                core::logger::debug("Flow - HTTP/2", "Processing received data through session");
                 m_session.receive(view);
             }
         };

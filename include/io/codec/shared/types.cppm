@@ -6,7 +6,7 @@ import io_error;
 
 export namespace io::shared_codec {
 
-enum class IndexCalculation { QPack, HPack };
+enum class IndexCalculation : std::uint8_t { Q_PACK, H_PACK };
 
 class SearchResult {
   public:
@@ -20,22 +20,26 @@ class SearchResult {
         : m_value((is_static ? STATIC_BIT : 0) | (is_full ? FULL_BIT : 0) | (idx & INDEX_MASK)) {}
 
     // Static helper for "Not Found"
-    static constexpr SearchResult none() noexcept { return SearchResult(); }
+    static constexpr SearchResult none() noexcept { return {}; }
 
     // Status checks
-    constexpr bool found() const noexcept { return m_value != NPOS; }
-    constexpr bool is_static() const noexcept { return (m_value & STATIC_BIT) && m_value != NPOS; }
-    constexpr bool is_full_match() const noexcept { return (m_value & FULL_BIT) && m_value != NPOS; }
+    [[nodiscard]] constexpr bool found() const noexcept { return m_value != NPOS; }
+    [[nodiscard]] constexpr bool is_static() const noexcept {
+        return ((m_value & STATIC_BIT) != 0U) && m_value != NPOS;
+    }
+    [[nodiscard]] constexpr bool is_full_match() const noexcept {
+        return ((m_value & FULL_BIT) != 0U) && m_value != NPOS;
+    }
 
     // Data retrieval
-    constexpr std::size_t index() const noexcept { return m_value & INDEX_MASK; }
+    [[nodiscard]] constexpr std::size_t index() const noexcept { return m_value & INDEX_MASK; }
 
     // Optional: Implicit conversion to bool for easy "if (result)" checks
     constexpr explicit operator bool() const noexcept { return found(); }
 
   private:
-    static constexpr std::size_t STATIC_BIT = std::size_t{1} << (sizeof(std::size_t) * 8 - 1);
-    static constexpr std::size_t FULL_BIT = std::size_t{1} << (sizeof(std::size_t) * 8 - 2);
+    static constexpr std::size_t STATIC_BIT = std::size_t{1} << ((sizeof(std::size_t) * 8) - 1);
+    static constexpr std::size_t FULL_BIT = std::size_t{1} << ((sizeof(std::size_t) * 8) - 2);
     static constexpr std::size_t INDEX_MASK = ~(STATIC_BIT | FULL_BIT);
 
     std::size_t m_value;
@@ -45,17 +49,20 @@ class SearchResult {
 template <std::unsigned_integral UInt = std::uint32_t>
 class DecodeIntResult {
   public:
-    DecodeIntResult(UInt value, std::uint8_t prefix_bits) : m_value(value), m_prefix_bits(prefix_bits) {}
+    DecodeIntResult(UInt value, std::uint8_t prefix_bits, std::size_t consumed = 0)
+        : m_value{value}, m_prefix_bits{prefix_bits}, m_consumed{consumed} {}
+
     ~DecodeIntResult() = default;
 
-    constexpr UInt value() const { return m_value; }
-
-    constexpr bool is_never_indexed() const { return m_prefix_bits & 0x02; }
-    constexpr bool is_static() const { return m_prefix_bits & 0x01; }
+    constexpr UInt value() const noexcept { return m_value; }
+    [[nodiscard]] constexpr std::size_t consumed() const noexcept { return m_consumed; }
+    [[nodiscard]] constexpr bool is_never_indexed() const noexcept { return (m_prefix_bits & 0x02) != 0; }
+    [[nodiscard]] constexpr bool is_static() const noexcept { return (m_prefix_bits & 0x01) != 0; }
 
   private:
     UInt m_value;
     std::uint8_t m_prefix_bits;
+    std::size_t m_consumed;
 };
 
 
@@ -63,7 +70,8 @@ template <int W>
 concept DecodeWidth = W > 0 && (W & (W - 1)) == 0 && 8 % W == 0;
 
 template <typename T>
-concept CastableToUint8 = std::convertible_to<T, std::uint8_t>;
+concept CastableToUint8 = std::convertible_to<T, std::uint8_t> ||
+                          (std::is_enum_v<T> && std::same_as<std::underlying_type_t<T>, std::uint8_t>);
 
 //   The first byte of every wire representation carries a fixed bit
 //   pattern in its high bits that identifies which representation type
@@ -80,92 +88,101 @@ concept CastableToUint8 = std::convertible_to<T, std::uint8_t>;
 //   overlapping masks never mis-classify a byte.
 enum class PrefixHelper : std::uint8_t {
     /* --- HPACK (HTTP/2) Specific --- */
-    HpackIndexedField = 0x80,           // 1....... (N=7)
-    HpackLiteralWithIndexing = 0x40,    // 01...... (N=6)
-    HpackDynamicTableSizeUpdate = 0x20, // 001..... (N=5)
-    HpackLiteralNeverIndexed = 0x10,    // 0001.... (N=4)
-    HpackLiteralWithoutIndexing = 0x00, // 0000.... (N=4)
+    HPACK_INDEXED_FIELD = 0x80,             // 1....... (N=7)
+    HPACK_LITERAL_WITH_INDEXING = 0x40,     // 01...... (N=6)
+    HPACK_DYNAMIC_TABLE_SIZE_UPDATE = 0x20, // 001..... (N=5)
+    HPACK_LITERAL_NEVER_INDEXED = 0x10,     // 0001.... (N=4)
+    HPACK_LITERAL_WITHOUT_INDEXING = 0x00,  // 0000.... (N=4)
 
     /* --- QPACK (HTTP/3) Request Stream --- */
-    QpackIndexedField = 0x80,         // 1....... (N=7)
-    QpackIndexedName = 0x40,          // 01...... (N=6)
-    QpackNewField = 0x20,             // 001..... (N=5)
-    QpackPostBaseIndexedField = 0x01, // 0001.... (N=4)
-    QpackPostBaseIndexedName = 0x00,  // 0000.... (N=4)
+    QPACK_INDEXED_FIELD = 0x80,           // 1....... (N=7)
+    QPACK_INDEXED_NAME = 0x40,            // 01...... (N=6)
+    QPACK_NEW_FIELD = 0x20,               // 001..... (N=5)
+    QPACK_POST_BASE_INDEXED_FIELD = 0x01, // 0001.... (N=4)
+    QPACK_POST_BASE_INDEXED_NAME = 0x00,  // 0000.... (N=4)
 
     /* --- QPACK (HTTP/3) Encoder Stream --- */
-    QpackInsertIndexedName = 0x80,      // 1....... (N=7)
-    QpackInsertLiteralName = 0x40,      // 01...... (N=6)
-    QpackDuplicate = 0x00,              // 000..... (N=5)
-    QpackDynamicTableSizeUpdate = 0x20, // 001..... (N=5)
+    QPACK_INSERT_INDEXED_NAME = 0x80,       // 1....... (N=7)
+    QPACK_INSERT_LITERAL_NAME = 0x40,       // 01...... (N=6)
+    QPACK_DUPLICATE = 0x00,                 // 000..... (N=5)
+    QPACK_DYNAMIC_TABLE_SIZE_UPDATE = 0x20, // 001..... (N=5)
 
     /* --- QPACK (HTTP/3) Decoder Stream --- */
-    QpackDecAck = 0x80,                  // 1....... (N=7)
-    QpackDecStreamCancellation = 0x40,   // 01...... (N=6)
-    QpackDecInsertCountIncrement = 0x00, // 00...... (N=6)
+    QPACK_DEC_ACK = 0x80,                    // 1....... (N=7)
+    QPACK_DEC_STREAM_CANCELLATION = 0x40,    // 01...... (N=6)
+    QPACK_DEC_INSERT_COUNT_INCREMENT = 0x00, // 00...... (N=6)
 
     /* --- Shared String Constants --- */
-    HuffmanEnabled = 0x80, // 1.......
-    HuffmanDisabled = 0x00 // 0.......
+    HUFFMAN_ENABLED = 0x80, // 1.......
+    HUFFMAN_DISABLED = 0x00 // 0.......
 };
 
-/* --- HPACK (HTTP/2) Specific --- */
-[[nodiscard]] PrefixHelper detect_representation_hpack(std::uint8_t b) {
-    if (b & std::to_underlying(PrefixHelper::HpackIndexedField)) {
-        return PrefixHelper::HpackIndexedField;
-    } else if (b & std::to_underlying(PrefixHelper::HpackLiteralWithIndexing)) {
-        return PrefixHelper::HpackLiteralWithIndexing;
-    } else if (b & std::to_underlying(PrefixHelper::HpackDynamicTableSizeUpdate)) {
-        return PrefixHelper::HpackDynamicTableSizeUpdate;
-    } else if (b & std::to_underlying(PrefixHelper::HpackLiteralNeverIndexed)) {
-        return PrefixHelper::HpackLiteralNeverIndexed;
-    } else if (b & std::to_underlying(PrefixHelper::HpackLiteralWithoutIndexing)) {
-        return PrefixHelper::HpackLiteralWithoutIndexing;
+[[nodiscard]] PrefixHelper detect_representation_hpack(std::uint8_t byte) {
+    if ((byte & std::to_underlying(PrefixHelper::HPACK_INDEXED_FIELD)) != 0) {
+        return PrefixHelper::HPACK_INDEXED_FIELD;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_WITH_INDEXING)) != 0) {
+        return PrefixHelper::HPACK_LITERAL_WITH_INDEXING;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE)) != 0) {
+        return PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)) != 0) {
+        return PrefixHelper::HPACK_LITERAL_NEVER_INDEXED;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING)) != 0) {
+        return PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING;
     }
 
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 
-/* --- QPACK (HTTP/3) Request Stream --- */
-[[nodiscard]] PrefixHelper detect_representation_qpack_stream(std::uint8_t b) {
-    if (b & std::to_underlying(PrefixHelper::QpackIndexedField)) {
-        return PrefixHelper::QpackIndexedField;
-    } else if (b & std::to_underlying(PrefixHelper::QpackIndexedName)) {
-        return PrefixHelper::QpackIndexedName;
-    } else if (b & std::to_underlying(PrefixHelper::QpackNewField)) {
-        return PrefixHelper::QpackNewField;
-    } else if (b & std::to_underlying(PrefixHelper::QpackPostBaseIndexedField)) {
-        return PrefixHelper::QpackPostBaseIndexedField;
-    } else if (b & std::to_underlying(PrefixHelper::QpackPostBaseIndexedField)) {
-        return PrefixHelper::QpackPostBaseIndexedName;
+[[nodiscard]] PrefixHelper detect_representation_qpack_stream(std::uint8_t byte) {
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_INDEXED_FIELD)) != 0) {
+        return PrefixHelper::QPACK_INDEXED_FIELD;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_INDEXED_NAME)) != 0) {
+        return PrefixHelper::QPACK_INDEXED_NAME;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_NEW_FIELD)) != 0) {
+        return PrefixHelper::QPACK_NEW_FIELD;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD)) != 0) {
+        return PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD)) != 0) {
+        return PrefixHelper::QPACK_POST_BASE_INDEXED_NAME;
     }
 
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 
-/* --- QPACK (HTTP/3) Decoder Stream --- */
-[[nodiscard]] PrefixHelper detect_representation_qpack_encoder(std::uint8_t b) {
-    if (b & std::to_underlying(PrefixHelper::QpackInsertLiteralName)) {
-        return PrefixHelper::QpackInsertLiteralName;
-    } else if (b & std::to_underlying(PrefixHelper::QpackInsertLiteralName)) {
-        return PrefixHelper::QpackInsertLiteralName;
-    } else if (b & std::to_underlying(PrefixHelper::QpackDuplicate)) {
-        return PrefixHelper::QpackDuplicate;
-    } else if (b & std::to_underlying(PrefixHelper::QpackDynamicTableSizeUpdate)) {
-        return PrefixHelper::QpackDynamicTableSizeUpdate;
+[[nodiscard]] PrefixHelper detect_representation_qpack_encoder(std::uint8_t byte) {
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_INSERT_LITERAL_NAME)) != 0) {
+        return PrefixHelper::QPACK_INSERT_LITERAL_NAME;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_INSERT_LITERAL_NAME)) != 0) {
+        return PrefixHelper::QPACK_INSERT_LITERAL_NAME;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_DUPLICATE)) != 0) {
+        return PrefixHelper::QPACK_DUPLICATE;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE)) != 0) {
+        return PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE;
     }
 
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 
-/* --- QPACK (HTTP/3) Decoder Stream --- */
-[[nodiscard]] PrefixHelper detect_representation_qpack_decoder(std::uint8_t b) {
-    if (b & std::to_underlying(PrefixHelper::QpackDecAck)) {
-        return PrefixHelper::QpackDecAck;
-    } else if (b & std::to_underlying(PrefixHelper::QpackDecStreamCancellation)) {
-        return PrefixHelper::QpackDecStreamCancellation;
-    } else if (b & std::to_underlying(PrefixHelper::QpackDecInsertCountIncrement)) {
-        return PrefixHelper::QpackDecInsertCountIncrement;
+[[nodiscard]] PrefixHelper detect_representation_qpack_decoder(std::uint8_t byte) {
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_DEC_ACK)) != 0) {
+        return PrefixHelper::QPACK_DEC_ACK;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_DEC_STREAM_CANCELLATION)) != 0) {
+        return PrefixHelper::QPACK_DEC_STREAM_CANCELLATION;
+    }
+    if ((byte & std::to_underlying(PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT)) != 0) {
+        return PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT;
     }
 
     throw error::http::DecodeError("Invalid first byte for HPACK representation");

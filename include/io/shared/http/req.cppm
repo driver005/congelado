@@ -17,8 +17,9 @@ class HttpRequest : public ::shared::Request {
 
     template <bool IsStatic>
     void insert(std::shared_ptr<HeaderField<IsStatic>> field) {
-        if (field == nullptr)
+        if (field == nullptr) {
             throw std::invalid_argument("Header field cannot be null");
+        }
         if constexpr (IsStatic) {
             m_static_headers[std::to_underlying(field->get_name())] = field;
         } else {
@@ -31,22 +32,25 @@ class HttpRequest : public ::shared::Request {
     }
 
     void insert(std::string_view name, std::string_view value) {
-        if (name.empty())
+        if (name.empty()) {
             throw std::invalid_argument("Header name cannot be empty");
+        }
 
         auto token = tokenize(name);
         if (token == Token::Cookie) {
-            const auto idx = std::to_underlying(Token::Cookie);
-            if (m_static_headers[idx] == nullptr) {
-                m_static_headers[idx] = std::make_shared<HeaderField<true>>(Token::Cookie, std::string(value));
+            const auto IDX = std::to_underlying(Token::Cookie);
+            if (m_static_headers[IDX] == nullptr) {
+                m_static_headers[IDX] = std::make_shared<HeaderField<true>>(Token::Cookie, std::string(value));
             } else if (!value.empty()) {
-                m_static_headers[idx]->set_value(m_static_headers[idx]->get_value() + COOKIE_SEPARATOR +
+                m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() + COOKIE_SEPARATOR +
                                                  std::string(value));
             }
         } else if (token == Token::Custom) {
-            if (auto existing = m_headers.find(name); existing.has_value()) {
-                if (!value.empty())
-                    (*existing)->set_value((*existing)->get_value() + VALUE_SEPARATOR + std::string(value));
+            if (!value.empty()) {
+                if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
+                    const auto &existing = *existing_opt;
+                    existing->set_value(existing->get_value() + VALUE_SEPARATOR + std::string(value));
+                }
                 return;
             }
             m_headers.insert(name, std::make_shared<HeaderField<false>>(name, value));
@@ -56,10 +60,12 @@ class HttpRequest : public ::shared::Request {
     }
 
     void insert(Token token, std::string_view value) {
-        if (token == Token::None)
+        if (token == Token::None) {
             throw std::invalid_argument("Token cannot be None");
-        if (token == Token::Custom)
+        }
+        if (token == Token::Custom) {
             throw std::invalid_argument("Token cannot be Custom");
+        }
 
         m_static_headers[std::to_underlying(token)] = std::make_shared<HeaderField<true>>(token, std::string(value));
     }
@@ -68,12 +74,14 @@ class HttpRequest : public ::shared::Request {
     std::shared_ptr<HeaderField<IsStatic>> get(std::string_view name) {
         auto token = tokenize(name);
         if constexpr (IsStatic) {
-            if (token == Token::None || token == Token::Custom)
+            if (token == Token::None || token == Token::Custom) {
                 return nullptr;
+            }
             return m_static_headers[std::to_underlying(token)];
         } else {
-            if (token != Token::Custom)
+            if (token != Token::Custom) {
                 return nullptr;
+            }
             auto result = m_headers.find(name);
             return result.has_value() ? *result : nullptr;
         }
@@ -85,7 +93,7 @@ class HttpRequest : public ::shared::Request {
 
     void set_body(std::vector<std::uint8_t> body) { m_body = std::move(body); }
 
-    const std::uint32_t &get_stream_id() const { return m_stream_id; }
+    [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
 
   private:
     std::shared_ptr<HeaderField<true>> get_static(const Token &token) {

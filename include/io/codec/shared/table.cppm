@@ -9,30 +9,32 @@ import :consts;
 namespace io::shared_codec::table {
 
 template <typename... Ts>
-struct overloaded : Ts... {
+struct Overloaded : Ts... {
     using Ts::operator()...;
 };
 
-enum class HeaderKeyType : bool { NameOnly = 0, FullMatch = 1 };
+enum class HeaderKeyType : bool { NAME_ONLY = false, FULL_MATCH = true };
 
 class HeaderKey {
   public:
-    HeaderKey(std::string_view name, std::string_view value = {}, HeaderKeyType type = HeaderKeyType::NameOnly)
+    HeaderKey(std::string_view name, std::string_view value = {}, HeaderKeyType type = HeaderKeyType::NAME_ONLY)
         : m_name(name), m_value(value), m_type(type) {
-        if (std::holds_alternative<std::string_view>(m_name) && std::get<std::string_view>(m_name).empty())
+        if (std::holds_alternative<std::string_view>(m_name) && std::get<std::string_view>(m_name).empty()) {
             throw std::runtime_error("Header name cannot be empty");
+        }
     }
-    HeaderKey(shared::http::Token token, std::string_view value = {}, HeaderKeyType type = HeaderKeyType::NameOnly)
+    HeaderKey(shared::http::Token token, std::string_view value = {}, HeaderKeyType type = HeaderKeyType::NAME_ONLY)
         : m_name(token), m_value(value), m_type(type) {}
 
     bool operator==(const HeaderKey &other) const noexcept {
         return m_name == other.m_name && m_type == other.m_type &&
-               (m_type == HeaderKeyType::NameOnly || m_value == other.m_value);
+               (m_type == HeaderKeyType::NAME_ONLY || m_value == other.m_value);
     }
 
-    bool is_equal(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept {
-        if (m_type != type)
+    [[nodiscard]] bool is_equal(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept {
+        if (m_type != type) {
             return false;
+        }
 
         bool name_match = std::visit(
             [&](auto &&arg) -> bool {
@@ -46,14 +48,16 @@ class HeaderKey {
             },
             m_name);
 
-        if (!name_match)
+        if (!name_match) {
             return false;
-        return (m_type == HeaderKeyType::NameOnly) || (m_value == value);
+        }
+        return (m_type == HeaderKeyType::NAME_ONLY) || (m_value == value);
     }
 
-    bool is_equal(shared::http::Token token, std::string_view value, HeaderKeyType type) const noexcept {
-        if (m_type != type)
+    [[nodiscard]] bool is_equal(shared::http::Token token, std::string_view value, HeaderKeyType type) const noexcept {
+        if (m_type != type) {
             return false;
+        }
 
         bool name_match = std::visit(
             [&](auto &&arg) -> bool {
@@ -67,15 +71,18 @@ class HeaderKey {
             },
             m_name);
 
-        if (!name_match)
+        if (!name_match) {
             return false;
+        }
 
-        return (m_type == HeaderKeyType::NameOnly) || (m_value == value);
+        return (m_type == HeaderKeyType::NAME_ONLY) || (m_value == value);
     }
 
-    constexpr std::variant<shared::http::Token, std::string_view> get_name() const noexcept { return m_name; }
-    constexpr std::string_view get_value() const noexcept { return m_value; }
-    constexpr HeaderKeyType get_type() const noexcept { return m_type; }
+    [[nodiscard]] constexpr std::variant<shared::http::Token, std::string_view> get_name() const noexcept {
+        return m_name;
+    }
+    [[nodiscard]] constexpr std::string_view get_value() const noexcept { return m_value; }
+    [[nodiscard]] constexpr HeaderKeyType get_type() const noexcept { return m_type; }
 
   private:
     std::variant<shared::http::Token, std::string_view> m_name;
@@ -88,21 +95,23 @@ struct HeaderEqual {
 
     bool operator()(const HeaderKey &lhs, const HeaderKey &rhs) const noexcept { return lhs == rhs; }
 
-    bool operator()(const HeaderKey &k, std::string_view n, std::string_view v, HeaderKeyType t) const noexcept {
-        return k.is_equal(n, v, t);
+    bool operator()(const HeaderKey &key, std::string_view name, std::string_view value,
+                    HeaderKeyType type) const noexcept {
+        return key.is_equal(name, value, type);
     }
 
-    bool operator()(const HeaderKey &k, shared::http::Token token, std::string_view v, HeaderKeyType t) const noexcept {
-        return k.is_equal(token, v, t);
+    bool operator()(const HeaderKey &key, shared::http::Token token, std::string_view value,
+                    HeaderKeyType type) const noexcept {
+        return key.is_equal(token, value, type);
     }
 };
 
 struct HeaderHasher {
     using is_transparent = void;
 
-    std::size_t operator()(const HeaderKey &k) const noexcept {
-        return std::visit([&](auto &&arg) -> std::size_t { return hash_impl(arg, k.get_value(), k.get_type()); },
-                          k.get_name());
+    std::size_t operator()(const HeaderKey &key) const noexcept {
+        return std::visit([&](auto &&arg) -> std::size_t { return hash_impl(arg, key.get_value(), key.get_type()); },
+                          key.get_name());
     }
 
     std::size_t operator()(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept {
@@ -115,24 +124,26 @@ struct HeaderHasher {
 
   private:
     // Helper: Combines bits using the Golden Ratio to prevent collisions
-    static void hash_combine(std::size_t &seed, std::size_t v) noexcept {
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    static void hash_combine(std::size_t &seed, std::size_t value) noexcept {
+        seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
 
-    std::size_t hash_impl(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept {
-        std::size_t h = std::hash<std::string_view>{}(name);
-        if (type == HeaderKeyType::FullMatch)
-            hash_combine(h, std::hash<std::string_view>{}(value));
-        hash_combine(h, static_cast<std::size_t>(type));
-        return h;
+    static std::size_t hash_impl(std::string_view name, std::string_view value, HeaderKeyType type) noexcept {
+        std::size_t hash = std::hash<std::string_view>{}(name);
+        if (type == HeaderKeyType::FULL_MATCH) {
+            hash_combine(hash, std::hash<std::string_view>{}(value));
+        }
+        hash_combine(hash, static_cast<std::size_t>(type));
+        return hash;
     }
 
-    std::size_t hash_impl(shared::http::Token token, std::string_view value, HeaderKeyType type) const noexcept {
-        std::size_t h = std::hash<std::uint32_t>{}(std::to_underlying(token));
-        if (type == HeaderKeyType::FullMatch)
-            hash_combine(h, std::hash<std::string_view>{}(value));
-        hash_combine(h, static_cast<std::size_t>(type));
-        return h;
+    static std::size_t hash_impl(shared::http::Token token, std::string_view value, HeaderKeyType type) noexcept {
+        std::size_t hash = std::hash<std::uint32_t>{}(std::to_underlying(token));
+        if (type == HeaderKeyType::FULL_MATCH) {
+            hash_combine(hash, std::hash<std::string_view>{}(value));
+        }
+        hash_combine(hash, static_cast<std::size_t>(type));
+        return hash;
     }
 };
 
@@ -163,7 +174,7 @@ class StaticTable {
         return Table[idx];
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
     static SearchResult search(std::string_view name, std::string_view value) noexcept {
         if (auto result = search_full_match<Calc>(name, value); result.found()) {
             return result;
@@ -176,19 +187,19 @@ class StaticTable {
         return SearchResult::none();
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
     static SearchResult search_full_match(std::string_view name, std::string_view value) noexcept {
-        if (auto positon = MAP.find(name, value, HeaderKeyType::FullMatch)) {
-            return SearchResult{*positon + (Calc == IndexCalculation::HPack), true, true};
+        if (auto positon = MAP.find(name, value, HeaderKeyType::FULL_MATCH)) {
+            return SearchResult{*positon + (Calc == IndexCalculation::H_PACK), true, true};
         }
 
         return SearchResult::none();
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
     static SearchResult search_name_only(std::string_view name) noexcept {
-        if (auto positon = MAP.find(name, "", HeaderKeyType::NameOnly)) {
-            return SearchResult{*positon + (Calc == IndexCalculation::HPack), true, false};
+        if (auto positon = MAP.find(name, "", HeaderKeyType::NAME_ONLY)) {
+            return SearchResult{*positon + (Calc == IndexCalculation::H_PACK), true, false};
         }
 
         return SearchResult::none();
@@ -198,7 +209,7 @@ class StaticTable {
 
   private:
     static inline const QpackMap MAP = [] {
-        QpackMap m;
+        QpackMap map;
 
         // TODO: We can optimize by adding reserve support to out our map
         // m.reserve(STATIC_SIZE * 2);
@@ -206,10 +217,10 @@ class StaticTable {
         for (std::size_t i = 0; i < STATIC_SIZE; ++i) {
             auto field = Table[i];
 
-            m.upsert(HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FullMatch}, i);
-            m.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NameOnly}, i);
+            map.upsert(HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH}, i);
+            map.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NAME_ONLY}, i);
         }
-        return m;
+        return map;
     }();
 };
 
@@ -221,47 +232,47 @@ class DynamicTable {
     }
 
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
     std::size_t insert(std::string_view name, std::string_view value) {
-        auto field = std::make_shared<shared::http::HeaderField<false>>(std::move(name), std::move(value));
+        auto field = std::make_shared<shared::http::HeaderField<false>>(name, value);
         return insert<Calc>(std::move(field));
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
     std::size_t insert(shared::http::Token token, std::string_view value) {
-        auto field = std::make_shared<shared::http::HeaderField<true>>(token, std::move(value));
+        auto field = std::make_shared<shared::http::HeaderField<true>>(token, value);
         return insert<Calc>(std::move(field));
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack, bool IsStatic>
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK, bool IsStatic>
     std::size_t insert(std::shared_ptr<shared::http::HeaderField<IsStatic>> field) {
-        const std::size_t entry_size = field->size();
-        if (entry_size > m_max_size) {
+        const std::size_t ENTRY_SIZE = field->size();
+        if (ENTRY_SIZE > m_max_size) {
             evict_all();
             return 0;
         }
 
-        while (!m_deque.empty() && m_current_size + entry_size > m_max_size) {
+        while (!m_deque.empty() && m_current_size + ENTRY_SIZE > m_max_size) {
             evict_oldest();
         }
 
         ++m_generation;
-        m_current_size += entry_size;
+        m_current_size += ENTRY_SIZE;
 
-        m_map.upsert(HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FullMatch}, m_generation);
-        m_map.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NameOnly}, m_generation);
+        m_map.upsert(HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH}, m_generation);
+        m_map.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NAME_ONLY}, m_generation);
 
         m_deque.push_front(std::move(field));
 
-        if constexpr (Calc == IndexCalculation::QPack) {
+        if constexpr (Calc == IndexCalculation::Q_PACK) {
             return m_generation;
         } else {
             return generation_to_position(m_generation);
         }
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
-    SearchResult search(std::string_view name, std::string_view value) const noexcept {
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult search(std::string_view name, std::string_view value) const noexcept {
         if (auto result = search_full_match<Calc>(name, value); result.found()) {
             return result;
         }
@@ -273,10 +284,10 @@ class DynamicTable {
         return SearchResult::none();
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
-    SearchResult search_full_match(std::string_view name, std::string_view value) const noexcept {
-        if (auto generation = m_map.find(name, value, HeaderKeyType::FullMatch)) {
-            if constexpr (Calc == IndexCalculation::QPack) {
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult search_full_match(std::string_view name, std::string_view value) const noexcept {
+        if (auto generation = m_map.find(name, value, HeaderKeyType::FULL_MATCH)) {
+            if constexpr (Calc == IndexCalculation::Q_PACK) {
                 return SearchResult{*generation, true, true};
             } else {
                 return SearchResult{generation_to_position(*generation), true, true};
@@ -286,10 +297,10 @@ class DynamicTable {
         return SearchResult::none();
     }
 
-    template <IndexCalculation Calc = IndexCalculation::QPack>
-    SearchResult search_name_only(std::string_view name) const noexcept {
-        if (auto generation = m_map.find(name, "", HeaderKeyType::NameOnly)) {
-            if constexpr (Calc == IndexCalculation::QPack) {
+    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult search_name_only(std::string_view name) const noexcept {
+        if (auto generation = m_map.find(name, "", HeaderKeyType::NAME_ONLY)) {
+            if constexpr (Calc == IndexCalculation::Q_PACK) {
                 return SearchResult{*generation, true, false};
             } else {
                 return SearchResult{generation_to_position(*generation), true, false};
@@ -299,56 +310,63 @@ class DynamicTable {
         return SearchResult::none();
     }
 
-    std::optional<shared::http::HeaderEntry> at_positon(std::size_t pos) const noexcept {
+    [[nodiscard]] std::optional<shared::http::HeaderEntry> at_positon(std::size_t pos) const noexcept {
         return (pos < m_deque.size()) ? std::optional{m_deque[pos]} : std::nullopt;
     }
 
-    std::optional<shared::http::HeaderEntry> at_generation(std::size_t gen) const noexcept {
-        const std::size_t pos = generation_to_position(gen);
-        return (pos != SearchResult::NPOS) ? std::optional{m_deque[pos]} : std::nullopt;
+    [[nodiscard]] std::optional<shared::http::HeaderEntry> at_generation(std::size_t gen) const noexcept {
+        const std::size_t POS = generation_to_position(gen);
+        return (POS != SearchResult::NPOS) ? std::optional{m_deque[POS]} : std::nullopt;
     }
 
-    std::size_t generation_to_position(std::size_t gen) const noexcept {
-        if (gen == 0 || gen > m_generation || m_deque.empty())
+    [[nodiscard]] std::size_t generation_to_position(std::size_t gen) const noexcept {
+        if (gen == 0 || gen > m_generation || m_deque.empty()) {
             return SearchResult::NPOS;
-        const std::size_t oldest = m_generation - (m_deque.size() - 1);
-        if (gen < oldest)
+        }
+        const std::size_t OLDEST = m_generation - (m_deque.size() - 1);
+        if (gen < OLDEST) {
             return SearchResult::NPOS;
+        }
         return m_generation - gen;
     }
 
     void set_max_size(std::size_t new_max) {
         m_max_size = new_max;
-        while (!m_deque.empty() && m_current_size > m_max_size)
+        while (!m_deque.empty() && m_current_size > m_max_size) {
             evict_oldest();
+        }
     }
 
-    std::size_t get_size() const noexcept { return m_deque.size(); }
-    std::size_t get_current_size() const noexcept { return m_current_size; }
-    std::size_t get_insert_count() const noexcept { return m_generation; }
-    std::size_t get_max_size() const noexcept { return m_max_size; }
+    [[nodiscard]] std::size_t get_size() const noexcept { return m_deque.size(); }
+    [[nodiscard]] std::size_t get_current_size() const noexcept { return m_current_size; }
+    [[nodiscard]] std::size_t get_insert_count() const noexcept { return m_generation; }
+    [[nodiscard]] std::size_t get_max_size() const noexcept { return m_max_size; }
 
   private:
     void evict_oldest() {
-        if (m_deque.empty())
+        if (m_deque.empty()) {
             return;
+        }
         const auto &field = m_deque.back();
-        const std::size_t oldest_gen = m_generation - (m_deque.size() - 1);
+        const std::size_t OLDEST_GEN = m_generation - (m_deque.size() - 1);
 
         const auto [name, value] = std::visit(
-            [](const auto &f) -> std::pair<std::string, std::string> {
-                if constexpr (std::is_same_v<std::decay_t<decltype(f)>,
-                                             std::shared_ptr<shared::http::HeaderField<true>>>)
-                    return {std::string(shared::http::token_to_string(f->get_name())), std::string(f->get_value())};
-                else
-                    return {std::string(f->get_name()), std::string(f->get_value())};
+            [](const auto &field) -> std::pair<std::string, std::string> {
+                if constexpr (std::is_same_v<std::decay_t<decltype(field)>,
+                                             std::shared_ptr<shared::http::HeaderField<true>>>) {
+                    return {std::string(shared::http::token_to_string(field->get_name())),
+                            std::string(field->get_value())};
+                } else {
+                    return {std::string(field->get_name()), std::string(field->get_value())};
+                }
             },
             field);
 
-        m_map.erase(name, value, HeaderKeyType::FullMatch);
-        if (auto current_name_match = m_map.find(name, "", HeaderKeyType::NameOnly)) {
-            if (*current_name_match == oldest_gen)
-                m_map.erase(name, "", HeaderKeyType::NameOnly);
+        m_map.erase(name, value, HeaderKeyType::FULL_MATCH);
+        if (auto current_name_match = m_map.find(name, "", HeaderKeyType::NAME_ONLY)) {
+            if (*current_name_match == OLDEST_GEN) {
+                m_map.erase(name, "", HeaderKeyType::NAME_ONLY);
+            }
         }
         m_current_size -= (name.size() + value.size() + ENTRY_OVERHEAD);
         m_deque.pop_back();
