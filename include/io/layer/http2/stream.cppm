@@ -423,9 +423,11 @@ class Stream {
                                                                consumed, view.size()));
                 }
             } catch (error::http::Http2Exception &e) {
+                m_stream_helper.clear_header_block();
                 throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
                                                std::format("HPACK decoding error `{}`", e.what()));
             }
+            m_stream_helper.clear_header_block();
         }
     }
 
