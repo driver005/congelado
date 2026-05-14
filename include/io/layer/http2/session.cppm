@@ -18,20 +18,20 @@ class Session {
   public:
     explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback)
         : m_running{true}, m_local_settings{}, m_remote_settings{}, m_closed_streams{}, m_header_buffer{},
-          m_decoding_table{}, m_encoding_table{},
-          m_connection_stream{0, m_decoding_table, m_encoding_table, m_local_settings, m_remote_settings, false},
+          m_decoding_table{}, m_encoding_table{}, m_connection_stream{m_local_settings, m_remote_settings},
           m_submiter{std::move(send_callback)}, m_closer{std::move(close_callback)}, m_safe_header{std::nullopt} {
         core::logger::debug("Session - HTTP/2",
                             "Created with send and close callbacks, initialized settings and tables");
     }
 
 
-    void receive(base::buffering::BufferView &view) {
+    void receive(base::buffering::BufferReader &reader) {
         try {
             if (!m_safe_header.has_value()) {
                 core::logger::debug("Session - HTTP/2",
                                     "No safe header available, attempting to receive header from incoming data");
-                auto header_opt = receive_header(view);
+
+                auto header_opt = receive_header(reader);
                 if (!header_opt.has_value()) {
                     core::logger::debug("Session - HTTP/2",
                                         "Not enough data to receive a complete header, awaiting more data");
@@ -57,6 +57,7 @@ class Session {
                                 "Session - HTTP/2",
                                 "Updating send window for stream ID `{}` by delta `{}` due to acknowledged settings",
                                 id, m_remote_settings.delta_window_on_settings());
+
                             stream->update_send_window(m_remote_settings.delta_window_on_settings());
                         }
 
@@ -76,33 +77,39 @@ class Session {
                                "Safe header available, attempting to receive frame with payload size `{}`",
                                m_safe_header->get_length());
 
-            auto frame_opt = receive_frame(view);
-            if (!frame_opt.has_value()) {
+            if (reader.size() < m_safe_header->get_length()) {
                 core::logger::debug("Session - HTTP/2",
-                                    "Not enough data to receive a complete frame with payload, awaiting more data");
+                                    "Not enough data to receive complete frame payload, expected size `{}`, got `{}`",
+                                    m_safe_header->get_length(), reader.size());
+
                 return;
             }
 
-            const auto &frame = frame_opt.value();
-            auto stream_id = frame.get_header().get_stream_id();
+            auto header = m_safe_header.value();
+            m_safe_header.reset();
+
+            auto stream_id = header.get_stream_id();
 
             core::logger::info("Session - HTTP/2",
                                "Received complete frame of type `{}` on stream ID `{}` with payload size `{}`",
-                               frame.get_header().get_type(), stream_id, frame.get_payload().size());
+                               header.get_type(), stream_id, header.get_length());
 
             if (stream_id == 0) {
                 core::logger::debug("Session - HTTP/2",
                                     "Frame received on stream ID 0, handling as connection-level frame");
-                if (auto frm = m_connection_stream.handle_frame(frame); frm.has_value()) {
+
+                if (auto frm = m_connection_stream.receive(header, reader); frm.has_value()) {
                     core::logger::info("Session - HTTP/2",
                                        "Connection-level frame handling produced a response frame, sending it");
-                    send_frame(std::move(frm.value()));
+
+                    send_frame(frm.value());
                 }
             } else {
                 core::logger::debug("Session - HTTP/2",
                                     "Frame received on stream ID `{}`, handling with corresponding stream", stream_id);
+
                 auto &stream = get_or_create_stream(stream_id);
-                stream.handle_frame(frame, false, m_connection_stream);
+                stream.receive(header, reader);
 
                 core::logger::info(
                     "Session - HTTP/2",
@@ -112,12 +119,14 @@ class Session {
                     core::logger::info("Session - HTTP/2",
                                        "Stream ID `{}` remote is done, sending response and marking stream as closed",
                                        stream_id);
+
                     response(stream.get_stream_id());
                 }
             }
         } catch (const error::http::ConnectionError &e) {
             core::logger::warning("Session - HTTP/2", "Connection error occurred: `{}`, closing connection with GOAWAY",
                                   e.what());
+
             close(e.get_code(), e.get_last_stream_id());
         } catch (const error::http::StreamError &e) {
             std::array<std::byte, 4> payload{};
@@ -125,7 +134,7 @@ class Session {
             shared_layer::Atom<>::write_big_endian(payload, std::to_underlying(e.get_code()));
 
             auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                             .add_header(FrameHeader{}
+                             .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
                                              .add_length(4)
                                              .add_type(shared_layer::FrameType::RST_STREAM)
                                              .add_flags(0)
@@ -137,7 +146,8 @@ class Session {
                 "Session - HTTP/2",
                 "Stream error occurred on stream ID `{}`: `{}`, sending RST_STREAM and marking stream as closed",
                 e.get_stream_id(), e.what());
-            send_frame(std::move(frame));
+
+            send_frame(frame);
             mark_stream_closed(e.get_stream_id());
         }
     }
@@ -151,16 +161,20 @@ class Session {
                        utils::codec::WriteBigEndianAdaptor{std::to_underlying(code)} |
                        std::ranges::to<std::vector<std::byte>>();
 
-        auto frame =
-            Frame<shared_layer::FrameRole::Sender>{}
-                .add_header(
-                    FrameHeader{}.add_length(8).add_type(shared_layer::FrameType::GOAWAY).add_flags(0).add_stream_id(0))
-                .add_payload(payload)
-                .build();
+        auto frame = Frame<shared_layer::FrameRole::Sender>{}
+                         .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
+                                         .add_length(8)
+                                         .add_type(shared_layer::FrameType::GOAWAY)
+                                         .add_flags(0)
+                                         .add_stream_id(0))
+                         .add_payload(payload)
+                         .build();
 
-        send_frame(std::move(frame));
+        send_frame(frame);
+
         core::logger::info("Session - HTTP/2", "Sent GOAWAY frame with code `{}` and last stream ID `{}`", code,
                            stream_id);
+
         m_closer();
     }
 
@@ -219,8 +233,8 @@ class Session {
             return *(it->second);
         }
 
-        auto stream = std::make_unique<Stream<>>(stream_id, m_decoding_table, m_encoding_table, m_local_settings,
-                                                 m_remote_settings);
+        auto stream = std::make_unique<Stream<>>(stream_id, m_connection_stream, m_decoding_table, m_encoding_table,
+                                                 m_local_settings, m_remote_settings);
 
         auto [new_it, inserted] = m_streams.emplace(stream_id, std::move(stream));
         if (!inserted) {
@@ -231,17 +245,19 @@ class Session {
         return *(new_it->second);
     }
 
-    std::optional<FrameHeader> receive_header(base::buffering::BufferView &target) {
+    std::optional<FrameHeader<shared_layer::FrameRole::Receiver>>
+    receive_header(base::buffering::BufferReader &target) {
         if (target.size() < HEADER_SIZE) {
             core::logger::debug("Session - HTTP/2",
                                 "Not enough data to receive complete frame header, expected size `{}`, got `{}`",
                                 HEADER_SIZE, target.size());
+
             return std::nullopt;
         }
 
         auto header = target | std::views::take(HEADER_SIZE) |
                       ReadFrameHeaderAdaptor{m_local_settings.max_frame_size()} |
-                      base::buffering::AdvanceViewAdaptor{target, HEADER_SIZE};
+                      base::buffering::AdvanceReaderAdaptor{target, HEADER_SIZE};
 
 
         core::logger::debug("Session - HTTP/2",
@@ -251,36 +267,13 @@ class Session {
         return header;
     }
 
-
-    // only call if m_safe_headers is set
-    std::optional<Frame<shared_layer::FrameRole::Receiver>> receive_frame(base::buffering::BufferView &target) {
-        const auto PAYLOAD_LEN = m_safe_header->get_length();
-
-        if (target.size() < PAYLOAD_LEN) {
-            core::logger::debug("Session - HTTP/2",
-                                "Not enough data to receive complete frame payload, expected size `{}`, got `{}`",
-                                PAYLOAD_LEN, target.size());
-            return std::nullopt;
-        }
-
-        auto header = m_safe_header.value();
-        m_safe_header.reset();
-
-        auto frame = target | ReadFramePostHeaderAdaptor<shared_layer::FrameRole::Receiver>{header} |
-                     base::buffering::AdvanceViewAdaptor{target, PAYLOAD_LEN};
-
-        core::logger::debug(
-            "Session - HTTP/2", "Received complete frame with header type `{}`, stream ID `{}`, and payload size `{}`",
-            frame.get_header().get_type(), frame.get_header().get_stream_id(), frame.get_payload().size());
-
-        return frame;
-    }
-
     // Last stop for a frame delete after!!!
     void send_frame(const Frame<shared_layer::FrameRole::Sender> &frame) {
-        auto node =
-            std::views::empty<std::byte> | WriteFrameAdaptor{frame} | std::ranges::to<base::buffering::BufferNode>();
+        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame} |
+
+                    std::ranges::to<base::buffering::BufferNode>();
         core::logger::debug("Session - HTTP/2", "Prepared frame for sending with total size `{}`", node.get_written());
+
         m_submiter(std::move(node));
     }
 
@@ -311,7 +304,7 @@ class Session {
     Stream<false> m_connection_stream;
     ::shared::SendCallback m_submiter;
     ::shared::CloseCallback m_closer;
-    std::optional<FrameHeader> m_safe_header;
+    std::optional<FrameHeader<shared_layer::FrameRole::Receiver>> m_safe_header;
 };
 
 } // namespace io::layer::http2

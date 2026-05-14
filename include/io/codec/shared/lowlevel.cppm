@@ -255,7 +255,7 @@ struct DecodeStringAdaptor : std::ranges::range_adaptor_closure<DecodeStringAdap
             throw error::http::TruncatedDataError{};
         }
 
-        const bool H_FLAG = (std::to_integer<std::uint8_t>(all[0]) & 0x80U) != 0U;
+        const bool H_FLAG = (data | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{}) & 0x80U;
 
         const auto LENGTH = all | DecodeIntAdaptor<std::uint32_t>{7U};
         const auto HEADER = LENGTH.consumed();

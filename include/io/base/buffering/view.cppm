@@ -1,13 +1,64 @@
-module;
-#include <cassert>
-#include <functional>
 export module io_base_buffering:view;
 
 import std;
 import :node;
-import :deleter;
 
 export namespace io::base::buffering {
+
+class NodeView {
+  public:
+    explicit NodeView(BufferNode *node, std::size_t start, std::size_t length, NodeView *next = nullptr)
+        : m_node{node}, m_start{start}, m_length{length}, m_next{next} {
+        node->acquire();
+    }
+
+    ~NodeView() { m_node->release(); }
+
+    NodeView(const NodeView &) = delete;
+    NodeView &operator=(const NodeView &) = delete;
+
+    NodeView(NodeView &&other) noexcept
+        : m_node{other.m_node}, m_start{other.m_start}, m_length{other.m_length}, m_next{other.m_next} {
+        other.m_node = nullptr;
+        other.m_start = 0;
+        other.m_length = 0;
+        other.m_next = nullptr;
+    }
+    NodeView &operator=(NodeView &&other) noexcept {
+        if (this != &other) {
+            m_node = other.m_node;
+            m_start = other.m_start;
+            m_length = other.m_length;
+            m_next = other.m_next;
+
+            other.m_node = nullptr;
+            other.m_start = 0;
+            other.m_length = 0;
+            other.m_next = nullptr;
+        }
+        return *this;
+    }
+
+    [[nodiscard]] std::byte &operator[](std::size_t index) noexcept { return (*m_node)[m_start + index]; }
+
+    void acquire() noexcept { m_node->acquire(); }
+    void release() noexcept { m_node->release(); }
+    void set_next(NodeView *next) noexcept { m_next = next; }
+
+    [[nodiscard]] NodeView *get_next() const noexcept { return m_next; }
+    [[nodiscard]] BufferNode *get_node() const noexcept { return m_node; }
+    [[nodiscard]] const std::size_t &get_length() const noexcept { return m_length; }
+    std::size_t &get_length() noexcept { return m_length; }
+    [[nodiscard]] const std::size_t &get_start() const noexcept { return m_start; }
+    std::size_t &get_start() noexcept { return m_start; }
+
+  private:
+    BufferNode *m_node;
+    std::size_t m_start;
+    std::size_t m_length;
+    NodeView *m_next;
+};
+
 
 class BufferView {
   public:
@@ -21,17 +72,9 @@ class BufferView {
 
         Iterator() : m_node{nullptr}, m_offset{0} {}
 
-        Iterator(BufferNode *node, std::size_t offset) : m_node{node}, m_offset{offset} {
-            if (m_node != nullptr) {
-                m_node->acquire();
-            }
-        }
+        Iterator(NodeView *node, std::size_t offset) : m_node{node}, m_offset{offset} {}
 
-        ~Iterator() {
-            if (m_node != nullptr) {
-                m_node->release();
-            }
-        }
+        ~Iterator() = default;
 
         Iterator(const Iterator &other) : m_node(other.m_node), m_offset(other.m_offset) {
             if (m_node != nullptr) {
@@ -71,16 +114,16 @@ class BufferView {
             return *this;
         }
 
-        reference operator*() const noexcept { return m_node->get_data()[m_offset]; }
-        pointer operator->() const noexcept { return &(m_node->get_data()[m_offset]); }
+        reference operator*() const noexcept { return (*m_node)[m_offset]; }
+        pointer operator->() const noexcept { return &((*m_node)[m_offset]); }
 
         Iterator &operator++() noexcept {
             if (m_node == nullptr) {
                 return *this;
             }
 
-            if (++m_offset >= m_node->get_written()) {
-                BufferNode *next = m_node->get_next();
+            if (++m_offset >= m_node->get_length()) {
+                auto *next = m_node->get_next();
                 if (next != nullptr) {
                     next->acquire();
                 }
@@ -101,14 +144,14 @@ class BufferView {
 
         Iterator &operator+=(std::size_t till) noexcept {
             while (till > 0 && (m_node != nullptr)) {
-                std::size_t remaining = m_node->get_written() - m_offset;
+                std::size_t remaining = m_node->get_length() - m_offset;
 
                 if (till < remaining) {
                     m_offset += till;
                     till = 0;
                 } else {
                     till -= remaining;
-                    BufferNode *next = m_node->get_next();
+                    auto *next = m_node->get_next();
                     if (next != nullptr) {
                         next->acquire();
                     }
@@ -127,116 +170,66 @@ class BufferView {
 
         bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_node == nullptr; }
 
-        [[nodiscard]] BufferNode *get_node() const noexcept { return m_node; }
-        [[nodiscard]] std::size_t get_offset() const noexcept { return m_offset; }
-
-        [[nodiscard]] std::size_t chunk_size() const noexcept {
-            if (m_node == nullptr) {
-                return 0;
-            }
-            return m_node->get_written() - m_offset;
-        }
-
       private:
-        BufferNode *m_node;
+        NodeView *m_node;
         std::size_t m_offset;
     };
 
-    BufferView() : m_head{nullptr}, m_tail{nullptr}, m_offset{0}, m_size{0} {}
+    BufferView() : m_head{nullptr}, m_tail{nullptr}, m_size{0} {}
 
-    ~BufferView() = default;
+    ~BufferView() { release(); };
 
     BufferView(const BufferView &) = delete;
     BufferView &operator=(const BufferView &) = delete;
     BufferView(BufferView &&) = delete;
     BufferView &operator=(BufferView &&) = delete;
 
-    [[nodiscard]] Iterator begin() const noexcept {
-        return Iterator{get_head(), m_offset.load(std::memory_order_relaxed)};
-    }
+
+    [[nodiscard]] Iterator begin() const noexcept { return Iterator{get_head(), 0}; }
     [[nodiscard]] static std::default_sentinel_t end() noexcept { return std::default_sentinel; }
-    [[nodiscard]] std::size_t size() const noexcept { return m_size.load(std::memory_order_relaxed); }
+
+    [[nodiscard]] std::size_t size() const noexcept { return m_size; }
     [[nodiscard]] bool empty() const noexcept { return get_head() == nullptr; }
 
-    [[nodiscard]] std::optional<BufferNode *> peek() const noexcept {
-        auto *head = get_head();
-        if (head == nullptr) {
-            return std::nullopt;
-        }
-        head->acquire();
-        return head;
-    }
+    void push_back(NodeView *node_view) noexcept {
+        node_view->acquire();
+        m_size += node_view->get_length();
 
-    [[nodiscard]] std::pair<const std::byte *, std::size_t> front() const noexcept {
-        if (empty()) {
-            return {nullptr, 0};
-        }
-        auto it = begin();
-        return {&(*it), it.chunk_size()};
-    }
-
-    void consume(std::size_t bytes) noexcept {
-        m_size.fetch_sub(bytes, std::memory_order_relaxed);
-
-        while (bytes > 0) {
-            auto *head = get_head();
-            if (head == nullptr) {
-                break;
-            }
-
-            std::size_t available = head->get_written() - m_offset.load(std::memory_order_relaxed);
-
-            if (bytes < available) {
-                m_offset.fetch_add(bytes, std::memory_order_relaxed);
-                break;
-            }
-
-            bytes -= available;
-            BufferNode *next = head->get_next();
-
-            if (m_head.compare_exchange_strong(head, next)) {
-                m_offset.store(0, std::memory_order_relaxed);
-                BufferNode *expected_tail = head;
-                m_tail.compare_exchange_strong(expected_tail, nullptr);
-                head->release();
-            }
-        }
-    }
-
-    void expand(std::size_t bytes) noexcept { m_size.fetch_add(bytes, std::memory_order_relaxed); }
-
-    void push_back(BufferNode *node) noexcept {
-        node->acquire();
-
-        BufferNode *old = m_tail.exchange(node, std::memory_order_acq_rel);
-        if (old != nullptr) {
-            old->set_next(node);
+        if (m_tail != nullptr) {
+            m_tail->set_next(node_view);
+            m_tail = node_view;
         } else {
-            m_head.store(node, std::memory_order_release);
+            m_head = node_view;
+            m_tail = m_head;
         }
     }
 
-    [[nodiscard]] BufferNode *get_head() const noexcept { return m_head.load(std::memory_order_acquire); }
-    [[nodiscard]] BufferNode *get_tail() const noexcept { return m_tail.load(std::memory_order_acquire); }
+    void push_back(BufferNode *node, std::size_t start, std::size_t length) noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        push_back(new NodeView{node, start, length});
+    }
+
+
+    void release() noexcept {
+        NodeView *current = m_head;
+        while (current != nullptr) {
+            NodeView *next = current->get_next();
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+            delete current;
+            current = next;
+        }
+        m_head = nullptr;
+        m_tail = nullptr;
+        m_size = 0;
+    }
+
+    [[nodiscard]] NodeView *get_head() const noexcept { return m_head; }
+    [[nodiscard]] NodeView *get_tail() const noexcept { return m_tail; }
 
   private:
-    std::atomic<BufferNode *> m_head;
-    std::atomic<BufferNode *> m_tail;
-    std::atomic<std::size_t> m_offset;
-    std::atomic<std::size_t> m_size;
-};
-
-struct AdvanceViewAdaptor : std::ranges::range_adaptor_closure<AdvanceViewAdaptor> {
-    explicit constexpr AdvanceViewAdaptor(BufferView &view, std::size_t count) : m_view(view), m_count(count) {}
-
-    template <typename T>
-    T operator()(T &&result) const {
-        m_view.get().consume(m_count);
-        return std::forward<T>(result);
-    }
-
-    std::reference_wrapper<BufferView> m_view;
-    std::size_t m_count;
+    NodeView *m_head;
+    NodeView *m_tail;
+    std::size_t m_size;
 };
 
 } // namespace io::base::buffering

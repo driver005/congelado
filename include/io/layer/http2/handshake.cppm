@@ -1,7 +1,5 @@
 module;
-
 #include <ranges>
-
 export module io_layer_http2:handshake;
 
 import std;
@@ -25,7 +23,7 @@ class Handshake {
     }
 
 
-    HandshakeState process(base::buffering::BufferView &view) {
+    HandshakeState process(base::buffering::BufferReader &view) {
         core::logger::info("Handshake - HTTP/2", "Processing handshake with data of size `{}`", view.size());
         if constexpr (IsServer) {
             send_handshake();
@@ -39,17 +37,19 @@ class Handshake {
     }
 
   private:
-    HandshakeState is_valid_preface(base::buffering::BufferView &view) const {
+    HandshakeState is_valid_preface(base::buffering::BufferReader &view) const {
         const auto &preface = HTTP2_CONNECTION_PREFACE;
         if (view.size() < preface.size()) {
             core::logger::info("Handshake - HTTP/2",
                                "Received data size `{}` is smaller than preface size `{}`, awaiting more data",
                                view.size(), preface.size());
+
             return HandshakeState::AwaitingPreface;
         }
 
         if (std::ranges::equal(preface, view | std::views::take(preface.size()))) {
             core::logger::info("Handshake - HTTP/2", "Received valid preface");
+
             view.consume(preface.size());
             return HandshakeState::Completed;
         }
@@ -61,6 +61,7 @@ class Handshake {
     void send_handshake() {
         if (m_sent_settings) {
             core::logger::debug("Handshake - HTTP/2", "Settings frame already sent, skipping handshake send");
+
             return;
         }
 
@@ -70,7 +71,7 @@ class Handshake {
                        std::ranges::to<std::vector<std::byte>>();
 
         auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                         .add_header(FrameHeader{}
+                         .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
                                          .add_length(static_cast<std::uint32_t>(payload.size()))
                                          .add_type(shared_layer::FrameType::SETTINGS)
                                          .add_flags(0)
@@ -80,18 +81,17 @@ class Handshake {
 
         if constexpr (IsServer) {
             auto size = HTTP2_CONNECTION_PREFACE.size() + frame.get_size();
-            auto node = std::span{HTTP2_CONNECTION_PREFACE} | WriteFrameAdaptor{std::move(frame)} |
+            auto node = std::span{HTTP2_CONNECTION_PREFACE} | WriteFrameBuilderAdaptor{std::move(frame)} |
                         std::ranges::to<base::buffering::BufferNode>(size);
-            core::logger::debug("Handshake - HTTP/2",
-                                "Prepared Preface and Settings frame for sending with total size `{}`", size);
             m_submiter(std::move(node));
+
             core::logger::info("Handshake - HTTP/2", "Sent Preface and Settings frame with total size `{}`", size);
         } else {
             auto size = frame.get_size();
-            auto node = std::views::empty<std::byte> | WriteFrameAdaptor{std::move(frame)} |
+            auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{std::move(frame)} |
                         std::ranges::to<base::buffering::BufferNode>(size);
-            core::logger::debug("Handshake - HTTP/2", "Prepared Settings frame for sending with size `{}`", size);
             m_submiter(std::move(node));
+
             core::logger::info("Handshake - HTTP/2", "Sent Settings frame with size `{}`", size);
         }
     }

@@ -9,7 +9,7 @@ class PingTracker {
     using Clock = std::chrono::steady_clock;
     using TimePoint = Clock::time_point;
     using Duration = Clock::duration;
-    using Payload = std::array<std::byte, 8>;
+    using Payload = std::vector<std::byte>;
 
     struct RttStats {
         Duration srtt{};   ///< smoothed RTT (EWMA, α=0.125)
@@ -63,8 +63,9 @@ class PingTracker {
     bool on_ack(const Payload &payload, TimePoint now = Clock::now()) {
         auto key = payload_key(payload);
         auto it = m_inflight.find(key);
-        if (it == m_inflight.end())
+        if (it == m_inflight.end()) {
             return false; // unsolicited or duplicate ACK — caller may log
+        }
 
         Duration rtt = now - it->second.sent_at;
         m_inflight.erase(it);

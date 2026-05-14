@@ -1,6 +1,7 @@
 module;
 // TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
 #include <ranges>
+#include <utility>
 
 export module io_layer_http2:settings;
 
@@ -107,7 +108,7 @@ class Settings {
     static Frame<shared_layer::FrameRole::Sender> generate_ack() {
         core::logger::debug("Settings - HTTP/2", "Generating SETTINGS ACK frame");
         return Frame<shared_layer::FrameRole::Sender>{}
-            .add_header(FrameHeader{}
+            .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
                             .add_length(0)
                             .add_type(shared_layer::FrameType::SETTINGS)
                             .add_flags(shared_layer::Flags::ACK)
@@ -118,6 +119,7 @@ class Settings {
     void set_trigger_goaway_after_stream_id(const std::uint32_t &stream_id) noexcept {
         core::logger::debug("Settings - HTTP/2", "Setting trigger_goaway_after_stream_id to `{}` (current value: `{}`)",
                             stream_id, m_trigger_goaway_after_stream_id);
+
         m_trigger_goaway_after_stream_id = stream_id;
     }
 
@@ -125,23 +127,19 @@ class Settings {
     void set_delta_window_on_settings(const std::int32_t &delta) noexcept {
         core::logger::debug("Settings - HTTP/2", "Setting delta_window_on_settings to `{}` (current value: `{}`)",
                             delta, m_delta_window_on_settings);
+
         m_delta_window_on_settings = delta;
     }
 
     void set_state(const SettingsState &state) noexcept {
         core::logger::debug("Settings - HTTP/2", "Setting settings state to `{}` (current state: `{}`)", state,
                             m_state);
+
         m_state = state;
     }
 
-    [[nodiscard]] bool is_finished() const noexcept {
-        std::println("is_finished: current settings state: {}", m_state);
-        return m_state == SettingsState::IMPLEMENTED;
-    }
-    [[nodiscard]] bool is_acknowledged() const noexcept {
-        std::println("is_acknowledged: current settings state: {}", m_state);
-        return m_state == SettingsState::ACKNOWLEDGED;
-    }
+    [[nodiscard]] bool is_finished() const noexcept { return m_state == SettingsState::IMPLEMENTED; }
+    [[nodiscard]] bool is_acknowledged() const noexcept { return m_state == SettingsState::ACKNOWLEDGED; }
 
     [[nodiscard]] const std::uint32_t &header_table_size() const noexcept { return m_header_table_size; }
     [[nodiscard]] const bool &enable_push() const noexcept { return m_enable_push; }
@@ -196,25 +194,22 @@ class Settings {
 
 
 struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdaptor> {
-    explicit constexpr ReadSettingsAdaptor() {}
+    explicit constexpr ReadSettingsAdaptor() = default;
 
-    // Use one frame.get_paload
     template <std::ranges::viewable_range R>
     Settings operator()(R &&data) const {
-        Settings settings{};
-        for (auto setting_range : data | std::views::chunk(6)) {
-            if (std::ranges::distance(setting_range) < 6) {
-                break;
-            }
-
-            const std::uint16_t SETTING_ID =
-                setting_range | std::views::take(2) | utils::codec::ReadBigEndianAdaptor<std::uint16_t>{};
-            const std::uint32_t VALUE = setting_range | std::views::drop(2) | utils::codec::ReadBigEndianAdaptor<>{};
-
-            settings.apply(SETTING_ID, VALUE);
-        }
-
-        return settings;
+        return std::ranges::fold_left(
+            std::forward<R>(data) | std::views::chunk(6) | std::views::filter([](auto &&chunk) {
+                return std::ranges::distance(chunk) == 6;
+            }) | std::views::transform([](auto &&chunk) {
+                return std::pair{chunk | std::views::take(2) | utils::codec::ReadBigEndianAdaptor<std::uint16_t>{},
+                                 chunk | std::views::drop(2) | std::views::take(4) |
+                                     utils::codec::ReadBigEndianAdaptor<>{}};
+            }),
+            Settings{}, [](Settings acc, auto &&pair) {
+                acc.apply(pair.first, pair.second);
+                return acc;
+            });
     }
 };
 
