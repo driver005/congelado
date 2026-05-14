@@ -1,37 +1,30 @@
-export module io_base_buffering:pool;
+export module io_base_buffering:writter;
 
 import std;
 import :node;
-import :view;
+import :reader;
 
 
 export namespace io::base::buffering {
 
-class BufferPool {
+class BufferWriter {
   public:
-    explicit BufferPool(std::size_t min_size = 8ull * 1024ull, std::size_t max_size = 64 * 1024)
+    explicit BufferWriter(std::size_t min_size = 8ull * 1024ull, std::size_t max_size = 64 * 1024)
         : m_min_size{min_size}, m_max_size{max_size}, m_current_size{min_size} {}
 
-    ~BufferPool() = default;
+    ~BufferWriter() = default;
 
-    BufferPool(const BufferPool &) = delete;
-    BufferPool &operator=(const BufferPool &) = delete;
-    BufferPool(BufferPool &&) = delete;
-    BufferPool &operator=(BufferPool &&) = delete;
+    BufferWriter(const BufferWriter &) = delete;
+    BufferWriter &operator=(const BufferWriter &) = delete;
+    BufferWriter(BufferWriter &&) = delete;
+    BufferWriter &operator=(BufferWriter &&) = delete;
 
-    [[nodiscard]] BufferNode *acquire() noexcept {
+    [[nodiscard]] NodeReader *acquire() noexcept {
         auto *tail = m_view.get_tail();
 
         if ((tail == nullptr) || tail->get_remaining() == 0) {
-
             // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-            auto *node = new BufferNode{m_current_size};
-
-            node->acquire();
-            m_view.push_back(node);
-
-            node->acquire();
-
+            auto node = m_view.push_back(new BufferNode{m_current_size});
             return node;
         }
 
@@ -41,7 +34,7 @@ class BufferPool {
 
     void push(BufferNode node) noexcept { m_view.push_back(new BufferNode{std::move(node)}); }
 
-    void notify_read(BufferNode *node, std::size_t bytes_read) noexcept {
+    void notify_read(NodeReader *node, std::size_t bytes_read) noexcept {
         if (node == nullptr) {
             return;
         }
@@ -58,13 +51,13 @@ class BufferPool {
     }
 
     [[nodiscard]] std::size_t get_predicted_size() const noexcept { return m_current_size; }
-    [[nodiscard]] BufferView &get_view() noexcept { return m_view; }
+    [[nodiscard]] BufferReader &get_view() noexcept { return m_view; }
 
   private:
     std::size_t m_min_size;
     std::size_t m_max_size;
     std::size_t m_current_size;
-    BufferView m_view;
+    BufferReader m_view;
 };
 
 

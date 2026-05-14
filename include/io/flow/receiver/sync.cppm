@@ -156,7 +156,7 @@ class Receiver : public shared::HandlerBase {
     }
 
     std::reference_wrapper<Worker> m_worker;
-    buffering::BufferPool m_pool;
+    buffering::BufferWriter m_pool;
     shared::ReadCallback m_on_read;
     shared::ErrorCallback m_on_error;
     bool m_stalled;

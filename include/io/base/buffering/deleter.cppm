@@ -25,8 +25,9 @@ class Deleter {
     explicit Deleter(Action &&action) : m_internal(new ConcreteInternal<Action>(std::forward<Action>(action))) {}
 
     Deleter(const Deleter &other) noexcept : m_internal(other.m_internal) {
-        if (m_internal)
+        if (m_internal != nullptr) {
             ++m_internal->m_ref_count;
+        }
     }
 
     Deleter(Deleter &&other) noexcept : m_internal(std::exchange(other.m_internal, nullptr)) {}
@@ -39,14 +40,14 @@ class Deleter {
     ~Deleter() noexcept { release(); }
 
     void release() noexcept {
-        if (m_internal && --m_internal->m_ref_count == 0) {
+        if ((m_internal != nullptr) && --m_internal->m_ref_count == 0) {
             m_internal->destroy();
             delete m_internal;
         }
     }
 
     [[nodiscard]] bool empty() const noexcept { return m_internal == nullptr; }
-    [[nodiscard]] int use_count() const noexcept { return m_internal ? m_internal->m_ref_count : 0; }
+    [[nodiscard]] int use_count() const noexcept { return (m_internal != nullptr) ? m_internal->m_ref_count : 0; }
 
   private:
     Internal *m_internal;

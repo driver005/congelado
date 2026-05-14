@@ -19,7 +19,7 @@ class Flow {
     }
 
     ::shared::ReadCallback on_read() {
-        return [this](base::buffering::BufferView &view) {
+        return [this](base::buffering::BufferReader &view) {
             core::logger::info("Flow - HTTP/2", "Received data to process, size `{}`", view.size());
             if (!m_handshake_completed) {
                 core::logger::debug("Flow - HTTP/2", "Performing handshake");

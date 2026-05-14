@@ -148,7 +148,7 @@ class Sender : public shared::HandlerBase {
     }
 
     std::reference_wrapper<Worker> m_worker;
-    buffering::BufferPool m_pool;
+    buffering::BufferWriter m_pool;
     shared::ErrorCallback m_on_error;
     bool m_fatal;
 };

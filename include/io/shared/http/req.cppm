@@ -5,6 +5,7 @@ export module io_shared:http_req;
 import std;
 import hashmap;
 import shared;
+import io_base_buffering;
 import :consts;
 import :http_header;
 import :http_types;
@@ -87,13 +88,14 @@ class HttpRequest : public ::shared::Request {
         }
     }
 
-    void append_body(std::span<std::uint8_t> chunk) {
-        m_body.insert(m_body.end(), std::make_move_iterator(chunk.begin()), std::make_move_iterator(chunk.end()));
-    }
-
-    void set_body(std::vector<std::uint8_t> body) { m_body = std::move(body); }
+    // void append_body(std::span<std::uint8_t> chunk) {
+    //     m_body.insert(m_body.end(), std::make_move_iterator(chunk.begin()), std::make_move_iterator(chunk.end()));
+    // }
+    //
+    // void set_body(std::vector<std::uint8_t> body) { m_body = std::move(body); }
 
     [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
+    base::buffering::BufferView &get_body() { return m_body; }
 
   private:
     std::shared_ptr<HeaderField<true>> get_static(const Token &token) {
@@ -103,6 +105,7 @@ class HttpRequest : public ::shared::Request {
     std::uint32_t m_stream_id;
     std::array<std::shared_ptr<HeaderField<true>>, std::to_underlying(Token::Custom) + 1> m_static_headers{};
     hashmap::swiss::SwissHashMap<std::string_view, std::shared_ptr<HeaderField<false>>> m_headers;
+    base::buffering::BufferView m_body;
 };
 
 } // namespace io::shared::http
