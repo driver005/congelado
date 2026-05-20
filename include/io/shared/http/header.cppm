@@ -13,11 +13,11 @@ class HeaderField {
     HeaderField() : m_name{}, m_value{""} {}
 
     HeaderField(Token nameToken, std::string_view value)
-        requires(IsStatic == true)
+        requires(IsStatic)
         : m_name{nameToken}, m_value{value} {}
 
     HeaderField(std::string_view name, std::string_view value)
-        requires(IsStatic == false)
+        requires(!IsStatic)
         : m_name{std::string(name)}, m_value{value} {
         if (name.empty())
             throw std::runtime_error("Empty name");
@@ -25,10 +25,10 @@ class HeaderField {
 
     // Accessors
     const auto &get_name() const noexcept { return m_name; }
-    const std::string &get_value() const noexcept { return m_value; }
+    [[nodiscard]] const std::string &get_value() const noexcept { return m_value; }
 
     // Logic for name size
-    std::size_t size() const noexcept {
+    [[nodiscard]] std::size_t size() const noexcept {
         if constexpr (IsStatic) {
             return sizeof(Token) + m_value.size() + ENTRY_OVERHEAD;
         } else {
@@ -36,14 +36,15 @@ class HeaderField {
         }
     }
 
-    bool is_empty() const noexcept { return m_value.empty(); }
+    [[nodiscard]] bool is_empty() const noexcept { return m_value.empty(); }
 
     // Setters (Only for dynamic version)
     void set_name(std::string name)
         requires(!IsStatic)
     {
-        if (name.empty())
+        if (name.empty()) {
             throw std::runtime_error("Empty name");
+        }
         m_name = std::move(name);
     }
 
@@ -61,4 +62,5 @@ class HeaderField {
 
 // Export a common type for header entries, which can be either static or dynamic
 using HeaderEntry = std::variant<std::shared_ptr<HeaderField<true>>, std::shared_ptr<HeaderField<false>>>;
+
 } // namespace io::shared::http

@@ -6,452 +6,592 @@ export namespace io::shared::http {
 
 // HTTP method as a typed enum — method_raw holds the original string for
 // extension methods (PATCH, custom verbs, etc.) that don't map to the enum.
-enum class HttpMethod { GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH, UNKNOWN };
+enum class HttpMethod : std::uint8_t { GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH, UNKNOWN };
 
-[[nodiscard]] inline HttpMethod parse_method(std::string_view s) noexcept {
-    if (s == "GET")
-        return HttpMethod::GET;
-    if (s == "HEAD")
-        return HttpMethod::HEAD;
-    if (s == "POST")
-        return HttpMethod::POST;
-    if (s == "PUT")
-        return HttpMethod::PUT;
-    if (s == "DELETE")
-        return HttpMethod::DELETE;
-    if (s == "CONNECT")
-        return HttpMethod::CONNECT;
-    if (s == "OPTIONS")
-        return HttpMethod::OPTIONS;
-    if (s == "TRACE")
-        return HttpMethod::TRACE;
-    if (s == "PATCH")
-        return HttpMethod::PATCH;
+[[nodiscard]] constexpr std::string_view method_str(HttpMethod method) noexcept {
+    switch (method) {
+    case HttpMethod::GET:
+        return "GET";
+    case HttpMethod::HEAD:
+        return "HEAD";
+    case HttpMethod::POST:
+        return "POST";
+    case HttpMethod::PUT:
+        return "PUT";
+    case HttpMethod::DELETE:
+        return "DELETE";
+    case HttpMethod::CONNECT:
+        return "CONNECT";
+    case HttpMethod::OPTIONS:
+        return "OPTIONS";
+    case HttpMethod::TRACE:
+        return "TRACE";
+    case HttpMethod::PATCH:
+        return "PATCH";
+    default:
+        return "";
+    }
+}
+
+[[nodiscard]] inline HttpMethod parse_method(std::string_view view) noexcept {
+    if (view.empty()) [[unlikely]] {
+        return HttpMethod::UNKNOWN;
+    }
+
+    switch (view[0]) {
+    case 'G':
+        if (view == "GET") {
+            return HttpMethod::GET;
+        }
+        break;
+    case 'H':
+        if (view == "HEAD") {
+            return HttpMethod::HEAD;
+        }
+        break;
+    case 'P':
+        switch (view.size()) {
+        case 4:
+            if (view == "POST") {
+                return HttpMethod::POST;
+            }
+            break;
+        case 3:
+            if (view == "PUT") {
+                return HttpMethod::PUT;
+            }
+            break;
+        case 5:
+            if (view == "PATCH") {
+                return HttpMethod::PATCH;
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    case 'D':
+        if (view == "DELETE") {
+            return HttpMethod::DELETE;
+        }
+        break;
+    case 'C':
+        if (view == "CONNECT") {
+            return HttpMethod::CONNECT;
+        }
+        break;
+    case 'O':
+        if (view == "OPTIONS") {
+            return HttpMethod::OPTIONS;
+        }
+        break;
+    case 'T':
+        if (view == "TRACE") {
+            return HttpMethod::TRACE;
+        }
+        break;
+    default:
+        break;
+    }
+
     return HttpMethod::UNKNOWN;
 }
 
 enum class Token : std::uint32_t {
-    None = 0,
-    Authority = 1,
-    Method = 2,
-    Path = 3,
-    Scheme = 4,
-    Status = 5,
-    AcceptCharset = 6,
-    AcceptEncoding = 7,
-    AcceptLanguage = 8,
-    AcceptRanges = 9,
-    Accept = 10,
-    AccessControlAllowOrigin = 11,
-    Age = 12,
-    Allow = 13,
-    Authorization = 14,
-    CacheControl = 15,
-    ContentDisposition = 16,
-    ContentEncoding = 17,
-    ContentLanguage = 18,
-    ContentLength = 19,
-    ContentLocation = 20,
-    ContentRange = 21,
-    ContentType = 22,
-    Cookie = 23,
-    Date = 24,
-    ETag = 25,
-    Expect = 26,
-    Expires = 27,
-    From = 28,
-    Host = 29,
-    IfMatch = 30,
-    IfModifiedSince = 31,
-    IfNoneMatch = 32,
-    IfRange = 33,
-    IfUnmodifiedSince = 34,
-    LastModified = 35,
-    Link = 36,
-    Location = 37,
-    MaxForwards = 38,
-    ProxyAuthenticate = 39,
-    ProxyAuthorization = 40,
-    Range = 41,
-    Referer = 42,
-    Refresh = 43,
-    RetryAfter = 44,
-    Server = 45,
-    SetCookie = 46,
-    StrictTransportSecurity = 47,
-    TransferEncoding = 48,
-    UserAgent = 49,
-    Vary = 50,
-    Via = 51,
-    WwwAuthenticate = 52,
-    AccessControlAllowCredentials = 53,
-    AccessControlAllowHeaders = 54,
-    AccessControlAllowMethods = 55,
-    AccessControlExposeHeaders = 56,
-    AccessControlRequestHeaders = 57,
-    AccessControlRequestMethod = 58,
-    AltSvc = 59,
-    ContentSecurityPolicy = 60,
-    EarlyData = 61,
-    ExpectCt = 62,
-    Forwarded = 63,
-    Origin = 64,
-    Purpose = 65,
-    TimingAllowOrigin = 66,
-    UpgradeInsecureRequests = 67,
-    XContentTypeOptions = 68,
-    XForwardedFor = 69,
-    XFrameOptions = 70,
-    XXssProtection = 71,
-    Custom = 72
+    NONE = 0,
+    AUTHORITY = 1,
+    METHOD = 2,
+    PATH = 3,
+    SCHEME = 4,
+    STATUS = 5,
+    ACCEPT_CHARSET = 6,
+    ACCEPT_ENCODING = 7,
+    ACCEPT_LANGUAGE = 8,
+    ACCEPT_RANGES = 9,
+    ACCEPT = 10,
+    ACCESS_CONTROL_ALLOW_ORIGIN = 11,
+    AGE = 12,
+    ALLOW = 13,
+    AUTHORIZATION = 14,
+    CACHE_CONTROL = 15,
+    CONTENT_DISPOSITION = 16,
+    CONTENT_ENCODING = 17,
+    CONTENT_LANGUAGE = 18,
+    CONTENT_LENGTH = 19,
+    CONTENT_LOCATION = 20,
+    CONTENT_RANGE = 21,
+    CONTENT_TYPE = 22,
+    COOKIE = 23,
+    DATE = 24,
+    E_TAG = 25,
+    EXPECT = 26,
+    EXPIRES = 27,
+    FROM = 28,
+    HOST = 29,
+    IF_MATCH = 30,
+    IF_MODIFIED_SINCE = 31,
+    IF_NONE_MATCH = 32,
+    IF_RANGE = 33,
+    IF_UNMODIFIED_SINCE = 34,
+    LAST_MODIFIED = 35,
+    LINK = 36,
+    LOCATION = 37,
+    MAX_FORWARDS = 38,
+    PROXY_AUTHENTICATE = 39,
+    PROXY_AUTHORIZATION = 40,
+    RANGE = 41,
+    REFERER = 42,
+    REFRESH = 43,
+    RETRY_AFTER = 44,
+    SERVER = 45,
+    SET_COOKIE = 46,
+    STRICT_TRANSPORT_SECURITY = 47,
+    TRANSFER_ENCODING = 48,
+    USER_AGENT = 49,
+    VARY = 50,
+    VIA = 51,
+    WWW_AUTHENTICATE = 52,
+    ACCESS_CONTROL_ALLOW_CREDENTIALS = 53,
+    ACCESS_CONTROL_ALLOW_HEADERS = 54,
+    ACCESS_CONTROL_ALLOW_METHODS = 55,
+    ACCESS_CONTROL_EXPOSE_HEADERS = 56,
+    ACCESS_CONTROL_REQUEST_HEADERS = 57,
+    ACCESS_CONTROL_REQUEST_METHOD = 58,
+    ALT_SVC = 59,
+    CONTENT_SECURITY_POLICY = 60,
+    EARLY_DATA = 61,
+    EXPECT_CT = 62,
+    FORWARDED = 63,
+    ORIGIN = 64,
+    PURPOSE = 65,
+    TIMING_ALLOW_ORIGIN = 66,
+    UPGRADE_INSECURE_REQUESTS = 67,
+    X_CONTENT_TYPE_OPTIONS = 68,
+    X_FORWARDED_FOR = 69,
+    X_FRAME_OPTIONS = 70,
+    X_XSS_PROTECTION = 71,
+    CUSTOM = 72
 };
 
 [[nodiscard]] constexpr Token tokenize(std::string_view name) noexcept {
     switch (name.length()) {
     case 3:
-        if (name == "age")
-            return Token::Age;
-        if (name == "via")
-            return Token::Via;
+        if (name == "age") {
+            return Token::AGE;
+        }
+        if (name == "via") {
+            return Token::VIA;
+        }
         break;
     case 4:
-        if (name == "date")
-            return Token::Date;
-        if (name == "etag")
-            return Token::ETag;
-        if (name == "from")
-            return Token::From;
-        if (name == "host")
-            return Token::Host;
-        if (name == "link")
-            return Token::Link;
-        if (name == "vary")
-            return Token::Vary;
+        if (name == "date") {
+            return Token::DATE;
+        }
+        if (name == "etag") {
+            return Token::E_TAG;
+        }
+        if (name == "from") {
+            return Token::FROM;
+        }
+        if (name == "host") {
+            return Token::HOST;
+        }
+        if (name == "link") {
+            return Token::LINK;
+        }
+        if (name == "vary") {
+            return Token::VARY;
+        }
         break;
     case 5:
-        if (name == ":path")
-            return Token::Path;
-        if (name == "allow")
-            return Token::Allow;
-        if (name == "range")
-            return Token::Range;
+        if (name == ":path") {
+            return Token::PATH;
+        }
+        if (name == "allow") {
+            return Token::ALLOW;
+        }
+        if (name == "range") {
+            return Token::RANGE;
+        }
         break;
     case 6:
-        if (name == "accept")
-            return Token::Accept;
-        if (name == "cookie")
-            return Token::Cookie;
-        if (name == "expect")
-            return Token::Expect;
-        if (name == "origin")
-            return Token::Origin;
-        if (name == "server")
-            return Token::Server;
+        if (name == "accept") {
+            return Token::ACCEPT;
+        }
+        if (name == "cookie") {
+            return Token::COOKIE;
+        }
+        if (name == "expect") {
+            return Token::EXPECT;
+        }
+        if (name == "origin") {
+            return Token::ORIGIN;
+        }
+        if (name == "server") {
+            return Token::SERVER;
+        }
         break;
     case 7:
-        if (name == ":method")
-            return Token::Method;
-        if (name == ":scheme")
-            return Token::Scheme;
-        if (name == ":status")
-            return Token::Status;
-        if (name == "alt-svc")
-            return Token::AltSvc;
-        if (name == "expires")
-            return Token::Expires;
-        if (name == "purpose")
-            return Token::Purpose;
-        if (name == "referer")
-            return Token::Referer;
-        if (name == "refresh")
-            return Token::Refresh;
+        if (name == ":method") {
+            return Token::METHOD;
+        }
+        if (name == ":scheme") {
+            return Token::SCHEME;
+        }
+        if (name == ":status") {
+            return Token::STATUS;
+        }
+        if (name == "alt-svc") {
+            return Token::ALT_SVC;
+        }
+        if (name == "expires") {
+            return Token::EXPIRES;
+        }
+        if (name == "purpose") {
+            return Token::PURPOSE;
+        }
+        if (name == "referer") {
+            return Token::REFERER;
+        }
+        if (name == "refresh") {
+            return Token::REFRESH;
+        }
         break;
     case 8:
-        if (name == "if-match")
-            return Token::IfMatch;
-        if (name == "if-range")
-            return Token::IfRange;
-        if (name == "location")
-            return Token::Location;
+        if (name == "if-match") {
+            return Token::IF_MATCH;
+        }
+        if (name == "if-range") {
+            return Token::IF_RANGE;
+        }
+        if (name == "location") {
+            return Token::LOCATION;
+        }
         break;
     case 9:
-        if (name == "expect-ct")
-            return Token::ExpectCt;
-        if (name == "forwarded")
-            return Token::Forwarded;
+        if (name == "expect-ct") {
+            return Token::EXPECT_CT;
+        }
+        if (name == "forwarded") {
+            return Token::FORWARDED;
+        }
         break;
     case 10:
-        if (name == ":authority")
-            return Token::Authority;
-        if (name == "early-data")
-            return Token::EarlyData;
-        if (name == "set-cookie")
-            return Token::SetCookie;
-        if (name == "user-agent")
-            return Token::UserAgent;
+        if (name == ":authority") {
+            return Token::AUTHORITY;
+        }
+        if (name == "early-data") {
+            return Token::EARLY_DATA;
+        }
+        if (name == "set-cookie") {
+            return Token::SET_COOKIE;
+        }
+        if (name == "user-agent") {
+            return Token::USER_AGENT;
+        }
         break;
     case 11:
-        if (name == "retry-after")
-            return Token::RetryAfter;
+        if (name == "retry-after") {
+            return Token::RETRY_AFTER;
+        }
         break;
     case 12:
-        if (name == "accept-ranges")
-            return Token::AcceptRanges;
-        if (name == "content-type")
-            return Token::ContentType;
-        if (name == "max-forwards")
-            return Token::MaxForwards;
+        if (name == "accept-ranges") {
+            return Token::ACCEPT_RANGES;
+        }
+        if (name == "content-type") {
+            return Token::CONTENT_TYPE;
+        }
+        if (name == "max-forwards") {
+            return Token::MAX_FORWARDS;
+        }
         break;
     case 13:
-        if (name == "authorization")
-            return Token::Authorization;
-        if (name == "cache-control")
-            return Token::CacheControl;
-        if (name == "content-range")
-            return Token::ContentRange;
-        if (name == "if-none-match")
-            return Token::IfNoneMatch;
-        if (name == "last-modified")
-            return Token::LastModified;
+        if (name == "authorization") {
+            return Token::AUTHORIZATION;
+        }
+        if (name == "cache-control") {
+            return Token::CACHE_CONTROL;
+        }
+        if (name == "content-range") {
+            return Token::CONTENT_RANGE;
+        }
+        if (name == "if-none-match") {
+            return Token::IF_NONE_MATCH;
+        }
+        if (name == "last-modified") {
+            return Token::LAST_MODIFIED;
+        }
         break;
     case 14:
-        if (name == "accept-charset")
-            return Token::AcceptCharset;
-        if (name == "content-length")
-            return Token::ContentLength;
+        if (name == "accept-charset") {
+            return Token::ACCEPT_CHARSET;
+        }
+        if (name == "content-length") {
+            return Token::CONTENT_LENGTH;
+        }
         break;
     case 15:
-        if (name == "accept-encoding")
-            return Token::AcceptEncoding;
-        if (name == "accept-language")
-            return Token::AcceptLanguage;
+        if (name == "accept-encoding") {
+            return Token::ACCEPT_ENCODING;
+        }
+        if (name == "accept-language") {
+            return Token::ACCEPT_LANGUAGE;
+        }
         break;
     case 16:
-        if (name == "content-encoding")
-            return Token::ContentEncoding;
-        if (name == "content-language")
-            return Token::ContentLanguage;
-        if (name == "content-location")
-            return Token::ContentLocation;
-        if (name == "www-authenticate")
-            return Token::WwwAuthenticate;
+        if (name == "content-encoding") {
+            return Token::CONTENT_ENCODING;
+        }
+        if (name == "content-language") {
+            return Token::CONTENT_LANGUAGE;
+        }
+        if (name == "content-location") {
+            return Token::CONTENT_LOCATION;
+        }
+        if (name == "www-authenticate") {
+            return Token::WWW_AUTHENTICATE;
+        }
         break;
     case 17:
-        if (name == "if-modified-since")
-            return Token::IfModifiedSince;
-        if (name == "transfer-encoding")
-            return Token::TransferEncoding;
+        if (name == "if-modified-since") {
+            return Token::IF_MODIFIED_SINCE;
+        }
+        if (name == "transfer-encoding") {
+            return Token::TRANSFER_ENCODING;
+        }
         break;
     case 18:
-        if (name == "proxy-authenticate")
-            return Token::ProxyAuthenticate;
-        if (name == "x-xss-protection")
-            return Token::XXssProtection;
+        if (name == "proxy-authenticate") {
+            return Token::PROXY_AUTHENTICATE;
+        }
+        if (name == "x-xss-protection") {
+            return Token::X_XSS_PROTECTION;
+        }
         break;
     case 19:
-        if (name == "content-disposition")
-            return Token::ContentDisposition;
-        if (name == "if-unmodified-since")
-            return Token::IfUnmodifiedSince;
-        if (name == "proxy-authorization")
-            return Token::ProxyAuthorization;
-        if (name == "timing-allow-origin")
-            return Token::TimingAllowOrigin;
-        if (name == "x-frame-options")
-            return Token::XFrameOptions;
+        if (name == "content-disposition") {
+            return Token::CONTENT_DISPOSITION;
+        }
+        if (name == "if-unmodified-since") {
+            return Token::IF_UNMODIFIED_SINCE;
+        }
+        if (name == "proxy-authorization") {
+            return Token::PROXY_AUTHORIZATION;
+        }
+        if (name == "timing-allow-origin") {
+            return Token::TIMING_ALLOW_ORIGIN;
+        }
+        if (name == "x-frame-options") {
+            return Token::X_FRAME_OPTIONS;
+        }
         break;
     case 20:
-        if (name == "x-forwarded-for")
-            return Token::XForwardedFor;
+        if (name == "x-forwarded-for") {
+            return Token::X_FORWARDED_FOR;
+        }
         break;
     case 22:
-        if (name == "x-content-type-options")
-            return Token::XContentTypeOptions;
+        if (name == "x-content-type-options") {
+            return Token::X_CONTENT_TYPE_OPTIONS;
+        }
         break;
     case 23:
-        if (name == "content-security-policy")
-            return Token::ContentSecurityPolicy;
+        if (name == "content-security-policy") {
+            return Token::CONTENT_SECURITY_POLICY;
+        }
         break;
     case 25:
-        if (name == "strict-transport-security")
-            return Token::StrictTransportSecurity;
-        if (name == "upgrade-insecure-requests")
-            return Token::UpgradeInsecureRequests;
+        if (name == "strict-transport-security") {
+            return Token::STRICT_TRANSPORT_SECURITY;
+        }
+        if (name == "upgrade-insecure-requests") {
+            return Token::UPGRADE_INSECURE_REQUESTS;
+        }
         break;
     case 27:
-        if (name == "access-control-allow-origin")
-            return Token::AccessControlAllowOrigin;
+        if (name == "access-control-allow-origin") {
+            return Token::ACCESS_CONTROL_ALLOW_ORIGIN;
+        }
         break;
     case 28:
-        if (name == "access-control-allow-headers")
-            return Token::AccessControlAllowHeaders;
-        if (name == "access-control-allow-methods")
-            return Token::AccessControlAllowMethods;
+        if (name == "access-control-allow-headers") {
+            return Token::ACCESS_CONTROL_ALLOW_HEADERS;
+        }
+        if (name == "access-control-allow-methods") {
+            return Token::ACCESS_CONTROL_ALLOW_METHODS;
+        }
         break;
     case 29:
-        if (name == "access-control-expose-headers")
-            return Token::AccessControlExposeHeaders;
-        if (name == "access-control-request-method")
-            return Token::AccessControlRequestMethod;
+        if (name == "access-control-expose-headers") {
+            return Token::ACCESS_CONTROL_EXPOSE_HEADERS;
+        }
+        if (name == "access-control-request-method") {
+            return Token::ACCESS_CONTROL_REQUEST_METHOD;
+        }
         break;
     case 30:
-        if (name == "access-control-request-headers")
-            return Token::AccessControlRequestHeaders;
+        if (name == "access-control-request-headers") {
+            return Token::ACCESS_CONTROL_REQUEST_HEADERS;
+        }
         break;
     case 32:
-        if (name == "access-control-allow-credentials")
-            return Token::AccessControlAllowCredentials;
+        if (name == "access-control-allow-credentials") {
+            return Token::ACCESS_CONTROL_ALLOW_CREDENTIALS;
+        }
+        break;
+    default:
         break;
     }
-    return Token::Custom;
+    return Token::CUSTOM;
 }
 
-constexpr std::string_view token_to_string(const Token &tk) noexcept {
-    switch (tk) {
-    case Token::Authority:
+constexpr std::string_view token_to_string(const Token &tkst) noexcept {
+    switch (tkst) {
+    case Token::AUTHORITY:
         return ":authority";
-    case Token::Method:
+    case Token::METHOD:
         return ":method";
-    case Token::Path:
+    case Token::PATH:
         return ":path";
-    case Token::Scheme:
+    case Token::SCHEME:
         return ":scheme";
-    case Token::Status:
+    case Token::STATUS:
         return ":status";
-    case Token::AcceptCharset:
+    case Token::ACCEPT_CHARSET:
         return "accept-charset";
-    case Token::AcceptEncoding:
+    case Token::ACCEPT_ENCODING:
         return "accept-encoding";
-    case Token::AcceptLanguage:
+    case Token::ACCEPT_LANGUAGE:
         return "accept-language";
-    case Token::AcceptRanges:
+    case Token::ACCEPT_RANGES:
         return "accept-ranges";
-    case Token::Accept:
+    case Token::ACCEPT:
         return "accept";
-    case Token::AccessControlAllowOrigin:
+    case Token::ACCESS_CONTROL_ALLOW_ORIGIN:
         return "access-control-allow-origin";
-    case Token::Age:
+    case Token::AGE:
         return "age";
-    case Token::Allow:
+    case Token::ALLOW:
         return "allow";
-    case Token::Authorization:
+    case Token::AUTHORIZATION:
         return "authorization";
-    case Token::CacheControl:
+    case Token::CACHE_CONTROL:
         return "cache-control";
-    case Token::ContentDisposition:
+    case Token::CONTENT_DISPOSITION:
         return "content-disposition";
-    case Token::ContentEncoding:
+    case Token::CONTENT_ENCODING:
         return "content-encoding";
-    case Token::ContentLanguage:
+    case Token::CONTENT_LANGUAGE:
         return "content-language";
-    case Token::ContentLength:
+    case Token::CONTENT_LENGTH:
         return "content-length";
-    case Token::ContentLocation:
+    case Token::CONTENT_LOCATION:
         return "content-location";
-    case Token::ContentRange:
+    case Token::CONTENT_RANGE:
         return "content-range";
-    case Token::ContentType:
+    case Token::CONTENT_TYPE:
         return "content-type";
-    case Token::Cookie:
+    case Token::COOKIE:
         return "cookie";
-    case Token::Date:
+    case Token::DATE:
         return "date";
-    case Token::ETag:
+    case Token::E_TAG:
         return "etag";
-    case Token::Expect:
+    case Token::EXPECT:
         return "expect";
-    case Token::Expires:
+    case Token::EXPIRES:
         return "expires";
-    case Token::From:
+    case Token::FROM:
         return "from";
-    case Token::Host:
+    case Token::HOST:
         return "host";
-    case Token::IfMatch:
+    case Token::IF_MATCH:
         return "if-match";
-    case Token::IfModifiedSince:
+    case Token::IF_MODIFIED_SINCE:
         return "if-modified-since";
-    case Token::IfNoneMatch:
+    case Token::IF_NONE_MATCH:
         return "if-none-match";
-    case Token::IfRange:
+    case Token::IF_RANGE:
         return "if-range";
-    case Token::IfUnmodifiedSince:
+    case Token::IF_UNMODIFIED_SINCE:
         return "if-unmodified-since";
-    case Token::LastModified:
+    case Token::LAST_MODIFIED:
         return "last-modified";
-    case Token::Link:
+    case Token::LINK:
         return "link";
-    case Token::Location:
+    case Token::LOCATION:
         return "location";
-    case Token::MaxForwards:
+    case Token::MAX_FORWARDS:
         return "max-forwards";
-    case Token::ProxyAuthenticate:
+    case Token::PROXY_AUTHENTICATE:
         return "proxy-authenticate";
-    case Token::ProxyAuthorization:
+    case Token::PROXY_AUTHORIZATION:
         return "proxy-authorization";
-    case Token::Range:
+    case Token::RANGE:
         return "range";
-    case Token::Referer:
+    case Token::REFERER:
         return "referer";
-    case Token::Refresh:
+    case Token::REFRESH:
         return "refresh";
-    case Token::RetryAfter:
+    case Token::RETRY_AFTER:
         return "retry-after";
-    case Token::Server:
+    case Token::SERVER:
         return "server";
-    case Token::SetCookie:
+    case Token::SET_COOKIE:
         return "set-cookie";
-    case Token::StrictTransportSecurity:
+    case Token::STRICT_TRANSPORT_SECURITY:
         return "strict-transport-security";
-    case Token::TransferEncoding:
+    case Token::TRANSFER_ENCODING:
         return "transfer-encoding";
-    case Token::UserAgent:
+    case Token::USER_AGENT:
         return "user-agent";
-    case Token::Vary:
+    case Token::VARY:
         return "vary";
-    case Token::Via:
+    case Token::VIA:
         return "via";
-    case Token::WwwAuthenticate:
+    case Token::WWW_AUTHENTICATE:
         return "www-authenticate";
-    case Token::AccessControlAllowCredentials:
+    case Token::ACCESS_CONTROL_ALLOW_CREDENTIALS:
         return "access-control-allow-credentials";
-    case Token::AccessControlAllowHeaders:
+    case Token::ACCESS_CONTROL_ALLOW_HEADERS:
         return "access-control-allow-headers";
-    case Token::AccessControlAllowMethods:
+    case Token::ACCESS_CONTROL_ALLOW_METHODS:
         return "access-control-allow-methods";
-    case Token::AccessControlExposeHeaders:
+    case Token::ACCESS_CONTROL_EXPOSE_HEADERS:
         return "access-control-expose-headers";
-    case Token::AccessControlRequestHeaders:
+    case Token::ACCESS_CONTROL_REQUEST_HEADERS:
         return "access-control-request-headers";
-    case Token::AccessControlRequestMethod:
+    case Token::ACCESS_CONTROL_REQUEST_METHOD:
         return "access-control-request-method";
-    case Token::AltSvc:
+    case Token::ALT_SVC:
         return "alt-svc";
-    case Token::ContentSecurityPolicy:
+    case Token::CONTENT_SECURITY_POLICY:
         return "content-security-policy";
-    case Token::EarlyData:
+    case Token::EARLY_DATA:
         return "early-data";
-    case Token::ExpectCt:
+    case Token::EXPECT_CT:
         return "expect-ct";
-    case Token::Forwarded:
+    case Token::FORWARDED:
         return "forwarded";
-    case Token::Origin:
+    case Token::ORIGIN:
         return "origin";
-    case Token::Purpose:
+    case Token::PURPOSE:
         return "purpose";
-    case Token::TimingAllowOrigin:
+    case Token::TIMING_ALLOW_ORIGIN:
         return "timing-allow-origin";
-    case Token::UpgradeInsecureRequests:
+    case Token::UPGRADE_INSECURE_REQUESTS:
         return "upgrade-insecure-requests";
-    case Token::XContentTypeOptions:
+    case Token::X_CONTENT_TYPE_OPTIONS:
         return "x-content-type-options";
-    case Token::XForwardedFor:
+    case Token::X_FORWARDED_FOR:
         return "x-forwarded-for";
-    case Token::XFrameOptions:
+    case Token::X_FRAME_OPTIONS:
         return "x-frame-options";
-    case Token::XXssProtection:
+    case Token::X_XSS_PROTECTION:
         return "x-xss-protection";
-    case Token::None:
-    case Token::Custom:
+    case Token::NONE:
+    case Token::CUSTOM:
         return "";
     }
 }

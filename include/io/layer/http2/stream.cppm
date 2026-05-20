@@ -13,10 +13,12 @@ import io_error;
 import io_codec_hpack;
 import utils_codec;
 import core_logger;
-import io_base_buffering;
+import utils_buffering;
 import :settings;
 import :frame;
 import :helper;
+import :request;
+import :response;
 
 template <typename T, typename... Args>
 static constexpr T make_conditional(Args &&...args) {
@@ -59,8 +61,8 @@ class StreamLevelHelper {
                       std::reference_wrapper<codec::hpack::HPackTable> decoding_table,
                       std::reference_wrapper<codec::hpack::HPackTable> encoding_table)
         : m_connection_stream{connection_stream}, m_request{STREAM_ID}, m_response{STREAM_ID},
-          m_hpack{codec::hpack::Hpack<>{decoding_table, encoding_table, m_request, m_response}},
-          m_header_block{std::make_optional<base::buffering::BufferView>()}, m_expecting_continuation{false},
+          m_hpack{decoding_table, encoding_table, m_request, m_response},
+          m_header_block{std::make_optional<utils::buffering::BufferView>()}, m_expecting_continuation{false},
           m_remote_done{false} {
         core::logger::debug("StreamLevelHelper - HTTP/2", "Created for stream ID `{}` with provided HPACK tables",
                             STREAM_ID);
@@ -88,7 +90,7 @@ class StreamLevelHelper {
         m_header_block.reset();
     }
 
-    base::buffering::BufferView &get_header_block() {
+    utils::buffering::BufferView &get_header_block() {
         if (!m_header_block.has_value()) {
             throw error::http::ConnectionError(
                 error::http::Http2ErrorCode::PROTOCOL_ERROR,
@@ -98,18 +100,21 @@ class StreamLevelHelper {
         return m_header_block.value();
     }
     std::reference_wrapper<Stream<false>> get_connection_stream() noexcept { return m_connection_stream; }
-    shared::http::HttpRequest &get_request() noexcept { return m_request; }
-    shared::http::HttpResponse &get_response() noexcept { return m_response; }
-    codec::hpack::Hpack<> &get_hpack() noexcept { return m_hpack; }
+    HttpRequest &get_request() noexcept { return m_request; }
+    HttpResponse &get_response() noexcept { return m_response; }
+    codec::hpack::Hpack<HttpRequest, shared::http::HeaderEntry, shared::http::Token, HttpResponse> &
+    get_hpack() noexcept {
+        return m_hpack;
+    }
     [[nodiscard]] bool get_expecting_continuation() const noexcept { return m_expecting_continuation; }
     [[nodiscard]] bool get_is_remote_done() const noexcept { return m_remote_done; }
 
   private:
     std::reference_wrapper<Stream<false>> m_connection_stream;
-    shared::http::HttpRequest m_request;
-    shared::http::HttpResponse m_response;
-    codec::hpack::Hpack<> m_hpack;
-    std::optional<base::buffering::BufferView> m_header_block;
+    HttpRequest m_request;
+    HttpResponse m_response;
+    codec::hpack::Hpack<HttpRequest, shared::http::HeaderEntry, shared::http::Token, HttpResponse> m_hpack;
+    std::optional<utils::buffering::BufferView> m_header_block;
     bool m_expecting_continuation;
     bool m_remote_done;
 };
@@ -159,12 +164,12 @@ class Stream {
 
     template <shared_layer::FrameRole Role>
         requires(!IsStreamBased)
-    std::optional<Frame<shared_layer::FrameRole::Sender>> receive(const FrameHeader<Role> &header,
-                                                                  base::buffering::BufferReader &reader) {
+    std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> receive(const FrameHeader<Role> &header,
+                                                                         utils::buffering::BufferReader &reader) {
         header.validate_payload_size(reader.size());
 
         const auto &type = header.get_type();
-        std::optional<Frame<shared_layer::FrameRole::Sender>> response = std::nullopt;
+        std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> response = std::nullopt;
 
         core::logger::info("Stream (connection-level) - HTTP/2",
                            "Handling frame of type `{}` on connection-level stream with length `{}` and flags `{}`",
@@ -188,19 +193,17 @@ class Stream {
                 "Received GOAWAY frame with last stream ID `{}` and error code `{}`, marking connection as closing",
                 header.get_stream_id(), m_stream_helper.get_connection_error_code());
 
-            m_remote_settings.get().set_trigger_goaway_after_stream_id(header.get_stream_id());
+            m_remote_settings.get().set_last_stream_id(header.get_stream_id());
 
             auto payload = std::views::empty<std::byte> |
                            utils::codec::WriteBigEndianAdaptor<std::uint32_t>{header.get_stream_id()} |
                            utils::codec::WriteBigEndianAdaptor<std::uint32_t>{
                                std::to_underlying(m_stream_helper.get_connection_error_code())};
 
-            response = Frame<shared_layer::FrameRole::Sender>{}
-                           .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
-                                           .add_length(8)
-                                           .add_type(shared_layer::FrameType::GOAWAY)
-                                           .add_flags(0)
-                                           .add_stream_id(0))
+            response = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                           .add_type(shared_layer::FrameType::GOAWAY)
+                           .add_flags(0)
+                           .add_stream_id(0)
                            .add_payload(payload)
                            .build();
             break;
@@ -226,12 +229,10 @@ class Stream {
                 core::logger::info("Stream (connection-level) - HTTP/2",
                                    "Received PING frame without ACK flag, sending PING ACK with same payload");
 
-                response = Frame<shared_layer::FrameRole::Sender>{}
-                               .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
-                                               .add_length(8)
-                                               .add_type(shared_layer::FrameType::PING)
-                                               .add_flags(shared_layer::Flags::ACK)
-                                               .add_stream_id(0))
+                response = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                               .add_type(shared_layer::FrameType::PING)
+                               .add_flags(shared_layer::Flags::ACK)
+                               .add_stream_id(0)
                                .add_payload(reader | std::views::take(8))
                                .build();
             }
@@ -259,9 +260,8 @@ class Stream {
         case shared_layer::FrameType::PUSH_PROMISE:
         case shared_layer::FrameType::CONTINUATION:
         case shared_layer::FrameType::RST_STREAM: {
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Frame type `{}` is not valid on connection-level stream", type));
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Type `{}` is not valid on connection-level stream", type));
         }
         default:
             break;
@@ -275,7 +275,7 @@ class Stream {
 
     template <shared_layer::FrameRole Role>
         requires(IsStreamBased)
-    void receive(const FrameHeader<Role> &header, base::buffering::BufferReader &reader) {
+    void receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader) {
         header.validate_payload_size(reader.size());
 
         const auto &type = header.get_type();
@@ -393,9 +393,8 @@ class Stream {
 
         case shared_layer::FrameType::PING:
         case shared_layer::FrameType::GOAWAY: {
-            throw error::http::ConnectionError(
-                error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                std::format("Frame type `{}` is not valid on stream-level stream", type));
+            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               std::format("Type `{}` is not valid on stream-level stream", type));
         }
 
         default:
@@ -404,7 +403,7 @@ class Stream {
 
         reader.consume(header.get_length());
 
-        if (m_state_machine.get_state() == shared_layer::StreamState::HalfClosedRemote) {
+        if (m_state_machine.get_state() == shared_layer::StreamState::HALF_CLOSED_REMOTE) {
             m_stream_helper.set_remote_done(true);
         }
 
@@ -413,7 +412,7 @@ class Stream {
         }
     }
 
-    void handle_header(base::buffering::BufferView &view) {
+    void handle_header(utils::buffering::BufferView &view) {
         if (view.size() > 0) {
             try {
                 if (auto consumed = m_stream_helper.get_hpack().decode(view); consumed < view.size()) {
@@ -541,6 +540,16 @@ class Stream {
         return m_stream_helper.get_is_remote_done();
     }
 
+    void advance_send(shared_layer::FrameType type, std::uint8_t flags)
+        requires(IsStreamBased)
+    {
+        FrameHeader<shared_layer::FrameRole::SENDER> hdr{0, type, flags, get_stream_id()};
+        m_state_machine.advance(hdr, true);
+        if (m_state_machine.is_closed()) {
+            cleanup_resources();
+        }
+    }
+
     [[nodiscard]] bool needs_recv_window_update() const {
         return m_recv_window < m_remote_settings.get().initial_window_size() / 2;
     }
@@ -559,8 +568,9 @@ class Stream {
   private:
     using StreamHelper = std::conditional_t<IsStreamBased, StreamLevelHelper, ConnectionLevelHelper>;
 
-    std::optional<Frame<shared_layer::FrameRole::Sender>>
-    handle_settings(const FrameHeader<shared_layer::FrameRole::Receiver> &header, base::buffering::BufferReader &reader)
+    std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>>
+    handle_settings(const FrameHeader<shared_layer::FrameRole::RECEIVER> &header,
+                    utils::buffering::BufferReader &reader)
         requires(!IsStreamBased)
     {
         if ((header.get_flags() & shared_layer::Flags::ACK) != 0) {

@@ -7,134 +7,141 @@ import :types;
 
 export namespace io::codec::qpack {
 
-inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 99> k_static_table = {
-    /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authority, ""),
-    /* 1  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Path, "/"),
-    /* 2  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Age, "0"),
-    /* 3  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentDisposition, ""),
-    /* 4  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentLength, "0"),
-    /* 5  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Cookie, ""),
-    /* 6  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Date, ""),
-    /* 7  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ETag, ""),
-    /* 8  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfModifiedSince, ""),
-    /* 9  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfNoneMatch, ""),
-    /* 10 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::LastModified, ""),
-    /* 11 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Link, ""),
-    /* 12 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Location, ""),
-    /* 13 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Referer, ""),
-    /* 14 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SetCookie, ""),
-    /* 15 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "CONNECT"),
-    /* 16 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "DELETE"),
-    /* 17 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "GET"),
-    /* 18 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "HEAD"),
-    /* 19 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "OPTIONS"),
-    /* 20 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "POST"),
-    /* 21 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Method, "PUT"),
-    /* 22 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Scheme, "http"),
-    /* 23 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Scheme, "https"),
-    /* 24 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "103"),
-    /* 25 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "200"),
-    /* 26 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "304"),
-    /* 27 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "404"),
-    /* 28 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "503"),
-    /* 29 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Accept, "*/*"),
-    /* 30 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Accept, "application/dns-message"),
+inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 99> STATIC_TABLE = {
+    /* 0  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AUTHORITY, ""),
+    /* 1  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::PATH, "/"),
+    /* 2  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AGE, "0"),
+    /* 3  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_DISPOSITION, ""),
+    /* 4  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_LENGTH, "0"),
+    /* 5  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::COOKIE, ""),
+    /* 6  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::DATE, ""),
+    /* 7  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::E_TAG, ""),
+    /* 8  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IF_MODIFIED_SINCE, ""),
+    /* 9  */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IF_NONE_MATCH, ""),
+    /* 10 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::LAST_MODIFIED, ""),
+    /* 11 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::LINK, ""),
+    /* 12 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::LOCATION, ""),
+    /* 13 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::REFERER, ""),
+    /* 14 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SET_COOKIE, ""),
+    /* 15 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "CONNECT"),
+    /* 16 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "DELETE"),
+    /* 17 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "GET"),
+    /* 18 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "HEAD"),
+    /* 19 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "OPTIONS"),
+    /* 20 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "POST"),
+    /* 21 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::METHOD, "PUT"),
+    /* 22 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SCHEME, "http"),
+    /* 23 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SCHEME, "https"),
+    /* 24 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "103"),
+    /* 25 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "200"),
+    /* 26 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "304"),
+    /* 27 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "404"),
+    /* 28 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "503"),
+    /* 29 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCEPT, "*/*"),
+    /* 30 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCEPT, "application/dns-message"),
     /* 31 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptEncoding, "gzip, deflate, br"),
-    /* 32 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptRanges, "bytes"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCEPT_ENCODING, "gzip, deflate, br"),
+    /* 32 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCEPT_RANGES, "bytes"),
     /* 33 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowHeaders, "cache-control"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_HEADERS,
+                                                      "cache-control"),
     /* 34 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowHeaders, "content-type"),
-    /* 35 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowOrigin, "*"),
-    /* 36 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "max-age=0"),
-    /* 37 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "max-age=2592000"),
-    /* 38 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "max-age=604800"),
-    /* 39 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "no-cache"),
-    /* 40 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "no-store"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_HEADERS,
+                                                      "content-type"),
+    /* 35 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+    /* 36 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "max-age=0"),
+    /* 37 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "max-age=2592000"),
+    /* 38 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "max-age=604800"),
+    /* 39 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "no-cache"),
+    /* 40 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "no-store"),
     /* 41 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CacheControl, "public, max-age=31536000"),
-    /* 42 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentEncoding, "br"),
-    /* 43 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentEncoding, "gzip"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, "public, max-age=31536000"),
+    /* 42 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_ENCODING, "br"),
+    /* 43 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_ENCODING, "gzip"),
     /* 44 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "application/dns-message"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "application/dns-message"),
     /* 45 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "application/javascript"),
-    /* 46 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "application/json"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "application/javascript"),
+    /* 46 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "application/json"),
     /* 47 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE,
                                                       "application/x-www-form-urlencoded"),
-    /* 48 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "image/gif"),
-    /* 49 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "image/jpeg"),
-    /* 50 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "image/png"),
-    /* 51 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "text/css"),
+    /* 48 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "image/gif"),
+    /* 49 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "image/jpeg"),
+    /* 50 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "image/png"),
+    /* 51 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "text/css"),
     /* 52 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "text/html; charset=utf-8"),
-    /* 53 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "text/plain"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "text/html; charset=utf-8"),
+    /* 53 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "text/plain"),
     /* 54 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentType, "text/plain;charset=utf-8"),
-    /* 55 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Range, "bytes=0-"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_TYPE, "text/plain;charset=utf-8"),
+    /* 55 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::RANGE, "bytes=0-"),
     /* 56 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::StrictTransportSecurity, "max-age=31536000"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STRICT_TRANSPORT_SECURITY,
+                                                      "max-age=31536000"),
     /* 57 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::StrictTransportSecurity,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STRICT_TRANSPORT_SECURITY,
                                                       "max-age=31536000; includesubdomains"),
     /* 58 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::StrictTransportSecurity,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STRICT_TRANSPORT_SECURITY,
                                                       "max-age=31536000; includesubdomains; preload"),
-    /* 59 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Vary, "accept-encoding"),
-    /* 60 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Vary, "origin"),
-    /* 61 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::XContentTypeOptions, "nosniff"),
-    /* 62 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::XXssProtection, "1; mode=block"),
-    /* 63 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "100"),
-    /* 64 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "204"),
-    /* 65 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "206"),
-    /* 66 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "302"),
-    /* 67 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "400"),
-    /* 68 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "403"),
-    /* 69 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "421"),
-    /* 70 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "425"),
-    /* 71 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Status, "500"),
-    /* 72 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AcceptLanguage, ""),
+    /* 59 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::VARY, "accept-encoding"),
+    /* 60 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::VARY, "origin"),
+    /* 61 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+    /* 62 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::X_XSS_PROTECTION, "1; mode=block"),
+    /* 63 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "100"),
+    /* 64 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "204"),
+    /* 65 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "206"),
+    /* 66 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "302"),
+    /* 67 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "400"),
+    /* 68 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "403"),
+    /* 69 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "421"),
+    /* 70 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "425"),
+    /* 71 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::STATUS, "500"),
+    /* 72 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCEPT_LANGUAGE, ""),
     /* 73 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowCredentials, "FALSE"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS, "FALSE"),
     /* 74 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowCredentials, "TRUE"),
-    /* 75 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowHeaders, "*"),
-    /* 76 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowMethods, "get"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS, "TRUE"),
+    /* 75 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+    /* 76 */
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_METHODS, "get"),
     /* 77 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowMethods,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_METHODS,
                                                       "get, post, options"),
     /* 78 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlAllowMethods, "options"),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_METHODS, "options"),
     /* 79 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlExposeHeaders,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_EXPOSE_HEADERS,
                                                       "content-length"),
     /* 80 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlRequestHeaders, "content-type"),
-    /* 81 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlRequestMethod, "get"),
-    /* 82 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AccessControlRequestMethod, "post"),
-    /* 83 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AltSvc, "clear"),
-    /* 84 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Authorization, ""),
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_REQUEST_HEADERS,
+                                                      "content-type"),
+    /* 81 */
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_REQUEST_METHOD, "get"),
+    /* 82 */
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_REQUEST_METHOD, "post"),
+    /* 83 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ALT_SVC, "clear"),
+    /* 84 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AUTHORIZATION, ""),
     /* 85 */
-    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ContentSecurityPolicy,
+    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_SECURITY_POLICY,
                                                       "script-src 'none'; object-src 'none'; base-uri 'none'"),
-    /* 86 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::EarlyData, "1"),
-    /* 87 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ExpectCt, ""),
-    /* 88 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Forwarded, ""),
-    /* 89 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IfRange, ""),
-    /* 90 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Origin, ""),
-    /* 91 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Purpose, "prefetch"),
-    /* 92 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::Server, ""),
-    /* 93 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::TimingAllowOrigin, "*"),
-    /* 94 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::UpgradeInsecureRequests, "1"),
-    /* 95 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::UserAgent, ""),
-    /* 96 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::XForwardedFor, ""),
-    /* 97 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::XFrameOptions, "deny"),
-    /* 98 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::XFrameOptions, "sameorigin"),
+    /* 86 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::EARLY_DATA, "1"),
+    /* 87 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::EXPECT_CT, ""),
+    /* 88 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::FORWARDED, ""),
+    /* 89 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::IF_RANGE, ""),
+    /* 90 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ORIGIN, ""),
+    /* 91 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::PURPOSE, "prefetch"),
+    /* 92 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::SERVER, ""),
+    /* 93 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::TIMING_ALLOW_ORIGIN, "*"),
+    /* 94 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::UPGRADE_INSECURE_REQUESTS, "1"),
+    /* 95 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::USER_AGENT, ""),
+    /* 96 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::X_FORWARDED_FOR, ""),
+    /* 97 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::X_FRAME_OPTIONS, "deny"),
+    /* 98 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::X_FRAME_OPTIONS, "sameorigin"),
 };
 
-using QPackStatic = shared_codec::table::StaticTable<k_static_table>;
+using QPackStatic = shared_codec::table::StaticTable<STATIC_TABLE>;
 
 // HeaderTable — RFC 9204 separate index spaces
 class QPackTable {
@@ -153,13 +160,15 @@ class QPackTable {
                 abs = base + 1 + idx;
             } else {
                 // Absolute = Base - Relative Index
-                if (idx > base)
+                if (idx > base) {
                     return std::nullopt;
+                }
                 abs = base - idx;
             }
 
-            if (abs >= m_dyn.get_size())
+            if (abs >= m_dyn.get_size()) {
                 return std::nullopt;
+            }
 
             // Your DynamicTable uses 1-based "generations"
             return m_dyn.at_generation(abs + 1);
@@ -168,13 +177,14 @@ class QPackTable {
 
 
     template <bool IsIndexPostBase = false, bool IsStatic>
-    std::shared_ptr<shared::http::HeaderField<true>> at(std::size_t idx, std::size_t base = 0) const {
-        if (auto r = this->operator[]<IsIndexPostBase, IsStatic>(idx, base))
-            return *r;
+    [[nodiscard]] std::shared_ptr<shared::http::HeaderField<true>> at(std::size_t idx, std::size_t base = 0) const {
+        if (auto found = this->operator[]<IsIndexPostBase, IsStatic>(idx, base)) {
+            return *found;
+        }
         throw std::out_of_range{"qpack::HeaderTable: invalid index"};
     }
 
-    shared_codec::SearchResult search(std::string_view name, std::string_view value) const noexcept {
+    [[nodiscard]] shared_codec::SearchResult search(std::string_view name, std::string_view value) const noexcept {
         if (auto result = QPackStatic::search_full_match(name, value); result.found()) {
             return result;
         }
@@ -194,73 +204,77 @@ class QPackTable {
         return shared_codec::SearchResult::none();
     }
 
-    std::size_t encode_ric(std::size_t ric) const noexcept {
-        if (ric == 0)
+    [[nodiscard]] std::size_t encode_ric(std::size_t ric) const noexcept {
+        if (ric == 0) {
             return 0;
+        }
 
-        const std::size_t MaxEntries = m_dyn.get_max_size() / 32;
-        return (ric % (2 * MaxEntries)) + 1;
+        const std::size_t MAX_ENTRIES = m_dyn.get_max_size() / 32;
+        return (ric % (2 * MAX_ENTRIES)) + 1;
     }
 
-    std::size_t decode_ric(std::size_t enc_ric) const noexcept {
-        if (enc_ric == 0)
+    [[nodiscard]] std::size_t decode_ric(std::size_t enc_ric) const noexcept {
+        if (enc_ric == 0) {
             return 0;
+        }
 
-        const std::size_t MaxEntries = m_dyn.get_max_size() / 32;
-        const std::size_t FullRange = 2 * MaxEntries;
+        const std::size_t MAX_ENTRIES = m_dyn.get_max_size() / 32;
+        const std::size_t FULL_RANGE = 2 * MAX_ENTRIES;
 
         // Total number of dynamic table inserts known to the decoder
-        const std::size_t TotalInst = m_dyn.get_insert_count();
+        const std::size_t TOTAL_INST = m_dyn.get_insert_count();
 
         // Use the RFC algorithm to find the closest RIC to our current count
-        std::size_t max_ric = TotalInst + MaxEntries;
-        std::size_t ric = (max_ric / FullRange) * FullRange + (enc_ric - 1);
+        std::size_t max_ric = TOTAL_INST + MAX_ENTRIES;
+        std::size_t ric = ((max_ric / FULL_RANGE) * FULL_RANGE) + (enc_ric - 1);
 
-        if (ric > max_ric && ric >= FullRange) {
-            ric -= FullRange;
+        if (ric > max_ric && ric >= FULL_RANGE) {
+            ric -= FULL_RANGE;
         }
 
         return ric;
     }
 
-    bool is_ready(std::size_t ric) const noexcept { return ric <= m_dyn.get_insert_count(); }
+    [[nodiscard]] bool is_ready(std::size_t ric) const noexcept { return ric <= m_dyn.get_insert_count(); }
 
     std::size_t insert(std::shared_ptr<shared::http::HeaderField<true>> field) {
-        const std::size_t gen = m_dyn.insert(std::move(field));
-        return gen == 0 ? shared_codec::SIZE_MAX : gen - 1;
+        const std::size_t GEN = m_dyn.insert(std::move(field));
+        return GEN == 0 ? shared_codec::SIZE_MAX : GEN - 1;
     }
 
     std::size_t insert(std::string_view name, std::string_view value) {
-        const std::size_t gen = m_dyn.insert(name, value);
-        return gen == 0 ? shared_codec::SIZE_MAX : gen - 1;
+        const std::size_t GEN = m_dyn.insert(name, value);
+        return GEN == 0 ? shared_codec::SIZE_MAX : GEN - 1;
     }
 
     void set_max_size(std::size_t cap) { m_dyn.set_max_size(cap); }
 
-    std::size_t insert_count() const noexcept { return m_dyn.get_insert_count(); }
-    std::size_t used() const noexcept { return m_dyn.get_current_size(); }
-    std::size_t dynamic_count() const noexcept { return m_dyn.get_size(); }
-    std::size_t max_size() const noexcept { return m_dyn.get_max_size(); }
+    [[nodiscard]] std::size_t insert_count() const noexcept { return m_dyn.get_insert_count(); }
+    [[nodiscard]] std::size_t used() const noexcept { return m_dyn.get_current_size(); }
+    [[nodiscard]] std::size_t dynamic_count() const noexcept { return m_dyn.get_size(); }
+    [[nodiscard]] std::size_t max_size() const noexcept { return m_dyn.get_max_size(); }
 
   private:
     [[nodiscard]] std::size_t abs_to_rel(std::size_t abs) const noexcept {
-        const std::size_t ic = m_dyn.get_insert_count();
-        if (abs >= ic)
+        const std::size_t IC = m_dyn.get_insert_count();
+        if (abs >= IC) {
             return shared_codec::SIZE_MAX;
-        return ic - 1 - abs;
+        }
+        return IC - 1 - abs;
     }
 
     [[nodiscard]] std::size_t rel_to_abs(std::size_t rel) const noexcept {
-        const std::size_t ic = m_dyn.get_insert_count();
-        if (ic == 0 || rel >= ic)
+        const std::size_t INC = m_dyn.get_insert_count();
+        if (INC == 0 || rel >= INC) {
             return shared_codec::SIZE_MAX;
-        return ic - 1 - rel;
+        }
+        return INC - 1 - rel;
     }
 
     // Helper for post-base indexing:
     // post-base: abs = base + 1 + pb
-    [[nodiscard]] static std::size_t post_base_to_absolut_index(std::size_t base, std::size_t pb) noexcept {
-        return base + 1 + pb;
+    [[nodiscard]] static std::size_t post_base_to_absolut_index(std::size_t base, std::size_t post_base) noexcept {
+        return base + 1 + post_base;
     }
 
     // [[nodiscard]] static std::size_t abs_to_post_base(std::size_t base, std::size_t abs) noexcept {

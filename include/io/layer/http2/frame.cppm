@@ -1,4 +1,5 @@
 module;
+#include <cstddef>
 #include <ranges>
 export module io_layer_http2:frame;
 
@@ -60,9 +61,9 @@ class FrameHeader {
 
 
     void validate() {
-        core::logger::debug("Frame", "Validating frame with type {} and stream_id {}", m_type, m_stream_id);
+        core::logger::debug("FrameBuilder", "Validating frame with type {} and stream_id {}", m_type, m_stream_id);
 
-        if constexpr (Role == shared_layer::FrameRole::Sender) {
+        if constexpr (Role == shared_layer::FrameRole::SENDER) {
             if (m_stream_id % 2 != 0) {
                 if (m_type == shared_layer::FrameType::PUSH_PROMISE) {
                     throw error::http::ConnectionError(error::http::Http2ErrorCode::INTERNAL_ERROR,
@@ -236,7 +237,7 @@ class FrameHeader {
     }
 
     void validate_push_promise() const {
-        if constexpr (Role == shared_layer::FrameRole::Receiver) {
+        if constexpr (Role == shared_layer::FrameRole::RECEIVER) {
             // A receiver (server) MUST treat receipt of PUSH_PROMISE as a connection error
             throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                "PUSH_PROMISE received by server");
@@ -306,11 +307,12 @@ class FrameHeader {
     std::uint32_t m_stream_id;
 };
 
-struct ReadFrameHeaderAdaptor : std::ranges::range_adaptor_closure<ReadFrameHeaderAdaptor> {
+class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFrameHeaderAdaptor> {
+  public:
     explicit constexpr ReadFrameHeaderAdaptor(std::uint32_t max_frame_size) : m_max_frame_size{max_frame_size} {}
 
     template <std::ranges::viewable_range R>
-    FrameHeader<shared_layer::FrameRole::Receiver> operator()(R &&data) const {
+    FrameHeader<shared_layer::FrameRole::RECEIVER> operator()(R &&data) const {
         auto range = std::forward<R>(data);
 
         if (std::ranges::size(range) < HEADER_SIZE) {
@@ -322,7 +324,7 @@ struct ReadFrameHeaderAdaptor : std::ranges::range_adaptor_closure<ReadFrameHead
 
         if (len > m_max_frame_size) {
             throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "Frame length exceeds SETTINGS_MAX_FRAME_SIZE");
+                                               "FrameBuilder length exceeds SETTINGS_MAX_FRAME_SIZE");
         }
 
         auto type = static_cast<shared_layer::FrameType>(range | std::views::drop(3) | std::views::take(1) |
@@ -337,89 +339,115 @@ struct ReadFrameHeaderAdaptor : std::ranges::range_adaptor_closure<ReadFrameHead
         return {len, type, flags, id};
     }
 
+  private:
     std::uint32_t m_max_frame_size;
 };
 
-struct WriteFrameHeaderAdaptor : std::ranges::range_adaptor_closure<WriteFrameHeaderAdaptor> {
-    explicit constexpr WriteFrameHeaderAdaptor(FrameHeader<shared_layer::FrameRole::Sender> header)
-        : m_header{header} {}
+// TODO: to be removed
+// struct WriteFrameHeaderAdaptor : std::ranges::range_adaptor_closure<WriteFrameHeaderAdaptor> {
+//     explicit constexpr WriteFrameHeaderAdaptor(FrameHeader<shared_layer::FrameRole::SENDER> header)
+//         : m_header{header} {}
+//
+//     template <std::ranges::viewable_range R>
+//     constexpr auto operator()(R &&range) const {
+//         return std::forward<R>(range) |
+//                (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_header.get_length()} | std::views::take(3)) |
+//                utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(m_header.get_type())} |
+//                utils::codec::WriteBigEndianAdaptor<std::uint8_t>{m_header.get_flags()} |
+//                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_header.get_stream_id() & 0x7FFFFFFF};
+//     }
+//
+//     FrameHeader<shared_layer::FrameRole::SENDER> m_header;
+// };
+
+
+class FrameHeaderClosureAdaptor : public std::ranges::range_adaptor_closure<FrameHeaderClosureAdaptor> {
+  public:
+    explicit constexpr FrameHeaderClosureAdaptor(std::uint32_t length, shared_layer::FrameType type, std::uint8_t flags,
+                                                 std::uint32_t stream_id) noexcept
+        : m_length{length}, m_type{type}, m_flags{flags}, m_clean_stream_id{stream_id & 0x7FFFFFFF} {}
 
     template <std::ranges::viewable_range R>
-    constexpr auto operator()(R &&range) const {
+    [[nodiscard]] constexpr auto operator()(R &&range) const {
         return std::forward<R>(range) |
-               (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_header.get_length()} | std::views::take(3)) |
-               utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(m_header.get_type())} |
-               utils::codec::WriteBigEndianAdaptor<std::uint8_t>{m_header.get_flags()} |
-               utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_header.get_stream_id() & 0x7FFFFFFF};
+               (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_length} | std::views::take(3)) |
+               utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(m_type)} |
+               utils::codec::WriteBigEndianAdaptor<std::uint8_t>{m_flags} |
+               utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_clean_stream_id};
     }
-
-    FrameHeader<shared_layer::FrameRole::Sender> m_header;
-};
-
-template <shared_layer::FrameRole Role>
-class Frame {
-  public:
-    Frame() {
-        core::logger::debug("Frame", "Default constructor called, initialized with default header and empty payload");
-    }
-
-    Frame(FrameHeader<Role> header, std::vector<std::byte> payload) : m_header(header), m_payload(std::move(payload)) {
-        core::logger::debug("Frame", "Constructor called with header and payload, validating frame");
-    }
-
-    Frame &&add_header(FrameHeader<Role> header) && noexcept {
-        m_header = header;
-        core::logger::debug("Frame",
-                            "add_header called, set header with type `{}`, length `{}`, flags `{}`, and stream_id `{}`",
-                            m_header.get_type(), m_header.get_length(), m_header.get_flags(), m_header.get_stream_id());
-        return std::move(*this);
-    }
-
-    template <std::ranges::forward_range R>
-        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    Frame &&add_payload(R &&payload) && noexcept {
-        m_payload.append_range(std::forward<R>(payload));
-        core::logger::debug("Frame", "add_payload called, set payload size to `{}`", m_payload.size());
-        return std::move(*this);
-    }
-
-    Frame &&build() && {
-        core::logger::debug("Frame", "build called, validating frame");
-        return std::move(*this);
-    }
-
-    template <std::ranges::forward_range R>
-        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    void expand_payload(R &&payload) noexcept {
-        m_payload.append_range(std::forward<R>(payload));
-        m_header.set_length(static_cast<std::uint32_t>(m_payload.size()));
-        core::logger::debug("Frame", "add_payload called, new total payload size: `{}`", m_payload.size());
-    }
-
-    [[nodiscard]] const FrameHeader<Role> &get_header() const noexcept { return m_header; }
-    [[nodiscard]] std::span<const std::byte> get_payload() const noexcept { return m_payload; }
 
   private:
-    FrameHeader<Role> m_header;
-    std::vector<std::byte> m_payload;
+    std::uint32_t m_length;
+    shared_layer::FrameType m_type;
+    std::uint8_t m_flags;
+    std::uint32_t m_clean_stream_id;
 };
 
-struct WriteFrameBuilderAdaptor : std::ranges::range_adaptor_closure<WriteFrameBuilderAdaptor> {
-    explicit constexpr WriteFrameBuilderAdaptor(Frame<shared_layer::FrameRole::Sender> frame)
-        : m_frame{std::move(frame)} {}
-
-    auto operator()() const {
-        return std::views::concat(std::views::empty<std::byte> | WriteFrameHeaderAdaptor{m_frame.get_header()},
-                                  m_frame.get_payload());
-    }
+class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<WriteFrameClosureAdapter> {
+  public:
+    explicit constexpr WriteFrameClosureAdapter(std::uint32_t stream_id, shared_layer::FrameType type,
+                                                std::size_t max_frame_size, bool end_stream_after_data = false,
+                                                bool no_data = false)
+        : m_stream_id{stream_id}, m_type{type}, m_max_frame_size{max_frame_size},
+          m_end_stream_after_data{end_stream_after_data}, m_no_data{no_data} {}
 
     template <std::ranges::viewable_range R>
     auto operator()(R &&range) const {
-        return std::views::concat(std::forward<R>(range) | WriteFrameHeaderAdaptor{m_frame.get_header()},
-                                  m_frame.get_payload());
+        std::println("WriteFrameClosureAdapter");
+
+        auto data = std::views::all(std::forward<R>(range));
+        const std::size_t total_len = std::ranges::distance(data);
+        const std::size_t slice_size = std::min(m_max_frame_size, total_len);
+
+        const std::size_t total_chunks = total_len == 0 ? 1 : (total_len + slice_size - 1) / slice_size;
+
+        // Pure range combinators. No spans, no pointers.
+        // drop() and take() safely handle 0-length slices automatically.
+        auto chunked =
+            std::views::iota(0uz, total_chunks) | std::views::transform([data, slice_size](std::size_t chunk_idx) {
+                return data | std::views::drop(chunk_idx * slice_size) | std::views::take(slice_size);
+            });
+
+        // Unified pipeline
+        return chunked | std::views::enumerate |
+               std::views::transform([=, stream_id = m_stream_id, base_type = m_type, no_data = m_no_data,
+                                      end_stream_after_data = m_end_stream_after_data](auto &&entry) {
+                   auto [idx, chunk] = entry;
+                   const std::size_t chunk_idx = static_cast<std::size_t>(idx);
+
+                   auto type = base_type;
+                   std::uint8_t flags = 0;
+
+                   const bool is_last = (chunk_idx == total_chunks - 1);
+
+                   if (type == shared_layer::FrameType::HEADERS) {
+                       if (is_last) {
+                           flags |= shared_layer::Flags::END_HEADERS;
+                           if (no_data)
+                               flags |= shared_layer::Flags::END_STREAM;
+                       }
+                       if (chunk_idx != 0)
+                           type = shared_layer::FrameType::CONTINUATION;
+                   } else if (type == shared_layer::FrameType::DATA && is_last && !end_stream_after_data) {
+                       flags |= shared_layer::Flags::END_STREAM;
+                   }
+
+                   return std::views::concat(
+                       std::views::empty<std::byte> |
+                           // Use std::ranges::size to ensure compatibility with all view types
+                           FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(std::ranges::size(chunk)), type, flags,
+                                                     stream_id},
+                       chunk);
+               }) |
+               std::views::join;
     }
 
-    Frame<shared_layer::FrameRole::Sender> m_frame;
+  private:
+    std::uint32_t m_stream_id;
+    shared_layer::FrameType m_type;
+    std::size_t m_max_frame_size;
+    bool m_end_stream_after_data;
+    bool m_no_data;
 };
 
 struct ReadWindowIncrementAdaptor : std::ranges::range_adaptor_closure<ReadWindowIncrementAdaptor> {
@@ -436,5 +464,96 @@ struct ReadWindowIncrementAdaptor : std::ranges::range_adaptor_closure<ReadWindo
         return inc;
     }
 };
+
+template <shared_layer::FrameRole Role>
+class FrameBuilder {
+  public:
+    FrameBuilder() : m_type{shared_layer::FrameType::DATA}, m_flags{0}, m_stream_id{0} {
+        core::logger::debug("FrameBuilder",
+                            "Default constructor called, initialized with default header and empty payload");
+    }
+
+    FrameBuilder &&add_type(shared_layer::FrameType type) && noexcept {
+        core::logger::debug("FrameBuilder", "add_type called, set type to `{}`", type);
+
+        m_type = type;
+        return std::move(*this);
+    }
+
+    FrameBuilder &&add_flags(std::uint8_t flags) && noexcept {
+        core::logger::debug("FrameBuilder", "add_flags called, set flags to `{}`", flags);
+
+        m_flags = flags;
+        return std::move(*this);
+    }
+
+    FrameBuilder &&add_stream_id(std::uint32_t stream_id) && noexcept {
+        core::logger::debug("FrameBuilder", "add_stream_id called, set stream_id to `{}`", stream_id);
+
+        m_stream_id = stream_id & 0x7FFFFFFF;
+        return std::move(*this);
+    }
+
+    template <std::ranges::forward_range R>
+        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
+    FrameBuilder &&add_payload(R &&payload) && noexcept {
+        m_payload.append_range(std::forward<R>(payload));
+        core::logger::debug("FrameBuilder", "add_payload called, set payload size to `{}`", m_payload.size());
+        return std::move(*this);
+    }
+
+    FrameBuilder &&build() && {
+        core::logger::debug("FrameBuilder", "build called, validating frame");
+        return std::move(*this);
+    }
+
+    template <std::ranges::forward_range R>
+        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
+    void expand_payload(R &&payload) noexcept {
+        m_payload.append_range(std::forward<R>(payload));
+        core::logger::debug("FrameBuilder", "add_payload called, new total payload size: `{}`", m_payload.size());
+    }
+
+    [[nodiscard]] std::size_t get_size() const noexcept { return HEADER_SIZE + m_payload.size(); }
+    [[nodiscard]] std::span<const std::byte> get_payload() const noexcept { return m_payload; }
+    [[nodiscard]] std::size_t get_length() const noexcept { return m_payload.size(); }
+    [[nodiscard]] shared_layer::FrameType get_type() const noexcept { return m_type; }
+    [[nodiscard]] std::uint8_t get_flags() const noexcept { return m_flags; }
+    [[nodiscard]] std::uint32_t get_stream_id() const noexcept { return m_stream_id; }
+
+  private:
+    shared_layer::FrameType m_type;
+    std::uint8_t m_flags;
+    std::uint32_t m_stream_id;
+    std::vector<std::byte> m_payload;
+};
+
+
+class WriteFrameBuilderAdaptor : public std::ranges::range_adaptor_closure<WriteFrameBuilderAdaptor> {
+  public:
+    explicit constexpr WriteFrameBuilderAdaptor(FrameBuilder<shared_layer::FrameRole::SENDER> frame,
+                                                std::size_t max_frame_size, bool end_stream_after_data = false,
+                                                bool no_data = false)
+        : m_frame{std::move(frame)}, m_max_frame_size{max_frame_size}, m_end_stream_after_data{end_stream_after_data},
+          m_no_data{no_data} {}
+
+    template <std::ranges::viewable_range R>
+    auto operator()(R &&range) const {
+        std::println("WriteFrameBuilderAdaptor::operator() called, frame type: `{}`", m_frame.get_type());
+        return std::views::concat(std::forward<R>(range),
+                                  m_frame.get_payload() | WriteFrameClosureAdapter{m_frame.get_stream_id(),
+                                                                                   m_frame.get_type(), m_max_frame_size,
+                                                                                   m_end_stream_after_data, m_no_data});
+    }
+
+    auto operator()() const { return (*this)(std::views::empty<std::byte>); }
+
+  private:
+    FrameBuilder<shared_layer::FrameRole::SENDER> m_frame;
+    std::size_t m_max_frame_size;
+    bool m_end_stream_after_data;
+    bool m_no_data;
+};
+
 
 } // namespace io::layer::http2

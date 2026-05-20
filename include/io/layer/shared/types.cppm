@@ -5,16 +5,16 @@ import std;
 export namespace io::shared_layer {
 
 enum class StreamState : std::uint8_t {
-    Idle,
-    Open,
-    HalfClosedLocal,
-    HalfClosedRemote,
-    Closed,
-    ReservedLocal,
-    ReservedRemote,
+    IDLE,
+    OPEN,
+    HALF_CLOSED_LOCAL,
+    HALF_CLOSED_REMOTE,
+    CLOSED,
+    RESERVED_LOCAL,
+    RESERVED_REMOTE,
 };
 
-enum class FrameRole { Sender, Receiver };
+enum class FrameRole : bool { SENDER, RECEIVER };
 
 struct Flags {
     static constexpr std::uint8_t END_STREAM = 0x01;
@@ -43,35 +43,35 @@ export template <>
 struct std::formatter<io::shared_layer::StreamState> {
     constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
     template <typename FormatContext>
-    auto format(io::shared_layer::StreamState s, FormatContext &ctx) const {
+    auto format(io::shared_layer::StreamState state, FormatContext &ctx) const {
         using enum io::shared_layer::StreamState;
         std::string_view name;
-        switch (s) {
-        case Idle: {
+        switch (state) {
+        case IDLE: {
             name = "Idle";
             break;
         }
-        case Open: {
+        case OPEN: {
             name = "Open";
             break;
         }
-        case HalfClosedLocal: {
+        case HALF_CLOSED_LOCAL: {
             name = "HalfClosedLocal";
             break;
         }
-        case HalfClosedRemote: {
+        case HALF_CLOSED_REMOTE: {
             name = "HalfClosedRemote";
             break;
         }
-        case Closed: {
+        case CLOSED: {
             name = "Closed";
             break;
         }
-        case ReservedLocal: {
+        case RESERVED_LOCAL: {
             name = "ReservedLocal";
             break;
         }
-        case ReservedRemote: {
+        case RESERVED_REMOTE: {
             name = "ReservedRemote";
             break;
         }
@@ -88,10 +88,10 @@ export template <>
 struct std::formatter<io::shared_layer::FrameType> {
     constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
     template <typename FormatContext>
-    auto format(io::shared_layer::FrameType t, FormatContext &ctx) const {
+    auto format(io::shared_layer::FrameType type, FormatContext &ctx) const {
         using enum io::shared_layer::FrameType;
         std::string_view name;
-        switch (t) {
+        switch (type) {
         case DATA: {
             name = "DATA";
             break;

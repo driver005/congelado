@@ -1,8 +1,8 @@
-export module io_base_buffering:node;
+export module utils_buffering:node;
 
 import std;
 
-export namespace io::base::buffering {
+export namespace utils::buffering {
 
 class BufferNode {
   public:
@@ -74,4 +74,4 @@ class BufferNode {
 };
 
 
-} // namespace io::base::buffering
+} // namespace utils::buffering

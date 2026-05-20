@@ -1,13 +1,13 @@
 export module shared:flow;
 
 import std;
-import io_base_buffering;
+import utils_buffering;
 import :handler;
 
 export namespace shared {
 
-using ReadCallback = std::move_only_function<void(io::base::buffering::BufferReader &)>;
-using SendCallback = std::move_only_function<void(io::base::buffering::BufferNode &&)>;
+using ReadCallback = std::move_only_function<void(utils::buffering::BufferReader &)>;
+using SendCallback = std::move_only_function<void(utils::buffering::BufferNode &&)>;
 using CloseCallback = std::move_only_function<void()>;
 using ErrorCallback = std::move_only_function<void(int, int)>;
 using CompletionCallback = std::move_only_function<void(int)>;

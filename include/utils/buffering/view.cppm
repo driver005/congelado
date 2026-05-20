@@ -1,9 +1,9 @@
-export module io_base_buffering:view;
+export module utils_buffering:view;
 
 import std;
 import :node;
 
-export namespace io::base::buffering {
+export namespace utils::buffering {
 
 class NodeView {
   public:
@@ -232,4 +232,4 @@ class BufferView {
     std::size_t m_size;
 };
 
-} // namespace io::base::buffering
+} // namespace utils::buffering
