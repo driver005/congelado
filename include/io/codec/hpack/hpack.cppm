@@ -1,7 +1,5 @@
 module;
-#include <iterator>
 #include <ranges>
-#include <utility>
 export module io_codec_hpack;
 
 export import :types;
@@ -10,6 +8,7 @@ export import :table;
 import io_shared;
 import io_codec_shared;
 import utils_codec;
+import interfaces;
 
 
 // export namespace io::codec::hpack {
@@ -376,105 +375,138 @@ import utils_codec;
 
 export namespace io::codec::hpack {
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+
+template <std::unsigned_integral UInt, std::ranges::range OutR, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-struct HpackEncodeAdaptor : std::ranges::range_adaptor_closure<HpackEncodeAdaptor<UInt, Width>> {
-    explicit HpackEncodeAdaptor(HPackTable &table, bool use_auto_policy = true, bool use_huffman = true) noexcept
-        : m_table{table}, m_use_auto_policy{use_auto_policy}, m_use_huffman{use_huffman} {}
+class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncodeAdaptor<UInt, OutR, Width>> {
+  public:
+    explicit HpackEncodeAdaptor(HPackTable &table, OutR &&output_range, bool use_auto_policy = true,
+                                bool use_huffman = true) noexcept
+        : m_table{table}, m_output_range{std::views::all(std::forward<OutR>(output_range))},
+          m_use_auto_policy{use_auto_policy}, m_use_huffman{use_huffman} {}
 
-    template <std::ranges::input_range R>
-    [[nodiscard]] auto operator()(R &&headers) const {
-        static constexpr std::string_view COOKIE_SEP = "; ";
+    template <std::ranges::viewable_range InR>
+    [[nodiscard]] auto operator()(InR &&headers) const {
+        auto dest = std::ranges::begin(m_output_range);
 
-        return std::forward<R>(headers) | std::views::transform([this](const auto &field_variant) {
-                   return std::visit(
-                       [this](const auto &ptr) {
-                           using FieldType = std::decay_t<decltype(*ptr)>;
+        auto sink = [&dest](std::byte b) { *dest++ = b; };
 
-                           if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
-                               if (ptr->get_name() == "cookie") {
-                                   return ptr->get_value() | std::views::split(COOKIE_SEP) |
-                                          std::views::filter([](auto crumb) {
-                                              return !std::string_view{crumb.begin(), crumb.end()}.empty();
-                                          }) |
-                                          std::views::transform([this](auto crumb) {
-                                              const std::string_view VIEW{crumb.begin(), crumb.end()};
-                                              return encode_field("cookie", VIEW, m_table.get().search("cookie", VIEW),
-                                                                  EncodePolicy::WithIndexing);
-                                          }) |
-                                          std::views::join;
-                               }
-                           }
+        for (const auto &field_variant : std::forward<InR>(headers)) {
+            std::visit(
+                [this, &sink](const auto &ptr) {
+                    using FieldType = std::decay_t<decltype(*ptr)>;
+                    std::string_view name = get_name(ptr);
+                    std::string_view value = ptr->get_value();
 
-                           const auto NAME = ptr->get_name();
-                           const auto VALUE = ptr->get_value();
-                           const auto POLICY = m_use_auto_policy ? policy_for(NAME) : EncodePolicy::WithIndexing;
-                           return encode_field(NAME, VALUE, m_table.get().search(NAME, VALUE), POLICY);
-                       },
-                       field_variant);
-               }) |
-               std::views::join;
+                    if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
+                        if (ptr->get_name() == shared::http::Token::COOKIE) {
+                            encode_cookies(value, sink);
+                            return;
+                        }
+                    }
+
+                    const EncodePolicy policy = m_use_auto_policy ? policy_for(name) : EncodePolicy::WithIndexing;
+                    const shared_codec::SearchResult result = m_table.get().search(name, value);
+
+                    encode_field(name, value, result, policy, sink);
+                },
+                field_variant);
+        }
+
+        return std::ranges::subrange(std::ranges::begin(m_output_range), dest);
     }
 
   private:
-    [[nodiscard]] auto encode_field(std::string_view name, std::string_view value, shared_codec::SearchResult result,
-                                    EncodePolicy policy) const {
+    template <typename T>
+    [[nodiscard]] static std::string_view get_name(const T &ptr) {
+        using FieldType = std::decay_t<decltype(*ptr)>;
+        if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
+            return shared::http::token_to_string(ptr->get_name());
+        } else {
+            return ptr->get_name();
+        }
+    }
+
+    // ====================== Pure String-to-Byte View Template Helper ======================
+    [[nodiscard]] static auto sv_bytes(std::string_view view) noexcept {
+        return view | std::views::transform([](char c) { return static_cast<std::byte>(c); });
+    }
+
+    // ====================== Low-Level Raw View Templates ======================
+
+    template <typename Sink>
+    void encode_field(std::string_view name, std::string_view value, shared_codec::SearchResult result,
+                      EncodePolicy policy, Sink &&sink) const {
+        auto emit_range = [&sink](auto &&range) { std::ranges::for_each(std::forward<decltype(range)>(range), sink); };
+
         switch (policy) {
         case EncodePolicy::WithIndexing:
             if (result.is_full_match()) {
-                return encode_indexed(static_cast<UInt>(result.index()));
+                emit_range(encode_indexed(static_cast<UInt>(result.index())));
+                return;
             }
             if (result.found()) {
                 push_table(result.index(), value);
-                return encode_incremental(static_cast<UInt>(result.index()), value);
+                emit_range(encode_incremental(static_cast<UInt>(result.index()), value));
+                return;
             }
             m_table.get().insert(name, value);
-            return encode_incremental_new(name, value);
+            emit_range(encode_incremental_new(name, value));
+            return;
 
         case EncodePolicy::WithoutIndexing:
             if (result.found()) {
-                return encode_literal(shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING, 4U,
-                                      static_cast<UInt>(result.index()), value);
+                emit_range(encode_literal(shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING, 4u,
+                                          static_cast<UInt>(result.index()), value));
+                return;
             }
-            return encode_literal_new(shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING, name, value);
+            emit_range(encode_literal_new(shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING, name, value));
+            return;
 
         case EncodePolicy::NeverIndexed:
             if (result.found()) {
-                return encode_literal(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED, 4U,
-                                      static_cast<UInt>(result.index()), value);
+                emit_range(encode_literal(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED, 4u,
+                                          static_cast<UInt>(result.index()), value));
+                return;
             }
-            return encode_literal_new(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED, name, value);
+            emit_range(encode_literal_new(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED, name, value));
+            return;
         }
-        std::unreachable();
+    }
+
+
+    template <typename Sink>
+    void encode_cookies(std::string_view value, Sink &&sink) const {
+        static constexpr std::string_view SEP = "; ";
+
+        std::ranges::for_each(value | std::views::split(SEP), [this, &sink](auto crumb_range) {
+            std::string_view crumb{crumb_range.begin(), crumb_range.end()};
+            if (crumb.empty()) {
+                return;
+            }
+
+            shared_codec::SearchResult res = m_table.get().search("cookie", crumb);
+            encode_field("cookie", crumb, res, EncodePolicy::WithIndexing, sink);
+        });
     }
 
     void push_table(std::size_t idx, std::string_view value) const {
-        const auto NAME =
-            std::visit([](const auto &ptr) -> std::string_view { return ptr->get_name(); }, m_table.get().at(idx));
-        m_table.get().insert(NAME, value);
+        std::visit([this, value](const auto &ptr) { m_table.get().insert(ptr->get_name(), value); },
+                   m_table.get().at(idx));
     }
 
-    // Lazy cast of every char in a string_view to std::byte — no span borrowing,
-    // no lifetime coupling beyond the string_view itself.
-    [[nodiscard]] static auto sv_bytes(std::string_view view) noexcept {
-        return view | std::views::transform([](char byte) { return static_cast<std::byte>(byte); });
-    }
-
-    // 1xxxxxxx
     [[nodiscard]] auto encode_indexed(UInt idx) const {
         return idx |
-               shared_codec::lowlevel::EncodeIntAdaptor<UInt>{7U, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD};
+               shared_codec::lowlevel::EncodeIntAdaptor<UInt>{7u, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD};
     }
 
-    // 01xxxxxx + value string
     [[nodiscard]] auto encode_incremental(UInt idx, std::string_view value) const {
         return std::views::concat(idx |
                                       shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                                          6U, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING},
+                                          6u, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING},
                                   sv_bytes(value) | shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman});
     }
 
-    // 01000000 + name string + value string
     [[nodiscard]] auto encode_incremental_new(std::string_view name, std::string_view value) const {
         return std::views::concat(
             std::views::single(std::byte{std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING)}),
@@ -482,14 +514,12 @@ struct HpackEncodeAdaptor : std::ranges::range_adaptor_closure<HpackEncodeAdapto
             sv_bytes(value) | shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman});
     }
 
-    // 0000xxxx / 0001xxxx + value string
     [[nodiscard]] auto encode_literal(shared_codec::PrefixHelper prefix, std::uint8_t prefix_bits, UInt idx,
                                       std::string_view value) const {
         return std::views::concat(idx | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{prefix_bits, prefix},
                                   sv_bytes(value) | shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman});
     }
 
-    // 00000000 / 00010000 + name string + value string
     [[nodiscard]] auto encode_literal_new(shared_codec::PrefixHelper prefix, std::string_view name,
                                           std::string_view value) const {
         return std::views::concat(std::views::single(std::byte{std::to_underlying(prefix)}),
@@ -497,39 +527,34 @@ struct HpackEncodeAdaptor : std::ranges::range_adaptor_closure<HpackEncodeAdapto
                                   sv_bytes(value) | shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman});
     }
 
-    // 001xxxxx — signal a dynamic table size update to the peer and apply locally.
-    [[nodiscard]] auto encode_table_size_update(UInt new_size) const {
-        m_table.get().set_max_size(new_size);
-        return new_size | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                              5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
-    }
-
     std::reference_wrapper<HPackTable> m_table;
+    std::views::all_t<OutR> m_output_range;
     bool m_use_auto_policy;
     bool m_use_huffman;
 };
 
+// Table size update (unchanged, already clean)
 template <std::unsigned_integral UInt = std::uint32_t>
-struct HpackTableSizeUpdateAdaptor : std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>> {
-
+class HpackTableSizeUpdateAdaptor : public std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>> {
+  public:
     explicit HpackTableSizeUpdateAdaptor(HPackTable &table) noexcept : m_table{table} {}
 
     [[nodiscard]] auto operator()(UInt size) const {
         m_table.get().set_max_size(size);
         return size | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                          5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
+                          5u, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
     }
 
   private:
     std::reference_wrapper<HPackTable> m_table;
 };
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
-    requires shared_codec::DecodeWidth<Width>
-struct HpackDecoderAdapter : std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width>> {
-
-    explicit HpackDecoderAdapter(HPackTable &table, shared::http::HttpRequest &req) noexcept
-        : m_table{table}, m_request{req} {}
+template <typename Req, typename Header, typename Token, std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+    requires shared_codec::DecodeWidth<Width> && interfaces::Request<Req, Header, Token>
+class HpackDecoderAdapter
+    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<Req, Header, Token, UInt, Width>> {
+  public:
+    explicit HpackDecoderAdapter(HPackTable &table, Req &req) noexcept : m_table{table}, m_request{req} {}
 
     template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
@@ -603,7 +628,7 @@ struct HpackDecoderAdapter : std::ranges::range_adaptor_closure<HpackDecoderAdap
                         add_field(*entry);
                     }
                 } else {
-                    m_request.get().insert(ptr->get_name(), value);
+                    m_request.get().add_header(ptr->get_name(), value);
                 }
             },
             m_table.get().at(idx));
@@ -620,12 +645,21 @@ struct HpackDecoderAdapter : std::ranges::range_adaptor_closure<HpackDecoderAdap
                 add_field(*entry);
             }
         } else {
-            m_request.get().insert(name, value);
+            m_request.get().add_header(name, value);
         }
     }
 
     void add_field(const shared::http::HeaderEntry &entry) const {
-        std::visit([&](const auto &ptr) { m_request.get().insert(ptr); }, entry);
+        std::visit(
+            [&](const auto &ptr) {
+                using FieldType = std::decay_t<decltype(*ptr)>;
+                if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
+                    m_request.get().add_header(shared::http::token_to_string(ptr->get_name()), ptr->get_value());
+                } else {
+                    m_request.get().add_header(ptr->get_name(), ptr->get_value());
+                }
+            },
+            entry);
     }
 
     // 1xxxxxxx
@@ -701,27 +735,31 @@ struct HpackDecoderAdapter : std::ranges::range_adaptor_closure<HpackDecoderAdap
     }
 
     std::reference_wrapper<HPackTable> m_table;
-    std::reference_wrapper<shared::http::HttpRequest> m_request;
+    std::reference_wrapper<Req> m_request;
 };
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
-    requires shared_codec::DecodeWidth<Width>
+template <typename Req, typename Header, typename Token, interfaces::Response Res,
+          std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+    requires shared_codec::DecodeWidth<Width> && interfaces::Request<Req, Header, Token>
 class Hpack {
   public:
-    explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table, shared::http::HttpRequest &req,
-                   shared::http::HttpResponse &res, bool use_huffman = true) noexcept
+    explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table, Req &req, Res &res,
+                   bool use_huffman = true) noexcept
         : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req}, m_response{res},
           m_use_huffman{use_huffman} {}
 
-    [[nodiscard]] auto encode(bool use_auto_policy = true) {
+    template <std::ranges::range R>
+    [[nodiscard]] auto encode(R &&range, bool use_auto_policy = true) {
         return m_response.get().get_headers() |
-               HpackEncodeAdaptor<UInt, Width>{m_encoding_table, use_auto_policy, m_use_huffman};
+               HpackEncodeAdaptor<UInt, R, Width>{m_encoding_table, std::forward<R>(range), use_auto_policy,
+                                                  m_use_huffman};
     }
 
     template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] std::size_t decode(R &&data) {
-        return std::views::all(std::forward<R>(data)) | HpackDecoderAdapter<UInt, Width>{m_decoding_table, m_request};
+        return std::views::all(std::forward<R>(data)) |
+               HpackDecoderAdapter<Req, Header, Token, UInt, Width>{m_decoding_table, m_request};
     }
 
     [[nodiscard]] auto encode_table_size_update(UInt size) {
@@ -731,8 +769,8 @@ class Hpack {
   private:
     std::reference_wrapper<HPackTable> m_encoding_table;
     std::reference_wrapper<HPackTable> m_decoding_table;
-    std::reference_wrapper<shared::http::HttpRequest> m_request;
-    std::reference_wrapper<shared::http::HttpResponse> m_response;
+    std::reference_wrapper<Req> m_request;
+    std::reference_wrapper<Res> m_response;
     bool m_use_huffman;
 };
 

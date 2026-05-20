@@ -73,3 +73,22 @@ class MyCustomFileLogger : public interfaces::ILogger {
 };
 
 } // namespace app
+
+// --- Client usage example ---
+//
+// io::layer::http2::Session session{send_cb, close_cb};
+//
+// // Simple GET (no body) — HEADERS + END_STREAM, stream goes IDLE → HALF_CLOSED_LOCAL
+// auto req = io::shared::http::HttpRequest::get(1, "/api/users")
+//     .with_authority("example.com")
+//     .with_scheme("https")
+//     .with_user_agent("congelado/1.0");
+// session.send(req);
+//
+// // POST with body — HEADERS frame (OPEN), then DATA + END_STREAM (HALF_CLOSED_LOCAL)
+// auto post_req = io::shared::http::HttpRequest::post(1, "/api/users")
+//     .with_authority("example.com")
+//     .with_scheme("https")
+//     .with_content_type("application/json");
+// // populate post_req body via the BufferView from post_req.get_body() before calling send
+// session.send(post_req);

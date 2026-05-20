@@ -5,7 +5,7 @@ import core_logger;
 import shared;
 import interfaces;
 import io_base_socket;
-import io_base_buffering;
+import utils_buffering;
 
 export namespace io::base::flow::async {
 
@@ -117,7 +117,7 @@ class Receiver : public shared::HandlerBase {
                                   [this, slot](int result) mutable { on_read_complete(slot, result); });
     }
 
-    void on_read_complete(buffering::NodeReader *node, int result) {
+    void on_read_complete(utils::buffering::NodeReader *node, int result) {
         if (result <= 0) {
             core::logger::warning("Receiver", "FD `{}` read operation failed with error `{}`", m_worker.get().get_fd(),
                                   result);
@@ -135,7 +135,7 @@ class Receiver : public shared::HandlerBase {
     }
 
     std::reference_wrapper<Worker> m_worker;
-    buffering::BufferWriter m_pool;
+    utils::buffering::BufferWriter m_pool;
     shared::ReadCallback m_on_read;
     shared::ErrorCallback m_on_error;
     bool m_fatal;

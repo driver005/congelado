@@ -1,7 +1,6 @@
 module;
 // TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
 #include <ranges>
-#include <utility>
 
 export module io_layer_http2:settings;
 
@@ -51,7 +50,7 @@ class Settings {
         : m_header_table_size{DEFAULT_HEADER_TABLE_SIZE}, m_enable_push{true}, m_max_concurrent_streams{100},
           m_initial_window_size{DEFAULT_INITIAL_WINDOW_SIZE}, m_max_frame_size{MIN_FRAME_SIZE},
           m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()}, m_state{SettingsState::UNACKNOWLEDGED},
-          m_trigger_goaway_after_stream_id{MAX_CONNECTED_STREAMS}, m_delta_window_on_settings{0} {
+          m_last_stream_id{MAX_CONNECTED_STREAMS}, m_delta_window_on_settings{0} {
         core::logger::debug("Settings - HTTP/2",
                             "Default constructor called with state `{}` and default values for all settings", m_state);
     }
@@ -105,22 +104,20 @@ class Settings {
         }
     }
 
-    static Frame<shared_layer::FrameRole::Sender> generate_ack() {
+    static FrameBuilder<shared_layer::FrameRole::SENDER> generate_ack() {
         core::logger::debug("Settings - HTTP/2", "Generating SETTINGS ACK frame");
-        return Frame<shared_layer::FrameRole::Sender>{}
-            .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
-                            .add_length(0)
-                            .add_type(shared_layer::FrameType::SETTINGS)
-                            .add_flags(shared_layer::Flags::ACK)
-                            .add_stream_id(0))
+        return FrameBuilder<shared_layer::FrameRole::SENDER>{}
+            .add_type(shared_layer::FrameType::SETTINGS)
+            .add_flags(shared_layer::Flags::ACK)
+            .add_stream_id(0)
             .build();
     }
 
-    void set_trigger_goaway_after_stream_id(const std::uint32_t &stream_id) noexcept {
-        core::logger::debug("Settings - HTTP/2", "Setting trigger_goaway_after_stream_id to `{}` (current value: `{}`)",
-                            stream_id, m_trigger_goaway_after_stream_id);
+    void set_last_stream_id(const std::uint32_t &stream_id) noexcept {
+        core::logger::debug("Settings - HTTP/2", "Setting last_stream_id to `{}` (current value: `{}`)", stream_id,
+                            m_last_stream_id);
 
-        m_trigger_goaway_after_stream_id = stream_id;
+        m_last_stream_id = stream_id;
     }
 
 
@@ -138,6 +135,12 @@ class Settings {
         m_state = state;
     }
 
+    std::uint32_t next_stream_id() noexcept {
+        core::logger::debug("Settings - HTTP/2", "Generating next stream id `{}`", m_last_stream_id + 2);
+
+        return m_last_stream_id += 2;
+    }
+
     [[nodiscard]] bool is_finished() const noexcept { return m_state == SettingsState::IMPLEMENTED; }
     [[nodiscard]] bool is_acknowledged() const noexcept { return m_state == SettingsState::ACKNOWLEDGED; }
 
@@ -147,9 +150,7 @@ class Settings {
     [[nodiscard]] const std::uint32_t &initial_window_size() const noexcept { return m_initial_window_size; }
     [[nodiscard]] const std::uint32_t &max_frame_size() const noexcept { return m_max_frame_size; }
     [[nodiscard]] const std::uint32_t &max_header_list_size() const noexcept { return m_max_header_list_size; }
-    [[nodiscard]] const std::uint32_t &trigger_goaway_after_stream_id() const noexcept {
-        return m_trigger_goaway_after_stream_id;
-    }
+    [[nodiscard]] const std::uint32_t &last_stream_id() const noexcept { return m_last_stream_id; }
     shared_layer::ping::PingTracker &ping_tracker() noexcept { return m_ping_tracker; }
     [[nodiscard]] const std::int32_t &delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
 
@@ -187,8 +188,11 @@ class Settings {
 
 
     SettingsState m_state;
-    std::uint32_t m_trigger_goaway_after_stream_id;
+
+    std::uint32_t m_last_stream_id;
+
     shared_layer::ping::PingTracker m_ping_tracker;
+
     std::int32_t m_delta_window_on_settings;
 };
 
@@ -245,7 +249,7 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
             emit(0x4, m_settings.get().initial_window_size());
         }
 
-        if (m_settings.get().max_frame_size() != MIN_FRAME_SIZE) {
+        if (m_settings.get().max_frame_size() >= MIN_FRAME_SIZE) {
             emit(0x5, m_settings.get().max_frame_size());
         }
 

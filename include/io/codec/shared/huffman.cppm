@@ -258,6 +258,7 @@ class HuffmanEncodeView {
     class Iterator {
       public:
         using value_type = std::byte;
+        using reference = std::byte;
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::input_iterator_tag;
         using iterator_concept = std::input_iterator_tag;

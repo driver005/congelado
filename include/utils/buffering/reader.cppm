@@ -1,13 +1,13 @@
 module;
 #include <cassert>
-export module io_base_buffering:reader;
+export module utils_buffering:reader;
 
 import std;
 import :node;
 import :deleter;
 import :view;
 
-export namespace io::base::buffering {
+export namespace utils::buffering {
 
 class NodeReader {
   public:
@@ -329,4 +329,4 @@ struct AdvanceReaderAdaptor : std::ranges::range_adaptor_closure<AdvanceReaderAd
     std::size_t m_count;
 };
 
-}; // namespace io::base::buffering
+}; // namespace utils::buffering

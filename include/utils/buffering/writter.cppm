@@ -1,11 +1,11 @@
-export module io_base_buffering:writter;
+export module utils_buffering:writter;
 
 import std;
 import :node;
 import :reader;
 
 
-export namespace io::base::buffering {
+export namespace utils::buffering {
 
 class BufferWriter {
   public:
@@ -61,4 +61,4 @@ class BufferWriter {
 };
 
 
-} // namespace io::base::buffering
+} // namespace utils::buffering

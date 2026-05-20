@@ -7,7 +7,7 @@ export module io_flow_sender:async;
 import std;
 import core_logger;
 import interfaces;
-import io_base_buffering;
+import utils_buffering;
 import io_base_socket;
 import shared;
 
@@ -43,7 +43,7 @@ class Sender : public shared::HandlerBase {
         attach();
     }
 
-    void send(buffering::BufferNode slot) {
+    void send(utils::buffering::BufferNode slot) {
         core::logger::debug("Sender", "FD `{}` adding node to send pool with size `{}`", m_worker.get().get_fd(),
                             slot.get_written());
         m_pool.push(std::move(slot));
@@ -95,7 +95,7 @@ class Sender : public shared::HandlerBase {
     }
 
     shared::SendCallback get_submitter() {
-        return [this](buffering::BufferNode &&node) { this->send(std::move(node)); };
+        return [this](utils::buffering::BufferNode &&node) { this->send(std::move(node)); };
     }
 
     bool resume() {
@@ -148,7 +148,7 @@ class Sender : public shared::HandlerBase {
     }
 
     std::reference_wrapper<Worker> m_worker;
-    buffering::BufferWriter m_pool;
+    utils::buffering::BufferWriter m_pool;
     shared::ErrorCallback m_on_error;
     bool m_fatal;
 };

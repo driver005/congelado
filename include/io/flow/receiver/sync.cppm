@@ -5,7 +5,7 @@ import core_logger;
 import shared;
 import interfaces;
 import io_base_socket;
-import io_base_buffering;
+import utils_buffering;
 
 export namespace io::base::flow::sync {
 
@@ -156,7 +156,7 @@ class Receiver : public shared::HandlerBase {
     }
 
     std::reference_wrapper<Worker> m_worker;
-    buffering::BufferWriter m_pool;
+    utils::buffering::BufferWriter m_pool;
     shared::ReadCallback m_on_read;
     shared::ErrorCallback m_on_error;
     bool m_stalled;

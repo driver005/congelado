@@ -19,8 +19,10 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
         using iterator_category = std::forward_iterator_tag;
         using iterator_concept = std::forward_iterator_tag;
         using value_type = std::byte;
-        using difference_type = std::ptrdiff_t;
         using reference = std::byte;
+        using difference_type = std::ptrdiff_t;
+
+        Iterator() = default;
 
         Iterator(UInt data, std::uint8_t prefix_size, std::uint8_t prefix, std::size_t pos = 0)
             : m_data{data}, m_max_prefix{static_cast<UInt>((1U << prefix_size) - 1U)}, m_prefix{prefix}, m_pos{pos} {}
@@ -114,7 +116,8 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
 // | 0 |    Value-(2^N-1) MSB      |
 // +---+---------------------------+
 template <std::unsigned_integral UInt = std::uint32_t>
-struct EncodeIntAdaptor : std::ranges::range_adaptor_closure<EncodeIntAdaptor<UInt>> {
+class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdaptor<UInt>> {
+  public:
     template <typename PrefixType>
         requires CastableToUint8<PrefixType>
     explicit constexpr EncodeIntAdaptor(std::uint8_t prefix_size, PrefixType prefix_data) noexcept
@@ -140,7 +143,8 @@ struct EncodeIntAdaptor : std::ranges::range_adaptor_closure<EncodeIntAdaptor<UI
 //      while B & 128 == 128
 //      return I
 template <std::unsigned_integral UInt = std::uint32_t, std::size_t PrefixOffset = 0>
-struct DecodeIntAdaptor : std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>> {
+class DecodeIntAdaptor : public std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>> {
+  public:
     explicit constexpr DecodeIntAdaptor(std::uint8_t prefix_size) noexcept : m_prefix_size{prefix_size} {}
 
     template <std::ranges::viewable_range R>
@@ -211,23 +215,22 @@ struct DecodeIntAdaptor : std::ranges::range_adaptor_closure<DecodeIntAdaptor<UI
 };
 
 template <int Width>
-struct EncodeStringAdaptor : std::ranges::range_adaptor_closure<EncodeStringAdaptor<Width>> {
+class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStringAdaptor<Width>> {
+  public:
     explicit constexpr EncodeStringAdaptor(bool huffman_encode, std::uint8_t prefix_size = 7U) noexcept
         : m_huffman{huffman_encode}, m_prefix_size{prefix_size} {}
 
     template <std::ranges::forward_range R>
         requires std::convertible_to<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] auto operator()(R &&data) const {
-        if (m_huffman) {
-            const auto LEN_FIRST = std::ranges::distance(data);
-
-            auto encoded = std::forward<R>(data) | huffman::HuffmanEncodeAdaptor{};
-
-            const auto LEN = static_cast<std::uint32_t>(std::ranges::distance(encoded) - LEN_FIRST);
-
-            return std::views::concat(
-                LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_ENABLED}, encoded);
-        }
+        // if (m_huffman) {
+        //     auto encoded = std::forward<R>(data) | huffman::HuffmanEncodeAdaptor{};
+        //
+        //     const auto LEN = static_cast<std::uint32_t>(std::ranges::distance(encoded));
+        //
+        //     return std::views::concat(
+        //         LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_ENABLED}, encoded);
+        // }
 
         const auto LEN = static_cast<std::uint32_t>(std::ranges::distance(data));
 
@@ -242,7 +245,8 @@ struct EncodeStringAdaptor : std::ranges::range_adaptor_closure<EncodeStringAdap
 
 
 template <int Width>
-struct DecodeStringAdaptor : std::ranges::range_adaptor_closure<DecodeStringAdaptor<Width>> {
+class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStringAdaptor<Width>> {
+  public:
     explicit constexpr DecodeStringAdaptor() noexcept = default;
 
     template <std::ranges::viewable_range R>

@@ -84,6 +84,7 @@ add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
+add_requires("range-v3", { configs = conan })
 
 set_languages("c++26", "c11")
 set_warnings("all", "extra", "error")
@@ -159,6 +160,7 @@ add_packages(
 	"nghttp3",
 	"backward",
 	"microsoft-gsl",
+	"range-v3",
 	{ public = true }
 )
 

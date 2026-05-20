@@ -6,9 +6,11 @@ export module io_layer_http2:session;
 
 import std;
 import io_codec_hpack;
-import io_base_buffering;
+import utils_buffering;
+import io_shared;
 import core_logger;
 import shared;
+import utils_codec;
 import :settings;
 import :stream;
 
@@ -17,15 +19,83 @@ export namespace io::layer::http2 {
 class Session {
   public:
     explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback)
-        : m_running{true}, m_local_settings{}, m_remote_settings{}, m_closed_streams{}, m_header_buffer{},
-          m_decoding_table{}, m_encoding_table{}, m_connection_stream{m_local_settings, m_remote_settings},
-          m_submiter{std::move(send_callback)}, m_closer{std::move(close_callback)}, m_safe_header{std::nullopt} {
+        : m_running{true}, m_last_server_stream_id{0}, m_last_client_stream_id{1}, m_local_settings{},
+          m_remote_settings{}, m_closed_streams{}, m_header_buffer{}, m_decoding_table{}, m_encoding_table{},
+          m_connection_stream{m_local_settings, m_remote_settings}, m_submiter{std::move(send_callback)},
+          m_closer{std::move(close_callback)}, m_safe_header{std::nullopt} {
         core::logger::debug("Session - HTTP/2",
                             "Created with send and close callbacks, initialized settings and tables");
+
+        std::println("Session created {}", m_last_server_stream_id);
     }
 
+    // void send(HttpRequest &request) {
+    // auto &stream = next_client_stream();
+    // const bool has_body = !request.get_body().empty();
+    // const auto sid = stream.get_stream_id();
 
-    void receive(base::buffering::BufferReader &reader) {
+    // // HpackEncodeAdaptor yields input_range — materialise for WriteRequestAdaptor's span.
+    // std::vector<std::byte> hpack_bytes;
+    // hpack_bytes.append_range(request.get_headers() | codec::hpack::HpackEncodeAdaptor<>{m_encoding_table});
+    //
+    // // Builds a 9-byte HTTP/2 frame header as a byte range (satisfies FrameHeaderGenerator).
+    // auto frame_hdr = [](std::uint32_t len, shared_layer::FrameType type, std::uint8_t f, std::uint32_t stream_id)
+    // {
+    //     return std::views::empty<std::byte> |
+    //            (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{len} | std::views::take(3)) |
+    //            utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(type)} |
+    //            utils::codec::WriteBigEndianAdaptor<std::uint8_t>{f} |
+    //            utils::codec::WriteBigEndianAdaptor<std::uint32_t>{stream_id & 0x7FFFFFFF};
+    // };
+    //
+    // auto headers_hdr = [sid, has_body, &frame_hdr](std::uint32_t len, std::uint32_t, std::uint8_t, bool is_first,
+    //                                                bool is_last) {
+    //     const auto type = is_first ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
+    //     const std::uint8_t f = is_last ? (shared_layer::Flags::END_HEADERS |
+    //                                       (has_body ? std::uint8_t{0} : shared_layer::Flags::END_STREAM))
+    //                                    : std::uint8_t{0};
+    //     return frame_hdr(len, type, f, sid);
+    // };
+    //
+    // stream.advance_send(shared_layer::FrameType::HEADERS,
+    //                     has_body ? std::uint8_t{0} : shared_layer::Flags::END_STREAM);
+    //
+    // if (!has_body) {
+    //     m_submiter(shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{hpack_bytes},
+    //                                                  std::move(headers_hdr), m_local_settings.max_frame_size()}()
+    //                                                  |
+    //                std::ranges::to<utils::buffering::BufferNode>());
+    // } else {
+    //     // BufferView is non-contiguous — materialise body for WriteRequestAdaptor's span.
+    //     std::vector<std::byte> body_bytes;
+    //     body_bytes.append_range(request.get_body());
+    //
+    //     stream.consume_window(static_cast<std::int32_t>(body_bytes.size()), true);
+    //     stream.advance_send(shared_layer::FrameType::DATA, shared_layer::Flags::END_STREAM);
+    //
+    //     auto data_hdr = [sid, &frame_hdr](std::uint32_t len, std::uint32_t, std::uint8_t, bool, bool is_last) {
+    //         const std::uint8_t f = is_last ? shared_layer::Flags::END_STREAM : std::uint8_t{0};
+    //         return frame_hdr(len, shared_layer::FrameType::DATA, f, sid);
+    //     };
+    //
+    //     // Chain HEADERS + DATA into a single BufferNode.
+    //     m_submiter(shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{hpack_bytes},
+    //                                                  std::move(headers_hdr), m_local_settings.max_frame_size()}()
+    //                                                  |
+    //                shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{body_bytes},
+    //                                                  std::move(data_hdr), m_local_settings.max_frame_size()} |
+    //                std::ranges::to<utils::buffering::BufferNode>());
+    // }
+    //
+    // core::logger::info("Session - HTTP/2", "Sent {} on stream ID `{}`",
+    //                    has_body ? "HEADERS + DATA frames" : "HEADERS frame (END_STREAM)", sid);
+    // }
+
+
+    void receive(utils::buffering::BufferReader &reader) {
+        if (!m_running) {
+            return;
+        }
         try {
             if (!m_safe_header.has_value()) {
                 core::logger::debug("Session - HTTP/2",
@@ -44,10 +114,10 @@ class Session {
                                    "Received complete header: type `{}`, length `{}`, stream_id `{}`",
                                    header.get_type(), header.get_length(), header.get_stream_id());
 
-                if (header.get_stream_id() > m_remote_settings.trigger_goaway_after_stream_id()) {
+                if (header.get_stream_id() > m_remote_settings.last_stream_id()) {
                     throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                        "Received frame for stream ID above GOAWAY threshold",
-                                                       m_remote_settings.trigger_goaway_after_stream_id()};
+                                                       m_remote_settings.last_stream_id()};
                 }
 
                 if (m_remote_settings.is_acknowledged()) {
@@ -96,7 +166,7 @@ class Session {
 
             if (stream_id == 0) {
                 core::logger::debug("Session - HTTP/2",
-                                    "Frame received on stream ID 0, handling as connection-level frame");
+                                    "FrameBuilder received on stream ID 0, handling as connection-level frame");
 
                 if (auto frm = m_connection_stream.receive(header, reader); frm.has_value()) {
                     core::logger::info("Session - HTTP/2",
@@ -106,7 +176,8 @@ class Session {
                 }
             } else {
                 core::logger::debug("Session - HTTP/2",
-                                    "Frame received on stream ID `{}`, handling with corresponding stream", stream_id);
+                                    "FrameBuilder received on stream ID `{}`, handling with corresponding stream",
+                                    stream_id);
 
                 auto &stream = get_or_create_stream(stream_id);
                 stream.receive(header, reader);
@@ -133,12 +204,10 @@ class Session {
 
             shared_layer::Atom<>::write_big_endian(payload, std::to_underlying(e.get_code()));
 
-            auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                             .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
-                                             .add_length(4)
-                                             .add_type(shared_layer::FrameType::RST_STREAM)
-                                             .add_flags(0)
-                                             .add_stream_id(e.get_stream_id()))
+            auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                             .add_type(shared_layer::FrameType::RST_STREAM)
+                             .add_flags(0)
+                             .add_stream_id(e.get_stream_id())
                              .add_payload(payload)
                              .build();
 
@@ -152,7 +221,7 @@ class Session {
         }
     }
 
-    void send(base::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
+    void send(utils::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
 
     void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0) {
         m_running = false;
@@ -161,12 +230,10 @@ class Session {
                        utils::codec::WriteBigEndianAdaptor{std::to_underlying(code)} |
                        std::ranges::to<std::vector<std::byte>>();
 
-        auto frame = Frame<shared_layer::FrameRole::Sender>{}
-                         .add_header(FrameHeader<shared_layer::FrameRole::Sender>{}
-                                         .add_length(8)
-                                         .add_type(shared_layer::FrameType::GOAWAY)
-                                         .add_flags(0)
-                                         .add_stream_id(0))
+        auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                         .add_type(shared_layer::FrameType::GOAWAY)
+                         .add_flags(0)
+                         .add_stream_id(0)
                          .add_payload(payload)
                          .build();
 
@@ -174,6 +241,10 @@ class Session {
 
         core::logger::info("Session - HTTP/2", "Sent GOAWAY frame with code `{}` and last stream ID `{}`", code,
                            stream_id);
+
+        m_safe_header.reset();
+
+        std::erase_if(m_streams, [stream_id](const auto &entry) { return entry.first > stream_id; });
 
         m_closer();
     }
@@ -197,7 +268,7 @@ class Session {
         //     hpack.push_back(static_cast<std::uint8_t>(c));
         //
         // std::span<std::byte> hpack_span{hpack};
-        // Frame<shared_layer::FrameRole::Sender> headers_frame{
+        // FrameBuilder<shared_layer::FrameRole::SENDER> headers_frame{
         //     FrameHeader{static_cast<std::uint32_t>(hpack.size()), shared_layer::FrameType::HEADERS,
         //                 shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM, stream_id},
         //     hpack_span};
@@ -217,6 +288,10 @@ class Session {
         // m_conn.send(std::as_bytes(std::span{payload}));
     }
 
+    Stream<> &next_client_stream() {
+        m_last_client_stream_id += 2;
+        return get_or_create_stream(m_last_client_stream_id);
+    }
 
     Stream<> &get_or_create_stream(const std::uint32_t &stream_id) {
         if (stream_id == 0) {
@@ -228,7 +303,7 @@ class Session {
             if (it->second == nullptr) {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    std::format("Stream ID {} is closed", stream_id),
-                                                   m_remote_settings.trigger_goaway_after_stream_id()};
+                                                   m_remote_settings.last_stream_id()};
             }
             return *(it->second);
         }
@@ -245,8 +320,8 @@ class Session {
         return *(new_it->second);
     }
 
-    std::optional<FrameHeader<shared_layer::FrameRole::Receiver>>
-    receive_header(base::buffering::BufferReader &target) {
+    std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>>
+    receive_header(utils::buffering::BufferReader &target) {
         if (target.size() < HEADER_SIZE) {
             core::logger::debug("Session - HTTP/2",
                                 "Not enough data to receive complete frame header, expected size `{}`, got `{}`",
@@ -257,7 +332,7 @@ class Session {
 
         auto header = target | std::views::take(HEADER_SIZE) |
                       ReadFrameHeaderAdaptor{m_local_settings.max_frame_size()} |
-                      base::buffering::AdvanceReaderAdaptor{target, HEADER_SIZE};
+                      utils::buffering::AdvanceReaderAdaptor{target, HEADER_SIZE};
 
 
         core::logger::debug("Session - HTTP/2",
@@ -267,11 +342,10 @@ class Session {
         return header;
     }
 
-    // Last stop for a frame delete after!!!
-    void send_frame(const Frame<shared_layer::FrameRole::Sender> &frame) {
-        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame} |
+    void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
+        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.max_frame_size()} |
+                    std::ranges::to<utils::buffering::BufferNode>();
 
-                    std::ranges::to<base::buffering::BufferNode>();
         core::logger::debug("Session - HTTP/2", "Prepared frame for sending with total size `{}`", node.get_written());
 
         m_submiter(std::move(node));
@@ -290,10 +364,12 @@ class Session {
         throw error::http::ConnectionError{
             error::http::Http2ErrorCode::PROTOCOL_ERROR,
             std::format("Stream with ID {} was not found and therefor could not be closed / finished", stream_id),
-            m_remote_settings.trigger_goaway_after_stream_id()};
+            m_remote_settings.last_stream_id()};
     }
 
     bool m_running;
+    std::uint32_t m_last_server_stream_id;
+    std::uint32_t m_last_client_stream_id;
     Settings m_local_settings;
     Settings m_remote_settings;
     std::map<std::uint32_t, std::unique_ptr<Stream<>>> m_streams;
@@ -304,7 +380,7 @@ class Session {
     Stream<false> m_connection_stream;
     ::shared::SendCallback m_submiter;
     ::shared::CloseCallback m_closer;
-    std::optional<FrameHeader<shared_layer::FrameRole::Receiver>> m_safe_header;
+    std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>> m_safe_header;
 };
 
 } // namespace io::layer::http2

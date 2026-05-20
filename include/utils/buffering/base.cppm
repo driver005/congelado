@@ -1,4 +1,4 @@
-export module io_base_buffering;
+export module utils_buffering;
 
 export import :deleter;
 export import :writter;

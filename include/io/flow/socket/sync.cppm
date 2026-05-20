@@ -3,7 +3,7 @@ export module io_flow_socket:sync;
 import std;
 import core_logger;
 import io_base_socket;
-import io_base_buffering;
+import utils_buffering;
 import io_base_leverage;
 import io_flow_sender;
 import io_flow_receiver;
@@ -349,7 +349,7 @@ class FlowSocket {
         auto value = m_workers.find(fd);
         if (value) {
             return
-                [sender = &value->get_sender()](base::buffering::BufferNode &&node) { sender->send(std::move(node)); };
+                [sender = &value->get_sender()](utils::buffering::BufferNode &&node) { sender->send(std::move(node)); };
         }
         return nullptr;
     }
@@ -375,7 +375,7 @@ class FlowSocket {
                         });
 
                     auto read_calback = m_on_established(
-                        [worker](base::buffering::BufferNode &&node) {
+                        [worker](utils::buffering::BufferNode &&node) {
                             core::logger::debug("WorkerSocket - Sync - SendCallback",
                                                 "Socket `{}` submitting data to send ", worker->get_fd());
                             worker->get_sender().send(std::move(node));
