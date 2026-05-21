@@ -166,7 +166,6 @@ class Stream {
         requires(!IsStreamBased)
     std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> receive(const FrameHeader<Role> &header,
                                                                          utils::buffering::BufferReader &reader) {
-        header.validate_payload_size(reader.size());
 
         const auto &type = header.get_type();
         std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> response = std::nullopt;
@@ -276,7 +275,6 @@ class Stream {
     template <shared_layer::FrameRole Role>
         requires(IsStreamBased)
     void receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader) {
-        header.validate_payload_size(reader.size());
 
         const auto &type = header.get_type();
 

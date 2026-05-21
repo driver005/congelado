@@ -376,22 +376,20 @@ import interfaces;
 export namespace io::codec::hpack {
 
 
-template <std::unsigned_integral UInt, std::ranges::range OutR, int Width = 4>
+template <std::unsigned_integral UInt, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncodeAdaptor<UInt, OutR, Width>> {
+class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncodeAdaptor<UInt, Width>> {
   public:
-    explicit HpackEncodeAdaptor(HPackTable &table, OutR &&output_range, bool use_auto_policy = true,
-                                bool use_huffman = true) noexcept
-        : m_table{table}, m_output_range{std::views::all(std::forward<OutR>(output_range))},
-          m_use_auto_policy{use_auto_policy}, m_use_huffman{use_huffman} {}
+    explicit HpackEncodeAdaptor(HPackTable &table, std::span<shared::http::HeaderEntry> headers,
+                                bool use_auto_policy = true, bool use_huffman = true) noexcept
+        : m_table{table}, m_headers{std::move(headers)}, m_use_auto_policy{use_auto_policy},
+          m_use_huffman{use_huffman} {}
 
     template <std::ranges::viewable_range InR>
-    [[nodiscard]] auto operator()(InR &&headers) const {
-        auto dest = std::ranges::begin(m_output_range);
+    [[nodiscard]] auto operator()(InR &&range) const {
+        auto sink = [&range](auto &&sub) { range.append_range(sub); };
 
-        auto sink = [&dest](std::byte b) { *dest++ = b; };
-
-        for (const auto &field_variant : std::forward<InR>(headers)) {
+        for (const auto &field_variant : m_headers) {
             std::visit(
                 [this, &sink](const auto &ptr) {
                     using FieldType = std::decay_t<decltype(*ptr)>;
@@ -413,7 +411,7 @@ class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncode
                 field_variant);
         }
 
-        return std::ranges::subrange(std::ranges::begin(m_output_range), dest);
+        return std::views::all(std::forward<InR>(range));
     }
 
   private:
@@ -437,7 +435,7 @@ class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncode
     template <typename Sink>
     void encode_field(std::string_view name, std::string_view value, shared_codec::SearchResult result,
                       EncodePolicy policy, Sink &&sink) const {
-        auto emit_range = [&sink](auto &&range) { std::ranges::for_each(std::forward<decltype(range)>(range), sink); };
+        auto emit_range = [&sink](auto &&range) { sink(range); };
 
         switch (policy) {
         case EncodePolicy::WithIndexing:
@@ -528,7 +526,7 @@ class HpackEncodeAdaptor : public std::ranges::range_adaptor_closure<HpackEncode
     }
 
     std::reference_wrapper<HPackTable> m_table;
-    std::views::all_t<OutR> m_output_range;
+    std::span<shared::http::HeaderEntry> m_headers;
     bool m_use_auto_policy;
     bool m_use_huffman;
 };
@@ -738,9 +736,10 @@ class HpackDecoderAdapter
     std::reference_wrapper<Req> m_request;
 };
 
-template <typename Req, typename Header, typename Token, interfaces::Response Res,
-          std::unsigned_integral UInt = std::uint32_t, int Width = 4>
-    requires shared_codec::DecodeWidth<Width> && interfaces::Request<Req, Header, Token>
+template <typename Req, typename Header, typename Token, typename Res, std::unsigned_integral UInt = std::uint32_t,
+          int Width = 4>
+    requires shared_codec::DecodeWidth<Width> && interfaces::Request<Req, Header, Token> &&
+             interfaces::Response<Res, Header, Token>
 class Hpack {
   public:
     explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table, Req &req, Res &res,
@@ -750,9 +749,8 @@ class Hpack {
 
     template <std::ranges::range R>
     [[nodiscard]] auto encode(R &&range, bool use_auto_policy = true) {
-        return m_response.get().get_headers() |
-               HpackEncodeAdaptor<UInt, R, Width>{m_encoding_table, std::forward<R>(range), use_auto_policy,
-                                                  m_use_huffman};
+        return std::forward<R>(range) | HpackEncodeAdaptor<UInt, Width>{m_encoding_table, m_response.get().get_header(),
+                                                                        use_auto_policy, m_use_huffman};
     }
 
     template <std::ranges::viewable_range R>

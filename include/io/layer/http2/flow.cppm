@@ -13,7 +13,7 @@ class Flow {
     Flow(::shared::SendCallback send, ::shared::CloseCallback close)
         : m_session{std::move(send), std::move(close)},
           m_handshake{m_session.get_local_settings(),
-                      [this](utils::buffering::BufferNode &&node) { m_session.send(std::move(node)); }},
+                      [this](utils::buffering::BufferNode &&node) { m_session.send_node(std::move(node)); }},
           m_handshake_completed{false} {
         core::logger::debug("Flow - HTTP/2", "Created with send and close callbacks");
     }
@@ -30,8 +30,12 @@ class Flow {
                 } else if (result == HandshakeState::PREFACE_ERROR) {
                     core::logger::error("Flow - HTTP/2", "Handshake failed due to invalid preface");
                     m_session.close(error::http::Http2ErrorCode::PROTOCOL_ERROR);
+                    return;
+                } else {
+                    return;
                 }
-            } else {
+            }
+            if (view.size() > 0) {
                 core::logger::debug("Flow - HTTP/2", "Processing received data through session");
                 m_session.receive(view);
             }

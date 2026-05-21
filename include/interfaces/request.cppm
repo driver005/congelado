@@ -13,15 +13,17 @@ class IRequest {
   public:
     virtual ~IRequest() = default;
 
-    Derived &add_header(std::string_view name, std::string_view value) && noexcept {
+    Derived &&add_header(std::string_view name, std::string_view value) && noexcept {
         add_header(name, value);
-        return static_cast<Derived &>(*this);
+        return std::move(static_cast<Derived &>(*this));
     }
 
-    Derived &remove_header(std::string_view name) && noexcept {
+    Derived &&remove_header(std::string_view name) && noexcept {
         remove_header(name);
-        return static_cast<Derived &>(*this);
+        return std::move(static_cast<Derived &>(*this));
     }
+
+    [[nodiscard]] Derived build() && { return std::move(static_cast<Derived &>(*this)); }
 
     virtual void add_header(std::variant<std::string_view, Token> name, std::string_view value) & = 0;
     virtual void remove_header(std::variant<std::string_view, Token> name) & = 0;

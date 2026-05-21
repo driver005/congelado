@@ -181,8 +181,26 @@ class BufferView {
 
     BufferView(const BufferView &) = delete;
     BufferView &operator=(const BufferView &) = delete;
-    BufferView(BufferView &&) = delete;
-    BufferView &operator=(BufferView &&) = delete;
+
+    BufferView(BufferView &&other) noexcept
+        : m_head{other.m_head}, m_tail{other.m_tail}, m_size{other.m_size} {
+        other.m_head = nullptr;
+        other.m_tail = nullptr;
+        other.m_size = 0;
+    }
+
+    BufferView &operator=(BufferView &&other) noexcept {
+        if (this != &other) {
+            release();
+            m_head = other.m_head;
+            m_tail = other.m_tail;
+            m_size = other.m_size;
+            other.m_head = nullptr;
+            other.m_tail = nullptr;
+            other.m_size = 0;
+        }
+        return *this;
+    }
 
 
     [[nodiscard]] Iterator begin() const noexcept { return Iterator{get_head(), 0}; }

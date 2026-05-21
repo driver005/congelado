@@ -76,7 +76,7 @@ class Handshake {
                          .add_payload(payload)
                          .build();
 
-        if constexpr (IsServer) {
+        if constexpr (!IsServer) {
             auto size = HTTP2_CONNECTION_PREFACE.size() + frame.get_size();
             auto adaptor = WriteFrameBuilderAdaptor{std::move(frame), m_local_settings.get().max_frame_size()};
             auto node =
@@ -88,6 +88,8 @@ class Handshake {
             auto node = std::views::empty<std::byte> | adaptor | std::ranges::to<utils::buffering::BufferNode>(size);
             m_submiter(std::move(node));
         }
+
+        m_sent_settings = true;
     }
 
     std::reference_wrapper<Settings> m_local_settings;

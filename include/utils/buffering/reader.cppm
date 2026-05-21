@@ -259,6 +259,8 @@ class BufferReader {
         } else {
             m_head.store(node, std::memory_order_release);
         }
+
+        expand(node->get_written());
     }
 
     NodeReader *push_back(BufferNode *node) noexcept {

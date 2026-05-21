@@ -1,5 +1,7 @@
 module;
 #include <cstddef>
+#include <iterator>
+#include <print>
 #include <ranges>
 export module io_layer_http2:frame;
 
@@ -370,7 +372,7 @@ class FrameHeaderClosureAdaptor : public std::ranges::range_adaptor_closure<Fram
     template <std::ranges::viewable_range R>
     [[nodiscard]] constexpr auto operator()(R &&range) const {
         return std::forward<R>(range) |
-               (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_length} | std::views::take(3)) |
+               (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_length} | std::views::drop(1)) |
                utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(m_type)} |
                utils::codec::WriteBigEndianAdaptor<std::uint8_t>{m_flags} |
                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_clean_stream_id};
@@ -386,57 +388,54 @@ class FrameHeaderClosureAdaptor : public std::ranges::range_adaptor_closure<Fram
 class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<WriteFrameClosureAdapter> {
   public:
     explicit constexpr WriteFrameClosureAdapter(std::uint32_t stream_id, shared_layer::FrameType type,
-                                                std::size_t max_frame_size, bool end_stream_after_data = false,
-                                                bool no_data = false)
-        : m_stream_id{stream_id}, m_type{type}, m_max_frame_size{max_frame_size},
+                                                std::uint8_t flags, std::size_t max_frame_size,
+                                                bool end_stream_after_data = false, bool no_data = false)
+        : m_stream_id{stream_id}, m_type{type}, m_flags{flags}, m_max_frame_size{max_frame_size},
           m_end_stream_after_data{end_stream_after_data}, m_no_data{no_data} {}
 
     template <std::ranges::viewable_range R>
+        requires std::ranges::sized_range<R> // ← enforces O(1) size, no re-iteration
     auto operator()(R &&range) const {
-        std::println("WriteFrameClosureAdapter");
-
         auto data = std::views::all(std::forward<R>(range));
-        const std::size_t total_len = std::ranges::distance(data);
+
+        // std::ranges::size() is O(1) for sized_range — no iteration.
+        const std::size_t total_len = std::ranges::size(data);
         const std::size_t slice_size = std::min(m_max_frame_size, total_len);
 
         const std::size_t total_chunks = total_len == 0 ? 1 : (total_len + slice_size - 1) / slice_size;
 
-        // Pure range combinators. No spans, no pointers.
-        // drop() and take() safely handle 0-length slices automatically.
         auto chunked =
             std::views::iota(0uz, total_chunks) | std::views::transform([data, slice_size](std::size_t chunk_idx) {
                 return data | std::views::drop(chunk_idx * slice_size) | std::views::take(slice_size);
             });
 
         // Unified pipeline
-        return chunked | std::views::enumerate |
-               std::views::transform([=, stream_id = m_stream_id, base_type = m_type, no_data = m_no_data,
-                                      end_stream_after_data = m_end_stream_after_data](auto &&entry) {
+        return chunked | std::views::enumerate | std::views::transform([self = *this, total_chunks](auto &&entry) {
                    auto [idx, chunk] = entry;
                    const std::size_t chunk_idx = static_cast<std::size_t>(idx);
 
-                   auto type = base_type;
-                   std::uint8_t flags = 0;
+                   auto type = self.m_type;
+                   std::uint8_t flags = self.m_flags;
 
                    const bool is_last = (chunk_idx == total_chunks - 1);
 
                    if (type == shared_layer::FrameType::HEADERS) {
                        if (is_last) {
                            flags |= shared_layer::Flags::END_HEADERS;
-                           if (no_data)
+                           if (self.m_no_data) {
                                flags |= shared_layer::Flags::END_STREAM;
+                           }
                        }
                        if (chunk_idx != 0)
                            type = shared_layer::FrameType::CONTINUATION;
-                   } else if (type == shared_layer::FrameType::DATA && is_last && !end_stream_after_data) {
+                   } else if (type == shared_layer::FrameType::DATA && is_last && !self.m_end_stream_after_data) {
                        flags |= shared_layer::Flags::END_STREAM;
                    }
 
                    return std::views::concat(
                        std::views::empty<std::byte> |
-                           // Use std::ranges::size to ensure compatibility with all view types
-                           FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(std::ranges::size(chunk)), type, flags,
-                                                     stream_id},
+                           FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(std::ranges::distance(chunk)), type,
+                                                     flags, self.m_stream_id},
                        chunk);
                }) |
                std::views::join;
@@ -445,6 +444,7 @@ class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<Write
   private:
     std::uint32_t m_stream_id;
     shared_layer::FrameType m_type;
+    std::uint8_t m_flags;
     std::size_t m_max_frame_size;
     bool m_end_stream_after_data;
     bool m_no_data;
@@ -539,11 +539,11 @@ class WriteFrameBuilderAdaptor : public std::ranges::range_adaptor_closure<Write
 
     template <std::ranges::viewable_range R>
     auto operator()(R &&range) const {
-        std::println("WriteFrameBuilderAdaptor::operator() called, frame type: `{}`", m_frame.get_type());
         return std::views::concat(std::forward<R>(range),
-                                  m_frame.get_payload() | WriteFrameClosureAdapter{m_frame.get_stream_id(),
-                                                                                   m_frame.get_type(), m_max_frame_size,
-                                                                                   m_end_stream_after_data, m_no_data});
+                                  m_frame.get_payload() |
+                                      WriteFrameClosureAdapter{m_frame.get_stream_id(), m_frame.get_type(),
+                                                               m_frame.get_flags(), m_max_frame_size,
+                                                               m_end_stream_after_data, m_no_data});
     }
 
     auto operator()() const { return (*this)(std::views::empty<std::byte>); }

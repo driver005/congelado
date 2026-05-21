@@ -11,6 +11,7 @@ import io_shared;
 import core_logger;
 import shared;
 import utils_codec;
+import :response;
 import :settings;
 import :stream;
 
@@ -221,7 +222,17 @@ class Session {
         }
     }
 
-    void send(utils::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
+    void send_node(utils::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
+
+    void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
+        auto size = frame.get_size();
+        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.max_frame_size()} |
+                    std::ranges::to<utils::buffering::BufferNode>(size);
+
+        core::logger::debug("Session - HTTP/2", "Prepared frame for sending with total size `{}`", node.get_written());
+
+        m_submiter(std::move(node));
+    }
 
     void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0) {
         m_running = false;
@@ -285,7 +296,33 @@ class Session {
         //
         std::println("Sending response on Stream ID {} ", stream_id);
 
-        // m_conn.send(std::as_bytes(std::span{payload}));
+        std::string json = R"({"status":"ok"})";
+
+        // Pipeline: String (range of char) -> transform to byte -> collect into vector
+        auto body = json | std::views::transform([](char c) { return static_cast<std::byte>(c); }) |
+                    std::ranges::to<std::vector<std::byte>>();
+
+        auto res = HttpResponse::ok(stream_id)
+                       .with_body(std::move(body)) // Move the materialized vector
+                       .with_content_type("application/json")
+                       .build();
+
+        auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.max_frame_size())};
+
+        std::println("Body size = {}", res.get_body().size());
+        std::println("Header count = {}", res.get_header().size()); // add this helper if needed
+
+        auto node_size = res.get_size(m_local_settings.max_frame_size());
+        std::println("Calculated get_size() = {}", node_size);
+        node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.max_frame_size()};
+
+        std::println("Written size = {}", node.get_written());
+        std::println("Node size = {}", node.get_limit());
+
+        std::println("Node content: {}",
+                     std::string_view{reinterpret_cast<const char *>(node.get_data()), node.get_written()});
+
+        send_node(std::move(node));
     }
 
     Stream<> &next_client_stream() {
@@ -342,14 +379,6 @@ class Session {
         return header;
     }
 
-    void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
-        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.max_frame_size()} |
-                    std::ranges::to<utils::buffering::BufferNode>();
-
-        core::logger::debug("Session - HTTP/2", "Prepared frame for sending with total size `{}`", node.get_written());
-
-        m_submiter(std::move(node));
-    }
 
     void mark_stream_closed(std::uint32_t stream_id) {
         if (stream_id == 0) {

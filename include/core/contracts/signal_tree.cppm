@@ -1,5 +1,3 @@
-module;
-#include <immintrin.h>
 export module core_contract:signal_tree;
 
 import std;
@@ -119,27 +117,32 @@ class Node {
             if (auto result = m_children[idx].select_child_index(bias, (accumulator << 3) | idx, bias_bit >> 1)) {
                 return result;
             }
-        } else {
-            const bool prefer_right = (bias & bias_bit) != 0;
-            const int total = std::popcount(val);
-            const int half = total / 2;
-            const std::uint64_t low_mask = (1ULL << half) - 1;
-            const std::uint64_t right_half = _pdep_u64(low_mask, val);
-            const std::uint64_t left_half = val & ~right_half;
-            const bool intended_choose_right = ((prefer_right && right_half != 0) || (left_half == 0ULL));
 
-            if (intended_choose_right) {
-                // Chose right this time, prefer left next time
-                bias &= ~bias_bit;
-            } else {
-                // Chose left this time, prefer right next time
-                bias |= bias_bit;
+            for (std::uint8_t i = 0; i < 8; ++i) {
+                if (i == idx) {
+                    continue;
+                }
+
+                auto count = static_cast<std::uint8_t>((val >> (i * 8)) & 0xFF);
+                if (count > 0) {
+                    if (auto result = m_children[i].select_child_index(bias, (accumulator << 3) | i, bias_bit >> 1)) {
+                        return result;
+                    }
+                }
             }
+        } else {
+            // Rotate-scan: low 6 bits of bias are a rotating cursor (0-63).
+            // Start scanning from that position, take the first set bit found.
+            // This guarantees every scheduled contract is eventually reached,
+            // avoiding the correlated-bias cycles that binary-tree traversal produces.
+            const std::uint8_t start = static_cast<std::uint8_t>(bias & 0x3F);
+            const std::uint64_t rotated = std::rotr(val, start);
+            const std::uint8_t offset = static_cast<std::uint8_t>(std::countr_zero(rotated));
+            const std::uint8_t BIT_IDX = (start + offset) & 0x3F;
+            bias = (bias & ~0x3FULL) | static_cast<std::uint64_t>((BIT_IDX + 1) & 0x3F);
 
-            const std::uint8_t bit_idx = prefer_right ? static_cast<std::uint8_t>(63 - std::countl_zero(val))
-                                                      : static_cast<std::uint8_t>(std::countr_zero(val));
-            core::logger::debug("SignalTree - Node", "Found ready bit `{}`", bit_idx);
-            return (accumulator << 6) | bit_idx;
+            core::logger::debug("SignalTree - Node", "Found ready bit `{}`", BIT_IDX);
+            return (accumulator << 6) | BIT_IDX;
         }
 
         return std::nullopt;
@@ -156,8 +159,32 @@ class Node {
         const bool choose_right = ((prefer_right && (right_half != 0)) || (left_half == 0ULL));
         if (choose_right) {
             bias &= ~bias_bit;
+
+            bias_bit >>= 1;
+
+            if (blocks > 1) {
+                auto idx = calculate_bias(right_half, bias, bias_bit, blocks / 2, base_shift);
+                if (!choose_right) {
+                    idx += blocks;
+                }
+                return idx;
+            }
+
+            return !choose_right;
         } else {
             bias |= bias_bit;
+
+            bias_bit >>= 1;
+
+            if (blocks > 1) {
+                auto idx = calculate_bias(left_half, bias, bias_bit, blocks / 2, (base_shift + blocks));
+                if (!choose_right) {
+                    idx += blocks;
+                }
+                return idx;
+            }
+
+            return !choose_right;
         }
 
         // Test with more than 64!
@@ -170,17 +197,17 @@ class Node {
         // std::print("Bias Bit: {:064b}\n", bias_bit);
         // std::print("Mask Lower: {:064b}\n", mask_lower);
 
-        bias_bit >>= 1;
-
-        if (blocks > 1) {
-            auto idx =
-                calculate_bias(val, bias, bias_bit, blocks / 2, choose_right ? base_shift : (base_shift + blocks));
-            if (!choose_right) {
-                idx += blocks;
-            }
-            return idx;
-        }
-        return !choose_right;
+        // bias_bit >>= 1;
+        //
+        // if (blocks > 1) {
+        //     auto idx =
+        //         calculate_bias(val, bias, bias_bit, blocks / 2, choose_right ? base_shift : (base_shift + blocks));
+        //     if (!choose_right) {
+        //         idx += blocks;
+        //     }
+        //     return idx;
+        // }
+        // return !choose_right;
     }
     std::atomic<std::uint64_t> m_value;
     [[no_unique_address]] std::conditional_t<IsRouter, std::vector<Node<false>>, std::monostate> m_children;
