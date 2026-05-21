@@ -67,12 +67,15 @@ class ContractGroup : shared::HandlerInterface {
         }
         core::logger::info("ContractGroup", "Created Worker with ID `{}` and NAME `{}` and inital state `{}`", id, name,
                            state);
+
         return Contract<MaxCapacity>{*this, id};
     }
 
     void schedule(std::uint32_t id) override {
-        if (m_workers[id].is_scheduled())
+        if (m_workers[id].is_scheduled()) {
             core::logger::fatal("ContractGroup", "Worker with ID {} is already scheduled", id);
+            return;
+        }
 
         core::logger::info("ContractGroup", "Worker with ID `{}` is scheduled", id);
         if (m_workers[id].schedule()) {
@@ -85,6 +88,7 @@ class ContractGroup : shared::HandlerInterface {
             core::logger::info("ContractGroup", "Worker with ID `{}` is going to be descheduled", id);
             m_signal_tree.deschedule(id);
             m_workers[id].add_flags(ContractState::IDLE);
+            return;
         }
 
         core::logger::fatal("ContractGroup", "Worker with ID `{}` is not scheduled, cannot deschedule", id);

@@ -43,36 +43,36 @@ class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::Hea
     }
 
     // --- Builder methods ---
-    HttpRequest &with_method(shared::http::HttpMethod method) {
+    HttpRequest &&with_method(shared::http::HttpMethod method) && {
         insert(shared::http::Token::METHOD, method_str(method));
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_method(std::string_view method) {
+    HttpRequest &&with_method(std::string_view method) && {
         insert(shared::http::Token::METHOD, method);
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_path(std::string_view path) {
+    HttpRequest &&with_path(std::string_view path) && {
         insert(shared::http::Token::PATH, path);
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_scheme(std::string_view schema) {
+    HttpRequest &&with_scheme(std::string_view schema) && {
         insert(shared::http::Token::SCHEME, schema);
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_authority(std::string_view authority) {
+    HttpRequest &&with_authority(std::string_view authority) && {
         insert(shared::http::Token::AUTHORITY, authority);
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_header(std::string_view name, std::string_view value) {
+    HttpRequest &&with_header(std::string_view name, std::string_view value) && {
         insert(name, value);
-        return *this;
+        return std::move(*this);
     }
-    HttpRequest &with_header(shared::http::Token token, std::string_view value) {
+    HttpRequest &&with_header(shared::http::Token token, std::string_view value) && {
         insert(token, value);
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_query(std::string_view key, std::string_view value) {
+    HttpRequest &&with_query(std::string_view key, std::string_view value) && {
         auto &path_field = m_static_headers[std::to_underlying(shared::http::Token::PATH)];
         std::string new_path;
         if (path_field) {
@@ -83,39 +83,41 @@ class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::Hea
         new_path += '=';
         new_path += utils::encode::url_encode(value);
         insert(shared::http::Token::PATH, new_path);
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_bearer_auth(std::string_view token) {
+    HttpRequest &&with_bearer_auth(std::string_view token) && {
         insert(shared::http::Token::AUTHORIZATION, "Bearer " + std::string(token));
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_basic_auth(std::string_view user, std::string_view password) {
+    HttpRequest &&with_basic_auth(std::string_view user, std::string_view password) && {
         insert(shared::http::Token::AUTHORIZATION,
                "Basic " + utils::encode::base64_encode(std::string(user) + ":" + std::string(password)));
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_content_type(std::string_view mime) {
+    HttpRequest &&with_content_type(std::string_view mime) && {
         insert(shared::http::Token::CONTENT_TYPE, mime);
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_accept(std::string_view mime) {
+    HttpRequest &&with_accept(std::string_view mime) && {
         insert(shared::http::Token::ACCEPT, mime);
-        return *this;
+        return std::move(*this);
     }
 
-    HttpRequest &with_user_agent(std::string_view user) {
+    HttpRequest &&with_user_agent(std::string_view user) && {
         insert(shared::http::Token::USER_AGENT, user);
-        return *this;
+        return std::move(*this);
     }
+
+    [[nodiscard]] HttpRequest build() && { return std::move(*this); }
 
     HttpRequest(const HttpRequest &) = delete;
     HttpRequest &operator=(const HttpRequest &) = delete;
-    constexpr HttpRequest(HttpRequest &&) noexcept = delete;
-    constexpr HttpRequest &operator=(HttpRequest &&) noexcept = delete;
+    constexpr HttpRequest(HttpRequest &&) noexcept = default;
+    constexpr HttpRequest &operator=(HttpRequest &&) noexcept = default;
 
     void add_header(std::variant<std::string_view, shared::http::Token> name_variant, std::string_view value) &
         override {
@@ -151,6 +153,40 @@ class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::Hea
             result.emplace_back(entry.value());
         }
         return result;
+    }
+
+    [[nodiscard]] std::size_t get_size(std::size_t max_frame_payload) const noexcept {
+        std::size_t total = 0;
+
+        std::size_t header_block = std::ranges::fold_left(
+            m_static_headers | std::views::filter([](const auto &field) noexcept { return field != nullptr; }),
+            std::size_t{0}, [](std::size_t acc, const auto &field) noexcept { return acc + field->size(); });
+
+        // TODO: add ranges support to my swiss hashmap
+        //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc, const auto &entry)
+        //  noexcept {
+        //      return acc + entry.value()->size();
+        //  });
+        for (const auto &entry : m_headers) {
+            header_block += entry.value()->size();
+        }
+
+        std::size_t num_header_frames =
+            (header_block == 0) ? 1 : (header_block + max_frame_payload - 1) / max_frame_payload;
+
+        total += (num_header_frames * 9) + header_block;
+
+        // --- DATA frames ---
+        const std::size_t BODY_SIZE = m_body.size();
+
+        if (BODY_SIZE > 0) {
+            std::size_t num_data_frames = (BODY_SIZE + max_frame_payload - 1) / max_frame_payload;
+            total += (num_data_frames * 9) + BODY_SIZE;
+        } else {
+            total += 9; // empty DATA frame with END_STREAM
+        }
+
+        return total;
     }
 
     [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
@@ -261,15 +297,16 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
     template <std::ranges::viewable_range R>
     auto operator()(R &&output) const {
         auto stream_id = m_req.get().get_stream_id();
-        return std::views::concat(
-            std::forward<R>(output),
-            m_req.get().get_header() | codec::hpack::HpackEncodeAdaptor<std::uint32_t, R>{m_table, output} |
-                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::HEADERS, m_max_frame_size},
-            m_req.get().get_body() |
-                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::DATA, m_max_frame_size});
-    }
+        auto headers = m_req.get().get_header();
 
-    auto operator()() const { return (*this)(std::views::empty<std::byte>); }
+        return std::views::concat(
+            std::forward<R>(output) |
+                codec::hpack::HpackEncodeAdaptor<std::uint32_t>{m_table,
+                                                                std::span<shared::http::HeaderEntry>(headers)} |
+                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::HEADERS, m_flags, m_max_frame_size},
+            m_req.get().get_body() |
+                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::DATA, m_flags, m_max_frame_size});
+    }
 
     std::reference_wrapper<HttpRequest> m_req;
     std::reference_wrapper<codec::hpack::HPackTable> m_table;

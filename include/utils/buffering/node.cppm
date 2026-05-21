@@ -6,8 +6,6 @@ export namespace utils::buffering {
 
 class BufferNode {
   public:
-    BufferNode() : m_data{nullptr, std::default_delete<std::byte[]>()}, m_limit{0}, m_written{0}, m_refs{0} {}
-
     explicit BufferNode(std::size_t size)
         : m_data{new std::byte[size], std::default_delete<std::byte[]>()}, m_limit{size}, m_written{0}, m_refs{0} {}
 
@@ -39,6 +37,13 @@ class BufferNode {
         m_written.store(other.m_written.load(std::memory_order_relaxed), std::memory_order_relaxed);
         m_refs.store(other.m_refs.load(std::memory_order_relaxed), std::memory_order_relaxed);
         return *this;
+    }
+
+    template <std::ranges::input_range R>
+    void append_range(R &&range) {
+        for (auto &&element : range) {
+            this->push_back(element);
+        }
     }
 
     [[nodiscard]] std::byte &operator[](std::size_t index) noexcept { return m_data.get()[index]; }

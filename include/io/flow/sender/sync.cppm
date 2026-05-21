@@ -123,7 +123,7 @@ class Sender : public shared::HandlerBase {
         auto &view = m_pool.get_view();
         auto [data, size] = view.front();
 
-        if (!data || size == 0) {
+        if ((data == nullptr) || size == 0) {
             core::logger::info("Sender", "FD `{}` has no data to send", m_worker.get().get_fd());
             m_stalled = false;
             return;
