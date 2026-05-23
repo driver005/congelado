@@ -288,7 +288,7 @@ class Stream {
                                                get_stream_id());
         }
 
-        m_state_machine.advance(header, false);
+        m_state_machine.advance(header.get_type(), header.get_flags(), false);
 
         switch (type) {
         case shared_layer::FrameType::DATA: {
@@ -538,11 +538,10 @@ class Stream {
         return m_stream_helper.get_is_remote_done();
     }
 
-    void advance_send(shared_layer::FrameType type, std::uint8_t flags)
+    void advance_send(const shared_layer::FrameType &type, const std::uint8_t &flags)
         requires(IsStreamBased)
     {
-        FrameHeader<shared_layer::FrameRole::SENDER> hdr{0, type, flags, get_stream_id()};
-        m_state_machine.advance(hdr, true);
+        m_state_machine.advance(type, flags, false);
         if (m_state_machine.is_closed()) {
             cleanup_resources();
         }

@@ -119,6 +119,8 @@ class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::Hea
     constexpr HttpRequest(HttpRequest &&) noexcept = default;
     constexpr HttpRequest &operator=(HttpRequest &&) noexcept = default;
 
+    void set_stream_id(std::uint32_t stream_id) noexcept { m_stream_id = stream_id; }
+
     void add_header(std::variant<std::string_view, shared::http::Token> name_variant, std::string_view value) &
         override {
         std::visit([&](const auto &name) { insert(name, value); }, name_variant);
@@ -293,19 +295,44 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
                                                std::size_t max_frame_size, std::uint8_t flags = 0)
         : m_req{req}, m_table{table}, m_max_frame_size{max_frame_size}, m_flags{flags} {}
 
-
     template <std::ranges::viewable_range R>
     auto operator()(R &&output) const {
-        auto stream_id = m_req.get().get_stream_id();
-        auto headers = m_req.get().get_header();
+        const auto stream_id = m_req.get().get_stream_id();
+        auto header_entries = m_req.get().get_header();
 
-        return std::views::concat(
-            std::forward<R>(output) |
-                codec::hpack::HpackEncodeAdaptor<std::uint32_t>{m_table,
-                                                                std::span<shared::http::HeaderEntry>(headers)} |
-                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::HEADERS, m_flags, m_max_frame_size},
-            m_req.get().get_body() |
+        bool first_frame = true;
+        std::views::empty<std::byte> |
+            codec::hpack::HpackEncoder<std::uint32_t>{
+                m_table.get(), std::span<const shared::http::HeaderEntry>(header_entries), m_max_frame_size,
+                [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
+                    const auto type =
+                        first_frame ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
+                    const std::uint8_t flags = (reason == codec::hpack::HpackFlushReason::END)
+                                                   ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
+                                                   : std::uint8_t{0};
+                    output.append_range(
+                        std::views::empty<std::byte> |
+                        FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), type, flags, stream_id});
+                    output.append_range(data);
+                    first_frame = false;
+                }};
+
+        if (m_req.get().get_body().empty()) {
+            std::uint8_t data_flags = m_flags | shared_layer::Flags::END_STREAM;
+
+            auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                             .add_type(shared_layer::FrameType::DATA)
+                             .add_flags(data_flags)
+                             .add_stream_id(stream_id)
+                             .build();
+
+            output.append_range(std::views::empty<std::byte> |
+                                WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size});
+        } else {
+            output.append_range(
+                m_req.get().get_body() |
                 WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::DATA, m_flags, m_max_frame_size});
+        }
     }
 
     std::reference_wrapper<HttpRequest> m_req;

@@ -30,68 +30,24 @@ class Session {
         std::println("Session created {}", m_last_server_stream_id);
     }
 
-    // void send(HttpRequest &request) {
-    // auto &stream = next_client_stream();
-    // const bool has_body = !request.get_body().empty();
-    // const auto sid = stream.get_stream_id();
+    void send(HttpRequest &request) {
+        auto &stream = next_client_stream();
+        const auto SID = stream.get_stream_id();
 
-    // // HpackEncodeAdaptor yields input_range — materialise for WriteRequestAdaptor's span.
-    // std::vector<std::byte> hpack_bytes;
-    // hpack_bytes.append_range(request.get_headers() | codec::hpack::HpackEncodeAdaptor<>{m_encoding_table});
-    //
-    // // Builds a 9-byte HTTP/2 frame header as a byte range (satisfies FrameHeaderGenerator).
-    // auto frame_hdr = [](std::uint32_t len, shared_layer::FrameType type, std::uint8_t f, std::uint32_t stream_id)
-    // {
-    //     return std::views::empty<std::byte> |
-    //            (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{len} | std::views::take(3)) |
-    //            utils::codec::WriteBigEndianAdaptor<std::uint8_t>{std::to_underlying(type)} |
-    //            utils::codec::WriteBigEndianAdaptor<std::uint8_t>{f} |
-    //            utils::codec::WriteBigEndianAdaptor<std::uint32_t>{stream_id & 0x7FFFFFFF};
-    // };
-    //
-    // auto headers_hdr = [sid, has_body, &frame_hdr](std::uint32_t len, std::uint32_t, std::uint8_t, bool is_first,
-    //                                                bool is_last) {
-    //     const auto type = is_first ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
-    //     const std::uint8_t f = is_last ? (shared_layer::Flags::END_HEADERS |
-    //                                       (has_body ? std::uint8_t{0} : shared_layer::Flags::END_STREAM))
-    //                                    : std::uint8_t{0};
-    //     return frame_hdr(len, type, f, sid);
-    // };
-    //
-    // stream.advance_send(shared_layer::FrameType::HEADERS,
-    //                     has_body ? std::uint8_t{0} : shared_layer::Flags::END_STREAM);
-    //
-    // if (!has_body) {
-    //     m_submiter(shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{hpack_bytes},
-    //                                                  std::move(headers_hdr), m_local_settings.max_frame_size()}()
-    //                                                  |
-    //                std::ranges::to<utils::buffering::BufferNode>());
-    // } else {
-    //     // BufferView is non-contiguous — materialise body for WriteRequestAdaptor's span.
-    //     std::vector<std::byte> body_bytes;
-    //     body_bytes.append_range(request.get_body());
-    //
-    //     stream.consume_window(static_cast<std::int32_t>(body_bytes.size()), true);
-    //     stream.advance_send(shared_layer::FrameType::DATA, shared_layer::Flags::END_STREAM);
-    //
-    //     auto data_hdr = [sid, &frame_hdr](std::uint32_t len, std::uint32_t, std::uint8_t, bool, bool is_last) {
-    //         const std::uint8_t f = is_last ? shared_layer::Flags::END_STREAM : std::uint8_t{0};
-    //         return frame_hdr(len, shared_layer::FrameType::DATA, f, sid);
-    //     };
-    //
-    //     // Chain HEADERS + DATA into a single BufferNode.
-    //     m_submiter(shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{hpack_bytes},
-    //                                                  std::move(headers_hdr), m_local_settings.max_frame_size()}()
-    //                                                  |
-    //                shared::http::WriteRequestAdaptor{request, std::span<const std::byte>{body_bytes},
-    //                                                  std::move(data_hdr), m_local_settings.max_frame_size()} |
-    //                std::ranges::to<utils::buffering::BufferNode>());
-    // }
-    //
-    // core::logger::info("Session - HTTP/2", "Sent {} on stream ID `{}`",
-    //                    has_body ? "HEADERS + DATA frames" : "HEADERS frame (END_STREAM)", sid);
-    // }
+        request.set_stream_id(SID);
 
+        auto node = utils::buffering::BufferNode{request.get_size(m_local_settings.max_frame_size())};
+
+        node | WriteHttpRequestAdaptor{request, m_encoding_table, m_local_settings.max_frame_size()};
+
+        core::logger::debug("Session - HTTP/2", "Prepared response HEADERS frame with payload size `{}`",
+                            node.get_written());
+
+        // TODO: check if that is correct?
+        stream.advance_send(shared_layer::FrameType::HEADERS, shared_layer::Flags::END_STREAM);
+
+        send_node(std::move(node));
+    }
 
     void receive(utils::buffering::BufferReader &reader) {
         if (!m_running) {
@@ -265,35 +221,6 @@ class Session {
 
   private:
     void response(std::uint32_t stream_id) {
-        // std::vector<std::byte> hpack{};
-        // hpack.reserve(32);
-        //
-        // // :status: 200  (indexed, §6.1)
-        // hpack.push_back(0x88);
-        //
-        // // content-type: text/plain  (literal with incremental indexing, §6.2.1)
-        // // static index 31 = content-type
-        // hpack.push_back(0x40 | 31);                     // name  = idx 31
-        // hpack.push_back(static_cast<std::uint8_t>(10)); // "text/plain" len
-        // for (char c : std::string_view{"text/plain"})
-        //     hpack.push_back(static_cast<std::uint8_t>(c));
-        //
-        // std::span<std::byte> hpack_span{hpack};
-        // FrameBuilder<shared_layer::FrameRole::SENDER> headers_frame{
-        //     FrameHeader{static_cast<std::uint32_t>(hpack.size()), shared_layer::FrameType::HEADERS,
-        //                 shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM, stream_id},
-        //     hpack_span};
-        //
-        // std::println("Prepared response HEADERS frame with payload size {}", hpack.size());
-        //
-        // std::vector<std::uint8_t> payload;
-        //
-        // auto it = std::back_inserter(payload);
-        //
-        // headers_frame.encode(it);
-        // std::println("Encoded HEADERS frame with payload size {}", payload.size());
-        //
-        //
         std::println("Sending response on Stream ID {} ", stream_id);
 
         std::string json = R"({"status":"ok"})";
@@ -302,25 +229,11 @@ class Session {
         auto body = json | std::views::transform([](char c) { return static_cast<std::byte>(c); }) |
                     std::ranges::to<std::vector<std::byte>>();
 
-        auto res = HttpResponse::ok(stream_id)
-                       .with_body(std::move(body)) // Move the materialized vector
-                       .with_content_type("application/json")
-                       .build();
+        auto res = HttpResponse::ok(stream_id).with_body(std::move(body)).with_content_type("application/json").build();
 
         auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.max_frame_size())};
 
-        std::println("Body size = {}", res.get_body().size());
-        std::println("Header count = {}", res.get_header().size()); // add this helper if needed
-
-        auto node_size = res.get_size(m_local_settings.max_frame_size());
-        std::println("Calculated get_size() = {}", node_size);
         node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.max_frame_size()};
-
-        std::println("Written size = {}", node.get_written());
-        std::println("Node size = {}", node.get_limit());
-
-        std::println("Node content: {}",
-                     std::string_view{reinterpret_cast<const char *>(node.get_data()), node.get_written()});
 
         send_node(std::move(node));
     }
