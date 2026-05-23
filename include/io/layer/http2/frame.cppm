@@ -3,6 +3,7 @@ module;
 #include <iterator>
 #include <print>
 #include <ranges>
+#include <utility>
 export module io_layer_http2:frame;
 
 import std;
@@ -394,21 +395,23 @@ class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<Write
           m_end_stream_after_data{end_stream_after_data}, m_no_data{no_data} {}
 
     template <std::ranges::viewable_range R>
-        requires std::ranges::sized_range<R> // ← enforces O(1) size, no re-iteration
     auto operator()(R &&range) const {
         auto data = std::views::all(std::forward<R>(range));
 
-        // std::ranges::size() is O(1) for sized_range — no iteration.
-        const std::size_t total_len = std::ranges::size(data);
+        std::println("was here");
+        const std::size_t total_len = std::ranges::distance(data);
         const std::size_t slice_size = std::min(m_max_frame_size, total_len);
 
         const std::size_t total_chunks = total_len == 0 ? 1 : (total_len + slice_size - 1) / slice_size;
+        std::println("was here");
 
         auto chunked =
             std::views::iota(0uz, total_chunks) | std::views::transform([data, slice_size](std::size_t chunk_idx) {
+                std::println("Evaluating chunk {}", chunk_idx);
                 return data | std::views::drop(chunk_idx * slice_size) | std::views::take(slice_size);
             });
 
+        std::println("was here");
         // Unified pipeline
         return chunked | std::views::enumerate | std::views::transform([self = *this, total_chunks](auto &&entry) {
                    auto [idx, chunk] = entry;
@@ -432,6 +435,7 @@ class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<Write
                        flags |= shared_layer::Flags::END_STREAM;
                    }
 
+                   std::println("size of chunk: {}", std::ranges::distance(chunk));
                    return std::views::concat(
                        std::views::empty<std::byte> |
                            FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(std::ranges::distance(chunk)), type,

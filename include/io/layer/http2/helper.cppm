@@ -11,10 +11,7 @@ class StreamStateMachine {
     explicit StreamStateMachine(std::uint32_t stream_id) : m_id{stream_id}, m_state{shared_layer::StreamState::IDLE} {}
 
 
-    template <shared_layer::FrameRole Role>
-    shared_layer::StreamState advance(const FrameHeader<Role> &header, bool is_local) {
-        const auto TYPE = header.get_type();
-        const auto FLAGS = header.get_flags();
+    shared_layer::StreamState advance(const shared_layer::FrameType &TYPE, const std::uint8_t &FLAGS, bool is_local) {
         const bool END_STREAM = (FLAGS & shared_layer::Flags::END_STREAM) != 0;
 
         // PRIORITY and CONTINUATION do not drive state transitions (§5.1).
