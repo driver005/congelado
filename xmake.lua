@@ -83,6 +83,8 @@ add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 -- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
+add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
+add_requires("conan::tomlplusplus/3.4.0", { alias = "tomlplusplus", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
 add_requires("range-v3", { configs = conan })
 
@@ -151,6 +153,7 @@ add_includedirs("include", { public = true })
 add_packages(
 	"fmt",
 	"simdjson",
+	"tomlplusplus",
 	"grpc",
 	"protobuf",
 	"asio",
@@ -159,10 +162,32 @@ add_packages(
 	"ngtcp2",
 	"nghttp3",
 	"backward",
+	"libffi",
 	"microsoft-gsl",
 	"range-v3",
 	{ public = true }
 )
+
+-- Plugin targets — built as independent shared libraries.
+-- Each implements core::ffi::IPluginHandler (include/core/ffi/plugin_api.h).
+-- Pure C++ — no C ABI header. extern "C" only on the two factory functions.
+-- NOT linked into the main binary; loaded at runtime via dlopen.
+for _, pluginfile in ipairs(os.files("plugins/**/*.cc")) do
+	local pluginname = path.basename(pluginfile)
+	target(pluginname)
+	set_kind("shared")
+	set_languages("c++26")
+	add_files(pluginfile)
+	add_includedirs("include")
+	add_cxflags("-fpermissive")
+	if is_plat("linux", "macosx") then
+		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+	end
+	if is_plat("windows", "mingw") then
+		add_cxflags("--target=x86_64-w64-mingw32")
+	end
+	target_end()
+end
 
 target("congelado")
 set_kind("binary")
@@ -189,3 +214,12 @@ target_end()
 -- 		add_tests("default")
 -- 		target_end()
 -- 	end
+
+target("config_test")
+	set_kind("binary")
+	add_files("tests/core/config/config_test.cc")
+	add_packages("catch2")
+	add_deps("congelado_lib")
+	add_cxflags("-fpermissive")
+	add_tests("default")
+target_end()
