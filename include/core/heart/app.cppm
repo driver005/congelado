@@ -31,6 +31,7 @@ class App {
     int run(const std::filesystem::path &config_path = "congelado.toml") {
         auto cfg = load_config(config_path);
         if (!cfg) {
+            std::println(stderr, "[heart] config load failed — aborting");
             std::abort();
         }
 
