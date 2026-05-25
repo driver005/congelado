@@ -6,20 +6,19 @@ import interfaces;
 export namespace core::logger {
 
 class LoggerRegistry {
-  private:
-    static inline std::shared_ptr<interfaces::ILogger> current_logger = nullptr;
+    static inline std::vector<std::shared_ptr<interfaces::ILogger>> loggers;
 
   public:
-    // Registers a plugin logger and returns its Settings string.
-    static std::string register_logger(std::shared_ptr<interfaces::ILogger> logger) {
-        current_logger = std::move(logger);
-        if (current_logger) {
-            return current_logger->initialize();
-        }
-        return "Settings: None";
+    // Appends a logger. No-op if null. Multiple loggers all receive every message.
+    static void register_logger(std::shared_ptr<interfaces::ILogger> logger) {
+        if (logger) loggers.push_back(std::move(logger));
     }
 
-    static interfaces::ILogger *get() { return current_logger.get(); }
+    [[nodiscard]] static bool has_logger() noexcept { return !loggers.empty(); }
+
+    [[nodiscard]] static const std::vector<std::shared_ptr<interfaces::ILogger>> &all() noexcept {
+        return loggers;
+    }
 };
 
 } // namespace core::logger
