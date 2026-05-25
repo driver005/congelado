@@ -10,10 +10,14 @@ namespace congelado {
 class PluginBase {
 public:
     virtual ~PluginBase() = default;
+    PluginBase(const PluginBase&) = delete;
+    PluginBase& operator=(const PluginBase&) = delete;
+    PluginBase(PluginBase&&) = delete;
+    PluginBase& operator=(PluginBase&&) = delete;
 
-    virtual std::string_view name()    const noexcept = 0;
-    virtual std::string_view version() const noexcept = 0;
-    virtual void on_load(const CongeladoHostCallbacks&, const CongeladoConfigView*) {}
+    [[nodiscard]] virtual std::string_view name()    const noexcept = 0;
+    [[nodiscard]] virtual std::string_view version() const noexcept = 0;
+    virtual void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView* /*cfg*/) {}
     virtual void on_unload() {}
 
     /* Override to expose logger capability. Return non-null if this plugin is a logger. */
@@ -25,17 +29,17 @@ public:
     /* Builds a CongeladoPlugin C-struct backed by this object.
        The returned struct holds a raw pointer to this — caller must keep this alive. */
     CongeladoPlugin to_c_plugin() noexcept {
-        CongeladoPlugin p{};
-        p.name    = name().data();
-        p.version = version().data();
-        p.self    = this;
-        p.on_load = [](void* self, const CongeladoHostCallbacks* cb, const CongeladoConfigView* cfg) {
-            static_cast<PluginBase*>(self)->on_load(*cb, cfg);
+        CongeladoPlugin plugin{};
+        plugin.name    = name().data();
+        plugin.version = version().data();
+        plugin.self    = this;
+        plugin.on_load = [](void* self, const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg) {
+            static_cast<PluginBase*>(self)->on_load(*host, cfg);
         };
-        p.on_unload = [](void* self) {
+        plugin.on_unload = [](void* self) {
             static_cast<PluginBase*>(self)->on_unload();
         };
-        p.get_capability = [](void* self, uint32_t cap_id) -> void* {
+        plugin.get_capability = [](void* self, uint32_t cap_id) -> void* {
             auto* pb = static_cast<PluginBase*>(self);
             switch (cap_id) {
             case CONGELADO_CAP_LOGGER:   return pb->logger_cap();
@@ -43,7 +47,7 @@ public:
             default:                     return nullptr;
             }
         };
-        return p;
+        return plugin;
     }
 };
 
@@ -51,7 +55,7 @@ public:
 
 /* Drop exactly once at the bottom of your plugin .cc.
    Generates the two extern "C" symbols dlopen looks for. */
-#define CONGELADO_PLUGIN(T)                                                 \
+#define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */     \
     extern "C" CongeladoPlugin* congelado_get_plugin() {                    \
         auto* p = new T{};                                                  \
         auto* desc = new CongeladoPlugin(p->to_c_plugin());                 \
