@@ -1,7 +1,7 @@
 module;
 
-#include <stdio.h>
 #include <ffi.h>
+#include <stdio.h>
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -21,9 +21,9 @@ export namespace core::ffi {
 
 // Host-side capability enum — values mirror CongeladoCap in plugin_api.h.
 enum class Cap : std::uint32_t {
-    Logger   = CONGELADO_CAP_LOGGER,
+    Logger = CONGELADO_CAP_LOGGER,
     Protocol = CONGELADO_CAP_PROTOCOL,
-    Custom   = CONGELADO_CAP_CUSTOM,
+    Custom = CONGELADO_CAP_CUSTOM,
 };
 
 struct LoadError {
@@ -42,7 +42,9 @@ struct LoadError {
 // Dispatch:
 //   All interface calls go through cached cap vtable pointers (m_logger_cap etc.).
 //   Always null-checked — never segfaults on missing capability.
-class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
+class FfiBridge : public shared::HandlerBase,
+                  public interfaces::ILogger,
+                  public std::enable_shared_from_this<FfiBridge> {
   public:
     [[nodiscard]] static std::expected<std::shared_ptr<FfiBridge>, LoadError>
     load(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr) {
@@ -58,7 +60,7 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
         auto bridge = std::shared_ptr<FfiBridge>(new FfiBridge{});
         bridge->m_lib = lib;
 
-        auto *get_sym     = bridge->probe("congelado_get_plugin");
+        auto *get_sym = bridge->probe("congelado_get_plugin");
         auto *destroy_sym = bridge->probe("congelado_destroy_plugin");
         if (!get_sym || !destroy_sym)
             return std::unexpected(LoadError{"missing 'congelado_get_plugin' / 'congelado_destroy_plugin'"});
@@ -71,11 +73,19 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
         bridge->m_lib_name = bridge->m_plugin->name;
 
         // Build libffi closures for host callbacks
-        auto [log_code, sched_code] = bridge->make_host_callbacks();
+        void *log_code   = nullptr;
+        void *sched_code = nullptr;
+        try {
+            auto codes = bridge->make_host_callbacks();
+            log_code   = codes.first;
+            sched_code = codes.second;
+        } catch (const std::exception &ex) {
+            return std::unexpected(LoadError{std::format("libffi setup failed: {}", ex.what())});
+        }
         CongeladoHostCallbacks callbacks{};
-        callbacks.log      = reinterpret_cast<CongeladoLogFn>(log_code);
+        callbacks.log = reinterpret_cast<CongeladoLogFn>(log_code);
         callbacks.schedule = reinterpret_cast<CongeladoScheduleFn>(sched_code);
-        callbacks.ctx      = bridge.get();
+        callbacks.ctx = bridge.get();
 
         std::vector<const char *> pcv_keys, pcv_vals;
         if (plugin_cfg) {
@@ -89,9 +99,7 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
             plugin_cfg ? pcv_vals.data() : nullptr,
             plugin_cfg ? pcv_keys.size() : 0,
         };
-        bridge->m_plugin->on_load(bridge->m_plugin->self,
-                                  &callbacks,
-                                  plugin_cfg ? &pcv : nullptr);
+        bridge->m_plugin->on_load(bridge->m_plugin->self, &callbacks, plugin_cfg ? &pcv : nullptr);
 
         bridge->discover_caps();
 
@@ -100,8 +108,10 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
 
     ~FfiBridge() {
         release_plugin();
-        if (m_log_closure)   ffi_closure_free(m_log_closure);
-        if (m_sched_closure) ffi_closure_free(m_sched_closure);
+        if (m_log_closure)
+            ffi_closure_free(m_log_closure);
+        if (m_sched_closure)
+            ffi_closure_free(m_sched_closure);
         if (m_lib) {
 #if defined(_WIN32)
             FreeLibrary(static_cast<HMODULE>(m_lib));
@@ -114,34 +124,33 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
     FfiBridge(const FfiBridge &) = delete;
     FfiBridge &operator=(const FfiBridge &) = delete;
 
-    [[nodiscard]] bool has(Cap cap) const noexcept {
-        return (m_caps & std::to_underlying(cap)) != 0;
-    }
+    [[nodiscard]] bool has(Cap cap) const noexcept { return (m_caps & std::to_underlying(cap)) != 0; }
 
-    [[nodiscard]] std::shared_ptr<interfaces::IProtocol> get_protocol() const noexcept {
-        return m_protocol;
-    }
+    [[nodiscard]] std::shared_ptr<interfaces::IProtocol> get_protocol() const noexcept { return m_protocol; }
 
     // shared::HandlerBase + interfaces::ILogger — name() satisfies both.
     [[nodiscard]] std::string_view name() const noexcept override { return m_lib_name; }
 
     // Null-guarded — never segfaults even if plugin has no logger cap.
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
-        if (!m_logger_cap) return;
-        m_logger_cap->write(m_logger_cap->self,
-                            static_cast<int>(level),
-                            msg.data(), msg.size());
+        if (!m_logger_cap)
+            return;
+        m_logger_cap->write(m_logger_cap->self, static_cast<int>(level), msg.data(), msg.size());
     }
 
     void error(std::string_view msg) override {
-        if (!m_logger_cap) return;
+        if (!m_logger_cap)
+            return;
         m_logger_cap->write_error(m_logger_cap->self, msg.data(), msg.size());
     }
 
     [[nodiscard]] shared::WorkerFunction on_execute() override { return nullptr; }
 
     [[nodiscard]] shared::ReleaseFunction on_released() noexcept override {
-        return [this] { release_plugin(); };
+        std::weak_ptr<FfiBridge> weak = weak_from_this();
+        return [weak] {
+            if (auto self = weak.lock()) self->release_plugin();
+        };
     }
 
     [[nodiscard]] shared::ErrorHandler on_error() override {
@@ -159,30 +168,31 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
   private:
     FfiBridge() = default;
 
-    void *m_lib          = nullptr;
-    void *m_destroy_sym  = nullptr;
-    CongeladoPlugin    *m_plugin     = nullptr;
+    void *m_lib = nullptr;
+    void *m_destroy_sym = nullptr;
+    CongeladoPlugin *m_plugin = nullptr;
     CongeladoLoggerCap *m_logger_cap = nullptr;
-    std::string    m_lib_name;
-    std::uint32_t  m_caps = 0;
+    std::string m_lib_name;
+    std::uint32_t m_caps = 0;
     std::shared_ptr<interfaces::IProtocol> m_protocol;
 
-    ffi_closure *m_log_closure   = nullptr;
-    void        *m_log_fn_code   = nullptr;
-    ffi_cif      m_cif_log{};
-    ffi_type    *m_log_args[4]{};
+    ffi_closure *m_log_closure = nullptr;
+    void *m_log_fn_code = nullptr;
+    ffi_cif m_cif_log{};
+    ffi_type *m_log_args[4]{};
 
     ffi_closure *m_sched_closure = nullptr;
-    void        *m_sched_fn_code = nullptr;
-    ffi_cif      m_cif_sched{};
-    ffi_type    *m_sched_args[1]{};
+    void *m_sched_fn_code = nullptr;
+    ffi_cif m_cif_sched{};
+    ffi_type *m_sched_args[1]{};
 
     void release_plugin() noexcept {
-        if (!m_plugin) return;
+        if (!m_plugin)
+            return;
         m_plugin->on_unload(m_plugin->self);
         using DestroyFn = void (*)(CongeladoPlugin *);
         reinterpret_cast<DestroyFn>(m_destroy_sym)(m_plugin);
-        m_plugin     = nullptr;
+        m_plugin = nullptr;
         m_logger_cap = nullptr;
     }
 
@@ -194,17 +204,15 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
 #endif
     }
 
-    static ffi_type *size_ffi_type() noexcept {
-        return sizeof(std::size_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32;
-    }
+    static ffi_type *size_ffi_type() noexcept { return sizeof(std::size_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32; }
 
     static void log_fn(ffi_cif *, void *, void **args, void *data) noexcept {
-        auto *self      = static_cast<FfiBridge *>(data);
-        int level       = *static_cast<int *>(args[1]);
+        auto *self = static_cast<FfiBridge *>(data);
+        // args[0] = ctx (unused — bridge ptr comes from closure user_data 'data')
+        int level = *static_cast<int *>(args[1]);
         const char *ptr = *static_cast<const char **>(args[2]);
         std::size_t len = *static_cast<std::size_t *>(args[3]);
-        std::println(stderr, "[plugin::{}] log({}): {}",
-                     self->m_lib_name, level, std::string_view{ptr, len});
+        std::println(stderr, "[plugin::{}] log({}): {}", self->m_lib_name, level, std::string_view{ptr, len});
     }
 
     static void schedule_fn(ffi_cif *, void *, void **, void *data) noexcept {
@@ -218,26 +226,32 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
         m_log_args[1] = &ffi_type_sint;
         m_log_args[2] = &ffi_type_pointer;
         m_log_args[3] = size_ffi_type();
-        ffi_prep_cif(&m_cif_log, FFI_DEFAULT_ABI, 4, &ffi_type_void, m_log_args);
-        m_log_closure = static_cast<ffi_closure *>(
-            ffi_closure_alloc(sizeof(ffi_closure), &m_log_fn_code));
-        ffi_prep_closure_loc(m_log_closure, &m_cif_log, log_fn, this, m_log_fn_code);
+        if (ffi_prep_cif(&m_cif_log, FFI_DEFAULT_ABI, 4, &ffi_type_void, m_log_args) != FFI_OK)
+            throw std::runtime_error("ffi_prep_cif(log) failed");
+        m_log_closure = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_log_fn_code));
+        if (!m_log_closure)
+            throw std::runtime_error("ffi_closure_alloc(log) failed");
+        if (ffi_prep_closure_loc(m_log_closure, &m_cif_log, log_fn, this, m_log_fn_code) != FFI_OK)
+            throw std::runtime_error("ffi_prep_closure_loc(log) failed");
 
         m_sched_args[0] = &ffi_type_pointer;
-        ffi_prep_cif(&m_cif_sched, FFI_DEFAULT_ABI, 1, &ffi_type_void, m_sched_args);
-        m_sched_closure = static_cast<ffi_closure *>(
-            ffi_closure_alloc(sizeof(ffi_closure), &m_sched_fn_code));
-        ffi_prep_closure_loc(m_sched_closure, &m_cif_sched, schedule_fn, this, m_sched_fn_code);
+        if (ffi_prep_cif(&m_cif_sched, FFI_DEFAULT_ABI, 1, &ffi_type_void, m_sched_args) != FFI_OK)
+            throw std::runtime_error("ffi_prep_cif(sched) failed");
+        m_sched_closure = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_sched_fn_code));
+        if (!m_sched_closure)
+            throw std::runtime_error("ffi_closure_alloc(sched) failed");
+        if (ffi_prep_closure_loc(m_sched_closure, &m_cif_sched, schedule_fn, this, m_sched_fn_code) != FFI_OK)
+            throw std::runtime_error("ffi_prep_closure_loc(sched) failed");
 
         return {m_log_fn_code, m_sched_fn_code};
     }
 
     void discover_caps() {
-        if (!m_plugin) return;
+        if (!m_plugin)
+            return;
 
         // Logger capability
-        auto *lc = static_cast<CongeladoLoggerCap *>(
-            m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_LOGGER));
+        auto *lc = static_cast<CongeladoLoggerCap *>(m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_LOGGER));
         if (lc) {
             m_logger_cap = lc;
             m_caps |= std::to_underlying(Cap::Logger);
@@ -247,7 +261,7 @@ class FfiBridge : public shared::HandlerBase, public interfaces::ILogger {
         auto *proto_raw = m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_PROTOCOL);
         if (proto_raw) {
             auto *proto = static_cast<interfaces::IProtocol *>(proto_raw);
-            m_protocol  = std::shared_ptr<interfaces::IProtocol>(proto, [](interfaces::IProtocol *) {});
+            m_protocol = std::shared_ptr<interfaces::IProtocol>(proto, [](interfaces::IProtocol *) {});
             m_caps |= std::to_underlying(Cap::Protocol);
         }
     }
