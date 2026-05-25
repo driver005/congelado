@@ -131,15 +131,15 @@ class FfiBridge : public shared::HandlerBase,
     // shared::HandlerBase + interfaces::ILogger — name() satisfies both.
     [[nodiscard]] std::string_view name() const noexcept override { return m_lib_name; }
 
-    // Null-guarded — never segfaults even if plugin has no logger cap.
+    // Null-guarded on both the cap pointer and the individual function pointers.
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
-        if (!m_logger_cap)
+        if (!m_logger_cap || !m_logger_cap->write)
             return;
         m_logger_cap->write(m_logger_cap->self, static_cast<int>(level), msg.data(), msg.size());
     }
 
-    void error(std::string_view msg) override {
-        if (!m_logger_cap)
+    void error(std::string_view msg) noexcept override {
+        if (!m_logger_cap || !m_logger_cap->write_error)
             return;
         m_logger_cap->write_error(m_logger_cap->self, msg.data(), msg.size());
     }
@@ -154,13 +154,14 @@ class FfiBridge : public shared::HandlerBase,
     }
 
     [[nodiscard]] shared::ErrorHandler on_error() override {
-        return [this](std::exception_ptr eptr) {
+        std::string name = m_lib_name; // copy — lambda must not capture `this` (use-after-free risk)
+        return [name = std::move(name)](std::exception_ptr eptr) {
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::exception &ex) {
-                std::println(stderr, "[ffi::{}] error: {}", m_lib_name, ex.what());
+                std::println(stderr, "[ffi::{}] error: {}", name, ex.what());
             } catch (...) {
-                std::println(stderr, "[ffi::{}] unknown error", m_lib_name);
+                std::println(stderr, "[ffi::{}] unknown error", name);
             }
         };
     }

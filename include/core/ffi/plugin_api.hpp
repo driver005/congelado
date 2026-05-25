@@ -9,12 +9,15 @@ namespace congelado {
    drop CONGELADO_PLUGIN(YourClass) at bottom of .cc — zero C required. */
 class PluginBase {
 public:
+    PluginBase() noexcept = default;
     virtual ~PluginBase() = default;
     PluginBase(const PluginBase&) = delete;
     PluginBase& operator=(const PluginBase&) = delete;
     PluginBase(PluginBase&&) = delete;
     PluginBase& operator=(PluginBase&&) = delete;
 
+    // IMPORTANT: returned string_view::data() is stored as a raw const char* in CongeladoPlugin.
+    // Implementations MUST return a view into a string literal or a member with plugin lifetime.
     [[nodiscard]] virtual std::string_view name()    const noexcept = 0;
     [[nodiscard]] virtual std::string_view version() const noexcept = 0;
     virtual void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView* /*cfg*/) {}
