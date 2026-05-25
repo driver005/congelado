@@ -55,13 +55,13 @@ public:
 
 /* Drop exactly once at the bottom of your plugin .cc.
    Generates the two extern "C" symbols dlopen looks for. */
-#define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */     \
-    extern "C" CongeladoPlugin* congelado_get_plugin() {                    \
-        auto* p = new T{};                                                  \
-        auto* desc = new CongeladoPlugin(p->to_c_plugin());                 \
-        return desc;                                                        \
-    }                                                                       \
-    extern "C" void congelado_destroy_plugin(CongeladoPlugin* desc) {       \
-        delete static_cast<T*>(desc->self);                                 \
-        delete desc;                                                        \
+#define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */        \
+    extern "C" CongeladoPlugin* congelado_get_plugin() {                       \
+        auto* plugin = new T{};                                                \
+        auto* desc   = new CongeladoPlugin(plugin->to_c_plugin());             \
+        return desc;                                                           \
+    }                                                                          \
+    extern "C" void congelado_destroy_plugin(CongeladoPlugin* desc) {          \
+        delete static_cast<T*>(desc->self); /* NOLINT(bugprone-macro-parentheses) */ \
+        delete desc;                        /* NOLINT(bugprone-macro-parentheses) */ \
     }

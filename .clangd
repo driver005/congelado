@@ -143,6 +143,18 @@ CompileFlags:
     - "c++"
 
 ---
+# plugin_api.h/hpp: pure-C ABI header — snake_case member names are intentional,
+# macro-parentheses check is a false positive for type-param macros.
+If:
+  PathMatch: ".*plugin_api\\.(h|hpp)"
+Diagnostics:
+  ClangTidy:
+    Remove:
+      - "readability-identifier-naming"
+      - "bugprone-macro-parentheses"
+      - "cppcoreguidelines-macro-usage"
+
+---
 # Test files: relax some checks that are too strict for test code
 If:
   PathMatch: ".*(test|spec).*\\.(cpp|cppm)"
