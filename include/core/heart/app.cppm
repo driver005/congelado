@@ -10,6 +10,7 @@ import core_config;
 import core_logger;
 import core_plugin;
 import congelado;
+import :context;
 
 std::filesystem::path expand_tilde(std::filesystem::path path) {
     std::string path_str = path.string();
@@ -35,9 +36,10 @@ class App {
             std::abort();
         }
 
+        AppContext ctx;
         std::vector<core::plugin::PluginHandle> plugins;
         std::shared_ptr<interfaces::IProtocol> proto;
-        bool plugin_logger = load_plugins(*cfg, plugins, proto);
+        bool plugin_logger = load_plugins(*cfg, ctx, plugins, proto);
 
         if (!plugin_logger) {
             std::println(stderr, "[heart] no logger plugin found — aborting");
@@ -79,12 +81,13 @@ class App {
 
     // Loads all plugins from config. Registers all logger plugins.
     // Sets proto to the first protocol plugin found.
-    // Forwards the first plugin's RouterContext to all subsequent plugins so they
-    // can add routes to the shared global router during their on_load().
+    // Passes ctx.router_ptr() to every plugin so all can add routes to the
+    // same global RouterContext during their on_load().
     // Returns true if any logger plugin was registered.
-    bool load_plugins(const core::config::Config &cfg, std::vector<core::plugin::PluginHandle> &handles,
+    bool load_plugins(const core::config::Config &cfg, AppContext &ctx,
+                      std::vector<core::plugin::PluginHandle> &handles,
                       std::shared_ptr<interfaces::IProtocol> &proto) {
-        void *router_ctx = nullptr;
+        void *router_ctx = ctx.router_ptr();
 
         for (auto &[name, plugin_cfg] : cfg.plugins) {
 #if defined(_WIN32)
@@ -112,12 +115,6 @@ class App {
 
             if (!proto) {
                 proto = core::plugin::make_protocol(*result);
-            }
-
-            // Once a plugin exposes a shared RouterContext, forward it to all
-            // subsequent plugins so they can register routes on the same instance.
-            if (!router_ctx) {
-                router_ctx = core::plugin::get_router_ctx(*result);
             }
         }
 

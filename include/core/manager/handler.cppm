@@ -43,14 +43,5 @@ inline std::shared_ptr<interfaces::IProtocol> make_protocol(const PluginHandle &
     return bridge->get_protocol();
 }
 
-// Returns the plugin's shared RouterContext pointer (opaque void*), or nullptr.
-// Pass to subsequent core::plugin::load() calls as router_ctx so those plugins can
-// add routes to the same RouterContext during their on_load().
-[[nodiscard]]
-inline void* get_router_ctx(const PluginHandle &bridge) {
-    if (!bridge || !bridge->has(Cap::RouterCtx))
-        return nullptr;
-    return bridge->get_router_ctx();
-}
 
 } // namespace core::plugin

@@ -8,10 +8,9 @@ extern "C" {
 
 /* Capability IDs — must stay in sync with core::ffi::Cap in bridge.cppm */
 typedef enum CongeladoCap {
-    CONGELADO_CAP_LOGGER     = 0,
-    CONGELADO_CAP_PROTOCOL   = 1,
-    CONGELADO_CAP_CUSTOM     = 2,
-    CONGELADO_CAP_ROUTER_CTX = 3, /* returns RouterContext<Protocol>* as void* */
+    CONGELADO_CAP_LOGGER   = 0,
+    CONGELADO_CAP_PROTOCOL = 1,
+    CONGELADO_CAP_CUSTOM   = 2,
 } CongeladoCap;
 
 /* Function pointer types for CongeladoHostCallbacks */
