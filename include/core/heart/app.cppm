@@ -79,9 +79,13 @@ class App {
 
     // Loads all plugins from config. Registers all logger plugins.
     // Sets proto to the first protocol plugin found.
+    // Forwards the first plugin's RouterContext to all subsequent plugins so they
+    // can add routes to the shared global router during their on_load().
     // Returns true if any logger plugin was registered.
     bool load_plugins(const core::config::Config &cfg, std::vector<core::plugin::PluginHandle> &handles,
                       std::shared_ptr<interfaces::IProtocol> &proto) {
+        void *router_ctx = nullptr;
+
         for (auto &[name, plugin_cfg] : cfg.plugins) {
 #if defined(_WIN32)
             auto so = m_plugin_dir / (name + ".dll");
@@ -93,7 +97,7 @@ class App {
                 continue;
             }
 
-            auto result = core::plugin::load(so, &plugin_cfg);
+            auto result = core::plugin::load(so, &plugin_cfg, router_ctx);
             if (!result) {
                 std::println(stderr, "[heart] plugin '{}' failed to load: {}", name, result.error().detail);
                 continue;
@@ -108,6 +112,12 @@ class App {
 
             if (!proto) {
                 proto = core::plugin::make_protocol(*result);
+            }
+
+            // Once a plugin exposes a shared RouterContext, forward it to all
+            // subsequent plugins so they can register routes on the same instance.
+            if (!router_ctx) {
+                router_ctx = core::plugin::get_router_ctx(*result);
             }
         }
 

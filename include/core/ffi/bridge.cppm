@@ -21,9 +21,10 @@ export namespace core::ffi {
 
 // Host-side capability enum — values mirror CongeladoCap in plugin_api.h.
 enum class Cap : std::uint32_t {
-    Logger = CONGELADO_CAP_LOGGER,
-    Protocol = CONGELADO_CAP_PROTOCOL,
-    Custom = CONGELADO_CAP_CUSTOM,
+    Logger    = CONGELADO_CAP_LOGGER,
+    Protocol  = CONGELADO_CAP_PROTOCOL,
+    Custom    = CONGELADO_CAP_CUSTOM,
+    RouterCtx = CONGELADO_CAP_ROUTER_CTX,
 };
 
 struct LoadError {
@@ -47,7 +48,9 @@ class FfiBridge : public shared::HandlerBase,
                   public std::enable_shared_from_this<FfiBridge> {
   public:
     [[nodiscard]] static std::expected<std::shared_ptr<FfiBridge>, LoadError>
-    load(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr) {
+    load(const std::filesystem::path &path,
+         const core::config::PluginConfig *plugin_cfg = nullptr,
+         void *router_ctx = nullptr) {
         void *lib =
 #if defined(_WIN32)
             static_cast<void *>(LoadLibraryA(path.string().c_str()));
@@ -83,9 +86,10 @@ class FfiBridge : public shared::HandlerBase,
             return std::unexpected(LoadError{std::format("libffi setup failed: {}", ex.what())});
         }
         CongeladoHostCallbacks callbacks{};
-        callbacks.log = reinterpret_cast<CongeladoLogFn>(log_code);
-        callbacks.schedule = reinterpret_cast<CongeladoScheduleFn>(sched_code);
-        callbacks.ctx = bridge.get();
+        callbacks.log        = reinterpret_cast<CongeladoLogFn>(log_code);
+        callbacks.schedule   = reinterpret_cast<CongeladoScheduleFn>(sched_code);
+        callbacks.router_ctx = router_ctx;
+        callbacks.ctx        = bridge.get();
 
         std::vector<const char *> pcv_keys, pcv_vals;
         if (plugin_cfg) {
@@ -127,6 +131,10 @@ class FfiBridge : public shared::HandlerBase,
     [[nodiscard]] bool has(Cap cap) const noexcept { return (m_caps & std::to_underlying(cap)) != 0; }
 
     [[nodiscard]] std::shared_ptr<interfaces::IProtocol> get_protocol() const noexcept { return m_protocol; }
+
+    // Returns the plugin's shared RouterContext* (opaque void*), or nullptr.
+    // Callers cast to core::server::RouterContext<Protocol>* for typed access.
+    [[nodiscard]] void* get_router_ctx() const noexcept { return m_router_ctx_ptr; }
 
     // shared::HandlerBase + interfaces::ILogger — name() satisfies both.
     [[nodiscard]] std::string_view name() const noexcept override { return m_lib_name; }
@@ -173,6 +181,7 @@ class FfiBridge : public shared::HandlerBase,
     void *m_destroy_sym = nullptr;
     CongeladoPlugin *m_plugin = nullptr;
     CongeladoLoggerCap *m_logger_cap = nullptr;
+    void *m_router_ctx_ptr = nullptr; // opaque RouterContext<Protocol>* from plugin
     std::string m_lib_name;
     std::uint32_t m_caps = 0;
     std::shared_ptr<interfaces::IProtocol> m_protocol;
@@ -264,6 +273,13 @@ class FfiBridge : public shared::HandlerBase,
             auto *proto = static_cast<interfaces::IProtocol *>(proto_raw);
             m_protocol = std::shared_ptr<interfaces::IProtocol>(proto, [](interfaces::IProtocol *) {});
             m_caps |= std::to_underlying(Cap::Protocol);
+        }
+
+        // RouterCtx capability — plugin returns RouterContext<Protocol>* as void*
+        auto *rctx = m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_ROUTER_CTX);
+        if (rctx) {
+            m_router_ctx_ptr = rctx;
+            m_caps |= std::to_underlying(Cap::RouterCtx);
         }
     }
 };
