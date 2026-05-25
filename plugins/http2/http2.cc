@@ -57,11 +57,11 @@ class Http2Plugin final : public congelado::PluginBase {
             case io::shared::http::HttpMethod::PATCH:   method = core::server::Method::PATCH;   break;
             case io::shared::http::HttpMethod::HEAD:    method = core::server::Method::HEAD;    break;
             case io::shared::http::HttpMethod::OPTIONS: method = core::server::Method::OPTIONS; break;
-            default: return;
+            default: return; // unknown method — session pre-initializes res with 405/404
             }
             try {
                 router->server.match(method, req.get_target(), req, res);
-            } catch (const std::runtime_error &) {}
+            } catch (const std::runtime_error &) {} // route not found — leave session's default status
         });
     }
 
