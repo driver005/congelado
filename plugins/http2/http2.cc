@@ -30,34 +30,37 @@ class Http2Plugin final : public congelado::PluginBase {
         }
         m_protocol = std::make_unique<io::layer::http2::Http2Protocol>(cfg_view ? &cfg : nullptr);
 
-        // If another plugin already owns the shared RouterContext and passed it via
-        // host.router_ctx, use that. Otherwise m_router_ctx is ours (the common case
-        // since the protocol plugin loads first).
-        core::server::RouterContext<io::shared::http::Protocol> *ctx =
-            host.router_ctx
-                ? static_cast<core::server::RouterContext<io::shared::http::Protocol> *>(host.router_ctx)
-                : &m_router_ctx;
+        // router_ctx is the App's AppContext::router (always provided by core::heart::App).
+        // Cast to the concrete RouterContext type to register routes.
+        m_active_ctx = static_cast<core::server::RouterContext<io::shared::http::Protocol> *>(host.router_ctx);
 
-        ctx->add_route(core::server::Route<io::shared::http::Protocol>{"/hello"}.get(
-            [](interfaces::IRequest<io::shared::http::Protocol> &,
-               interfaces::IResponse<io::shared::http::Protocol> &res) noexcept {
-                constexpr std::string_view BODY = R"({"hello":"world"})";
-                std::vector<std::byte> body;
-                body.reserve(BODY.size());
-                for (char c : BODY)
-                    body.push_back(static_cast<std::byte>(c));
-                res.set_status(interfaces::Status::OK);
-                res.add_header(io::shared::http::Token::CONTENT_TYPE, "application/json");
-                res.set_body(std::move(body));
-            }));
+        if (m_active_ctx) {
+            m_active_ctx->add_route(core::server::Route<io::shared::http::Protocol>{"/hello"}.get(
+                [](interfaces::IRequest<io::shared::http::Protocol> &,
+                   interfaces::IResponse<io::shared::http::Protocol> &res) noexcept {
+                    constexpr std::string_view BODY = R"({"hello":"world"})";
+                    std::vector<std::byte> body;
+                    body.reserve(BODY.size());
+                    for (char c : BODY)
+                        body.push_back(static_cast<std::byte>(c));
+                    res.set_status(interfaces::Status::OK);
+                    res.add_header(io::shared::http::Token::CONTENT_TYPE, "application/json");
+                    res.set_body(std::move(body));
+                }));
+        }
 
         // Wire the protocol to dispatch through the shared router.
         // BuiltServer is constructed lazily on first request so all plugins have time to add routes.
         m_protocol->set_router([this](interfaces::IRequest<io::shared::http::Protocol> &req,
                                       interfaces::IResponse<io::shared::http::Protocol> &res) {
             std::call_once(m_build_flag, [this] {
-                m_built_server = std::make_unique<BuiltServer>(std::move(m_router_ctx));
+                if (m_active_ctx) {
+                    m_built_server = std::make_unique<BuiltServer>(std::move(*m_active_ctx));
+                }
             });
+
+            if (!m_built_server)
+                return;
 
             auto http_method = io::shared::http::parse_method(req.get_method());
             core::server::Method method;
@@ -80,6 +83,7 @@ class Http2Plugin final : public congelado::PluginBase {
     void on_unload() override {
         m_protocol.reset();
         m_built_server.reset();
+        m_active_ctx = nullptr;
     }
 
     // Protocol cap — returns interfaces::IProtocol* as void* (placeholder until CongeladoProtocolCap defined)
@@ -87,13 +91,10 @@ class Http2Plugin final : public congelado::PluginBase {
         return reinterpret_cast<CongeladoProtocolCap *>(m_protocol.get());
     }
 
-    // RouterCtx cap — exposes the shared RouterContext so the host can pass it to other plugins.
-    void *router_ctx_cap() noexcept override { return &m_router_ctx; }
-
   private:
-    // Owns the global RouterContext. Other plugins add routes during their on_load()
-    // via CongeladoHostCallbacks::router_ctx (set by App after this plugin loads).
-    core::server::RouterContext<io::shared::http::Protocol> m_router_ctx;
+    // Non-owning pointer to AppContext::router (owned by core::heart::App).
+    // Set in on_load, used by the lazy server build on first request.
+    core::server::RouterContext<io::shared::http::Protocol> *m_active_ctx = nullptr;
 
     // Built lazily on first request — guarantees all plugin routes are registered first.
     std::unique_ptr<BuiltServer> m_built_server;
