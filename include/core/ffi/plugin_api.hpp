@@ -28,6 +28,10 @@ public:
     /* Override to expose protocol capability. Return non-null if this plugin is a protocol.
        For now returns interfaces::IProtocol* reinterpret_cast'd — placeholder. */
     virtual CongeladoProtocolCap* protocol_cap() noexcept { return nullptr; }
+    /* Override to expose a shared RouterContext. Return RouterContext<Protocol>* as void*.
+       The host will pass this pointer as CongeladoHostCallbacks::router_ctx to all
+       subsequently-loaded plugins so they can register routes on the same context. */
+    virtual void*                 router_ctx_cap() noexcept { return nullptr; }
 
     /* Builds a CongeladoPlugin C-struct backed by this object.
        The returned struct holds a raw pointer to this — caller must keep this alive. */
@@ -45,9 +49,10 @@ public:
         plugin.get_capability = [](void* self, uint32_t cap_id) -> void* {
             auto* pb = static_cast<PluginBase*>(self);
             switch (cap_id) {
-            case CONGELADO_CAP_LOGGER:   return pb->logger_cap();
-            case CONGELADO_CAP_PROTOCOL: return pb->protocol_cap();
-            default:                     return nullptr;
+            case CONGELADO_CAP_LOGGER:     return pb->logger_cap();
+            case CONGELADO_CAP_PROTOCOL:   return pb->protocol_cap();
+            case CONGELADO_CAP_ROUTER_CTX: return pb->router_ctx_cap();
+            default:                       return nullptr;
             }
         };
         return plugin;

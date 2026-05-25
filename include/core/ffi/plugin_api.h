@@ -8,9 +8,10 @@ extern "C" {
 
 /* Capability IDs — must stay in sync with core::ffi::Cap in bridge.cppm */
 typedef enum CongeladoCap {
-    CONGELADO_CAP_LOGGER   = 0,
-    CONGELADO_CAP_PROTOCOL = 1,
-    CONGELADO_CAP_CUSTOM   = 2,
+    CONGELADO_CAP_LOGGER     = 0,
+    CONGELADO_CAP_PROTOCOL   = 1,
+    CONGELADO_CAP_CUSTOM     = 2,
+    CONGELADO_CAP_ROUTER_CTX = 3, /* returns RouterContext<Protocol>* as void* */
 } CongeladoCap;
 
 /* Function pointer types for CongeladoHostCallbacks */
@@ -18,11 +19,15 @@ typedef void (*CongeladoLogFn)(void* ctx, int level, const char* msg, size_t len
 typedef void (*CongeladoScheduleFn)(void* ctx);
 
 /* Host-side callbacks given to the plugin at on_load time.
-   Built as libffi closures — real callable C function pointers. */
+   Built as libffi closures — real callable C function pointers.
+   router_ctx: opaque pointer to the host's shared RouterContext.
+     C++ plugins cast to core::server::RouterContext<Protocol>* and call add_route().
+     Null if the host has not configured a shared router. */
 typedef struct CongeladoHostCallbacks {
     CongeladoLogFn      log;
     CongeladoScheduleFn schedule;
-    void* ctx;
+    void*               router_ctx; /* shared RouterContext<Protocol>* — cast in plugin */
+    void*               ctx;
 } CongeladoHostCallbacks;
 
 /* Read-only view of one plugin's config section.
