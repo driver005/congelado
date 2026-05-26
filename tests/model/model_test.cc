@@ -31,3 +31,65 @@ TEST_CASE("is_terminal(WorkflowStatus)") {
     CHECK_FALSE(model::is_terminal(RUNNING));
     CHECK_FALSE(model::is_terminal(PAUSED));
 }
+
+TEST_CASE("TaskDef construction") {
+    model::TaskDef def{
+        .name        = "send_email",
+        .type        = model::TaskType::SIMPLE,
+        .worker_type = "email_worker",
+        .input_keys  = {"to", "subject", "body"},
+        .output_keys = {"message_id"},
+        .retry       = {.max_attempts = 3, .backoff = model::RetryBackoff::EXPONENTIAL, .interval_ms = 500},
+        .timeout     = {.timeout_ms = 5000, .action = model::TimeoutAction::FAIL_WORKFLOW},
+    };
+    CHECK(def.name == "send_email");
+    CHECK(def.type == model::TaskType::SIMPLE);
+    CHECK(def.input_keys.size() == 3);
+    CHECK_FALSE(def.rate_limit.has_value());
+}
+
+TEST_CASE("WorkflowDef DAG construction") {
+    model::WorkflowDef wf{
+        .name    = "order_pipeline",
+        .version = 1,
+        .nodes   = {
+            model::TaskNode{
+                .task_def_name = "validate_order",
+                .edges = {
+                    model::TaskEdge{
+                        .from     = "validate_order",
+                        .to       = "charge_payment",
+                        .condition = std::nullopt,
+                        .mappings = {
+                            model::InputMapping{
+                                .source = "$.validate_order.output.order_id",
+                                .target = "order_id"
+                            }
+                        }
+                    }
+                }
+            },
+            model::TaskNode{
+                .task_def_name = "charge_payment",
+                .edges         = {}
+            }
+        },
+        .input_params = {"order_id", "customer_id"},
+    };
+    CHECK(wf.nodes.size() == 2);
+    CHECK(wf.nodes[0].edges[0].to == "charge_payment");
+    CHECK_FALSE(wf.failure_workflow.has_value());
+}
+
+TEST_CASE("WorkflowExecution initial state") {
+    model::WorkflowExecution exec{
+        .exec_id     = model::generate_id(),
+        .def_name    = "order_pipeline",
+        .def_version = 1,
+    };
+    CHECK_FALSE(exec.exec_id.is_nil());
+    CHECK(exec.status == model::WorkflowStatus::RUNNING);
+    CHECK(exec.task_instances.empty());
+    CHECK(exec.variables.empty());
+    CHECK_FALSE(model::is_terminal(exec.status));
+}
