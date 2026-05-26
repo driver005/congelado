@@ -14,7 +14,7 @@ class IDbCodec {
     [[nodiscard]] virtual std::string encode_update(T const &) const = 0;
     [[nodiscard]] virtual std::string encode_remove(T const &) const = 0;
 
-    virtual void decode(std::string_view result, T &out) const = 0;
+    virtual void decode(std::string_view result, T &out) const noexcept = 0;
 };
 
 template <typename Codec, typename T>
