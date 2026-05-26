@@ -8,3 +8,4 @@ export import :task_status;
 export import :task_def;
 export import :task_instance;
 export import :workflow_status;
+export import :workflow_dag;
