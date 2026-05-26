@@ -221,17 +221,20 @@ add_packages("fmt", "simdjson")
 target_end()
 
 target("model_test")
-	set_kind("binary")
-	set_languages("c++26")
-	set_policy("build.c++.modules", true)
-	add_files("tests/model/model_test.cc")
-	add_deps("congelado_lib")
-	add_packages("catch2")
-	add_cxflags("-fpermissive")
-	if is_plat("linux", "macosx") then
-		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-	end
-	add_tests("default")
+set_kind("binary")
+set_languages("c++26")
+set_policy("build.c++.modules", true)
+add_files("tests/model/model_test.cc")
+add_deps("congelado_lib")
+add_packages("catch2")
+add_cxflags("-fpermissive")
+if is_plat("linux", "macosx") then
+	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+end
+if is_plat("windows", "mingw") then
+	add_cxflags("--target=x86_64-w64-mingw32")
+end
+add_tests("default")
 target_end()
 
 -- for _, benchfile in ipairs(os.files("benchmarks/**.cc")) do
