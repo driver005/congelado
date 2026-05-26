@@ -21,3 +21,13 @@ TEST_CASE("is_terminal(TaskStatus)") {
     CHECK_FALSE(model::is_terminal(SCHEDULED));
     CHECK_FALSE(model::is_terminal(IN_PROGRESS));
 }
+
+TEST_CASE("is_terminal(WorkflowStatus)") {
+    using enum model::WorkflowStatus;
+    CHECK(model::is_terminal(COMPLETED));
+    CHECK(model::is_terminal(FAILED));
+    CHECK(model::is_terminal(TIMED_OUT));
+    CHECK(model::is_terminal(TERMINATED));
+    CHECK_FALSE(model::is_terminal(RUNNING));
+    CHECK_FALSE(model::is_terminal(PAUSED));
+}
