@@ -11,6 +11,7 @@ using SendCallback = std::move_only_function<void(utils::buffering::BufferNode &
 using CloseCallback = std::move_only_function<void()>;
 using ErrorCallback = std::move_only_function<void(int, int)>;
 using CompletionCallback = std::move_only_function<void(int)>;
+using QueryReadFn = std::move_only_function<void(std::string_view)>;
 
 template <typename T>
 concept FlowLayer = requires(SendCallback send, CloseCallback close) {
