@@ -10,33 +10,34 @@ congelado is a stateless C++ server framework. Plugins implement business logic.
 ## Goals
 
 - Generic backend interfaces supporting any database (PostgreSQL, SQLite, …) and any cache (Redis, Memcached, …)
-- Same send/receive contract loop pattern as `IProtocol`
+- Explicit CRUD operations on `IDatabase`; explicit key-value operations on `ICache`
 - Plugin-owned codec interfaces that convert domain types to/from `string_view` — keeps query logic in the app plugin, not the framework
 - Persistent connections established on plugin load; `required()` flag forces app abort on load failure
 
 ## Architecture
 
-### New Shared Callback Types
+### New Shared Callback Type
 
-Two `string_view`-based callback types added to `shared::flow` alongside existing `QuerySendFn`/`ReadCallback`:
+One `string_view`-based result callback added to `shared::flow`:
 
 ```cpp
 // shared/flow.cppm
-using QuerySendFn = std::move_only_function<void(std::string_view)>;
 using QueryReadFn = std::move_only_function<void(std::string_view)>;
 ```
+
+No `QuerySendFn` needed — payload is passed directly as `string_view` on each operation call.
 
 ### Flow
 
 ```
 app plugin
-  → IDbCodec<T>::encode(T)   → std::string (SQL)
-  → IDatabase QuerySendFn     → backend loop
-  ← IDatabase QueryReadFn     ← std::string_view (result row)
-  → IDbCodec<T>::decode(sv)   → T
+  → IDbCodec<T>::encode_insert(T)   → std::string (SQL / wire payload)
+  → IDatabase::insert(payload, cb)   → backend executes
+  ← QueryReadFn cb(result)           ← std::string_view (result row)
+  → IDbCodec<T>::decode(sv)          → T
 ```
 
-Cache is identical; `ICacheCodec<T>` adds `key()` derivation.
+Cache follows the same pattern with `ICacheCodec<T>::key()` + `encode()` driving `ICache::set()`.
 
 ### Module Partitions
 
@@ -65,7 +66,11 @@ public:
     virtual ~IDatabase() = default;
     [[nodiscard]] virtual std::string_view backend_name() const noexcept = 0;
     [[nodiscard]] virtual bool required() const noexcept { return false; }
-    [[nodiscard]] virtual shared::QueryReadFn on_connect(shared::QuerySendFn send) = 0;
+
+    virtual void query(std::string_view payload, shared::QueryReadFn result) = 0;
+    virtual void insert(std::string_view payload, shared::QueryReadFn result) = 0;
+    virtual void update(std::string_view payload, shared::QueryReadFn result) = 0;
+    virtual void remove(std::string_view payload, shared::QueryReadFn result) = 0;
 };
 
 } // namespace interfaces
@@ -85,7 +90,10 @@ public:
     virtual ~ICache() = default;
     [[nodiscard]] virtual std::string_view backend_name() const noexcept = 0;
     [[nodiscard]] virtual bool required() const noexcept { return false; }
-    [[nodiscard]] virtual shared::QueryReadFn on_connect(shared::QuerySendFn send) = 0;
+
+    virtual void get(std::string_view key, shared::QueryReadFn result) = 0;
+    virtual void set(std::string_view key, std::string_view value, shared::QueryReadFn result) = 0;
+    virtual void remove(std::string_view key, shared::QueryReadFn result) = 0;
 };
 
 } // namespace interfaces
@@ -103,7 +111,10 @@ template <typename T>
 class IDbCodec {
 public:
     virtual ~IDbCodec() = default;
-    [[nodiscard]] virtual std::string encode(T const &) const = 0;
+    [[nodiscard]] virtual std::string encode_query(T const &) const = 0;
+    [[nodiscard]] virtual std::string encode_insert(T const &) const = 0;
+    [[nodiscard]] virtual std::string encode_update(T const &) const = 0;
+    [[nodiscard]] virtual std::string encode_remove(T const &) const = 0;
     virtual void decode(std::string_view result, T &out) const = 0;
 };
 
@@ -147,8 +158,9 @@ export import :cache_codec;
 
 ## Design Decisions
 
-- **No `CloseCallback`** — connections are persistent from load; backend plugin manages reconnect logic internally
-- **`required() = false` default** — opt-in abort; most backends can degrade gracefully, critical ones override to `true`
+- **Explicit CRUD on `IDatabase`** — `query/insert/update/remove` make intent clear; codec provides per-operation encoding
+- **Explicit key-value ops on `ICache`** — `get/set/remove`; cache has no concept of rows so `IDbCodec`-style split would be unnecessary
+- **No `on_connect` / `CloseCallback`** — connections are persistent from load; backend plugin manages reconnect internally
+- **`required() = false` default** — opt-in abort; critical backends override to `true`
 - **`string_view` payload** — lightweight, no ownership transfer; backend and codec own their string storage
-- **Separate `IDbCodec` / `ICacheCodec`** — database results are rows, cache results are blobs; deserialization shapes differ
-- **`key()` in `ICacheCodec`** — cache access requires explicit key derivation from domain type; no equivalent in database (SQL owns the WHERE clause)
+- **Separate `IDbCodec` / `ICacheCodec`** — database results are rows (need 4 encode variants); cache results are blobs (single encode + `key()` sufficient)
