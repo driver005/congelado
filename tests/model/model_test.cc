@@ -93,3 +93,29 @@ TEST_CASE("WorkflowExecution initial state") {
     CHECK(exec.variables.empty());
     CHECK_FALSE(model::is_terminal(exec.status));
 }
+
+TEST_CASE("TaskInstance construction") {
+    model::TaskInstance inst{
+        .task_id          = model::generate_id(),
+        .def_name         = "send_email",
+        .workflow_exec_id = model::generate_id(),
+    };
+    CHECK_FALSE(inst.task_id.is_nil());
+    CHECK(inst.status == model::TaskStatus::SCHEDULED);
+    CHECK(inst.seq == 0);
+    CHECK(inst.retry_count == 0);
+    CHECK(inst.input_data.empty());
+    CHECK(inst.output_data.empty());
+}
+
+TEST_CASE("WorkflowEvent construction") {
+    model::WorkflowEvent ev{
+        .exec_id   = model::generate_id(),
+        .type      = model::WorkflowEventType::PAUSE,
+        .payload   = std::nullopt,
+        .issued_at = std::chrono::system_clock::now(),
+    };
+    CHECK_FALSE(ev.exec_id.is_nil());
+    CHECK(ev.type == model::WorkflowEventType::PAUSE);
+    CHECK_FALSE(ev.payload.has_value());
+}
