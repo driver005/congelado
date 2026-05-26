@@ -85,6 +85,7 @@ add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
 add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
 add_requires("conan::tomlplusplus/3.4.0", { alias = "tomlplusplus", configs = conan })
+add_requires("conan::stduuid/1.2.3", { alias = "stduuid", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
 add_requires("range-v3", { configs = conan })
 
@@ -165,6 +166,7 @@ add_packages(
 	"libffi",
 	"microsoft-gsl",
 	"range-v3",
+	"stduuid",
 	{ public = true }
 )
 
@@ -216,6 +218,20 @@ set_kind("binary")
 add_files("src/main.cc")
 add_deps("congelado_lib")
 add_packages("fmt", "simdjson")
+target_end()
+
+target("model_test")
+	set_kind("binary")
+	set_languages("c++26")
+	set_policy("build.c++.modules", true)
+	add_files("tests/model/model_test.cc")
+	add_deps("congelado_lib")
+	add_packages("catch2")
+	add_cxflags("-fpermissive")
+	if is_plat("linux", "macosx") then
+		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+	end
+	add_tests("default")
 target_end()
 
 -- for _, benchfile in ipairs(os.files("benchmarks/**.cc")) do
