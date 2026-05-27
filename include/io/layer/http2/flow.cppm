@@ -10,8 +10,8 @@ export namespace io::layer::http2 {
 
 class Flow {
   public:
-    Flow(::shared::SendCallback send, ::shared::CloseCallback close)
-        : m_session{std::move(send), std::move(close)},
+    Flow(::shared::SendCallback send, ::shared::CloseCallback close, DispatchFn dispatch = {})
+        : m_session{std::move(send), std::move(close), std::move(dispatch)},
           m_handshake{m_session.get_local_settings(),
                       [this](utils::buffering::BufferNode &&node) { m_session.send_node(std::move(node)); }},
           m_handshake_completed{false} {

@@ -8,9 +8,9 @@ import std;
 
 export namespace model {
 
-using WorkflowId    = uuids::uuid;
-using TaskId        = uuids::uuid;
-using ExecutionId   = uuids::uuid;
+using WorkflowId = uuids::uuid;
+using TaskId = uuids::uuid;
+using ExecutionId = uuids::uuid;
 using CorrelationId = uuids::uuid;
 
 // Callers that invoke methods on returned UUIDs (e.g. .is_nil(), operator!=)

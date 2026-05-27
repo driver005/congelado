@@ -3,18 +3,18 @@ module;
 export module core_server:handler;
 
 import std;
-import shared;
+import interfaces;
 import :consts;
 import :types;
 
 export namespace core::server {
 
-template <typename Request, typename Response, std::uint8_t MaxHandlerSize = 8>
+template <typename Derived, std::uint8_t MaxHandlerSize = 8>
 class Handler {
   public:
     constexpr Handler() : m_handler{}, m_handler_mask{HANDLER_MASK}, m_handler_index{0} {}
 
-    constexpr void push(const Method &method, shared::HandlerFn<Request, Response> handler) {
+    constexpr void push(const Method &method, interfaces::HandlerFn<Derived> handler) {
         if (m_handler_index >= MaxHandlerSize)
             throw std::runtime_error(
                 "HandlerSize cannot be greater than MaxHandlerSize due to offerflow limitations, please check "
@@ -31,35 +31,35 @@ class Handler {
         m_handler[m_handler_index++] = handler;
     }
 
-    constexpr shared::HandlerFn<Request, Response> find(Method method) const noexcept {
+    constexpr interfaces::HandlerFn<Derived> find(Method method) const noexcept {
         const std::uint8_t idx = (m_handler_mask >> (std::to_underlying(method) * 8)) & 0xFF;
         return idx != 0xFF ? m_handler[idx] : nullptr;
     }
 
     constexpr const std::uint8_t &get_size() const noexcept { return m_handler_index; }
     constexpr const std::size_t &get_mask() const noexcept { return m_handler_mask; }
-    constexpr const std::array<shared::HandlerFn<Request, Response>, MaxHandlerSize> &get_handler() const noexcept {
+    constexpr const std::array<interfaces::HandlerFn<Derived>, MaxHandlerSize> &get_handler() const noexcept {
         return m_handler;
     }
 
   private:
-    std::array<shared::HandlerFn<Request, Response>, MaxHandlerSize> m_handler;
+    std::array<interfaces::HandlerFn<Derived>, MaxHandlerSize> m_handler;
     std::size_t m_handler_mask;
     std::uint8_t m_handler_index;
 };
 
-template <typename Request, typename Response, std::size_t MaxHandlerSize>
+template <typename Derived, std::size_t MaxHandlerSize>
 class HandlerPool {
   public:
     constexpr HandlerPool() : m_handler{}, m_handler_index{0} {}
 
-    constexpr shared::HandlerFn<Request, Response> find(std::size_t idx, std::size_t handler_mask,
-                                                        Method method) const noexcept {
+    constexpr interfaces::HandlerFn<Derived> find(std::size_t idx, std::size_t handler_mask,
+                                                  Method method) const noexcept {
         const std::uint8_t offset = (handler_mask >> (std::to_underlying(method) * 8)) & 0xFF;
         return offset != 0xFF ? m_handler[idx + offset] : nullptr;
     }
 
-    constexpr void push(shared::HandlerFn<Request, Response> handler) {
+    constexpr void push(interfaces::HandlerFn<Derived> handler) {
         if (m_handler_index >= MaxHandlerSize)
             throw std::runtime_error(
                 "HandlerSize cannot be greater than MaxHandlerSize due to offerflow limitations, please check "
@@ -77,7 +77,7 @@ class HandlerPool {
     constexpr std::uint8_t &get_size() noexcept { return m_handler_index; }
 
   private:
-    std::array<shared::HandlerFn<Request, Response>, MaxHandlerSize> m_handler;
+    std::array<interfaces::HandlerFn<Derived>, MaxHandlerSize> m_handler;
     std::uint8_t m_handler_index;
 };
 

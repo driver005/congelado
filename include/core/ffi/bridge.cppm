@@ -1,7 +1,8 @@
 module;
 
+#include <cstdio>
 #include <ffi.h>
-#include <stdio.h>
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -17,134 +18,178 @@ import shared;
 import interfaces;
 import core_config;
 
+// ── Module-private ────────────────────────────────────────────────────────────
+
+namespace core::ffi {
+
+// RAII wrapper around one libffi closure.
+// Owns the ffi_closure allocation and the arg_types array the CIF points into.
+class Closure {
+  public:
+    using Thunk = void (*)(ffi_cif *, void *, void **, void *);
+
+    Closure(std::initializer_list<ffi_type *> arg_types, Thunk thunk, void *user_data)
+        : m_arg_types{arg_types} {
+        if (ffi_prep_cif(&m_cif, FFI_DEFAULT_ABI,
+                         static_cast<unsigned>(m_arg_types.size()),
+                         &ffi_type_void,
+                         m_arg_types.data()) != FFI_OK)
+            throw std::runtime_error{"ffi_prep_cif failed"};
+
+        m_raw = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_code));
+        if (m_raw == nullptr)
+            throw std::bad_alloc{};
+
+        if (ffi_prep_closure_loc(m_raw, &m_cif, thunk, user_data, m_code) != FFI_OK)
+            throw std::runtime_error{"ffi_prep_closure_loc failed"};
+    }
+
+    ~Closure() {
+        if (m_raw != nullptr)
+            ffi_closure_free(m_raw);
+    }
+
+    Closure(const Closure &) = delete;
+    Closure &operator=(const Closure &) = delete;
+    Closure(Closure &&) = delete;
+    Closure &operator=(Closure &&) = delete;
+
+    [[nodiscard]] void *get() const noexcept { return m_code; }
+
+  private:
+    std::vector<ffi_type *> m_arg_types; // must outlive m_cif
+    ffi_cif m_cif{};
+    ffi_closure *m_raw{nullptr};
+    void *m_code{nullptr};
+};
+
+// Resolved function pointers for a loaded plugin.
+// All symbols are optional except name, version, capabilities.
+struct PluginSymbols {
+    using NameFn        = const char *(*)() noexcept;
+    using VersionFn     = const char *(*)() noexcept;
+    using CapsFn        = uint32_t (*)() noexcept;
+    using OnLoadFn      = void (*)(const CongeladoHostCallbacks *, const CongeladoConfigView *);
+    using OnUnloadFn    = void (*)() noexcept;
+    using LogWriteFn    = void (*)(int, const char *, size_t) noexcept;
+    using LogWriteErrFn = void (*)(const char *, size_t) noexcept;
+    using ProtoGetFn    = void *(*)() noexcept;
+
+    NameFn        name{nullptr};
+    VersionFn     version{nullptr};
+    CapsFn        capabilities{nullptr};
+    OnLoadFn      on_load{nullptr};
+    OnUnloadFn    on_unload{nullptr};
+    LogWriteFn    logger_write{nullptr};
+    LogWriteErrFn logger_write_error{nullptr};
+    ProtoGetFn    protocol_get{nullptr};
+};
+
+} // namespace core::ffi
+
+// ── Exported ──────────────────────────────────────────────────────────────────
+
 export namespace core::ffi {
 
-// Host-side capability enum — values mirror CongeladoCap in plugin_api.h.
+// Capability bitmask — mirrors CONGELADO_CAP_* defines in plugin_api.h.
 enum class Cap : std::uint32_t {
-    Logger   = CONGELADO_CAP_LOGGER,
-    Protocol = CONGELADO_CAP_PROTOCOL,
-    Custom   = CONGELADO_CAP_CUSTOM,
+    LOGGER   = CONGELADO_CAP_LOGGER,
+    PROTOCOL = CONGELADO_CAP_PROTOCOL,
+    CUSTOM   = CONGELADO_CAP_CUSTOM,
 };
 
-struct LoadError {
-    std::string detail;
+class LoadError {
+  public:
+    explicit LoadError(std::string detail) : m_detail{std::move(detail)} {}
+
+    [[nodiscard]] std::string_view get_detail() const noexcept { return m_detail; }
+
+  private:
+    std::string m_detail;
 };
 
-// FfiBridge: RAII wrapper around one loaded CongeladoPlugin*.
+// RAII wrapper around one loaded plugin .so.
 //
-// Loading:
+// Loading sequence:
 //   1. dlopen the .so
-//   2. Probe "congelado_get_plugin" (direct cast, signature known) → CongeladoPlugin*
-//   3. Build libffi closures for CongeladoHostCallbacks (log, schedule)
-//   4. Call plugin->on_load(self, &callbacks, cfg)
-//   5. Probe capabilities via get_capability(self, cap_id)
-//
-// Dispatch:
-//   All interface calls go through cached cap vtable pointers (m_logger_cap etc.).
-//   Always null-checked — never segfaults on missing capability.
+//   2. Resolve well-known symbols via dlsym into a PluginSymbols table
+//   3. Build libffi closures for host callbacks (log, schedule)
+//   4. Call congelado_on_load(callbacks, cfg_view)
+//   5. Read capability bitmask from congelado_capabilities()
+//   6. Cache protocol pointer if CONGELADO_CAP_PROTOCOL is set
 class FfiBridge : public shared::HandlerBase,
                   public interfaces::ILogger,
                   public std::enable_shared_from_this<FfiBridge> {
   public:
+    FfiBridge(const FfiBridge &) = delete;
+    FfiBridge &operator=(const FfiBridge &) = delete;
+    FfiBridge(FfiBridge &&) = delete;
+    FfiBridge &operator=(FfiBridge &&) = delete;
+
     [[nodiscard]] static std::expected<std::shared_ptr<FfiBridge>, LoadError>
     load(const std::filesystem::path &path,
          const core::config::PluginConfig *plugin_cfg = nullptr,
          void *router_ctx = nullptr) {
-        void *lib =
-#if defined(_WIN32)
-            static_cast<void *>(LoadLibraryA(path.string().c_str()));
-#else
-            dlopen(path.string().c_str(), RTLD_NOW | RTLD_LOCAL);
-#endif
-        if (!lib)
+        void *lib = open_lib(path);
+        if (lib == nullptr)
             return std::unexpected(LoadError{std::format("dlopen failed: {}", path.string())});
 
-        auto bridge = std::shared_ptr<FfiBridge>(new FfiBridge{});
-        bridge->m_lib = lib;
+        auto bridge = std::shared_ptr<FfiBridge>(new FfiBridge{lib});
 
-        auto *get_sym = bridge->probe("congelado_get_plugin");
-        auto *destroy_sym = bridge->probe("congelado_destroy_plugin");
-        if (!get_sym || !destroy_sym)
-            return std::unexpected(LoadError{"missing 'congelado_get_plugin' / 'congelado_destroy_plugin'"});
+        if (auto err = bridge->resolve_symbols(); !err.empty())
+            return std::unexpected(LoadError{std::move(err)});
 
-        bridge->m_destroy_sym = destroy_sym;
-        bridge->m_plugin = reinterpret_cast<CongeladoPlugin *(*)()>(get_sym)();
-        if (!bridge->m_plugin)
-            return std::unexpected(LoadError{"congelado_get_plugin returned null"});
+        bridge->m_lib_name = bridge->m_syms.name();
 
-        bridge->m_lib_name = bridge->m_plugin->name;
-
-        // Build libffi closures for host callbacks
-        void *log_code   = nullptr;
-        void *sched_code = nullptr;
         try {
-            auto codes = bridge->make_host_callbacks();
-            log_code   = codes.first;
-            sched_code = codes.second;
+            bridge->m_log_closure = std::make_unique<Closure>(
+                std::initializer_list<ffi_type *>{
+                    &ffi_type_pointer, &ffi_type_sint, &ffi_type_pointer, size_ffi_type()},
+                &FfiBridge::log_thunk, bridge.get());
+            bridge->m_sched_closure = std::make_unique<Closure>(
+                std::initializer_list<ffi_type *>{&ffi_type_pointer},
+                &FfiBridge::schedule_thunk, bridge.get());
         } catch (const std::exception &ex) {
-            return std::unexpected(LoadError{std::format("libffi setup failed: {}", ex.what())});
+            return std::unexpected(LoadError{std::format("ffi closure setup failed: {}", ex.what())});
         }
-        CongeladoHostCallbacks callbacks{};
-        callbacks.log        = reinterpret_cast<CongeladoLogFn>(log_code);
-        callbacks.schedule   = reinterpret_cast<CongeladoScheduleFn>(sched_code);
-        callbacks.router_ctx = router_ctx;
-        callbacks.ctx        = bridge.get();
 
-        std::vector<const char *> pcv_keys, pcv_vals;
-        if (plugin_cfg) {
-            for (auto &[k, v] : plugin_cfg->fields) {
-                pcv_keys.push_back(k.c_str());
-                pcv_vals.push_back(v.c_str());
-            }
-        }
-        CongeladoConfigView pcv{
-            plugin_cfg ? pcv_keys.data() : nullptr,
-            plugin_cfg ? pcv_vals.data() : nullptr,
-            plugin_cfg ? pcv_keys.size() : 0,
+        CongeladoHostCallbacks callbacks{
+            .log        = reinterpret_cast<CongeladoLogFn>(bridge->m_log_closure->get()),
+            .schedule   = reinterpret_cast<CongeladoScheduleFn>(bridge->m_sched_closure->get()),
+            .router_ctx = router_ctx,
+            .ctx        = bridge.get(),
         };
-        bridge->m_plugin->on_load(bridge->m_plugin->self, &callbacks, plugin_cfg ? &pcv : nullptr);
+
+        if (bridge->m_syms.on_load != nullptr)
+            bridge->m_syms.on_load(&callbacks, bridge->build_config_view(plugin_cfg));
 
         bridge->discover_caps();
-
         return bridge;
     }
 
-    ~FfiBridge() {
+    ~FfiBridge() override {
         release_plugin();
-        if (m_log_closure)
-            ffi_closure_free(m_log_closure);
-        if (m_sched_closure)
-            ffi_closure_free(m_sched_closure);
-        if (m_lib) {
-#if defined(_WIN32)
-            FreeLibrary(static_cast<HMODULE>(m_lib));
-#else
-            dlclose(m_lib);
-#endif
-        }
+        close_lib();
     }
 
-    FfiBridge(const FfiBridge &) = delete;
-    FfiBridge &operator=(const FfiBridge &) = delete;
+    [[nodiscard]] bool has(Cap cap) const noexcept {
+        return (m_caps & std::to_underlying(cap)) != 0;
+    }
 
-    [[nodiscard]] bool has(Cap cap) const noexcept { return (m_caps & std::to_underlying(cap)) != 0; }
+    [[nodiscard]] std::shared_ptr<interfaces::IProtocol> get_protocol() const noexcept {
+        return m_protocol;
+    }
 
-    [[nodiscard]] std::shared_ptr<interfaces::IProtocol> get_protocol() const noexcept { return m_protocol; }
-
-    // shared::HandlerBase + interfaces::ILogger — name() satisfies both.
     [[nodiscard]] std::string_view name() const noexcept override { return m_lib_name; }
 
-    // Null-guarded on both the cap pointer and the individual function pointers.
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
-        if (!m_logger_cap || !m_logger_cap->write)
-            return;
-        m_logger_cap->write(m_logger_cap->self, static_cast<int>(level), msg.data(), msg.size());
+        if (m_syms.logger_write == nullptr) return;
+        m_syms.logger_write(static_cast<int>(level), msg.data(), msg.size());
     }
 
     void error(std::string_view msg) noexcept override {
-        if (!m_logger_cap || !m_logger_cap->write_error)
-            return;
-        m_logger_cap->write_error(m_logger_cap->self, msg.data(), msg.size());
+        if (m_syms.logger_write_error == nullptr) return;
+        m_syms.logger_write_error(msg.data(), msg.size());
     }
 
     [[nodiscard]] shared::WorkerFunction on_execute() override { return nullptr; }
@@ -157,119 +202,141 @@ class FfiBridge : public shared::HandlerBase,
     }
 
     [[nodiscard]] shared::ErrorHandler on_error() override {
-        std::string name = m_lib_name; // copy — lambda must not capture `this` (use-after-free risk)
-        return [name = std::move(name)](std::exception_ptr eptr) {
+        std::string lib_name = m_lib_name;
+        return [lib_name = std::move(lib_name)](std::exception_ptr eptr) {
             try {
-                std::rethrow_exception(eptr);
+                std::rethrow_exception(std::move(eptr));
             } catch (const std::exception &ex) {
-                std::println(stderr, "[ffi::{}] error: {}", name, ex.what());
+                std::println(stderr, "[ffi::{}] error: {}", lib_name, ex.what());
             } catch (...) {
-                std::println(stderr, "[ffi::{}] unknown error", name);
+                std::println(stderr, "[ffi::{}] unknown error", lib_name);
             }
         };
     }
 
   private:
-    FfiBridge() = default;
+    explicit FfiBridge(void *lib) : m_lib{lib} {}
 
-    void *m_lib = nullptr;
-    void *m_destroy_sym = nullptr;
-    CongeladoPlugin *m_plugin = nullptr;
-    CongeladoLoggerCap *m_logger_cap = nullptr;
-    std::string m_lib_name;
-    std::uint32_t m_caps = 0;
-    std::shared_ptr<interfaces::IProtocol> m_protocol;
+    // ── libffi thunks ─────────────────────────────────────────────────────────
+    // user_data is bridge.get() — set when constructing each Closure.
 
-    ffi_closure *m_log_closure = nullptr;
-    void *m_log_fn_code = nullptr;
-    ffi_cif m_cif_log{};
-    ffi_type *m_log_args[4]{};
-
-    ffi_closure *m_sched_closure = nullptr;
-    void *m_sched_fn_code = nullptr;
-    ffi_cif m_cif_sched{};
-    ffi_type *m_sched_args[1]{};
-
-    void release_plugin() noexcept {
-        if (!m_plugin)
-            return;
-        m_plugin->on_unload(m_plugin->self);
-        using DestroyFn = void (*)(CongeladoPlugin *);
-        reinterpret_cast<DestroyFn>(m_destroy_sym)(m_plugin);
-        m_plugin = nullptr;
-        m_logger_cap = nullptr;
+    static void log_thunk(ffi_cif * /*cif*/, void * /*ret*/, void **args, void *user_data) noexcept {
+        auto *self    = static_cast<FfiBridge *>(user_data);
+        auto  level   = *static_cast<int *>(args[1]);
+        auto *msg_ptr = *static_cast<const char **>(args[2]);
+        auto  msg_len = *static_cast<std::size_t *>(args[3]);
+        std::println(stderr, "[plugin::{}] log({}): {}", self->m_lib_name, level,
+                     std::string_view{msg_ptr, msg_len});
     }
 
-    [[nodiscard]] void *probe(const char *sym) const noexcept {
+    static void schedule_thunk(ffi_cif * /*cif*/, void * /*ret*/,
+                                void ** /*args*/, void *user_data) noexcept {
+        std::println(stderr, "[plugin::{}] schedule requested",
+                     static_cast<FfiBridge *>(user_data)->m_lib_name);
+    }
+
+    // ── Platform helpers ──────────────────────────────────────────────────────
+
+    [[nodiscard]] static void *open_lib(const std::filesystem::path &path) noexcept {
 #if defined(_WIN32)
-        return reinterpret_cast<void *>(GetProcAddress(static_cast<HMODULE>(m_lib), sym));
+        return static_cast<void *>(LoadLibraryA(path.string().c_str()));
 #else
-        return dlsym(m_lib, sym);
+        return dlopen(path.string().c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
     }
 
-    static ffi_type *size_ffi_type() noexcept { return sizeof(std::size_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32; }
-
-    static void log_fn(ffi_cif *, void *, void **args, void *data) noexcept {
-        auto *self = static_cast<FfiBridge *>(data);
-        // args[0] = ctx (unused — bridge ptr comes from closure user_data 'data')
-        int level = *static_cast<int *>(args[1]);
-        const char *ptr = *static_cast<const char **>(args[2]);
-        std::size_t len = *static_cast<std::size_t *>(args[3]);
-        std::println(stderr, "[plugin::{}] log({}): {}", self->m_lib_name, level, std::string_view{ptr, len});
+    void close_lib() noexcept {
+        if (m_lib == nullptr) return;
+#if defined(_WIN32)
+        FreeLibrary(static_cast<HMODULE>(m_lib));
+#else
+        dlclose(m_lib);
+#endif
+        m_lib = nullptr;
     }
 
-    static void schedule_fn(ffi_cif *, void *, void **, void *data) noexcept {
-        auto *self = static_cast<FfiBridge *>(data);
-        std::println(stderr, "[plugin::{}] schedule requested", self->m_lib_name);
+    template <typename Fn>
+    [[nodiscard]] Fn probe(const char *sym) const noexcept {
+#if defined(_WIN32)
+        return reinterpret_cast<Fn>(GetProcAddress(static_cast<HMODULE>(m_lib), sym));
+#else
+        return reinterpret_cast<Fn>(dlsym(m_lib, sym));
+#endif
     }
 
-    // Returns {log_fn_code, sched_fn_code}
-    [[nodiscard]] std::pair<void *, void *> make_host_callbacks() {
-        m_log_args[0] = &ffi_type_pointer;
-        m_log_args[1] = &ffi_type_sint;
-        m_log_args[2] = &ffi_type_pointer;
-        m_log_args[3] = size_ffi_type();
-        if (ffi_prep_cif(&m_cif_log, FFI_DEFAULT_ABI, 4, &ffi_type_void, m_log_args) != FFI_OK)
-            throw std::runtime_error("ffi_prep_cif(log) failed");
-        m_log_closure = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_log_fn_code));
-        if (!m_log_closure)
-            throw std::runtime_error("ffi_closure_alloc(log) failed");
-        if (ffi_prep_closure_loc(m_log_closure, &m_cif_log, log_fn, this, m_log_fn_code) != FFI_OK)
-            throw std::runtime_error("ffi_prep_closure_loc(log) failed");
-
-        m_sched_args[0] = &ffi_type_pointer;
-        if (ffi_prep_cif(&m_cif_sched, FFI_DEFAULT_ABI, 1, &ffi_type_void, m_sched_args) != FFI_OK)
-            throw std::runtime_error("ffi_prep_cif(sched) failed");
-        m_sched_closure = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_sched_fn_code));
-        if (!m_sched_closure)
-            throw std::runtime_error("ffi_closure_alloc(sched) failed");
-        if (ffi_prep_closure_loc(m_sched_closure, &m_cif_sched, schedule_fn, this, m_sched_fn_code) != FFI_OK)
-            throw std::runtime_error("ffi_prep_closure_loc(sched) failed");
-
-        return {m_log_fn_code, m_sched_fn_code};
+    [[nodiscard]] static ffi_type *size_ffi_type() noexcept {
+        return sizeof(std::size_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32;
     }
 
-    void discover_caps() {
-        if (!m_plugin)
-            return;
+    // ── Plugin lifecycle ──────────────────────────────────────────────────────
 
-        // Logger capability
-        auto *lc = static_cast<CongeladoLoggerCap *>(m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_LOGGER));
-        if (lc) {
-            m_logger_cap = lc;
-            m_caps |= std::to_underlying(Cap::Logger);
+    // Returns an error string on failure, empty string on success.
+    [[nodiscard]] std::string resolve_symbols() noexcept {
+        m_syms.name         = probe<PluginSymbols::NameFn>("congelado_plugin_name");
+        m_syms.version      = probe<PluginSymbols::VersionFn>("congelado_plugin_version");
+        m_syms.capabilities = probe<PluginSymbols::CapsFn>("congelado_capabilities");
+
+        if ((m_syms.name == nullptr) || (m_syms.version == nullptr) ||
+            (m_syms.capabilities == nullptr))
+            return "missing required symbols: congelado_plugin_name / "
+                   "congelado_plugin_version / congelado_capabilities";
+
+        m_syms.on_load            = probe<PluginSymbols::OnLoadFn>("congelado_on_load");
+        m_syms.on_unload          = probe<PluginSymbols::OnUnloadFn>("congelado_on_unload");
+        m_syms.logger_write       = probe<PluginSymbols::LogWriteFn>("congelado_logger_write");
+        m_syms.logger_write_error = probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
+        m_syms.protocol_get       = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
+        return {};
+    }
+
+    [[nodiscard]] const CongeladoConfigView *
+    build_config_view(const core::config::PluginConfig *plugin_cfg) noexcept {
+        if (plugin_cfg == nullptr) return nullptr;
+        m_cfg_keys.clear();
+        m_cfg_vals.clear();
+        for (const auto &[key, value] : plugin_cfg->get_fields()) {
+            m_cfg_keys.push_back(key.c_str());
+            m_cfg_vals.push_back(value.c_str());
         }
-
-        // Protocol capability — placeholder: plugin returns interfaces::IProtocol* as void*
-        auto *proto_raw = m_plugin->get_capability(m_plugin->self, CONGELADO_CAP_PROTOCOL);
-        if (proto_raw) {
-            auto *proto = static_cast<interfaces::IProtocol *>(proto_raw);
-            m_protocol = std::shared_ptr<interfaces::IProtocol>(proto, [](interfaces::IProtocol *) {});
-            m_caps |= std::to_underlying(Cap::Protocol);
-        }
-
+        m_cfg_view = CongeladoConfigView{
+            .keys   = m_cfg_keys.data(),
+            .values = m_cfg_vals.data(),
+            .count  = m_cfg_keys.size(),
+        };
+        return &m_cfg_view;
     }
+
+    void discover_caps() noexcept {
+        m_caps = m_syms.capabilities();
+
+        if (((m_caps & CONGELADO_CAP_PROTOCOL) != 0) && (m_syms.protocol_get != nullptr)) {
+            auto *proto = static_cast<interfaces::IProtocol *>(m_syms.protocol_get());
+            if (proto != nullptr)
+                m_protocol = std::shared_ptr<interfaces::IProtocol>(
+                    proto, [](interfaces::IProtocol *) noexcept {});
+        }
+    }
+
+    void release_plugin() noexcept {
+        if (m_syms.on_unload != nullptr) {
+            m_syms.on_unload();
+            m_syms = {};
+        }
+    }
+
+    // ── Members ───────────────────────────────────────────────────────────────
+
+    void *m_lib{nullptr};
+    PluginSymbols m_syms{};
+    std::string m_lib_name;
+    std::uint32_t m_caps{0};
+    std::shared_ptr<interfaces::IProtocol> m_protocol;
+    std::unique_ptr<Closure> m_log_closure;
+    std::unique_ptr<Closure> m_sched_closure;
+
+    std::vector<const char *> m_cfg_keys;
+    std::vector<const char *> m_cfg_vals;
+    CongeladoConfigView m_cfg_view{};
 };
 
-} // namespace core::ffi
+} // export namespace core::ffi

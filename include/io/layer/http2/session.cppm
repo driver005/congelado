@@ -11,19 +11,24 @@ import io_shared;
 import core_logger;
 import shared;
 import utils_codec;
+import interfaces;
+import :request;
 import :response;
 import :settings;
 import :stream;
 
 export namespace io::layer::http2 {
 
+using DispatchFn = std::function<void(HttpRequest &, HttpResponse &)>;
+
 class Session {
   public:
-    explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback)
+    explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback,
+                     DispatchFn dispatch = {})
         : m_running{true}, m_last_server_stream_id{0}, m_last_client_stream_id{1}, m_local_settings{},
           m_remote_settings{}, m_closed_streams{}, m_header_buffer{}, m_decoding_table{}, m_encoding_table{},
           m_connection_stream{m_local_settings, m_remote_settings}, m_submiter{std::move(send_callback)},
-          m_closer{std::move(close_callback)}, m_safe_header{std::nullopt} {
+          m_closer{std::move(close_callback)}, m_safe_header{std::nullopt}, m_dispatch{std::move(dispatch)} {
         core::logger::debug("Session - HTTP/2",
                             "Created with send and close callbacks, initialized settings and tables");
 
@@ -221,20 +226,22 @@ class Session {
 
   private:
     void response(std::uint32_t stream_id) {
-        std::println("Sending response on Stream ID {} ", stream_id);
+        auto &stream = *m_streams.at(stream_id);
+        auto &req    = stream.get_request();
+        auto &res    = stream.get_response();
 
-        std::string json = R"({"status":"ok"})";
+        res.set_status(interfaces::Status::NOT_FOUND);
 
-        // Pipeline: String (range of char) -> transform to byte -> collect into vector
-        auto body = json | std::views::transform([](char c) { return static_cast<std::byte>(c); }) |
-                    std::ranges::to<std::vector<std::byte>>();
-
-        auto res = HttpResponse::ok(stream_id).with_body(std::move(body)).with_content_type("application/json").build();
+        try {
+            if (m_dispatch)
+                m_dispatch(req, res);
+        } catch (const std::exception &e) {
+            core::logger::error("Session - HTTP/2", "Handler threw: {}", e.what());
+            res.set_status(interfaces::Status::INTERNAL_SERVER_ERROR);
+        }
 
         auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.max_frame_size())};
-
         node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.max_frame_size()};
-
         send_node(std::move(node));
     }
 
@@ -323,6 +330,7 @@ class Session {
     ::shared::SendCallback m_submiter;
     ::shared::CloseCallback m_closer;
     std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>> m_safe_header;
+    DispatchFn m_dispatch;
 };
 
 } // namespace io::layer::http2

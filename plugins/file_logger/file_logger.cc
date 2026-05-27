@@ -5,6 +5,15 @@ import std;
 
 namespace {
 
+constexpr int parse_level(std::string_view level) noexcept {
+    if (level == "debug")   return 0;
+    if (level == "info")    return 1;
+    if (level == "warning") return 2;
+    if (level == "error")   return 3;
+    if (level == "fatal")   return 4;
+    return 1;
+}
+
 constexpr std::string_view level_str(int level) noexcept {
     switch (level) {
     case 0: return "DEBUG";
@@ -21,14 +30,19 @@ class FileLogger final : public congelado::PluginBase {
     [[nodiscard]] std::string_view name()    const noexcept override { return "FileLogger"; }
     [[nodiscard]] std::string_view version() const noexcept override { return "1.0.0"; }
 
-    void on_load(const CongeladoHostCallbacks &host, const CongeladoConfigView *cfg) override {
-        m_host = host;
+    [[nodiscard]] uint32_t capabilities() const noexcept override {
+        return CONGELADO_CAP_LOGGER;
+    }
+
+    void on_load(const CongeladoHostCallbacks & /*host*/, const CongeladoConfigView *cfg) override {
         const char *log_file = "congelado.log";
-        if (cfg) {
+        if (cfg != nullptr) {
             for (std::size_t i = 0; i < cfg->count; ++i) {
-                if (std::string_view{cfg->keys[i]} == "file") {
+                std::string_view key{cfg->keys[i]};
+                if (key == "file") {
                     log_file = cfg->values[i];
-                    break;
+                } else if (key == "level") {
+                    m_min_level = parse_level(std::string_view{cfg->values[i]});
                 }
             }
         }
@@ -37,45 +51,39 @@ class FileLogger final : public congelado::PluginBase {
             std::println(stderr, "FileLogger: failed to open {}", log_file);
             std::abort();
         }
-        // Build the logger cap vtable once — self pointer stays stable (heap-allocated by macro)
-        m_cap.write       = &FileLogger::cap_write;
-        m_cap.write_error = &FileLogger::cap_write_error;
-        m_cap.self        = this;
-        write_line("INFO", std::format("FileLogger: writing to {}", log_file));
+        write_line(1, std::format("FileLogger: writing to {}, min_level={}", log_file, level_str(m_min_level)));
     }
 
     void on_unload() override {
         if (m_stream.is_open()) m_stream.close();
     }
 
-    CongeladoLoggerCap *logger_cap() noexcept override { return &m_cap; }
+    void logger_write(int level, const char *msg, size_t len) noexcept override {
+        try {
+            write_line(level, {msg, len});
+        } catch (...) { std::abort(); }
+    }
+
+    void logger_write_error(const char *msg, size_t len) noexcept override {
+        try {
+            write_line(3, {msg, len}); // always ERROR level
+        } catch (...) { std::abort(); }
+    }
 
   private:
-    CongeladoHostCallbacks m_host{};
-    CongeladoLoggerCap     m_cap{};
-    std::ofstream          m_stream;
+    std::ofstream m_stream;
+    int           m_min_level{1}; // info
 
-    void write_line(std::string_view level, std::string_view msg) {
+    void write_line(int level, std::string_view msg) {
+        if (level < m_min_level) return;
         auto now  = std::chrono::system_clock::now();
         auto time = std::chrono::current_zone()->to_local(now);
-        auto line = std::format("[{:%H:%M:%S}] [{}]: {}", time, level, msg);
+        auto line = std::format("[{:%H:%M:%S}] [{}]: {}", time, level_str(level), msg);
         std::println("{}", line);
         if (m_stream.is_open()) {
             m_stream << line << '\n';
             m_stream.flush();
         }
-    }
-
-    static void cap_write(void *self, int level, const char *msg, size_t len) noexcept {
-        try {
-            static_cast<FileLogger *>(self)->write_line(level_str(level), {msg, len});
-        } catch (...) { std::abort(); }
-    }
-
-    static void cap_write_error(void *self, const char *msg, size_t len) noexcept {
-        try {
-            static_cast<FileLogger *>(self)->write_line("ERROR", {msg, len});
-        } catch (...) { std::abort(); }
     }
 };
 

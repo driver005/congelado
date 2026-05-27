@@ -10,19 +10,19 @@ import :server;
 export namespace core::server {
 
 
-template <typename Request, typename Response, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddlewareSize = 10>
+template <typename Derived, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddlewareSize = 10>
 class Route;
-template <typename Request, typename Response, std::size_t MaxMiddlewareSize = 10>
+template <typename Derived, std::size_t MaxMiddlewareSize = 10>
 class Router;
 
 
-template <typename Request, typename Response, std::size_t RouterSize = 256, std::size_t MaxHandlerSize = 8,
+template <typename Derived, std::size_t RouterSize = 256, std::size_t MaxHandlerSize = 8,
           std::size_t MaxMiddlewareSize = 10>
 class RouterContext {
   public:
     constexpr RouterContext() : m_routes{}, m_router_size{2}, m_highest_router_number{1}, m_base_router_children{0} {};
 
-    constexpr std::size_t add_route(Route<Request, Response> route) {
+    constexpr std::size_t add_route(Route<Derived> route) {
         const auto idx = m_router_size++;
         m_routes[idx] = std::move(route);
         if (route.get_base_router() == 0) {
@@ -31,7 +31,7 @@ class RouterContext {
         return idx;
     }
 
-    constexpr Route<Request, Response> &operator[](std::size_t index) {
+    constexpr Route<Derived> &operator[](std::size_t index) {
         if (index >= m_router_size) {
             throw std::out_of_range("RouterContext index out of bounds");
         }
@@ -39,7 +39,7 @@ class RouterContext {
     }
 
     // TODO: figue out a way to make this function consteval
-    Server<Request, Response> build() {
+    Server<Derived> build() {
         std::vector<std::vector<RouterBuildingHelper>> table;
         std::size_t idx{0};
         const auto sentinel = std::numeric_limits<std::size_t>::max();
@@ -69,7 +69,7 @@ class RouterContext {
             group_start = group_end;
         }
 
-        RouteHandler<Request, Response> handler{};
+        RouteHandler<Derived> handler{};
 
         while (idx < m_router_size) {
             insert_route(m_routes[idx], table);
@@ -90,7 +90,7 @@ class RouterContext {
 
         std::println("Finished building");
 
-        return Server<Request, Response>{std::move(handler)};
+        return Server<Derived>{std::move(handler)};
     }
 
     constexpr std::size_t get_highest_router_number() noexcept { return m_highest_router_number++; }
@@ -108,8 +108,8 @@ class RouterContext {
     struct RouterBuildingHelper {
         EdgeKind kind{EdgeKind::Path};
         std::string literal{};
-        const Handler<Request, Response, MaxHandlerSize> handlers{};
-        const Middleware<Request, Response, MaxMiddlewareSize> middlewares{};
+        const Handler<Derived, MaxHandlerSize> handlers{};
+        const Middleware<Derived, MaxMiddlewareSize> middlewares{};
         std::size_t children;
         std::size_t router_number;
     };
@@ -130,8 +130,7 @@ class RouterContext {
         return std::make_pair(EdgeKind::Path, path);
     }
 
-    constexpr void insert_route(const Route<Request, Response> &route,
-                                std::vector<std::vector<RouterBuildingHelper>> &table) {
+    constexpr void insert_route(const Route<Derived> &route, std::vector<std::vector<RouterBuildingHelper>> &table) {
         if (route.get_child_routes() != 0) {
             if (route.is_build()) {
                 return;
@@ -226,21 +225,21 @@ class RouterContext {
         }
     }
 
-    // Middleware<Request, Response, MaxMiddlewareSize> m_middlewares;
-    std::array<Route<Request, Response>, RouterSize> m_routes;
+    // Middleware<MaxMiddlewareSize> m_middlewares;
+    std::array<Route<Derived>, RouterSize> m_routes;
     std::size_t m_router_size;
     std::size_t m_highest_router_number;
     std::size_t m_base_router_children;
 };
 
-template <typename Request, typename Response, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddlewareSize = 10>
+template <typename Derived, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddlewareSize = 10>
 class Route {
   public:
     constexpr Route()
         : m_path{}, m_is_build{false}, m_router_number{0}, m_base_router{0}, m_child_routes{0}, m_handler{},
           m_local_middleware{} {}
 
-    constexpr Route(std::string_view path)
+    constexpr Route<Derived>(std::string_view path)
         : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path}, m_is_build{false},
           m_router_number{0}, m_base_router{0}, m_child_routes{0}, m_handler{}, m_local_middleware{} {
         if (path != "*") {
@@ -251,7 +250,7 @@ class Route {
     }
 
     template <typename... Args>
-        requires(std::is_convertible_v<Args, shared::MiddlewareFn<Request, Response>> && ...)
+        requires(std::is_convertible_v<Args, interfaces::MiddlewareFn<Derived>> && ...)
     constexpr Route(std::string_view path, Args &&...middlewares)
         : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path}, m_base_router{0}, m_handler{} {
         if (path != "*") {
@@ -262,42 +261,41 @@ class Route {
         (m_local_middleware.push_handler(std::forward<Args>(middlewares)), ...);
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> use(shared::MiddlewareFn<Request, Response> mw) && {
+    [[nodiscard]] constexpr Route<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
         m_local_middleware.push(std::move(mw));
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> get(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> get(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::GET, std::move(handler));
     }
 
 
-    [[nodiscard]] constexpr Route<Request, Response> post(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> post(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::POST, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> put(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> put(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::PUT, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> patch(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> patch(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::PATCH, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> delt(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> delt(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::DELETE, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> head(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> head(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::HEAD, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> options(shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> options(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::OPTIONS, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> add_handler(Method method,
-                                                                 shared::HandlerFn<Request, Response> handler) {
+    [[nodiscard]] constexpr Route<Derived> add_handler(Method method, interfaces::HandlerFn<Derived> handler) {
         auto handler_fnc = m_handler.find(method);
         if (!handler_fnc) {
             m_handler.push(method, std::move(handler));
@@ -314,27 +312,25 @@ class Route {
         }
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> set_base_router(std::size_t router_number) && {
+    [[nodiscard]] constexpr Route<Derived> set_base_router(std::size_t router_number) && {
         m_base_router = router_number;
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Route<Request, Response> set_router_number(std::size_t router_number) && {
+    [[nodiscard]] constexpr Route<Derived> set_router_number(std::size_t router_number) && {
         m_router_number = router_number;
         return std::move(*this);
     }
 
-    constexpr void add_middleware(shared::MiddlewareFn<Request, Response> mw) {
-        m_local_middleware.push(std::move(mw));
-    }
+    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> mw) { m_local_middleware.push(std::move(mw)); }
 
     constexpr std::string_view get_path() const noexcept { return m_path; }
     constexpr bool is_build() const noexcept { return m_is_build; }
     constexpr std::size_t get_child_routes() const noexcept { return m_child_routes; }
     constexpr std::size_t get_base_router() const noexcept { return m_base_router; }
     constexpr std::size_t get_router_number() const noexcept { return m_router_number; }
-    constexpr const Handler<Request, Response, MaxHandlerSize> &get_handlers() const noexcept { return m_handler; }
-    constexpr const Middleware<Request, Response, MaxMiddlewareSize> &get_middlewares() const noexcept {
+    constexpr const Handler<Derived, MaxHandlerSize> &get_handlers() const noexcept { return m_handler; }
+    constexpr const Middleware<Derived, MaxMiddlewareSize> &get_middlewares() const noexcept {
         return m_local_middleware;
     }
 
@@ -350,40 +346,40 @@ class Route {
     std::size_t m_router_number;
     std::size_t m_base_router;
     std::uint8_t m_child_routes;
-    Handler<Request, Response, MaxHandlerSize> m_handler;
-    Middleware<Request, Response, MaxMiddlewareSize> m_local_middleware;
+    Handler<Derived, MaxHandlerSize> m_handler;
+    Middleware<Derived, MaxMiddlewareSize> m_local_middleware;
 };
 
-template <typename Request, typename Response, std::size_t MaxMiddlewareSize = 10>
+template <typename Derived, std::size_t MaxMiddlewareSize = 10>
 class Router {
   public:
     constexpr Router() : m_ctx{}, m_router_number{0}, m_router_index{0} {}
 
-    constexpr Router(RouterContext<Request, Response> &ctx, std::string_view path)
+    constexpr Router(RouterContext<Derived> &ctx, std::string_view path)
         : m_ctx{ctx}, m_router_number{ctx.get_highest_router_number()},
-          m_router_index{m_ctx.get().add_route(Route<Request, Response>{path}.set_router_number(m_router_number))} {}
+          m_router_index{m_ctx.get().add_route(Route<Derived>{path}.set_router_number(m_router_number))} {}
 
     template <typename... Args>
-        requires(std::is_convertible_v<Args, shared::MiddlewareFn<Request, Response>> && ...)
-    constexpr Router(RouterContext<Request, Response> &ctx, std::string_view path, Args &&...middlewares)
+        requires(std::is_convertible_v<Args, interfaces::MiddlewareFn<Derived>> && ...)
+    constexpr Router(RouterContext<Derived> &ctx, std::string_view path, Args &&...middlewares)
         : m_ctx{ctx}, m_router_number{ctx.get_highest_router_number()},
           m_router_index{ctx.get().add_route(
-              Route<Request, Response>{path, std::forward<Args>(middlewares)...}.set_router_number(m_router_number))} {}
+              Route<Derived>{path, std::forward<Args>(middlewares)...}.set_router_number(m_router_number))} {}
 
 
-    [[nodiscard]] constexpr Router<Request, Response> use(shared::MiddlewareFn<Request, Response> mw) && {
+    [[nodiscard]] constexpr Router<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
         m_ctx.get()[m_router_index].add_middleware(std::move(mw));
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Router<Request, Response> add_router(Router<Request, Response> sub) && {
+    [[nodiscard]] constexpr Router<Derived> add_router(Router<Derived> sub) && {
         m_ctx.get()[sub.get_router_index()].update_base_router(m_router_number);
         m_ctx.get().decrement_base_router_children();
         m_ctx.get()[m_router_index].increment_child_routes();
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Router<Request, Response> add_route(Route<Request, Response> sub) && {
+    [[nodiscard]] constexpr Router<Derived> add_route(Route<Derived> sub) && {
         sub.update_base_router(m_router_number);
         m_ctx.get().add_route(std::move(sub));
         m_ctx.get()[m_router_index].increment_child_routes();
@@ -395,49 +391,49 @@ class Router {
     constexpr std::size_t get_router_index() const noexcept { return m_router_index; }
 
   private:
-    std::reference_wrapper<RouterContext<Request, Response>> m_ctx;
+    std::reference_wrapper<RouterContext<Derived>> m_ctx;
     std::size_t m_router_number;
     std::size_t m_router_index;
 };
 
 
-template <typename Request, typename Response>
+template <typename Derived>
 class ServerBuilder {
   public:
     constexpr ServerBuilder()
         : m_address{}, m_port{0}, m_name{},
-          m_root_route{Route<Request, Response>{"/"}.set_base_router(std::numeric_limits<std::size_t>::max())},
-          m_fallback_route{Route<Request, Response>{"*"}.set_base_router(std::numeric_limits<std::size_t>::max())} {}
+          m_root_route{Route<Derived>{"/"}.set_base_router(std::numeric_limits<std::size_t>::max())},
+          m_fallback_route{Route<Derived>{"*"}.set_base_router(std::numeric_limits<std::size_t>::max())} {}
 
-    constexpr ServerBuilder<Request, Response> address(std::string_view address) && {
+    constexpr ServerBuilder<Derived> address(std::string_view address) && {
         m_address = std::string{address};
         return std::move(*this);
     }
 
-    constexpr ServerBuilder<Request, Response> port(int port) && {
+    constexpr ServerBuilder<Derived> port(int port) && {
         m_port = std::uint8_t(port);
         return std::move(*this);
     }
 
-    constexpr ServerBuilder<Request, Response> name(std::string_view name) && {
+    constexpr ServerBuilder<Derived> name(std::string_view name) && {
         m_name = std::string{name};
         return std::move(*this);
     }
 
 
     // TODO: figue out a way to make this function consteval
-    auto build(RouterContext<Request, Response> ctx) {
+    auto build(RouterContext<Derived> ctx) {
         m_root_route.update_child_routes(ctx.get_base_router_children());
         ctx[0] = m_root_route;
         ctx[1] = m_fallback_route;
-        return Server<Request, Response>{ctx.build()};
+        return Server<Derived>{ctx.build()};
     }
 
   private:
     std::string m_address;
     std::uint8_t m_port;
     std::string m_name;
-    Route<Request, Response> m_root_route;
-    Route<Request, Response> m_fallback_route;
+    Route<Derived> m_root_route;
+    Route<Derived> m_fallback_route;
 };
 } // namespace core::server

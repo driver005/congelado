@@ -1,8 +1,7 @@
-module;
-#include <cstddef>
 export module core_server:router;
 
 import std;
+import interfaces;
 import :types;
 import :handler;
 import :consts;
@@ -35,7 +34,6 @@ constexpr std::uint32_t fnv1a(std::string_view s) noexcept {
 
 export namespace core::server {
 
-template <typename Request, typename Response>
 class RouterNode {
   public:
     RouterNode() = default;
@@ -47,9 +45,8 @@ class RouterNode {
           m_middleware_offset{middleware_offset}, m_middleware_length{middleware_size},
           m_handler_offset{handler_offset}, m_handler_mask{handler_mask} {}
 
-    constexpr std::optional<RouterNode<Request, Response>> find_child(std::string_view seg,
-                                                                      std::span<RouterNode<Request, Response>> table,
-                                                                      std::uint8_t &current_index) const noexcept {
+    constexpr std::optional<RouterNode> find_child(std::string_view seg, std::span<RouterNode> table,
+                                                   std::uint8_t &current_index) const noexcept {
         if (m_children_length == 0)
             return std::nullopt;
 
@@ -117,7 +114,7 @@ class RouterNode {
 
   private:
     EdgeKind m_kind;
-    std::string_view m_path;
+    std::string m_path;
     std::uint16_t m_children_offset;
     std::uint8_t m_children_length;
     std::uint16_t m_middleware_offset;
@@ -126,8 +123,7 @@ class RouterNode {
     std::size_t m_handler_mask;
 };
 
-template <typename Request, typename Response, std::size_t RouterSize = 256, std::size_t HandlerSize = 64,
-          std::size_t MiddlewareSize = 10>
+template <typename Derived, std::size_t RouterSize = 256, std::size_t HandlerSize = 64, std::size_t MiddlewareSize = 10>
 class RouteHandler {
   public:
     constexpr explicit RouteHandler() : m_table{}, m_handler{}, m_middleware{}, m_table_index{0} {}
@@ -140,7 +136,8 @@ class RouteHandler {
 
     ~RouteHandler() = default;
 
-    constexpr void match(Method method, std::string_view path, Request req, Response res) {
+    constexpr void match(Method method, std::string_view path, interfaces::IRequest<Derived> &req,
+                         interfaces::IResponse<Derived> &res) {
         auto segments = split_path(path);
         auto it = segments.begin();
         auto end = segments.end();
@@ -148,7 +145,7 @@ class RouteHandler {
         if (it != end) {
             ++it;
 
-            RouterNode<Request, Response> current = m_table[0];
+            RouterNode current = m_table[0];
             std::uint8_t current_index = 0;
 
             for (; it != end; ++it) {
@@ -191,10 +188,9 @@ class RouteHandler {
     }
 
     constexpr void add_route(EdgeKind kind, std::string_view path, std::size_t children_offset,
-                             const Handler<Request, Response, 8> &handler,
-                             const Middleware<Request, Response, MiddlewareSize> &middleware,
+                             const Handler<Derived, 8> &handler, const Middleware<Derived, MiddlewareSize> &middleware,
                              std::uint8_t children_size) noexcept {
-        RouterNode<Request, Response> node{
+        RouterNode node{
             kind,
             path,
             static_cast<std::uint16_t>(children_offset),
@@ -223,9 +219,9 @@ class RouteHandler {
     }
 
   private:
-    std::array<RouterNode<Request, Response>, RouterSize> m_table;
-    HandlerPool<Request, Response, HandlerSize> m_handler;
-    Middleware<Request, Response, MiddlewareSize> m_middleware;
+    std::array<RouterNode, RouterSize> m_table;
+    HandlerPool<Derived, HandlerSize> m_handler;
+    Middleware<Derived, MiddlewareSize> m_middleware;
     std::uint8_t m_table_index;
 };
 

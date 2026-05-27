@@ -1,8 +1,6 @@
 module;
 // TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
-#include <optional>
 #include <ranges>
-#include <type_traits>
 
 export module io_layer_http2:stream;
 
@@ -102,10 +100,7 @@ class StreamLevelHelper {
     std::reference_wrapper<Stream<false>> get_connection_stream() noexcept { return m_connection_stream; }
     HttpRequest &get_request() noexcept { return m_request; }
     HttpResponse &get_response() noexcept { return m_response; }
-    codec::hpack::Hpack<HttpRequest, shared::http::HeaderEntry, shared::http::Token, HttpResponse> &
-    get_hpack() noexcept {
-        return m_hpack;
-    }
+    codec::hpack::Hpack<shared::http::Protocol> &get_hpack() noexcept { return m_hpack; }
     [[nodiscard]] bool get_expecting_continuation() const noexcept { return m_expecting_continuation; }
     [[nodiscard]] bool get_is_remote_done() const noexcept { return m_remote_done; }
 
@@ -113,7 +108,7 @@ class StreamLevelHelper {
     std::reference_wrapper<Stream<false>> m_connection_stream;
     HttpRequest m_request;
     HttpResponse m_response;
-    codec::hpack::Hpack<HttpRequest, shared::http::HeaderEntry, shared::http::Token, HttpResponse> m_hpack;
+    codec::hpack::Hpack<shared::http::Protocol> m_hpack;
     std::optional<utils::buffering::BufferView> m_header_block;
     bool m_expecting_continuation;
     bool m_remote_done;
@@ -536,6 +531,17 @@ class Stream {
         requires(IsStreamBased)
     {
         return m_stream_helper.get_is_remote_done();
+    }
+
+    [[nodiscard]] HttpRequest &get_request() noexcept
+        requires(IsStreamBased)
+    {
+        return m_stream_helper.get_request();
+    }
+    [[nodiscard]] HttpResponse &get_response() noexcept
+        requires(IsStreamBased)
+    {
+        return m_stream_helper.get_response();
     }
 
     void advance_send(const shared_layer::FrameType &type, const std::uint8_t &flags)
