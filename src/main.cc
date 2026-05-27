@@ -1,26 +1,12 @@
 #include "backward.hpp"
 
-#include <stdio.h>
-
 import std;
-import core_logger;
-import congelado;
-import core_server;
+import core_heart;
 
-int main() {
+int main(int argc, char *argv[]) {
     backward::SignalHandling sh;
 
-    auto my_logger = std::make_shared<app::MyCustomFileLogger>("app.log");
-    std::string init_response = core::logger::LoggerRegistry::register_logger(my_logger);
+    auto plugin_dir = argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
 
-    core::logger::info("LoggerRegistry", "Logger ready. Handshake: {}", init_response);
-
-
-    // core::logger::error("Critical Failure in tasks: {}", std::views::iota(1, 5)); // Passing a range view
-
-    app::Server server{};
-
-    std::promise<void>().get_future().wait();
-    //
-    return 0;
+    return core::heart::App{plugin_dir}.run("~/cc/congelado/src/congelado.toml");
 }

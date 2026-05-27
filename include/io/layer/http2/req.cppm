@@ -16,7 +16,7 @@ import :frame;
 
 export namespace io::layer::http2 {
 
-class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::HeaderEntry, shared::http::Token> {
+class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
   public:
     explicit HttpRequest(std::uint32_t stream_id) : m_stream_id{stream_id}, m_static_headers{} {}
 
@@ -191,8 +191,19 @@ class HttpRequest : public ::interfaces::IRequest<HttpRequest, shared::http::Hea
         return total;
     }
 
+   [[nodiscard]] std::string_view get_method() const noexcept override { 
+        const auto &f = m_static_headers[std::to_underlying(shared::http::Token::METHOD)];
+        return f ? std::string_view{f->get_value()} : std::string_view{};
+    }
+
+    [[nodiscard]] std::string_view get_target() const noexcept override { 
+        const auto &f = m_static_headers[std::to_underlying(shared::http::Token::PATH)];
+        return f ? std::string_view{f->get_value()} : std::string_view{};
+    }
+
     [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
     utils::buffering::BufferView &get_body() noexcept override { return m_body; }
+
 
     // --- Insert ---
     // template <bool IsStatic>
@@ -297,25 +308,25 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
 
     template <std::ranges::viewable_range R>
     auto operator()(R &&output) const {
-        const auto stream_id = m_req.get().get_stream_id();
+        const auto STREAM_ID = m_req.get().get_stream_id();
         auto header_entries = m_req.get().get_header();
 
         bool first_frame = true;
-        std::views::empty<std::byte> |
-            codec::hpack::HpackEncoder<std::uint32_t>{
-                m_table.get(), std::span<const shared::http::HeaderEntry>(header_entries), m_max_frame_size,
-                [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
-                    const auto type =
-                        first_frame ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
-                    const std::uint8_t flags = (reason == codec::hpack::HpackFlushReason::END)
-                                                   ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
-                                                   : std::uint8_t{0};
-                    output.append_range(
-                        std::views::empty<std::byte> |
-                        FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), type, flags, stream_id});
-                    output.append_range(data);
-                    first_frame = false;
-                }};
+
+        codec::hpack::HpackEncoder<std::uint32_t>{
+            m_table.get(), std::span<const shared::http::HeaderEntry>(header_entries), m_max_frame_size,
+            [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
+                const auto TYPE =
+                    first_frame ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
+                const std::uint8_t FLAGS = (reason == codec::hpack::HpackFlushReason::END)
+                                               ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
+                                               : std::uint8_t{0};
+                output.append_range(
+                    std::views::empty<std::byte> |
+                    FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID});
+                output.append_range(data);
+                first_frame = false;
+            }};
 
         if (m_req.get().get_body().empty()) {
             std::uint8_t data_flags = m_flags | shared_layer::Flags::END_STREAM;
@@ -323,7 +334,7 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
             auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
                              .add_type(shared_layer::FrameType::DATA)
                              .add_flags(data_flags)
-                             .add_stream_id(stream_id)
+                             .add_stream_id(STREAM_ID)
                              .build();
 
             output.append_range(std::views::empty<std::byte> |
@@ -331,7 +342,7 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
         } else {
             output.append_range(
                 m_req.get().get_body() |
-                WriteFrameClosureAdapter{stream_id, shared_layer::FrameType::DATA, m_flags, m_max_frame_size});
+                WriteFrameClosureAdapter{STREAM_ID, shared_layer::FrameType::DATA, m_flags, m_max_frame_size});
         }
     }
 

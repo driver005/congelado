@@ -1,0 +1,132 @@
+[00:05:43.142276238] [INFO]: FileLogger: writing to congelado.log, min_level=INFO
+[00:05:43.147878995] [INFO]: |ContractThreadPool| Starting with `4` threads
+[00:05:43.148572702] [INFO]: |ContractThreadPool| Worker thread `136339230029504` started
+[00:05:43.149046575] [INFO]: |ContractThreadPool| Worker thread `136339221636800` started
+[00:05:43.150281976] [INFO]: |ContractThreadPool| Worker thread `136339201607360` started
+[00:05:43.150366364] [INFO]: |ContractThreadPool| Worker thread `136339193214656` started
+[00:05:43.160557857] [INFO]: |SocketLib| New socket created from endpoint localhost:8080
+[00:05:43.160686845] [INFO]: |FlowSocket - Sync| endpoint `localhost:8080` starting base socket
+[00:05:43.160751925] [INFO]: |SocketLib| Socket `6` adding ALPN protocol `h2`
+[00:05:43.163564603] [INFO]: |SocketLib| Setting ALPN protocols for TLS socket. These could be: [2, 104, 50]
+[00:05:43.178629668] [INFO]: |SocketLib| Socket `6` bound to address `localhost:8080`
+[00:05:43.178771461] [INFO]: |SocketLib| Socket `6` is now listening for connections on `localhost:8080`
+[00:05:43.178901940] [INFO]: |Security| SSL material already exists, skipping generation.
+[00:05:43.179887518] [INFO]: |SocketLib| Certificate and private key loaded successfully from files `./server.crt` and `server.key`
+[00:05:43.180086491] [INFO]: |ContractGroup| Created Worker with ID `0` and NAME `BaseSocket - Sync` and inital state `SCHEDULED`
+[00:05:44.149550107] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:44.150112213] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:44.150381971] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:44.150755167] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:44.150990533] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:44.154249466] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:44.155188216] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:44.155539530] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:44.155931300] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:44.156199303] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:45.151350321] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:45.152313163] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:45.152636850] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:45.152978097] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:45.153296725] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:45.157617171] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:45.158213487] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:45.158655918] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:45.159011825] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:45.159260751] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:46.151870889] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:46.152436065] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:46.152762753] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:46.153047336] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:46.153251157] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:46.154391600] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:46.154878716] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:46.155113128] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:46.155362350] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:46.155587151] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:46.160633403] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:46.161335691] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:46.161738258] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:46.162181878] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:46.162504924] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:47.152842597] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:47.153932751] [INFO]: |SocketLib| Accepted new TLS connection on socket `6` from `::1:39558`
+[00:05:47.154422727] [INFO]: |SocketLib| Socket created from native handle `7` for endpoint `::1:39558`
+[00:05:47.154781791] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` accepted new connection from `::1:39558`
+[00:05:47.155140575] [INFO]: |FlowSocket - Sync| Endpoint `localhost:8080` accepted new connection from `::1:39558`
+[00:05:47.155554657] [INFO]: |FlowSocket - Sync| endpoint `localhost:8080` starting handshake for socket `-1`
+[00:05:47.156185256] [INFO]: |ContractGroup| Created Worker with ID `1` and NAME `ConnectorSocket - Sync` and inital state `SCHEDULED`
+[00:05:47.156645384] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:47.156940532] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:47.157153771] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:47.163607683] [INFO]: |ContractGroup| Worker with ID `1` is being executed
+[00:05:47.173168125] [INFO]: |SocketLib| Socket `7` handshake not complete, waiting for it to be readable (SSL - Pending: 0, Want: 3)
+[00:05:47.173534350] [INFO]: |ConnectorSocket - Sync| Socket `7` handshake in progress
+[00:05:47.173819947] [INFO]: |ConnectorSocket - Sync| Socket `7` rescheduled
+[00:05:47.174058089] [INFO]: |ContractGroup| Worker with ID `1` is scheduled
+[00:05:48.154531247] [INFO]: |ContractGroup| Worker with ID `1` is being executed
+[00:05:48.156261184] [INFO]: |SocketLib| Socket `7` kTLS TX could not be activated
+[00:05:48.156573974] [INFO]: |SocketLib| Socket `7` kTLS RX could not be activated
+[00:05:48.156708051] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:48.156827304] [INFO]: |SocketLib| Socket `7` completed handshake successfully
+[00:05:48.157141199] [INFO]: |ConnectorSocket - Sync| Socket `7` handshake completed successfully
+[00:05:48.157256414] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:48.157446608] [INFO]: |FlowSocket - Sync| Endpoint `localhost:8080` handshake completed for socket `7`
+[00:05:48.157529809] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:48.157793688] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:48.157996437] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:48.159619084] [INFO]: |ContractGroup| Created Worker with ID `2` and NAME `Sender - Sync` and inital state `SCHEDULED`
+[00:05:48.160533096] [INFO]: |ContractGroup| Created Worker with ID `3` and NAME `Receiver - Sync` and inital state `SCHEDULED`
+[00:05:48.161008669] [INFO]: |FlowSocket - Sync| Socket `7` established successfully new connection under endpoint `localhost:8080`
+[00:05:48.175157784] [INFO]: |ContractGroup| Worker with ID `2` is being executed
+[00:05:48.175594081] [INFO]: |Sender| FD `7` has no data to send
+[00:05:48.175813263] [INFO]: |Sender| FD `7` rescheduled
+[00:05:48.176023385] [INFO]: |ContractGroup| Worker with ID `2` is scheduled
+[00:05:49.158420165] [INFO]: |ContractGroup| Worker with ID `2` is being executed
+[00:05:49.158915958] [INFO]: |Sender| FD `7` has no data to send
+[00:05:49.159170529] [INFO]: |Sender| FD `7` rescheduled
+[00:05:49.159137017] [INFO]: |ContractGroup| Worker with ID `3` is being executed
+[00:05:49.159397497] [INFO]: |ContractGroup| Worker with ID `2` is scheduled
+[00:05:49.160122585] [INFO]: |SocketLib| Socket `7` received 24 bytes 
+[00:05:49.160665448] [INFO]: |Receiver| FD `7` read 24 bytes
+[00:05:49.162498892] [INFO]: |ContractGroup| Worker with ID `2` is being executed
+[00:05:49.162940650] [INFO]: |Sender| FD `7` has no data to send
+[00:05:49.163195610] [INFO]: |Sender| FD `7` rescheduled
+[00:05:49.163523701] [INFO]: |ContractGroup| Worker with ID `2` is scheduled
+[00:05:49.163523701] [INFO]: |ContractGroup| Worker with ID `2` is scheduled
+[00:05:49.163780600] [INFO]: |Receiver| FD `7` rescheduled
+[00:05:49.165771509] [INFO]: |ContractGroup| Worker with ID `3` is scheduled
+[00:05:49.177001706] [INFO]: |ContractGroup| Worker with ID `3` is being executed
+[00:05:49.177561122] [INFO]: |SocketLib| Socket `7` received 27 bytes 
+[00:05:49.177817991] [INFO]: |Receiver| FD `7` read 27 bytes
+[00:05:49.180744184] [INFO]: |Receiver| FD `7` rescheduled
+[00:05:49.181046581] [INFO]: |ContractGroup| Worker with ID `3` is scheduled
+[00:05:50.160551847] [INFO]: |ContractGroup| Worker with ID `3` is being executed
+[00:05:50.161126001] [INFO]: |SocketLib| Socket `7` received 13 bytes 
+[00:05:50.161380418] [INFO]: |Receiver| FD `7` read 13 bytes
+[00:05:50.163178390] [INFO]: |Receiver| FD `7` rescheduled
+[00:05:50.163595168] [INFO]: |ContractGroup| Worker with ID `3` is scheduled
+[00:05:50.166562965] [INFO]: |ContractGroup| Worker with ID `3` is being executed
+[00:05:50.167310024] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:50.167310024] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:50.167385376] [INFO]: |SocketLib| Socket `7` received 42 bytes 
+[00:05:50.167762311] [INFO]: |Receiver| FD `7` read 42 bytes
+[00:05:50.167856856] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:50.168103328] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:50.168361013] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:50.168592093] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:50.183251882] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:50.183989685] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:50.184310898] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:50.184673155] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:50.184900024] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:51.164279053] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:51.164279053] [INFO]: |ContractGroup| Worker with ID `0` is being executed
+[00:05:51.169135388] [INFO]: |ContractGroup| Worker with ID `2` is being executed
+[00:05:51.234090703] [INFO]: |SocketLib| Accept on socket `6` would have blocked, no incoming connections ready
+[00:05:51.234208684] [INFO]: |SocketLib| Socket `7` sent 21 bytes 
+[00:05:51.234305042] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` has NO new connections
+[00:05:51.234343297] [INFO]: |Sender| FD `7` send 21 bytes 
+[00:05:51.234444464] [INFO]: |BaseSocket - Sync| Endpoint `localhost:8080` rescheduled
+[00:05:51.234493069] [INFO]: |Sender| FD `7` rescheduled
+[00:05:51.234569560] [INFO]: |ContractGroup| Worker with ID `0` is scheduled
+[00:05:51.234593904] [INFO]: |ContractGroup| Worker with ID `2` is scheduled

@@ -29,10 +29,9 @@ enum class TaskResult : std::uint8_t {
     SKIPPED,
 };
 
-[[nodiscard]] constexpr bool is_terminal(TaskStatus s) noexcept {
-    using enum TaskStatus;
-    return s == COMPLETED || s == FAILED || s == TIMED_OUT
-        || s == SKIPPED    || s == CANCELED;
+[[nodiscard]] constexpr bool is_terminal(TaskStatus status) noexcept {
+    return status == TaskStatus::COMPLETED || status == TaskStatus::FAILED || status == TaskStatus::TIMED_OUT ||
+           status == TaskStatus::SKIPPED || status == TaskStatus::CANCELED;
 }
 
 } // namespace model

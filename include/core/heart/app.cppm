@@ -81,15 +81,14 @@ class App {
 
     // Loads all plugins from config. Registers all logger plugins.
     // Sets proto to the first protocol plugin found.
-    // Passes ctx.router_ptr() to every plugin so all can add routes to the
+    // Passes ctx.get_router() to every plugin so all can add routes to the
     // same global RouterContext during their on_load().
     // Returns true if any logger plugin was registered.
     bool load_plugins(const core::config::Config &cfg, AppContext &ctx,
-                      std::vector<core::plugin::PluginHandle> &handles,
-                      std::shared_ptr<interfaces::IProtocol> &proto) {
-        void *router_ctx = ctx.router_ptr();
+                      std::vector<core::plugin::PluginHandle> &handles, std::shared_ptr<interfaces::IProtocol> &proto) {
+        auto *router_ctx = ctx.get_router();
 
-        for (auto &[name, plugin_cfg] : cfg.plugins) {
+        for (auto &[name, plugin_cfg] : cfg.get_plugins()) {
 #if defined(_WIN32)
             auto so = m_plugin_dir / (name + ".dll");
 #else
@@ -102,7 +101,7 @@ class App {
 
             auto result = core::plugin::load(so, &plugin_cfg, router_ctx);
             if (!result) {
-                std::println(stderr, "[heart] plugin '{}' failed to load: {}", name, result.error().detail);
+                std::println(stderr, "[heart] plugin '{}' failed to load: {}", name, result.error().get_detail());
                 continue;
             }
 

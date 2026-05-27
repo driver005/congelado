@@ -7,37 +7,47 @@ export namespace interfaces {
 
 // CRTP base for protocol-agnostic responses (HTTP/1–3, gRPC, WebSocket, …).
 // All mutators return Derived& for builder chaining.
-template <typename Derived, typename Header, typename Token>
+template <typename Protocol>
 class IResponse {
+    using Header = typename Protocol::Header;
+    using Token = typename Protocol::Token;
+
   public:
     virtual ~IResponse() = default;
 
-    Derived &add_header(std::string_view name, std::string_view value) && noexcept {
+    template <typename Self>
+    Self &add_header(std::string_view name, std::string_view value) && noexcept {
         add_header(name, value);
-        return static_cast<Derived &>(*this);
+        return std::forward<Self>(*this);
     }
 
-    Derived &remove_header(std::string_view name) && noexcept {
+    template <typename Self>
+    Self &remove_header(std::string_view name) && noexcept {
         remove_header(name);
-        return static_cast<Derived &>(*this);
+        return std::forward<Self>(*this);
     }
 
-    Derived &with_status(Status status) noexcept {
+    template <typename Self>
+    Self &with_status(Status status) noexcept {
         set_status(status);
-        return static_cast<Derived &>(*this);
+        return std::forward<Self>(*this);
     }
 
-    [[nodiscard]] Derived build() && { return std::move(static_cast<Derived &>(*this)); }
+    template <typename Self>
+    [[nodiscard]] Self &&build() && {
+        return std::forward<Self>(*this);
+    }
 
     virtual void add_header(std::variant<std::string_view, Token> name, std::string_view value) & = 0;
     virtual void remove_header(std::variant<std::string_view, Token> name) & = 0;
     virtual void set_status(Status status) & = 0;
+    virtual void set_body(std::vector<std::byte> body) & = 0;
 
     virtual std::vector<Header> get_header() const noexcept = 0;
     [[nodiscard]] virtual std::span<const std::byte> get_body() const noexcept = 0;
 };
 
-template <typename Derived, typename Header, typename Token>
-concept Response = std::derived_from<Derived, IResponse<Derived, Header, Token>>;
+template <typename Derived>
+concept Response = std::derived_from<Derived, IResponse<Derived>>;
 
 } // namespace interfaces

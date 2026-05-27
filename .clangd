@@ -86,6 +86,10 @@ Diagnostics:
       # Concurrency: locks, thread annotations (useful for io_uring ring access)
       - "concurrency-*"
     Remove:
+      # Disables warnings about adjacent parameters of the same type
+      - "bugprone-easily-swappable-parameters"
+      # Disables warnings that suggest converting initializer lists to default member initializers
+      - "modernize-use-default-member-init"
       # Conflicts with C++23 deducing-this & trailing return patterns
       - "modernize-use-trailing-return-type"
       # Too noisy in systems code with deliberate magic constants
