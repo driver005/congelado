@@ -4,66 +4,82 @@ import std;
 
 export namespace worker {
 
-// Opaque input bag passed to ITaskWorker::execute.
-// input_data is a JSON blob from the TaskInstance input_params field.
+using CongeladoTaskFactory = void *(*)();
+
 class TaskInput {
   public:
-    void set_task_id(std::string_view task_id) { m_task_id = task_id; }
-    void set_task_type(std::string_view task_type) { m_task_type = task_type; }
-    void set_input_data(std::string_view input_data) { m_input_data = input_data; }
+    explicit TaskInput(std::unordered_map<std::string, std::string> const &data) noexcept
+        : m_data(data) {}
 
-    [[nodiscard]] std::string_view get_task_id() const noexcept { return m_task_id; }
-    [[nodiscard]] std::string_view get_task_type() const noexcept { return m_task_type; }
-    [[nodiscard]] std::string_view get_input_data() const noexcept { return m_input_data; }
+    [[nodiscard]] bool has(std::string_view key) const noexcept {
+        return m_data.contains(std::string(key));
+    }
+
+    template <typename T>
+        requires(std::same_as<T, std::string> || std::same_as<T, std::string_view> ||
+                 std::same_as<T, int> || std::same_as<T, std::int64_t> ||
+                 std::same_as<T, double> || std::same_as<T, bool>)
+    [[nodiscard]] std::optional<T> get(std::string_view key) const {
+        auto it = m_data.find(std::string(key));
+        if (it == m_data.end()) return std::nullopt;
+        auto const &s = it->second;
+
+        if constexpr (std::same_as<T, std::string>) {
+            return s;
+        } else if constexpr (std::same_as<T, std::string_view>) {
+            return std::string_view{s};
+        } else if constexpr (std::same_as<T, int>) {
+            int val{};
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            return ec == std::errc{} ? std::optional{val} : std::nullopt;
+        } else if constexpr (std::same_as<T, std::int64_t>) {
+            std::int64_t val{};
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            return ec == std::errc{} ? std::optional{val} : std::nullopt;
+        } else if constexpr (std::same_as<T, double>) {
+            double val{};
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            return ec == std::errc{} ? std::optional{val} : std::nullopt;
+        } else {
+            // bool
+            if (s == "true") return true;
+            if (s == "false") return false;
+            return std::nullopt;
+        }
+    }
 
   private:
-    std::string m_task_id;
-    std::string m_task_type;
-    std::string m_input_data;
+    std::unordered_map<std::string, std::string> const &m_data;
 };
 
-// Opaque output bag filled by ITaskWorker::execute.
-// output_data is a JSON blob forwarded to the engine as the TaskResult output_data field.
 class TaskOutput {
   public:
-    void set_output_data(std::string_view output_data) { m_output_data = output_data; }
-    void set_success(bool success) noexcept { m_success = success; }
+    [[nodiscard]] std::unordered_map<std::string, std::string> const &data() const noexcept {
+        return m_data;
+    }
 
-    [[nodiscard]] std::string_view get_output_data() const noexcept { return m_output_data; }
-    [[nodiscard]] bool get_success() const noexcept { return m_success; }
+    template <typename T>
+    void set(std::string const &key, T const &val) {
+        if constexpr (std::same_as<T, std::string>) {
+            m_data[key] = val;
+        } else if constexpr (std::same_as<T, std::string_view>) {
+            m_data[key] = std::string(val);
+        } else if constexpr (std::same_as<T, bool>) {
+            m_data[key] = val ? "true" : "false";
+        } else {
+            m_data[key] = std::format("{}", val);
+        }
+    }
 
   private:
-    std::string m_output_data;
-    bool m_success{false};
+    std::unordered_map<std::string, std::string> m_data;
 };
 
-// Implement this once per custom task type and register via WorkerContext::add_task_worker.
-//
-// Example:
-//   class MySendEmailWorker : public worker::ITaskWorker {
-//   public:
-//       std::string_view get_task_type() const noexcept override { return "SEND_EMAIL"; }
-//       void execute(const worker::TaskInput& input, worker::TaskOutput& output) noexcept override {
-//           // parse input.get_input_data(), send email, fill output
-//           output.set_output_data(R"({"sent":true})");
-//           output.set_success(true);
-//       }
-//   };
-//   ctx.add_task_worker(std::make_unique<MySendEmailWorker>());
 class ITaskWorker {
   public:
     virtual ~ITaskWorker() = default;
-    ITaskWorker() = default;
-    ITaskWorker(const ITaskWorker &) = delete;
-    ITaskWorker &operator=(const ITaskWorker &) = delete;
-    ITaskWorker(ITaskWorker &&) = delete;
-    ITaskWorker &operator=(ITaskWorker &&) = delete;
-
-    // Must return the same string literal every call — stored as a key in the worker registry.
     [[nodiscard]] virtual std::string_view get_task_type() const noexcept = 0;
-
-    // Execute the task. Must not throw. Set output.set_success(false) on failure.
-    virtual void execute(const TaskInput &input, TaskOutput &output) noexcept = 0;
+    [[nodiscard]] virtual TaskOutput execute(TaskInput const &input) = 0;
 };
 
 } // namespace worker
