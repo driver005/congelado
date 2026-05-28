@@ -27,6 +27,7 @@ class TaskInput {
         if constexpr (std::same_as<T, std::string>) {
             return s;
         } else if constexpr (std::same_as<T, std::string_view>) {
+            // Lifetime: returned view is valid only while the source map passed to TaskInput lives.
             return std::string_view{s};
         } else if constexpr (std::same_as<T, int>) {
             int val{};
