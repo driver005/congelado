@@ -29,8 +29,11 @@ class TaskRegistry {
         return s_instance;
     }
 
+    // Registration is called only from static-init (CONGELADO_TASK macros), which runs
+    // single-threaded before main(). Not safe to call concurrently.
     void register_task(Factory factory) {
         std::unique_ptr<ITask> instance(factory());
+        if (instance == nullptr) return; // NOLINT: should never happen with CONGELADO_TASK
         auto key = std::string(instance->type());
         m_tasks.emplace(std::move(key), std::move(instance));
     }
