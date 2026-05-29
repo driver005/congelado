@@ -11,24 +11,26 @@ class WorkerContext {
   public:
     void set_worker_id(std::string_view worker_id) { m_worker_id = worker_id; }
 
-    // Register a custom worker for a task type. Duplicate task_type replaces previous entry.
-    void add_task_worker(std::unique_ptr<ITaskWorker> worker) {
+    // Register a non-owning pointer to a worker for a task type.
+    // The caller retains ownership; this context holds a raw reference only.
+    // Duplicate task_type replaces previous entry.
+    void add_task_worker(ITaskWorker *worker) {
         for (auto &entry : m_workers) {
             if (entry->get_task_type() == worker->get_task_type()) {
-                entry = std::move(worker);
+                entry = worker;
                 return;
             }
         }
-        m_workers.push_back(std::move(worker));
+        m_workers.push_back(worker);
     }
 
     [[nodiscard]] std::string_view get_worker_id() const noexcept { return m_worker_id; }
 
     // Returns nullptr if no worker registered for task_type.
     [[nodiscard]] ITaskWorker *get_task_worker(std::string_view task_type) const noexcept {
-        for (auto &entry : m_workers) {
+        for (auto *entry : m_workers) {
             if (entry->get_task_type() == task_type) {
-                return entry.get();
+                return entry;
             }
         }
         return nullptr;
@@ -38,7 +40,7 @@ class WorkerContext {
     [[nodiscard]] std::vector<std::string_view> get_task_types() const noexcept {
         std::vector<std::string_view> types;
         types.reserve(m_workers.size());
-        for (auto &entry : m_workers) {
+        for (auto *entry : m_workers) {
             types.push_back(entry->get_task_type());
         }
         return types;
@@ -46,7 +48,7 @@ class WorkerContext {
 
   private:
     std::string m_worker_id;
-    std::vector<std::unique_ptr<ITaskWorker>> m_workers;
+    std::vector<ITaskWorker *> m_workers;  // non-owning; TU-statics retain ownership
 };
 
 } // namespace worker

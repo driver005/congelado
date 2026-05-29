@@ -70,14 +70,19 @@ int main(int argc, char **argv) {
         }
     }
 
-    // 6. Build WorkerContext — singletons owned by TU-statics; context holds non-owning refs
+    // 6. Build WorkerContext — singletons owned by TU-statics; context holds non-owning raw ptrs
     worker::WorkerContext ctx;
     ctx.set_worker_id(cfg.worker_id);
     for (auto *w : task_workers) {
-        ctx.add_task_worker(std::unique_ptr<worker::ITaskWorker>(w, [](worker::ITaskWorker *) noexcept {}));
+        ctx.add_task_worker(w);
     }
 
-    // 7. Start poll threads (stub: no-op)
+    // 7. Register signals before starting poll threads to avoid a race where a signal
+    //    arrives between poller.start() and signal registration.
+    std::signal(SIGINT, on_signal);
+    std::signal(SIGTERM, on_signal);
+
+    // 8. Start poll threads (stub: no-op)
     std::uint32_t concurrency =
         cfg.concurrency == 0 ? std::thread::hardware_concurrency() : cfg.concurrency;
     worker::Poller poller{ctx, client, concurrency};
@@ -85,9 +90,6 @@ int main(int argc, char **argv) {
 
     std::println("worker '{}' running: {} thread(s), {} task type(s)",
         cfg.worker_id, concurrency, cfg.tasks.size());
-
-    std::signal(SIGINT, on_signal);
-    std::signal(SIGTERM, on_signal);
     while (g_running.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
