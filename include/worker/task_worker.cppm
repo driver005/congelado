@@ -49,6 +49,10 @@ class TaskInput {
         }
     }
 
+    [[nodiscard]] std::unordered_map<std::string, std::string> const &data_map() const noexcept {
+        return m_data;
+    }
+
   private:
     std::unordered_map<std::string, std::string> const &m_data;
 };
