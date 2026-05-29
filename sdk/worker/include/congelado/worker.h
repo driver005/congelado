@@ -12,7 +12,7 @@ int run_worker(int argc, char **argv);
    Requires: import congelado_worker; (provides congelado::ITask and TaskRegistry). */
 #define CONGELADO_TASK(T)                                                                          \
     namespace { /* NOLINT(cert-dcl59-cpp) */                                                      \
-    [[maybe_unused]] bool const _congelado_registered_##T = []() noexcept -> bool {              \
+    [[maybe_unused]] bool const _congelado_registered_##T = []() -> bool {              \
         congelado::detail::TaskRegistry::instance().register_task(                                \
             []() -> congelado::ITask * { return new T{}; } /* NOLINT */                           \
         );                                                                                        \
