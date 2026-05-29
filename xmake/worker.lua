@@ -15,7 +15,7 @@ function worker(name, ...)
 	set_policy("build.c++.modules", true)
 	add_rules("congelado.worker")
 	add_files(...)
-	add_includedirs("include")
+	add_includedirs("$(projectdir)/include")
 	if is_plat("linux", "macosx") then
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 	end
@@ -24,10 +24,10 @@ end
 
 local workers = {}
 for _, f in ipairs(os.files(path.join(os.projectdir(), "workers/**/*.cc"))) do
-    local name = path.basename(path.directory(f))
-    workers[name] = workers[name] or {}
-    table.insert(workers[name], f)
+	local name = path.basename(path.directory(f))
+	workers[name] = workers[name] or {}
+	table.insert(workers[name], f)
 end
 for name, files in pairs(workers) do
-    worker(name, table.unpack(files))
+	worker(name, table.unpack(files))
 end

@@ -227,8 +227,8 @@ class Session {
   private:
     void response(std::uint32_t stream_id) {
         auto &stream = *m_streams.at(stream_id);
-        auto &req    = stream.get_request();
-        auto &res    = stream.get_response();
+        auto &req = stream.get_request();
+        auto &res = stream.get_response();
 
         res.set_status(interfaces::Status::NOT_FOUND);
 

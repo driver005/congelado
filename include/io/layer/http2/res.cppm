@@ -141,7 +141,7 @@ class HttpResponse : public interfaces::IResponse<shared::http::Protocol> {
     }
 
     void set_body(std::vector<std::byte> body) & noexcept override { m_body = std::move(body); }
-    
+
     [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
     [[nodiscard]] std::span<const std::byte> get_body() const noexcept override { return m_body; }
 
@@ -229,7 +229,7 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
                     FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID});
                 output.append_range(data);
                 first_frame = false;
-            }};
+            }}();
 
         if (m_res.get().get_body().empty()) {
             std::uint8_t data_flags = m_flags | shared_layer::Flags::END_STREAM;
