@@ -3,29 +3,31 @@
 -- Per-task mode: worker("email_worker",    "tasks/email.cc")
 rule("congelado.worker")
 on_load(function(target)
-    target:add("deps", "congelado_lib")
-    target:add("files", "$(projectdir)/src/worker_main.cc")
+	target:add("deps", "congelado_lib")
+	target:add("files", "$(projectdir)/src/worker_main.cc")
 end)
 rule_end()
 
 function worker(name, ...)
-    target(name)
-        set_kind("binary")
-        set_languages("c++26")
-        set_policy("build.c++.modules", true)
-        add_rules("congelado.worker")
-        add_files(...)
-        add_includedirs("include")
-        if is_plat("linux", "macosx") then
-            add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-        end
-    target_end()
+	target(name)
+	set_kind("binary")
+	set_languages("c++26")
+	set_policy("build.c++.modules", true)
+	add_rules("congelado.worker")
+	add_files(...)
+	add_includedirs("include")
+	if is_plat("linux", "macosx") then
+		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+	end
+	target_end()
 end
 
-for _, workerdir in ipairs(os.dirs("workers/*")) do
-    local name = path.basename(workerdir)
-    local files = os.files(path.join(workerdir, "**.cc"))
-    if #files > 0 then
-        worker(name, table.unpack(files))
-    end
+local workers = {}
+for _, f in ipairs(os.files(path.join(os.projectdir(), "workers/**/*.cc"))) do
+    local name = path.basename(path.directory(f))
+    workers[name] = workers[name] or {}
+    table.insert(workers[name], f)
+end
+for name, files in pairs(workers) do
+    worker(name, table.unpack(files))
 end
