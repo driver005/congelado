@@ -171,50 +171,8 @@ add_packages(
 	{ public = true }
 )
 
--- First-party protocol plugins: compiled with module support, linked against congelado_lib.
--- These can import any module from the main library and expose congelado_get_protocol().
-local first_party_plugins = { ["http2"] = true }
-
--- http2: first-party protocol plugin — needs module access to import io_layer_http2 etc.
-target("http2")
-set_kind("shared")
-set_languages("c++26")
-set_policy("build.c++.modules", true)
-add_files("plugins/http2/http2.cc")
-add_includedirs("include")
-add_deps("congelado_lib")
-if is_plat("linux", "macosx") then
-	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-end
-if is_plat("windows", "mingw") then
-	add_cxflags("--target=x86_64-w64-mingw32")
-end
-target_end()
-
--- Third-party plugin targets — standalone shared libraries.
--- Each exposes congelado_get_plugin/congelado_destroy_plugin (see include/core/ffi/plugin_api.h).
--- C++ plugins inherit congelado::PluginBase and use CONGELADO_PLUGIN(T) (plugin_api.hpp).
--- NOT linked into the main binary; loaded at runtime via dlopen.
-for _, pluginfile in ipairs(os.files("plugins/**/*.cc")) do
-	local pluginname = path.basename(pluginfile)
-	if first_party_plugins[pluginname] then
-		goto continue
-	end
-	target(pluginname)
-	set_kind("shared")
-	set_languages("c++26")
-	add_files(pluginfile)
-	add_includedirs("include")
-	add_cxflags("-fpermissive")
-	if is_plat("linux", "macosx") then
-		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-	end
-	if is_plat("windows", "mingw") then
-		add_cxflags("--target=x86_64-w64-mingw32")
-	end
-	target_end()
-	::continue::
-end
+includes("xmake/plugin.lua")
+includes("xmake/worker.lua")
 
 target("congelado")
 set_kind("binary")

@@ -191,12 +191,12 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
         return total;
     }
 
-   [[nodiscard]] std::string_view get_method() const noexcept override { 
+    [[nodiscard]] std::string_view get_method() const noexcept override {
         const auto &f = m_static_headers[std::to_underlying(shared::http::Token::METHOD)];
         return f ? std::string_view{f->get_value()} : std::string_view{};
     }
 
-    [[nodiscard]] std::string_view get_target() const noexcept override { 
+    [[nodiscard]] std::string_view get_target() const noexcept override {
         const auto &f = m_static_headers[std::to_underlying(shared::http::Token::PATH)];
         return f ? std::string_view{f->get_value()} : std::string_view{};
     }
@@ -326,7 +326,7 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
                     FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID});
                 output.append_range(data);
                 first_frame = false;
-            }};
+            }}();
 
         if (m_req.get().get_body().empty()) {
             std::uint8_t data_flags = m_flags | shared_layer::Flags::END_STREAM;

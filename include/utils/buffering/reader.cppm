@@ -319,7 +319,7 @@ class BufferReader {
 };
 
 struct AdvanceReaderAdaptor : std::ranges::range_adaptor_closure<AdvanceReaderAdaptor> {
-    explicit constexpr AdvanceReaderAdaptor(BufferReader &view, std::size_t count) : m_view(view), m_count(count) {}
+    explicit constexpr AdvanceReaderAdaptor(BufferReader &view, std::size_t count) : m_view{view}, m_count{count} {}
 
     template <typename T>
     T operator()(T &&result) const {

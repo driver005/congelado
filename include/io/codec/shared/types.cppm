@@ -130,11 +130,7 @@ enum class PrefixHelper : std::uint8_t {
     if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)) != 0) {
         return PrefixHelper::HPACK_LITERAL_NEVER_INDEXED;
     }
-    if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING)) != 0) {
-        return PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING;
-    }
-
-    throw error::http::DecodeError("Invalid first byte for HPACK representation");
+    return PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING;
 }
 
 [[nodiscard]] PrefixHelper detect_representation_qpack_stream(std::uint8_t byte) {

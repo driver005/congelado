@@ -1,5 +1,7 @@
 module;
 #include <cassert>
+#include <iterator>
+#include <print>
 #include <ranges>
 export module io_codec_hpack;
 
@@ -29,7 +31,6 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
         : m_table{table}, m_headers{headers}, m_flush_size{max_frame_size}, m_on_flush{std::move(on_flush)},
           m_use_auto_policy{use_auto_policy}, m_use_huffman{use_huffman}, m_buf{}, m_buf_pos{0} {}
 
-    template <std::ranges::viewable_range R>
     void operator()() const {
         m_buf_pos = 0;
         for (const auto &entry : m_headers) {
@@ -209,13 +210,16 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] std::size_t operator()(R &&range) const {
         auto data = std::forward<R>(range);
-        const auto TOTAL = static_cast<std::size_t>(std::ranges::size(data));
+        const auto TOTAL = static_cast<std::size_t>(std::ranges::distance(data));
         std::size_t offset = 0;
 
-        std::ranges::for_each(data, [&](const std::byte &) {
+
+        std::ranges::for_each(data, [&](const std::byte &byte) {
             if (offset >= TOTAL) {
                 return;
             }
+
+            std::println("range data: {}", std::to_integer<int>(byte));
 
             auto slice = data | std::views::drop(offset);
             const auto [rep_type, is_new] = detect(slice);
