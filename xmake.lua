@@ -89,6 +89,24 @@ add_requires("conan::stduuid/1.2.3", { alias = "stduuid", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
 add_requires("range-v3", { configs = conan })
 
+add_requires("conan::reflect-cpp/0.23.0", {
+    alias = "reflectcpp",
+    configs = {
+        settings_build = conan.settings_build,
+        settings = conan.settings,
+        conf = conan.conf,
+        build = "missing",
+        options = {
+            "reflect-cpp/*:toml=True",
+            "reflect-cpp/*:msgpack=True",
+            "reflect-cpp/*:xml=True",
+        }
+    }
+})
+
+-- ── Postgres storage plugin (requires sqlgen + reflectcpp via Conan) ──────────
+add_requires("conan::sqlgen/0.6.0", { alias = "sqlgen", configs = conan })
+
 set_languages("c++26", "c11")
 -- TODO: please add again
 -- set_warnings("all", "extra", "error")
@@ -136,7 +154,10 @@ end
 add_defines("CLANG_ITERATE_MODULES")
 
 add_files("include/**.cppm", { public = true })
+add_files("sdk/worker/congelado_worker.cppm", { public = true })
+add_files("sdk/plugin/congelado_plugin.cppm", { public = true })
 add_files("src/**.cc")
+add_files("sdk/worker/runtime.cc")
 
 remove_files("src/main.cc")
 
@@ -151,11 +172,14 @@ else
 end
 
 add_includedirs("include", { public = true })
+add_includedirs("sdk/worker/include", { public = true })
+add_includedirs("sdk/plugin/include", { public = true })
 
 add_packages(
 	"fmt",
 	"simdjson",
 	"tomlplusplus",
+	"reflectcpp",
 	"grpc",
 	"protobuf",
 	"asio",
@@ -173,6 +197,19 @@ add_packages(
 
 includes("xmake/plugin.lua")
 includes("xmake/worker.lua")
+
+target("postgres_plugin")
+set_kind("shared")
+set_languages("c++26")
+set_policy("build.c++.modules", true)
+add_files("plugins/postgres/postgres_plugin.cc")
+add_includedirs("$(projectdir)/include")
+add_deps("congelado_lib")
+add_packages("sqlgen", "stduuid")
+if is_plat("linux", "macosx") then
+    add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+end
+target_end()
 
 target("congelado")
 set_kind("binary")
