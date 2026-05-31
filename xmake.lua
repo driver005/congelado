@@ -105,7 +105,7 @@ add_requires("conan::reflect-cpp/0.23.0", {
 })
 
 -- ── Postgres storage plugin (requires sqlgen + reflectcpp via Conan) ──────────
-add_requires("conan::sqlgen/0.6.0", { alias = "sqlgen", configs = conan })
+add_requires("conan::sqlgen/0.4.0", { alias = "sqlgen", configs = conan })
 
 set_languages("c++26", "c11")
 -- TODO: please add again
