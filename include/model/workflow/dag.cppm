@@ -1,18 +1,27 @@
 export module model:workflow_dag;
 
 import std;
+import ser;
 
 export namespace model {
 
 class InputMapping {
   public:
-    InputMapping(std::string source, std::string target) : m_source{std::move(source)}, m_target{std::move(target)} {}
+    InputMapping() = default;
+    InputMapping(std::string source, std::string target)
+        : m_source{std::move(source)}, m_target{std::move(target)} {}
 
     void set_source(std::string source) { m_source = std::move(source); }
     void set_target(std::string target) { m_target = std::move(target); }
 
-    [[nodiscard]] const std::string &get_source() const noexcept { return m_source; }
-    [[nodiscard]] const std::string &get_target() const noexcept { return m_target; }
+    [[nodiscard]] const std::string& get_source() const noexcept { return m_source; }
+    [[nodiscard]] const std::string& get_target() const noexcept { return m_target; }
+
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+        if (m_source.empty()) return std::unexpected{"InputMapping source must not be empty"};
+        if (m_target.empty()) return std::unexpected{"InputMapping target must not be empty"};
+        return {};
+    }
 
   private:
     std::string m_source;
@@ -21,13 +30,21 @@ class InputMapping {
 
 class OutputMapping {
   public:
-    OutputMapping(std::string source, std::string target) : m_source{std::move(source)}, m_target{std::move(target)} {}
+    OutputMapping() = default;
+    OutputMapping(std::string source, std::string target)
+        : m_source{std::move(source)}, m_target{std::move(target)} {}
 
     void set_source(std::string source) { m_source = std::move(source); }
     void set_target(std::string target) { m_target = std::move(target); }
 
-    [[nodiscard]] const std::string &get_source() const noexcept { return m_source; }
-    [[nodiscard]] const std::string &get_target() const noexcept { return m_target; }
+    [[nodiscard]] const std::string& get_source() const noexcept { return m_source; }
+    [[nodiscard]] const std::string& get_target() const noexcept { return m_target; }
+
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+        if (m_source.empty()) return std::unexpected{"OutputMapping source must not be empty"};
+        if (m_target.empty()) return std::unexpected{"OutputMapping target must not be empty"};
+        return {};
+    }
 
   private:
     std::string m_source;
@@ -39,16 +56,23 @@ class TaskEdge {
     TaskEdge() = default;
 
     void add_mapping(InputMapping mapping) { m_mappings.push_back(std::move(mapping)); }
+    void set_to(std::string to)                          { m_to = std::move(to); }
+    void set_from(std::string from)                      { m_from = std::move(from); }
+    void set_condition(std::optional<std::string> cond)  { m_condition = std::move(cond); }
+    void set_mappings(std::vector<InputMapping> mappings){ m_mappings = std::move(mappings); }
 
-    void set_to(std::string too) { m_to = std::move(too); }
-    void set_from(std::string from) { m_from = std::move(from); }
-    void set_condition(std::optional<std::string> condition) { m_condition = std::move(condition); }
-    void set_mappings(std::vector<InputMapping> mappings) { m_mappings = std::move(mappings); }
+    [[nodiscard]] const std::string& get_from() const noexcept                     { return m_from; }
+    [[nodiscard]] const std::string& get_to() const noexcept                       { return m_to; }
+    [[nodiscard]] const std::vector<InputMapping>& get_mappings() const noexcept   { return m_mappings; }
+    [[nodiscard]] const std::optional<std::string>& get_condition() const noexcept { return m_condition; }
 
-    [[nodiscard]] const std::string &get_from() const noexcept { return m_from; }
-    [[nodiscard]] const std::string &get_to() const noexcept { return m_to; }
-    [[nodiscard]] const std::vector<InputMapping> &get_mappings() const noexcept { return m_mappings; }
-    [[nodiscard]] const std::optional<std::string> &get_condition() const noexcept { return m_condition; }
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+        if (m_from.empty()) return std::unexpected{"TaskEdge from must not be empty"};
+        if (m_to.empty())   return std::unexpected{"TaskEdge to must not be empty"};
+        for (auto const& m : m_mappings)
+            if (auto r = m.validate(); !r) return r;
+        return {};
+    }
 
   private:
     std::string m_from;
@@ -61,13 +85,19 @@ class TaskNode {
   public:
     TaskNode() = default;
 
-    void add_edge(TaskEdge edge) { m_edges.push_back(std::move(edge)); }
-
+    void add_edge(TaskEdge edge)                 { m_edges.push_back(std::move(edge)); }
     void set_task_def_name(std::string def_name) { m_def_name = std::move(def_name); }
-    void set_edges(std::vector<TaskEdge> edges) { m_edges = std::move(edges); }
+    void set_edges(std::vector<TaskEdge> edges)  { m_edges = std::move(edges); }
 
-    [[nodiscard]] const std::string &get_def_name() const noexcept { return m_def_name; }
-    [[nodiscard]] const std::vector<TaskEdge> &get_edges() const noexcept { return m_edges; }
+    [[nodiscard]] const std::string& get_def_name() const noexcept        { return m_def_name; }
+    [[nodiscard]] const std::vector<TaskEdge>& get_edges() const noexcept { return m_edges; }
+
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+        if (m_def_name.empty()) return std::unexpected{"TaskNode def_name must not be empty"};
+        for (auto const& e : m_edges)
+            if (auto r = e.validate(); !r) return r;
+        return {};
+    }
 
   private:
     std::string m_def_name;
@@ -75,3 +105,61 @@ class TaskNode {
 };
 
 } // namespace model
+
+template<> struct ser::Serializable<model::InputMapping> {
+    static constexpr auto fields() {
+        return std::tuple{
+            ser::field<"source",
+                &model::InputMapping::get_source,
+                &model::InputMapping::set_source>(),
+            ser::field<"target",
+                &model::InputMapping::get_target,
+                &model::InputMapping::set_target>(),
+        };
+    }
+};
+
+template<> struct ser::Serializable<model::OutputMapping> {
+    static constexpr auto fields() {
+        return std::tuple{
+            ser::field<"source",
+                &model::OutputMapping::get_source,
+                &model::OutputMapping::set_source>(),
+            ser::field<"target",
+                &model::OutputMapping::get_target,
+                &model::OutputMapping::set_target>(),
+        };
+    }
+};
+
+template<> struct ser::Serializable<model::TaskEdge> {
+    static constexpr auto fields() {
+        return std::tuple{
+            ser::field<"from",
+                &model::TaskEdge::get_from,
+                &model::TaskEdge::set_from>(),
+            ser::field<"to",
+                &model::TaskEdge::get_to,
+                &model::TaskEdge::set_to>(),
+            ser::field<"condition",
+                &model::TaskEdge::get_condition,
+                &model::TaskEdge::set_condition>(),
+            ser::field<"mappings",
+                &model::TaskEdge::get_mappings,
+                &model::TaskEdge::set_mappings>(),
+        };
+    }
+};
+
+template<> struct ser::Serializable<model::TaskNode> {
+    static constexpr auto fields() {
+        return std::tuple{
+            ser::field<"task_def_name",
+                &model::TaskNode::get_def_name,
+                &model::TaskNode::set_task_def_name>(),
+            ser::field<"edges",
+                &model::TaskNode::get_edges,
+                &model::TaskNode::set_edges>(),
+        };
+    }
+};

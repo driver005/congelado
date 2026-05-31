@@ -12,3 +12,4 @@ export import :workflow_dag;
 export import :workflow_def;
 export import :workflow_exec;
 export import :workflow_event;
+export import ser;
