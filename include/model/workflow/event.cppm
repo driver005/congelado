@@ -2,7 +2,7 @@ export module model:workflow_event;
 
 import std;
 import :identifiers;
-import ser;
+import serde;
 
 export namespace model {
 
@@ -18,15 +18,19 @@ class WorkflowEvent {
   public:
     WorkflowEvent() = default;
 
-    void set_exec_id(ExecutionId execution_id)                   { m_exec_id = execution_id; }
-    void set_type(WorkflowEventType type) noexcept               { m_type = type; }
-    void set_payload(std::optional<std::string> payload)         { m_payload = std::move(payload); }
+    void set_exec_id(ExecutionId execution_id) { m_exec_id = execution_id; }
+    void set_type(WorkflowEventType type) noexcept { m_type = type; }
+    void set_payload(std::optional<std::string> payload) { m_payload = std::move(payload); }
     void set_issued_at(std::chrono::system_clock::time_point tp) noexcept { m_issued_at = tp; }
 
-    [[nodiscard]] WorkflowEventType get_type() const noexcept                    { return m_type; }
-    [[nodiscard]] const ExecutionId& get_exec_id() const noexcept                { return m_exec_id; }
-    [[nodiscard]] const std::optional<std::string>& get_payload() const noexcept { return m_payload; }
-    [[nodiscard]] const std::chrono::system_clock::time_point& get_issued_at() const noexcept { return m_issued_at; }
+    [[nodiscard]] WorkflowEventType get_type() const noexcept { return m_type; }
+    [[nodiscard]] const ExecutionId &get_exec_id() const noexcept { return m_exec_id; }
+    [[nodiscard]] const std::optional<std::string> &get_payload() const noexcept {
+        return m_payload;
+    }
+    [[nodiscard]] const std::chrono::system_clock::time_point &get_issued_at() const noexcept {
+        return m_issued_at;
+    }
 
     [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
         if (m_exec_id == ExecutionId{})
@@ -43,21 +47,17 @@ class WorkflowEvent {
 
 } // namespace model
 
-template<> struct ser::Serializable<model::WorkflowEvent> {
+template <>
+struct serde::Serializable<model::WorkflowEvent> {
     static constexpr auto fields() {
         return std::tuple{
-            ser::field<"exec_id",
-                &model::WorkflowEvent::get_exec_id,
-                &model::WorkflowEvent::set_exec_id>(),
-            ser::field<"type",
-                &model::WorkflowEvent::get_type,
-                &model::WorkflowEvent::set_type>(),
-            ser::field<"payload",
-                &model::WorkflowEvent::get_payload,
-                &model::WorkflowEvent::set_payload>(),
-            ser::field<"issued_at",
-                &model::WorkflowEvent::get_issued_at,
-                &model::WorkflowEvent::set_issued_at>(),
+            serde::field<"exec_id", &model::WorkflowEvent::get_exec_id,
+                       &model::WorkflowEvent::set_exec_id>(),
+            serde::field<"type", &model::WorkflowEvent::get_type, &model::WorkflowEvent::set_type>(),
+            serde::field<"payload", &model::WorkflowEvent::get_payload,
+                       &model::WorkflowEvent::set_payload>(),
+            serde::field<"issued_at", &model::WorkflowEvent::get_issued_at,
+                       &model::WorkflowEvent::set_issued_at>(),
         };
     }
 };
