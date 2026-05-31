@@ -1,7 +1,7 @@
 export module model:timestamps;
 
 import std;
-import ser;
+import serde;
 
 export namespace model {
 
@@ -9,17 +9,26 @@ class ExecutionTimings {
   public:
     ExecutionTimings() = default;
 
-    void set_scheduled_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept { m_scheduled_at = tp; }
-    void set_started_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept   { m_started_at = tp; }
-    void set_completed_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept { m_completed_at = tp; }
+    void set_scheduled_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept {
+        m_scheduled_at = tp;
+    }
+    void set_started_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept {
+        m_started_at = tp;
+    }
+    void set_completed_at(std::optional<std::chrono::system_clock::time_point> tp) noexcept {
+        m_completed_at = tp;
+    }
 
-    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point>& get_scheduled_at() const noexcept {
+    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point> &
+    get_scheduled_at() const noexcept {
         return m_scheduled_at;
     }
-    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point>& get_started_at() const noexcept {
+    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point> &
+    get_started_at() const noexcept {
         return m_started_at;
     }
-    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point>& get_completed_at() const noexcept {
+    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point> &
+    get_completed_at() const noexcept {
         return m_completed_at;
     }
 
@@ -39,18 +48,16 @@ class ExecutionTimings {
 
 } // namespace model
 
-template<> struct ser::Serializable<model::ExecutionTimings> {
+template <>
+struct serde::Serializable<model::ExecutionTimings> {
     static constexpr auto fields() {
         return std::tuple{
-            ser::field<"scheduled_at",
-                &model::ExecutionTimings::get_scheduled_at,
-                &model::ExecutionTimings::set_scheduled_at>(),
-            ser::field<"started_at",
-                &model::ExecutionTimings::get_started_at,
-                &model::ExecutionTimings::set_started_at>(),
-            ser::field<"completed_at",
-                &model::ExecutionTimings::get_completed_at,
-                &model::ExecutionTimings::set_completed_at>(),
+            serde::field<"scheduled_at", &model::ExecutionTimings::get_scheduled_at,
+                       &model::ExecutionTimings::set_scheduled_at>(),
+            serde::field<"started_at", &model::ExecutionTimings::get_started_at,
+                       &model::ExecutionTimings::set_started_at>(),
+            serde::field<"completed_at", &model::ExecutionTimings::get_completed_at,
+                       &model::ExecutionTimings::set_completed_at>(),
         };
     }
 };
