@@ -143,14 +143,14 @@ module connector:local_cache
 namespace connector
 
 class LocalCache : public interfaces::ICache {
-    std::unordered_map<std::string, std::string> store_
-    mutable std::shared_mutex mutex_
+    std::unordered_map<std::string, std::string> m_store
+    mutable std::shared_mutex m_mutex
 
     backend_name() → "local"
     required()     → false
-    get(key, cbk)        → shared_lock → invoke cbk(value) or cbk("")
-    set(key, val, cbk)   → unique_lock → store[key]=val → invoke cbk("")
-    remove(key, cbk)     → unique_lock → erase → invoke cbk("")
+    get(key, callback)        → shared_lock → invoke callback(value) or callback("")
+    set(key, val, callback)   → unique_lock → store[key]=val → invoke callback("")
+    remove(key, callback)     → unique_lock → erase → invoke callback("")
 }
 ```
 
@@ -171,69 +171,69 @@ class Connector { ... };
 
 ```cpp
 Connector(interfaces::ICache* cache, interfaces::IDatabase* db);
-// nullptr → use local_cache_ / local_store_ respectively
+// nullptr → use local_cache_ / m_local_store respectively
 ```
 
 ### Full API
 
 ```cpp
 // Schema
-void create(std::move_only_function<void(bool)> cbk) noexcept;
+void create(std::move_only_function<void(bool)> callback) noexcept;
 
 // Read (cache-first)
 void find(std::string_view key,
-          std::move_only_function<void(std::optional<T>)> cbk)    noexcept;
+          std::move_only_function<void(std::optional<T>)> callback)    noexcept;
 void find_many(std::span<const std::string_view> keys,
-               std::move_only_function<void(std::vector<T>)> cbk) noexcept;
-void find_all(std::move_only_function<void(std::vector<T>)> cbk)  noexcept;
+               std::move_only_function<void(std::vector<T>)> callback) noexcept;
+void find_all(std::move_only_function<void(std::vector<T>)> callback)  noexcept;
 
 // Write (write-through: cache + DB parallel)
-void insert(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
-void insert_many(std::span<const T>,   std::move_only_function<void(bool)> cbk) noexcept;
-void update(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
-void upsert(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
-void remove(std::string_view key,      std::move_only_function<void(bool)> cbk) noexcept;
+void insert(const T& val,              std::move_only_function<void(bool)> callback) noexcept;
+void insert_many(std::span<const T>,   std::move_only_function<void(bool)> callback) noexcept;
+void update(const T& val,              std::move_only_function<void(bool)> callback) noexcept;
+void upsert(const T& val,              std::move_only_function<void(bool)> callback) noexcept;
+void remove(std::string_view key,      std::move_only_function<void(bool)> callback) noexcept;
 void remove_many(std::span<const std::string_view> keys,
-                 std::move_only_function<void(bool)> cbk)         noexcept;
+                 std::move_only_function<void(bool)> callback)         noexcept;
 ```
 
 ### Internal storage
 
 ```cpp
 private:
-    interfaces::ICache*    cache_;            // external cache (nullable)
-    interfaces::IDatabase* database_;        // external DB (nullable)
-    LocalCache             local_cache_;     // fallback when cache_ == nullptr
-    std::unordered_map<std::string, T> local_store_;    // fallback when db_ == nullptr
-    std::shared_mutex      local_store_mutex_;
+    interfaces::ICache*    m_cache;           // external cache (nullable)
+    interfaces::IDatabase* m_database;        // external DB (nullable)
+    LocalCache             m_local_cache;     // fallback when m_cache == nullptr
+    std::unordered_map<std::string, T> m_local_store;   // fallback when m_database == nullptr
+    std::shared_mutex      m_m_local_storemutex;
 ```
 
 ### Operation flows
 
-**`find(key, cbk)`**
-1. `active_cache().get(cache_key(key))` → hit: `rfl::json::read<T>(val)` → cbk
-2. Miss → `active_db().query(select_sql(key))` → decode JSON result via `rfl::json` → set cache → cbk
-3. DB miss or DB null + local_store_ miss → `cbk(std::nullopt)`
+**`find(key, callback)`**
+1. `active_cache().get(cache_key(key))` → hit: `rfl::json::read<T>(val)` → callback
+2. Miss → `active_db().query(select_sql(key))` → decode JSON result via `rfl::json` → set cache → callback
+3. DB miss or DB null + m_local_store miss → `callback(std::nullopt)`
 
-**`insert/update/upsert(val, cbk)`**
+**`insert/update/upsert(val, callback)`**
 - Fire `active_cache().set(cache_key, json)` + `active_db().insert/update/upsert(sql)` concurrently
-- Both callbacks must complete before invoking user cbk(bool)
-- If DB null: write `local_store_[key] = val` under unique_lock
+- Both callbacks must complete before invoking user callback(bool)
+- If DB null: write `m_local_store[key] = val` under unique_lock
 
-**`remove(key, cbk)`**
+**`remove(key, callback)`**
 - Fire `active_cache().remove(cache_key)` + `active_db().remove(delete_sql)` concurrently
-- If DB null: erase from `local_store_`
+- If DB null: erase from `m_local_store`
 
-**`create(cbk)`**
+**`create(callback)`**
 - DB only — generates `CREATE TABLE IF NOT EXISTS {table} (...)` from `Serializable<T>::fields()`
 - Column types inferred from `ValueType` via a `cpp_to_sql_type<VT>()` helper
 - `FieldOptionsDb` used for `PRIMARY KEY`, `UNIQUE`, `NOT NULL`, `REFERENCES` constraints
 - No cache involvement
 
-**`find_many(keys, cbk)`**
+**`find_many(keys, callback)`**
 - Per-key cache lookup in parallel; collect misses → single `SELECT ... WHERE pk IN (...)` → decode → populate cache → merge results
 
-**`find_all(cbk)`**
+**`find_all(callback)`**
 - Cache bypass — always hits DB (no key to check against)
 - `SELECT row_to_json(row) FROM {table} row`
 
@@ -251,8 +251,8 @@ cache_value     →  rfl::json::write(obj)
 ### Active backend helpers
 
 ```cpp
-ICache*    active_cache() { return cache_ ? cache_ : &local_cache_; }
-IDatabase* active_db()    { return database_; }  // null → use local_store_ branch
+ICache*    active_cache() { return m_cache ? m_cache : &m_local_cache; }
+IDatabase* active_db()    { return m_database; }  // null → use m_local_store branch
 ```
 
 ---
