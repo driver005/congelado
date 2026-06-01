@@ -15,7 +15,7 @@ New `include/connector/` module providing a typed, cache-first database accessor
 
 ```
 include/connector/
-  local_cache.cppm   — module connector:local_cache — LocalCache : ICache (in-memory, thread-safe)
+  local_cache.cppm   — module connector:local_cache — LocalCache : ICache (in-memory, strand-serialized)
   connector.cppm     — module connector             — Connector<T> + re-exports
 ```
 
@@ -144,13 +144,13 @@ namespace connector
 
 class LocalCache : public interfaces::ICache {
     std::unordered_map<std::string, std::string> m_store
-    mutable std::shared_mutex m_mutex
+    asio::strand<asio::io_context::executor_type> m_strand
 
     backend_name() → "local"
     required()     → false
-    get(key, callback)        → shared_lock → invoke callback(value) or callback("")
-    set(key, val, callback)   → unique_lock → store[key]=val → invoke callback("")
-    remove(key, callback)     → unique_lock → erase → invoke callback("")
+    get(key, callback)      → dispatch on m_strand → invoke callback(value) or callback("")
+    set(key, val, callback) → dispatch on m_strand → m_store[key]=val → invoke callback("")
+    remove(key, callback)   → dispatch on m_strand → erase → invoke callback("")
 }
 ```
 
@@ -205,7 +205,7 @@ private:
     interfaces::IDatabase* m_database;        // external DB (nullable)
     LocalCache             m_local_cache;     // fallback when m_cache == nullptr
     std::unordered_map<std::string, T> m_local_store;   // fallback when m_database == nullptr
-    std::shared_mutex      m_m_local_storemutex;
+    asio::strand<asio::io_context::executor_type> m_strand;
 ```
 
 ### Operation flows
@@ -218,7 +218,7 @@ private:
 **`insert/update/upsert(val, callback)`**
 - Fire `active_cache().set(cache_key, json)` + `active_db().insert/update/upsert(sql)` concurrently
 - Both callbacks must complete before invoking user callback(bool)
-- If DB null: write `m_local_store[key] = val` under unique_lock
+- If DB null: dispatch on m_strand → write `m_local_store[key] = val`
 
 **`remove(key, callback)`**
 - Fire `active_cache().remove(cache_key)` + `active_db().remove(delete_sql)` concurrently
