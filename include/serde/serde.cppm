@@ -676,10 +676,14 @@ template <ISerializable T>
 
 template <ISerializable T>
 [[nodiscard]] std::expected<T, std::string> from_json(std::string_view json) {
-    auto result = rfl::json::read<T>(std::string{json});
-    if (result)
-        return std::move(*result);
-    return std::unexpected{result.error().what()};
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string padded{json};
+    auto doc = parser.iterate(padded);
+    T obj{};
+    simdjson::ondemand::value val = doc.get_value();
+    if (auto error_code = simdjson::tag_invoke(simdjson::deserialize_tag{}, val, obj); error_code)
+        return std::unexpected{std::string{simdjson::error_message(error_code)}};
+    return obj;
 }
 
 } // namespace serde
