@@ -2,6 +2,7 @@ module;
 #define UUID_SYSTEM_GENERATOR
 #include <rfl.hpp>
 #include <rfl/enums.hpp>
+#include <rfl/json.hpp>
 #include <simdjson.h>
 #include <toml++/toml.hpp>
 #include <uuid.h>
@@ -663,6 +664,25 @@ auto tag_invoke(deserialize_tag, V &val, T &obj) {
 }
 
 } // namespace simdjson
+
+// ─── JSON read/write ─────────────────────────────────────────────────────────
+
+export namespace serde {
+
+template <ISerializable T>
+[[nodiscard]] std::string to_json(const T& value) {
+    return rfl::json::write(value);
+}
+
+template <ISerializable T>
+[[nodiscard]] std::expected<T, std::string> from_json(std::string_view json) {
+    auto result = rfl::json::read<T>(std::string{json});
+    if (result)
+        return std::move(*result);
+    return std::unexpected{result.error().what()};
+}
+
+} // namespace serde
 
 // ─── Generic model::from_toml ────────────────────────────────────────────────
 
