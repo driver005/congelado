@@ -25,6 +25,15 @@ include/connector/
 include/serde/serde.cppm   — add FieldOptions, FieldOptionsDb, extend Serializable<T> + ISerializable
 ```
 
+### Dependencies
+
+```
+core::contracts::ContractGroup  — Connector creates one Contract from it; drives the operation queue
+core::contracts::Contract       — held by Connector; scheduled per enqueued operation
+interfaces::ICache              — external cache backend (nullable)
+interfaces::IDatabase           — external DB backend (nullable)
+```
+
 ---
 
 ## Serde Extensions
@@ -169,8 +178,11 @@ class Connector { ... };
 ### Constructor
 
 ```cpp
-Connector(interfaces::ICache* cache, interfaces::IDatabase* db);
-// nullptr → use local_cache_ / m_local_store respectively
+Connector(core::contracts::ContractGroup& group,
+          interfaces::ICache*    cache,
+          interfaces::IDatabase* database);
+// cache/database nullptr → use m_local_cache / m_local_store respectively
+// Creates one Contract from group — all operations enqueue to m_pending and schedule that contract
 ```
 
 ### Full API
@@ -200,22 +212,30 @@ void remove_many(std::span<const std::string_view> keys,
 
 ```cpp
 private:
-    interfaces::ICache*    m_cache;           // external cache (nullable)
-    interfaces::IDatabase* m_database;        // external DB (nullable)
-    LocalCache             m_local_cache;     // fallback when m_cache == nullptr
-    std::unordered_map<std::string, T> m_local_store;   // fallback when m_database == nullptr
+    core::contracts::Contract                    m_contract;     // schedules work via ContractGroup
+    std::queue<std::move_only_function<void()>>  m_pending;      // operation queue drained by contract worker
+    interfaces::ICache*                          m_cache;        // external cache (nullable)
+    interfaces::IDatabase*                       m_database;     // external DB (nullable)
+    LocalCache                                   m_local_cache;  // fallback when m_cache == nullptr
+    std::unordered_map<std::string, T>           m_local_store;  // fallback when m_database == nullptr
 ```
+
+**Contract worker loop:** dequeues and executes one operation from `m_pending` per scheduling cycle; reschedules itself if queue non-empty after execution.
 
 ### Operation flows
 
+**All public methods:** push a `std::move_only_function<void()>` onto `m_pending`, then call `m_contract.schedule()`.
+
+**Contract worker (runs per scheduling cycle):**
+
 **`find(key, callback)`**
-1. `active_cache().get(cache_key(key))` → hit: `rfl::json::read<T>(val)` → callback
+1. `active_cache().get(cache_key(key))` → hit: `rfl::json::read<T>(value)` → callback
 2. Miss → `active_db().query(select_sql(key))` → decode JSON result via `rfl::json` → set cache → callback
 3. DB miss or DB null + m_local_store miss → `callback(std::nullopt)`
 
 **`insert/update/upsert(val, callback)`**
 - Fire `active_cache().set(cache_key, json)` + `active_db().insert/update/upsert(sql)` concurrently
-- Both callbacks must complete before invoking user callback(bool)
+- Both backend callbacks must complete before invoking user callback(bool)
 - If DB null: write `m_local_store[key] = val` directly
 
 **`remove(key, callback)`**
