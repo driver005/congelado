@@ -45,12 +45,12 @@ struct FieldOptionsDb {
 
     static constexpr FieldOptionsDb init() { return {}; }
 
-    constexpr FieldOptionsDb pk()        const { auto o=*this; o.primary_key=true; return o; }
-    constexpr FieldOptionsDb not_null()  const { auto o=*this; o.nullable=false;   return o; }
-    constexpr FieldOptionsDb no_insert() const { auto o=*this; o.skip_insert=true; return o; }
-    constexpr FieldOptionsDb no_update() const { auto o=*this; o.skip_update=true; return o; }
-    constexpr FieldOptionsDb references(std::string_view t, std::string_view c) const {
-        auto o=*this; o.ref_table=t; o.ref_column=c; return o;
+    constexpr FieldOptionsDb pk()        const { auto opt=*this; opt.primary_key=true; return opt; }
+    constexpr FieldOptionsDb not_null()  const { auto opt=*this; opt.nullable=false;   return opt; }
+    constexpr FieldOptionsDb no_insert() const { auto opt=*this; opt.skip_insert=true; return opt; }
+    constexpr FieldOptionsDb no_update() const { auto opt=*this; opt.skip_update=true; return opt; }
+    constexpr FieldOptionsDb references(std::string_view tbl, std::string_view col) const {
+        auto opt=*this; opt.ref_table=tbl; opt.ref_column=col; return opt;
     }
 };
 ```
@@ -66,7 +66,7 @@ struct FieldOptions {
 
     static constexpr FieldOptions init() { return {}; }
 
-    constexpr FieldOptions with_db(FieldOptionsDb d) const { auto o=*this; o.db=d; return o; }
+    constexpr FieldOptions with_db(FieldOptionsDb dbo) const { auto opt=*this; opt.db=dbo; return opt; }
 };
 ```
 
@@ -148,9 +148,9 @@ class LocalCache : public interfaces::ICache {
 
     backend_name() → "local"
     required()     → false
-    get(key, cb)   → shared_lock → invoke cb(value) or cb("")
-    set(key, val, cb) → unique_lock → store[key]=val → invoke cb("")
-    remove(key, cb)   → unique_lock → erase → invoke cb("")
+    get(key, cbk)        → shared_lock → invoke cbk(value) or cbk("")
+    set(key, val, cbk)   → unique_lock → store[key]=val → invoke cbk("")
+    remove(key, cbk)     → unique_lock → erase → invoke cbk("")
 }
 ```
 
@@ -178,31 +178,31 @@ Connector(interfaces::ICache* cache, interfaces::IDatabase* db);
 
 ```cpp
 // Schema
-void create(std::move_only_function<void(bool)> cb) noexcept;
+void create(std::move_only_function<void(bool)> cbk) noexcept;
 
 // Read (cache-first)
-void find(std::string_view pk,
-          std::move_only_function<void(std::optional<T>)> cb)   noexcept;
-void find_many(std::span<const std::string_view> pks,
-               std::move_only_function<void(std::vector<T>)> cb) noexcept;
-void find_all(std::move_only_function<void(std::vector<T>)> cb) noexcept;
+void find(std::string_view key,
+          std::move_only_function<void(std::optional<T>)> cbk)    noexcept;
+void find_many(std::span<const std::string_view> keys,
+               std::move_only_function<void(std::vector<T>)> cbk) noexcept;
+void find_all(std::move_only_function<void(std::vector<T>)> cbk)  noexcept;
 
 // Write (write-through: cache + DB parallel)
-void insert(const T& val,              std::move_only_function<void(bool)> cb) noexcept;
-void insert_many(std::span<const T>,   std::move_only_function<void(bool)> cb) noexcept;
-void update(const T& val,              std::move_only_function<void(bool)> cb) noexcept;
-void upsert(const T& val,              std::move_only_function<void(bool)> cb) noexcept;
-void remove(std::string_view pk,       std::move_only_function<void(bool)> cb) noexcept;
-void remove_many(std::span<const std::string_view>,
-                 std::move_only_function<void(bool)> cb)         noexcept;
+void insert(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
+void insert_many(std::span<const T>,   std::move_only_function<void(bool)> cbk) noexcept;
+void update(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
+void upsert(const T& val,              std::move_only_function<void(bool)> cbk) noexcept;
+void remove(std::string_view key,      std::move_only_function<void(bool)> cbk) noexcept;
+void remove_many(std::span<const std::string_view> keys,
+                 std::move_only_function<void(bool)> cbk)         noexcept;
 ```
 
 ### Internal storage
 
 ```cpp
 private:
-    interfaces::ICache*    cache_;           // external cache (nullable)
-    interfaces::IDatabase* db_;              // external DB (nullable)
+    interfaces::ICache*    cache_;            // external cache (nullable)
+    interfaces::IDatabase* database_;        // external DB (nullable)
     LocalCache             local_cache_;     // fallback when cache_ == nullptr
     std::unordered_map<std::string, T> local_store_;    // fallback when db_ == nullptr
     std::shared_mutex      local_store_mutex_;
@@ -210,32 +210,32 @@ private:
 
 ### Operation flows
 
-**`find(pk, cb)`**
-1. `active_cache().get(cache_key(pk))` → hit: `rfl::json::read<T>(val)` → cb
-2. Miss → `active_db().query(select_sql(pk))` → decode JSON result via `rfl::json` → set cache → cb
-3. DB miss or DB null + local_store_ miss → `cb(std::nullopt)`
+**`find(key, cbk)`**
+1. `active_cache().get(cache_key(key))` → hit: `rfl::json::read<T>(val)` → cbk
+2. Miss → `active_db().query(select_sql(key))` → decode JSON result via `rfl::json` → set cache → cbk
+3. DB miss or DB null + local_store_ miss → `cbk(std::nullopt)`
 
-**`insert/update/upsert(val, cb)`**
+**`insert/update/upsert(val, cbk)`**
 - Fire `active_cache().set(cache_key, json)` + `active_db().insert/update/upsert(sql)` concurrently
-- Both callbacks must complete before invoking user cb(bool)
-- If DB null: write `local_store_[pk] = val` under unique_lock
+- Both callbacks must complete before invoking user cbk(bool)
+- If DB null: write `local_store_[key] = val` under unique_lock
 
-**`remove(pk, cb)`**
+**`remove(key, cbk)`**
 - Fire `active_cache().remove(cache_key)` + `active_db().remove(delete_sql)` concurrently
 - If DB null: erase from `local_store_`
 
-**`create(cb)`**
+**`create(cbk)`**
 - DB only — generates `CREATE TABLE IF NOT EXISTS {table} (...)` from `Serializable<T>::fields()`
 - Column types inferred from `ValueType` via a `cpp_to_sql_type<VT>()` helper
 - `FieldOptionsDb` used for `PRIMARY KEY`, `UNIQUE`, `NOT NULL`, `REFERENCES` constraints
 - No cache involvement
 
-**`find_many(pks, cb)`**
-- Per-PK cache lookup in parallel; collect misses → single `SELECT ... WHERE pk IN (...)` → decode → populate cache → merge results
+**`find_many(keys, cbk)`**
+- Per-key cache lookup in parallel; collect misses → single `SELECT ... WHERE pk IN (...)` → decode → populate cache → merge results
 
-**`find_all(cb)`**
+**`find_all(cbk)`**
 - Cache bypass — always hits DB (no key to check against)
-- `SELECT row_to_json(t) FROM {table} t`
+- `SELECT row_to_json(row) FROM {table} row`
 
 ### SQL generation
 
@@ -244,15 +244,15 @@ All SQL built at runtime from `Serializable<T>::fields()` + `Serializable<T>::ta
 SELECT returns JSON via PostgreSQL `row_to_json()` — result decoded with `rfl::json::read<T>()` directly, no extra codec needed.
 
 ```
-cache_key(pk)  →  "{table_name}:{pk}"
-cache_value    →  rfl::json::write(obj)
+cache_key(key)  →  "{table_name}:{key}"
+cache_value     →  rfl::json::write(obj)
 ```
 
 ### Active backend helpers
 
 ```cpp
 ICache*    active_cache() { return cache_ ? cache_ : &local_cache_; }
-IDatabase* active_db()    { return db_; }  // null → use local_store_ branch
+IDatabase* active_db()    { return database_; }  // null → use local_store_ branch
 ```
 
 ---
