@@ -83,6 +83,14 @@ struct PluginSymbols {
     LogWriteErrFn logger_write_error{nullptr};
     ProtoGetFn protocol_get{nullptr};
     StorageGetFn storage_get{nullptr};
+
+    using UniqueTypeFn    = const char *(*)() noexcept;
+    using RequiresFn      = const char *const *(*)() noexcept;
+    using RequiresCountFn = std::size_t (*)() noexcept;
+
+    UniqueTypeFn    unique_type{nullptr};
+    RequiresFn      requires_get{nullptr};
+    RequiresCountFn requires_count{nullptr};
 };
 
 } // namespace core::ffi
@@ -188,6 +196,9 @@ class FfiBridge : public shared::HandlerBase,
     }
 
     [[nodiscard]] std::string_view get_name() const noexcept override { return m_lib_name; }
+
+    [[nodiscard]] std::string_view             get_unique_type() const noexcept { return m_unique_type; }
+    [[nodiscard]] std::span<const std::string> get_requires()    const noexcept { return m_requires; }
 
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
         if (m_syms.logger_write == nullptr)
@@ -300,6 +311,9 @@ class FfiBridge : public shared::HandlerBase,
             probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
         m_syms.protocol_get = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
         m_syms.storage_get = probe<PluginSymbols::StorageGetFn>("congelado_storage_get");
+        m_syms.unique_type    = probe<PluginSymbols::UniqueTypeFn>("congelado_unique_type");
+        m_syms.requires_get   = probe<PluginSymbols::RequiresFn>("congelado_requires");
+        m_syms.requires_count = probe<PluginSymbols::RequiresCountFn>("congelado_requires_count");
         return {};
     }
 
@@ -346,11 +360,27 @@ class FfiBridge : public shared::HandlerBase,
         }
     }
 
+    void read_metadata() noexcept {
+        m_unique_type = (m_syms.unique_type != nullptr) ? std::string{m_syms.unique_type()} : "";
+
+        if (m_syms.requires_count != nullptr && m_syms.requires_get != nullptr) {
+            const auto count = m_syms.requires_count();
+            const auto *arr  = m_syms.requires_get();
+            if (arr != nullptr) {
+                m_requires.reserve(count);
+                for (std::size_t i = 0; i < count; ++i)
+                    m_requires.emplace_back(arr[i]);
+            }
+        }
+    }
+
     // ── Members ───────────────────────────────────────────────────────────────
 
     void *m_lib{nullptr};
     PluginSymbols m_syms{};
     std::string m_lib_name;
+    std::string              m_unique_type;
+    std::vector<std::string> m_requires;
     std::uint32_t m_caps{0};
     std::shared_ptr<interfaces::IProtocol> m_protocol;
     std::shared_ptr<interfaces::IDatabase> m_storage;
