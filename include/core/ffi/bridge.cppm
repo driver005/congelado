@@ -119,13 +119,9 @@ class LoadError {
 
 // RAII wrapper around one loaded plugin .so.
 //
-// Loading sequence:
-//   1. dlopen the .so
-//   2. Resolve well-known symbols via dlsym into a PluginSymbols table
-//   3. Build libffi closures for host callbacks (log, schedule)
-//   4. Call congelado_on_load(callbacks, cfg_view)
-//   5. Read capability bitmask from congelado_capabilities()
-//   6. Cache protocol pointer if CONGELADO_CAP_PROTOCOL is set
+// Two-phase load:
+//   open()     — dlopen + resolve symbols + read metadata (name, unique_type, requires)
+//   activate() — build libffi closures, call congelado_on_load, discover caps
 class FfiBridge : public shared::HandlerBase,
                   public interfaces::ILogger,
                   public std::enable_shared_from_this<FfiBridge> {
@@ -135,9 +131,11 @@ class FfiBridge : public shared::HandlerBase,
     FfiBridge(FfiBridge &&) = delete;
     FfiBridge &operator=(FfiBridge &&) = delete;
 
+    // Phase 1 of the two-phase load. Opens the .so, resolves symbols, reads metadata.
+    // Does NOT call congelado_on_load. Call activate() after sorting.
     [[nodiscard]] static std::expected<std::shared_ptr<FfiBridge>, LoadError>
-    load(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr,
-         void *router_ctx = nullptr, void *controller_ctx = nullptr, void *leverager_ctx = nullptr) {
+    open(const std::filesystem::path &path,
+         const core::config::PluginConfig *plugin_cfg = nullptr) {
         void *lib = open_lib(path);
         if (lib == nullptr)
             return std::unexpected(LoadError{std::format("dlopen failed: {}", path.string())});
@@ -148,34 +146,41 @@ class FfiBridge : public shared::HandlerBase,
             return std::unexpected(LoadError{std::move(err)});
 
         bridge->m_lib_name = bridge->m_syms.name();
+        bridge->build_config_view(plugin_cfg);
+        bridge->read_metadata();
+        return bridge;
+    }
 
+    // Phase 2. Builds libffi closures, calls congelado_on_load, discovers caps.
+    // Must be called exactly once per bridge, after open().
+    void activate(void *router_ctx = nullptr, void *controller_ctx = nullptr,
+                  void *leverager_ctx = nullptr) {
         try {
-            bridge->m_log_closure = std::make_unique<Closure>(
+            m_log_closure = std::make_unique<Closure>(
                 std::initializer_list<ffi_type *>{&ffi_type_pointer, &ffi_type_sint,
                                                   &ffi_type_pointer, size_ffi_type()},
-                &FfiBridge::log_thunk, bridge.get());
-            bridge->m_sched_closure =
+                &FfiBridge::log_thunk, this);
+            m_sched_closure =
                 std::make_unique<Closure>(std::initializer_list<ffi_type *>{&ffi_type_pointer},
-                                          &FfiBridge::schedule_thunk, bridge.get());
+                                          &FfiBridge::schedule_thunk, this);
         } catch (const std::exception &ex) {
-            return std::unexpected(
-                LoadError{std::format("ffi closure setup failed: {}", ex.what())});
+            std::println(stderr, "[ffi::{}] closure setup failed: {}", m_lib_name, ex.what());
+            return;
         }
 
         CongeladoHostCallbacks callbacks{
-            .log = reinterpret_cast<congelado_log_fn>(bridge->m_log_closure->get()),
-            .schedule = reinterpret_cast<congelado_sched_fn>(bridge->m_sched_closure->get()),
-            .router_ctx = router_ctx,
-            .controller_ctx = controller_ctx,
-            .leverager_ctx = leverager_ctx,
-            .ctx = bridge.get(),
+            .log             = reinterpret_cast<congelado_log_fn>(m_log_closure->get()),
+            .schedule        = reinterpret_cast<congelado_sched_fn>(m_sched_closure->get()),
+            .router_ctx      = router_ctx,
+            .controller_ctx  = controller_ctx,
+            .leverager_ctx   = leverager_ctx,
+            .ctx             = this,
         };
 
-        if (bridge->m_syms.on_load != nullptr)
-            bridge->m_syms.on_load(&callbacks, bridge->build_config_view(plugin_cfg));
+        if (m_syms.on_load != nullptr)
+            m_syms.on_load(&callbacks, &m_cfg_view);
 
-        bridge->discover_caps();
-        return bridge;
+        discover_caps();
     }
 
     ~FfiBridge() override {
@@ -317,10 +322,9 @@ class FfiBridge : public shared::HandlerBase,
         return {};
     }
 
-    [[nodiscard]] const CongeladoConfigView *
-    build_config_view(const core::config::PluginConfig *plugin_cfg) noexcept {
+    void build_config_view(const core::config::PluginConfig *plugin_cfg) noexcept {
         if (plugin_cfg == nullptr)
-            return nullptr;
+            return;
         m_cfg_keys.clear();
         m_cfg_vals.clear();
         for (const auto &[key, value] : plugin_cfg->get_fields()) {
@@ -332,7 +336,6 @@ class FfiBridge : public shared::HandlerBase,
             .values = m_cfg_vals.data(),
             .count = m_cfg_keys.size(),
         };
-        return &m_cfg_view;
     }
 
     void discover_caps() noexcept {
