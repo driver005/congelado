@@ -36,6 +36,21 @@ class SerBase {
     }
 
     template <ISerializable T>
+    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view /*accept*/,
+                                                          const std::vector<T> &values) {
+        std::string encoded = "[";
+        bool first = true;
+        for (const auto &v : values) {
+            if (!first)
+                encoded += ',';
+            encoded += Json::encode(v);
+            first = false;
+        }
+        encoded += ']';
+        return to_bytes(encoded);
+    }
+
+    template <ISerializable T>
     [[nodiscard]] static std::expected<T, std::string> deserialize(std::string_view content_type,
                                                                    std::string_view data) {
         std::expected<T, std::string> result =

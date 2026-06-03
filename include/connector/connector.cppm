@@ -113,7 +113,7 @@ class Connector : public shared::HandlerBase {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Json::decode<std::vector<T>>(db_result);
+                    auto decoded = serde::Json::decode_array<T>(db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
@@ -128,7 +128,7 @@ class Connector : public shared::HandlerBase {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Json::decode<std::vector<T>>(db_result);
+                    auto decoded = serde::Json::decode_array<T>(db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
