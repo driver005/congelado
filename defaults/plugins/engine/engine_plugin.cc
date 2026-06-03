@@ -14,6 +14,10 @@ class EnginePlugin final : public congelado::Plugin {
   public:
     [[nodiscard]] std::string_view get_name() const noexcept override { return "engine"; }
     [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+    [[nodiscard]] std::span<const std::string_view> get_requires() const noexcept override {
+        static constexpr std::string_view reqs[] = {"http2"};
+        return reqs;
+    }
 
     [[nodiscard]] uint32_t capabilities() const noexcept override { return CONGELADO_CAP_CUSTOM; }
 

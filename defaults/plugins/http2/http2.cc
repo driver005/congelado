@@ -20,6 +20,12 @@ class Http2Plugin final : public congelado::Plugin {
   public:
     [[nodiscard]] std::string_view get_name() const noexcept override { return "http2"; }
     [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+    [[nodiscard]] std::string_view get_unique_type() const noexcept override { return "protocol"; }
+
+    [[nodiscard]] std::span<const std::string_view> get_requires() const noexcept override {
+        static constexpr std::string_view reqs[] = {"FileLogger"};
+        return reqs;
+    }
 
     [[nodiscard]] uint32_t capabilities() const noexcept override { return CONGELADO_CAP_PROTOCOL; }
 
