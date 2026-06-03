@@ -102,6 +102,7 @@ typedef struct CongeladoConfigView {
     extern "C" const char *const *congelado_requires() noexcept {                                        \
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \
         static std::vector<const char *> s_cache; /* NOLINT */                                           \
+        /* get_requires() contract: span over static/constexpr literals — pointers stable for program lifetime. Called once at startup. */ \
         s_cache.clear();                                                                                  \
         for (auto sv : s_plugin->get_requires())                                                         \
             s_cache.push_back(sv.data());                                                                 \
