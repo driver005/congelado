@@ -90,6 +90,18 @@ class Plugin {
     [[nodiscard]] virtual std::string_view get_version() const noexcept = 0;
     [[nodiscard]] virtual std::uint32_t capabilities() const noexcept { return 0; }
 
+    // Returns a type tag for uniqueness enforcement. Empty string = not unique.
+    // Only one plugin with a given tag loads; the first in config order wins.
+    // MUST return a view into a string literal.
+    [[nodiscard]] virtual std::string_view get_unique_type() const noexcept { return {}; }
+
+    // Returns the names of plugins that must be loaded before this plugin.
+    // Each name must exactly match get_name() of the required plugin.
+    // MUST return a span over a static array of string literals.
+    [[nodiscard]] virtual std::span<const std::string_view> get_requires() const noexcept {
+        return {};
+    }
+
     virtual void on_load(HostCallbacks const & /*host*/, ConfigView const & /*cfg*/) {}
     virtual void on_unload() {}
     virtual void logger_write(int /*level*/, std::string_view /*msg*/) noexcept {}
