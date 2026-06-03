@@ -101,11 +101,14 @@ typedef struct CongeladoConfigView {
     }                                                                                                     \
     extern "C" const char *const *congelado_requires() noexcept {                                        \
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        static std::vector<const char *> s_cache; /* NOLINT */                                           \
-        /* get_requires() contract: span over static/constexpr literals — pointers stable for program lifetime. Called once at startup. */ \
-        s_cache.clear();                                                                                  \
-        for (auto sv : s_plugin->get_requires())                                                         \
-            s_cache.push_back(sv.data());                                                                 \
+        static std::vector<const char *> s_cache;       /* NOLINT */                                     \
+        static bool s_cache_built = false;              /* NOLINT */                                     \
+        /* Pointers into static/constexpr literals — valid for program lifetime. Built once. */          \
+        if (!s_cache_built) {                                                                             \
+            for (auto sv : s_plugin->get_requires())                                                     \
+                s_cache.push_back(sv.data());                                                             \
+            s_cache_built = true;                                                                         \
+        }                                                                                                  \
         return s_cache.data();                                                                            \
     }                                                                                                     \
     extern "C" std::size_t congelado_requires_count() noexcept {                                         \
