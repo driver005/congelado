@@ -17,39 +17,46 @@ class TaskInput {
 
     template <typename T>
         requires(std::same_as<T, std::string> || std::same_as<T, std::string_view> ||
-                 std::same_as<T, int> || std::same_as<T, std::int64_t> ||
-                 std::same_as<T, double> || std::same_as<T, bool>)
+                 std::same_as<T, int> || std::same_as<T, std::int64_t> || std::same_as<T, double> ||
+                 std::same_as<T, bool>)
     [[nodiscard]] std::optional<T> get(std::string_view key) const {
         auto it = m_data.find(std::string(key));
-        if (it == m_data.end()) return std::nullopt;
-        auto const &s = it->second;
+        if (it == m_data.end()) {
+            return std::nullopt;
+        }
+        auto const &string = it->second;
 
         if constexpr (std::same_as<T, std::string>) {
-            return s;
+            return string;
         } else if constexpr (std::same_as<T, std::string_view>) {
             // Lifetime: returned view is valid only while the source map passed to TaskInput lives.
-            return std::string_view{s};
+            return std::string_view{string};
         } else if constexpr (std::same_as<T, int>) {
             int val{};
-            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            auto [ptr, ec] = std::from_chars(string.data(), string.data() + string.size(), val);
             return ec == std::errc{} ? std::optional{val} : std::nullopt;
         } else if constexpr (std::same_as<T, std::int64_t>) {
             std::int64_t val{};
-            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            auto [ptr, ec] = std::from_chars(string.data(), string.data() + string.size(), val);
             return ec == std::errc{} ? std::optional{val} : std::nullopt;
         } else if constexpr (std::same_as<T, double>) {
             double val{};
-            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
+            auto [ptr, ec] = std::from_chars(string.data(), string.data() + string.size(), val);
             return ec == std::errc{} ? std::optional{val} : std::nullopt;
         } else {
             // bool
-            if (s == "true") return true;
-            if (s == "false") return false;
+            if (string == "true") {
+                return true;
+            }
+            if (string == "false") {
+                return false;
+            }
             return std::nullopt;
         }
     }
 
-    [[nodiscard]] std::unordered_map<std::string, std::string> const &data_map() const noexcept {
+    [[nodiscard]] std::unordered_map<std::string, std::string> const &
+    get_data_map() const noexcept {
         return m_data;
     }
 
@@ -59,7 +66,7 @@ class TaskInput {
 
 class TaskOutput {
   public:
-    [[nodiscard]] std::unordered_map<std::string, std::string> const &data() const noexcept {
+    [[nodiscard]] std::unordered_map<std::string, std::string> const &get_data() const noexcept {
         return m_data;
     }
 
@@ -85,6 +92,12 @@ class ITaskWorker {
     virtual ~ITaskWorker() = default;
     [[nodiscard]] virtual std::string_view get_task_type() const noexcept = 0;
     [[nodiscard]] virtual TaskOutput execute(TaskInput const &input) = 0;
+    [[nodiscard]] virtual std::function<void()> on_released() {
+        throw std::runtime_error("Not implemented");
+    }
+    [[nodiscard]] virtual std::function<void(std::exception_ptr)> on_error() {
+        throw std::runtime_error("Not implemented");
+    }
 };
 
 } // namespace worker

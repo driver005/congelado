@@ -94,12 +94,12 @@ template <>
 struct serde::Serializable<model::RetryPolicy> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"max_attempts", &model::RetryPolicy::get_max_attempts,
-                       &model::RetryPolicy::set_max_attempts>(),
-            serde::field<"backoff", &model::RetryPolicy::get_backoff,
-                       &model::RetryPolicy::set_backoff>(),
-            serde::field<"interval_ms", &model::RetryPolicy::get_interval_ms,
-                       &model::RetryPolicy::set_interval_ms>(),
+            serde::FieldDesc<"max_attempts", &model::RetryPolicy::get_max_attempts,
+                       &model::RetryPolicy::set_max_attempts>{},
+            serde::FieldDesc<"backoff", &model::RetryPolicy::get_backoff,
+                       &model::RetryPolicy::set_backoff>{},
+            serde::FieldDesc<"interval_ms", &model::RetryPolicy::get_interval_ms,
+                       &model::RetryPolicy::set_interval_ms>{},
         };
     }
 };
@@ -108,10 +108,10 @@ template <>
 struct serde::Serializable<model::TimeoutPolicy> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"timeout_ms", &model::TimeoutPolicy::get_timeout_ms,
-                       &model::TimeoutPolicy::set_timeout_ms>(),
-            serde::field<"action", &model::TimeoutPolicy::get_action,
-                       &model::TimeoutPolicy::set_action>(),
+            serde::FieldDesc<"timeout_ms", &model::TimeoutPolicy::get_timeout_ms,
+                       &model::TimeoutPolicy::set_timeout_ms>{},
+            serde::FieldDesc<"action", &model::TimeoutPolicy::get_action,
+                       &model::TimeoutPolicy::set_action>{},
         };
     }
 };
@@ -120,10 +120,10 @@ template <>
 struct serde::Serializable<model::RateLimitPolicy> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"max_concurrent", &model::RateLimitPolicy::get_max_concurrent,
-                       &model::RateLimitPolicy::set_max_concurrent>(),
-            serde::field<"rate_limit_per_second", &model::RateLimitPolicy::get_rate_limit_per_second,
-                       &model::RateLimitPolicy::set_rate_limit_per_second>(),
+            serde::FieldDesc<"max_concurrent", &model::RateLimitPolicy::get_max_concurrent,
+                       &model::RateLimitPolicy::set_max_concurrent>{},
+            serde::FieldDesc<"rate_limit_per_second", &model::RateLimitPolicy::get_rate_limit_per_second,
+                       &model::RateLimitPolicy::set_rate_limit_per_second>{},
         };
     }
 };

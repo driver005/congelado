@@ -41,7 +41,7 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 
 # Line Management
-ColumnLimit: 120
+ColumnLimit: 100
 MaxEmptyLinesToKeep: 2
 PointerAlignment: Right
 

@@ -93,7 +93,8 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
 
     HttpRequest &&with_basic_auth(std::string_view user, std::string_view password) && {
         insert(shared::http::Token::AUTHORIZATION,
-               "Basic " + utils::encode::base64_encode(std::string(user) + ":" + std::string(password)));
+               "Basic " +
+                   utils::encode::base64_encode(std::string(user) + ":" + std::string(password)));
         return std::move(*this);
     }
 
@@ -121,7 +122,8 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
 
     void set_stream_id(std::uint32_t stream_id) noexcept { m_stream_id = stream_id; }
 
-    void add_header(std::variant<std::string_view, shared::http::Token> name_variant, std::string_view value) &
+    void add_header(std::variant<std::string_view, shared::http::Token> name_variant,
+                    std::string_view value) &
         override {
         std::visit([&](const auto &name) { insert(name, value); }, name_variant);
     }
@@ -161,12 +163,14 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
         std::size_t total = 0;
 
         std::size_t header_block = std::ranges::fold_left(
-            m_static_headers | std::views::filter([](const auto &field) noexcept { return field != nullptr; }),
-            std::size_t{0}, [](std::size_t acc, const auto &field) noexcept { return acc + field->size(); });
+            m_static_headers |
+                std::views::filter([](const auto &field) noexcept { return field != nullptr; }),
+            std::size_t{0},
+            [](std::size_t acc, const auto &field) noexcept { return acc + field->size(); });
 
         // TODO: add ranges support to my swiss hashmap
-        //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc, const auto &entry)
-        //  noexcept {
+        //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc, const
+        //  auto &entry) noexcept {
         //      return acc + entry.value()->size();
         //  });
         for (const auto &entry : m_headers) {
@@ -192,17 +196,28 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
     }
 
     [[nodiscard]] std::string_view get_method() const noexcept override {
-        const auto &f = m_static_headers[std::to_underlying(shared::http::Token::METHOD)];
-        return f ? std::string_view{f->get_value()} : std::string_view{};
+        const auto &field = m_static_headers[std::to_underlying(shared::http::Token::METHOD)];
+        return field ? std::string_view{field->get_value()} : std::string_view{};
     }
 
     [[nodiscard]] std::string_view get_target() const noexcept override {
-        const auto &f = m_static_headers[std::to_underlying(shared::http::Token::PATH)];
-        return f ? std::string_view{f->get_value()} : std::string_view{};
+        const auto &field = m_static_headers[std::to_underlying(shared::http::Token::PATH)];
+        std::println("path: {}", field ? field->get_value() : "null");
+        return field ? std::string_view{field->get_value()} : std::string_view{};
     }
 
     [[nodiscard]] const std::uint32_t &get_stream_id() const { return m_stream_id; }
     utils::buffering::BufferView &get_body() noexcept override { return m_body; }
+
+    [[nodiscard]] std::string_view find_header(std::string_view name) const noexcept override {
+        auto token = shared::http::tokenize(name);
+        if (token != shared::http::Token::CUSTOM) {
+            const auto &field = m_static_headers[std::to_underlying(token)];
+            return field ? std::string_view{field->get_value()} : std::string_view{};
+        }
+        auto result = m_headers.find(name);
+        return result.has_value() ? std::string_view{(*result)->get_value()} : std::string_view{};
+    }
 
 
     // --- Insert ---
@@ -215,8 +230,8 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
     //         m_static_headers[std::to_underlying(field->get_name())] = field;
     //     } else {
     //         if (auto existing = m_headers.find(field->get_name()); existing.has_value()) {
-    //             (*existing)->set_value((*existing)->get_value() + shared::VALUE_SEPARATOR + field->get_value());
-    //             return;
+    //             (*existing)->set_value((*existing)->get_value() + shared::VALUE_SEPARATOR +
+    //             field->get_value()); return;
     //         }
     //         m_headers.insert(field->get_name(), field);
     //     }
@@ -249,17 +264,18 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
         if (token == shared::http::Token::COOKIE) {
             const auto IDX = std::to_underlying(shared::http::Token::COOKIE);
             if (m_static_headers[IDX] == nullptr) {
-                m_static_headers[IDX] =
-                    std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::COOKIE, std::string(value));
+                m_static_headers[IDX] = std::make_shared<shared::http::HeaderField<true>>(
+                    shared::http::Token::COOKIE, std::string(value));
             } else if (!value.empty()) {
-                m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() + shared::COOKIE_SEPARATOR +
-                                                 std::string(value));
+                m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() +
+                                                 shared::COOKIE_SEPARATOR + std::string(value));
             }
         } else if (token == shared::http::Token::CUSTOM) {
             if (!value.empty()) {
                 if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
                     const auto &existing = *existing_opt;
-                    existing->set_value(existing->get_value() + shared::VALUE_SEPARATOR + std::string(value));
+                    existing->set_value(existing->get_value() + shared::VALUE_SEPARATOR +
+                                        std::string(value));
                 }
                 return;
             }
@@ -284,7 +300,8 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
 
     struct FactoryTag {};
 
-    HttpRequest(FactoryTag, std::uint32_t stream_id, shared::http::HttpMethod method, std::string_view path)
+    HttpRequest(FactoryTag, std::uint32_t stream_id, shared::http::HttpMethod method,
+                std::string_view path)
         : HttpRequest(stream_id) {
         insert(shared::http::Token::METHOD, method_str(method));
         insert(shared::http::Token::PATH, path);
@@ -295,9 +312,12 @@ class HttpRequest : public interfaces::IRequest<shared::http::Protocol> {
     }
 
     std::uint32_t m_stream_id;
-    std::array<std::shared_ptr<shared::http::HeaderField<true>>, std::to_underlying(shared::http::Token::CUSTOM) + 1>
+    std::array<std::shared_ptr<shared::http::HeaderField<true>>,
+               std::to_underlying(shared::http::Token::CUSTOM) + 1>
         m_static_headers{};
-    hashmap::swiss::SwissHashMap<std::string_view, std::shared_ptr<shared::http::HeaderField<false>>> m_headers;
+    hashmap::swiss::SwissHashMap<std::string_view,
+                                 std::shared_ptr<shared::http::HeaderField<false>>>
+        m_headers;
     utils::buffering::BufferView m_body;
 };
 
@@ -314,16 +334,19 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
         bool first_frame = true;
 
         codec::hpack::HpackEncoder<std::uint32_t>{
-            m_table.get(), std::span<const shared::http::HeaderEntry>(header_entries), m_max_frame_size,
+            m_table.get(), std::span<const shared::http::HeaderEntry>(header_entries),
+            m_max_frame_size,
             [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
-                const auto TYPE =
-                    first_frame ? shared_layer::FrameType::HEADERS : shared_layer::FrameType::CONTINUATION;
-                const std::uint8_t FLAGS = (reason == codec::hpack::HpackFlushReason::END)
-                                               ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
-                                               : std::uint8_t{0};
+                const auto TYPE = first_frame ? shared_layer::FrameType::HEADERS
+                                              : shared_layer::FrameType::CONTINUATION;
+                const std::uint8_t FLAGS =
+                    (reason == codec::hpack::HpackFlushReason::END)
+                        ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
+                        : std::uint8_t{0};
                 output.append_range(
                     std::views::empty<std::byte> |
-                    FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID});
+                    FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS,
+                                              STREAM_ID});
                 output.append_range(data);
                 first_frame = false;
             }}();
@@ -340,9 +363,9 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
             output.append_range(std::views::empty<std::byte> |
                                 WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size});
         } else {
-            output.append_range(
-                m_req.get().get_body() |
-                WriteFrameClosureAdapter{STREAM_ID, shared_layer::FrameType::DATA, m_flags, m_max_frame_size});
+            output.append_range(m_req.get().get_body() |
+                                WriteFrameClosureAdapter{STREAM_ID, shared_layer::FrameType::DATA,
+                                                         m_flags, m_max_frame_size});
         }
     }
 

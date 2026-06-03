@@ -13,7 +13,7 @@ int run_worker(int argc, char **argv);
 #define CONGELADO_TASK(T)                                                                          \
     namespace { /* NOLINT(cert-dcl59-cpp) */                                                      \
     [[maybe_unused]] bool const _congelado_registered_##T = []() -> bool {              \
-        congelado::detail::TaskRegistry::instance().register_task(                                \
+        congelado::detail::TaskRegistry::instance().add_task(                                \
             []() -> congelado::ITask * { return new T{}; } /* NOLINT */                           \
         );                                                                                        \
         return true;                                                                              \

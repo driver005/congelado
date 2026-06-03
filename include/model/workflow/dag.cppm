@@ -123,10 +123,10 @@ template <>
 struct serde::Serializable<model::InputMapping> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"source", &model::InputMapping::get_source,
-                       &model::InputMapping::set_source>(),
-            serde::field<"target", &model::InputMapping::get_target,
-                       &model::InputMapping::set_target>(),
+            serde::FieldDesc<"source", &model::InputMapping::get_source,
+                       &model::InputMapping::set_source>{},
+            serde::FieldDesc<"target", &model::InputMapping::get_target,
+                       &model::InputMapping::set_target>{},
         };
     }
 };
@@ -135,10 +135,10 @@ template <>
 struct serde::Serializable<model::OutputMapping> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"source", &model::OutputMapping::get_source,
-                       &model::OutputMapping::set_source>(),
-            serde::field<"target", &model::OutputMapping::get_target,
-                       &model::OutputMapping::set_target>(),
+            serde::FieldDesc<"source", &model::OutputMapping::get_source,
+                       &model::OutputMapping::set_source>{},
+            serde::FieldDesc<"target", &model::OutputMapping::get_target,
+                       &model::OutputMapping::set_target>{},
         };
     }
 };
@@ -147,12 +147,12 @@ template <>
 struct serde::Serializable<model::TaskEdge> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"from", &model::TaskEdge::get_from, &model::TaskEdge::set_from>(),
-            serde::field<"to", &model::TaskEdge::get_to, &model::TaskEdge::set_to>(),
-            serde::field<"condition", &model::TaskEdge::get_condition,
-                       &model::TaskEdge::set_condition>(),
-            serde::field<"mappings", &model::TaskEdge::get_mappings,
-                       &model::TaskEdge::set_mappings>(),
+            serde::FieldDesc<"from", &model::TaskEdge::get_from, &model::TaskEdge::set_from>{},
+            serde::FieldDesc<"to", &model::TaskEdge::get_to, &model::TaskEdge::set_to>{},
+            serde::FieldDesc<"condition", &model::TaskEdge::get_condition,
+                       &model::TaskEdge::set_condition>{},
+            serde::FieldDesc<"mappings", &model::TaskEdge::get_mappings,
+                       &model::TaskEdge::set_mappings>{},
         };
     }
 };
@@ -161,9 +161,9 @@ template <>
 struct serde::Serializable<model::TaskNode> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"task_def_name", &model::TaskNode::get_def_name,
-                       &model::TaskNode::set_task_def_name>(),
-            serde::field<"edges", &model::TaskNode::get_edges, &model::TaskNode::set_edges>(),
+            serde::FieldDesc<"task_def_name", &model::TaskNode::get_def_name,
+                       &model::TaskNode::set_task_def_name>{},
+            serde::FieldDesc<"edges", &model::TaskNode::get_edges, &model::TaskNode::set_edges>{},
         };
     }
 };

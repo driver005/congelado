@@ -47,11 +47,11 @@ class HandlerBase {
   public:
     virtual ~HandlerBase() = default;
 
-    virtual std::string_view name() const noexcept = 0;
+    virtual std::string_view get_name() const noexcept = 0;
 
     template <HandlerController TController, typename... Args>
     auto create(TController &controller, Args &&...args) -> HandlerTemplate auto {
-        return controller.create(name(), on_execute(), on_released(), on_error(), std::forward<Args>(args)...);
+        return controller.create(get_name(), on_execute(), on_released(), on_error(), std::forward<Args>(args)...);
     }
 
     virtual WorkerFunction on_execute() = 0;

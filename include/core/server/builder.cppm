@@ -20,7 +20,8 @@ template <typename Derived, std::size_t RouterSize = 256, std::size_t MaxHandler
           std::size_t MaxMiddlewareSize = 10>
 class RouterContext {
   public:
-    constexpr RouterContext() : m_routes{}, m_router_size{2}, m_highest_router_number{1}, m_base_router_children{0} {};
+    constexpr RouterContext()
+        : m_routes{}, m_router_size{2}, m_highest_router_number{1}, m_base_router_children{0} {};
 
     constexpr std::size_t add_route(Route<Derived> route) {
         const auto idx = m_router_size++;
@@ -48,9 +49,10 @@ class RouterContext {
         auto group_start = active_routes.begin();
 
         while (group_start != active_routes.end()) {
-            auto group_end = std::ranges::find_if(group_start, active_routes.end(), [&](const auto &r) {
-                return r.get_base_router() != group_start->get_base_router();
-            });
+            auto group_end =
+                std::ranges::find_if(group_start, active_routes.end(), [&](const auto &r) {
+                    return r.get_base_router() != group_start->get_base_router();
+                });
 
             std::size_t group_size = std::distance(group_start, group_end);
             std::ranges::sort(group_start, group_end, [&](const auto &a, const auto &b) {
@@ -84,7 +86,8 @@ class RouterContext {
                     offset = row.size() - index;
                 }
 
-                handler.add_route(node.kind, node.literal, offset, node.handlers, node.middlewares, node.children);
+                handler.add_route(node.kind, node.literal, offset, node.handlers, node.middlewares,
+                                  node.children);
             }
         }
 
@@ -95,7 +98,9 @@ class RouterContext {
 
     constexpr std::size_t get_highest_router_number() noexcept { return m_highest_router_number++; }
     constexpr std::size_t get_router_size() const noexcept { return m_router_size; }
-    constexpr std::size_t get_base_router_children() const noexcept { return m_base_router_children; }
+    constexpr std::size_t get_base_router_children() const noexcept {
+        return m_base_router_children;
+    }
 
     constexpr void decrement_base_router_children() noexcept {
         if (m_base_router_children > 0) {
@@ -105,16 +110,18 @@ class RouterContext {
 
 
   private:
-    struct RouterBuildingHelper {
+    class RouterBuildingHelper {
+      public:
         EdgeKind kind{EdgeKind::Path};
         std::string literal{};
-        const Handler<Derived, MaxHandlerSize> handlers{};
-        const Middleware<Derived, MaxMiddlewareSize> middlewares{};
-        std::size_t children;
-        std::size_t router_number;
+        Handler<Derived, MaxHandlerSize> handlers{};
+        Middleware<Derived, MaxMiddlewareSize> middlewares{};
+        std::size_t children{0};
+        std::size_t router_number{0};
     };
 
-    static constexpr std::pair<EdgeKind, std::string_view> determine_node_kind(std::string_view path) {
+    static constexpr std::pair<EdgeKind, std::string_view>
+    determine_node_kind(std::string_view path) {
         if (path.empty()) {
             throw std::runtime_error("Path cannot be empty");
         }
@@ -130,7 +137,8 @@ class RouterContext {
         return std::make_pair(EdgeKind::Path, path);
     }
 
-    constexpr void insert_route(const Route<Derived> &route, std::vector<std::vector<RouterBuildingHelper>> &table) {
+    constexpr void insert_route(const Route<Derived> &route,
+                                std::vector<std::vector<RouterBuildingHelper>> &table) {
         if (route.get_child_routes() != 0) {
             if (route.is_build()) {
                 return;
@@ -160,8 +168,9 @@ class RouterContext {
                 });
 
                 if (it == table.end()) {
-                    throw std::runtime_error(std::format("Parent router with number {} not found for route {}",
-                                                         route.get_base_router(), route.get_path()));
+                    throw std::runtime_error(
+                        std::format("Parent router with number {} not found for route {}",
+                                    route.get_base_router(), route.get_path()));
                 }
 
                 new_idx = std::distance(table.begin(), it) + 1;
@@ -201,8 +210,9 @@ class RouterContext {
                 });
 
                 if (it == table.end()) {
-                    throw std::runtime_error(std::format("Parent router with number {} not found for route {}",
-                                                         route.get_base_router(), route.get_path()));
+                    throw std::runtime_error(
+                        std::format("Parent router with number {} not found for route {}",
+                                    route.get_base_router(), route.get_path()));
                 }
 
                 new_idx = std::distance(table.begin(), it) + 1;
@@ -236,12 +246,13 @@ template <typename Derived, std::size_t MaxHandlerSize = 8, std::size_t MaxMiddl
 class Route {
   public:
     constexpr Route()
-        : m_path{}, m_is_build{false}, m_router_number{0}, m_base_router{0}, m_child_routes{0}, m_handler{},
-          m_local_middleware{} {}
+        : m_path{}, m_is_build{false}, m_router_number{0}, m_base_router{0}, m_child_routes{0},
+          m_handler{}, m_local_middleware{} {}
 
     constexpr Route<Derived>(std::string_view path)
-        : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path}, m_is_build{false},
-          m_router_number{0}, m_base_router{0}, m_child_routes{0}, m_handler{}, m_local_middleware{} {
+        : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path},
+          m_is_build{false}, m_router_number{0}, m_base_router{0}, m_child_routes{0}, m_handler{},
+          m_local_middleware{} {
         if (path != "*") {
             if (!path.contains('/')) {
                 throw std::runtime_error("Route path must start '/'");
@@ -252,30 +263,31 @@ class Route {
     template <typename... Args>
         requires(std::is_convertible_v<Args, interfaces::MiddlewareFn<Derived>> && ...)
     constexpr Route(std::string_view path, Args &&...middlewares)
-        : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path}, m_base_router{0}, m_handler{} {
+        : m_path{path.size() > 1 && path.starts_with('/') ? path.substr(1) : path},
+          m_base_router{0}, m_handler{} {
         if (path != "*") {
             if (!path.contains('/')) {
                 throw std::runtime_error("Route path must start '/'");
             }
         }
-        (m_local_middleware.push_handler(std::forward<Args>(middlewares)), ...);
+        (m_local_middleware.add_middleware(std::forward<Args>(middlewares)), ...);
     }
 
     [[nodiscard]] constexpr Route<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
-        m_local_middleware.push(std::move(mw));
+        m_local_middleware.add_middleware(std::move(mw));
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Route<Derived> get(interfaces::HandlerFn<Derived> handler) {
+    [[nodiscard]] Route<Derived> get(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::GET, std::move(handler));
     }
 
 
-    [[nodiscard]] constexpr Route<Derived> post(interfaces::HandlerFn<Derived> handler) {
+    [[nodiscard]] Route<Derived> post(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::POST, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> put(interfaces::HandlerFn<Derived> handler) {
+    [[nodiscard]] Route<Derived> put(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::PUT, std::move(handler));
     }
 
@@ -295,10 +307,11 @@ class Route {
         return add_handler(Method::OPTIONS, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> add_handler(Method method, interfaces::HandlerFn<Derived> handler) {
+    [[nodiscard]] constexpr Route<Derived> add_handler(Method method,
+                                                       interfaces::HandlerFn<Derived> handler) {
         auto handler_fnc = m_handler.find(method);
         if (!handler_fnc) {
-            m_handler.push(method, std::move(handler));
+            m_handler.add_handler(method, std::move(handler));
             return std::move(*this);
         }
 
@@ -307,8 +320,8 @@ class Route {
             // static_assert(false, "Duplicate handler found for method please check your routes");
             return std::move(*this);
         } else {
-            throw std::runtime_error(
-                std::format("Handler for method {} already exists on path {}", std::to_underlying(method), m_path));
+            throw std::runtime_error(std::format("Handler for method {} already exists on path {}",
+                                                 std::to_underlying(method), m_path));
         }
     }
 
@@ -322,21 +335,31 @@ class Route {
         return std::move(*this);
     }
 
-    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> mw) { m_local_middleware.push(std::move(mw)); }
+    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> mw) {
+        m_local_middleware.add_middleware(std::move(mw));
+    }
 
     constexpr std::string_view get_path() const noexcept { return m_path; }
     constexpr bool is_build() const noexcept { return m_is_build; }
     constexpr std::size_t get_child_routes() const noexcept { return m_child_routes; }
     constexpr std::size_t get_base_router() const noexcept { return m_base_router; }
     constexpr std::size_t get_router_number() const noexcept { return m_router_number; }
-    constexpr const Handler<Derived, MaxHandlerSize> &get_handlers() const noexcept { return m_handler; }
+    constexpr const Handler<Derived, MaxHandlerSize> &get_handlers() const noexcept {
+        return m_handler;
+    }
     constexpr const Middleware<Derived, MaxMiddlewareSize> &get_middlewares() const noexcept {
         return m_local_middleware;
     }
 
-    constexpr void update_base_router(const std::size_t &number) noexcept { m_base_router = number; }
-    constexpr void update_child_routes(const std::size_t &number) noexcept { m_child_routes = number; }
-    constexpr void update_router_number(const std::size_t &number) noexcept { m_router_number = number; }
+    constexpr void update_base_router(const std::size_t &number) noexcept {
+        m_base_router = number;
+    }
+    constexpr void update_child_routes(const std::size_t &number) noexcept {
+        m_child_routes = number;
+    }
+    constexpr void update_router_number(const std::size_t &number) noexcept {
+        m_router_number = number;
+    }
     constexpr void set_build() noexcept { m_is_build = true; }
     constexpr void increment_child_routes() noexcept { ++m_child_routes; }
 
@@ -357,14 +380,16 @@ class Router {
 
     constexpr Router(RouterContext<Derived> &ctx, std::string_view path)
         : m_ctx{ctx}, m_router_number{ctx.get_highest_router_number()},
-          m_router_index{m_ctx.get().add_route(Route<Derived>{path}.set_router_number(m_router_number))} {}
+          m_router_index{
+              m_ctx.get().add_route(Route<Derived>{path}.set_router_number(m_router_number))} {}
 
     template <typename... Args>
         requires(std::is_convertible_v<Args, interfaces::MiddlewareFn<Derived>> && ...)
     constexpr Router(RouterContext<Derived> &ctx, std::string_view path, Args &&...middlewares)
         : m_ctx{ctx}, m_router_number{ctx.get_highest_router_number()},
           m_router_index{ctx.get().add_route(
-              Route<Derived>{path, std::forward<Args>(middlewares)...}.set_router_number(m_router_number))} {}
+              Route<Derived>{path, std::forward<Args>(middlewares)...}.set_router_number(
+                  m_router_number))} {}
 
 
     [[nodiscard]] constexpr Router<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
@@ -401,9 +426,10 @@ template <typename Derived>
 class ServerBuilder {
   public:
     constexpr ServerBuilder()
-        : m_address{}, m_port{0}, m_name{},
-          m_root_route{Route<Derived>{"/"}.set_base_router(std::numeric_limits<std::size_t>::max())},
-          m_fallback_route{Route<Derived>{"*"}.set_base_router(std::numeric_limits<std::size_t>::max())} {}
+        : m_address{}, m_port{0}, m_name{}, m_root_route{Route<Derived>{"/"}.set_base_router(
+                                                std::numeric_limits<std::size_t>::max())},
+          m_fallback_route{
+              Route<Derived>{"*"}.set_base_router(std::numeric_limits<std::size_t>::max())} {}
 
     constexpr ServerBuilder<Derived> address(std::string_view address) && {
         m_address = std::string{address};

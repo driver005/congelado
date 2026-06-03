@@ -11,7 +11,7 @@ class Middleware {
   public:
     constexpr Middleware() : m_middleware{}, m_middleware_index{0} {}
 
-    constexpr void push(interfaces::MiddlewareFn<Derived> middleware) {
+    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> middleware) {
         if (m_middleware_index >= MiddlewareSize)
             throw std::runtime_error(
                 "MiddlewareSize cannot be greater than MaxHandlerSize due to offerflow limitations, please check "

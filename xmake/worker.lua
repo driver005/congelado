@@ -1,10 +1,13 @@
 -- Worker targets: compiled against congelado_lib, register tasks via CONGELADO_TASK(T).
 -- Bundle mode:   worker("payments_worker", "tasks/payment.cc", "tasks/refund.cc")
 -- Per-task mode: worker("email_worker",    "tasks/email.cc")
+-- Override main: add a main.cc in the worker directory — SDK default is skipped.
 rule("congelado.worker")
 on_load(function(target)
 	target:add("deps", "congelado_lib")
-	target:add("files", "$(projectdir)/src/worker_main.cc")
+	if not os.isfile(path.join(target:scriptdir(), "main.cc")) then
+		target:add("files", "$(projectdir)/sdk/worker/main.cc")
+	end
 end)
 rule_end()
 
@@ -23,7 +26,7 @@ function worker(name, ...)
 end
 
 local workers = {}
-for _, f in ipairs(os.files(path.join(os.projectdir(), "workers/**/*.cc"))) do
+for _, f in ipairs(os.files(path.join(os.projectdir(), "defaults/workers/**/*.cc"))) do
 	local name = path.basename(path.directory(f))
 	workers[name] = workers[name] or {}
 	table.insert(workers[name], f)

@@ -121,8 +121,8 @@ class Stream {
     Stream(std::reference_wrapper<Settings> local_settings, std::reference_wrapper<Settings> remote_settings)
         requires(!IsStreamBased)
         : m_state_machine{StreamStateMachine{0}},
-          m_send_window{static_cast<std::int32_t>(remote_settings.get().initial_window_size())},
-          m_recv_window{static_cast<std::int32_t>(remote_settings.get().initial_window_size())},
+          m_send_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
+          m_recv_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
           m_local_settings{local_settings}, m_remote_settings{remote_settings},
           m_stream_helper{ConnectionLevelHelper{error::http::Http2ErrorCode::NO_ERROR_CODE}} {
         core::logger::debug("Stream - HTTP/2", "Created Connection-level Stream (ID 0)");
@@ -135,8 +135,8 @@ class Stream {
            bool is_client_initiated = true)
         requires(IsStreamBased)
         : m_state_machine{StreamStateMachine{STREAM_ID}},
-          m_send_window{static_cast<std::int32_t>(remote_settings.get().initial_window_size())},
-          m_recv_window{static_cast<std::int32_t>(remote_settings.get().initial_window_size())},
+          m_send_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
+          m_recv_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
           m_local_settings{local_settings}, m_remote_settings{remote_settings},
           m_stream_helper{StreamLevelHelper{STREAM_ID, connection_stream, decoding_table, encoding_table}} {
         if (is_client_initiated) {
@@ -212,13 +212,13 @@ class Stream {
 
             if (flags & shared_layer::Flags::ACK) {
                 auto payload_array = reader | std::views::take(8) | std::ranges::to<std::vector<std::byte>>();
-                if (!m_remote_settings.get().ping_tracker().on_ack(payload_array)) {
+                if (!m_remote_settings.get().get_ping_tracker().on_ack(payload_array)) {
                     core::logger::warning("Stream (connection-level) - HTTP/2",
                                           "Received unsolicited PING ACK with payload `{}`, ignoring",
                                           payload_array.size());
                 }
             } else {
-                m_remote_settings.get().ping_tracker().note_activity();
+                m_remote_settings.get().get_ping_tracker().note_activity();
 
                 core::logger::info("Stream (connection-level) - HTTP/2",
                                    "Received PING frame without ACK flag, sending PING ACK with same payload");
@@ -554,11 +554,11 @@ class Stream {
     }
 
     [[nodiscard]] bool needs_recv_window_update() const {
-        return m_recv_window < m_remote_settings.get().initial_window_size() / 2;
+        return m_recv_window < m_remote_settings.get().get_initial_window_size() / 2;
     }
 
     [[nodiscard]] std::uint32_t recv_window_increment() const {
-        return static_cast<std::uint32_t>(m_remote_settings.get().initial_window_size() - m_recv_window);
+        return static_cast<std::uint32_t>(m_remote_settings.get().get_initial_window_size() - m_recv_window);
     }
 
     std::vector<std::byte> take_received_data() { return std::move(m_recv_buffer); }
@@ -590,11 +590,11 @@ class Stream {
                                                "Received SETTINGS after initial exchange");
         }
 
-        std::uint32_t old_window = m_remote_settings.get().initial_window_size();
+        std::uint32_t old_window = m_remote_settings.get().get_initial_window_size();
 
         auto settings = reader | ReadSettingsAdaptor{};
 
-        std::uint32_t new_window = m_remote_settings.get().initial_window_size();
+        std::uint32_t new_window = m_remote_settings.get().get_initial_window_size();
 
         if (old_window != new_window) {
             std::int32_t delta = static_cast<std::int32_t>(new_window) - static_cast<std::int32_t>(old_window);

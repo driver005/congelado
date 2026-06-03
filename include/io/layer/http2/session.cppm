@@ -19,7 +19,7 @@ import :stream;
 
 export namespace io::layer::http2 {
 
-using DispatchFn = std::function<void(HttpRequest &, HttpResponse &)>;
+using DispatchFn = interfaces::DispatchFn;
 
 class Session {
   public:
@@ -41,9 +41,9 @@ class Session {
 
         request.set_stream_id(SID);
 
-        auto node = utils::buffering::BufferNode{request.get_size(m_local_settings.max_frame_size())};
+        auto node = utils::buffering::BufferNode{request.get_size(m_local_settings.get_max_frame_size())};
 
-        node | WriteHttpRequestAdaptor{request, m_encoding_table, m_local_settings.max_frame_size()};
+        node | WriteHttpRequestAdaptor{request, m_encoding_table, m_local_settings.get_max_frame_size()};
 
         core::logger::debug("Session - HTTP/2", "Prepared response HEADERS frame with payload size `{}`",
                             node.get_written());
@@ -76,21 +76,21 @@ class Session {
                                    "Received complete header: type `{}`, length `{}`, stream_id `{}`",
                                    header.get_type(), header.get_length(), header.get_stream_id());
 
-                if (header.get_stream_id() > m_remote_settings.last_stream_id()) {
+                if (header.get_stream_id() > m_remote_settings.get_last_stream_id()) {
                     throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                        "Received frame for stream ID above GOAWAY threshold",
-                                                       m_remote_settings.last_stream_id()};
+                                                       m_remote_settings.get_last_stream_id()};
                 }
 
                 if (m_remote_settings.is_acknowledged()) {
-                    if (m_remote_settings.delta_window_on_settings() > 0) {
+                    if (m_remote_settings.get_delta_window_on_settings() > 0) {
                         for (auto &[id, stream] : m_streams) {
                             core::logger::debug(
                                 "Session - HTTP/2",
                                 "Updating send window for stream ID `{}` by delta `{}` due to acknowledged settings",
-                                id, m_remote_settings.delta_window_on_settings());
+                                id, m_remote_settings.get_delta_window_on_settings());
 
-                            stream->update_send_window(m_remote_settings.delta_window_on_settings());
+                            stream->update_send_window(m_remote_settings.get_delta_window_on_settings());
                         }
 
                         m_remote_settings.set_delta_window_on_settings(0);
@@ -187,7 +187,7 @@ class Session {
 
     void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
         auto size = frame.get_size();
-        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.max_frame_size()} |
+        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.get_max_frame_size()} |
                     std::ranges::to<utils::buffering::BufferNode>(size);
 
         core::logger::debug("Session - HTTP/2", "Prepared frame for sending with total size `{}`", node.get_written());
@@ -240,8 +240,8 @@ class Session {
             res.set_status(interfaces::Status::INTERNAL_SERVER_ERROR);
         }
 
-        auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.max_frame_size())};
-        node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.max_frame_size()};
+        auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.get_max_frame_size())};
+        node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.get_max_frame_size()};
         send_node(std::move(node));
     }
 
@@ -260,7 +260,7 @@ class Session {
             if (it->second == nullptr) {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    std::format("Stream ID {} is closed", stream_id),
-                                                   m_remote_settings.last_stream_id()};
+                                                   m_remote_settings.get_last_stream_id()};
             }
             return *(it->second);
         }
@@ -288,7 +288,7 @@ class Session {
         }
 
         auto header = target | std::views::take(HEADER_SIZE) |
-                      ReadFrameHeaderAdaptor{m_local_settings.max_frame_size()} |
+                      ReadFrameHeaderAdaptor{m_local_settings.get_max_frame_size()} |
                       utils::buffering::AdvanceReaderAdaptor{target, HEADER_SIZE};
 
 
@@ -313,7 +313,7 @@ class Session {
         throw error::http::ConnectionError{
             error::http::Http2ErrorCode::PROTOCOL_ERROR,
             std::format("Stream with ID {} was not found and therefor could not be closed / finished", stream_id),
-            m_remote_settings.last_stream_id()};
+            m_remote_settings.get_last_stream_id()};
     }
 
     bool m_running;

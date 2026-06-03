@@ -23,4 +23,12 @@ inline std::shared_ptr<interfaces::IProtocol> make_protocol(const PluginHandle &
     return bridge->get_protocol();
 }
 
+// Returns the storage implementation, or nullptr if the plugin has no Cap::STORAGE.
+[[nodiscard]]
+inline std::shared_ptr<interfaces::IDatabase> make_storage(const PluginHandle &bridge) {
+    if (!bridge || !bridge->has(Cap::STORAGE))
+        return nullptr;
+    return bridge->get_storage();
+}
+
 } // namespace core::plugin

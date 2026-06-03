@@ -1,7 +1,7 @@
 -- All plugins: compiled with module support, linked against congelado_lib, loaded at runtime via dlopen.
--- Each exposes congelado_get_plugin/congelado_destroy_plugin (see include/core/ffi/plugin_api.h).
--- C++ plugins inherit congelado::PluginBase and use CONGELADO_PLUGIN(T) (plugin_api.hpp).
-for _, file in ipairs(os.files(path.join(os.projectdir(), "plugins/**/*.cc"))) do
+-- SDK entry point: import congelado_plugin; + #include <congelado/plugin.h>
+-- C++ plugins inherit congelado::Plugin and use CONGELADO_PLUGIN(T).
+for _, file in ipairs(os.files(path.join(os.projectdir(), "defaults/plugins/**/*.cc"))) do
 	local name = path.basename(file)
 	target(name)
 	set_kind("shared")
@@ -10,6 +10,7 @@ for _, file in ipairs(os.files(path.join(os.projectdir(), "plugins/**/*.cc"))) d
 	add_files(file)
 	add_includedirs("$(projectdir)/include")
 	add_deps("congelado_lib")
+	add_packages("sqlgen")
 	if is_plat("linux", "macosx") then
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 	end

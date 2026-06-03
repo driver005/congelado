@@ -1,4 +1,4 @@
-export module worker:status_handler;
+export module worker:status;
 
 import std;
 import interfaces;

@@ -47,7 +47,7 @@ class Receiver : public shared::HandlerBase {
     }
 
 
-    std::string_view name() const noexcept override { return "Receiver - Async"; }
+    std::string_view get_name() const noexcept override { return "Receiver - Async"; }
 
     shared::WorkerFunction on_execute() override {
         return [this]() {

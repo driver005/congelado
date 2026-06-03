@@ -79,24 +79,26 @@ class WorkflowExecution {
 
 template <>
 struct serde::Serializable<model::WorkflowExecution> {
+    static constexpr std::string_view table_name() { return "workflow_executions"; }
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"exec_id", &model::WorkflowExecution::get_exec_id,
-                       &model::WorkflowExecution::set_exec_id>(),
-            serde::field<"def_name", &model::WorkflowExecution::get_def_name,
-                       &model::WorkflowExecution::set_def_name>(),
-            serde::field<"def_version", &model::WorkflowExecution::get_def_version,
-                       &model::WorkflowExecution::set_def_version>(),
-            serde::field<"status", &model::WorkflowExecution::get_status,
-                       &model::WorkflowExecution::set_status>(),
-            serde::field<"correlation_id", &model::WorkflowExecution::get_correlation_id,
-                       &model::WorkflowExecution::set_correlation_id>(),
-            serde::field<"variables", &model::WorkflowExecution::get_variables,
-                       &model::WorkflowExecution::set_variables>(),
-            serde::field<"task_instances", &model::WorkflowExecution::get_task_instances,
-                       &model::WorkflowExecution::set_task_instances>(),
-            serde::field<"timings", &model::WorkflowExecution::get_timings,
-                       &model::WorkflowExecution::set_timings>(),
+            serde::FieldDesc<"exec_id", &model::WorkflowExecution::get_exec_id,
+                       &model::WorkflowExecution::set_exec_id,
+                       serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<"def_name", &model::WorkflowExecution::get_def_name,
+                       &model::WorkflowExecution::set_def_name>{},
+            serde::FieldDesc<"def_version", &model::WorkflowExecution::get_def_version,
+                       &model::WorkflowExecution::set_def_version>{},
+            serde::FieldDesc<"status", &model::WorkflowExecution::get_status,
+                       &model::WorkflowExecution::set_status>{},
+            serde::FieldDesc<"correlation_id", &model::WorkflowExecution::get_correlation_id,
+                       &model::WorkflowExecution::set_correlation_id>{},
+            serde::FieldDesc<"variables", &model::WorkflowExecution::get_variables,
+                       &model::WorkflowExecution::set_variables>{},
+            serde::FieldDesc<"task_instances", &model::WorkflowExecution::get_task_instances,
+                       &model::WorkflowExecution::set_task_instances>{},
+            serde::FieldDesc<"timings", &model::WorkflowExecution::get_timings,
+                       &model::WorkflowExecution::set_timings>{},
         };
     }
 };

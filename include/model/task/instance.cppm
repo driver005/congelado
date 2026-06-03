@@ -75,25 +75,27 @@ class TaskInstance {
 
 template <>
 struct serde::Serializable<model::TaskInstance> {
+    static constexpr std::string_view table_name() { return "task_instances"; }
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"task_id", &model::TaskInstance::get_task_id,
-                       &model::TaskInstance::set_task_id>(),
-            serde::field<"workflow_exec_id", &model::TaskInstance::get_workflow_exec_id,
-                       &model::TaskInstance::set_workflow_exec_id>(),
-            serde::field<"def_name", &model::TaskInstance::get_def_name,
-                       &model::TaskInstance::set_def_name>(),
-            serde::field<"status", &model::TaskInstance::get_status,
-                       &model::TaskInstance::set_status>(),
-            serde::field<"seq", &model::TaskInstance::get_seq, &model::TaskInstance::set_seq>(),
-            serde::field<"retry_count", &model::TaskInstance::get_retry_count,
-                       &model::TaskInstance::set_retry_count>(),
-            serde::field<"input_data", &model::TaskInstance::get_input_data,
-                       &model::TaskInstance::set_input_data>(),
-            serde::field<"output_data", &model::TaskInstance::get_output_data,
-                       &model::TaskInstance::set_output_data>(),
-            serde::field<"timings", &model::TaskInstance::get_timings,
-                       &model::TaskInstance::set_timings>(),
+            serde::FieldDesc<"task_id", &model::TaskInstance::get_task_id,
+                       &model::TaskInstance::set_task_id,
+                       serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<"workflow_exec_id", &model::TaskInstance::get_workflow_exec_id,
+                       &model::TaskInstance::set_workflow_exec_id>{},
+            serde::FieldDesc<"def_name", &model::TaskInstance::get_def_name,
+                       &model::TaskInstance::set_def_name>{},
+            serde::FieldDesc<"status", &model::TaskInstance::get_status,
+                       &model::TaskInstance::set_status>{},
+            serde::FieldDesc<"seq", &model::TaskInstance::get_seq, &model::TaskInstance::set_seq>{},
+            serde::FieldDesc<"retry_count", &model::TaskInstance::get_retry_count,
+                       &model::TaskInstance::set_retry_count>{},
+            serde::FieldDesc<"input_data", &model::TaskInstance::get_input_data,
+                       &model::TaskInstance::set_input_data>{},
+            serde::FieldDesc<"output_data", &model::TaskInstance::get_output_data,
+                       &model::TaskInstance::set_output_data>{},
+            serde::FieldDesc<"timings", &model::TaskInstance::get_timings,
+                       &model::TaskInstance::set_timings>{},
         };
     }
 };

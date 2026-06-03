@@ -380,7 +380,7 @@ class Leverager : public shared::HandlerBase {
     [[nodiscard]] SharedContext &context() noexcept { return m_context; }
     [[nodiscard]] const SharedContext &context() const noexcept { return m_context; }
 
-    std::string_view name() const noexcept override { return "Leverager"; }
+    std::string_view get_name() const noexcept override { return "Leverager"; }
 
     shared::WorkerFunction on_execute() override {
         return [this]() {

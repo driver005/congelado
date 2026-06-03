@@ -14,7 +14,7 @@ class Handler {
   public:
     constexpr Handler() : m_handler{}, m_handler_mask{HANDLER_MASK}, m_handler_index{0} {}
 
-    constexpr void push(const Method &method, interfaces::HandlerFn<Derived> handler) {
+    constexpr void add_handler(const Method &method, interfaces::HandlerFn<Derived> handler) {
         if (m_handler_index >= MaxHandlerSize)
             throw std::runtime_error(
                 "HandlerSize cannot be greater than MaxHandlerSize due to offerflow limitations, please check "
@@ -59,7 +59,7 @@ class HandlerPool {
         return offset != 0xFF ? m_handler[idx + offset] : nullptr;
     }
 
-    constexpr void push(interfaces::HandlerFn<Derived> handler) {
+    constexpr void add_handler(interfaces::HandlerFn<Derived> handler) {
         if (m_handler_index >= MaxHandlerSize)
             throw std::runtime_error(
                 "HandlerSize cannot be greater than MaxHandlerSize due to offerflow limitations, please check "

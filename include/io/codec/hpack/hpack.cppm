@@ -26,10 +26,11 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
     using FlushCallback = std::function<void(std::span<const std::byte>, HpackFlushReason)>;
 
     explicit HpackEncoder(HPackTable &table, std::span<const shared::http::HeaderEntry> headers,
-                          std::size_t max_frame_size, FlushCallback on_flush, bool use_auto_policy = true,
-                          bool use_huffman = true) noexcept
-        : m_table{table}, m_headers{headers}, m_flush_size{max_frame_size}, m_on_flush{std::move(on_flush)},
-          m_use_auto_policy{use_auto_policy}, m_use_huffman{use_huffman}, m_buf{}, m_buf_pos{0} {}
+                          std::size_t max_frame_size, FlushCallback on_flush,
+                          bool use_auto_policy = true, bool use_huffman = true) noexcept
+        : m_table{table}, m_headers{headers}, m_flush_size{max_frame_size},
+          m_on_flush{std::move(on_flush)}, m_use_auto_policy{use_auto_policy},
+          m_use_huffman{use_huffman}, m_buf{}, m_buf_pos{0} {}
 
     void operator()() const {
         m_buf_pos = 0;
@@ -55,57 +56,63 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
     }
 
     [[nodiscard]] static auto string_view_to_byte(std::string_view view) noexcept {
-        return view | std::views::transform([](char character) { return static_cast<std::byte>(character); });
+        return view | std::views::transform(
+                          [](char character) { return static_cast<std::byte>(character); });
     }
 
     [[nodiscard]] auto encode_string(std::string_view view) const noexcept {
-        return string_view_to_byte(view) | shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman};
+        return string_view_to_byte(view) |
+               shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman};
     }
 
     void encode_indexed(UInt idx) const {
-        drain(idx |
-              shared_codec::lowlevel::EncodeIntAdaptor<UInt>{7U, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD});
+        drain(idx | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                        7U, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD});
     }
 
     void encode_incremental(UInt idx, std::string_view value) const {
-        drain(std::views::concat(idx |
-                                     shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                                         6U, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING},
-                                 encode_string(value)));
-        std::visit([&](const auto &ptr) { m_table.get().insert(ptr->get_name(), value); }, m_table.get().at(idx));
+        drain(
+            std::views::concat(idx |
+                                   shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                                       6U, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING},
+                               encode_string(value)));
+        std::visit([&](const auto &ptr) { m_table.get().insert(ptr->get_name(), value); },
+                   m_table.get().at(idx));
     }
 
     void encode_incremental_new(std::string_view name, std::string_view value) const {
-        drain(std::views::concat(
-            std::views::single(std::byte{std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING)}),
-            encode_string(name), encode_string(value)));
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING)}),
+                                 encode_string(name), encode_string(value)));
         m_table.get().insert(name, value);
     }
 
     void encode_without_indexing(UInt idx, std::string_view value) const {
-        drain(std::views::concat(idx |
-                                     shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                                         4U, shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING},
-                                 encode_string(value)));
+        drain(std::views::concat(
+            idx |
+                shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                    4U, shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING},
+            encode_string(value)));
     }
 
     void encode_without_indexing_new(std::string_view name, std::string_view value) const {
-        drain(std::views::concat(std::views::single(std::byte{
-                                     std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING)}),
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING)}),
                                  encode_string(name), encode_string(value)));
     }
 
     void encode_never_indexed(UInt idx, std::string_view value) const {
-        drain(std::views::concat(idx |
-                                     shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                                         4U, shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED},
-                                 encode_string(value)));
+        drain(
+            std::views::concat(idx |
+                                   shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                                       4U, shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED},
+                               encode_string(value)));
     }
 
     void encode_never_indexed_new(std::string_view name, std::string_view value) const {
-        drain(std::views::concat(
-            std::views::single(std::byte{std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)}),
-            encode_string(name), encode_string(value)));
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)}),
+                                 encode_string(name), encode_string(value)));
     }
 
     void encode_cookies(std::string_view value) const {
@@ -115,7 +122,8 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
             if (crumb.empty()) {
                 return;
             }
-            encode_hpack_field("cookie", crumb, EncodePolicy::WithIndexing, m_table.get().search("cookie", crumb));
+            encode_hpack_field("cookie", crumb, EncodePolicy::WithIndexing,
+                               m_table.get().search("cookie", crumb));
         });
     }
 
@@ -168,7 +176,8 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
                     }
                 }
 
-                const EncodePolicy POLICY = m_use_auto_policy ? policy_for(name) : EncodePolicy::WithIndexing;
+                const EncodePolicy POLICY =
+                    m_use_auto_policy ? policy_for(name) : EncodePolicy::WithIndexing;
                 encode_hpack_field(name, VALUE, POLICY, m_table.get().search(name, VALUE));
             },
             entry);
@@ -185,7 +194,8 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
 };
 
 template <std::unsigned_integral UInt = std::uint32_t>
-class HpackTableSizeUpdateAdaptor : public std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>> {
+class HpackTableSizeUpdateAdaptor
+    : public std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>> {
   public:
     explicit HpackTableSizeUpdateAdaptor(HPackTable &table) noexcept : m_table{table} {}
 
@@ -201,7 +211,8 @@ class HpackTableSizeUpdateAdaptor : public std::ranges::range_adaptor_closure<Hp
 
 template <typename Protocol, std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<Protocol, UInt, Width>> {
+class HpackDecoderAdapter
+    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<Protocol, UInt, Width>> {
   public:
     explicit HpackDecoderAdapter(HPackTable &table, interfaces::IRequest<Protocol> &req) noexcept
         : m_table{table}, m_request{req} {}
@@ -214,12 +225,10 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
         std::size_t offset = 0;
 
 
-        std::ranges::for_each(data, [&](const std::byte &byte) {
+        std::ranges::for_each(data, [&](const std::byte &) {
             if (offset >= TOTAL) {
                 return;
             }
-
-            std::println("range data: {}", std::to_integer<int>(byte));
 
             auto slice = data | std::views::drop(offset);
             const auto [rep_type, is_new] = detect(slice);
@@ -236,7 +245,8 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
 
                 case shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED:
                 case shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING: {
-                    return is_new ? decode_literal_new<false>(slice) : decode_literal<false>(slice, 4U);
+                    return is_new ? decode_literal_new<false>(slice)
+                                  : decode_literal<false>(slice, 4U);
                 }
 
                 case shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE: {
@@ -256,14 +266,15 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
   private:
     template <std::ranges::viewable_range R>
     [[nodiscard]] std::pair<shared_codec::PrefixHelper, bool> detect(R &&range) const {
-        const auto REP =
-            std::forward<R>(range) | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
+        const auto REP = std::forward<R>(range) | std::views::take(1) |
+                         utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
         const auto REP_TYPE = shared_codec::detect_representation_hpack(REP);
 
         const auto PREFIX_MASK = std::to_underlying(REP_TYPE);
-        const bool IS_NEW = REP_TYPE != shared_codec::PrefixHelper::HPACK_INDEXED_FIELD &&
-                            REP_TYPE != shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE &&
-                            !(REP & ~PREFIX_MASK);
+        const bool IS_NEW =
+            REP_TYPE != shared_codec::PrefixHelper::HPACK_INDEXED_FIELD &&
+            REP_TYPE != shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE &&
+            !(REP & ~PREFIX_MASK);
 
         return {REP_TYPE, IS_NEW};
     }
@@ -307,7 +318,8 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
             [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
                 if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
-                    m_request.get().add_header(shared::http::token_to_string(ptr->get_name()), ptr->get_value());
+                    m_request.get().add_header(shared::http::token_to_string(ptr->get_name()),
+                                               ptr->get_value());
                 } else {
                     m_request.get().add_header(ptr->get_name(), ptr->get_value());
                 }
@@ -318,7 +330,8 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
     // 1xxxxxxx
     template <std::ranges::viewable_range R>
     [[nodiscard]] std::size_t decode_indexed(R &&range) const {
-        const auto IDX = std::forward<R>(range) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{7U};
+        const auto IDX =
+            std::forward<R>(range) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{7U};
         if (IDX.value() == 0) {
             throw error::http::InvalidIndexError<UInt>{IDX.value()};
         }
@@ -341,11 +354,12 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
     template <std::ranges::viewable_range R>
     [[nodiscard]] std::size_t decode_incremental_new(R &&range) const {
         auto data = std::forward<R>(range);
-        auto [name, name_size] = data | std::views::drop(1) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
+        auto [name, name_size] =
+            data | std::views::drop(1) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
         ++name_size;
 
-        auto [value, value_size] =
-            data | std::views::drop(name_size) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
+        auto [value, value_size] = data | std::views::drop(name_size) |
+                                   shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
 
         push_helper_new<true>(name, value);
         return name_size + value_size;
@@ -356,8 +370,8 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
     [[nodiscard]] std::size_t decode_literal(R &&range, std::uint8_t prefix_bits) const {
         auto data = std::forward<R>(range);
         const auto IDX = data | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{prefix_bits};
-        auto [value, value_size] =
-            data | std::views::drop(IDX.consumed()) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
+        auto [value, value_size] = data | std::views::drop(IDX.consumed()) |
+                                   shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
         push_helper<Indexable>(IDX.value(), value);
         return IDX.consumed() + value_size;
     }
@@ -366,11 +380,12 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
     template <bool Indexable, std::ranges::viewable_range R>
     [[nodiscard]] std::size_t decode_literal_new(R &&range) const {
         auto data = std::forward<R>(range);
-        auto [name, name_size] = data | std::views::drop(1) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
+        auto [name, name_size] =
+            data | std::views::drop(1) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
         ++name_size;
 
-        auto [value, value_size] =
-            data | std::views::drop(name_size) | shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
+        auto [value, value_size] = data | std::views::drop(name_size) |
+                                   shared_codec::lowlevel::DecodeStringAdaptor<Width>{};
 
         push_helper_new<Indexable>(name, value);
         return name_size + value_size;
@@ -379,7 +394,8 @@ class HpackDecoderAdapter : public std::ranges::range_adaptor_closure<HpackDecod
     // 001xxxxx
     template <std::ranges::viewable_range R>
     [[nodiscard]] std::size_t decode_table_size_update(R &&data) const {
-        const auto NEW_SIZE = std::forward<R>(data) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{5U};
+        const auto NEW_SIZE =
+            std::forward<R>(data) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{5U};
         if (NEW_SIZE.value() > m_table.get().max_size()) {
             throw error::http::TableSizeError{NEW_SIZE.value(), m_table.get().max_size()};
         }
@@ -395,15 +411,18 @@ template <typename Protocol, std::unsigned_integral UInt = std::uint32_t, int Wi
     requires shared_codec::DecodeWidth<Width>
 class Hpack {
   public:
-    explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table, interfaces::IRequest<Protocol> &req,
-                   interfaces::IResponse<Protocol> &res, bool use_huffman = true) noexcept
-        : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req}, m_response{res},
-          m_use_huffman{use_huffman} {}
+    explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table,
+                   interfaces::IRequest<Protocol> &req, interfaces::IResponse<Protocol> &res,
+                   bool use_huffman = true) noexcept
+        : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req},
+          m_response{res}, m_use_huffman{use_huffman} {}
 
     template <std::ranges::range R>
-    [[nodiscard]] auto encode(HpackEncoder<UInt, Width>::FlushCallback &&on_flush, bool use_auto_policy = true) {
+    [[nodiscard]] auto encode(HpackEncoder<UInt, Width>::FlushCallback &&on_flush,
+                              bool use_auto_policy = true) {
         return HpackEncoder<UInt, Width>{
-            m_encoding_table, m_response.get().get_headers(), std::move(on_flush), use_auto_policy, m_use_huffman,
+            m_encoding_table, m_response.get().get_headers(), std::move(on_flush), use_auto_policy,
+            m_use_huffman,
         };
     }
 
@@ -436,9 +455,11 @@ class Hpack {
 //     requires shared_codec::DecodeWidth<Width>
 // class Hpack {
 //   public:
-//     explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table, shared::http::HttpRequest &req,
+//     explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table,
+//     shared::http::HttpRequest &req,
 //                    shared::http::HttpResponse &res)
-//         : m_decoding_table(decoding_table), m_encoding_table(encoding_table), m_huffman{}, m_request{req},
+//         : m_decoding_table(decoding_table), m_encoding_table(encoding_table), m_huffman{},
+//         m_request{req},
 //           m_response{res} {}
 //
 //     template <std::output_iterator<std::uint8_t> Out>
@@ -451,7 +472,8 @@ class Hpack {
 //
 //                     using FieldType = std::decay_t<decltype(*ptr)>;
 //
-//                     if constexpr (std::is_same_v<FieldType, io::shared::http::HeaderField<true>>) {
+//                     if constexpr (std::is_same_v<FieldType, io::shared::http::HeaderField<true>>)
+//                     {
 //                         if (ptr->get_name() == "cookie") {
 //                             encode_cookies(ptr->get_value(), out);
 //                             return;
@@ -464,7 +486,8 @@ class Hpack {
 //                     const EncodePolicy policy =
 //                         use_auto_encoding_policy ? policy_for(name) : EncodePolicy::WithIndexing;
 //
-//                     shared_codec::SearchResult result = m_encoding_table.get().search(name, value);
+//                     shared_codec::SearchResult result = m_encoding_table.get().search(name,
+//                     value);
 //
 //                     switch (policy) {
 //                     case EncodePolicy::WithIndexing:
@@ -512,11 +535,11 @@ class Hpack {
 //                 break;
 //             }
 //             case shared_codec::PrefixHelper::HpackLiteralWithoutIndexing:
-//                 new_variant ? decode_without_indexing_new(data, pos) : decode_without_indexing(data, pos);
-//                 break;
+//                 new_variant ? decode_without_indexing_new(data, pos) :
+//                 decode_without_indexing(data, pos); break;
 //             case shared_codec::PrefixHelper::HpackLiteralNeverIndexed:
-//                 new_variant ? decode_never_indexed_new(data, pos) : decode_never_indexed(data, pos);
-//                 break;
+//                 new_variant ? decode_never_indexed_new(data, pos) : decode_never_indexed(data,
+//                 pos); break;
 //             case shared_codec::PrefixHelper::HpackDynamicTableSizeUpdate:
 //                 decode_table_size_update(data, pos);
 //                 break;
@@ -537,7 +560,8 @@ class Hpack {
 //
 //   private:
 //     // Representation type detection
-//     std::pair<shared_codec::PrefixHelper, bool> get_representation_type(std::span<const std::uint8_t> data,
+//     std::pair<shared_codec::PrefixHelper, bool> get_representation_type(std::span<const
+//     std::uint8_t> data,
 //                                                                         std::size_t &pos) {
 //         std::uint8_t rep = data[pos];
 //         auto rep_type = shared_codec::detect_representation_hpack(rep);
@@ -597,11 +621,15 @@ class Hpack {
 //                         },
 //                         [&] -> shared::http::HeaderEntry {
 //                             if constexpr (IsDecoder) {
-//                                 auto ins_idx = m_decoding_table.get().insert(field_ptr->get_name(), value);
-//                                 return m_decoding_table.get()[HPackStatic::STATIC_SIZE + 1 + ins_idx].value();
+//                                 auto ins_idx =
+//                                 m_decoding_table.get().insert(field_ptr->get_name(), value);
+//                                 return m_decoding_table.get()[HPackStatic::STATIC_SIZE + 1 +
+//                                 ins_idx].value();
 //                             } else {
-//                                 auto ins_idx = m_encoding_table.get().insert(field_ptr->get_name(), value);
-//                                 return m_encoding_table.get()[HPackStatic::STATIC_SIZE + 1 + ins_idx].value();
+//                                 auto ins_idx =
+//                                 m_encoding_table.get().insert(field_ptr->get_name(), value);
+//                                 return m_encoding_table.get()[HPackStatic::STATIC_SIZE + 1 +
+//                                 ins_idx].value();
 //                             }
 //                         }());
 //
@@ -621,10 +649,12 @@ class Hpack {
 //             const auto new_field = [&] -> shared::http::HeaderEntry {
 //                 if constexpr (IsDecoder) {
 //                     auto ins_idx = m_decoding_table.get().insert(name, value);
-//                     return m_decoding_table.get()[HPackStatic::STATIC_SIZE + 1 + ins_idx].value();
+//                     return m_decoding_table.get()[HPackStatic::STATIC_SIZE + 1 +
+//                     ins_idx].value();
 //                 } else {
 //                     auto ins_idx = m_encoding_table.get().insert(name, value);
-//                     return m_encoding_table.get()[HPackStatic::STATIC_SIZE + 1 + ins_idx].value();
+//                     return m_encoding_table.get()[HPackStatic::STATIC_SIZE + 1 +
+//                     ins_idx].value();
 //                 }
 //             }();
 //
@@ -645,8 +675,8 @@ class Hpack {
 //     // 1xxxxxxx
 //     template <std::output_iterator<std::uint8_t> Out>
 //     void encode_indexed(UInt idx, Out out) {
-//         shared_codec::raw::Atom<UInt, Width>::encode_int(idx, 7u, shared_codec::PrefixHelper::HpackIndexedField,
-//         out);
+//         shared_codec::raw::Atom<UInt, Width>::encode_int(idx, 7u,
+//         shared_codec::PrefixHelper::HpackIndexedField, out);
 //     }
 //
 //     // 01xxxxxx + value string
@@ -728,15 +758,17 @@ class Hpack {
 //     // 01xxxxxx
 //     void decode_incremental(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         const auto idx = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 6u);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos);
 //
 //         push_helper<>(idx.value(), value);
 //     }
 //
 //     // 01000000
 //     void decode_incremental_new(std::span<const std::uint8_t> data, std::size_t &pos) {
-//         const auto name = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto name = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos); const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman,
+//         data, pos);
 //
 //         push_helper_new_entry<>(name, value);
 //     }
@@ -744,7 +776,8 @@ class Hpack {
 //     // 0000xxxx
 //     void decode_without_indexing(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         const auto idx = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 4u);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos);
 //
 //         push_helper<false>(idx.value(), value);
 //     }
@@ -752,7 +785,8 @@ class Hpack {
 //     // 00000000
 //     void decode_without_indexing_new(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         auto name = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos);
 //
 //         push_helper_new_entry<false>(name, value);
 //     }
@@ -760,7 +794,8 @@ class Hpack {
 //     // 0001xxxx
 //     void decode_never_indexed(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         const auto idx = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 4u);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos);
 //
 //         push_helper<false>(idx.value(), value);
 //     }
@@ -768,7 +803,8 @@ class Hpack {
 //     // 00010000
 //     void decode_never_indexed_new(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         auto name = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
-//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+//         const auto value = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data,
+//         pos);
 //
 //         push_helper_new_entry<false>(name, value);
 //     }
@@ -777,7 +813,8 @@ class Hpack {
 //     void decode_table_size_update(std::span<const std::uint8_t> data, std::size_t &pos) {
 //         const auto new_size = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 5u);
 //         if (new_size.value() > m_decoding_table.get().max_size())
-//             throw error::http::TableSizeError{new_size.value(), m_decoding_table.get().max_size()};
+//             throw error::http::TableSizeError{new_size.value(),
+//             m_decoding_table.get().max_size()};
 //
 //         m_decoding_table.get().set_max_size(new_size.value());
 //     }

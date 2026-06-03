@@ -51,13 +51,13 @@ template <>
 struct serde::Serializable<model::WorkflowEvent> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"exec_id", &model::WorkflowEvent::get_exec_id,
-                       &model::WorkflowEvent::set_exec_id>(),
-            serde::field<"type", &model::WorkflowEvent::get_type, &model::WorkflowEvent::set_type>(),
-            serde::field<"payload", &model::WorkflowEvent::get_payload,
-                       &model::WorkflowEvent::set_payload>(),
-            serde::field<"issued_at", &model::WorkflowEvent::get_issued_at,
-                       &model::WorkflowEvent::set_issued_at>(),
+            serde::FieldDesc<"exec_id", &model::WorkflowEvent::get_exec_id,
+                       &model::WorkflowEvent::set_exec_id>{},
+            serde::FieldDesc<"type", &model::WorkflowEvent::get_type, &model::WorkflowEvent::set_type>{},
+            serde::FieldDesc<"payload", &model::WorkflowEvent::get_payload,
+                       &model::WorkflowEvent::set_payload>{},
+            serde::FieldDesc<"issued_at", &model::WorkflowEvent::get_issued_at,
+                       &model::WorkflowEvent::set_issued_at>{},
         };
     }
 };
