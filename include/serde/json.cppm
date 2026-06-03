@@ -29,6 +29,28 @@ class Json {
             return std::unexpected{std::string{simdjson::error_message(error_code)}};
         return obj;
     }
+
+    template <ISerializable T>
+    [[nodiscard]] static std::expected<std::vector<T>, std::string>
+    decode_array(std::string_view data) {
+        simdjson::ondemand::parser parser;
+        simdjson::padded_string padded{data};
+        auto doc = parser.iterate(padded);
+        simdjson::ondemand::array arr;
+        if (auto ec = doc.get_array().get(arr); ec)
+            return std::unexpected{std::string{simdjson::error_message(ec)}};
+        std::vector<T> result;
+        for (auto elem : arr) {
+            simdjson::ondemand::value val;
+            if (auto ec = elem.get(val); ec)
+                return std::unexpected{std::string{simdjson::error_message(ec)}};
+            T obj{};
+            if (auto ec = simdjson::tag_invoke(simdjson::deserialize_tag{}, val, obj); ec)
+                return std::unexpected{std::string{simdjson::error_message(ec)}};
+            result.push_back(std::move(obj));
+        }
+        return result;
+    }
 };
 
 } // namespace serde
