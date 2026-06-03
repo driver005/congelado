@@ -266,7 +266,8 @@ class HuffmanEncodeView {
         Iterator() = default;
 
         explicit Iterator(R &base)
-            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_bits{}, m_shift{}, m_done{} {
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_bits{}, m_shift{},
+              m_done{} {
             advance();
         }
 
@@ -282,7 +283,9 @@ class HuffmanEncodeView {
 
         void operator++(int) { ++*this; }
 
-        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_done; }
+        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept {
+            return m_done;
+        }
 
       private:
         void advance() {
@@ -353,8 +356,10 @@ class HuffmanDecodeView {
         Iterator() = default;
 
         explicit Iterator(R &base)
-            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_chunk_idx{0}, m_current{}, m_done{},
-              m_padding_bits{} {}
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_chunk_idx{0},
+              m_current{}, m_done{}, m_padding_bits{} {
+            advance();
+        }
 
         [[nodiscard]] char operator*() const noexcept { return m_current; }
 
@@ -365,40 +370,47 @@ class HuffmanDecodeView {
 
         void operator++(int) { ++*this; }
 
-        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_done; }
+        [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept {
+            return m_done;
+        }
 
       private:
         void advance() {
-            if (m_inner == m_end) {
-                if (m_chunk_idx != 0) {
-                    throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+            while (true) {
+                if (m_inner == m_end) {
+                    if (m_chunk_idx != 0) {
+                        throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+                    }
+                    if (m_fsm != 0 && m_padding_bits > 7) {
+                        throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+                    }
+                    m_done = true;
+                    return;
                 }
-                if (m_fsm != 0 && m_padding_bits > 7) {
-                    throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
+
+                const int CHUNK = CHUNK_MASK & (std::to_integer<unsigned>(*m_inner) >>
+                                                (8 - (W * (m_chunk_idx + 1))));
+
+                if (++m_chunk_idx == CHUNKS_PER_BYTE) {
+                    ++m_inner;
+                    m_chunk_idx = 0;
                 }
-                m_done = true;
-                return;
-            }
 
-            const int CHUNK = CHUNK_MASK & (std::to_integer<unsigned>(*m_inner) >> (8 - (W * (m_chunk_idx + 1))));
+                const auto &[ns, sym] =
+                    TABLE.m_entries[(static_cast<std::size_t>(m_fsm) * CHUNKS) + CHUNK];
+                m_fsm = ns;
 
-            if (++m_chunk_idx == CHUNKS_PER_BYTE) {
-                ++m_inner;
-                m_chunk_idx = 0;
-            }
-
-            const auto &[ns, sym] = TABLE.m_entries[(static_cast<std::size_t>(m_fsm) * CHUNKS) + CHUNK];
-            m_fsm = ns;
-
-            if (sym < 256U) [[likely]] {
-                m_current = static_cast<char>(sym);
-                m_padding_bits = 0;
-            } else if (sym == 0xFFFFU) [[unlikely]] {
-                throw error::http::HuffmanDecodeError{"invalid Huffman code"};
-            } else if (sym == static_cast<std::uint16_t>(SYM_EOS)) {
-                throw error::http::HuffmanDecodeError{"EOS symbol in stream"};
-            } else {
-                m_padding_bits += W;
+                if (sym < 256U) [[likely]] {
+                    m_current = static_cast<char>(sym);
+                    m_padding_bits = 0;
+                    return;
+                } else if (sym == 0xFFFFU) [[unlikely]] {
+                    throw error::http::HuffmanDecodeError{"invalid Huffman code"};
+                } else if (sym == static_cast<std::uint16_t>(SYM_EOS)) {
+                    throw error::http::HuffmanDecodeError{"EOS symbol in stream"};
+                } else {
+                    m_padding_bits += W;
+                }
             }
         }
 

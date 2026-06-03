@@ -1,6 +1,5 @@
-#include <stdio.h>
-#include "core/ffi/plugin_api.hpp"
-
+import congelado_plugin;
+#include <congelado/plugin.h>
 import std;
 
 namespace {
@@ -25,48 +24,34 @@ constexpr std::string_view level_str(int level) noexcept {
     }
 }
 
-class FileLogger final : public congelado::PluginBase {
+class FileLogger final : public congelado::Plugin {
   public:
-    [[nodiscard]] std::string_view name()    const noexcept override { return "FileLogger"; }
-    [[nodiscard]] std::string_view version() const noexcept override { return "1.0.0"; }
+    [[nodiscard]] std::string_view get_name()    const noexcept override { return "FileLogger"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
 
     [[nodiscard]] uint32_t capabilities() const noexcept override {
         return CONGELADO_CAP_LOGGER;
     }
 
-    void on_load(const CongeladoHostCallbacks & /*host*/, const CongeladoConfigView *cfg) override {
-        const char *log_file = "congelado.log";
-        if (cfg != nullptr) {
-            for (std::size_t i = 0; i < cfg->count; ++i) {
-                std::string_view key{cfg->keys[i]};
-                if (key == "file") {
-                    log_file = cfg->values[i];
-                } else if (key == "level") {
-                    m_min_level = parse_level(std::string_view{cfg->values[i]});
-                }
-            }
-        }
-        m_stream.open(log_file, std::ios::app);
+    void on_load(congelado::HostCallbacks const & /*host*/, congelado::ConfigView const &cfg) override {
+        std::string_view log_file = "congelado.log";
+        if (auto val = cfg.get("file"))    { log_file    = *val; }
+        if (auto val = cfg.get("level"))   { m_min_level = parse_level(*val); }
+        m_stream.open(std::string{log_file}, std::ios::app);
         if (!m_stream.is_open()) {
-            std::println(stderr, "FileLogger: failed to open {}", log_file);
+            std::println(std::cerr, "FileLogger: failed to open {}", log_file);
             std::abort();
         }
         write_line(1, std::format("FileLogger: writing to {}, min_level={}", log_file, level_str(m_min_level)));
     }
 
     void on_unload() override {
-        if (m_stream.is_open()) m_stream.close();
+        if (m_stream.is_open()) { m_stream.close(); }
     }
 
-    void logger_write(int level, const char *msg, size_t len) noexcept override {
+    void logger_write(int level, std::string_view msg) noexcept override {
         try {
-            write_line(level, {msg, len});
-        } catch (...) { std::abort(); }
-    }
-
-    void logger_write_error(const char *msg, size_t len) noexcept override {
-        try {
-            write_line(3, {msg, len}); // always ERROR level
+            write_line(level, msg);
         } catch (...) { std::abort(); }
     }
 
@@ -75,7 +60,7 @@ class FileLogger final : public congelado::PluginBase {
     int           m_min_level{1}; // info
 
     void write_line(int level, std::string_view msg) {
-        if (level < m_min_level) return;
+        if (level < m_min_level) { return; }
         auto now  = std::chrono::system_clock::now();
         auto time = std::chrono::current_zone()->to_local(now);
         auto line = std::format("[{:%H:%M:%S}] [{}]: {}", time, level_str(level), msg);

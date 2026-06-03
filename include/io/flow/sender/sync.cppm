@@ -45,7 +45,7 @@ class Sender : public shared::HandlerBase {
         m_pool.push(std::move(slot));
     }
 
-    std::string_view name() const noexcept override { return "Sender - Sync"; }
+    std::string_view get_name() const noexcept override { return "Sender - Sync"; }
 
     shared::WorkerFunction on_execute() override {
         return [this]() {

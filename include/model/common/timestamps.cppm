@@ -52,12 +52,12 @@ template <>
 struct serde::Serializable<model::ExecutionTimings> {
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"scheduled_at", &model::ExecutionTimings::get_scheduled_at,
-                       &model::ExecutionTimings::set_scheduled_at>(),
-            serde::field<"started_at", &model::ExecutionTimings::get_started_at,
-                       &model::ExecutionTimings::set_started_at>(),
-            serde::field<"completed_at", &model::ExecutionTimings::get_completed_at,
-                       &model::ExecutionTimings::set_completed_at>(),
+            serde::FieldDesc<"scheduled_at", &model::ExecutionTimings::get_scheduled_at,
+                       &model::ExecutionTimings::set_scheduled_at>{},
+            serde::FieldDesc<"started_at", &model::ExecutionTimings::get_started_at,
+                       &model::ExecutionTimings::set_started_at>{},
+            serde::FieldDesc<"completed_at", &model::ExecutionTimings::get_completed_at,
+                       &model::ExecutionTimings::set_completed_at>{},
         };
     }
 };

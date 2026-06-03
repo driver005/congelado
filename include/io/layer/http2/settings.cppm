@@ -144,15 +144,15 @@ class Settings {
     [[nodiscard]] bool is_finished() const noexcept { return m_state == SettingsState::IMPLEMENTED; }
     [[nodiscard]] bool is_acknowledged() const noexcept { return m_state == SettingsState::ACKNOWLEDGED; }
 
-    [[nodiscard]] const std::uint32_t &header_table_size() const noexcept { return m_header_table_size; }
-    [[nodiscard]] const bool &enable_push() const noexcept { return m_enable_push; }
-    [[nodiscard]] const std::uint32_t &max_concurrent_streams() const noexcept { return m_max_concurrent_streams; }
-    [[nodiscard]] const std::uint32_t &initial_window_size() const noexcept { return m_initial_window_size; }
-    [[nodiscard]] const std::uint32_t &max_frame_size() const noexcept { return m_max_frame_size; }
-    [[nodiscard]] const std::uint32_t &max_header_list_size() const noexcept { return m_max_header_list_size; }
-    [[nodiscard]] const std::uint32_t &last_stream_id() const noexcept { return m_last_stream_id; }
-    shared_layer::ping::PingTracker &ping_tracker() noexcept { return m_ping_tracker; }
-    [[nodiscard]] const std::int32_t &delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
+    [[nodiscard]] const std::uint32_t &get_header_table_size()    const noexcept { return m_header_table_size; }
+    [[nodiscard]] const bool          &get_enable_push()           const noexcept { return m_enable_push; }
+    [[nodiscard]] const std::uint32_t &get_max_concurrent_streams() const noexcept { return m_max_concurrent_streams; }
+    [[nodiscard]] const std::uint32_t &get_initial_window_size()  const noexcept { return m_initial_window_size; }
+    [[nodiscard]] const std::uint32_t &get_max_frame_size()       const noexcept { return m_max_frame_size; }
+    [[nodiscard]] const std::uint32_t &get_max_header_list_size() const noexcept { return m_max_header_list_size; }
+    [[nodiscard]] const std::uint32_t &get_last_stream_id()       const noexcept { return m_last_stream_id; }
+    shared_layer::ping::PingTracker   &get_ping_tracker()          noexcept { return m_ping_tracker; }
+    [[nodiscard]] const std::int32_t  &get_delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
 
   private:
     // SETTINGS_HEADER_TABLE_SIZE (0x1)
@@ -233,28 +233,28 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
             settings_bytes.insert(settings_bytes.end(), entry.begin(), entry.end());
         };
 
-        if (m_settings.get().header_table_size() != DEFAULT_HEADER_TABLE_SIZE) {
-            emit(0x1, m_settings.get().header_table_size());
+        if (m_settings.get().get_header_table_size() != DEFAULT_HEADER_TABLE_SIZE) {
+            emit(0x1, m_settings.get().get_header_table_size());
         }
 
-        if (!m_settings.get().enable_push()) {
+        if (!m_settings.get().get_enable_push()) {
             emit(0x2, 0);
         }
 
-        if (m_settings.get().max_concurrent_streams() != std::numeric_limits<std::uint32_t>::max()) {
-            emit(0x3, m_settings.get().max_concurrent_streams());
+        if (m_settings.get().get_max_concurrent_streams() != std::numeric_limits<std::uint32_t>::max()) {
+            emit(0x3, m_settings.get().get_max_concurrent_streams());
         }
 
-        if (m_settings.get().initial_window_size() != DEFAULT_INITIAL_WINDOW_SIZE) {
-            emit(0x4, m_settings.get().initial_window_size());
+        if (m_settings.get().get_initial_window_size() != DEFAULT_INITIAL_WINDOW_SIZE) {
+            emit(0x4, m_settings.get().get_initial_window_size());
         }
 
-        if (m_settings.get().max_frame_size() >= MIN_FRAME_SIZE) {
-            emit(0x5, m_settings.get().max_frame_size());
+        if (m_settings.get().get_max_frame_size() >= MIN_FRAME_SIZE) {
+            emit(0x5, m_settings.get().get_max_frame_size());
         }
 
-        if (m_settings.get().max_header_list_size() != std::numeric_limits<std::uint32_t>::max()) {
-            emit(0x6, m_settings.get().max_header_list_size());
+        if (m_settings.get().get_max_header_list_size() != std::numeric_limits<std::uint32_t>::max()) {
+            emit(0x6, m_settings.get().get_max_header_list_size());
         }
 
         return std::views::concat(std::forward<R>(range), std::move(settings_bytes));

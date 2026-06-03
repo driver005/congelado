@@ -78,20 +78,22 @@ class WorkflowDef {
 
 template <>
 struct serde::Serializable<model::WorkflowDef> {
+    static constexpr std::string_view table_name() { return "workflow_definitions"; }
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"name", &model::WorkflowDef::get_name, &model::WorkflowDef::set_name>(),
-            serde::field<"version", &model::WorkflowDef::get_version,
-                       &model::WorkflowDef::set_version>(),
-            serde::field<"nodes", &model::WorkflowDef::get_nodes, &model::WorkflowDef::set_nodes>(),
-            serde::field<"input_params", &model::WorkflowDef::get_input_params,
-                       &model::WorkflowDef::set_input_params>(),
-            serde::field<"output_mappings", &model::WorkflowDef::get_output_mappings,
-                       &model::WorkflowDef::set_output_mappings>(),
-            serde::field<"failure_workflow", &model::WorkflowDef::get_failure_workflow,
-                       &model::WorkflowDef::set_failure_workflow>(),
-            serde::field<"timeout", &model::WorkflowDef::get_timeout,
-                       &model::WorkflowDef::set_timeout>(),
+            serde::FieldDesc<"name", &model::WorkflowDef::get_name, &model::WorkflowDef::set_name,
+                         serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<"version", &model::WorkflowDef::get_version,
+                       &model::WorkflowDef::set_version>{},
+            serde::FieldDesc<"nodes", &model::WorkflowDef::get_nodes, &model::WorkflowDef::set_nodes>{},
+            serde::FieldDesc<"input_params", &model::WorkflowDef::get_input_params,
+                       &model::WorkflowDef::set_input_params>{},
+            serde::FieldDesc<"output_mappings", &model::WorkflowDef::get_output_mappings,
+                       &model::WorkflowDef::set_output_mappings>{},
+            serde::FieldDesc<"failure_workflow", &model::WorkflowDef::get_failure_workflow,
+                       &model::WorkflowDef::set_failure_workflow>{},
+            serde::FieldDesc<"timeout", &model::WorkflowDef::get_timeout,
+                       &model::WorkflowDef::set_timeout>{},
         };
     }
 };

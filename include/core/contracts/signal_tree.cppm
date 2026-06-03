@@ -42,7 +42,7 @@ class Node {
     Node(const Node &) = delete;
     Node &operator=(const Node &) = delete;
 
-    [[nodiscard]] std::uint64_t value() const noexcept { return m_value.load(std::memory_order_acquire); }
+    [[nodiscard]] std::uint64_t get_value() const noexcept { return m_value.load(std::memory_order_acquire); }
 
     void schedule(std::uint32_t local_id) noexcept {
         if constexpr (IsRouter) {

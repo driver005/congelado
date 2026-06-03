@@ -1,4 +1,4 @@
-export module worker:poll_handler;
+export module worker:poll;
 
 import std;
 import interfaces;

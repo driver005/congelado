@@ -86,26 +86,23 @@ add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
 add_requires("conan::tomlplusplus/3.4.0", { alias = "tomlplusplus", configs = conan })
 add_requires("conan::stduuid/1.2.3", { alias = "stduuid", configs = conan })
+add_requires("conan::reflect-cpp/0.23.0", {
+	alias = "reflectcpp",
+	configs = {
+		settings_build = conan.settings_build,
+		settings = conan.settings,
+		conf = conan.conf,
+		build = "missing",
+		options = {
+			"reflect-cpp/*:toml=True",
+			"reflect-cpp/*:msgpack=True",
+			"reflect-cpp/*:xml=True",
+		},
+	},
+})
+add_requires("conan::sqlgen/0.4.0", { alias = "sqlgen", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
 add_requires("range-v3", { configs = conan })
-
-add_requires("conan::reflect-cpp/0.23.0", {
-    alias = "reflectcpp",
-    configs = {
-        settings_build = conan.settings_build,
-        settings = conan.settings,
-        conf = conan.conf,
-        build = "missing",
-        options = {
-            "reflect-cpp/*:toml=True",
-            "reflect-cpp/*:msgpack=True",
-            "reflect-cpp/*:xml=True",
-        }
-    }
-})
-
--- ── Postgres storage plugin (requires sqlgen + reflectcpp via Conan) ──────────
-add_requires("conan::sqlgen/0.4.0", { alias = "sqlgen", configs = conan })
 
 set_languages("c++26", "c11")
 -- TODO: please add again
@@ -192,24 +189,13 @@ add_packages(
 	"microsoft-gsl",
 	"range-v3",
 	"stduuid",
+	"sqlgen",
 	{ public = true }
 )
 
 includes("xmake/plugin.lua")
 includes("xmake/worker.lua")
 
-target("postgres_plugin")
-set_kind("shared")
-set_languages("c++26")
-set_policy("build.c++.modules", true)
-add_files("plugins/postgres/postgres_plugin.cc")
-add_includedirs("$(projectdir)/include")
-add_deps("congelado_lib")
-add_packages("sqlgen", "stduuid")
-if is_plat("linux", "macosx") then
-    add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-end
-target_end()
 
 target("congelado")
 set_kind("binary")

@@ -1,4 +1,4 @@
-export module worker:execution_handler;
+export module worker:execution;
 
 import std;
 import interfaces;

@@ -85,7 +85,7 @@ class BaseSocket : public shared::HandlerBase {
         return true;
     }
 
-    std::string_view name() const noexcept override { return "BaseSocket - Sync"; }
+    std::string_view get_name() const noexcept override { return "BaseSocket - Sync"; }
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
@@ -167,7 +167,7 @@ class ConnectorSocket : public shared::HandlerBase {
         return ConnectResult::InProgress;
     }
 
-    std::string_view name() const noexcept override { return "ConnectorSocket - Sync"; }
+    std::string_view get_name() const noexcept override { return "ConnectorSocket - Sync"; }
 
     shared::WorkerFunction on_execute() override {
         return [this]() {

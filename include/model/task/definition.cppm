@@ -70,20 +70,22 @@ class TaskDef {
 
 template <>
 struct serde::Serializable<model::TaskDef> {
+    static constexpr std::string_view table_name() { return "task_definitions"; }
     static constexpr auto fields() {
         return std::tuple{
-            serde::field<"name", &model::TaskDef::get_name, &model::TaskDef::set_name>(),
-            serde::field<"type", &model::TaskDef::get_type, &model::TaskDef::set_type>(),
-            serde::field<"worker_type", &model::TaskDef::get_worker_type,
-                       &model::TaskDef::set_worker_type>(),
-            serde::field<"input_keys", &model::TaskDef::get_input_keys,
-                       &model::TaskDef::set_input_keys>(),
-            serde::field<"output_keys", &model::TaskDef::get_output_keys,
-                       &model::TaskDef::set_output_keys>(),
-            serde::field<"retry", &model::TaskDef::get_retry, &model::TaskDef::set_retry>(),
-            serde::field<"timeout", &model::TaskDef::get_timeout, &model::TaskDef::set_timeout>(),
-            serde::field<"rate_limit", &model::TaskDef::get_rate_limit,
-                       &model::TaskDef::set_rate_limit>(),
+            serde::FieldDesc<"name", &model::TaskDef::get_name, &model::TaskDef::set_name,
+                         serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<"type", &model::TaskDef::get_type, &model::TaskDef::set_type>{},
+            serde::FieldDesc<"worker_type", &model::TaskDef::get_worker_type,
+                       &model::TaskDef::set_worker_type>{},
+            serde::FieldDesc<"input_keys", &model::TaskDef::get_input_keys,
+                       &model::TaskDef::set_input_keys>{},
+            serde::FieldDesc<"output_keys", &model::TaskDef::get_output_keys,
+                       &model::TaskDef::set_output_keys>{},
+            serde::FieldDesc<"retry", &model::TaskDef::get_retry, &model::TaskDef::set_retry>{},
+            serde::FieldDesc<"timeout", &model::TaskDef::get_timeout, &model::TaskDef::set_timeout>{},
+            serde::FieldDesc<"rate_limit", &model::TaskDef::get_rate_limit,
+                       &model::TaskDef::set_rate_limit>{},
         };
     }
 };

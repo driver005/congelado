@@ -25,13 +25,15 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
         Iterator() = default;
 
         Iterator(UInt data, std::uint8_t prefix_size, std::uint8_t prefix, std::size_t pos = 0)
-            : m_data{data}, m_max_prefix{static_cast<UInt>((1U << prefix_size) - 1U)}, m_prefix{prefix}, m_pos{pos} {}
+            : m_data{data}, m_max_prefix{static_cast<UInt>((1U << prefix_size) - 1U)},
+              m_prefix{prefix}, m_pos{pos} {}
 
         reference operator*() const noexcept {
             const auto MASK = static_cast<std::uint8_t>(m_max_prefix);
             if (m_pos == 0) {
                 if (m_data < m_max_prefix) {
-                    return static_cast<std::byte>((m_prefix & ~MASK) | static_cast<std::uint8_t>(m_data));
+                    return static_cast<std::byte>((m_prefix & ~MASK) |
+                                                  static_cast<std::uint8_t>(m_data));
                 }
                 return static_cast<std::byte>(m_prefix | MASK);
             }
@@ -65,7 +67,9 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
         requires CastableToUint8<PrefixType>
     explicit EncodeIntView(UInt data, std::uint8_t prefix_size, PrefixType prefix_data)
         : m_data{data}, m_prefix_size{prefix_size},
-          m_prefix{std::is_same_v<PrefixType, std::uint8_t> ? prefix_data : static_cast<std::uint8_t>(prefix_data)},
+          m_prefix{std::is_same_v<PrefixType, std::uint8_t>
+                       ? prefix_data
+                       : static_cast<std::uint8_t>(prefix_data)},
           m_size{compute_size(data, prefix_size)} {
         if (prefix_size < 1 || 8 < prefix_size) {
             throw std::invalid_argument{"prefix must be in range [1,8] (inclusive)"};
@@ -73,7 +77,9 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
     }
 
     [[nodiscard]] Iterator begin() const noexcept { return {m_data, m_prefix_size, m_prefix, 0}; }
-    [[nodiscard]] Iterator end() const noexcept { return {m_data, m_prefix_size, m_prefix, m_size}; }
+    [[nodiscard]] Iterator end() const noexcept {
+        return {m_data, m_prefix_size, m_prefix, m_size};
+    }
     [[nodiscard]] std::size_t size() const noexcept { return m_size; }
 
   private:
@@ -143,9 +149,11 @@ class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdap
 //      while B & 128 == 128
 //      return I
 template <std::unsigned_integral UInt = std::uint32_t, std::size_t PrefixOffset = 0>
-class DecodeIntAdaptor : public std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>> {
+class DecodeIntAdaptor
+    : public std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>> {
   public:
-    explicit constexpr DecodeIntAdaptor(std::uint8_t prefix_size) noexcept : m_prefix_size{prefix_size} {}
+    explicit constexpr DecodeIntAdaptor(std::uint8_t prefix_size) noexcept
+        : m_prefix_size{prefix_size} {}
 
     template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
@@ -161,7 +169,8 @@ class DecodeIntAdaptor : public std::ranges::range_adaptor_closure<DecodeIntAdap
             throw error::http::TruncatedDataError{};
         }
 
-        const auto FIRST_BYTE = all | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
+        const auto FIRST_BYTE =
+            all | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
 
         std::size_t consumed = 1;
 
@@ -217,7 +226,8 @@ class DecodeIntAdaptor : public std::ranges::range_adaptor_closure<DecodeIntAdap
 template <int Width>
 class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStringAdaptor<Width>> {
   public:
-    explicit constexpr EncodeStringAdaptor(bool huffman_encode, std::uint8_t prefix_size = 7U) noexcept
+    explicit constexpr EncodeStringAdaptor(bool huffman_encode,
+                                           std::uint8_t prefix_size = 7U) noexcept
         : m_huffman{huffman_encode}, m_prefix_size{prefix_size} {}
 
     template <std::ranges::forward_range R>
@@ -229,13 +239,15 @@ class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStri
         //     const auto LEN = static_cast<std::uint32_t>(std::ranges::distance(encoded));
         //
         //     return std::views::concat(
-        //         LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_ENABLED}, encoded);
+        //         LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size,
+        //         PrefixHelper::HUFFMAN_ENABLED}, encoded);
         // }
 
         const auto LEN = static_cast<std::uint32_t>(std::ranges::distance(data));
 
-        return std::views::concat(LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_DISABLED},
-                                  std::forward<R>(data));
+        return std::views::concat(
+            LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_DISABLED},
+            std::forward<R>(data));
     }
 
   private:
@@ -259,7 +271,9 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
             throw error::http::TruncatedDataError{};
         }
 
-        const bool H_FLAG = (data | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{}) & 0x80U;
+        const bool H_FLAG =
+            (data | std::views::take(1) | utils::codec::ReadBigEndianAdaptor<std::uint8_t>{}) &
+            0x80U;
 
         const auto LENGTH = all | DecodeIntAdaptor<std::uint32_t>{7U};
         const auto HEADER = LENGTH.consumed();
@@ -276,7 +290,8 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
         const std::size_t CONSUMED = HEADER + LENGTH.value();
 
         if (H_FLAG) {
-            return {body | huffman::HuffmanDecodeAdaptor<Width>{} | std::ranges::to<std::string>(), CONSUMED};
+            return {body | huffman::HuffmanDecodeAdaptor<Width>{} | std::ranges::to<std::string>(),
+                    CONSUMED};
         }
 
         return {body | std::views::transform([](std::byte byte) noexcept {

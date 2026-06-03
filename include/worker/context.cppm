@@ -36,6 +36,25 @@ class WorkerContext {
         return nullptr;
     }
 
+    // Execute a task by type. Calls release() on completion, error() + release() on exception.
+    // Returns nullopt if no worker registered for task_type.
+    [[nodiscard]] std::optional<TaskOutput> run_task(std::string_view task_type,
+                                                     TaskInput const &input) {
+        auto *w = get_task_worker(task_type);
+        if (w == nullptr) return std::nullopt;
+        auto release  = w->on_released();
+        auto on_error = w->on_error();
+        try {
+            auto output = w->execute(input);
+            if (release) release();
+            return output;
+        } catch (...) {
+            if (on_error) on_error(std::current_exception());
+            if (release) release();
+            return std::nullopt;
+        }
+    }
+
     // Derived from registered workers — no separate task type list needed.
     [[nodiscard]] std::vector<std::string_view> get_task_types() const noexcept {
         std::vector<std::string_view> types;

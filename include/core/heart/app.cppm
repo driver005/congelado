@@ -9,7 +9,6 @@ import interfaces;
 import core_config;
 import core_logger;
 import core_plugin;
-import congelado;
 import :context;
 
 std::filesystem::path expand_tilde(std::filesystem::path path) {
@@ -47,13 +46,15 @@ class App {
         }
 
         if (!proto) {
-            std::println(stderr, "[heart] no protocol plugin found — load a plugin with Cap::Protocol");
+            std::println(stderr,
+                         "[heart] no protocol plugin found — load a plugin with Cap::Protocol");
             std::abort();
         }
 
-        app::Server server{*proto};
+        ctx.build();
+        proto->set_dispatch(ctx.get_dispatch());
 
-        // plugins must outlive server — both live until process termination.
+        // set_dispatch() starts the HTTP/2 listener — block forever until process termination.
         std::promise<void>().get_future().wait();
         return 0;
     }
@@ -65,7 +66,8 @@ class App {
         std::filesystem::path path = expand_tilde(raw_path);
 
         if (path.empty() || !std::filesystem::exists(path)) {
-            std::println("[heart] no config file at '{}', using defaults", path.empty() ? "<none>" : path.string());
+            std::println("[heart] no config file at '{}', using defaults",
+                         path.empty() ? "<none>" : path.string());
             return core::config::Config{};
         }
 
@@ -85,7 +87,8 @@ class App {
     // same global RouterContext during their on_load().
     // Returns true if any logger plugin was registered.
     bool load_plugins(const core::config::Config &cfg, AppContext &ctx,
-                      std::vector<core::plugin::PluginHandle> &handles, std::shared_ptr<interfaces::IProtocol> &proto) {
+                      std::vector<core::plugin::PluginHandle> &handles,
+                      std::shared_ptr<interfaces::IProtocol> &proto) {
         auto *router_ctx = ctx.get_router();
 
         for (auto &[name, plugin_cfg] : cfg.get_plugins()) {
@@ -99,9 +102,11 @@ class App {
                 continue;
             }
 
-            auto result = core::plugin::load(so, &plugin_cfg, router_ctx);
+            auto result = core::plugin::load(so, &plugin_cfg, router_ctx, &ctx.get_contract_group(),
+                                             &ctx.get_leverager());
             if (!result) {
-                std::println(stderr, "[heart] plugin '{}' failed to load: {}", name, result.error().get_detail());
+                std::println(stderr, "[heart] plugin '{}' failed to load: {}", name,
+                             result.error().get_detail());
                 continue;
             }
 

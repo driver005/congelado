@@ -9,7 +9,7 @@ module;
 #else
 #include <dlfcn.h>
 #endif
-#include "core/ffi/plugin_api.h"
+#include <congelado/plugin.h>
 
 export module core_ffi:bridge;
 
@@ -30,10 +30,8 @@ class Closure {
 
     Closure(std::initializer_list<ffi_type *> arg_types, Thunk thunk, void *user_data)
         : m_arg_types{arg_types} {
-        if (ffi_prep_cif(&m_cif, FFI_DEFAULT_ABI,
-                         static_cast<unsigned>(m_arg_types.size()),
-                         &ffi_type_void,
-                         m_arg_types.data()) != FFI_OK)
+        if (ffi_prep_cif(&m_cif, FFI_DEFAULT_ABI, static_cast<unsigned>(m_arg_types.size()),
+                         &ffi_type_void, m_arg_types.data()) != FFI_OK)
             throw std::runtime_error{"ffi_prep_cif failed"};
 
         m_raw = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_code));
@@ -66,23 +64,25 @@ class Closure {
 // Resolved function pointers for a loaded plugin.
 // All symbols are optional except name, version, capabilities.
 struct PluginSymbols {
-    using NameFn        = const char *(*)() noexcept;
-    using VersionFn     = const char *(*)() noexcept;
-    using CapsFn        = uint32_t (*)() noexcept;
-    using OnLoadFn      = void (*)(const CongeladoHostCallbacks *, const CongeladoConfigView *);
-    using OnUnloadFn    = void (*)() noexcept;
-    using LogWriteFn    = void (*)(int, const char *, size_t) noexcept;
-    using LogWriteErrFn = void (*)(const char *, size_t) noexcept;
-    using ProtoGetFn    = void *(*)() noexcept;
+    using NameFn = const char *(*)() noexcept;
+    using VersionFn = const char *(*)() noexcept;
+    using CapsFn = uint32_t (*)() noexcept;
+    using OnLoadFn = void (*)(const CongeladoHostCallbacks *, const CongeladoConfigView *);
+    using OnUnloadFn = void (*)() noexcept;
+    using LogWriteFn = void (*)(int, const char *, std::size_t) noexcept;
+    using LogWriteErrFn = void (*)(const char *, std::size_t) noexcept;
+    using ProtoGetFn = void *(*)() noexcept;
+    using StorageGetFn = void *(*)() noexcept;
 
-    NameFn        name{nullptr};
-    VersionFn     version{nullptr};
-    CapsFn        capabilities{nullptr};
-    OnLoadFn      on_load{nullptr};
-    OnUnloadFn    on_unload{nullptr};
-    LogWriteFn    logger_write{nullptr};
+    NameFn name{nullptr};
+    VersionFn version{nullptr};
+    CapsFn capabilities{nullptr};
+    OnLoadFn on_load{nullptr};
+    OnUnloadFn on_unload{nullptr};
+    LogWriteFn logger_write{nullptr};
     LogWriteErrFn logger_write_error{nullptr};
-    ProtoGetFn    protocol_get{nullptr};
+    ProtoGetFn protocol_get{nullptr};
+    StorageGetFn storage_get{nullptr};
 };
 
 } // namespace core::ffi
@@ -93,9 +93,10 @@ export namespace core::ffi {
 
 // Capability bitmask — mirrors CONGELADO_CAP_* defines in plugin_api.h.
 enum class Cap : std::uint32_t {
-    LOGGER   = CONGELADO_CAP_LOGGER,
+    LOGGER = CONGELADO_CAP_LOGGER,
     PROTOCOL = CONGELADO_CAP_PROTOCOL,
-    CUSTOM   = CONGELADO_CAP_CUSTOM,
+    STORAGE = CONGELADO_CAP_STORAGE,
+    CUSTOM = CONGELADO_CAP_CUSTOM,
 };
 
 class LoadError {
@@ -127,9 +128,8 @@ class FfiBridge : public shared::HandlerBase,
     FfiBridge &operator=(FfiBridge &&) = delete;
 
     [[nodiscard]] static std::expected<std::shared_ptr<FfiBridge>, LoadError>
-    load(const std::filesystem::path &path,
-         const core::config::PluginConfig *plugin_cfg = nullptr,
-         void *router_ctx = nullptr) {
+    load(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr,
+         void *router_ctx = nullptr, void *controller_ctx = nullptr, void *leverager_ctx = nullptr) {
         void *lib = open_lib(path);
         if (lib == nullptr)
             return std::unexpected(LoadError{std::format("dlopen failed: {}", path.string())});
@@ -143,21 +143,24 @@ class FfiBridge : public shared::HandlerBase,
 
         try {
             bridge->m_log_closure = std::make_unique<Closure>(
-                std::initializer_list<ffi_type *>{
-                    &ffi_type_pointer, &ffi_type_sint, &ffi_type_pointer, size_ffi_type()},
+                std::initializer_list<ffi_type *>{&ffi_type_pointer, &ffi_type_sint,
+                                                  &ffi_type_pointer, size_ffi_type()},
                 &FfiBridge::log_thunk, bridge.get());
-            bridge->m_sched_closure = std::make_unique<Closure>(
-                std::initializer_list<ffi_type *>{&ffi_type_pointer},
-                &FfiBridge::schedule_thunk, bridge.get());
+            bridge->m_sched_closure =
+                std::make_unique<Closure>(std::initializer_list<ffi_type *>{&ffi_type_pointer},
+                                          &FfiBridge::schedule_thunk, bridge.get());
         } catch (const std::exception &ex) {
-            return std::unexpected(LoadError{std::format("ffi closure setup failed: {}", ex.what())});
+            return std::unexpected(
+                LoadError{std::format("ffi closure setup failed: {}", ex.what())});
         }
 
         CongeladoHostCallbacks callbacks{
-            .log        = reinterpret_cast<CongeladoLogFn>(bridge->m_log_closure->get()),
-            .schedule   = reinterpret_cast<CongeladoScheduleFn>(bridge->m_sched_closure->get()),
+            .log = reinterpret_cast<congelado_log_fn>(bridge->m_log_closure->get()),
+            .schedule = reinterpret_cast<congelado_sched_fn>(bridge->m_sched_closure->get()),
             .router_ctx = router_ctx,
-            .ctx        = bridge.get(),
+            .controller_ctx = controller_ctx,
+            .leverager_ctx = leverager_ctx,
+            .ctx = bridge.get(),
         };
 
         if (bridge->m_syms.on_load != nullptr)
@@ -180,15 +183,21 @@ class FfiBridge : public shared::HandlerBase,
         return m_protocol;
     }
 
-    [[nodiscard]] std::string_view name() const noexcept override { return m_lib_name; }
+    [[nodiscard]] std::shared_ptr<interfaces::IDatabase> get_storage() const noexcept {
+        return m_storage;
+    }
+
+    [[nodiscard]] std::string_view get_name() const noexcept override { return m_lib_name; }
 
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
-        if (m_syms.logger_write == nullptr) return;
+        if (m_syms.logger_write == nullptr)
+            return;
         m_syms.logger_write(static_cast<int>(level), msg.data(), msg.size());
     }
 
     void error(std::string_view msg) noexcept override {
-        if (m_syms.logger_write_error == nullptr) return;
+        if (m_syms.logger_write_error == nullptr)
+            return;
         m_syms.logger_write_error(msg.data(), msg.size());
     }
 
@@ -197,7 +206,8 @@ class FfiBridge : public shared::HandlerBase,
     [[nodiscard]] shared::ReleaseFunction on_released() noexcept override {
         std::weak_ptr<FfiBridge> weak = weak_from_this();
         return [weak] {
-            if (auto self = weak.lock()) self->release_plugin();
+            if (auto self = weak.lock())
+                self->release_plugin();
         };
     }
 
@@ -220,17 +230,18 @@ class FfiBridge : public shared::HandlerBase,
     // ── libffi thunks ─────────────────────────────────────────────────────────
     // user_data is bridge.get() — set when constructing each Closure.
 
-    static void log_thunk(ffi_cif * /*cif*/, void * /*ret*/, void **args, void *user_data) noexcept {
-        auto *self    = static_cast<FfiBridge *>(user_data);
-        auto  level   = *static_cast<int *>(args[1]);
+    static void log_thunk(ffi_cif * /*cif*/, void * /*ret*/, void **args,
+                          void *user_data) noexcept {
+        auto *self = static_cast<FfiBridge *>(user_data);
+        auto level = *static_cast<int *>(args[1]);
         auto *msg_ptr = *static_cast<const char **>(args[2]);
-        auto  msg_len = *static_cast<std::size_t *>(args[3]);
+        auto msg_len = *static_cast<std::size_t *>(args[3]);
         std::println(stderr, "[plugin::{}] log({}): {}", self->m_lib_name, level,
                      std::string_view{msg_ptr, msg_len});
     }
 
-    static void schedule_thunk(ffi_cif * /*cif*/, void * /*ret*/,
-                                void ** /*args*/, void *user_data) noexcept {
+    static void schedule_thunk(ffi_cif * /*cif*/, void * /*ret*/, void ** /*args*/,
+                               void *user_data) noexcept {
         std::println(stderr, "[plugin::{}] schedule requested",
                      static_cast<FfiBridge *>(user_data)->m_lib_name);
     }
@@ -246,7 +257,8 @@ class FfiBridge : public shared::HandlerBase,
     }
 
     void close_lib() noexcept {
-        if (m_lib == nullptr) return;
+        if (m_lib == nullptr)
+            return;
 #if defined(_WIN32)
         FreeLibrary(static_cast<HMODULE>(m_lib));
 #else
@@ -272,8 +284,8 @@ class FfiBridge : public shared::HandlerBase,
 
     // Returns an error string on failure, empty string on success.
     [[nodiscard]] std::string resolve_symbols() noexcept {
-        m_syms.name         = probe<PluginSymbols::NameFn>("congelado_plugin_name");
-        m_syms.version      = probe<PluginSymbols::VersionFn>("congelado_plugin_version");
+        m_syms.name = probe<PluginSymbols::NameFn>("congelado_plugin_name");
+        m_syms.version = probe<PluginSymbols::VersionFn>("congelado_plugin_version");
         m_syms.capabilities = probe<PluginSymbols::CapsFn>("congelado_capabilities");
 
         if ((m_syms.name == nullptr) || (m_syms.version == nullptr) ||
@@ -281,17 +293,20 @@ class FfiBridge : public shared::HandlerBase,
             return "missing required symbols: congelado_plugin_name / "
                    "congelado_plugin_version / congelado_capabilities";
 
-        m_syms.on_load            = probe<PluginSymbols::OnLoadFn>("congelado_on_load");
-        m_syms.on_unload          = probe<PluginSymbols::OnUnloadFn>("congelado_on_unload");
-        m_syms.logger_write       = probe<PluginSymbols::LogWriteFn>("congelado_logger_write");
-        m_syms.logger_write_error = probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
-        m_syms.protocol_get       = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
+        m_syms.on_load = probe<PluginSymbols::OnLoadFn>("congelado_on_load");
+        m_syms.on_unload = probe<PluginSymbols::OnUnloadFn>("congelado_on_unload");
+        m_syms.logger_write = probe<PluginSymbols::LogWriteFn>("congelado_logger_write");
+        m_syms.logger_write_error =
+            probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
+        m_syms.protocol_get = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
+        m_syms.storage_get = probe<PluginSymbols::StorageGetFn>("congelado_storage_get");
         return {};
     }
 
     [[nodiscard]] const CongeladoConfigView *
     build_config_view(const core::config::PluginConfig *plugin_cfg) noexcept {
-        if (plugin_cfg == nullptr) return nullptr;
+        if (plugin_cfg == nullptr)
+            return nullptr;
         m_cfg_keys.clear();
         m_cfg_vals.clear();
         for (const auto &[key, value] : plugin_cfg->get_fields()) {
@@ -299,9 +314,9 @@ class FfiBridge : public shared::HandlerBase,
             m_cfg_vals.push_back(value.c_str());
         }
         m_cfg_view = CongeladoConfigView{
-            .keys   = m_cfg_keys.data(),
+            .keys = m_cfg_keys.data(),
             .values = m_cfg_vals.data(),
-            .count  = m_cfg_keys.size(),
+            .count = m_cfg_keys.size(),
         };
         return &m_cfg_view;
     }
@@ -314,6 +329,13 @@ class FfiBridge : public shared::HandlerBase,
             if (proto != nullptr)
                 m_protocol = std::shared_ptr<interfaces::IProtocol>(
                     proto, [](interfaces::IProtocol *) noexcept {});
+        }
+
+        if (((m_caps & CONGELADO_CAP_STORAGE) != 0) && (m_syms.storage_get != nullptr)) {
+            auto *storage = static_cast<interfaces::IDatabase *>(m_syms.storage_get());
+            if (storage != nullptr)
+                m_storage = std::shared_ptr<interfaces::IDatabase>(
+                    storage, [](interfaces::IDatabase *) noexcept {});
         }
     }
 
@@ -331,6 +353,7 @@ class FfiBridge : public shared::HandlerBase,
     std::string m_lib_name;
     std::uint32_t m_caps{0};
     std::shared_ptr<interfaces::IProtocol> m_protocol;
+    std::shared_ptr<interfaces::IDatabase> m_storage;
     std::unique_ptr<Closure> m_log_closure;
     std::unique_ptr<Closure> m_sched_closure;
 
@@ -339,4 +362,4 @@ class FfiBridge : public shared::HandlerBase,
     CongeladoConfigView m_cfg_view{};
 };
 
-} // export namespace core::ffi
+} // namespace core::ffi

@@ -26,7 +26,7 @@ class ILogger {
   public:
     virtual ~ILogger() = default;
 
-    [[nodiscard]] virtual std::string_view name() const noexcept = 0;
+    [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
 
     // The actual logging endpoint. No templates here to keep ABI stable across plugins.
     virtual void write(LogLevel level, std::string_view message) noexcept = 0;

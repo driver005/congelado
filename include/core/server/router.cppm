@@ -11,10 +11,9 @@ import :middleware;
 namespace core::server {
 
 constexpr auto split_path(std::string_view path) noexcept {
-    return std::views::concat(std::views::single(std::string_view{"/"}),
-                              path | std::views::split('/') | std::views::transform([](auto &&rng) {
-                                  return std::string_view(std::ranges::begin(rng), std::ranges::end(rng));
-                              }) | std::views::filter([](std::string_view sv) { return !sv.empty(); }));
+    return path | std::views::split('/') | std::views::transform([](auto &&rng) {
+               return std::string_view(std::ranges::begin(rng), std::ranges::end(rng));
+           }) | std::views::filter([](std::string_view sv) { return !sv.empty(); });
 }
 
 // constexpr std::uint32_t fnv1a(std::string_view s) noexcept {
@@ -38,14 +37,16 @@ class RouterNode {
   public:
     RouterNode() = default;
 
-    RouterNode(EdgeKind kind, std::string_view path, std::uint16_t children_offset, std::uint8_t children_length,
-               std::uint16_t middleware_offset, std::uint8_t middleware_size, std::uint16_t handler_offset,
-               std::size_t handler_mask)
-        : m_kind{kind}, m_path{path}, m_children_offset{children_offset}, m_children_length{children_length},
-          m_middleware_offset{middleware_offset}, m_middleware_length{middleware_size},
-          m_handler_offset{handler_offset}, m_handler_mask{handler_mask} {}
+    RouterNode(EdgeKind kind, std::string_view path, std::uint16_t children_offset,
+               std::uint8_t children_length, std::uint16_t middleware_offset,
+               std::uint8_t middleware_size, std::uint16_t handler_offset, std::size_t handler_mask)
+        : m_kind{kind}, m_path{path}, m_children_offset{children_offset},
+          m_children_length{children_length}, m_middleware_offset{middleware_offset},
+          m_middleware_length{middleware_size}, m_handler_offset{handler_offset},
+          m_handler_mask{handler_mask} {}
 
-    constexpr std::optional<RouterNode> find_child(std::string_view seg, std::span<RouterNode> table,
+    constexpr std::optional<RouterNode> find_child(std::string_view seg,
+                                                   std::span<RouterNode> table,
                                                    std::uint8_t &current_index) const noexcept {
         if (m_children_length == 0)
             return std::nullopt;
@@ -61,14 +62,16 @@ class RouterNode {
                 std::uint8_t idx = current_index + (hash + i) % m_children_length;
 
                 auto &node = table[idx];
-                std::println("Checking node at index {}: kind={}, literal={}", idx, std::to_underlying(node.get_kind()),
-                             node.get_literal());
-                std::println("wild_index: {}", wild_index.has_value() ? std::to_string(*wild_index) : "nullopt");
+                std::println("Checking node at index {}: kind={}, literal={}", idx,
+                             std::to_underlying(node.get_kind()), node.get_literal());
+                std::println("wild_index: {}",
+                             wild_index.has_value() ? std::to_string(*wild_index) : "nullopt");
 
                 switch (node.get_kind()) {
                 case EdgeKind::Path:
                     if (node.get_literal() == seg) {
-                        std::println("Found matching path node at index {}: {}", idx, node.get_literal());
+                        std::println("Found matching path node at index {}: {}", idx,
+                                     node.get_literal());
                         return std::make_optional(node);
                     }
                     break;
@@ -123,7 +126,8 @@ class RouterNode {
     std::size_t m_handler_mask;
 };
 
-template <typename Derived, std::size_t RouterSize = 256, std::size_t HandlerSize = 64, std::size_t MiddlewareSize = 10>
+template <typename Derived, std::size_t RouterSize = 256, std::size_t HandlerSize = 64,
+          std::size_t MiddlewareSize = 10>
 class RouteHandler {
   public:
     constexpr explicit RouteHandler() : m_table{}, m_handler{}, m_middleware{}, m_table_index{0} {}
@@ -142,9 +146,7 @@ class RouteHandler {
         auto it = segments.begin();
         auto end = segments.end();
 
-        if (it != end) {
-            ++it;
-
+        {
             RouterNode current = m_table[0];
             std::uint8_t current_index = 0;
 
@@ -154,31 +156,36 @@ class RouteHandler {
                 if (!node)
                     break;
                 if (node->get_middleware_length() > 0) {
-                    m_middleware.execute(req, res, node->get_middleware_offset(), node->get_middleware_length());
+                    m_middleware.execute(req, res, node->get_middleware_offset(),
+                                         node->get_middleware_length());
                 }
                 current = *node;
             }
 
-            std::println("Edge kind: {}, literal: {}, children length: {}, middleware length: {}, handler offset: {}, "
+            std::println("Edge kind: {}, literal: {}, children length: {}, middleware length: {}, "
+                         "handler offset: {}, "
                          "handler mask: {:016X}",
-                         std::to_underlying(current.get_kind()), current.get_literal(), current.get_children_length(),
-                         current.get_middleware_length(), current.get_handler_offset(), current.get_handler_mask());
+                         std::to_underlying(current.get_kind()), current.get_literal(),
+                         current.get_children_length(), current.get_middleware_length(),
+                         current.get_handler_offset(), current.get_handler_mask());
 
-            std::println("Handler mask: {:016X}, looking for method: {}", current.get_handler_mask(),
-                         std::to_underlying(method));
+            std::println("Handler mask: {:016X}, looking for method: {}",
+                         current.get_handler_mask(), std::to_underlying(method));
 
             std::println("Gert handler offset: {}, middleware offset: {}, handler mask: {:016X}",
-                         current.get_handler_offset(), current.get_middleware_offset(), current.get_handler_mask());
+                         current.get_handler_offset(), current.get_middleware_offset(),
+                         current.get_handler_mask());
 
             if (current.get_children_length() == 0) {
                 if (current.get_handler_mask() != HANDLER_MASK) {
-                    const auto handler_fn =
-                        m_handler.find(current.get_handler_offset(), current.get_handler_mask(), method);
+                    const auto handler_fn = m_handler.find(current.get_handler_offset(),
+                                                           current.get_handler_mask(), method);
                     if (handler_fn) {
                         handler_fn(req, res);
                         return;
                     } else {
-                        throw std::runtime_error(std::format("Wrong method for route: {}", std::to_underlying(method)));
+                        throw std::runtime_error(
+                            std::format("Wrong method for route: {}", std::to_underlying(method)));
                     }
                 }
             }
@@ -188,7 +195,8 @@ class RouteHandler {
     }
 
     constexpr void add_route(EdgeKind kind, std::string_view path, std::size_t children_offset,
-                             const Handler<Derived, 8> &handler, const Middleware<Derived, MiddlewareSize> &middleware,
+                             const Handler<Derived, 8> &handler,
+                             const Middleware<Derived, MiddlewareSize> &middleware,
                              std::uint8_t children_size) noexcept {
         RouterNode node{
             kind,
@@ -201,18 +209,20 @@ class RouteHandler {
             handler.get_mask(),
         };
 
-        std::println("Adding route: {}, kind: {}, children offset: {}, children size: {}, middleware offset: {}, "
+        std::println("Adding route: {}, kind: {}, children offset: {}, children size: {}, "
+                     "middleware offset: {}, "
                      "middleware size: {}, handler offset: {}, handler mask: {:016X}",
-                     path, std::to_underlying(kind), node.get_data_offset(), node.get_children_length(),
-                     node.get_middleware_offset(), node.get_middleware_length(), node.get_handler_offset(),
+                     path, std::to_underlying(kind), node.get_data_offset(),
+                     node.get_children_length(), node.get_middleware_offset(),
+                     node.get_middleware_length(), node.get_handler_offset(),
                      node.get_handler_mask());
 
         for (std::uint8_t i = 0; i < middleware.get_size(); ++i) {
-            m_middleware.push(middleware.get_middlewares()[i]);
+            m_middleware.add_middleware(middleware.get_middlewares()[i]);
         }
 
         for (std::uint8_t i = 0; i < handler.get_size(); ++i) {
-            m_handler.push(handler.get_handler()[i]);
+            m_handler.add_handler(handler.get_handler()[i]);
         }
 
         m_table[m_table_index++] = node;
