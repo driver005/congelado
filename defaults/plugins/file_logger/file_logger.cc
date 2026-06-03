@@ -28,6 +28,7 @@ class FileLogger final : public congelado::Plugin {
   public:
     [[nodiscard]] std::string_view get_name()    const noexcept override { return "FileLogger"; }
     [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+    [[nodiscard]] std::string_view get_unique_type() const noexcept override { return "logger"; }
 
     [[nodiscard]] uint32_t capabilities() const noexcept override {
         return CONGELADO_CAP_LOGGER;
