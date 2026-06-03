@@ -94,5 +94,21 @@ typedef struct CongeladoConfigView {
     }                                                                                                     \
     extern "C" void *congelado_storage_get() noexcept {                                                  \
         return s_plugin != nullptr ? s_plugin->storage_get() : nullptr;                                  \
+    }                                                                                                     \
+    extern "C" const char *congelado_unique_type() noexcept {                                            \
+        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
+        return s_plugin->get_unique_type().data();                                                        \
+    }                                                                                                     \
+    extern "C" const char *const *congelado_requires() noexcept {                                        \
+        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
+        static std::vector<const char *> s_cache; /* NOLINT */                                           \
+        s_cache.clear();                                                                                  \
+        for (auto sv : s_plugin->get_requires())                                                         \
+            s_cache.push_back(sv.data());                                                                 \
+        return s_cache.data();                                                                            \
+    }                                                                                                     \
+    extern "C" std::size_t congelado_requires_count() noexcept {                                         \
+        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
+        return s_plugin->get_requires().size();                                                           \
     }
 // NOLINTEND
