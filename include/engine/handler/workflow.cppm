@@ -5,6 +5,7 @@ import interfaces;
 import model;
 import shared;
 import serde;
+import core_logger;
 import :context;
 
 // ─── WorkflowStartBody ────────────────────────────────────────────────────────
@@ -60,13 +61,7 @@ class WorkflowHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        m_ctx.get().get_workflow_def_connector().find(
+        m_ctx.get().get_connector().find<model::WorkflowDef>(
             name, [&](std::optional<model::WorkflowDef> result) noexcept {
                 if (!result) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
@@ -75,7 +70,6 @@ class WorkflowHandler {
                 }
                 reply(res, serde::Ser::serialize(accept, *result));
             });
-        m_ctx.get().get_workflow_def_connector().flush();
     }
 
     void create_definition(interfaces::IRequest<Protocol> &req,
@@ -83,35 +77,32 @@ class WorkflowHandler {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<model::WorkflowDef>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, "invalid body"),
+            core::logger::warning("engine", "wf/create bad request: {}", parsed.error());
+            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
                   interfaces::Status::BAD_REQUEST);
             return;
         }
 
         if (auto v = parsed->validate(); !v) {
+            core::logger::warning("engine", "wf/create invalid: {}", v.error());
             reply(res, serde::Ser::serialize_error(accept, v.error()),
                   interfaces::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_workflow_def_connector().insert(*parsed, [&](bool ok) noexcept {
+        m_ctx.get().get_connector().insert<model::WorkflowDef>(*parsed, [&](bool ok) noexcept {
             if (!ok) {
+                core::logger::error("engine", "wf/create db insert failed");
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
                 return;
             }
+            core::logger::info("engine", "workflow created: '{}'", parsed->get_name());
             reply(res, serde::Ser::serialize(accept, *parsed), interfaces::Status::CREATED);
         });
-        m_ctx.get().get_workflow_def_connector().flush();
     }
 
     void update_definition(interfaces::IRequest<Protocol> &req,
@@ -119,16 +110,10 @@ class WorkflowHandler {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<model::WorkflowDef>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, "invalid body"),
+            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
                   interfaces::Status::BAD_REQUEST);
             return;
         }
@@ -139,7 +124,7 @@ class WorkflowHandler {
             return;
         }
 
-        m_ctx.get().get_workflow_def_connector().update(*parsed, [&](bool ok) noexcept {
+        m_ctx.get().get_connector().update<model::WorkflowDef>(*parsed, [&](bool ok) noexcept {
             if (!ok) {
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
@@ -147,7 +132,6 @@ class WorkflowHandler {
             }
             reply(res, serde::Ser::serialize(accept, *parsed));
         });
-        m_ctx.get().get_workflow_def_connector().flush();
     }
 
     void remove_definition(interfaces::IRequest<Protocol> &req,
@@ -156,13 +140,7 @@ class WorkflowHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        m_ctx.get().get_workflow_def_connector().remove(name, [&](bool ok) noexcept {
+        m_ctx.get().get_connector().remove<model::WorkflowDef>(name, [&](bool ok) noexcept {
             if (!ok) {
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
@@ -170,7 +148,6 @@ class WorkflowHandler {
             }
             res.set_status(interfaces::Status::NO_CONTENT);
         });
-        m_ctx.get().get_workflow_def_connector().flush();
     }
 
     // Path: /api/v1/workflows/:name/start — def_name is the segment before "start".
@@ -182,12 +159,6 @@ class WorkflowHandler {
         auto last = target.rfind('/');
         auto before = target.rfind('/', last > 0 ? last - 1 : 0);
         auto def_name = std::string{target.substr(before + 1, last - before - 1)};
-
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
 
         std::unordered_map<std::string, std::string> variables;
         auto body = flatten_body(req);
@@ -206,15 +177,17 @@ class WorkflowHandler {
         timings.set_started_at(std::chrono::system_clock::now());
         exec.set_timings(timings);
 
-        m_ctx.get().get_exec_connector().insert(exec, [&](bool ok) noexcept {
+        m_ctx.get().get_connector().insert<model::WorkflowExecution>(exec, [&](bool ok) noexcept {
             if (!ok) {
+                core::logger::error("engine", "wf/start insert failed for '{}'", def_name);
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
                 return;
             }
+            core::logger::info("engine", "exec '{}' started for '{}'",
+                               exec.get_exec_id(), def_name);
             reply(res, serde::Ser::serialize(accept, exec), interfaces::Status::ACCEPTED);
         });
-        m_ctx.get().get_exec_connector().flush();
     }
 
     // Path: /api/v1/workflows/exec/:id — exec_id is the last segment.
@@ -224,13 +197,7 @@ class WorkflowHandler {
         auto target = req.get_target();
         auto exec_id_str = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        m_ctx.get().get_exec_connector().find(
+        m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id_str, [&](std::optional<model::WorkflowExecution> result) noexcept {
                 if (!result) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
@@ -239,7 +206,6 @@ class WorkflowHandler {
                 }
                 reply(res, serde::Ser::serialize(accept, *result));
             });
-        m_ctx.get().get_exec_connector().flush();
     }
 
     // Path: /api/v1/workflows/exec/:id — exec_id is the last segment.
@@ -249,53 +215,39 @@ class WorkflowHandler {
         auto target = req.get_target();
         auto exec_id_str = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        // Guard: reject if not found or already in a terminal state.
+        std::optional<model::WorkflowExecution> found;
         bool handled = false;
-        m_ctx.get().get_exec_connector().find(
+        m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id_str, [&](std::optional<model::WorkflowExecution> result) noexcept {
                 if (!result) {
+                    core::logger::warning("engine", "wf/terminate not found: '{}'", exec_id_str);
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
                           interfaces::Status::NOT_FOUND);
                     handled = true;
                     return;
                 }
                 if (model::is_terminal(result->get_status())) {
+                    core::logger::warning("engine", "wf/terminate already terminal: '{}'", exec_id_str);
                     reply(res, serde::Ser::serialize_error(accept, "already in terminal state"),
                           interfaces::Status::CONFLICT);
                     handled = true;
+                    return;
                 }
+                found = std::move(result);
             });
-        m_ctx.get().get_exec_connector().flush();
 
         if (handled)
             return;
 
-        auto cache_key = serde::Cache::cache_key<model::WorkflowExecution>(exec_id_str);
-        auto sql = std::format("UPDATE workflow_executions SET status = 'TERMINATED' "
-                               "WHERE exec_id = '{}' RETURNING row_to_json(workflow_executions.*)",
-                               exec_id_str);
-
-        m_ctx.get().get_db()->query(sql, [&](std::string_view result) noexcept {
-            if (result.empty()) {
+        found->set_status(model::WorkflowStatus::TERMINATED);
+        m_ctx.get().get_connector().update<model::WorkflowExecution>(*found, [&](bool ok) noexcept {
+            if (!ok) {
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
             }
-            auto v = serde::Json::decode<model::WorkflowExecution>(result);
-            if (!v) {
-                reply(res, serde::Ser::serialize_error(accept, "decode error"),
-                      interfaces::Status::INTERNAL_SERVER_ERROR);
-                return;
-            }
-            if (m_ctx.get().get_cache())
-                m_ctx.get().get_cache()->remove(cache_key, [](std::string_view) noexcept {});
-            reply(res, serde::Ser::serialize(accept, *v));
+            core::logger::info("engine", "exec terminated: '{}'", exec_id_str);
+            reply(res, serde::Ser::serialize(accept, *found));
         });
     }
 

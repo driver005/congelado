@@ -4,7 +4,7 @@ import std;
 
 export namespace interfaces {
 
-enum class LogLevel { Debug, Info, Warning, Error, Fatal };
+enum class LogLevel { Debug, Info, Important, Warning, Error, Fatal };
 
 constexpr std::string_view to_string(LogLevel level) {
     switch (level) {
@@ -12,6 +12,8 @@ constexpr std::string_view to_string(LogLevel level) {
         return "DEBUG";
     case LogLevel::Info:
         return "INFO";
+    case LogLevel::Important:
+        return "IMPORTANT";
     case LogLevel::Warning:
         return "WARNING";
     case LogLevel::Error:

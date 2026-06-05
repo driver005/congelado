@@ -38,7 +38,7 @@ inline int get_error_code() { return errno; }
 inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     int flags = fcntl(socket, F_GETFL, 0);
     if (flags == -1) {
-        core::logger::error("Socket - Posix", "Failed to get socket flags");
+        core::logger::error("io/posix", "get flags failed");
     }
 
     if (non_blocking) {
@@ -48,10 +48,10 @@ inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
     }
 
     if (fcntl(socket, F_SETFL, flags) < 0) {
-        core::logger::error("Socket - Posix", "Failed to set socket non-blocking");
+        core::logger::error("io/posix", "set non-blocking failed");
     }
 
-    core::logger::debug("Socket - Posix", "Socket `{}` set non-blocking to `{}`", socket, non_blocking);
+    core::logger::debug("io/posix", "fd {} non-blocking={}", socket, non_blocking);
 }
 
 } // namespace io::base::socket

@@ -15,16 +15,14 @@ template <typename Worker, typename Status, typename... Args>
 class Sender : public shared::HandlerBase {
   public:
     Sender(Worker &worker) : m_worker{worker}, m_pool{}, m_on_error{nullptr}, m_stalled{false}, m_closed{false} {
-        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Sender(Worker &worker, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_error{std::move(on_error)}, m_stalled{false}, m_closed{false} {
-        core::logger::debug("Sender", "Created for worker with FD `{}`", m_worker.get().get_fd());
         build();
     }
 
-    ~Sender() { core::logger::debug("Sender", "Destructor called for worker with FD `{}`", m_worker.get().get_fd()); }
+    ~Sender() = default;
 
     Sender(const Sender &) = delete;
     Sender &operator=(const Sender &) = delete;
@@ -40,8 +38,7 @@ class Sender : public shared::HandlerBase {
     }
 
     void send(utils::buffering::BufferNode slot) {
-        core::logger::debug("Sender", "FD `{}` adding node to send pool with size `{}`", m_worker.get().get_fd(),
-                            slot.get_written());
+        core::logger::debug("io/send", "fd {} enqueue {} bytes", m_worker.get().get_fd(), slot.get_written());
         m_pool.push(std::move(slot));
     }
 
@@ -49,9 +46,8 @@ class Sender : public shared::HandlerBase {
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            core::logger::debug("Sender", "FD `{}` on_execute is being executed", m_worker.get().get_fd());
             if (resume()) {
-                core::logger::info("Sender", "FD `{}` rescheduled", m_worker.get().get_fd());
+                core::logger::debug("io/send", "fd {} rescheduled", m_worker.get().get_fd());
                 shared::this_handler::shedule();
             }
         };
@@ -59,26 +55,24 @@ class Sender : public shared::HandlerBase {
 
     shared::ReleaseFunction on_released() noexcept override {
         return [this]() noexcept {
-            core::logger::debug("Sender", "FD `{}` on_released is being executed", m_worker.get().get_fd());
         };
     }
 
     shared::ErrorHandler on_error() override {
         return [this](std::exception_ptr eptr) {
-            core::logger::debug("Sender", "FD `{}` on_error is being executed", m_worker.get().get_fd());
             if (!eptr)
                 return;
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
-                core::logger::warning("Sender", "FD `{}` system_error: {} (code: {})", m_worker.get().get_fd(),
+                core::logger::warning("io/send", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
                                       e.what(), e.code().value());
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
-                core::logger::warning("Sender", "FD `{}` exception: {}", m_worker.get().get_fd(), e.what());
+                core::logger::warning("io/send", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
-                core::logger::warning("Sender", "FD `{}` unknown exception", m_worker.get().get_fd());
+                core::logger::warning("io/send", "fd {} unknown exception", m_worker.get().get_fd());
                 m_on_error(m_worker.get().get_fd(), -1);
             }
         };
@@ -89,8 +83,6 @@ class Sender : public shared::HandlerBase {
     }
 
     bool resume() {
-        core::logger::debug("Sender", "FD `{}` is being executed in resume with stalled = `{}` and closed = `{}`",
-                            m_worker.get().get_fd(), m_stalled, m_closed);
         if (m_closed) {
             return false;
         }
@@ -102,8 +94,6 @@ class Sender : public shared::HandlerBase {
     }
 
     void set_closed() noexcept {
-        core::logger::debug("Sender", "FD `{}` is being marked as closed and so is the Sender too",
-                            m_worker.get().get_fd());
         m_closed = true;
     }
 
@@ -114,8 +104,9 @@ class Sender : public shared::HandlerBase {
 
   private:
     void arm_write() {
+        const auto fd = m_worker.get().get_fd();
         if (m_closed) {
-            core::logger::warning("Sender", "Attempted to write on closed socket `{}`", m_worker.get().get_fd());
+            core::logger::warning("io/send", "fd {} write on closed", fd);
             m_stalled = false;
             return;
         }
@@ -124,35 +115,32 @@ class Sender : public shared::HandlerBase {
         auto [data, size] = view.front();
 
         if ((data == nullptr) || size == 0) {
-            core::logger::info("Sender", "FD `{}` has no data to send", m_worker.get().get_fd());
             m_stalled = false;
             return;
         }
 
-        core::logger::debug("Sender", "FD `{}` attempting to send {} bytes", m_worker.get().get_fd(), size);
+        core::logger::debug("io/send", "fd {} tx attempt {} bytes", fd, size);
 
         auto [result, status] = m_worker.get().sync_send(data, size);
 
         switch (status.get_status()) {
         case socket::VALUES::VALID: {
-            core::logger::info("Sender", "FD `{}` send {} bytes ", m_worker.get().get_fd(), result);
+            core::logger::debug("io/send", "fd {} tx {} bytes", fd, result);
             view.consume(result);
             m_stalled = false;
             return;
         }
         case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED: {
-            core::logger::info("Sender", "FD `{}` send would have blocked, you need to retry when writable",
-                               m_worker.get().get_fd());
+            core::logger::debug("io/send", "fd {} would block, reschedule", fd);
             m_stalled = false;
             return;
         }
         case socket::VALUES::ERRORED:
         case socket::VALUES::CLEANLY_DISCONNECTED:
         case socket::VALUES::TIMED_OUT:
-            core::logger::warning("Sender", "FD `{}` send operation failed with error `{}`", m_worker.get().get_fd(),
-                                  result);
+            core::logger::warning("io/send", "fd {} send error: {}", fd, result);
             m_closed = true;
-            m_on_error(m_worker.get().get_fd(), status.get_value());
+            m_on_error(fd, status.get_value());
             return;
         }
     }

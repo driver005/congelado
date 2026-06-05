@@ -87,7 +87,7 @@ typedef struct CongeladoConfigView {
     }                                                                                                     \
     extern "C" void congelado_logger_write_error(const char *msg, size_t len) noexcept {                 \
         if (s_plugin != nullptr)                                                                          \
-            s_plugin->logger_write(3, std::string_view{msg, len});                                       \
+            s_plugin->logger_write(4, std::string_view{msg, len});                                       \
     }                                                                                                     \
     extern "C" void *congelado_protocol_get() noexcept {                                                 \
         return s_plugin != nullptr ? s_plugin->protocol_get() : nullptr;                                 \
@@ -114,5 +114,20 @@ typedef struct CongeladoConfigView {
     extern "C" std::size_t congelado_requires_count() noexcept {                                         \
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \
         return s_plugin->get_requires().size();                                                           \
+    }                                                                                                     \
+    extern "C" const char *const *congelado_load_before_types() noexcept {                               \
+        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
+        static std::vector<const char *> s_cache;       /* NOLINT */                                     \
+        static bool s_cache_built = false;              /* NOLINT */                                     \
+        if (!s_cache_built) {                                                                             \
+            for (auto sv : s_plugin->get_load_before_types())                                            \
+                s_cache.push_back(sv.data());                                                             \
+            s_cache_built = true;                                                                         \
+        }                                                                                                 \
+        return s_cache.data();                                                                            \
+    }                                                                                                     \
+    extern "C" std::size_t congelado_load_before_types_count() noexcept {                                \
+        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
+        return s_plugin->get_load_before_types().size();                                                  \
     }
 // NOLINTEND

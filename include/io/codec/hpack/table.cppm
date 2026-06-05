@@ -30,7 +30,7 @@ inline const std::array<std::shared_ptr<shared::http::HeaderField<true>>, 61> ST
     /* 19 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ACCESS_CONTROL_ALLOW_ORIGIN, ""),
     /* 20 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AGE, ""),
     /* 21 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::ALLOW, ""),
-    /* 22 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AUTHORITY, ""),
+    /* 22 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::AUTHORIZATION, ""),
     /* 23 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CACHE_CONTROL, ""),
     /* 24 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_DISPOSITION, ""),
     /* 25 */ std::make_shared<shared::http::HeaderField<true>>(shared::http::Token::CONTENT_ENCODING, ""),
@@ -110,7 +110,7 @@ class HPackTable {
 
         if (auto result = m_dyn.search_full_match<shared_codec::IndexCalculation::H_PACK>(name, value);
             result.found()) {
-            return result;
+            return shared_codec::SearchResult{result.index() + HPackStatic::STATIC_SIZE + 1, true, true};
         }
 
         if (auto result = HPackStatic::search_name_only<shared_codec::IndexCalculation::H_PACK>(name); result.found()) {
@@ -118,7 +118,7 @@ class HPackTable {
         }
 
         if (auto result = m_dyn.search_name_only<shared_codec::IndexCalculation::H_PACK>(name); result.found()) {
-            return result;
+            return shared_codec::SearchResult{result.index() + HPackStatic::STATIC_SIZE + 1, true, false};
         }
 
         return shared_codec::SearchResult::none();

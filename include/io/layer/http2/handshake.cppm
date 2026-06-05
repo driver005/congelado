@@ -19,11 +19,10 @@ class Handshake {
   public:
     Handshake(Settings &settings, shared::SendCallback submiter)
         : m_local_settings{settings}, m_submiter{std::move(submiter)}, m_sent_settings{false} {
-        core::logger::debug("Handshake - HTTP/2", "Created with local settings and send callback");
     }
 
     HandshakeState process(utils::buffering::BufferReader &view) {
-        core::logger::info("Handshake - HTTP/2", "Processing handshake with data of size `{}`", view.size());
+        core::logger::debug("http2/handshake", "process size={}", view.size());
         if constexpr (IsServer) {
             send_handshake();
 
@@ -39,32 +38,30 @@ class Handshake {
     HandshakeState is_valid_preface(utils::buffering::BufferReader &view) const {
         const auto &preface = HTTP2_CONNECTION_PREFACE;
         if (view.size() < preface.size()) {
-            core::logger::info("Handshake - HTTP/2",
-                               "Received data size `{}` is smaller than preface size `{}`, awaiting more data",
-                               view.size(), preface.size());
+            core::logger::debug("http2/handshake", "awaiting preface rx={} need={}", view.size(), preface.size());
 
             return HandshakeState::AWAITING_PREFACE;
         }
 
         if (std::ranges::equal(preface, view | std::views::take(preface.size()))) {
-            core::logger::info("Handshake - HTTP/2", "Received valid preface");
+            core::logger::debug("http2/handshake", "valid preface");
 
             view.consume(preface.size());
             return HandshakeState::COMPLETED;
         }
 
-        core::logger::warning("Handshake - HTTP/2", "Received invalid preface");
+        core::logger::warning("http2/handshake", "invalid preface");
         return HandshakeState::PREFACE_ERROR;
     }
 
     void send_handshake() {
         if (m_sent_settings) {
-            core::logger::debug("Handshake - HTTP/2", "Settings frame already sent, skipping handshake send");
+            core::logger::debug("http2/handshake", "settings already sent");
 
             return;
         }
 
-        core::logger::info("Handshake - HTTP/2", "Sending handshake settings frame");
+        core::logger::debug("http2/handshake", "send settings");
 
         auto payload = std::views::empty<std::byte> | WriteSettingsAdaptor{m_local_settings.get()} |
                        std::ranges::to<std::vector<std::byte>>();

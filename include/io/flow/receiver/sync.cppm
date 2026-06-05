@@ -15,25 +15,20 @@ class Receiver : public shared::HandlerBase {
   public:
     Receiver(Worker &worker)
         : m_worker{worker}, m_pool{}, m_on_read{nullptr}, m_on_error{nullptr}, m_stalled{false}, m_closed{true} {
-        core::logger::debug("Receiver", "Created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Receiver(Worker &worker, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_read{nullptr}, m_on_error{std::move(on_error)}, m_stalled{false},
           m_closed{false} {
-        core::logger::debug("Receiver", "Created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Receiver(Worker &worker, shared::ReadCallback on_read, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_read{std::move(on_read)}, m_on_error{std::move(on_error)}, m_stalled{false},
           m_closed{false} {
-        core::logger::debug("Receiver", "Created for worker with FD `{}`", m_worker.get().get_fd());
         build();
     }
 
-    ~Receiver() {
-        core::logger::debug("Receiver", "Destructor called for worker with FD `{}`", m_worker.get().get_fd());
-    }
+    ~Receiver() = default;
 
     Receiver(const Receiver &) = delete;
     Receiver &operator=(const Receiver &) = delete;
@@ -57,9 +52,8 @@ class Receiver : public shared::HandlerBase {
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            core::logger::debug("Receiver", "FD `{}` on_execute is being executed", m_worker.get().get_fd());
             if (resume()) {
-                core::logger::info("Receiver", "FD `{}` rescheduled", m_worker.get().get_fd());
+                core::logger::debug("io/recv", "fd {} rescheduled", m_worker.get().get_fd());
                 shared::this_handler::shedule();
             }
         };
@@ -67,34 +61,30 @@ class Receiver : public shared::HandlerBase {
 
     shared::ReleaseFunction on_released() noexcept override {
         return [this]() noexcept {
-            core::logger::debug("Receiver", "FD `{}` on_released is being executed", m_worker.get().get_fd());
         };
     }
 
     shared::ErrorHandler on_error() override {
         return [this](std::exception_ptr eptr) {
-            core::logger::debug("Receiver", "FD `{}` on_error is being executed", m_worker.get().get_fd());
             if (!eptr)
                 return;
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
-                core::logger::warning("Receiver", "FD `{}` system_error: {} (code: {})", m_worker.get().get_fd(),
+                core::logger::warning("io/recv", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
                                       e.what(), e.code().value());
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
-                core::logger::warning("Receiver", "FD `{}` exception: {}", m_worker.get().get_fd(), e.what());
+                core::logger::warning("io/recv", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
-                core::logger::warning("Receiver", "FD `{}` unknown exception", m_worker.get().get_fd());
+                core::logger::warning("io/recv", "fd {} unknown exception", m_worker.get().get_fd());
                 m_on_error(m_worker.get().get_fd(), -1);
             }
         };
     }
 
     bool resume() {
-        core::logger::debug("Receiver", "FD `{}` is being executed in resume with stalled = `{}` and closed = `{}`",
-                            m_worker.get().get_fd(), m_stalled, m_closed);
         if (m_closed) {
             return false;
         }
@@ -106,8 +96,6 @@ class Receiver : public shared::HandlerBase {
     }
 
     void set_closed() noexcept {
-        core::logger::debug("Receiver", "FD `{}` is being marked as closed and so is the Receiver too",
-                            m_worker.get().get_fd());
         m_closed = true;
     }
 
@@ -116,8 +104,9 @@ class Receiver : public shared::HandlerBase {
 
   private:
     void arm_read() {
+        const auto fd = m_worker.get().get_fd();
         if (m_closed) {
-            core::logger::warning("Receiver", "Attempted to read on closed socket `{}`", m_worker.get().get_fd());
+            core::logger::warning("io/recv", "fd {} read on closed", fd);
             m_stalled = false;
             return;
         }
@@ -131,7 +120,7 @@ class Receiver : public shared::HandlerBase {
         case socket::VALUES::VALID: {
             const auto bytes = static_cast<std::size_t>(result);
 
-            core::logger::info("Receiver", "FD `{}` read {} bytes", m_worker.get().get_fd(), bytes);
+            core::logger::debug("io/recv", "fd {} rx {} bytes", fd, bytes);
 
             m_pool.notify_read(slot, bytes);
             m_on_read(m_pool.get_view());
@@ -139,17 +128,15 @@ class Receiver : public shared::HandlerBase {
             return;
         }
         case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED:
-            core::logger::warning("Receiver", "FD `{}` read operation would have blocked, no data available",
-                                  m_worker.get().get_fd());
+            core::logger::debug("io/recv", "fd {} would block", fd);
             m_stalled = false;
             return;
         case socket::VALUES::ERRORED:
         case socket::VALUES::CLEANLY_DISCONNECTED:
         case socket::VALUES::TIMED_OUT: {
-            core::logger::warning("Receiver", "FD `{}` read operation failed with error `{}`", m_worker.get().get_fd(),
-                                  result);
+            core::logger::warning("io/recv", "fd {} read error: {}", fd, result);
             m_closed = true;
-            m_on_error(m_worker.get().get_fd(), status.get_value());
+            m_on_error(fd, status.get_value());
             return;
         }
         }

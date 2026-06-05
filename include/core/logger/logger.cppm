@@ -54,6 +54,12 @@ void debug(std::string_view name, std::format_string<Args...> fmt, Args &&...arg
 
 template <typename... Args>
     requires(std::formattable<Args, char> && ...)
+void important(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+    log(interfaces::LogLevel::Important, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+}
+
+template <typename... Args>
+    requires(std::formattable<Args, char> && ...)
 void warning(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(interfaces::LogLevel::Warning, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
 }
@@ -84,6 +90,12 @@ template <typename... Args>
     requires(std::formattable<Args, char> && ...)
 void debug(std::format_string<Args...> fmt, Args &&...args) noexcept {
     log(interfaces::LogLevel::Debug, fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+    requires(std::formattable<Args, char> && ...)
+void important(std::format_string<Args...> fmt, Args &&...args) noexcept {
+    log(interfaces::LogLevel::Important, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>

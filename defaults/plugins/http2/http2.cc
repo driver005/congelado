@@ -13,6 +13,7 @@ import core_contract;
 import io_base_flow;
 import io_base_socket;
 import io_base_leverage;
+import core_logger;
 
 namespace {
 
@@ -60,13 +61,12 @@ class Http2Plugin final : public congelado::Plugin {
         auto *leverager     = host.leverager_ctx<io::base::leverage::Leverager<io::base::leverage::Context>>();
 
         if (contract_group == nullptr || leverager == nullptr) {
-            std::println(stderr,
-                         "[http2] no contract group or leverager provided — server will not start");
+            core::logger::error("http2", "no contract group or leverager");
             return;
         }
 
-        std::println("[http2] starting server on {}:{}", m_protocol->get_bind_host(),
-                     m_protocol->get_bind_port());
+        core::logger::important("http2", "listening on {}:{}", m_protocol->get_bind_host(),
+                                m_protocol->get_bind_port());
 
         m_socket_flow.emplace(io::base::socket::Endpoint{std::string{m_protocol->get_bind_host()},
                                                          m_protocol->get_bind_port()},

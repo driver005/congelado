@@ -176,7 +176,7 @@ class RouteHandler {
                          current.get_handler_offset(), current.get_middleware_offset(),
                          current.get_handler_mask());
 
-            if (current.get_children_length() == 0) {
+            if (it == end) {
                 if (current.get_handler_mask() != HANDLER_MASK) {
                     const auto handler_fn = m_handler.find(current.get_handler_offset(),
                                                            current.get_handler_mask(), method);

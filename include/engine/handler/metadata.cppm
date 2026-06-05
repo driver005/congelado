@@ -5,6 +5,7 @@ import interfaces;
 import model;
 import shared;
 import serde;
+import core_logger;
 import :context;
 
 export namespace engine {
@@ -22,32 +23,20 @@ class MetadataHandler {
                                interfaces::IResponse<Protocol> &res) noexcept {
         auto accept = req.find_header("accept");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_raw(accept, "[]"));
-            return;
-        }
-
-        m_ctx.get().get_task_def_connector().find_all(
+        m_ctx.get().get_connector().find_all<model::TaskDef>(
             [&](std::vector<model::TaskDef> tasks) noexcept {
                 reply(res, serde::Ser::serialize(accept, tasks));
             });
-        m_ctx.get().get_task_def_connector().flush();
     }
 
     void list_workflow_definitions(interfaces::IRequest<Protocol> &req,
                                    interfaces::IResponse<Protocol> &res) noexcept {
         auto accept = req.find_header("accept");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_raw(accept, "[]"));
-            return;
-        }
-
-        m_ctx.get().get_workflow_def_connector().find_all(
+        m_ctx.get().get_connector().find_all<model::WorkflowDef>(
             [&](std::vector<model::WorkflowDef> defs) noexcept {
                 reply(res, serde::Ser::serialize(accept, defs));
             });
-        m_ctx.get().get_workflow_def_connector().flush();
     }
 
     void health_check(interfaces::IRequest<Protocol> &req,
@@ -81,6 +70,7 @@ class MetadataHandler {
             return;
         }
 
+        core::logger::warning("engine", "health: no db or cache");
         reply(res, serde::Ser::serialize_raw(accept, k_bare));
     }
 

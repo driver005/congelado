@@ -17,7 +17,6 @@ class Node {
     using ChildType = std::conditional_t<IsRouter, Node<false>, std::monostate>;
 
     Node() noexcept : m_value{0} {
-        core::logger::debug("SignalTree - Node", "Created a new `{}` node", IsRouter ? "Router" : "Branch");
         if constexpr (IsRouter) {
             m_children.reserve(8);
             for (int i = 0; i < 8; ++i) {
@@ -60,8 +59,7 @@ class Node {
 
                 if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
                                                   std::memory_order_acquire)) {
-                    core::logger::debug("SignalTree - Node", "Scheduled local ID `{}` from branch `{}`", local_id,
-                                        branch_idx);
+                    core::logger::debug("core/signal_tree", "scheduled {} from branch {}", local_id, branch_idx);
                     break;
                 }
             }
@@ -69,7 +67,7 @@ class Node {
         } else {
             const std::uint8_t bit = static_cast<std::uint8_t>(local_id & 0x3F);
             m_value.fetch_or(1ULL << bit, std::memory_order_release);
-            core::logger::debug("SignalTree - Node", "Scheduled local ID `{}` by setting bit `{}`", local_id, bit);
+            core::logger::debug("core/signal_tree", "scheduled {} at bit {}", local_id, bit);
         }
     }
 
@@ -91,15 +89,14 @@ class Node {
 
                 if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
                                                   std::memory_order_acquire)) {
-                    core::logger::debug("SignalTree - Node", "Descheduled local ID `{}` from branch `{}`", local_id,
-                                        branch_idx);
+                    core::logger::debug("core/signal_tree", "descheduled {} from branch {}", local_id, branch_idx);
                     break;
                 }
             }
         } else {
             const std::uint8_t bit = static_cast<std::uint8_t>(local_id & 0x3F);
             m_value.fetch_and(~(1ULL << bit), std::memory_order_release);
-            core::logger::debug("SignalTree - Node", "Descheduled local ID `{}` by clearing bit `{}`", local_id, bit);
+            core::logger::debug("core/signal_tree", "descheduled {} at bit {}", local_id, bit);
         }
     }
 
@@ -141,7 +138,7 @@ class Node {
             const std::uint8_t BIT_IDX = (start + offset) & 0x3F;
             bias = (bias & ~0x3FULL) | static_cast<std::uint64_t>((BIT_IDX + 1) & 0x3F);
 
-            core::logger::debug("SignalTree - Node", "Found ready bit `{}`", BIT_IDX);
+            core::logger::debug("core/signal_tree", "ready bit {}", BIT_IDX);
             return (accumulator << 6) | BIT_IDX;
         }
 
@@ -245,7 +242,7 @@ class SignalTree {
             }
             if (m_next_id.compare_exchange_weak(current, current + 1u, std::memory_order_relaxed,
                                                 std::memory_order_relaxed)) {
-                core::logger::debug("SignalTree", "Worker ID `{}` will be used", current);
+                core::logger::debug("core/signal_tree", "worker {} selected", current);
                 return current;
             }
         }
@@ -257,13 +254,13 @@ class SignalTree {
         for (std::size_t i = 0; i < num_routers; ++i) {
             const std::size_t idx = prefer_right ? (num_routers - 1 - i) : i;
             if (auto result = m_routers[idx].select_child_index(bias, idx, BIAS_FLAG >> 1)) {
-                core::logger::debug("SignalTree", "Next ready worker ID is `{}` with bias `{}`", *result, bias);
+                core::logger::debug("core/signal_tree", "next worker {} bias {}", *result, bias);
                 bias ^= BIAS_FLAG;
                 return result;
             }
         }
 
-        core::logger::debug("SignalTree", "No ready worker found with bias `{}`", bias);
+        core::logger::debug("core/signal_tree", "no ready worker, bias {}", bias);
         return std::nullopt;
     }
 

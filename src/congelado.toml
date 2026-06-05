@@ -10,18 +10,22 @@
 # Integer fields (port, threads) are stored and forwarded as strings internally.
 
 [plugins.http2]
-type    = "protocol"
-host    = "localhost"
-port    = 8080
+type = "protocol"
+host = "localhost"
+port = 8080
 threads = 4
-cert    = "server.crt"
-key     = "server.key"
+cert = "server.crt"
+key = "server.key"
 
 # ── External plugins (loaded via dlopen) ──────────────────────────────────────
 # Each section is matched to lib<name>.so in the same directory as the binary.
 # Logger is just a plugin — add any fields your logger plugin needs here.
 
 [plugins.file_logger]
-type  = "logger"
-file  = "congelado.log"
-level = "info"
+type = "logger"
+file = "congelado.log"
+level = "debug"
+stdout_level = "debug"
+
+[plugins.engine]
+type = "custom"
