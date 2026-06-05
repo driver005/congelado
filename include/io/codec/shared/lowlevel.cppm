@@ -190,7 +190,7 @@ class DecodeIntAdaptor
         auto sub_range = all | std::views::drop(consumed);
 
         auto terminal_it = std::ranges::find_if(sub_range, [&](auto byte) {
-            const std::size_t SHIFT = consumed * 7U;
+            const std::size_t SHIFT = (consumed - 1) * 7U;
 
             // Guard against bit-shift overflow (e.g., shifting by 32+ on a uint32_t)
             if (SHIFT >= std::numeric_limits<UInt>::digits) {

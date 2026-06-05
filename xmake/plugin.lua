@@ -11,6 +11,7 @@ for _, file in ipairs(os.files(path.join(os.projectdir(), "defaults/plugins/**/*
 	add_includedirs("$(projectdir)/include")
 	add_deps("congelado_lib")
 	add_packages("sqlgen")
+	add_rpathdirs("$ORIGIN")
 	if is_plat("linux", "macosx") then
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 	end

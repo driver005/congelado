@@ -34,7 +34,7 @@ local conan = {
 		"compiler=clang",
 		"compiler.version=20",
 		"compiler.cppstd=gnu26",
-		"compiler.libcxx=libc++",
+		"compiler.libcxx=libstdc++11",
 	},
 	options = {
 		"openssl/*:enable_quic=True",
@@ -65,7 +65,7 @@ else
 		"compiler=clang",
 		"compiler.version=20",
 		"compiler.cppstd=gnu26",
-		"compiler.libcxx=libc++",
+		"compiler.libcxx=libstdc++11",
 	}
 
 	conan.conf = {
@@ -97,6 +97,7 @@ add_requires("conan::reflect-cpp/0.23.0", {
 			"reflect-cpp/*:toml=True",
 			"reflect-cpp/*:msgpack=True",
 			"reflect-cpp/*:xml=True",
+			"reflect-cpp/*:json=True",
 		},
 	},
 })
@@ -135,8 +136,7 @@ if is_arch("x86_64") then
 end
 
 target("congelado_lib")
-set_policy("build.sanitizer.address", true)
-set_kind("static")
+set_kind("shared")
 add_cxflags("-fPIC")
 
 if is_plat("windows", "mingw") then
@@ -145,7 +145,7 @@ if is_plat("windows", "mingw") then
 	add_cxflags("--target=x86_64-w64-mingw32")
 	add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
 else
-	add_links("uring", "pthread", "dl", "ssl", "crypto")
+	add_links("c++", "uring", "pthread", "dl", "ssl", "crypto")
 end
 
 add_defines("CLANG_ITERATE_MODULES")
@@ -196,12 +196,13 @@ add_packages(
 includes("xmake/plugin.lua")
 includes("xmake/worker.lua")
 
-
 target("congelado")
 set_kind("binary")
+set_policy("build.sanitizer.address", true)
 add_files("src/main.cc")
 add_deps("congelado_lib")
 add_packages("fmt", "simdjson")
+add_rpathdirs("$ORIGIN")
 target_end()
 
 -- target("model_test")

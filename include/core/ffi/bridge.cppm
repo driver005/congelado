@@ -91,6 +91,12 @@ struct PluginSymbols {
     UniqueTypeFn    unique_type{nullptr};
     RequiresFn      requires_get{nullptr};
     RequiresCountFn requires_count{nullptr};
+
+    using LoadBeforeTypesFn      = const char *const *(*)() noexcept;
+    using LoadBeforeTypesCountFn = std::size_t (*)() noexcept;
+
+    LoadBeforeTypesFn      load_before_types_get{nullptr};
+    LoadBeforeTypesCountFn load_before_types_count{nullptr};
 };
 
 } // namespace core::ffi
@@ -202,8 +208,9 @@ class FfiBridge : public shared::HandlerBase,
 
     [[nodiscard]] std::string_view get_name() const noexcept override { return m_lib_name; }
 
-    [[nodiscard]] std::string_view             get_unique_type() const noexcept { return m_unique_type; }
-    [[nodiscard]] std::span<const std::string> get_requires()    const noexcept { return m_requires; }
+    [[nodiscard]] std::string_view             get_unique_type()        const noexcept { return m_unique_type; }
+    [[nodiscard]] std::span<const std::string> get_requires()           const noexcept { return m_requires; }
+    [[nodiscard]] std::span<const std::string> get_load_before_types()  const noexcept { return m_load_before_types; }
 
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
         if (m_syms.logger_write == nullptr)
@@ -316,9 +323,11 @@ class FfiBridge : public shared::HandlerBase,
             probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
         m_syms.protocol_get = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
         m_syms.storage_get = probe<PluginSymbols::StorageGetFn>("congelado_storage_get");
-        m_syms.unique_type    = probe<PluginSymbols::UniqueTypeFn>("congelado_unique_type");
-        m_syms.requires_get   = probe<PluginSymbols::RequiresFn>("congelado_requires");
-        m_syms.requires_count = probe<PluginSymbols::RequiresCountFn>("congelado_requires_count");
+        m_syms.unique_type             = probe<PluginSymbols::UniqueTypeFn>("congelado_unique_type");
+        m_syms.requires_get            = probe<PluginSymbols::RequiresFn>("congelado_requires");
+        m_syms.requires_count          = probe<PluginSymbols::RequiresCountFn>("congelado_requires_count");
+        m_syms.load_before_types_get   = probe<PluginSymbols::LoadBeforeTypesFn>("congelado_load_before_types");
+        m_syms.load_before_types_count = probe<PluginSymbols::LoadBeforeTypesCountFn>("congelado_load_before_types_count");
         return {};
     }
 
@@ -364,7 +373,10 @@ class FfiBridge : public shared::HandlerBase,
     }
 
     void read_metadata() noexcept {
-        m_unique_type = (m_syms.unique_type != nullptr) ? std::string{m_syms.unique_type()} : "";
+        if (m_syms.unique_type != nullptr) {
+            const char *utype = m_syms.unique_type();
+            m_unique_type = (utype != nullptr) ? std::string{utype} : "";
+        }
 
         if (m_syms.requires_count != nullptr && m_syms.requires_get != nullptr) {
             const auto count = m_syms.requires_count();
@@ -372,7 +384,19 @@ class FfiBridge : public shared::HandlerBase,
             if (arr != nullptr) {
                 m_requires.reserve(count);
                 for (std::size_t i = 0; i < count; ++i)
-                    m_requires.emplace_back(arr[i]);
+                    if (arr[i] != nullptr)
+                        m_requires.emplace_back(arr[i]);
+            }
+        }
+
+        if (m_syms.load_before_types_count != nullptr && m_syms.load_before_types_get != nullptr) {
+            const auto count = m_syms.load_before_types_count();
+            const auto *arr  = m_syms.load_before_types_get();
+            if (arr != nullptr) {
+                m_load_before_types.reserve(count);
+                for (std::size_t i = 0; i < count; ++i)
+                    if (arr[i] != nullptr)
+                        m_load_before_types.emplace_back(arr[i]);
             }
         }
     }
@@ -384,6 +408,7 @@ class FfiBridge : public shared::HandlerBase,
     std::string m_lib_name;
     std::string              m_unique_type;
     std::vector<std::string> m_requires;
+    std::vector<std::string> m_load_before_types;
     std::uint32_t m_caps{0};
     std::shared_ptr<interfaces::IProtocol> m_protocol;
     std::shared_ptr<interfaces::IDatabase> m_storage;

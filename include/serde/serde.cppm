@@ -27,8 +27,7 @@ class SerBase {
 
   public:
     template <ISerializable T>
-    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view accept,
-                                                          const T &value) {
+    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view accept, const T &value) {
         std::string encoded;
         if (!((Fmts::content_type == accept && (encoded = Fmts::encode(value), true)) || ...))
             encoded = Json::encode(value);
@@ -50,13 +49,21 @@ class SerBase {
         return to_bytes(encoded);
     }
 
+    template <typename T>
+        requires(!ISerializable<T>)
+    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view accept, const T &value) {
+        std::string encoded;
+        if (!((Fmts::content_type == accept && (encoded = Fmts::encode(value), true)) || ...))
+            encoded = Json::encode(value);
+        return to_bytes(encoded);
+    }
+
     template <ISerializable T>
     [[nodiscard]] static std::expected<T, std::string> deserialize(std::string_view content_type,
                                                                    std::string_view data) {
         std::expected<T, std::string> result =
             std::unexpected{std::string{"unsupported content-type"}};
-        ((Fmts::content_type == content_type &&
-          (result = Fmts::template decode<T>(data), true)) ||
+        ((Fmts::content_type == content_type && (result = Fmts::template decode<T>(data), true)) ||
          ...);
         return result;
     }

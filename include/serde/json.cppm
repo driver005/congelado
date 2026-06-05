@@ -18,6 +18,12 @@ class Json {
         return rfl::json::write(value);
     }
 
+    template <typename T>
+        requires(!ISerializable<T>)
+    [[nodiscard]] static std::string encode(const T &value) {
+        return rfl::json::write(value);
+    }
+
     template <ISerializable T>
     [[nodiscard]] static std::expected<T, std::string> decode(std::string_view data) {
         simdjson::ondemand::parser parser;

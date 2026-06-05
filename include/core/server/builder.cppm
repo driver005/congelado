@@ -79,12 +79,15 @@ class RouterContext {
         }
 
         for (const auto &row : table) {
+            std::size_t cumulative_children = 0;
             for (const auto &[index, node] : row | std::views::enumerate) {
                 std::size_t offset{0};
 
                 if (node.children > 0) {
-                    offset = row.size() - index;
+                    offset = row.size() - index + cumulative_children;
                 }
+
+                cumulative_children += node.children;
 
                 handler.add_route(node.kind, node.literal, offset, node.handlers, node.middlewares,
                                   node.children);
@@ -183,7 +186,7 @@ class RouterContext {
             table[new_idx].push_back(RouterBuildingHelper{
                 kind,
                 std::string{literal},
-                {},
+                route.get_handlers(),
                 route.get_middlewares(),
                 route.get_child_routes(),
                 route.get_router_number(),
@@ -273,42 +276,41 @@ class Route {
         (m_local_middleware.add_middleware(std::forward<Args>(middlewares)), ...);
     }
 
-    [[nodiscard]] constexpr Route<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
+    constexpr Route<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
         m_local_middleware.add_middleware(std::move(mw));
         return std::move(*this);
     }
 
-    [[nodiscard]] Route<Derived> get(interfaces::HandlerFn<Derived> handler) {
+    Route<Derived> get(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::GET, std::move(handler));
     }
 
 
-    [[nodiscard]] Route<Derived> post(interfaces::HandlerFn<Derived> handler) {
+    Route<Derived> post(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::POST, std::move(handler));
     }
 
-    [[nodiscard]] Route<Derived> put(interfaces::HandlerFn<Derived> handler) {
+    Route<Derived> put(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::PUT, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> patch(interfaces::HandlerFn<Derived> handler) {
+    constexpr Route<Derived> patch(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::PATCH, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> delt(interfaces::HandlerFn<Derived> handler) {
+    constexpr Route<Derived> delt(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::DELETE, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> head(interfaces::HandlerFn<Derived> handler) {
+    constexpr Route<Derived> head(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::HEAD, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> options(interfaces::HandlerFn<Derived> handler) {
+    constexpr Route<Derived> options(interfaces::HandlerFn<Derived> handler) {
         return add_handler(Method::OPTIONS, std::move(handler));
     }
 
-    [[nodiscard]] constexpr Route<Derived> add_handler(Method method,
-                                                       interfaces::HandlerFn<Derived> handler) {
+    constexpr Route<Derived> add_handler(Method method, interfaces::HandlerFn<Derived> handler) {
         auto handler_fnc = m_handler.find(method);
         if (!handler_fnc) {
             m_handler.add_handler(method, std::move(handler));
@@ -325,18 +327,26 @@ class Route {
         }
     }
 
-    [[nodiscard]] constexpr Route<Derived> set_base_router(std::size_t router_number) && {
+    void add_handler_in_place(Method method, interfaces::HandlerFn<Derived> handler) {
+        if (m_handler.find(method)) {
+            throw std::runtime_error(std::format("Handler for method {} already exists on path {}",
+                                                 std::to_underlying(method), m_path));
+        }
+        m_handler.add_handler(method, std::move(handler));
+    }
+
+    constexpr Route<Derived> set_base_router(std::size_t router_number) && {
         m_base_router = router_number;
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Route<Derived> set_router_number(std::size_t router_number) && {
+    constexpr Route<Derived> set_router_number(std::size_t router_number) && {
         m_router_number = router_number;
         return std::move(*this);
     }
 
-    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> mw) {
-        m_local_middleware.add_middleware(std::move(mw));
+    constexpr void add_middleware(interfaces::MiddlewareFn<Derived> middleware) {
+        m_local_middleware.add_middleware(std::move(middleware));
     }
 
     constexpr std::string_view get_path() const noexcept { return m_path; }
@@ -392,19 +402,44 @@ class Router {
                   m_router_number))} {}
 
 
-    [[nodiscard]] constexpr Router<Derived> use(interfaces::MiddlewareFn<Derived> mw) && {
-        m_ctx.get()[m_router_index].add_middleware(std::move(mw));
+    constexpr Router<Derived> use(interfaces::MiddlewareFn<Derived> middleware) && {
+        m_ctx.get()[m_router_index].add_middleware(std::move(middleware));
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Router<Derived> add_router(Router<Derived> sub) && {
+    Router<Derived> get(interfaces::HandlerFn<Derived> handler) && {
+        m_ctx.get()[m_router_index].add_handler_in_place(Method::GET, std::move(handler));
+        return std::move(*this);
+    }
+
+    Router<Derived> post(interfaces::HandlerFn<Derived> handler) && {
+        m_ctx.get()[m_router_index].add_handler_in_place(Method::POST, std::move(handler));
+        return std::move(*this);
+    }
+
+    Router<Derived> put(interfaces::HandlerFn<Derived> handler) && {
+        m_ctx.get()[m_router_index].add_handler_in_place(Method::PUT, std::move(handler));
+        return std::move(*this);
+    }
+
+    Router<Derived> delt(interfaces::HandlerFn<Derived> handler) && {
+        m_ctx.get()[m_router_index].add_handler_in_place(Method::DELETE, std::move(handler));
+        return std::move(*this);
+    }
+
+    Router<Derived> patch(interfaces::HandlerFn<Derived> handler) && {
+        m_ctx.get()[m_router_index].add_handler_in_place(Method::PATCH, std::move(handler));
+        return std::move(*this);
+    }
+
+    constexpr Router<Derived> add_router(Router<Derived> sub) && {
         m_ctx.get()[sub.get_router_index()].update_base_router(m_router_number);
         m_ctx.get().decrement_base_router_children();
         m_ctx.get()[m_router_index].increment_child_routes();
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr Router<Derived> add_route(Route<Derived> sub) && {
+    constexpr Router<Derived> add_route(Route<Derived> sub) && {
         sub.update_base_router(m_router_number);
         m_ctx.get().add_route(std::move(sub));
         m_ctx.get()[m_router_index].increment_child_routes();
@@ -412,8 +447,10 @@ class Router {
     }
 
 
-    constexpr std::size_t get_router_number() const noexcept { return m_router_number; }
-    constexpr std::size_t get_router_index() const noexcept { return m_router_index; }
+    [[nodiscard]] constexpr std::size_t get_router_number() const noexcept {
+        return m_router_number;
+    }
+    [[nodiscard]] constexpr std::size_t get_router_index() const noexcept { return m_router_index; }
 
   private:
     std::reference_wrapper<RouterContext<Derived>> m_ctx;

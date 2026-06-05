@@ -1,6 +1,3 @@
-module;
-#include <rfl/json.hpp>
-
 export module engine:task;
 
 import std;
@@ -8,9 +5,8 @@ import interfaces;
 import model;
 import shared;
 import serde;
+import core_logger;
 import :context;
-
-// ─── TaskSubmitBody ───────────────────────────────────────────────────────────
 
 namespace engine {
 
@@ -67,13 +63,7 @@ class TaskHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        m_ctx.get().get_task_def_connector().find(
+        m_ctx.get().get_connector().find<model::TaskDef>(
             name, [&](std::optional<model::TaskDef> result) noexcept {
                 if (!result) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
@@ -82,7 +72,6 @@ class TaskHandler {
                 }
                 reply(res, serde::Ser::serialize(accept, *result));
             });
-        m_ctx.get().get_task_def_connector().flush();
     }
 
     void create_definition(interfaces::IRequest<Protocol> &req,
@@ -90,35 +79,32 @@ class TaskHandler {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<model::TaskDef>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, "invalid body"),
+            core::logger::warning("engine", "task/create bad request: {}", parsed.error());
+            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
                   interfaces::Status::BAD_REQUEST);
             return;
         }
 
-        if (auto v = parsed->validate(); !v) {
-            reply(res, serde::Ser::serialize_error(accept, v.error()),
+        if (auto validate = parsed->validate(); !validate) {
+            core::logger::warning("engine", "task/create invalid: {}", validate.error());
+            reply(res, serde::Ser::serialize_error(accept, validate.error()),
                   interfaces::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_task_def_connector().insert(*parsed, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().insert<model::TaskDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
+                core::logger::error("engine", "task/create db insert failed");
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
                 return;
             }
+            core::logger::info("engine", "task created: '{}'", parsed->get_name());
             reply(res, serde::Ser::serialize(accept, *parsed), interfaces::Status::CREATED);
         });
-        m_ctx.get().get_task_def_connector().flush();
     }
 
     void update_definition(interfaces::IRequest<Protocol> &req,
@@ -126,35 +112,32 @@ class TaskHandler {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<model::TaskDef>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, "invalid body"),
+            core::logger::warning("engine", "task/update bad request: {}", parsed.error());
+            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
                   interfaces::Status::BAD_REQUEST);
             return;
         }
 
-        if (auto v = parsed->validate(); !v) {
-            reply(res, serde::Ser::serialize_error(accept, v.error()),
+        if (auto validate = parsed->validate(); !validate) {
+            core::logger::warning("engine", "task/update invalid: {}", validate.error());
+            reply(res, serde::Ser::serialize_error(accept, validate.error()),
                   interfaces::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_task_def_connector().update(*parsed, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().update<model::TaskDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
+                core::logger::warning("engine", "task/update not found: '{}'",
+                                      parsed->get_name());
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
             }
             reply(res, serde::Ser::serialize(accept, *parsed));
         });
-        m_ctx.get().get_task_def_connector().flush();
     }
 
     void remove_definition(interfaces::IRequest<Protocol> &req,
@@ -163,21 +146,16 @@ class TaskHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        m_ctx.get().get_task_def_connector().remove(name, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().remove<model::TaskDef>(name, [&](bool oke) noexcept {
+            if (!oke) {
+                core::logger::warning("engine", "task/remove not found: '{}'", name);
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
             }
+            core::logger::info("engine", "task deleted: '{}'", name);
             res.set_status(interfaces::Status::NO_CONTENT);
         });
-        m_ctx.get().get_task_def_connector().flush();
     }
 
     void poll(interfaces::IRequest<Protocol> &req, interfaces::IResponse<Protocol> &res) noexcept {
@@ -185,44 +163,54 @@ class TaskHandler {
         auto target = req.get_target();
         auto worker_type = std::string{target.substr(target.rfind('/') + 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
+        auto options =
+            serde::QueryOptions{}
+                .add_join(
+                    "JOIN task_definitions ON task_instances.def_name = task_definitions.name")
+                .add_where(std::format(
+                    "task_instances.status = 'SCHEDULED' AND task_definitions.worker_type = '{}'",
+                    worker_type))
+                .add_order_by("task_instances.seq");
 
-        // Atomically claim the oldest SCHEDULED task for this worker_type.
-        // FOR UPDATE SKIP LOCKED prevents double-polling under concurrency.
-        auto sql = std::format("WITH claimed AS ("
-                               "UPDATE task_instances "
-                               "SET status = 'IN_PROGRESS' "
-                               "WHERE task_id = ("
-                               "SELECT ti.task_id FROM task_instances ti "
-                               "JOIN task_definitions td ON ti.def_name = td.name "
-                               "WHERE ti.status = 'SCHEDULED' AND td.worker_type = '{}' "
-                               "ORDER BY ti.seq ASC LIMIT 1 FOR UPDATE SKIP LOCKED"
-                               ") RETURNING *"
-                               ") SELECT row_to_json(claimed) FROM claimed",
-                               worker_type);
-
-        m_ctx.get().get_db()->query(sql, [&](std::string_view result) noexcept {
-            if (result.empty()) {
-                res.set_status(interfaces::Status::NO_CONTENT);
-                return;
-            }
-            auto v = serde::Json::decode<model::TaskInstance>(result);
-            if (!v) {
-                reply(res, serde::Ser::serialize_error(accept, "decode error"),
-                      interfaces::Status::INTERNAL_SERVER_ERROR);
-                return;
-            }
-            reply(res, serde::Ser::serialize(accept, *v));
-        });
+        m_ctx.get().get_connector().find_first<model::TaskInstance>(
+            std::move(options),
+            [this, worker_type](const model::TaskInstance &instance) noexcept {
+                if (instance.get_status() != model::TaskStatus::SCHEDULED) {
+                    return false;
+                }
+                bool worker_matches = false;
+                m_ctx.get().get_connector().find<model::TaskDef>(
+                    instance.get_def_name(),
+                    [&worker_type,
+                     &worker_matches](std::optional<model::TaskDef> definition) noexcept {
+                        worker_matches = definition && definition->get_worker_type() == worker_type;
+                    });
+                return worker_matches;
+            },
+            [](const model::TaskInstance &lhs, const model::TaskInstance &rhs) noexcept {
+                return lhs.get_seq() < rhs.get_seq();
+            },
+            [&, accept](std::optional<model::TaskInstance> found) mutable noexcept {
+                if (!found) {
+                    res.set_status(interfaces::Status::NO_CONTENT);
+                    return;
+                }
+                found->set_status(model::TaskStatus::IN_PROGRESS);
+                auto claimed = std::move(*found);
+                m_ctx.get().get_connector().update<model::TaskInstance>(
+                    claimed, [&res, accept, claimed](bool ok) mutable noexcept {
+                        if (!ok) {
+                            reply(res, serde::Ser::serialize_error(accept, "claim failed"),
+                                  interfaces::Status::INTERNAL_SERVER_ERROR);
+                            return;
+                        }
+                        reply(res, serde::Ser::serialize(accept, claimed));
+                    });
+            });
     }
 
     void submit_result(interfaces::IRequest<Protocol> &req,
                        interfaces::IResponse<Protocol> &res) noexcept {
-        // Path: /api/v1/tasks/:id/result — task_id is the segment before "result".
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
         auto target = req.get_target();
@@ -230,55 +218,52 @@ class TaskHandler {
         auto before = target.rfind('/', last > 0 ? last - 1 : 0);
         auto task_id = std::string{target.substr(before + 1, last - before - 1)};
 
-        if (!m_ctx.get().get_db()) {
-            reply(res, serde::Ser::serialize_error(accept, "service unavailable"),
-                  interfaces::Status::SERVICE_UNAVAILABLE);
-            return;
-        }
-
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<TaskSubmitBody>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, "invalid body"),
+            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
                   interfaces::Status::BAD_REQUEST);
             return;
         }
 
-        constexpr auto result_to_status = [](model::TaskResult r) noexcept -> std::string_view {
-            switch (r) {
-            case model::TaskResult::SUCCESS:
-                return "COMPLETED";
-            case model::TaskResult::FAILURE:
-                return "FAILED";
-            case model::TaskResult::TIMEOUT:
-                return "TIMED_OUT";
-            case model::TaskResult::SKIPPED:
-                return "SKIPPED";
-            }
-            return "FAILED";
-        };
+        m_ctx.get().get_connector().find<model::TaskInstance>(
+            task_id, [&, accept, submit = std::move(*parsed)](
+                         std::optional<model::TaskInstance> found) mutable noexcept {
+                if (!found) {
+                    reply(res, serde::Ser::serialize_error(accept, "not found"),
+                          interfaces::Status::NOT_FOUND);
+                    return;
+                }
 
-        // output_data goes to a JSONB column — always encode as JSON for the DB.
-        auto output_json = rfl::json::write(parsed->get_output_data());
-        auto sql = std::format("UPDATE task_instances "
-                               "SET status = '{}', output_data = '{}'::jsonb "
-                               "WHERE task_id = '{}' RETURNING row_to_json(task_instances.*)",
-                               result_to_status(parsed->get_result()), output_json, task_id);
+                constexpr auto to_status =
+                    [](model::TaskResult result) noexcept -> model::TaskStatus {
+                    switch (result) {
+                    case model::TaskResult::SUCCESS:
+                        return model::TaskStatus::COMPLETED;
+                    case model::TaskResult::FAILURE:
+                        return model::TaskStatus::FAILED;
+                    case model::TaskResult::TIMEOUT:
+                        return model::TaskStatus::TIMED_OUT;
+                    case model::TaskResult::SKIPPED:
+                        return model::TaskStatus::SKIPPED;
+                    }
+                    return model::TaskStatus::FAILED;
+                };
 
-        m_ctx.get().get_db()->query(sql, [&](std::string_view result) noexcept {
-            if (result.empty()) {
-                reply(res, serde::Ser::serialize_error(accept, "not found"),
-                      interfaces::Status::NOT_FOUND);
-                return;
-            }
-            auto v = serde::Json::decode<model::TaskInstance>(result);
-            if (!v) {
-                reply(res, serde::Ser::serialize_error(accept, "decode error"),
-                      interfaces::Status::INTERNAL_SERVER_ERROR);
-                return;
-            }
-            reply(res, serde::Ser::serialize(accept, *v));
-        });
+                found->set_status(to_status(submit.get_result()));
+                found->set_output_data(submit.get_output_data());
+                auto updated = std::move(*found);
+
+                m_ctx.get().get_connector().update<model::TaskInstance>(
+                    updated, [&res, accept, updated](bool ok) mutable noexcept {
+                        if (!ok) {
+                            reply(res, serde::Ser::serialize_error(accept, "not found"),
+                                  interfaces::Status::NOT_FOUND);
+                            return;
+                        }
+                        reply(res, serde::Ser::serialize(accept, updated));
+                    });
+            });
     }
 
   private:

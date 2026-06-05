@@ -18,6 +18,12 @@ class Toml {
         return rfl::toml::write(value);
     }
 
+    template <typename T>
+        requires(!ISerializable<T>)
+    [[nodiscard]] static std::string encode(const T &value) {
+        return rfl::toml::write(value);
+    }
+
     template <ISerializable T>
     [[nodiscard]] static std::expected<T, std::string> decode(std::string_view data) {
         toml::table tbl;

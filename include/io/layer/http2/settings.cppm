@@ -51,14 +51,13 @@ class Settings {
           m_initial_window_size{DEFAULT_INITIAL_WINDOW_SIZE}, m_max_frame_size{MIN_FRAME_SIZE},
           m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()}, m_state{SettingsState::UNACKNOWLEDGED},
           m_last_stream_id{MAX_CONNECTED_STREAMS}, m_delta_window_on_settings{0} {
-        core::logger::debug("Settings - HTTP/2",
-                            "Default constructor called with state `{}` and default values for all settings", m_state);
+        core::logger::debug("http2/settings", "init state={}", m_state);
     }
 
     void apply(std::uint16_t id, std::uint32_t value) {
         switch (id) {
         case 0x1: {
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_HEADER_TABLE_SIZE with value `{}`", value);
+            core::logger::debug("http2/settings", "HEADER_TABLE_SIZE={}", value);
             m_header_table_size = value;
             return;
         }
@@ -67,12 +66,12 @@ class Settings {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    "SETTINGS_ENABLE_PUSH must be 0 or 1"};
             }
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_ENABLE_PUSH with value `{}`", value);
+            core::logger::debug("http2/settings", "ENABLE_PUSH={}", value);
             m_enable_push = (value == 1);
             return;
         }
         case 0x3: {
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_CONCURRENT_STREAMS with value `{}`", value);
+            core::logger::debug("http2/settings", "MAX_CONCURRENT_STREAMS={}", value);
             m_max_concurrent_streams = value;
             return;
         }
@@ -81,7 +80,7 @@ class Settings {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
                                                    "SETTINGS_INITIAL_WINDOW_SIZE exceeds 2^31-1"};
             }
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_INITIAL_WINDOW_SIZE with value `{}`", value);
+            core::logger::debug("http2/settings", "INITIAL_WINDOW_SIZE={}", value);
             m_initial_window_size = value;
             return;
         }
@@ -90,12 +89,12 @@ class Settings {
                 throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
                                                    "SETTINGS_MAX_FRAME_SIZE must be in [16384, 2^24-1]"};
             }
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_FRAME_SIZE with value `{}`", value);
+            core::logger::debug("http2/settings", "MAX_FRAME_SIZE={}", value);
             m_max_frame_size = value;
             return;
         }
         case 0x6: {
-            core::logger::debug("Settings - HTTP/2", "Applying SETTINGS_MAX_HEADER_LIST_SIZE with value `{}`", value);
+            core::logger::debug("http2/settings", "MAX_HEADER_LIST_SIZE={}", value);
             m_max_header_list_size = value;
             return;
         }
@@ -105,7 +104,7 @@ class Settings {
     }
 
     static FrameBuilder<shared_layer::FrameRole::SENDER> generate_ack() {
-        core::logger::debug("Settings - HTTP/2", "Generating SETTINGS ACK frame");
+        core::logger::debug("http2/settings", "ACK frame");
         return FrameBuilder<shared_layer::FrameRole::SENDER>{}
             .add_type(shared_layer::FrameType::SETTINGS)
             .add_flags(shared_layer::Flags::ACK)
@@ -114,29 +113,26 @@ class Settings {
     }
 
     void set_last_stream_id(const std::uint32_t &stream_id) noexcept {
-        core::logger::debug("Settings - HTTP/2", "Setting last_stream_id to `{}` (current value: `{}`)", stream_id,
-                            m_last_stream_id);
+        core::logger::debug("http2/settings", "last_stream_id={}", stream_id);
 
         m_last_stream_id = stream_id;
     }
 
 
     void set_delta_window_on_settings(const std::int32_t &delta) noexcept {
-        core::logger::debug("Settings - HTTP/2", "Setting delta_window_on_settings to `{}` (current value: `{}`)",
-                            delta, m_delta_window_on_settings);
+        core::logger::debug("http2/settings", "delta_window={}", delta);
 
         m_delta_window_on_settings = delta;
     }
 
     void set_state(const SettingsState &state) noexcept {
-        core::logger::debug("Settings - HTTP/2", "Setting settings state to `{}` (current state: `{}`)", state,
-                            m_state);
+        core::logger::debug("http2/settings", "state={}", state);
 
         m_state = state;
     }
 
     std::uint32_t next_stream_id() noexcept {
-        core::logger::debug("Settings - HTTP/2", "Generating next stream id `{}`", m_last_stream_id + 2);
+        core::logger::debug("http2/settings", "next stream id={}", m_last_stream_id + 2);
 
         return m_last_stream_id += 2;
     }

@@ -53,6 +53,48 @@ std::string_view pk_column_name() {
 
 } // namespace serde
 
+// ─── Query options ────────────────────────────────────────────────────────────
+
+export namespace serde {
+
+class QueryOptions {
+  public:
+    QueryOptions &add_join(std::string join) noexcept {
+        m_joins.push_back(std::move(join));
+        return *this;
+    }
+    QueryOptions &add_where(std::string condition) noexcept {
+        m_where_conditions.push_back(std::move(condition));
+        return *this;
+    }
+    QueryOptions &add_order_by(std::string column, bool ascending = true) noexcept {
+        m_order_by_clauses.emplace_back(std::move(column), ascending);
+        return *this;
+    }
+    QueryOptions &set_limit(std::size_t limit) noexcept {
+        m_limit = limit;
+        return *this;
+    }
+
+    [[nodiscard]] const std::vector<std::string> &get_joins() const noexcept { return m_joins; }
+    [[nodiscard]] const std::vector<std::string> &get_where_conditions() const noexcept {
+        return m_where_conditions;
+    }
+    [[nodiscard]] const std::vector<std::pair<std::string, bool>> &
+    get_order_by_clauses() const noexcept {
+        return m_order_by_clauses;
+    }
+    [[nodiscard]] const std::optional<std::size_t> &get_limit() const noexcept { return m_limit; }
+
+  private:
+    std::vector<std::string> m_joins;
+    std::vector<std::string> m_where_conditions;
+    std::vector<std::pair<std::string, bool>> m_order_by_clauses;
+    std::optional<std::size_t> m_limit;
+};
+
+} // namespace serde
+
 // ─── SQL builders ─────────────────────────────────────────────────────────────
 
 export namespace serde {
@@ -197,6 +239,43 @@ class Sql {
         }
         return std::format("DELETE FROM {} WHERE {} IN ({})", Serializable<T>::table_name(),
                            pk_column_name<T>(), list);
+    }
+
+    template <IConnectable T>
+    [[nodiscard]] static std::string build_query_sql(const QueryOptions &options) {
+        return std::format("SELECT json_agg(row_to_json(row)) FROM ({}) row",
+                           build_inner_query<T>(options));
+    }
+
+    template <IConnectable T>
+    [[nodiscard]] static std::string build_query_first_sql(const QueryOptions &options) {
+        return std::format("SELECT row_to_json(row) FROM ({} LIMIT 1) row",
+                           build_inner_query<T>(options));
+    }
+
+  private:
+    template <IConnectable T>
+    [[nodiscard]] static std::string build_inner_query(const QueryOptions &options) {
+        auto table = Serializable<T>::table_name();
+        std::string inner = std::format("SELECT {}.* FROM {}", table, table);
+        for (const auto &join : options.get_joins())
+            inner += " " + join;
+        bool first_where = true;
+        for (const auto &condition : options.get_where_conditions()) {
+            inner += first_where ? " WHERE " : " AND ";
+            inner += condition;
+            first_where = false;
+        }
+        bool first_order = true;
+        for (const auto &[column, ascending] : options.get_order_by_clauses()) {
+            inner += first_order ? " ORDER BY " : ", ";
+            inner += column;
+            inner += ascending ? " ASC" : " DESC";
+            first_order = false;
+        }
+        if (options.get_limit())
+            inner += std::format(" LIMIT {}", *options.get_limit());
+        return inner;
     }
 };
 

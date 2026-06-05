@@ -23,7 +23,6 @@ class BaseSocket : public shared::HandlerBase {
     BaseSocket(socket::Endpoint end, Leverager &leverager)
         : m_socket{socket::Socket<protocol, true>{std::move(end), std::ref(leverager)}}, m_on_accept{nullptr},
           m_closed{false} {
-        core::logger::debug("BaseSocket - Sync", "Created for endpoint `{}`", m_socket.get_endpoint().to_string());
     };
 
     BaseSocket(const BaseSocket &) = delete;
@@ -61,23 +60,18 @@ class BaseSocket : public shared::HandlerBase {
     void set_closed() { m_closed = true; }
 
     void accept() {
-        core::logger::debug("BaseSocket - Sync", "Endpoint `{}` checking for new connections",
-                            m_socket.get_endpoint().to_string());
         socket::Socket<protocol> accepted_socket = m_socket.sync_accept();
         if (accepted_socket) {
-            core::logger::info("BaseSocket - Sync", "Endpoint `{}` accepted new connection from `{}`",
-                               m_socket.get_endpoint().to_string(), accepted_socket.get_endpoint().to_string());
+            core::logger::debug("io/socket", "accepted {} from {}", m_socket.get_endpoint().to_string(),
+                                accepted_socket.get_endpoint().to_string());
             accepted_socket.set_non_blocking();
             m_on_accept(std::move(accepted_socket));
         }
-
-        core::logger::info("BaseSocket - Sync", "Endpoint `{}` has NO new connections",
-                           m_socket.get_endpoint().to_string());
     }
 
     bool resume() {
         if (m_closed) {
-            core::logger::warning("BaseSocket - Sync", "Endpoint `{}` is closed, cannot resume",
+            core::logger::warning("io/socket", "endpoint {} closed, cannot resume",
                                   m_socket.get_endpoint().to_string());
             return false;
         }
@@ -89,25 +83,16 @@ class BaseSocket : public shared::HandlerBase {
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            core::logger::debug("BaseSocket - Sync", "Endpoint `{}` on_execute is being executed",
-                                m_socket.get_endpoint().to_string());
             if (resume()) {
-                core::logger::info("BaseSocket - Sync", "Endpoint `{}` rescheduled",
-                                   m_socket.get_endpoint().to_string());
                 shared::this_handler::shedule();
             } else {
-                core::logger::info("BaseSocket - Sync", "Endpoint `{}` released", m_socket.get_endpoint().to_string());
                 shared::this_handler::release();
             }
         };
     }
 
     shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept {
-            core::logger::debug("BaseSocket - Sync", "Endpoint `{}` on_released is being executed",
-                                m_socket.get_endpoint().to_string());
-            m_socket.sync_close();
-        };
+        return [this]() noexcept { m_socket.sync_close(); };
     }
 
 
@@ -129,11 +114,9 @@ class ConnectorSocket : public shared::HandlerBase {
     using OnHandshakeComplete = std::function<void(socket::Socket<protocol>)>;
 
     ConnectorSocket(socket::Socket<protocol> socket, OnHandshakeComplete on_success)
-        : m_socket{std::move(socket)}, m_on_success{std::move(on_success)}, m_insane{nullptr} {
-        core::logger::debug("ConnectorSocket - Sync", "Created for socket `{}`", get_fd());
-    };
+        : m_socket{std::move(socket)}, m_on_success{std::move(on_success)}, m_insane{nullptr} {};
 
-    ~ConnectorSocket() { core::logger::debug("ConnectorSocket - Sync", "Destroyed for socket `{}`", get_fd()); }
+    ~ConnectorSocket() = default;
 
     ConnectorSocket(const ConnectorSocket &) = delete;
     ConnectorSocket &operator=(const ConnectorSocket &) = delete;
@@ -155,15 +138,15 @@ class ConnectorSocket : public shared::HandlerBase {
     ConnectResult handshake() {
         socket::SocketStatus status = m_socket.sync_handshake();
         if (status.is_valid()) {
-            core::logger::info("ConnectorSocket - Sync", "Socket `{}` handshake completed successfully", get_fd());
+            core::logger::info("io/connector", "fd {} handshake ok", get_fd());
             m_on_success(std::move(m_socket));
             return ConnectResult::Success;
         } else if (status.is_errored()) {
-            core::logger::warning("ConnectorSocket - Sync", "Socket `{}` handshake failed", get_fd());
+            core::logger::warning("io/connector", "fd {} handshake failed", get_fd());
             return ConnectResult::Error;
         }
 
-        core::logger::info("ConnectorSocket - Sync", "Socket `{}` handshake in progress", get_fd());
+        core::logger::debug("io/connector", "fd {} handshake...", get_fd());
         return ConnectResult::InProgress;
     }
 
@@ -171,33 +154,24 @@ class ConnectorSocket : public shared::HandlerBase {
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            core::logger::debug("ConnectorSocket - Sync", "Socket `{}` on_execute is being executed", get_fd());
             auto result = handshake();
             if (result == ConnectResult::InProgress) {
-                core::logger::info("ConnectorSocket - Sync", "Socket `{}` rescheduled", get_fd());
                 shared::this_handler::shedule();
                 return;
             } else if (result == ConnectResult::Error) {
-                core::logger::info("ConnectorSocket - Sync", "Socket `{}` released", get_fd());
                 shared::this_handler::release();
                 return;
             }
 
-            core::logger::debug("ConnectorSocket - Sync", "Socket `{}` releasing self reference", get_fd());
             m_insane.reset();
         };
     }
 
     shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept {
-            core::logger::debug("ConnectorSocket - Sync", "Socket `{}` on_released is being executed", get_fd());
-            m_socket.sync_close();
-        };
+        return [this]() noexcept { m_socket.sync_close(); };
     }
 
     void what_this_is_me(std::unique_ptr<ConnectorSocket<protocol>> insane) {
-        core::logger::debug("ConnectorSocket - Sync", "Socket `{}` taking self reference to performe handshake",
-                            get_fd());
         m_insane = std::move(insane);
     }
 
@@ -214,30 +188,21 @@ template <socket::Protocol protocol>
 class WorkerSocket {
   public:
     WorkerSocket(socket::Socket<protocol> socket)
-        : m_socket{std::move(socket)}, m_sender{m_socket}, m_receiver{m_socket} {
-        core::logger::debug("WorkerSocket - Sync", "Created for socket `{}`", get_fd());
-    }
+        : m_socket{std::move(socket)}, m_sender{m_socket}, m_receiver{m_socket} {}
 
     WorkerSocket(socket::Socket<protocol> socket, shared::ErrorCallback on_send_error,
                  shared::ErrorCallback on_receive_error)
         : m_socket{std::move(socket)}, m_sender{m_socket, std::move(on_send_error)},
-          m_receiver{m_socket, std::move(on_receive_error)} {
-        core::logger::debug("WorkerSocket - Sync", "Created for socket `{}`", get_fd());
-    }
-
+          m_receiver{m_socket, std::move(on_receive_error)} {}
 
     WorkerSocket(socket::Socket<protocol> socket, shared::ReadCallback on_read, shared::ErrorCallback on_send_error,
                  shared::ErrorCallback on_receive_error)
         : m_socket{std::move(socket)}, m_sender{m_socket, std::move(on_send_error)},
           m_receiver{m_socket, std::move(on_read), std::move(on_receive_error)} {
-        core::logger::debug("WorkerSocket - Sync", "Created for socket `{}`", get_fd());
         build();
     }
 
-    ~WorkerSocket() {
-        core::logger::debug("WorkerSocket - Sync", "Destructor called for socket `{}`", get_fd());
-        close();
-    }
+    ~WorkerSocket() { close(); }
 
     WorkerSocket(const WorkerSocket &) = delete;
     WorkerSocket &operator=(const WorkerSocket &) = delete;
@@ -260,13 +225,12 @@ class WorkerSocket {
 
     template <shared::HandlerController Controller>
     void start(Controller &controller) {
-        core::logger::debug("WorkerSocket - Sync", "Starting handler for socket `{}`", get_fd());
         m_sender.template create<Controller>(controller);
         m_receiver.template create<Controller>(controller);
     }
 
     void close() {
-        core::logger::info("WorkerSocket - Sync", "Closing socket `{}`", get_fd());
+        core::logger::debug("io/worker", "fd {} closed", get_fd());
         m_sender.set_closed();
         m_receiver.set_closed();
         m_socket.sync_close();
@@ -295,18 +259,12 @@ class FlowSocket {
     FlowSocket(socket::Endpoint end, Leverager &leverager, Controller &controller)
         : m_base_socket{std::move(end), leverager}, m_leverager{leverager}, m_controller{controller}, m_workers{},
           m_on_established{nullptr} {
-        core::logger::debug("FlowSocket - Sync", "Created for endpoint `{}`", m_base_socket.get_endpoint().to_string());
     };
 
     ~FlowSocket() {
-        core::logger::debug("FlowSocket - Sync", "Destructor called for endpoint `{}`",
-                            m_base_socket.get_endpoint().to_string());
         m_base_socket.set_closed();
-        core::logger::info("FlowSocket - Sync", "Endpoint `{}` closeing base socket",
-                           m_base_socket.get_endpoint().to_string());
+        core::logger::debug("io/flow", "closing base socket {}", m_base_socket.get_endpoint().to_string());
         for (auto &[fd, worker] : m_workers) {
-            core::logger::info("FlowSocket - Sync", "Endpoint `{}` closing worker socket `{}`",
-                               m_base_socket.get_endpoint().to_string(), fd);
             worker->close();
         }
     }
@@ -340,8 +298,7 @@ class FlowSocket {
     }
 
     void start() {
-        core::logger::debug("FlowSocket - Sync", "Starting base socket for endpoint `{}`",
-                            m_base_socket.get_endpoint().to_string());
+        core::logger::debug("io/flow", "base socket {} start", m_base_socket.get_endpoint().to_string());
         m_base_socket.template create<Controller>(m_controller);
     }
 
@@ -357,12 +314,10 @@ class FlowSocket {
   private:
     inline void helper() {
         m_base_socket.add_on_accept([this](socket::Socket<protocol> accepted_socket) mutable {
-            core::logger::info("FlowSocket - Sync", "Endpoint `{}` accepted new connection from `{}`",
-                               m_base_socket.get_endpoint().to_string(), accepted_socket.get_endpoint().to_string());
+            core::logger::debug("io/flow", "accepted {} from {}", m_base_socket.get_endpoint().to_string(),
+                                accepted_socket.get_endpoint().to_string());
             auto connector = std::make_unique<ConnectorSocket<protocol>>(
                 std::move(accepted_socket), [this](socket::Socket<protocol> encrypted_socket) mutable {
-                    core::logger::info("FlowSocket - Sync", "Endpoint `{}` handshake completed for socket `{}`",
-                                       m_base_socket.get_endpoint().to_string(), encrypted_socket.get_fd());
                     auto worker = std::make_shared<WorkerSocket<protocol>>(
                         std::move(encrypted_socket),
                         [this](socket::SOCKET fd, int err) {
@@ -376,13 +331,10 @@ class FlowSocket {
 
                     auto read_calback = m_on_established(
                         [worker](utils::buffering::BufferNode &&node) {
-                            core::logger::debug("WorkerSocket - Sync - SendCallback",
-                                                "Socket `{}` submitting data to send ", worker->get_fd());
                             worker->get_sender().send(std::move(node));
                         },
                         [this, worker]() {
-                            core::logger::info("WorkerSocket - Sync - CloseCallback", "Socket `{}` connection closed",
-                                               worker->get_fd());
+                            core::logger::info("io/worker", "fd {} closed", worker->get_fd());
                             m_workers.erase(worker->get_fd());
                         });
 
@@ -392,21 +344,18 @@ class FlowSocket {
                     worker->template start<Controller>(m_controller);
 
                     std::println("New connection established on socket {}", worker->get_fd());
-                    core::logger::info("FlowSocket - Sync",
-                                       "Socket `{}` established successfully new connection under endpoint `{}`",
-                                       worker->get_fd(), m_base_socket.get_endpoint().to_string());
+                    core::logger::debug("io/flow", "fd {} connected under {}", worker->get_fd(),
+                                        m_base_socket.get_endpoint().to_string());
 
                     m_workers.insert(worker->get_fd(), std::move(worker));
                 });
 
-            core::logger::info("FlowSocket - Sync", "endpoint `{}` starting handshake for socket `{}`",
-                               m_base_socket.get_endpoint().to_string(), accepted_socket.get_fd());
+            core::logger::debug("io/flow", "fd {} handshake start", accepted_socket.get_fd());
             connector->template create<Controller>(m_controller);
             connector->what_this_is_me(std::move(connector));
         });
 
-        core::logger::info("FlowSocket - Sync", "endpoint `{}` starting base socket",
-                           m_base_socket.get_endpoint().to_string());
+        core::logger::debug("io/flow", "base socket {} start", m_base_socket.get_endpoint().to_string());
         m_base_socket.build();
     }
 

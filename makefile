@@ -28,6 +28,10 @@ run:
 build:
 	xmake build
 
+rebuild:
+	xmake require --force
+	xmake -r
+
 #Configuration
 
 windows:

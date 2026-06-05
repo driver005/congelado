@@ -6,6 +6,16 @@ export module model:identifiers;
 
 import std;
 
+template <>
+struct std::formatter<uuids::uuid> {
+    constexpr auto parse(std::format_parse_context &ctx) const { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const uuids::uuid &uuid, FormatContext &ctx) const {
+        return std::format_to(ctx.out(), "{}", uuids::to_string(uuid));
+    }
+};
+
 export namespace model {
 
 using WorkflowId = uuids::uuid;

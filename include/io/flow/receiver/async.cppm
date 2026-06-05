@@ -14,18 +14,14 @@ template <typename Worker, typename Status, typename... Args>
 class Receiver : public shared::HandlerBase {
   public:
     Receiver(Worker &worker) : m_worker{worker}, m_pool{}, m_on_read{nullptr}, m_on_error{nullptr}, m_fatal{false} {
-        core::logger::debug("Receiver created for worker with FD `{}`", m_worker.get().get_fd());
     }
 
     Receiver(Worker &worker, shared::ReadCallback on_read, shared::ErrorCallback on_error)
         : m_worker{worker}, m_pool{}, m_on_read{std::move(on_read)}, m_on_error{std::move(on_error)}, m_fatal{false} {
-        core::logger::debug("Receiver created for worker with FD `{}`", m_worker.get().get_fd());
         attach();
     }
 
-    ~Receiver() {
-        core::logger::debug("Receiver", "destructor called for worker with FD `{}`", m_worker.get().get_fd());
-    }
+    ~Receiver() = default;
 
     Receiver(const Receiver &) = delete;
     Receiver &operator=(const Receiver &) = delete;
@@ -51,12 +47,12 @@ class Receiver : public shared::HandlerBase {
 
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            core::logger::debug("Receiver", "FD `{}` on_execute is being executed", m_worker.get().get_fd());
+            const auto fd = m_worker.get().get_fd();
             if (resume()) {
-                core::logger::info("Receiver", "FD `{}` rescheduled", m_worker.get().get_fd());
+                core::logger::debug("io/recv", "fd {} rescheduled", fd);
                 shared::this_handler::shedule();
             } else {
-                core::logger::info("Receiver", "FD `{}` to be released", m_worker.get().get_fd());
+                core::logger::debug("io/recv", "fd {} releasing", fd);
                 shared::this_handler::release();
             }
         };
@@ -64,7 +60,6 @@ class Receiver : public shared::HandlerBase {
 
     shared::ReleaseFunction on_released() noexcept override {
         return [this]() noexcept {
-            core::logger::debug("Receiver", "FD `{}` on_released is being executed", m_worker.get().get_fd());
             detach();
             m_worker.get().async_close();
         };
@@ -72,28 +67,25 @@ class Receiver : public shared::HandlerBase {
 
     shared::ErrorHandler on_error() override {
         return [this](std::exception_ptr eptr) {
-            core::logger::debug("Receiver", "FD `{}` on_error is being executed", m_worker.get().get_fd());
+            const auto fd = m_worker.get().get_fd();
             if (!eptr)
                 return;
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
-                core::logger::warning("Receiver", "FD `{}` system_error: {} (code: {})", m_worker.get().get_fd(),
-                                      e.what(), e.code().value());
-                m_on_error(m_worker.get().get_fd(), e.code().value());
+                core::logger::warning("io/recv", "fd {} sys error: {} (code: {})", fd, e.what(), e.code().value());
+                m_on_error(fd, e.code().value());
             } catch (const std::exception &e) {
-                core::logger::warning("Receiver", "FD `{}` exception: {}", m_worker.get().get_fd(), e.what());
-                m_on_error(m_worker.get().get_fd(), -1);
+                core::logger::warning("io/recv", "fd {} exception: {}", fd, e.what());
+                m_on_error(fd, -1);
             } catch (...) {
-                core::logger::warning("Receiver", "FD `{}` unknown exception", m_worker.get().get_fd());
-                m_on_error(m_worker.get().get_fd(), -1);
+                core::logger::warning("io/recv", "fd {} unknown exception", fd);
+                m_on_error(fd, -1);
             }
         };
     }
 
     bool resume() {
-        core::logger::debug("Receiver", "FD `{}` is being executed in resume with fatal = `{}`",
-                            m_worker.get().get_fd(), m_fatal);
         if (m_fatal) {
             return false;
         }
@@ -110,25 +102,22 @@ class Receiver : public shared::HandlerBase {
   private:
     void arm_read() {
         auto slot = m_pool.acquire();
-
-        core::logger::info("Receiver", "FD `{}` attempting to read up to {} bytes", m_worker.get().get_fd(),
-                           slot->get_limit());
         m_worker.get().async_read(slot->get_data(), static_cast<unsigned>(slot->get_limit()), 0,
                                   [this, slot](int result) mutable { on_read_complete(slot, result); });
     }
 
     void on_read_complete(utils::buffering::NodeReader *node, int result) {
+        const auto fd = m_worker.get().get_fd();
         if (result <= 0) {
-            core::logger::warning("Receiver", "FD `{}` read operation failed with error `{}`", m_worker.get().get_fd(),
-                                  result);
+            core::logger::warning("io/recv", "fd {} read error: {}", fd, result);
             m_fatal = true;
-            m_on_error(m_worker.get().get_fd(), -result);
+            m_on_error(fd, -result);
             return;
         }
 
         const auto bytes = static_cast<std::size_t>(result);
 
-        core::logger::info("Receiver", "FD `{}` read {} bytes", m_worker.get().get_fd(), bytes);
+        core::logger::debug("io/recv", "fd {} rx {} bytes", fd, bytes);
 
         m_pool.notify_read(node, bytes);
         m_on_read(m_pool.get_view());

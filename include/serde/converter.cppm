@@ -542,11 +542,14 @@ simdjson::error_code extract_simdjson_field(simdjson::ondemand::object &obj,
                                             typename Fd::ClassType &out, Fd) {
     using VT = typename Fd::ValueType;
     simdjson::ondemand::value field_val;
-    if (auto ec = obj.find_field_unordered(Fd::name.string_view()).get(field_val); ec)
+    auto ec = obj.find_field_unordered(Fd::name.string_view()).get(field_val);
+    if (ec == simdjson::NO_SUCH_FIELD)
+        return simdjson::SUCCESS;
+    if (ec)
         return ec;
     VT value{};
-    if (auto ec = FieldConverter<VT>::from_simdjson(field_val, value); ec)
-        return ec;
+    if (auto ec2 = FieldConverter<VT>::from_simdjson(field_val, value); ec2)
+        return ec2;
     (out.*Fd::setter)(std::move(value));
     return simdjson::SUCCESS;
 }

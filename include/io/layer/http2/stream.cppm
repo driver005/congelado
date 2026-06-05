@@ -39,9 +39,6 @@ class ConnectionLevelHelper {
         : m_connection_error_code{connection_error_code} {}
 
     void set_connection_error_code(error::http::Http2ErrorCode error_code) noexcept {
-        core::logger::debug("ConnectionLevelHelper - HTTP/2",
-                            "Setting connection error code to `{}` for connection-level stream", error_code);
-
         m_connection_error_code = error_code;
     }
 
@@ -62,29 +59,18 @@ class StreamLevelHelper {
           m_hpack{decoding_table, encoding_table, m_request, m_response},
           m_header_block{std::make_optional<utils::buffering::BufferView>()}, m_expecting_continuation{false},
           m_remote_done{false} {
-        core::logger::debug("StreamLevelHelper - HTTP/2", "Created for stream ID `{}` with provided HPACK tables",
-                            STREAM_ID);
     }
 
     void set_expecting_continuation(bool value) noexcept {
-        core::logger::debug("StreamLevelHelper - HTTP/2", "Setting expecting_continuation to `{}` for stream ID `{}`",
-                            value, m_request.get_stream_id());
-
         m_expecting_continuation = value;
     }
 
     void set_remote_done(bool value) noexcept {
-        core::logger::debug("StreamLevelHelper - HTTP/2", "Setting remote_done to `{}` for stream ID `{}`", value,
-                            m_request.get_stream_id());
-
         m_remote_done = value;
     }
 
 
     void clear_header_block() noexcept {
-        core::logger::debug("StreamLevelHelper - HTTP/2", "Clearing header block for stream ID `{}`",
-                            m_request.get_stream_id());
-
         m_header_block.reset();
     }
 
@@ -125,7 +111,6 @@ class Stream {
           m_recv_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
           m_local_settings{local_settings}, m_remote_settings{remote_settings},
           m_stream_helper{ConnectionLevelHelper{error::http::Http2ErrorCode::NO_ERROR_CODE}} {
-        core::logger::debug("Stream - HTTP/2", "Created Connection-level Stream (ID 0)");
     }
 
     Stream(const std::uint32_t STREAM_ID, Stream<false> &connection_stream,
@@ -152,7 +137,6 @@ class Stream {
             }
         }
 
-        core::logger::debug("Stream - HTTP/2", "Created Stream ID `{}`", STREAM_ID);
     }
 
     ~Stream() { cleanup_resources(); }
@@ -165,27 +149,19 @@ class Stream {
         const auto &type = header.get_type();
         std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> response = std::nullopt;
 
-        core::logger::info("Stream (connection-level) - HTTP/2",
-                           "Handling frame of type `{}` on connection-level stream with length `{}` and flags `{}`",
-                           type, header.get_length(), header.get_flags());
+        core::logger::debug("http2/conn", "frame {} len={} flags={}", type, header.get_length(), header.get_flags());
 
         switch (type) {
         case shared_layer::FrameType::WINDOW_UPDATE: {
             auto increment = reader | ReadWindowIncrementAdaptor{};
 
-            core::logger::info(
-                "Stream (connection-level) - HTTP/2",
-                "Received WINDOW_UPDATE frame with increment `{}` on connection-level stream, updating send window",
-                increment);
+            core::logger::debug("http2/conn", "WINDOW_UPDATE increment={}", increment);
 
             update_send_window(increment);
             break;
         }
         case shared_layer::FrameType::GOAWAY: {
-            core::logger::info(
-                "Stream (connection-level) - HTTP/2",
-                "Received GOAWAY frame with last stream ID `{}` and error code `{}`, marking connection as closing",
-                header.get_stream_id(), m_stream_helper.get_connection_error_code());
+            core::logger::debug("http2/conn", "GOAWAY last_stream={} code={}", header.get_stream_id(), m_stream_helper.get_connection_error_code());
 
             m_remote_settings.get().set_last_stream_id(header.get_stream_id());
 
@@ -204,24 +180,19 @@ class Stream {
         }
 
         case shared_layer::FrameType::PING: {
-            core::logger::info("Stream (connection-level) - HTTP/2",
-                               "Received PING frame with flags `{}` on connection-level stream, processing PING",
-                               header.get_flags());
+            core::logger::debug("http2/conn", "PING flags={}", header.get_flags());
 
             const auto &flags = header.get_flags();
 
             if (flags & shared_layer::Flags::ACK) {
                 auto payload_array = reader | std::views::take(8) | std::ranges::to<std::vector<std::byte>>();
                 if (!m_remote_settings.get().get_ping_tracker().on_ack(payload_array)) {
-                    core::logger::warning("Stream (connection-level) - HTTP/2",
-                                          "Received unsolicited PING ACK with payload `{}`, ignoring",
-                                          payload_array.size());
+                    core::logger::warning("http2/conn", "unsolicited PING ACK, ignoring");
                 }
             } else {
                 m_remote_settings.get().get_ping_tracker().note_activity();
 
-                core::logger::info("Stream (connection-level) - HTTP/2",
-                                   "Received PING frame without ACK flag, sending PING ACK with same payload");
+                core::logger::debug("http2/conn", "PING sending ACK");
 
                 response = FrameBuilder<shared_layer::FrameRole::SENDER>{}
                                .add_type(shared_layer::FrameType::PING)
@@ -235,10 +206,7 @@ class Stream {
         }
 
         case shared_layer::FrameType::SETTINGS: {
-            core::logger::info(
-                "Stream (connection-level) - HTTP/2",
-                "Received SETTINGS frame with length `{}` on connection-level stream, processing SETTINGS",
-                header.get_length());
+            core::logger::debug("http2/conn", "SETTINGS len={}", header.get_length());
 
             response = handle_settings(header, reader);
             break;
@@ -273,9 +241,7 @@ class Stream {
 
         const auto &type = header.get_type();
 
-        core::logger::info("Stream - HTTP/2",
-                           "Handling frame of type `{}` on stream ID `{}` with length `{}` and flags `{}`", type,
-                           get_stream_id(), header.get_length(), header.get_flags());
+        core::logger::debug("http2/stream", "stream {} frame {} len={} flags={}", get_stream_id(), type, header.get_length(), header.get_flags());
 
         if (m_stream_helper.get_expecting_continuation() && type != shared_layer::FrameType::CONTINUATION) {
             throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
@@ -304,13 +270,9 @@ class Stream {
 
             const auto &flags = header.get_flags();
             if (flags & shared_layer::Flags::END_STREAM) {
-                core::logger::info("Stream - HTTP/2", "Stream ID `{}` - Received DATA frame with payload size `{}`",
-                                   get_stream_id(), view.size());
+                core::logger::debug("http2/stream", "stream {} data {} bytes", get_stream_id(), view.size());
             } else {
-                core::logger::info(
-                    "Stream - HTTP/2",
-                    "Stream ID `{}` - Received DATA frame with partial payload size `{}`, expecting more DATA frames",
-                    get_stream_id(), view.size());
+                core::logger::debug("http2/stream", "stream {} data {} bytes (partial)", get_stream_id(), view.size());
             }
 
             break;
@@ -336,15 +298,11 @@ class Stream {
                 m_stream_helper.set_expecting_continuation(false);
                 handle_header(view);
 
-                core::logger::info("Stream - HTTP/2", "Stream ID `{}` - Received {} frame with payload size `{}`", type,
-                                   get_stream_id(), view.size());
+                core::logger::debug("http2/stream", "stream {} {} {} bytes", get_stream_id(), type, view.size());
             } else {
                 m_stream_helper.set_expecting_continuation(true);
 
-                core::logger::info(
-                    "Stream - HTTP/2",
-                    "Stream ID `{}` - Received {} frame with partial payload size `{}`, expecting CONTINUATION", type,
-                    get_stream_id(), view.size());
+                core::logger::debug("http2/stream", "stream {} {} {} bytes (partial)", get_stream_id(), type, view.size());
             }
 
             break;
@@ -353,10 +311,7 @@ class Stream {
         case shared_layer::FrameType::WINDOW_UPDATE: {
             auto increment = reader | ReadWindowIncrementAdaptor{};
 
-            core::logger::info(
-                "Stream - HTTP/2",
-                "Received WINDOW_UPDATE frame with increment `{}` on stream ID `{}`, updating send window", increment,
-                get_stream_id());
+            core::logger::debug("http2/stream", "stream {} WINDOW_UPDATE increment={}", get_stream_id(), increment);
 
             update_send_window(increment);
 
@@ -418,6 +373,10 @@ class Stream {
                 m_stream_helper.clear_header_block();
                 throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
                                                std::format("HPACK decoding error `{}`", e.what()));
+            } catch (std::out_of_range &e) {
+                m_stream_helper.clear_header_block();
+                throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
+                                               std::format("HPACK table index out of range: `{}`", e.what()));
             }
             m_stream_helper.clear_header_block();
         }
@@ -426,9 +385,7 @@ class Stream {
     void consume_window(std::int32_t size, bool is_sender)
         requires(IsStreamBased)
     {
-        core::logger::debug("Stream - HTTP/2",
-                            "Consuming flow control window for stream ID `{}`: size `{}`, is_sender `{}`",
-                            get_stream_id(), size, is_sender);
+        core::logger::debug("http2/stream", "stream {} consume window size={} sender={}", get_stream_id(), size, is_sender);
 
         m_stream_helper.get_connection_stream().get().consume_window(size, is_sender);
 
@@ -437,16 +394,12 @@ class Stream {
                 throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::INTERNAL_ERROR,
                                                "Attempted to send DATA exceeding flow control window");
             }
-            core::logger::debug("Stream - HTTP/2",
-                                "Reducing send window for stream ID `{}` by `{}`, new send window is `{}`",
-                                get_stream_id(), size, m_send_window - size);
+            core::logger::debug("http2/stream", "stream {} send_window -{} ={}", get_stream_id(), size, m_send_window - size);
 
             m_send_window -= size;
         } else {
             m_recv_window -= size;
-            core::logger::debug("Stream - HTTP/2",
-                                "Reducing receive window for stream ID `{}` by `{}`, new receive window is `{}`",
-                                get_stream_id(), size, m_recv_window);
+            core::logger::debug("http2/stream", "stream {} recv_window -{} ={}", get_stream_id(), size, m_recv_window);
 
             if (m_recv_window < 0) {
                 throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
@@ -459,9 +412,7 @@ class Stream {
     void consume_window(std::int32_t size, bool is_sender)
         requires(!IsStreamBased)
     {
-        core::logger::debug("Stream (connection-level) - HTTP/2",
-                            "Consuming flow control window of size `{}` for {} on connection-level stream", size,
-                            is_sender ? "sender" : "receiver");
+        core::logger::debug("http2/conn", "consume window size={} sender={}", size, is_sender);
 
         if (is_sender) {
             if (m_send_window < size) {
@@ -469,18 +420,13 @@ class Stream {
                                                "Attempted to send DATA exceeding flow control window");
             }
 
-            core::logger::debug("Stream (connection-level) - HTTP/2",
-                                "Reducing send window for connection-level stream by `{}`, new send window is `{}`",
-                                size, m_send_window - size);
+            core::logger::debug("http2/conn", "send_window -{} ={}", size, m_send_window - size);
 
             m_send_window -= size;
         } else {
             m_recv_window -= size;
 
-            core::logger::debug(
-                "Stream (connection-level) - HTTP/2",
-                "Reducing receive window for connection-level stream by `{}`, new receive window is `{}`", size,
-                m_recv_window);
+            core::logger::debug("http2/conn", "recv_window -{} ={}", size, m_recv_window);
 
             if (m_recv_window < 0) {
                 throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
@@ -505,9 +451,7 @@ class Stream {
                                            "Flow control window overflow");
         }
 
-        core::logger::debug("Stream - HTTP/2",
-                            "Updating send window for stream ID `{}` by increment `{}`, new send window is `{}`",
-                            get_stream_id(), increment, m_send_window + increment);
+        core::logger::debug("http2/stream", "stream {} send_window +{} ={}", get_stream_id(), increment, m_send_window + increment);
 
         m_send_window += increment;
         if constexpr (IsStreamBased) {
@@ -520,9 +464,7 @@ class Stream {
             throw error::http::StreamError(get_stream_id(), error::http::Http2ErrorCode::STREAM_CLOSED,
                                            "Received data on stream not in receiving state");
         }
-        core::logger::debug("Stream - HTTP/2",
-                            "Appending received data of size `{}` to receive buffer for stream ID `{}`", data.size(),
-                            get_stream_id());
+        core::logger::debug("http2/stream", "stream {} append {} bytes", get_stream_id(), data.size());
 
         m_recv_buffer.insert(m_recv_buffer.end(), data.begin(), data.end());
     }
@@ -577,9 +519,7 @@ class Stream {
         requires(!IsStreamBased)
     {
         if ((header.get_flags() & shared_layer::Flags::ACK) != 0) {
-            core::logger::info(
-                "Stream (connection-level) - HTTP/2",
-                "Received SETTINGS ACK frame on connection-level stream, marking settings as acknowledged");
+            core::logger::debug("http2/conn", "SETTINGS ACK");
 
             m_local_settings.get().set_state(SettingsState::ACKNOWLEDGED);
             return std::nullopt;
@@ -607,17 +547,13 @@ class Stream {
         m_remote_settings.get().set_state(SettingsState::ACKNOWLEDGED);
         auto setting_ack = Settings::generate_ack();
 
-        core::logger::info(
-            "Stream (connection-level) - HTTP/2",
-            "Processed SETTINGS frame, old initial window size was `{}`, new initial window size is `{}`, "
-            "delta applied to send window is `{}`",
-            old_window, new_window, new_window - old_window);
+        core::logger::debug("http2/conn", "SETTINGS applied window {}->{}  delta={}", old_window, new_window, new_window - old_window);
 
         return std::make_optional(setting_ack);
     }
 
     void cleanup_resources() {
-        core::logger::info("Stream - HTTP/2", "Cleaning up resources for stream ID `{}`", get_stream_id());
+        core::logger::debug("http2/stream", "stream {} cleanup", get_stream_id());
 
         m_recv_buffer.clear();
         if constexpr (IsStreamBased) {

@@ -37,22 +37,24 @@ class App {
 
         AppContext ctx;
         std::vector<core::plugin::PluginHandle> plugins;
-        std::shared_ptr<interfaces::IProtocol> proto;
-        bool plugin_logger = load_plugins(*cfg, ctx, plugins, proto);
+        std::vector<std::shared_ptr<interfaces::IProtocol>> protos;
+        bool plugin_logger = load_plugins(*cfg, ctx, plugins, protos);
 
         if (!plugin_logger) {
             std::println(stderr, "[heart] no logger plugin found — aborting");
             std::abort();
         }
 
-        if (!proto) {
+        if (protos.empty()) {
             std::println(stderr,
                          "[heart] no protocol plugin found — load a plugin with Cap::Protocol");
             std::abort();
         }
 
-        proto->build(ctx.get_router());
+        for (auto &proto : protos)
+            proto->build(ctx.get_router());
 
+        std::println("[heart] finished initialization");
         // Block forever until process termination.
         std::promise<void>().get_future().wait();
         return 0;
@@ -84,11 +86,12 @@ class App {
     // Phase 1: probe (open .so, read metadata).
     // Phase 2: uniqueness filter — skip duplicates by type tag.
     // Phase 3: dependency sort (Kahn's algorithm) — abort on missing dep or cycle.
-    // Phase 4: activate in sorted order — register loggers, find protocol.
+    //          Also applies get_load_before_types() ordering constraints.
+    // Phase 4: activate in sorted order — register loggers, collect protocols.
     // Returns true if any logger plugin registered.
     bool load_plugins(const core::config::Config &cfg, AppContext &ctx,
                       std::vector<core::plugin::PluginHandle> &handles,
-                      std::shared_ptr<interfaces::IProtocol> &proto) {
+                      std::vector<std::shared_ptr<interfaces::IProtocol>> &protos) {
         // ── Phase 1: probe ────────────────────────────────────────────────────
         std::vector<core::plugin::PluginHandle> probed;
 
@@ -127,9 +130,10 @@ class App {
                 seen_types[unique_type] = std::string{bridge->get_name()};
                 surviving.push_back(bridge);
             } else {
-                std::println(stderr,
-                             "[heart] plugin '{}' skipped — unique type '{}' already claimed by '{}'",
-                             bridge->get_name(), unique_type, seen_types[unique_type]);
+                std::println(
+                    stderr,
+                    "[heart] plugin '{}' skipped — unique type '{}' already claimed by '{}'",
+                    bridge->get_name(), unique_type, seen_types[unique_type]);
             }
         }
 
@@ -151,7 +155,7 @@ class App {
         }
 
         // Build in-degree and adjacency list.
-        std::unordered_map<std::string, int>                      in_degree;
+        std::unordered_map<std::string, int> in_degree;
         std::unordered_map<std::string, std::vector<std::string>> dependents;
 
         for (auto &bridge : surviving) {
@@ -160,6 +164,35 @@ class App {
             for (auto &req : bridge->get_requires()) {
                 dependents[req].push_back(name);
                 ++in_degree[name];
+            }
+        }
+
+        // Apply get_load_before_types() ordering: plugin must activate before any plugin
+        // whose unique_type matches a declared tag.
+        {
+            std::unordered_map<std::string, std::vector<std::string>> type_to_names;
+            for (auto &bridge : surviving) {
+                auto utype = std::string{bridge->get_unique_type()};
+                if (!utype.empty())
+                    type_to_names[utype].push_back(std::string{bridge->get_name()});
+            }
+
+            for (auto &bridge : surviving) {
+                auto from = std::string{bridge->get_name()};
+                for (const auto &type_tag : bridge->get_load_before_types()) {
+                    auto it = type_to_names.find(type_tag);
+                    if (it == type_to_names.end())
+                        continue;
+                    for (const auto &target : it->second) {
+                        if (target == from)
+                            continue;
+                        auto &deps = dependents[from];
+                        if (std::ranges::find(deps, target) == deps.end()) {
+                            deps.push_back(target);
+                            ++in_degree[target];
+                        }
+                    }
+                }
             }
         }
 
@@ -187,9 +220,9 @@ class App {
         }
 
         // ── Phase 4: activate ─────────────────────────────────────────────────
-        auto *router_ctx     = ctx.get_router();
+        auto *router_ctx = ctx.get_router();
         auto *controller_ctx = &ctx.get_contract_group();
-        auto *leverager_ctx  = &ctx.get_leverager();
+        auto *leverager_ctx = &ctx.get_leverager();
 
         for (auto &bridge : sorted) {
             bridge->activate(router_ctx, controller_ctx, leverager_ctx);
@@ -199,10 +232,12 @@ class App {
             if (auto logger = core::plugin::make_logger(bridge)) {
                 core::logger::LoggerRegistry::register_logger(std::move(logger));
             }
-            if (!proto) {
-                proto = core::plugin::make_protocol(bridge);
+            if (auto protocol = core::plugin::make_protocol(bridge)) {
+                protos.push_back(std::move(protocol));
             }
         }
+
+        std::println("[heart] loaded {} plugins", handles.size());
 
         return core::logger::LoggerRegistry::has_logger();
     }

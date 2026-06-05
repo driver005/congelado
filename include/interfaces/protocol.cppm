@@ -30,8 +30,11 @@ class IProtocol {
 
     [[nodiscard]] virtual shared::ReadCallback on_connect(shared::SendCallback send, shared::CloseCallback close) = 0;
 
-    // Called by AppContext after all plugins have loaded and the server is built.
-    // Default no-op for non-HTTP protocols.
+    // Called after all plugins load so the protocol can build its router into a server.
+    // router_ctx is a core::server::RouterContext<Protocol>*. Default no-op.
+    virtual void build(void * /*router_ctx*/) {}
+
+    // Default no-op for protocols that build internally via build().
     virtual void set_dispatch(DispatchFn) {}
 };
 

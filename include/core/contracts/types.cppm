@@ -61,7 +61,6 @@ class Worker {
 
     Worker(shared::WorkerFunction worker, ContractState state) noexcept
         : m_worker{std::move(worker)}, m_flags{std::to_underlying(state)} {
-        core::logger::debug("Worker", "Created with initial state `{}`", state);
     }
 
 
@@ -77,7 +76,6 @@ class Worker {
     }
 
     ~Worker() {
-        core::logger::debug("Worker", "Destructor called, clearing worker function and flags");
         if (m_worker) {
             m_worker = nullptr;
             m_flags.store(0, std::memory_order_release);
@@ -131,15 +129,13 @@ class Worker {
     bool try_claim_execution() noexcept {
         auto current = load();
 
-        core::logger::debug("Worker", "Trying to claim execution with current state `{}`", current);
-
         // Much cleaner and self-documenting
         while (is_scheduled()) {
             // Still need to calculate desired based on what 'current' is right now
             const auto desired = (current & ~ContractState::SCHEDULED) | ContractState::EXECUTING;
 
             if (compare_exchange(current, desired)) {
-                core::logger::debug("Worker", "Successfully claimed execution, new state `{}`", desired);
+                core::logger::debug("core/worker", "claimed, state → {}", desired);
                 return true;
             }
         }

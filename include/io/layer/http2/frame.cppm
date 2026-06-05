@@ -20,45 +20,37 @@ template <shared_layer::FrameRole Role>
 class FrameHeader {
   public:
     FrameHeader() : m_length{0}, m_type{shared_layer::FrameType::DATA}, m_flags{0}, m_stream_id{0} {
-        core::logger::debug("FrameHeader", "Default constructor called, initialized with length "
-                                           "`0`, type `DATA`, flags `0`, stream_id `0`");
     }
 
     FrameHeader(std::uint32_t length, shared_layer::FrameType type, std::uint8_t flags,
                 std::uint32_t stream_id)
         : m_length{length}, m_type{type}, m_flags{flags}, m_stream_id{0} {
         set_stream_id(stream_id);
-
-        core::logger::debug("FrameHeader",
-                            "Constructor called, initialized with length `{}`, type `{}`, flags "
-                            "`{}`, stream_id `{}`",
-                            length, type, flags, stream_id);
     }
 
     FrameHeader &&add_length(std::uint32_t len) && noexcept {
-        core::logger::debug("FrameHeader", "add_length called, set length to `{}`", len);
+        core::logger::debug("FrameHeader", "len={}", len);
 
         m_length = len;
         return std::move(*this);
     }
 
     FrameHeader &&add_type(shared_layer::FrameType type) && noexcept {
-        core::logger::debug("FrameHeader", "add_type called, set type to `{}`", type);
+        core::logger::debug("FrameHeader", "type={}", type);
 
         m_type = type;
         return std::move(*this);
     }
 
     FrameHeader &&add_flags(std::uint8_t flags) && noexcept {
-        core::logger::debug("FrameHeader", "add_flags called, set flags to `{}`", flags);
+        core::logger::debug("FrameHeader", "flags={}", flags);
 
         m_flags = flags;
         return std::move(*this);
     }
 
     FrameHeader &&add_stream_id(std::uint32_t stream_id) && noexcept {
-        core::logger::debug("FrameHeader", "add_stream_id called, set stream_id to `{}`",
-                            stream_id);
+        core::logger::debug("FrameHeader", "stream_id={}", stream_id);
 
         set_stream_id(stream_id);
         return std::move(*this);
@@ -66,8 +58,7 @@ class FrameHeader {
 
 
     void validate() {
-        core::logger::debug("FrameBuilder", "Validating frame with type {} and stream_id {}",
-                            m_type, m_stream_id);
+        core::logger::debug("FrameBuilder", "validate type={} stream={}", m_type, m_stream_id);
 
         if constexpr (Role == shared_layer::FrameRole::SENDER) {
             if (m_stream_id % 2 != 0) {
@@ -510,28 +501,24 @@ template <shared_layer::FrameRole Role>
 class FrameBuilder {
   public:
     FrameBuilder() : m_type{shared_layer::FrameType::DATA}, m_flags{0}, m_stream_id{0} {
-        core::logger::debug(
-            "FrameBuilder",
-            "Default constructor called, initialized with default header and empty payload");
     }
 
     FrameBuilder &&add_type(shared_layer::FrameType type) && noexcept {
-        core::logger::debug("FrameBuilder", "add_type called, set type to `{}`", type);
+        core::logger::debug("FrameBuilder", "type={}", type);
 
         m_type = type;
         return std::move(*this);
     }
 
     FrameBuilder &&add_flags(std::uint8_t flags) && noexcept {
-        core::logger::debug("FrameBuilder", "add_flags called, set flags to `{}`", flags);
+        core::logger::debug("FrameBuilder", "flags={}", flags);
 
         m_flags = flags;
         return std::move(*this);
     }
 
     FrameBuilder &&add_stream_id(std::uint32_t stream_id) && noexcept {
-        core::logger::debug("FrameBuilder", "add_stream_id called, set stream_id to `{}`",
-                            stream_id);
+        core::logger::debug("FrameBuilder", "stream_id={}", stream_id);
 
         m_stream_id = stream_id & 0x7FFFFFFF;
         return std::move(*this);
@@ -541,13 +528,12 @@ class FrameBuilder {
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     FrameBuilder &&add_payload(R &&payload) && noexcept {
         m_payload.append_range(std::forward<R>(payload));
-        core::logger::debug("FrameBuilder", "add_payload called, set payload size to `{}`",
-                            m_payload.size());
+        core::logger::debug("FrameBuilder", "payload size={}", m_payload.size());
         return std::move(*this);
     }
 
     FrameBuilder &&build() && {
-        core::logger::debug("FrameBuilder", "build called, validating frame");
+        core::logger::debug("FrameBuilder", "build");
         return std::move(*this);
     }
 
@@ -555,8 +541,7 @@ class FrameBuilder {
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     void expand_payload(R &&payload) noexcept {
         m_payload.append_range(std::forward<R>(payload));
-        core::logger::debug("FrameBuilder", "add_payload called, new total payload size: `{}`",
-                            m_payload.size());
+        core::logger::debug("FrameBuilder", "payload total={}", m_payload.size());
     }
 
     [[nodiscard]] std::size_t get_size() const noexcept { return HEADER_SIZE + m_payload.size(); }

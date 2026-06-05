@@ -102,6 +102,13 @@ class Plugin {
         return {};
     }
 
+    // Returns unique-type tags this plugin must be loaded before.
+    // Any plugin whose get_unique_type() matches a returned tag will be sorted after this plugin.
+    // MUST return a span over a static array of string literals.
+    [[nodiscard]] virtual std::span<const std::string_view> get_load_before_types() const noexcept {
+        return {};
+    }
+
     virtual void on_load(HostCallbacks const & /*host*/, ConfigView const & /*cfg*/) {}
     virtual void on_unload() {}
     virtual void logger_write(int /*level*/, std::string_view /*msg*/) noexcept {}
