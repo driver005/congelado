@@ -251,17 +251,17 @@ class WorkerSocket {
 
 // Wrapper that connects the base cocket to the worker and manages the types for the thread model.
 template <shared::HandlerController Controller, socket::Protocol protocol>
-class FlowSocket {
+class ServerFlowSocket {
   public:
     using ConnectionEstablishedCallback =
         std::move_only_function<shared::ReadCallback(shared::SendCallback, shared::CloseCallback)>;
 
-    FlowSocket(socket::Endpoint end, Leverager &leverager, Controller &controller)
+    ServerFlowSocket(socket::Endpoint end, Leverager &leverager, Controller &controller)
         : m_base_socket{std::move(end), leverager}, m_leverager{leverager}, m_controller{controller}, m_workers{},
           m_on_established{nullptr} {
     };
 
-    ~FlowSocket() {
+    ~ServerFlowSocket() {
         m_base_socket.set_closed();
         core::logger::debug("io/flow", "closing base socket {}", m_base_socket.get_endpoint().to_string());
         for (auto &[fd, worker] : m_workers) {
@@ -269,13 +269,13 @@ class FlowSocket {
         }
     }
 
-    FlowSocket(const FlowSocket &) = delete;
-    FlowSocket &operator=(const FlowSocket &) = delete;
-    FlowSocket(FlowSocket &&other)
+    ServerFlowSocket(const ServerFlowSocket &) = delete;
+    ServerFlowSocket &operator=(const ServerFlowSocket &) = delete;
+    ServerFlowSocket(ServerFlowSocket &&other)
         : m_base_socket{std::move(other.m_base_socket)}, m_leverager{std::move(other.m_leverager)},
           m_controller{std::move(other.m_controller)}, m_workers{std::move(other.m_workers)},
           m_on_established(std::move(other.m_on_established)) {}
-    FlowSocket &operator=(FlowSocket &&other) {
+    ServerFlowSocket &operator=(ServerFlowSocket &&other) {
         if (this != &other) {
             m_base_socket = std::move(other.m_base_socket);
             m_leverager = std::move(other.m_leverager);
@@ -291,7 +291,7 @@ class FlowSocket {
 
     void build() & {
         if (!m_on_established) {
-            throw std::runtime_error("ConnectionEstablished callback must be set before building the FlowSocket");
+            throw std::runtime_error("ConnectionEstablished callback must be set before building the ServerFlowSocket");
         }
         helper();
         start();

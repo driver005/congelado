@@ -87,8 +87,8 @@ class Http2Plugin final : public congelado::Plugin {
 
   private:
     std::unique_ptr<io::layer::http2::Http2Protocol> m_protocol;
-    std::optional<io::base::flow::sync::FlowSocket<core::contract::ContractGroup<>,
-                                                   io::base::socket::Protocol::TLS>>
+    std::optional<io::base::flow::sync::ServerFlowSocket<core::contract::ContractGroup<>,
+                                                         io::base::socket::Protocol::TLS>>
         m_socket_flow;
 };
 
