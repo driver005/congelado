@@ -1,5 +1,3 @@
-module;
-
 export module core_client;
 
 import std;
@@ -20,24 +18,24 @@ class ClientHandler {
 
     // Generic factory — method as runtime string; body optional
     template <typename Protocol>
-    auto request(std::string_view method, std::string_view path,
+    [[nodiscard]] auto request(std::string_view method, std::string_view path,
                  std::string_view body = {}) {
         return static_cast<Derived&>(*this).template make_request<Protocol>(method, path, body);
     }
 
     // Verb convenience — all body-free; use request<P> directly for body
     template <typename Protocol>
-    auto get(std::string_view path)   { return request<Protocol>("GET",    path); }
+    [[nodiscard]] auto get(std::string_view path)   { return request<Protocol>("GET",    path); }
     template <typename Protocol>
-    auto post(std::string_view path)  { return request<Protocol>("POST",   path); }
+    [[nodiscard]] auto post(std::string_view path)  { return request<Protocol>("POST",   path); }
     template <typename Protocol>
-    auto put(std::string_view path)   { return request<Protocol>("PUT",    path); }
+    [[nodiscard]] auto put(std::string_view path)   { return request<Protocol>("PUT",    path); }
     template <typename Protocol>
-    auto del(std::string_view path)   { return request<Protocol>("DELETE", path); }
+    [[nodiscard]] auto del(std::string_view path)   { return request<Protocol>("DELETE", path); }
     template <typename Protocol>
-    auto patch(std::string_view path) { return request<Protocol>("PATCH",  path); }
+    [[nodiscard]] auto patch(std::string_view path) { return request<Protocol>("PATCH",  path); }
     template <typename Protocol>
-    auto head(std::string_view path)  { return request<Protocol>("HEAD",   path); }
+    [[nodiscard]] auto head(std::string_view path)  { return request<Protocol>("HEAD",   path); }
 };
 
 } // namespace core::client
