@@ -384,11 +384,11 @@ class ClientFlowSocket {
 
     ClientFlowSocket(const ClientFlowSocket &) = delete;
     ClientFlowSocket &operator=(const ClientFlowSocket &) = delete;
-    ClientFlowSocket(ClientFlowSocket &&other) noexcept
+    ClientFlowSocket(ClientFlowSocket &&other)
         : m_endpoint{std::move(other.m_endpoint)}, m_leverager{std::move(other.m_leverager)},
           m_controller{std::move(other.m_controller)}, m_workers{std::move(other.m_workers)},
           m_on_established{std::move(other.m_on_established)} {}
-    ClientFlowSocket &operator=(ClientFlowSocket &&other) noexcept {
+    ClientFlowSocket &operator=(ClientFlowSocket &&other) {
         if (this != &other) {
             m_endpoint = std::move(other.m_endpoint);
             m_leverager = std::move(other.m_leverager);
@@ -449,7 +449,7 @@ class ClientFlowSocket {
                         worker->get_sender().send(std::move(node));
                     },
                     [this, worker]() {
-                        core::logger::info("io/worker", "fd {} closed", worker->get_fd());
+                        core::logger::info("io/flow/client", "fd {} closed", worker->get_fd());
                         m_workers.erase(worker->get_fd());
                     });
 
