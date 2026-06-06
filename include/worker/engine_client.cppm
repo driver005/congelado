@@ -1,6 +1,3 @@
-module;
-#include <ranges>
-
 export module worker:engine_client;
 
 import std;
@@ -54,18 +51,12 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
 
     // CRTP connector 1 — called by ClientHandler::send<Protocol>
     template <typename Protocol>
-    void do_send(interfaces::IRequest<Protocol> &req, ResponseFn cb) {
-        std::string body_str;
-        for (auto byte : req.get_body()) {
-            body_str.push_back(static_cast<char>(byte));
-        }
+    void do_send(std::unique_ptr<interfaces::IRequest<Protocol>> req, ResponseFn cb) {
+        auto http_req = std::unique_ptr<io::layer::http2::HttpRequest>(
+            static_cast<io::layer::http2::HttpRequest*>(req.release()));
         {
             std::lock_guard lock{m_mutex};
-            m_outbound.push(OutboundRequest{
-                std::string{req.get_method()},
-                std::string{req.get_target()},
-                std::move(body_str),
-                std::move(cb)});
+            m_outbound.push(OutboundRequest{std::move(http_req), std::move(cb)});
         }
         if (m_self_contract) {
             m_self_contract->schedule();
@@ -93,6 +84,8 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
             }
             drain_outbound();
             receive_once();
+            // m_outbound is mutex-protected (multi-threaded writes via do_send).
+            // m_pending is only accessed on this contract thread (serialized by claim).
             std::lock_guard lock{m_mutex};
             if (!m_pending.empty() || !m_outbound.empty()) {
                 shared::this_handler::shedule();
@@ -106,9 +99,7 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
 
   private:
     struct OutboundRequest {
-        std::string method;
-        std::string path;
-        std::string body;
+        std::unique_ptr<io::layer::http2::HttpRequest> request;
         ResponseFn callback;
     };
 
@@ -121,9 +112,8 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
         while (!local.empty()) {
             auto item = std::move(local.front());
             local.pop();
-            auto http_req = build_http_request(item.method, item.path, item.body);
-            m_session.send(http_req);
-            m_pending.emplace(http_req.get_stream_id(), std::move(item.callback));
+            m_session.send(*item.request);
+            m_pending.emplace(item.request->get_stream_id(), std::move(item.callback));
         }
     }
 
