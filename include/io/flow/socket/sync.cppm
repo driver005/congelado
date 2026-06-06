@@ -322,11 +322,11 @@ class ServerFlowSocket {
                         std::move(encrypted_socket),
                         [this](socket::SOCKET fd, int err) {
                             m_workers.erase(fd);
-                            std::println("Error while sending data on socket {}: {}", fd, err);
+                            core::logger::error("io/flow/server", "send error on socket {}: {}", fd, err);
                         },
                         [this](socket::SOCKET fd, int err) {
                             m_workers.erase(fd);
-                            std::println("Error while receiving data on socket {}: {}", fd, err);
+                            core::logger::error("io/flow/server", "receive error on socket {}: {}", fd, err);
                         });
 
                     auto read_calback = m_on_established(
@@ -424,6 +424,8 @@ class ClientFlowSocket {
   private:
     void helper() {
         socket::Socket<protocol> sock{m_endpoint};
+        // sync_connect() before set_non_blocking(): a non-blocking socket returns EINPROGRESS
+        // immediately from ::connect(), which would be misread as failure here.
         auto connect_status = sock.sync_connect();
         if (connect_status.get_status() != socket::VALUES::VALID) {
             core::logger::error("io/flow/client", "connect to {} failed", m_endpoint.to_string());
@@ -437,11 +439,11 @@ class ClientFlowSocket {
                     std::move(encrypted_socket),
                     [this](socket::SOCKET fd, int err) {
                         m_workers.erase(fd);
-                        std::println("Error while sending data on socket {}: {}", fd, err);
+                        core::logger::error("io/flow/client", "send error on socket {}: {}", fd, err);
                     },
                     [this](socket::SOCKET fd, int err) {
                         m_workers.erase(fd);
-                        std::println("Error while receiving data on socket {}: {}", fd, err);
+                        core::logger::error("io/flow/client", "receive error on socket {}: {}", fd, err);
                     });
 
                 auto read_callback = m_on_established(
