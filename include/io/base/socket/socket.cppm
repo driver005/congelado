@@ -1902,7 +1902,7 @@ class Socket {
                     FD_ZERO(&exceptfds);
                     FD_SET(m_socket, &exceptfds);
 
-                    int select_result = select(static_cast<int>(m_socket + 1), nullptr, &writefds, &exceptfds, &tv);
+                    int select_result = ::select(static_cast<int>(m_socket + 1), nullptr, &writefds, &exceptfds, &tv);
                     if (select_result > 0) {
                         socklen_t len = sizeof(err);
                         if (getsockopt(m_socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&err), &len) < 0) {
