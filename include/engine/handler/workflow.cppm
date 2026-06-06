@@ -14,8 +14,8 @@ namespace engine {
 
 class WorkflowStartBody {
   public:
-    void set_variables(std::unordered_map<std::string, std::string> v) noexcept {
-        m_variables = std::move(v);
+    void set_variables(std::unordered_map<std::string, std::string> value) noexcept {
+        m_variables = std::move(value);
     }
     [[nodiscard]] const std::unordered_map<std::string, std::string> &
     get_variables() const noexcept {
@@ -86,15 +86,15 @@ class WorkflowHandler {
             return;
         }
 
-        if (auto v = parsed->validate(); !v) {
-            core::logger::warning("engine", "wf/create invalid: {}", v.error());
-            reply(res, serde::Ser::serialize_error(accept, v.error()),
+        if (auto value = parsed->validate(); !value) {
+            core::logger::warning("engine", "wf/create invalid: {}", value.error());
+            reply(res, serde::Ser::serialize_error(accept, value.error()),
                   interfaces::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_connector().insert<model::WorkflowDef>(*parsed, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().insert<model::WorkflowDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
                 core::logger::error("engine", "wf/create db insert failed");
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
@@ -118,14 +118,14 @@ class WorkflowHandler {
             return;
         }
 
-        if (auto v = parsed->validate(); !v) {
-            reply(res, serde::Ser::serialize_error(accept, v.error()),
+        if (auto value = parsed->validate(); !value) {
+            reply(res, serde::Ser::serialize_error(accept, value.error()),
                   interfaces::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_connector().update<model::WorkflowDef>(*parsed, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().update<model::WorkflowDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
@@ -140,8 +140,8 @@ class WorkflowHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        m_ctx.get().get_connector().remove<model::WorkflowDef>(name, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().remove<model::WorkflowDef>(name, [&](bool oke) noexcept {
+            if (!oke) {
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
@@ -163,8 +163,9 @@ class WorkflowHandler {
         std::unordered_map<std::string, std::string> variables;
         auto body = flatten_body(req);
         if (!body.empty()) {
-            if (auto parsed = serde::Ser::deserialize<WorkflowStartBody>(content_type, body))
+            if (auto parsed = serde::Ser::deserialize<WorkflowStartBody>(content_type, body)) {
                 variables = parsed->get_variables();
+            }
         }
 
         model::WorkflowExecution exec;
@@ -177,15 +178,15 @@ class WorkflowHandler {
         timings.set_started_at(std::chrono::system_clock::now());
         exec.set_timings(timings);
 
-        m_ctx.get().get_connector().insert<model::WorkflowExecution>(exec, [&](bool ok) noexcept {
-            if (!ok) {
+        m_ctx.get().get_connector().insert<model::WorkflowExecution>(exec, [&](bool oke) noexcept {
+            if (!oke) {
                 core::logger::error("engine", "wf/start insert failed for '{}'", def_name);
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
                 return;
             }
-            core::logger::info("engine", "exec '{}' started for '{}'",
-                               exec.get_exec_id(), def_name);
+            core::logger::info("engine", "exec '{}' started for '{}'", exec.get_exec_id(),
+                               def_name);
             reply(res, serde::Ser::serialize(accept, exec), interfaces::Status::ACCEPTED);
         });
     }
@@ -227,7 +228,8 @@ class WorkflowHandler {
                     return;
                 }
                 if (model::is_terminal(result->get_status())) {
-                    core::logger::warning("engine", "wf/terminate already terminal: '{}'", exec_id_str);
+                    core::logger::warning("engine", "wf/terminate already terminal: '{}'",
+                                          exec_id_str);
                     reply(res, serde::Ser::serialize_error(accept, "already in terminal state"),
                           interfaces::Status::CONFLICT);
                     handled = true;
@@ -236,19 +238,21 @@ class WorkflowHandler {
                 found = std::move(result);
             });
 
-        if (handled)
+        if (handled) {
             return;
+        }
 
         found->set_status(model::WorkflowStatus::TERMINATED);
-        m_ctx.get().get_connector().update<model::WorkflowExecution>(*found, [&](bool ok) noexcept {
-            if (!ok) {
-                reply(res, serde::Ser::serialize_error(accept, "not found"),
-                      interfaces::Status::NOT_FOUND);
-                return;
-            }
-            core::logger::info("engine", "exec terminated: '{}'", exec_id_str);
-            reply(res, serde::Ser::serialize(accept, *found));
-        });
+        m_ctx.get().get_connector().update<model::WorkflowExecution>(
+            *found, [&](bool oke) noexcept {
+                if (!oke) {
+                    reply(res, serde::Ser::serialize_error(accept, "not found"),
+                          interfaces::Status::NOT_FOUND);
+                    return;
+                }
+                core::logger::info("engine", "exec terminated: '{}'", exec_id_str);
+                reply(res, serde::Ser::serialize(accept, *found));
+            });
     }
 
   private:
@@ -264,8 +268,9 @@ class WorkflowHandler {
         std::string out;
         auto &view = req.get_body();
         out.reserve(view.size());
-        for (std::byte b : view)
-            out += static_cast<char>(b);
+        for (std::byte byte : view) {
+            out += static_cast<char>(byte);
+        }
         return out;
     }
 };

@@ -2,6 +2,7 @@ export module worker;
 
 export import :task_worker;
 export import :config;
+export import :engine_client;
 export import :context;
 export import :poll;
 export import :execution;

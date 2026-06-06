@@ -12,9 +12,9 @@ namespace engine {
 
 class TaskSubmitBody {
   public:
-    void set_result(model::TaskResult r) noexcept { m_result = r; }
-    void set_output_data(std::unordered_map<std::string, std::string> d) noexcept {
-        m_output_data = std::move(d);
+    void set_result(model::TaskResult result) noexcept { m_result = result; }
+    void set_output_data(std::unordered_map<std::string, std::string> data) noexcept {
+        m_output_data = std::move(data);
     }
     [[nodiscard]] model::TaskResult get_result() const noexcept { return m_result; }
     [[nodiscard]] const std::unordered_map<std::string, std::string> &
@@ -95,8 +95,8 @@ class TaskHandler {
             return;
         }
 
-        m_ctx.get().get_connector().insert<model::TaskDef>(*parsed, [&](bool oke) noexcept {
-            if (!oke) {
+        m_ctx.get().get_connector().insert<model::TaskDef>(*parsed, [&](bool okee) noexcept {
+            if (!okee) {
                 core::logger::error("engine", "task/create db insert failed");
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
                       interfaces::Status::INTERNAL_SERVER_ERROR);
@@ -128,10 +128,9 @@ class TaskHandler {
             return;
         }
 
-        m_ctx.get().get_connector().update<model::TaskDef>(*parsed, [&](bool oke) noexcept {
-            if (!oke) {
-                core::logger::warning("engine", "task/update not found: '{}'",
-                                      parsed->get_name());
+        m_ctx.get().get_connector().update<model::TaskDef>(*parsed, [&](bool okee) noexcept {
+            if (!okee) {
+                core::logger::warning("engine", "task/update not found: '{}'", parsed->get_name());
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
                 return;
@@ -146,8 +145,8 @@ class TaskHandler {
         auto target = req.get_target();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        m_ctx.get().get_connector().remove<model::TaskDef>(name, [&](bool oke) noexcept {
-            if (!oke) {
+        m_ctx.get().get_connector().remove<model::TaskDef>(name, [&](bool okee) noexcept {
+            if (!okee) {
                 core::logger::warning("engine", "task/remove not found: '{}'", name);
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
                       interfaces::Status::NOT_FOUND);
@@ -198,8 +197,8 @@ class TaskHandler {
                 found->set_status(model::TaskStatus::IN_PROGRESS);
                 auto claimed = std::move(*found);
                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                    claimed, [&res, accept, claimed](bool ok) mutable noexcept {
-                        if (!ok) {
+                    claimed, [&res, accept, claimed](bool oke) mutable noexcept {
+                        if (!oke) {
                             reply(res, serde::Ser::serialize_error(accept, "claim failed"),
                                   interfaces::Status::INTERNAL_SERVER_ERROR);
                             return;
@@ -235,7 +234,7 @@ class TaskHandler {
                     return;
                 }
 
-                constexpr auto to_status =
+                constexpr auto TO_STATUS =
                     [](model::TaskResult result) noexcept -> model::TaskStatus {
                     switch (result) {
                     case model::TaskResult::SUCCESS:
@@ -250,13 +249,13 @@ class TaskHandler {
                     return model::TaskStatus::FAILED;
                 };
 
-                found->set_status(to_status(submit.get_result()));
+                found->set_status(TO_STATUS(submit.get_result()));
                 found->set_output_data(submit.get_output_data());
                 auto updated = std::move(*found);
 
                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                    updated, [&res, accept, updated](bool ok) mutable noexcept {
-                        if (!ok) {
+                    updated, [&res, accept, updated](bool oke) mutable noexcept {
+                        if (!oke) {
                             reply(res, serde::Ser::serialize_error(accept, "not found"),
                                   interfaces::Status::NOT_FOUND);
                             return;
@@ -279,8 +278,9 @@ class TaskHandler {
         std::string out;
         auto &view = req.get_body();
         out.reserve(view.size());
-        for (std::byte b : view)
-            out += static_cast<char>(b);
+        for (std::byte byte : view) {
+            out += static_cast<char>(byte);
+        }
         return out;
     }
 };

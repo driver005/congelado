@@ -1,5 +1,6 @@
 module;
-// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
+// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing
+// me
 #include <ranges>
 
 export module io_layer_http2:session;
@@ -25,10 +26,12 @@ class Session {
   public:
     explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback,
                      DispatchFn dispatch = {})
-        : m_running{true}, m_last_server_stream_id{0}, m_last_client_stream_id{1}, m_local_settings{},
-          m_remote_settings{}, m_closed_streams{}, m_header_buffer{}, m_decoding_table{}, m_encoding_table{},
-          m_connection_stream{m_local_settings, m_remote_settings}, m_submiter{std::move(send_callback)},
-          m_closer{std::move(close_callback)}, m_safe_header{std::nullopt}, m_dispatch{std::move(dispatch)} {
+        : m_running{true}, m_last_server_stream_id{0}, m_last_client_stream_id{1},
+          m_local_settings{}, m_remote_settings{}, m_closed_streams{}, m_header_buffer{},
+          m_decoding_table{}, m_encoding_table{},
+          m_connection_stream{m_local_settings, m_remote_settings},
+          m_submiter{std::move(send_callback)}, m_closer{std::move(close_callback)},
+          m_safe_header{std::nullopt}, m_dispatch{std::move(dispatch)} {
         std::println("Session created {}", m_last_server_stream_id);
     }
 
@@ -38,9 +41,11 @@ class Session {
 
         request.set_stream_id(SID);
 
-        auto node = utils::buffering::BufferNode{request.get_size(m_local_settings.get_max_frame_size())};
+        auto node =
+            utils::buffering::BufferNode{request.get_size(m_local_settings.get_max_frame_size())};
 
-        node | WriteHttpRequestAdaptor{request, m_encoding_table, m_local_settings.get_max_frame_size()};
+        node | WriteHttpRequestAdaptor{request, m_encoding_table,
+                                       m_local_settings.get_max_frame_size()};
 
         core::logger::debug("http2/session", "HEADERS frame size={}", node.get_written());
 
@@ -66,24 +71,29 @@ class Session {
 
                 auto header = header_opt.value();
 
-                core::logger::debug("http2/session", "header type={} len={} stream={}", header.get_type(), header.get_length(), header.get_stream_id());
+                core::logger::debug("http2/session", "header type={} len={} stream={}",
+                                    header.get_type(), header.get_length(), header.get_stream_id());
 
                 if (header.get_stream_id() > m_remote_settings.get_last_stream_id()) {
-                    throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                                       "Received frame for stream ID above GOAWAY threshold",
-                                                       m_remote_settings.get_last_stream_id()};
+                    throw error::http::ConnectionError{
+                        error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                        "Received frame for stream ID above GOAWAY threshold",
+                        m_remote_settings.get_last_stream_id()};
                 }
 
                 if (m_remote_settings.is_acknowledged()) {
                     if (m_remote_settings.get_delta_window_on_settings() > 0) {
                         for (auto &[id, stream] : m_streams) {
-                            core::logger::debug("http2/session", "stream {} send_window +{}", id, m_remote_settings.get_delta_window_on_settings());
+                            core::logger::debug("http2/session", "stream {} send_window +{}", id,
+                                                m_remote_settings.get_delta_window_on_settings());
 
-                            stream->update_send_window(m_remote_settings.get_delta_window_on_settings());
+                            stream->update_send_window(
+                                m_remote_settings.get_delta_window_on_settings());
                         }
 
                         m_remote_settings.set_delta_window_on_settings(0);
-                        core::logger::debug("http2/session", "remote settings ACK, windows updated");
+                        core::logger::debug("http2/session",
+                                            "remote settings ACK, windows updated");
                     }
 
                     m_remote_settings.set_state(SettingsState::IMPLEMENTED);
@@ -92,10 +102,12 @@ class Session {
                 m_safe_header = header_opt;
             }
 
-            core::logger::debug("http2/session", "reading frame payload size={}", m_safe_header->get_length());
+            core::logger::debug("http2/session", "reading frame payload size={}",
+                                m_safe_header->get_length());
 
             if (reader.size() < m_safe_header->get_length()) {
-                core::logger::debug("http2/session", "incomplete payload expected={} got={}", m_safe_header->get_length(), reader.size());
+                core::logger::debug("http2/session", "incomplete payload expected={} got={}",
+                                    m_safe_header->get_length(), reader.size());
 
                 return;
             }
@@ -105,7 +117,8 @@ class Session {
 
             auto stream_id = header.get_stream_id();
 
-            core::logger::debug("http2/session", "frame type={} stream={} len={}", header.get_type(), stream_id, header.get_length());
+            core::logger::debug("http2/session", "frame type={} stream={} len={}",
+                                header.get_type(), stream_id, header.get_length());
 
             if (stream_id == 0) {
                 core::logger::debug("http2/session", "conn-level frame");
@@ -121,10 +134,12 @@ class Session {
                 auto &stream = get_or_create_stream(stream_id);
                 stream.receive(header, reader);
 
-                core::logger::debug("http2/session", "stream {} handled, checking remote done", stream_id);
+                core::logger::debug("http2/session", "stream {} handled, checking remote done",
+                                    stream_id);
 
                 if (stream.is_remote_done()) {
-                    core::logger::debug("http2/session", "stream {} remote done, responding", stream_id);
+                    core::logger::debug("http2/session", "stream {} remote done, responding",
+                                        stream_id);
 
                     response(stream.get_stream_id());
                 }
@@ -145,7 +160,8 @@ class Session {
                              .add_payload(payload)
                              .build();
 
-            core::logger::warning("http2/session", "stream {} error: {}", e.get_stream_id(), e.what());
+            core::logger::warning("http2/session", "stream {} error: {}", e.get_stream_id(),
+                                  e.what());
 
             send_frame(frame);
             mark_stream_closed(e.get_stream_id());
@@ -156,7 +172,8 @@ class Session {
 
     void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
         auto size = frame.get_size();
-        auto node = std::views::empty<std::byte> | WriteFrameBuilderAdaptor{frame, m_local_settings.get_max_frame_size()} |
+        auto node = std::views::empty<std::byte> |
+                    WriteFrameBuilderAdaptor{frame, m_local_settings.get_max_frame_size()} |
                     std::ranges::to<utils::buffering::BufferNode>(size);
 
         core::logger::debug("http2/session", "sending frame size={}", node.get_written());
@@ -167,7 +184,8 @@ class Session {
     void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0) {
         m_running = false;
 
-        auto payload = std::views::empty<std::byte> | utils::codec::WriteBigEndianAdaptor{stream_id} |
+        auto payload = std::views::empty<std::byte> |
+                       utils::codec::WriteBigEndianAdaptor{stream_id} |
                        utils::codec::WriteBigEndianAdaptor{std::to_underlying(code)} |
                        std::ranges::to<std::vector<std::byte>>();
 
@@ -184,7 +202,8 @@ class Session {
 
         m_safe_header.reset();
 
-        std::erase_if(m_streams, [stream_id](const auto &entry) { return entry.first > stream_id; });
+        std::erase_if(m_streams,
+                      [stream_id](const auto &entry) { return entry.first > stream_id; });
 
         m_closer();
     }
@@ -208,8 +227,10 @@ class Session {
             res.set_status(interfaces::Status::INTERNAL_SERVER_ERROR);
         }
 
-        auto node = utils::buffering::BufferNode{res.get_size(m_local_settings.get_max_frame_size())};
-        node | WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.get_max_frame_size()};
+        auto node =
+            utils::buffering::BufferNode{res.get_size(m_local_settings.get_max_frame_size())};
+        node |
+            WriteHttpResponseAdaptor{res, m_encoding_table, m_local_settings.get_max_frame_size()};
         send_node(std::move(node));
     }
 
@@ -220,7 +241,8 @@ class Session {
 
     Stream<> &get_or_create_stream(const std::uint32_t &stream_id) {
         if (stream_id == 0) {
-            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"};
+            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               "Stream ID 0 is reserved"};
         }
 
         auto it = m_streams.find(stream_id);
@@ -233,8 +255,9 @@ class Session {
             return *(it->second);
         }
 
-        auto stream = std::make_unique<Stream<>>(stream_id, m_connection_stream, m_decoding_table, m_encoding_table,
-                                                 m_local_settings, m_remote_settings);
+        auto stream =
+            std::make_unique<Stream<>>(stream_id, m_connection_stream, m_decoding_table,
+                                       m_encoding_table, m_local_settings, m_remote_settings);
 
         auto [new_it, inserted] = m_streams.emplace(stream_id, std::move(stream));
         if (!inserted) {
@@ -248,7 +271,8 @@ class Session {
     std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>>
     receive_header(utils::buffering::BufferReader &target) {
         if (target.size() < HEADER_SIZE) {
-            core::logger::debug("http2/session", "incomplete header expected={} got={}", HEADER_SIZE, target.size());
+            core::logger::debug("http2/session", "incomplete header expected={} got={}",
+                                HEADER_SIZE, target.size());
 
             return std::nullopt;
         }
@@ -258,7 +282,8 @@ class Session {
                       utils::buffering::AdvanceReaderAdaptor{target, HEADER_SIZE};
 
 
-        core::logger::debug("http2/session", "header parsed type={} len={} stream={}", header.get_type(), header.get_length(), header.get_stream_id());
+        core::logger::debug("http2/session", "header parsed type={} len={} stream={}",
+                            header.get_type(), header.get_length(), header.get_stream_id());
 
         return header;
     }
@@ -266,7 +291,8 @@ class Session {
 
     void mark_stream_closed(std::uint32_t stream_id) {
         if (stream_id == 0) {
-            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"};
+            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                                               "Stream ID 0 is reserved"};
         }
 
         if (auto it = m_streams.find(stream_id); it != m_streams.end()) {
@@ -276,7 +302,9 @@ class Session {
 
         throw error::http::ConnectionError{
             error::http::Http2ErrorCode::PROTOCOL_ERROR,
-            std::format("Stream with ID {} was not found and therefor could not be closed / finished", stream_id),
+            std::format(
+                "Stream with ID {} was not found and therefor could not be closed / finished",
+                stream_id),
             m_remote_settings.get_last_stream_id()};
     }
 
