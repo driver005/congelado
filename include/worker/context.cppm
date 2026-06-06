@@ -45,11 +45,12 @@ class WorkerContext {
             core::logger::error("worker/context", "call_engine before engine client is set");
             return;
         }
+        using P = io::shared::http::Protocol;
+        auto req = m_engine_client->make_request<P>(method, path, body);
         auto promise = std::make_shared<std::promise<std::pair<int, std::string>>>();
         auto future = promise->get_future();
-        auto req = m_engine_client->make_request<io::shared::http::Protocol>(method, path, body);
-        m_engine_client->send<io::shared::http::Protocol>(*req,
-            [p = promise](int status, std::string response_body) {
+        m_engine_client->send<P>(std::move(req),
+            [p = promise](int status, std::string response_body) mutable {
                 p->set_value({status, std::move(response_body)});
             });
         try {

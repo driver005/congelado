@@ -12,8 +12,8 @@ class ClientHandler {
 
     // send<Protocol> — Protocol at call site, dispatches to Derived::do_send
     template <typename Protocol>
-    void send(interfaces::IRequest<Protocol>& req, ResponseFn cb) {
-        static_cast<Derived&>(*this).do_send(req, std::move(cb));
+    void send(std::unique_ptr<interfaces::IRequest<Protocol>> req, ResponseFn cb) {
+        static_cast<Derived&>(*this).do_send(std::move(req), std::move(cb));
     }
 
     // Generic factory — method as runtime string; body optional
