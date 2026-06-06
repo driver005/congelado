@@ -85,9 +85,15 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
             drain_outbound();
             receive_once();
             // m_outbound is mutex-protected (multi-threaded writes via do_send).
-            // m_pending is only accessed on this contract thread (serialized by claim).
-            std::lock_guard lock{m_mutex};
-            if (!m_pending.empty() || !m_outbound.empty()) {
+            // m_pending is only accessed on this contract thread (serialized by claim),
+            // so it can be read without holding the lock.
+            bool has_pending = !m_pending.empty();
+            bool has_outbound;
+            {
+                std::lock_guard lock{m_mutex};
+                has_outbound = !m_outbound.empty();
+            }
+            if (has_pending || has_outbound) {
                 shared::this_handler::shedule();
             }
         };
@@ -187,6 +193,11 @@ class EngineClient : public core::client::ClientHandler<EngineClient>,
                  : (method == "HEAD")   ? HttpRequest::head(0, path)
                                         : HttpRequest::get(0, path);
         if (!body.empty()) {
+            // Ownership note: BufferNode uses intrusive reference counting.
+            // push_back(node, ...) wraps the node in a NodeView that calls
+            // node->acquire() (refcount → 1). When BufferView is destroyed,
+            // NodeView::~NodeView calls node->release(); at refcount 0 the node
+            // deletes itself. No leak: ownership transfers into the BufferView.
             // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             auto *body_node = new utils::buffering::BufferNode{body.size()};
             for (char c : body) {
