@@ -208,6 +208,10 @@ class Session {
         m_closer();
     }
 
+    [[nodiscard]] std::uint32_t get_last_client_stream_id() const noexcept {
+        return m_last_client_stream_id;
+    }
+
     [[nodiscard]] const Settings &get_local_settings() const noexcept { return m_local_settings; }
     Settings &get_local_settings() noexcept { return m_local_settings; }
 
