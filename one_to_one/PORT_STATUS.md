@@ -139,39 +139,39 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/io/base/socket/socket.cppm      → one_to_one/src/io/base/socket/socket.d
 
 ### IO flow
-- [ ] include/io/flow/receiver/sync.cppm      → one_to_one/src/io/flow/receiver/sync.d
-- [ ] include/io/flow/receiver/async.cppm     → one_to_one/src/io/flow/receiver/async.d
-- [ ] include/io/flow/receiver/reveiver.cppm  → one_to_one/src/io/flow/receiver/reveiver.d
-- [ ] include/io/flow/sender/sync.cppm        → one_to_one/src/io/flow/sender/sync.d
-- [ ] include/io/flow/sender/async.cppm       → one_to_one/src/io/flow/sender/async.d
-- [ ] include/io/flow/sender/sender.cppm      → one_to_one/src/io/flow/sender/sender.d
-- [ ] include/io/flow/socket/sync.cppm        → one_to_one/src/io/flow/socket/sync.d
-- [ ] include/io/flow/socket/async.cppm       → one_to_one/src/io/flow/socket/async.d
-- [ ] include/io/flow/socket/socket.cppm      → one_to_one/src/io/flow/socket/socket.d
-- [ ] include/io/flow/flow.cppm               → one_to_one/src/io/flow/flow.d
+- [x] include/io/flow/receiver/sync.cppm      → one_to_one/src/io/flow/receiver/sync.d
+- [x] include/io/flow/receiver/async.cppm     → one_to_one/src/io/flow/receiver/async.d
+- [x] include/io/flow/receiver/reveiver.cppm  → one_to_one/src/io/flow/receiver/reveiver.d
+- [x] include/io/flow/sender/sync.cppm        → one_to_one/src/io/flow/sender/sync.d
+- [x] include/io/flow/sender/async.cppm       → one_to_one/src/io/flow/sender/async.d
+- [x] include/io/flow/sender/sender.cppm      → one_to_one/src/io/flow/sender/sender.d
+- [x] include/io/flow/socket/sync.cppm        → one_to_one/src/io/flow/socket/sync.d
+- [x] include/io/flow/socket/async.cppm       → one_to_one/src/io/flow/socket/async.d
+- [x] include/io/flow/socket/socket.cppm      → one_to_one/src/io/flow/socket/socket.d
+- [x] include/io/flow/flow.cppm               → one_to_one/src/io/flow/flow.d
 
 ### IO layer: shared
-- [ ] include/io/layer/shared/types.cppm      → one_to_one/src/io/layer/shared/types.d
-- [ ] include/io/layer/shared/ping.cppm       → one_to_one/src/io/layer/shared/ping.d
-- [ ] include/io/layer/shared/codec.cppm      → one_to_one/src/io/layer/shared/codec.d
-- [ ] include/io/layer/shared/shared.cppm     → one_to_one/src/io/layer/shared/shared.d
+- [x] include/io/layer/shared/types.cppm      → one_to_one/src/io/layer/shared/types.d
+- [x] include/io/layer/shared/ping.cppm       → one_to_one/src/io/layer/shared/ping.d
+- [x] include/io/layer/shared/codec.cppm      → one_to_one/src/io/layer/shared/codec.d
+- [x] include/io/layer/shared/shared.cppm     → one_to_one/src/io/layer/shared/shared.d
 
 ### IO layer: HTTP/2
-- [ ] include/io/layer/http2/consts.cppm      → one_to_one/src/io/layer/http2/consts.d
-- [ ] include/io/layer/http2/settings.cppm    → one_to_one/src/io/layer/http2/settings.d
-- [ ] include/io/layer/http2/frame.cppm       → one_to_one/src/io/layer/http2/frame.d
-- [ ] include/io/layer/http2/helper.cppm      → one_to_one/src/io/layer/http2/helper.d
-- [ ] include/io/layer/http2/stream.cppm      → one_to_one/src/io/layer/http2/stream.d
-- [ ] include/io/layer/http2/req.cppm         → one_to_one/src/io/layer/http2/req.d
-- [ ] include/io/layer/http2/res.cppm         → one_to_one/src/io/layer/http2/res.d
-- [ ] include/io/layer/http2/handshake.cppm   → one_to_one/src/io/layer/http2/handshake.d
-- [ ] include/io/layer/http2/flow.cppm        → one_to_one/src/io/layer/http2/flow.d
-- [ ] include/io/layer/http2/session.cppm     → one_to_one/src/io/layer/http2/session.d
-- [ ] include/io/layer/http2/plugin.cppm      → one_to_one/src/io/layer/http2/plugin.d
-- [ ] include/io/layer/http2/http2.cppm       → one_to_one/src/io/layer/http2/http2.d
+- [x] include/io/layer/http2/consts.cppm      → one_to_one/src/io/layer/http2/consts.d
+- [x] include/io/layer/http2/settings.cppm    → one_to_one/src/io/layer/http2/settings.d
+- [x] include/io/layer/http2/frame.cppm       → one_to_one/src/io/layer/http2/frame.d
+- [x] include/io/layer/http2/helper.cppm      → one_to_one/src/io/layer/http2/helper.d
+- [x] include/io/layer/http2/stream.cppm      → one_to_one/src/io/layer/http2/stream.d
+- [x] include/io/layer/http2/req.cppm         → one_to_one/src/io/layer/http2/req.d
+- [x] include/io/layer/http2/res.cppm         → one_to_one/src/io/layer/http2/res.d
+- [x] include/io/layer/http2/handshake.cppm   → one_to_one/src/io/layer/http2/handshake.d
+- [x] include/io/layer/http2/flow.cppm        → one_to_one/src/io/layer/http2/flow.d
+- [x] include/io/layer/http2/session.cppm     → one_to_one/src/io/layer/http2/session.d
+- [x] include/io/layer/http2/plugin.cppm      → one_to_one/src/io/layer/http2/plugin.d
+- [x] include/io/layer/http2/http2.cppm       → one_to_one/src/io/layer/http2/http2.d
 
 ### IO: src/congelado
-- [ ] src/congelado/io/service.cppm           → one_to_one/src/congelado/io/service.d
+- [x] src/congelado/io/service.cppm           → one_to_one/src/congelado/io/service.d
 
 ### Core
 - [ ] include/core/contracts/types.cppm       → one_to_one/src/core/contracts/types.d
