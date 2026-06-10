@@ -52,25 +52,25 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/utils/queue/queue.cppm          → one_to_one/src/utils/queue/queue.d
 
 ### Modules (C stdlib wrappers)
-- [ ] include/modules/asio.cppm               → one_to_one/src/modules/asio.d
-- [ ] include/modules/errno.cppm              → one_to_one/src/modules/errno.d
-- [ ] include/modules/fcntl.cppm              → one_to_one/src/modules/fcntl.d
-- [ ] include/modules/net.cppm                → one_to_one/src/modules/net.d
-- [ ] include/modules/netdb.cppm              → one_to_one/src/modules/netdb.d
-- [ ] include/modules/openssl.cppm            → one_to_one/src/modules/openssl.d
-- [ ] include/modules/socket.cppm             → one_to_one/src/modules/socket.d
-- [ ] include/modules/unistd.cppm             → one_to_one/src/modules/unistd.d
-- [ ] include/modules/winsock2.cppm           → one_to_one/src/modules/winsock2.d
+- [x] include/modules/asio.cppm               → one_to_one/src/modules/asio.d
+- [x] include/modules/errno.cppm              → one_to_one/src/modules/errno.d
+- [x] include/modules/fcntl.cppm              → one_to_one/src/modules/fcntl.d
+- [x] include/modules/net.cppm                → one_to_one/src/modules/net.d
+- [x] include/modules/netdb.cppm              → one_to_one/src/modules/netdb.d
+- [x] include/modules/openssl.cppm            → one_to_one/src/modules/openssl.d
+- [x] include/modules/socket.cppm             → one_to_one/src/modules/socket.d
+- [x] include/modules/unistd.cppm             → one_to_one/src/modules/unistd.d
+- [x] include/modules/winsock2.cppm           → one_to_one/src/modules/winsock2.d
 
 ### Shared umbrella modules
-- [ ] include/shared/types.cppm               → one_to_one/src/shared/types.d
-- [ ] include/shared/logger.cppm              → one_to_one/src/shared/logger.d
-- [ ] include/shared/socket.cppm              → one_to_one/src/shared/socket.d
-- [ ] include/shared/leverage.cppm            → one_to_one/src/shared/leverage.d
-- [ ] include/shared/transport.cppm           → one_to_one/src/shared/transport.d
-- [ ] include/shared/flow.cppm                → one_to_one/src/shared/flow.d
-- [ ] include/shared/handler.cppm             → one_to_one/src/shared/handler.d
-- [ ] include/shared/shared.cppm              → one_to_one/src/shared/shared.d
+- [x] include/shared/types.cppm               → one_to_one/src/shared/types.d
+- [x] include/shared/logger.cppm              → one_to_one/src/shared/logger.d
+- [x] include/shared/socket.cppm              → one_to_one/src/shared/socket.d
+- [x] include/shared/leverage.cppm            → one_to_one/src/shared/leverage.d
+- [x] include/shared/transport.cppm           → one_to_one/src/shared/transport.d
+- [x] include/shared/flow.cppm                → one_to_one/src/shared/flow.d
+- [x] include/shared/handler.cppm             → one_to_one/src/shared/handler.d
+- [x] include/shared/shared.cppm              → one_to_one/src/shared/shared.d
 
 ### Interfaces
 - [ ] include/interfaces/status.cppm          → one_to_one/src/interfaces/status.d
