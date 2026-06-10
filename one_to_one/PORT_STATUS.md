@@ -18,9 +18,9 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 
 ## Master Checklist
 
-- [ ] Run 0: D project skeleton under one_to_one/ builds an empty hello-target
-- [ ] Run 0: D_STYLE_GUIDE.md written, derived from .clang-format + observed C++ style
-- [ ] Run 0: Full file inventory enumerated, per-file checklist generated
+- [x] Run 0: D project skeleton under one_to_one/ builds an empty hello-target
+- [x] Run 0: D_STYLE_GUIDE.md written, derived from .clang-format + observed C++ style
+- [x] Run 0: Full file inventory enumerated, per-file checklist generated
 - [ ] Run 1: All files converted (write-only pass, no verification)
 - [ ] Run 2: Project compiles clean with LDC, -betterC/@nogc enforced
 - [ ] Run 2: Syntax/semantics sanity pass complete (read-through, no build errors)
