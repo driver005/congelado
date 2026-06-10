@@ -319,3 +319,102 @@ Items from the write-only pass. None implemented.
   C++ defined these as `constexpr` friend operators on the enum. D has no in-enum operators;
   the D port adds two `opOr`/`opAnd` module-level functions. In Run 3, use D's `opBinary`
   template to restore the natural `a | b` syntax for call sites.
+
+---
+
+# Improvement Ideas (Run 1 — core/contracts + core/config + core/logger + core/ffi + core/heart + core/server + core/manager + core/client)
+
+Items from the write-only pass over the 26 core files. None implemented.
+
+- **core/contracts/types.cppm** — "ContractState bitwise operators as opBinary template"
+  The D port uses module-level `opNot`/`opOr`/`opAnd` free functions instead of operator
+  overloads. In Run 3, add `ContractState.opBinary!"&"` etc. via an `opBinary` template on
+  the enum to restore `a & b` infix syntax that the C++ `constexpr` operators provided.
+
+- **core/contracts/contract.cppm** — "AutoEraseContract / AutoClearExecuteFlag as scope guards"
+  The C++ RAII guard structs are reproduced with D `scope(exit)` blocks. In Run 3, factor
+  these into named `AutoEraseContract` and `AutoClearExecuteFlag` structs (value types) so
+  each guard is visible and testable independently, matching the C++ intent.
+
+- **core/contracts/contract.cppm** — "ContractThreadPool thread management uses GC threads"
+  `core.thread.osthread.Thread` is GC-allocated and not @nogc-safe. In Run 2, wrap the
+  thread pool in a `version(D_BetterC)` guard or replace with a POSIX `pthread_create`
+  binding to restore @nogc compatibility.
+
+- **core/contracts/signal_tree.cppm** — "NodeRouter/NodeBranch children allocation via make!"
+  The D port allocates `NodeBranch[8]` as eight individual `make!NodeBranch()` calls in
+  `NodeRouter.this()`. In Run 3, use a `NodeBranch[8]` inline array (value-embed) inside
+  `NodeRouter` to avoid 8 separate heap allocations per router node, matching the C++
+  `[[no_unique_address]] vector<Node<false>> m_children` optimization intent.
+
+- **core/config/loader.cppm** — "TOML/JSON parsing completely stubbed"
+  The D port stubs `parse_toml` and `parse_json` as no-ops that return an empty Config.
+  In Run 3, integrate a D TOML library (e.g. `toml-d` from DUB) and a JSON library
+  (e.g. `std.json` or `stdx-allocator`-backed parser) to restore full config loading.
+
+- **core/config/types.cppm** — "PluginConfig fields stored as const(char)[] slices, not owned strings"
+  C++ used `std::string` (owning). D port uses `const(char)[]` borrowed views for @nogc.
+  In Run 3, decide whether PluginConfig should own copies (via a bump allocator) or borrow
+  from a config arena, and document the lifetime contract clearly.
+
+- **core/logger/logger.cppm** — "Variadic format overloads use snprintf with no args passed"
+  The template `debug_(name, fmt, args...)` calls `snprintf(buf, fmt.ptr)` but does NOT
+  forward `args` to snprintf (C varargs are unsafe from D). In Run 2, replace with a
+  D-native format path (e.g. `formattedWrite` into a FixedAppender) to actually expand
+  format placeholders, or accept pre-formatted strings only and remove the template
+  overloads entirely.
+
+- **core/logger/registry.cppm** — "loggers __gshared dynamic array is not @nogc"
+  `__gshared ILogger[] loggers` uses GC slice append (`~=`). In Run 2, switch to a
+  fixed-size `ILogger[16]` array + length counter, or use `util.alloc` for @nogc growth.
+
+- **core/ffi/bridge.cppm** — "libffi Closure replaced by plain C function pointer + void*"
+  C++ used libffi closures for dynamic thunk generation. The D port replaces them with two
+  static `extern(C)` functions (`log_thunk`, `schedule_thunk`). This is simpler and @nogc
+  safe. No improvement needed — document the simplification in Run 2.
+
+- **core/ffi/bridge.cppm** — "build_config_view iteration stubbed"
+  `build_config_view` does not iterate the PluginConfig's SwissHashMap because the
+  iteration API is not yet stable. In Run 2, wire `SwissHashMap.opApply` (or equivalent
+  iteration method) to populate `m_cfg_keys` / `m_cfg_vals`.
+
+- **core/ffi/bridge.cppm** — "on_released / on_error return null (weak-ptr semantics lost)"
+  C++ `on_released()` captured `weak_from_this()` to guard against use-after-free.
+  The D port returns `null` (no-op). In Run 3, implement a reference-counted guard or
+  a boolean `m_alive` flag to restore the weak-pointer safety net.
+
+- **core/heart/app.cppm** — "Kahn's dependency sort partially stubbed"
+  Phase 3 (full Kahn's algorithm with adjacency list) is reduced to preserving insertion
+  order because SwissHashMap iteration is not yet available. In Run 2, wire
+  `SwissHashMap.opApply` and complete the topological sort including `load_before_types`
+  ordering constraints.
+
+- **core/heart/app.cppm** — "Plugin directory scan uses std::filesystem::exists stub"
+  `access(2)` is called for file-existence checks (POSIX only). On Windows this path is
+  unimplemented. In Run 2, add a `version(Windows)` branch using `GetFileAttributesA`.
+
+- **core/server/builder.cppm** — "RouterContext.build() sort step is no-op"
+  C++ used `std::ranges::sort` to hash-bucket-order routes within each group. The D port
+  skips the sort under @nogc. In Run 3, implement a @nogc insertion sort (O(n²) for small
+  N is acceptable here — route tables are rarely > 256 entries) to restore deterministic
+  hash-probe ordering.
+
+- **core/server/builder.cppm** — "RouterBuildingHelper[][] uses GC slices"
+  The `table` dynamic array inside `build()` uses GC-backed `~=`. In Run 2, replace with a
+  fixed-size `RouterBuildingHelper[256][16]` stack arena + row-length counters to eliminate
+  all allocations in `build()`.
+
+- **core/server/router.cppm** — "split_path callback form breaks at compile time with @nogc"
+  The lambda passed to `split_path` captures `current`/`current_index` by reference. Under
+  `-betterC` this may require an explicit delegate wrapper. In Run 2, refactor to an
+  iterator-style loop (index-based) that avoids the delegate entirely.
+
+- **core/client/client.cppm** — "ClientConcept constraint not enforceable without D concepts"
+  C++ used a `ClientConcept` concept to constrain `ClientType`. D uses a `static if`
+  template constraint. In Run 2, define a `ClientConcept!T` template boolean that checks
+  for `on_send()` returning a callable, to restore compile-time enforcement.
+
+- **core/client/client.cppm** — "IRequest!Protocol constructed directly (no factory)"
+  C++ `m_base_request{}` default-constructed the request. The D port calls
+  `new IRequest!Protocol()` directly. If `IRequest` is abstract this will fail to compile.
+  In Run 2, replace with a protocol-specific concrete request type or a factory function.

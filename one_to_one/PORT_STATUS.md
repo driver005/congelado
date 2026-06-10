@@ -174,32 +174,32 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] src/congelado/io/service.cppm           → one_to_one/src/congelado/io/service.d
 
 ### Core
-- [ ] include/core/contracts/types.cppm       → one_to_one/src/core/contracts/types.d
-- [ ] include/core/contracts/consts.cppm      → one_to_one/src/core/contracts/consts.d
-- [ ] include/core/contracts/contract.cppm    → one_to_one/src/core/contracts/contract.d
-- [ ] include/core/contracts/signal_tree.cppm → one_to_one/src/core/contracts/signal_tree.d
-- [ ] include/core/config/types.cppm          → one_to_one/src/core/config/types.d
-- [ ] include/core/config/loader.cppm         → one_to_one/src/core/config/loader.d
-- [ ] include/core/config/config.cppm         → one_to_one/src/core/config/config.d
-- [ ] include/core/logger/logger.cppm         → one_to_one/src/core/logger/logger.d
-- [ ] include/core/logger/registry.cppm       → one_to_one/src/core/logger/registry.d
-- [ ] include/core/ffi/ffi.cppm               → one_to_one/src/core/ffi/ffi.d
-- [ ] include/core/ffi/bridge.cppm            → one_to_one/src/core/ffi/bridge.d
-- [ ] include/core/heart/context.cppm         → one_to_one/src/core/heart/context.d
-- [ ] include/core/heart/heart.cppm           → one_to_one/src/core/heart/heart.d
-- [ ] include/core/heart/app.cppm             → one_to_one/src/core/heart/app.d
-- [ ] include/core/server/consts.cppm         → one_to_one/src/core/server/consts.d
-- [ ] include/core/server/types.cppm          → one_to_one/src/core/server/types.d
-- [ ] include/core/server/base.cppm           → one_to_one/src/core/server/base.d
-- [ ] include/core/server/middleware.cppm     → one_to_one/src/core/server/middleware.d
-- [ ] include/core/server/router.cppm         → one_to_one/src/core/server/router.d
-- [ ] include/core/server/handler.cppm        → one_to_one/src/core/server/handler.d
-- [ ] include/core/server/server.cppm         → one_to_one/src/core/server/server.d
-- [ ] include/core/manager/plugin.cppm        → one_to_one/src/core/manager/plugin.d
-- [ ] include/core/manager/handle.cppm        → one_to_one/src/core/manager/handle.d
-- [ ] include/core/manager/loader.cppm        → one_to_one/src/core/manager/loader.d
-- [ ] include/core/manager/handler.cppm       → one_to_one/src/core/manager/handler.d
-- [ ] include/core/client/client.cppm         → one_to_one/src/core/client/client.d
+- [x] include/core/contracts/types.cppm       → one_to_one/src/core/contracts/types.d
+- [x] include/core/contracts/consts.cppm      → one_to_one/src/core/contracts/consts.d
+- [x] include/core/contracts/contract.cppm    → one_to_one/src/core/contracts/contract.d
+- [x] include/core/contracts/signal_tree.cppm → one_to_one/src/core/contracts/signal_tree.d
+- [x] include/core/config/types.cppm          → one_to_one/src/core/config/types.d
+- [x] include/core/config/loader.cppm         → one_to_one/src/core/config/loader.d
+- [x] include/core/config/config.cppm         → one_to_one/src/core/config/config.d
+- [x] include/core/logger/logger.cppm         → one_to_one/src/core/logger/logger.d
+- [x] include/core/logger/registry.cppm       → one_to_one/src/core/logger/registry.d
+- [x] include/core/ffi/ffi.cppm               → one_to_one/src/core/ffi/ffi.d
+- [x] include/core/ffi/bridge.cppm            → one_to_one/src/core/ffi/bridge.d
+- [x] include/core/heart/context.cppm         → one_to_one/src/core/heart/context.d
+- [x] include/core/heart/heart.cppm           → one_to_one/src/core/heart/heart.d
+- [x] include/core/heart/app.cppm             → one_to_one/src/core/heart/app.d
+- [x] include/core/server/consts.cppm         → one_to_one/src/core/server/consts.d
+- [x] include/core/server/types.cppm          → one_to_one/src/core/server/types.d
+- [x] include/core/server/base.cppm           → one_to_one/src/core/server/base.d
+- [x] include/core/server/middleware.cppm     → one_to_one/src/core/server/middleware.d
+- [x] include/core/server/router.cppm         → one_to_one/src/core/server/router.d
+- [x] include/core/server/handler.cppm        → one_to_one/src/core/server/handler.d
+- [x] include/core/server/server.cppm         → one_to_one/src/core/server/server.d
+- [x] include/core/manager/plugin.cppm        → one_to_one/src/core/manager/plugin.d
+- [x] include/core/manager/handle.cppm        → one_to_one/src/core/manager/handle.d
+- [x] include/core/manager/loader.cppm        → one_to_one/src/core/manager/loader.d
+- [x] include/core/manager/handler.cppm       → one_to_one/src/core/manager/handler.d
+- [x] include/core/client/client.cppm         → one_to_one/src/core/client/client.d
 
 ### Engine + Worker
 - [ ] include/engine/context.cppm             → one_to_one/src/engine/context.d
