@@ -13,7 +13,7 @@ class WorkerContext {
     this(const(char)[] worker_id) { m_worker_id = worker_id; }
 
     ~this() {
-        foreach (entry; m_workers) {
+        foreach (entry; m_workers_buf[0 .. m_workers_count]) {
             auto rel = entry.on_released();
             if (rel !is null)
                 rel();
@@ -29,21 +29,22 @@ class WorkerContext {
     // The caller retains ownership; this context holds a raw reference only.
     // Duplicate task_type replaces previous entry.
     void add_task_worker(ITaskWorker worker) {
-        foreach (ref entry; m_workers) {
+        foreach (ref entry; m_workers_buf[0 .. m_workers_count]) {
             if (entry.get_task_type() == worker.get_task_type()) {
                 entry = worker;
                 return;
             }
         }
-        // PORT-NOTE: @nogc append — wire util.alloc in Run 2
-        m_workers ~= worker;
+        // PORT-NOTE: C++ uses std::vector<ITaskWorker*>; D uses fixed-size buffer[32] to avoid GC.
+        assert(m_workers_count < 32, "too many workers");
+        m_workers_buf[m_workers_count++] = worker;
     }
 
     const(char)[] get_worker_id() const { return m_worker_id; }
 
     // Returns null if no worker registered for task_type.
     ITaskWorker get_task_worker(const(char)[] task_type) const {
-        foreach (entry; m_workers) {
+        foreach (entry; m_workers_buf[0 .. m_workers_count]) {
             if (entry.get_task_type() == task_type) {
                 return cast(ITaskWorker) entry;
             }
@@ -71,15 +72,18 @@ class WorkerContext {
     // PORT-NOTE: C++ returned std::vector<string_view>; D fills a caller-supplied slice.
     size_t get_task_types(const(char)[][] out_types) const {
         size_t count = 0;
-        foreach (entry; m_workers) {
+        foreach (entry; m_workers_buf[0 .. m_workers_count]) {
             if (count >= out_types.length) break;
             out_types[count++] = entry.get_task_type();
         }
         return count;
     }
 
+    ITaskWorker[] workers() { return m_workers_buf[0 .. m_workers_count]; }
+
   private:
     const(char)[] m_worker_id;
-    // PORT-NOTE: C++ std::vector<ITaskWorker*> → D ITaskWorker[] (interfaces are reference types)
-    ITaskWorker[] m_workers;
+    // PORT-NOTE: C++ uses std::vector<ITaskWorker*>; D uses fixed-size buffer[32] to avoid GC.
+    ITaskWorker[32] m_workers_buf;
+    size_t          m_workers_count;
 }
