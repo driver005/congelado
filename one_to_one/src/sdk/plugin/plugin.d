@@ -1,4 +1,5 @@
 module sdk.plugin.plugin;
+@nogc nothrow:
 
 // PORT-NOTE: SDK C header — extern(C) struct ABI types only.
 // No Object base, no exceptions, no GC.
@@ -43,30 +44,31 @@ enum uint CONGELADO_CAP_CUSTOM   = 8u;
 // Drop exactly once at the bottom of your plugin .d, after the class definition.
 //
 // PORT-NOTE: C++ macro used a static T* s_plugin with lazy init.
-// D mixin uses a __gshared pointer with the same lazy-init pattern.
-// The macro body uses new T{} for construction; D uses scope auto / make!T.
-// No @nogc on these exported symbols (plugin binary boundary; GC allowed in plugin).
+// D mixin uses a __gshared class reference with the same lazy-init pattern.
+// Construction uses util.alloc.make!T (malloc-backed, @nogc).
+// Destruction uses util.alloc.dispose in congelado_on_unload.
 mixin template CongeladoPlugin(T) {
     import sdk.plugin.plugin : CongeladoHostCallbacks, CongeladoConfigView;
     import sdk.plugin.congelado_plugin : HostCallbacks, ConfigView;
+    import util.alloc : make, dispose;
 
-    __gshared T* s_plugin = null;
+    __gshared T s_plugin = null;
 
-    extern(C) export const(char)* congelado_plugin_name() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export const(char)* congelado_plugin_name() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.get_name().ptr;
     }
-    extern(C) export const(char)* congelado_plugin_version() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export const(char)* congelado_plugin_version() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.get_version().ptr;
     }
-    extern(C) export uint32_t congelado_capabilities() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export uint32_t congelado_capabilities() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.capabilities();
     }
     extern(C) export void congelado_on_load(const(CongeladoHostCallbacks)* host,
-                                             const(CongeladoConfigView)* cfg) {
-        if (s_plugin is null) s_plugin = new T();
+                                             const(CongeladoConfigView)* cfg) nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         auto hcb = HostCallbacks(
             host.log, host.schedule,
             host.router_ctx, host.controller_ctx, host.leverager_ctx, host.ctx);
@@ -75,36 +77,35 @@ mixin template CongeladoPlugin(T) {
             cv = ConfigView(cfg.keys, cfg.values, cfg.count);
         s_plugin.on_load(hcb, cv);
     }
-    extern(C) export void congelado_on_unload() nothrow {
+    extern(C) export void congelado_on_unload() nothrow @nogc {
         if (s_plugin !is null) {
             s_plugin.on_unload();
-            // PORT-NOTE: C++ deleted s_plugin; D uses destroy + free for @nogc compatibility.
-            // Simple null-out here; Run 2 should use util.alloc.dispose.
+            dispose(s_plugin);
             s_plugin = null;
         }
     }
-    extern(C) export void congelado_logger_write(int level, const(char)* msg, size_t len) nothrow {
+    extern(C) export void congelado_logger_write(int level, const(char)* msg, size_t len) nothrow @nogc {
         if (s_plugin !is null)
             s_plugin.logger_write(level, msg[0 .. len]);
     }
-    extern(C) export void congelado_logger_write_error(const(char)* msg, size_t len) nothrow {
+    extern(C) export void congelado_logger_write_error(const(char)* msg, size_t len) nothrow @nogc {
         if (s_plugin !is null)
             s_plugin.logger_write(4, msg[0 .. len]);
     }
-    extern(C) export void* congelado_protocol_get() nothrow {
+    extern(C) export void* congelado_protocol_get() nothrow @nogc {
         return s_plugin !is null ? s_plugin.protocol_get() : null;
     }
-    extern(C) export void* congelado_storage_get() nothrow {
+    extern(C) export void* congelado_storage_get() nothrow @nogc {
         return s_plugin !is null ? s_plugin.storage_get() : null;
     }
-    extern(C) export const(char)* congelado_unique_type() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export const(char)* congelado_unique_type() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.get_unique_type().ptr;
     }
     // PORT-NOTE: C++ used a static std::vector<const char*> cache.
     // D uses a __gshared fixed buffer.
-    extern(C) export const(char*)* congelado_requires() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export const(char*)* congelado_requires() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         auto reqs = s_plugin.get_requires();
         // Return pointer to internal static array of .ptr values.
         __gshared const(char)*[64] s_cache;
@@ -119,12 +120,12 @@ mixin template CongeladoPlugin(T) {
         }
         return s_cache.ptr;
     }
-    extern(C) export size_t congelado_requires_count() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export size_t congelado_requires_count() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.get_requires().length;
     }
-    extern(C) export const(char*)* congelado_load_before_types() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export const(char*)* congelado_load_before_types() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         auto lbt = s_plugin.get_load_before_types();
         __gshared const(char)*[64] s_cache;
         __gshared bool             s_built = false;
@@ -138,8 +139,8 @@ mixin template CongeladoPlugin(T) {
         }
         return s_cache.ptr;
     }
-    extern(C) export size_t congelado_load_before_types_count() nothrow {
-        if (s_plugin is null) s_plugin = new T();
+    extern(C) export size_t congelado_load_before_types_count() nothrow @nogc {
+        if (s_plugin is null) s_plugin = make!T();
         return s_plugin.get_load_before_types().length;
     }
 }

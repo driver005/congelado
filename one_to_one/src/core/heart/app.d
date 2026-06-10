@@ -53,6 +53,8 @@ class App {
         size_t plugins_count = 0;
         PluginHandle[] plugins = plugins_buf[0 .. 0];
         bool plugin_logger = load_plugins(cfg_opt, ctx, plugins_buf, plugins_count);
+        dispose(cfg_opt);
+        cfg_opt = null;
 
         if (!plugin_logger) {
             fprintf(stderr, "[heart] no logger plugin found — aborting\n");
