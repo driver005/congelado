@@ -3,21 +3,23 @@ module core.logger.registry;
 
 import interfaces.logger : ILogger;
 
-// PORT-NOTE: static inline std::vector<std::shared_ptr<ILogger>> loggers →
-//   module-level __gshared dynamic array of ILogger references.
-//   std::shared_ptr → plain D class reference (GC-managed or use util.alloc).
+// PORT-NOTE: C++ uses std::vector<shared_ptr<ILogger>>; D uses fixed-size array (max 32) to avoid GC
 
 class LoggerRegistry {
     // Multiple loggers all receive every message.
-    __gshared ILogger[] loggers;
+    __gshared ILogger[32] m_loggers;
+    __gshared size_t      m_logger_count;
 
   public:
     // Appends a logger. No-op if null. Multiple loggers all receive every message.
-    static void register_logger(ILogger logger) {
-        if (logger !is null) loggers ~= logger;
+    static void register_logger(ILogger logger) @nogc nothrow {
+        if (logger !is null) {
+            assert(m_logger_count < 32, "logger registry full");
+            m_loggers[m_logger_count++] = logger;
+        }
     }
 
-    static bool has_logger() { return loggers.length > 0; }
+    static bool has_logger() { return m_logger_count > 0; }
 
-    static ILogger[] all() { return loggers; }
+    static ILogger[] all() { return m_loggers[0 .. m_logger_count]; }
 }

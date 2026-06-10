@@ -208,7 +208,8 @@ class RouteHandler(Derived,
                    const(Handler!(Derived, 8)) handler,
                    const(Middleware!(Derived, MiddlewareSize)) middleware,
                    ubyte children_size) {
-        RouterNode node = new RouterNode(
+        import util.alloc : make;
+        RouterNode node = make!RouterNode(
             kind,
             path,
             cast(ushort)children_offset,
