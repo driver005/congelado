@@ -10,6 +10,7 @@ import io.shared.http.header;
 import io.shared.http.types : Token, token_to_string;
 import interfaces.request  : IRequest;
 import interfaces.response : IResponse;
+import util.alloc;
 
 // PORT-NOTE: C++ HpackFlushReason : bool → D enum bool equivalent
 enum HpackFlushReason : bool { OVERFLOW = false, END = true }
@@ -374,7 +375,7 @@ class Hpack(Protocol, UInt = uint, int Width = 4) if (DecodeWidth!Width) {
     }
 
     HpackEncoder!(UInt, Width) make_encoder(FlushCallback on_flush, bool use_auto_policy = true) {
-        return new HpackEncoder!(UInt, Width)(
+        return make!(HpackEncoder!(UInt, Width))(
             m_encoding_table,
             m_response.get_headers(),
             16384,
@@ -384,7 +385,7 @@ class Hpack(Protocol, UInt = uint, int Width = 4) if (DecodeWidth!Width) {
     }
 
     size_t decode(const(ubyte)[] data) {
-        auto adapter = new HpackDecoderAdapter!(Protocol, UInt, Width)(m_decoding_table, m_request);
+        scope auto adapter = new HpackDecoderAdapter!(Protocol, UInt, Width)(m_decoding_table, m_request);
         return adapter(data);
     }
 
