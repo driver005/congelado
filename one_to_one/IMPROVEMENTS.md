@@ -41,3 +41,29 @@ None of these were implemented — they are proposals for the Run 3 improvement 
   `ConcurrentQueue.size_approx()` calls `pager.size()` and `winner.size()`, but `Pager`
   never exposes a `size()` method in either the C++ or D source. Add a derived
   `size_t size() const` that returns `m_writer - m_reader` (approximate, relaxed load).
+
+- **modules/asio.cppm** — "Replace Asio with native D async I/O"
+  The C++ port depends on the header-only Asio library for its executor model, strands,
+  and SSL streams. The D port stubs this module out. For Run 3, wire the leverage layer
+  (io_uring/POSIX) and OpenSSL directly so the asio.d stub can be removed entirely.
+
+- **modules/errno.cppm** — "Trim errno.d re-export list to actually-used codes"
+  The current D port re-exports the full POSIX errno list for completeness. After Run 2
+  identifies which codes are referenced by the codebase, trim the public import to only
+  those symbols to reduce symbol pollution.
+
+- **modules/openssl.cppm** — "Adopt deimos/openssl for full OpenSSL binding"
+  The hand-written minimal binding in openssl.d covers only SSL_CTX and SSL_new.
+  When deimos/openssl is added to dub.sdl, the `version(Have_deimos_openssl)` branch
+  automatically expands to the full binding, removing the need for hand declarations.
+
+- **shared/handler.cppm** — "this_handler TLS fields need explicit __gshared annotation"
+  The D port declares `this_handler.current` and `current_id` as plain static fields,
+  which gives per-thread storage (correct). In the improvement pass, annotate them with
+  explicit `static` + a comment confirming TLS semantics match the C++ `thread_local`.
+
+- **shared/flow.cppm** — "Callback aliases use raw fn+ctx pairs; consider typed closures"
+  All five callback aliases (ReadCallback, SendCallback, etc.) are `void function(void*,
+  ...)` pairs to stay @nogc. For the improvement pass, evaluate a thin `Closure!Fn`
+  struct (fn pointer + opaque context word) so call sites get type-checked context
+  instead of bare void*.
