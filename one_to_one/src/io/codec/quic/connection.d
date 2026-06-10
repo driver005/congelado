@@ -53,7 +53,7 @@ class Connection {
     }
 
     ~this() {
-        foreach (ref entry; m_streams) {
+        foreach (ref entry; m_streams_buf[0 .. m_streams_count]) {
             if (entry.ssl !is null)
                 SSL_free(entry.ssl);
         }
@@ -99,7 +99,9 @@ class Connection {
         SSL* s = SSL_new_stream(m_ssl, unidirectional ? SSL_STREAM_FLAG_UNI : 0);
         if (!s) return ulong.max;
         const ulong id = SSL_get_stream_id(s);
-        m_streams ~= StreamEntry(id, s);
+        // PORT-NOTE: C++ uses std::unordered_map; D uses fixed-size StreamEntry[32] to avoid GC.
+        assert(m_streams_count < m_streams_buf.length, "open_stream: too many streams");
+        m_streams_buf[m_streams_count++] = StreamEntry(id, s);
         return id;
     }
 
@@ -115,23 +117,25 @@ class Connection {
             SSL_shutdown(s);
             SSL_free(s);
         } else {
-            m_streams ~= StreamEntry(SSL_get_stream_id(s), s);
+            // PORT-NOTE: C++ uses std::unordered_map; D uses fixed-size StreamEntry[32] to avoid GC.
+            assert(m_streams_count < m_streams_buf.length, "send_stream: too many streams");
+            m_streams_buf[m_streams_count++] = StreamEntry(SSL_get_stream_id(s), s);
         }
         return written == data.length;
     }
 
     // Write to a specific already-open stream by id.
     bool write_stream(ulong stream_id, const(ubyte)[] data, bool fin = false) {
-        foreach (i, ref entry; m_streams) {
-            if (entry.stream_id != stream_id) continue;
+        foreach (i; 0 .. m_streams_count) {
+            if (m_streams_buf[i].stream_id != stream_id) continue;
             size_t written = 0;
-            SSL_write_ex(entry.ssl, data.ptr, data.length, &written);
+            SSL_write_ex(m_streams_buf[i].ssl, data.ptr, data.length, &written);
             if (fin) {
-                SSL_shutdown(entry.ssl);
-                SSL_free(entry.ssl);
-                // remove from m_streams
-                m_streams[i] = m_streams[$ - 1];
-                m_streams = m_streams[0 .. $ - 1];
+                SSL_shutdown(m_streams_buf[i].ssl);
+                SSL_free(m_streams_buf[i].ssl);
+                // remove from m_streams_buf (swap with last)
+                m_streams_buf[i] = m_streams_buf[m_streams_count - 1];
+                --m_streams_count;
             }
             return written == data.length;
         }
@@ -150,17 +154,20 @@ class Connection {
     void poll_streams() {
         // Drain the accept queue — non-blocking.
         SSL* incoming = null;
-        while ((incoming = SSL_accept_stream(m_ssl, SSL_ACCEPT_STREAM_NO_BLOCK)) !is null)
-            m_streams ~= StreamEntry(SSL_get_stream_id(incoming), incoming);
+        while ((incoming = SSL_accept_stream(m_ssl, SSL_ACCEPT_STREAM_NO_BLOCK)) !is null) {
+            // PORT-NOTE: C++ uses std::unordered_map; D uses fixed-size StreamEntry[32] to avoid GC.
+            assert(m_streams_count < m_streams_buf.length, "poll_streams: too many streams");
+            m_streams_buf[m_streams_count++] = StreamEntry(SSL_get_stream_id(incoming), incoming);
+        }
 
         size_t write_idx = 0;
-        for (size_t i = 0; i < m_streams.length; ++i) {
-            SSL* s = m_streams[i].ssl;
+        for (size_t i = 0; i < m_streams_count; ++i) {
+            SSL* s = m_streams_buf[i].ssl;
             const int rs = SSL_get_stream_read_state(s);
 
             // Skip streams with nothing to read yet.
             if (rs == SSL_STREAM_STATE_NONE) {
-                m_streams[write_idx++] = m_streams[i];
+                m_streams_buf[write_idx++] = m_streams_buf[i];
                 continue;
             }
 
@@ -189,21 +196,23 @@ class Connection {
                 (SSL_get_stream_read_state(s) == SSL_STREAM_STATE_FINISHED);
 
             if (total > 0 && m_on_stream_data.fn !is null)
-                m_on_stream_data.fn(m_on_stream_data.ctx, m_streams[i].stream_id, buf[0 .. total], fin);
+                m_on_stream_data.fn(m_on_stream_data.ctx, m_streams_buf[i].stream_id, buf[0 .. total], fin);
 
             if (fin) {
                 SSL_free(s);
                 continue;
             }
-            m_streams[write_idx++] = m_streams[i];
+            m_streams_buf[write_idx++] = m_streams_buf[i];
         }
-        m_streams = m_streams[0 .. write_idx];
+        m_streams_count = write_idx;
     }
 
     SSL*           m_ssl;
     ConnectedFn    m_on_connected;
     StreamDataFn   m_on_stream_data;
-    StreamEntry[]  m_streams;
+    // PORT-NOTE: C++ uses std::unordered_map; D uses fixed-size StreamEntry[32] to avoid GC.
+    StreamEntry[32] m_streams_buf;
+    size_t          m_streams_count;
     ConnState      m_state;
     bool           m_handshake_done;
 }

@@ -4,6 +4,7 @@ module core.client.client;
 import interfaces.interfaces : ClientConcept, ReceiveDispatchFn;
 import interfaces.request    : IRequest;
 import util.optional         : Optional;
+import util.alloc            : make, dispose;
 
 // PORT-NOTE: C++ template<ClientConcept ClientType, typename Protocol>
 // → D class Client(ClientType, Protocol) with constraints
@@ -17,32 +18,34 @@ class Client(ClientType, Protocol)
   public:
     @disable this();
 
-    ~this() {}
+    ~this() {
+        dispose(m_base_request);
+    }
 
     @disable this(this); // No copy
 
     // Move semantics are default in D (reference semantics for classes)
 
     static Client!(ClientType, Protocol) get(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("GET", path);
+        return make!(Client!(ClientType, Protocol))("GET", path);
     }
     static Client!(ClientType, Protocol) head(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("HEAD", path);
+        return make!(Client!(ClientType, Protocol))("HEAD", path);
     }
     static Client!(ClientType, Protocol) post(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("POST", path);
+        return make!(Client!(ClientType, Protocol))("POST", path);
     }
     static Client!(ClientType, Protocol) put(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("PUT", path);
+        return make!(Client!(ClientType, Protocol))("PUT", path);
     }
     static Client!(ClientType, Protocol) del(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("DELETE", path);
+        return make!(Client!(ClientType, Protocol))("DELETE", path);
     }
     static Client!(ClientType, Protocol) patch(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("PATCH", path);
+        return make!(Client!(ClientType, Protocol))("PATCH", path);
     }
     static Client!(ClientType, Protocol) options(const(char)[] path) {
-        return new Client!(ClientType, Protocol)("OPTIONS", path);
+        return make!(Client!(ClientType, Protocol))("OPTIONS", path);
     }
 
     Client!(ClientType, Protocol) with_runtime(ref ClientType client) {
@@ -75,7 +78,7 @@ class Client(ClientType, Protocol)
   private:
     this(const(char)[] method, const(char)[] path) {
         m_path         = path;
-        m_base_request = new IRequest!Protocol();
+        m_base_request = make!(IRequest!Protocol)();
         m_client       = null;
         m_base_request.add_header("method", method);
         m_base_request.add_header("authority", m_path);

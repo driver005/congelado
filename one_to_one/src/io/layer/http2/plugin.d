@@ -11,6 +11,7 @@ import io.layer.http2.flow;
 import io.error.http : Http2ErrorCode;
 import shared.flow   : ReadCallback, SendCallback, CloseCallback;
 import interfaces.protocol : IProtocol, ReceiveDispatchFn, SendDispatchFn, HttpProtocol;
+import util.alloc : make, dispose;
 
 // PORT-NOTE: forward stubs for not-yet-ported core modules.
 // Run 3: replace with proper imports once core/config and core/server are ported.
@@ -30,13 +31,14 @@ class Client {
     }
 
     ~this() {
+        dispose(m_flow);
         // PORT-NOTE: C++ default destructor.
     }
 
     @disable this(this);
 
     ReadCallback on_connect(SendCallback send, CloseCallback close) {
-        m_flow = new ClientFlow(send, close, m_dispatch);
+        m_flow = make!ClientFlow(send, close, m_dispatch);
         return m_flow.on_connect();
     }
 
@@ -57,6 +59,11 @@ class Server {
   public:
     this() {}
 
+    ~this() {
+        foreach (i; 0 .. m_flows_count)
+            dispose(m_flows_buf[i]);
+    }
+
     @disable this(this);
 
     // PORT-NOTE: C++ build(void*) cast to RouterContext<Protocol>*.
@@ -67,13 +74,20 @@ class Server {
 
     ReadCallback on_connect(SendCallback send, CloseCallback close) {
         // Create a new ServerFlow for this connection.
-        auto flow = new ServerFlow(send, close, m_dispatch);
-        m_flows ~= flow;
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ServerFlow[16] to avoid GC.
+        assert(m_flows_count < m_flows_buf.length, "Server: too many flows");
+        auto flow = make!ServerFlow(send, close, m_dispatch);
+        m_flows_buf[m_flows_count++] = flow;
         return flow.on_read();
     }
 
+    /// Slice accessor for active flows.
+    ServerFlow[] m_flows() { return m_flows_buf[0 .. m_flows_count]; }
+
   private:
-    ServerFlow[]      m_flows;
+    // PORT-NOTE: C++ uses std::vector; D uses fixed-size ServerFlow[16] to avoid GC.
+    ServerFlow[16]    m_flows_buf;
+    size_t            m_flows_count;
     ReceiveDispatchFn m_dispatch;
     // PORT-NOTE: C++ std::optional<RouteHandler<Protocol>> m_server; deferred to Run 3.
 }
@@ -107,11 +121,10 @@ class Http2Protocol : IProtocol!(Server, Client) {
     override const(char)[] get_tls_cert()      const { return m_cert; }
     override const(char)[] get_tls_key()       const { return m_key; }
 
-    // PORT-NOTE: C++ returned std::unique_ptr<Server/Client>; D returns GC-managed ptr.
-    // Run 3: switch to make!/dispose from util.alloc.
-    override Server* get_server() { return new Server(); }
+    // PORT-NOTE: C++ returned std::unique_ptr<Server/Client>; caller must dispose.
+    override Server* get_server() { return make!Server(); }
     override Client* get_client(ReceiveDispatchFn dispatch) {
-        return new Client(dispatch);
+        return make!Client(dispatch);
     }
 
   private:

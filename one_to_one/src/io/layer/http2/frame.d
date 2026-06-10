@@ -249,8 +249,9 @@ Http2ErrorCode read_frame_header(const(ubyte)[] data, uint max_frame_size,
                       | (cast(uint) data[7] <<  8)
                       | (cast(uint) data[8]));
 
-    header_out = new FrameHeader(len, frame_type, flags, stream_id,
-                                 FrameRole.RECEIVER);
+    import util.alloc : make;
+    header_out = make!FrameHeader(len, frame_type, flags, stream_id,
+                                  FrameRole.RECEIVER);
     return Http2ErrorCode.NO_ERROR_CODE;
 }
 
@@ -298,7 +299,7 @@ uint read_window_increment(const(ubyte)[] data, out Http2ErrorCode err) {
 
 // ─── FrameBuilder ────────────────────────────────────────────────────────────
 // PORT-NOTE: C++ FrameBuilder<Role> held a std::vector<std::byte> payload;
-// D port uses a dynamic ubyte[] (GC-free upgrade deferred to Run 3).
+// D port uses a fixed-size ubyte[16384] buffer to avoid GC.
 
 class FrameBuilder {
   public:
@@ -306,6 +307,7 @@ class FrameBuilder {
         m_type      = FrameType.DATA;
         m_flags     = 0;
         m_stream_id = 0;
+        m_payload_len = 0;
     }
 
     FrameBuilder add_type(FrameType type) {
@@ -324,41 +326,50 @@ class FrameBuilder {
     }
 
     FrameBuilder add_payload(const(ubyte)[] payload) {
-        m_payload ~= payload;
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[16384] to avoid GC.
+        assert(m_payload_len + payload.length <= m_payload_buf.length, "FrameBuilder: payload overflow");
+        m_payload_buf[m_payload_len .. m_payload_len + payload.length] = payload[];
+        m_payload_len += payload.length;
         return this;
     }
 
     FrameBuilder build() { return this; }
 
     void expand_payload(const(ubyte)[] payload) {
-        m_payload ~= payload;
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[16384] to avoid GC.
+        assert(m_payload_len + payload.length <= m_payload_buf.length, "FrameBuilder: payload overflow");
+        m_payload_buf[m_payload_len .. m_payload_len + payload.length] = payload[];
+        m_payload_len += payload.length;
     }
 
-    size_t         get_size()     const { return HEADER_SIZE + m_payload.length; }
-    const(ubyte)[] get_payload()  const { return m_payload; }
-    size_t         get_length()   const { return m_payload.length; }
+    size_t         get_size()     const { return HEADER_SIZE + m_payload_len; }
+    const(ubyte)[] get_payload()  const { return m_payload_buf[0 .. m_payload_len]; }
+    size_t         get_length()   const { return m_payload_len; }
     FrameType      get_type()     const { return m_type; }
     ubyte          get_flags()    const { return m_flags; }
     uint           get_stream_id() const { return m_stream_id; }
 
   private:
-    FrameType m_type;
-    ubyte     m_flags;
-    uint      m_stream_id;
-    ubyte[]   m_payload;
+    FrameType      m_type;
+    ubyte          m_flags;
+    uint           m_stream_id;
+    // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[16384] to avoid GC.
+    ubyte[16384]   m_payload_buf;
+    size_t         m_payload_len;
 }
 
 // ─── write_frame_builder ──────────────────────────────────────────────────────
 // PORT-NOTE: C++ WriteFrameBuilderAdaptor/WriteFrameClosureAdapter split a payload
 // into max_frame_size chunks, emitting HEADERS + END_HEADERS, CONTINUATION, and
-// DATA + END_STREAM frames.  D port: plain function appending to caller-owned slice.
+// DATA + END_STREAM frames.  D port: plain function writing into caller-owned slice
+// at position out_pos.
 //
 // CRITICAL HTTP/2 INVARIANT: END_STREAM MUST NEVER be set on HEADERS frames.
 // Only set on the trailing DATA frame (or on HEADERS when no_data == true, meaning
 // no DATA frame follows).  Matches the C++ WriteFrameClosureAdapter exactly.
 
 void write_frame_builder(FrameBuilder frame, size_t max_frame_size,
-                         ref ubyte[] out_,
+                         ref ubyte[] out_, ref size_t out_pos,
                          bool end_stream_after_data = false,
                          bool no_data = false) {
     const(ubyte)[] data = frame.get_payload();
@@ -393,8 +404,12 @@ void write_frame_builder(FrameBuilder frame, size_t max_frame_size,
         ubyte[HEADER_SIZE] hdr;
         write_frame_header(hdr[], cast(uint) chunk_len, type, flags,
                            frame.get_stream_id());
-        out_ ~= hdr[];
-        if (chunk_len > 0)
-            out_ ~= data[offset .. offset + chunk_len];
+        // PORT-NOTE: C++ uses std::vector append; D writes positionally to avoid GC.
+        out_[out_pos .. out_pos + HEADER_SIZE] = hdr[];
+        out_pos += HEADER_SIZE;
+        if (chunk_len > 0) {
+            out_[out_pos .. out_pos + chunk_len] = data[offset .. offset + chunk_len];
+            out_pos += chunk_len;
+        }
     }
 }

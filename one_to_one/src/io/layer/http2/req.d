@@ -17,6 +17,7 @@ import io.shared.http.header : HeaderFieldStatic, HeaderField, HeaderEntry, Head
 import interfaces.request : IRequest;
 import interfaces.protocol : HttpProtocol;
 import utils.buffering.view : BufferView;
+import util.alloc : make, dispose;
 
 // ─── HttpRequest ─────────────────────────────────────────────────────────────
 
@@ -31,43 +32,43 @@ class HttpRequest : IRequest!HttpProtocol {
 
     // Static factory methods.
     static HttpRequest make_get(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.GET));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_head(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.HEAD));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_post(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.POST));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_put(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.PUT));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_del(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.DELETE));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_patch(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.PATCH));
         r.insert_token(Token.PATH, path);
         return r;
     }
     static HttpRequest make_options(uint stream_id, const(char)[] path) {
-        auto r = new HttpRequest(stream_id);
+        auto r = make!HttpRequest(stream_id);
         r.insert_token(Token.METHOD, method_str(HttpMethod.OPTIONS));
         r.insert_token(Token.PATH, path);
         return r;
@@ -138,17 +139,23 @@ class HttpRequest : IRequest!HttpProtocol {
     }
     override ref BufferView get_body() { return m_body; }
     override HeaderEntry[] get_header() const {
-        // PORT-NOTE: returns GC slice; Run 3 will use fixed-size stack-based array.
-        HeaderEntry[] result;
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size HeaderEntry[STATIC_HEADER_COUNT] to avoid GC.
+        return m_header_cache[0 .. m_header_cache_count];
+    }
+
+    // Rebuild the header cache (call after any insert_token / insert_str).
+    private void rebuild_header_cache() {
+        m_header_cache_count = 0;
         foreach (f; m_static_headers) {
             if (f !is null) {
                 HeaderEntry e;
                 e.kind         = HeaderEntryKind.Static;
                 e.static_field = f;
-                result ~= e;
+                // PORT-NOTE: C++ uses std::vector; D uses fixed-size T[N] to avoid GC.
+                assert(m_header_cache_count < m_header_cache.length, "get_header: too many headers");
+                m_header_cache[m_header_cache_count++] = e;
             }
         }
-        return result;
     }
     override const(char)[] find_header(scope const(char)[] name) const {
         // PORT-NOTE: Full tokenize + custom lookup deferred to Run 3.
@@ -159,11 +166,12 @@ class HttpRequest : IRequest!HttpProtocol {
 
   private:
     void insert_token(Token token, const(char)[] value) {
-        // PORT-NOTE: C++ make_shared<HeaderField<true>>; D GC allocation for Run 1.
-        auto f = new HeaderFieldStatic();
-        f.m_name  = token;
-        f.m_value = value;
-        m_static_headers[cast(size_t) token] = f;
+        // PORT-NOTE: HeaderFieldStatic is a struct; store by value in inline array to avoid GC.
+        size_t idx = cast(size_t) token;
+        m_static_fields[idx].m_name  = token;
+        m_static_fields[idx].m_value = value;
+        m_static_headers[idx] = &m_static_fields[idx];
+        rebuild_header_cache();
     }
 
     void insert_str(const(char)[] name, const(char)[] value) {
@@ -172,18 +180,24 @@ class HttpRequest : IRequest!HttpProtocol {
 
     enum size_t STATIC_HEADER_COUNT = cast(size_t) Token.CUSTOM + 1;
 
-    uint                                  m_stream_id;
+    uint                                    m_stream_id;
+    // PORT-NOTE: HeaderFieldStatic is a struct; store by value in inline array to avoid GC.
+    HeaderFieldStatic[STATIC_HEADER_COUNT]  m_static_fields;
     HeaderFieldStatic*[STATIC_HEADER_COUNT] m_static_headers;
+    // PORT-NOTE: C++ uses std::vector; D uses fixed-size HeaderEntry[STATIC_HEADER_COUNT] to avoid GC.
+    HeaderEntry[STATIC_HEADER_COUNT]        m_header_cache;
+    size_t                                  m_header_cache_count;
     // PORT-NOTE: SwissHashMap for custom headers deferred to Run 3.
-    BufferView                            m_body;
+    BufferView                              m_body;
 }
 
 // ─── write_http_request ───────────────────────────────────────────────────────
 // PORT-NOTE: C++ WriteHttpRequestAdaptor was a range_adaptor_closure.
 // CRITICAL: END_STREAM MUST NEVER be set on HEADERS frames — only on DATA frames.
 
-void write_http_request(HttpRequest req, HPackTable* table,
+void write_http_request(HttpRequest req, HPackTable table,
                         size_t max_frame_size, ref ubyte[] output,
+                        ref size_t out_pos,
                         ubyte extra_flags = 0) {
     const uint stream_id = req.get_stream_id();
     auto entries = req.get_header();
@@ -192,15 +206,17 @@ void write_http_request(HttpRequest req, HPackTable* table,
     // Build header entries slice for HPACK encoder.
     struct FlushCtx {
         ubyte[]* out_;
+        size_t*  out_pos_;
         uint     stream_id;
         bool*    first_frame;
     }
     FlushCtx fctx;
     fctx.out_        = &output;
+    fctx.out_pos_    = &out_pos;
     fctx.stream_id   = stream_id;
     fctx.first_frame = &first_frame;
 
-    auto encoder = new HpackEncoder!()(
+    auto encoder = make!(HpackEncoder!())(
         table, entries, max_frame_size,
         FlushCallback(cast(void*)&fctx,
             (void* ctx, const(ubyte)[] data, HpackFlushReason reason) @nogc nothrow {
@@ -211,27 +227,33 @@ void write_http_request(HttpRequest req, HPackTable* table,
                 // CRITICAL: END_STREAM MUST NEVER be set on HEADERS frames.
                 ubyte[HEADER_SIZE] hdr;
                 write_frame_header(hdr[], cast(uint) data.length, type, fflags, c.stream_id);
-                *c.out_ ~= hdr[];
-                *c.out_ ~= data;
+                // PORT-NOTE: C++ uses std::vector append; D writes positionally to avoid GC.
+                (*c.out_)[*c.out_pos_ .. *c.out_pos_ + HEADER_SIZE] = hdr[];
+                *c.out_pos_ += HEADER_SIZE;
+                (*c.out_)[*c.out_pos_ .. *c.out_pos_ + data.length] = data[];
+                *c.out_pos_ += data.length;
                 *c.first_frame = false;
             })
     );
     encoder();
+    dispose(encoder);
 
     // Emit trailing DATA frame with END_STREAM.
     if (req.get_body().empty()) {
         ubyte data_flags = extra_flags | Flags.END_STREAM;
-        auto frame = new FrameBuilder();
+        auto frame = make!FrameBuilder();
         frame.add_type(FrameType.DATA).add_flags(data_flags)
              .add_stream_id(stream_id).build();
-        write_frame_builder(frame, max_frame_size, output);
+        write_frame_builder(frame, max_frame_size, output, out_pos);
+        dispose(frame);
     } else {
         // PORT-NOTE: body → DATA frames with END_STREAM on last chunk.
         // BufferView iteration deferred to Run 3; placeholder stub.
-        auto frame = new FrameBuilder();
+        auto frame = make!FrameBuilder();
         frame.add_type(FrameType.DATA).add_flags(extra_flags)
              .add_stream_id(stream_id).build();
         // TODO: append body bytes from BufferView (Run 3).
-        write_frame_builder(frame, max_frame_size, output);
+        write_frame_builder(frame, max_frame_size, output, out_pos);
+        dispose(frame);
     }
 }

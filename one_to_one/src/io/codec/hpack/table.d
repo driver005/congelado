@@ -1,6 +1,8 @@
 module io.codec.hpack.table;
 @nogc nothrow:
 
+import util.alloc : make, dispose;
+
 import io.codec.shared;
 import io.shared.http.header;
 import io.shared.http.types : Token;
@@ -92,7 +94,11 @@ ref StaticTableBase HPackStatic() { return _hpack_static; }
 class HPackTable {
   public:
     this(size_t max_size = DEFAULT_MAX_TABLE_SIZE) {
-        m_dyn = new DynamicTable(max_size);
+        m_dyn = make!DynamicTable(max_size);
+    }
+
+    ~this() {
+        dispose(m_dyn);
     }
 
     // PORT-NOTE: C++ operator[] returns optional<HeaderEntry> → D returns pointer (null = not found).

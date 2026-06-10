@@ -22,6 +22,7 @@ import utils.buffering.node   : BufferNode;
 import utils.buffering.view   : BufferView;
 import shared.flow : SendCallback, CloseCallback;
 import interfaces.protocol : ReceiveDispatchFn;
+import util.alloc : make, dispose;
 
 // ─── Session ─────────────────────────────────────────────────────────────────
 
@@ -33,16 +34,27 @@ class Session {
         m_running                 = true;
         m_last_server_stream_id   = 0;
         m_last_client_stream_id   = 1;
-        m_local_settings          = new Settings();
-        m_remote_settings         = new Settings();
-        m_decoding_table          = new HPackTable();
-        m_encoding_table          = new HPackTable();
-        m_connection_stream       = new ConnectionStream(m_local_settings,
-                                                        m_remote_settings);
+        m_local_settings          = make!Settings();
+        m_remote_settings         = make!Settings();
+        m_decoding_table          = make!HPackTable();
+        m_encoding_table          = make!HPackTable();
+        m_connection_stream       = make!ConnectionStream(m_local_settings,
+                                                          m_remote_settings);
         m_submitter               = send_callback;
         m_closer                  = close_callback;
         m_safe_header             = null;
         m_dispatch                = dispatch;
+        m_streams_count           = 0;
+    }
+
+    ~this() {
+        dispose(m_local_settings);
+        dispose(m_remote_settings);
+        dispose(m_decoding_table);
+        dispose(m_encoding_table);
+        dispose(m_connection_stream);
+        foreach (i; 0 .. m_streams_count)
+            dispose(m_streams_buf[i]);
     }
 
     void send(HttpRequest request) {
@@ -50,15 +62,14 @@ class Session {
         const uint sid = stream.get_stream_id();
         request.set_stream_id(sid);
 
-        ubyte[] wire;
-        wire.reserve(request.get_body().empty()
-            ? (HEADER_SIZE * 2 + 64) // rough estimate header + empty data frame
-            : (HEADER_SIZE * 4 + 128));
-
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[4096] to avoid GC.
+        ubyte[4096] wire_buf;
+        size_t wire_pos = 0;
+        ubyte[] wire_slice = wire_buf[];
         write_http_request(request, m_encoding_table, m_local_settings.get_max_frame_size(),
-                           wire);
+                           wire_slice, wire_pos);
 
-        auto node = new BufferNode(cast(const(ubyte)[]) wire);
+        auto node = make!BufferNode(cast(const(ubyte)[]) wire_buf[0 .. wire_pos]);
         stream.advance_send(FrameType.HEADERS, Flags.END_STREAM);
         send_node(node);
     }
@@ -83,9 +94,9 @@ class Session {
 
             if (m_remote_settings.is_acknowledged()) {
                 if (m_remote_settings.get_delta_window_on_settings() > 0) {
-                    foreach (stream; m_streams) {
-                        if (stream !is null)
-                            stream.update_send_window(
+                    foreach (i; 0 .. m_streams_count) {
+                        if (m_streams_buf[i] !is null)
+                            m_streams_buf[i].update_send_window(
                                 cast(uint) m_remote_settings.get_delta_window_on_settings());
                     }
                     m_remote_settings.set_delta_window_on_settings(0);
@@ -123,10 +134,11 @@ class Session {
                 payload[1] = cast(ubyte)(code_val >> 16);
                 payload[2] = cast(ubyte)(code_val >>  8);
                 payload[3] = cast(ubyte)(code_val);
-                auto rst = new FrameBuilder();
+                auto rst = make!FrameBuilder();
                 rst.add_type(FrameType.RST_STREAM).add_flags(0)
                    .add_stream_id(stream_id).add_payload(payload[]).build();
                 send_frame(rst);
+                dispose(rst);
                 mark_stream_closed(stream_id);
             } else if (stream.is_remote_done()) {
                 dispatch_response(stream_id);
@@ -140,9 +152,12 @@ class Session {
     }
 
     void send_frame(FrameBuilder frame) {
-        ubyte[] wire;
-        write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire);
-        auto node = new BufferNode(cast(const(ubyte)[]) wire);
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[4096] to avoid GC.
+        ubyte[4096] wire_buf;
+        size_t wire_pos = 0;
+        ubyte[] wire_slice = wire_buf[];
+        write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire_slice, wire_pos);
+        auto node = make!BufferNode(cast(const(ubyte)[]) wire_buf[0 .. wire_pos]);
         send_node(node);
     }
 
@@ -160,16 +175,17 @@ class Session {
         payload[6] = cast(ubyte)(code_val >>  8);
         payload[7] = cast(ubyte)(code_val);
 
-        auto frame = new FrameBuilder();
+        auto frame = make!FrameBuilder();
         frame.add_type(FrameType.GOAWAY).add_flags(0).add_stream_id(0)
              .add_payload(payload[]).build();
         send_frame(frame);
+        dispose(frame);
 
         m_safe_header = null;
         // Remove streams with id > stream_id
-        foreach (ref stream; m_streams) {
-            if (stream !is null && stream.get_stream_id() > stream_id)
-                stream = null;
+        foreach (i; 0 .. m_streams_count) {
+            if (m_streams_buf[i] !is null && m_streams_buf[i].get_stream_id() > stream_id)
+                m_streams_buf[i] = null;
         }
 
         if (m_closer.fn !is null)
@@ -192,11 +208,13 @@ class Session {
         if (m_dispatch.fn !is null)
             m_dispatch.fn(m_dispatch.ctx, *req, *res);
 
-        ubyte[] wire;
-        wire.reserve(res.get_size(m_local_settings.get_max_frame_size()));
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size ubyte[4096] to avoid GC.
+        ubyte[4096] wire_buf;
+        size_t wire_pos = 0;
+        ubyte[] wire_slice = wire_buf[];
         write_http_response(res, m_encoding_table,
-                            m_local_settings.get_max_frame_size(), wire);
-        auto node = new BufferNode(cast(const(ubyte)[]) wire);
+                            m_local_settings.get_max_frame_size(), wire_slice, wire_pos);
+        auto node = make!BufferNode(cast(const(ubyte)[]) wire_buf[0 .. wire_pos]);
         send_node(node);
     }
 
@@ -209,30 +227,32 @@ class Session {
         if (stream_id == 0) return null;
 
         // Linear scan — Run 3 will replace with SwissHashMap.
-        foreach (s; m_streams) {
-            if (s !is null && s.get_stream_id() == stream_id)
-                return s;
+        foreach (i; 0 .. m_streams_count) {
+            if (m_streams_buf[i] !is null && m_streams_buf[i].get_stream_id() == stream_id)
+                return m_streams_buf[i];
         }
 
-        auto stream = new DataStream(stream_id, m_connection_stream,
-                                     m_decoding_table, m_encoding_table,
-                                     m_local_settings, m_remote_settings);
-        m_streams ~= stream;
+        // PORT-NOTE: C++ uses std::map<uint32_t, unique_ptr<Stream<>>>; D uses fixed-size DataStream[256] to avoid GC.
+        assert(m_streams_count < m_streams_buf.length, "Session: too many streams");
+        auto stream = make!DataStream(stream_id, m_connection_stream,
+                                      m_decoding_table, m_encoding_table,
+                                      m_local_settings, m_remote_settings);
+        m_streams_buf[m_streams_count++] = stream;
         return stream;
     }
 
     DataStream find_stream(uint stream_id) {
-        foreach (s; m_streams) {
-            if (s !is null && s.get_stream_id() == stream_id)
-                return s;
+        foreach (i; 0 .. m_streams_count) {
+            if (m_streams_buf[i] !is null && m_streams_buf[i].get_stream_id() == stream_id)
+                return m_streams_buf[i];
         }
         return null;
     }
 
     void mark_stream_closed(uint stream_id) {
-        foreach (ref s; m_streams) {
-            if (s !is null && s.get_stream_id() == stream_id) {
-                s = null;
+        foreach (i; 0 .. m_streams_count) {
+            if (m_streams_buf[i] !is null && m_streams_buf[i].get_stream_id() == stream_id) {
+                m_streams_buf[i] = null;
                 return;
             }
         }
@@ -264,11 +284,13 @@ class Session {
     uint              m_last_client_stream_id;
     Settings          m_local_settings;
     Settings          m_remote_settings;
-    // PORT-NOTE: C++ std::map<uint32_t, unique_ptr<Stream<>>> → D dynamic array.
-    DataStream[]      m_streams;
+    // PORT-NOTE: C++ std::map<uint32_t, unique_ptr<Stream<>>>; D uses fixed-size DataStream[256] to avoid GC.
+    DataStream[256]   m_streams_buf;
+    size_t            m_streams_count;
     // PORT-NOTE: C++ std::set<uint32_t> closed_streams → not needed (null slots).
-    HPackTable*       m_decoding_table;
-    HPackTable*       m_encoding_table;
+    // PORT-NOTE: HPackTable is a class (reference type); * removed for correct D semantics.
+    HPackTable        m_decoding_table;
+    HPackTable        m_encoding_table;
     ConnectionStream  m_connection_stream;
     SendCallback      m_submitter;
     CloseCallback     m_closer;

@@ -1,6 +1,8 @@
 module io.codec.qpack.table;
 @nogc nothrow:
 
+import util.alloc : make, dispose;
+
 import io.codec.shared;
 import io.shared.http.header;
 import io.shared.http.types : Token;
@@ -129,7 +131,11 @@ ref StaticTableBase QPackStatic() { return _qpack_static; }
 class QPackTable {
   public:
     this(size_t max_capacity = 0) {
-        m_dyn = new DynamicTable(max_capacity);
+        m_dyn = make!DynamicTable(max_capacity);
+    }
+
+    ~this() {
+        dispose(m_dyn);
     }
 
     const(HeaderFieldStatic)* at_static(size_t idx) const {
