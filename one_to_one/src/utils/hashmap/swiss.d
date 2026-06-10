@@ -4,6 +4,7 @@ module utils.hashmap.swiss;
 import core.bitop : bsf;
 import core.stdc.stdlib : malloc, free, realloc;
 import core.stdc.string : memset;
+import util.optional;
 
 // LDC SSE2 intrinsics for 16-byte SIMD group matching
 version (X86_64) {
@@ -171,9 +172,9 @@ class SwissHashMap(K, V,
     }
 
     // upsert — insert if not present, update value if already present.
-    // Returns true if inserted, false if updated.
-    // PORT-NOTE: null = empty (replaces std::optional<bool>)
-    bool* upsert(KeyArg, ValueArg)(KeyArg key, ValueArg value) {
+    // Returns some(true) if inserted, some(false) if updated, none() if no slot.
+    // PORT-NOTE: C++ returns std::optional<bool>; D uses Optional!bool (value struct, no GC allocation)
+    Optional!bool upsert(KeyArg, ValueArg)(KeyArg key, ValueArg value) {
         if (capacity_ == 0 || size_ >= (capacity_ * 7) / 8)
             rehash();
 
@@ -190,10 +191,7 @@ class SwissHashMap(K, V,
                 size_t s   = cur * kGroupWidth + bit;
                 if (KeyEqual(_slot(s).key(), key)) {
                     _slot(s).value() = value;
-                    // PORT-NOTE: returning pointer to static thread-local bool
-                    static bool result = false;
-                    result = false;
-                    return &result;
+                    return Optional!bool.some(false);
                 }
                 match &= ~(1u << bit);
             }
@@ -203,9 +201,7 @@ class SwissHashMap(K, V,
         }
 
         insert_impl(key, value);
-        static bool result = true;
-        result = true;
-        return &result;
+        return Optional!bool.some(true);
     }
 
     void erase(Args...)(Args args) {
