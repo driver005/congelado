@@ -48,8 +48,11 @@ class App {
         }
 
         scope auto ctx = make!AppContext();
-        PluginHandle[] plugins;
-        bool plugin_logger = load_plugins(cfg_opt, ctx, plugins);
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size PluginHandle[64] to avoid GC.
+        PluginHandle[64] plugins_buf;
+        size_t plugins_count = 0;
+        PluginHandle[] plugins = plugins_buf[0 .. 0];
+        bool plugin_logger = load_plugins(cfg_opt, ctx, plugins_buf, plugins_count);
 
         if (!plugin_logger) {
             fprintf(stderr, "[heart] no logger plugin found — aborting\n");
@@ -115,7 +118,7 @@ class App {
     // Phase 4: activate in sorted order — register loggers, collect protocols.
     // Returns true if any logger plugin registered.
     bool load_plugins(const(Config) cfg, AppContext ctx,
-                      ref PluginHandle[] handles) {
+                      ref PluginHandle[64] handles_buf, ref size_t handles_count) {
         import core.stdc.stdio  : printf, fprintf, stderr;
         import core.stdc.stdlib : abort;
         import core.ffi.bridge  : LoadError;
@@ -128,30 +131,36 @@ class App {
         // TODO: wire SwissHashMap iteration when Run 2 resolves the API.
 
         // ── Phase 2: uniqueness filter ────────────────────────────────────────
-        PluginHandle[] surviving;
+        // PORT-NOTE: C++ uses std::vector; D uses fixed-size FfiBridge[64] to avoid GC.
+        PluginHandle[64] surviving_buf;
+        size_t surviving_count = 0;
 
         foreach (bridge; probed) {
             auto unique_type = bridge.get_unique_type();
             if (unique_type.length == 0) {
-                surviving ~= bridge;
+                assert(surviving_count < surviving_buf.length, "load_plugins: too many surviving plugins");
+                surviving_buf[surviving_count++] = bridge;
                 continue;
             }
             // Check for duplicate unique_type (linear scan — small N)
             bool found = false;
-            foreach (s; surviving) {
-                if (s.get_unique_type() == unique_type) {
+            foreach (i; 0 .. surviving_count) {
+                if (surviving_buf[i].get_unique_type() == unique_type) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                surviving ~= bridge;
+                assert(surviving_count < surviving_buf.length, "load_plugins: too many surviving plugins");
+                surviving_buf[surviving_count++] = bridge;
             } else {
                 fprintf(stderr, "[heart] plugin '%.*s' skipped — unique type '%.*s' already claimed\n",
                         cast(int)bridge.get_name().length, bridge.get_name().ptr,
                         cast(int)unique_type.length, unique_type.ptr);
             }
         }
+
+        PluginHandle[] surviving = surviving_buf[0 .. surviving_count];
 
         // ── Phase 3: dependency sort (Kahn's algorithm) ───────────────────────
         // Verify all declared requirements are present.
@@ -188,7 +197,9 @@ class App {
 
         foreach (bridge; sorted) {
             bridge.activate(router_ctx, controller_ctx, leverager_ctx);
-            handles ~= bridge;
+            // PORT-NOTE: C++ uses std::vector; D uses fixed-size PluginHandle[64] to avoid GC.
+            assert(handles_count < handles_buf.length, "load_plugins: too many handles");
+            handles_buf[handles_count++] = bridge;
             printf("[heart] loaded plugin '%.*s'\n",
                    cast(int)bridge.get_name().length, bridge.get_name().ptr);
 
@@ -198,7 +209,7 @@ class App {
             // if (auto protocol = make_protocol(bridge)) { protos ~= protocol; }
         }
 
-        printf("[heart] loaded %zu plugins\n", handles.length);
+        printf("[heart] loaded %zu plugins\n", handles_count);
 
         return LoggerRegistry.has_logger();
     }

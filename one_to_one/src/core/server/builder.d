@@ -9,6 +9,7 @@ import core.server.handler   : Handler;
 import core.server.middleware : Middleware;
 import core.server.router    : RouteHandler;
 import core.server.server    : Server;
+import util.alloc : make, dispose;
 
 // Forward declarations
 class Route(Derived, size_t MaxHandlerSize = 8, size_t MaxMiddlewareSize = 10);
@@ -54,36 +55,39 @@ class RouterContext(Derived,
     // TODO: figue out a way to make this function consteval
     RouteHandler!Derived build() {
         // PORT-NOTE: std::vector<std::vector<RouterBuildingHelper>> table
-        // → dynamic array of dynamic arrays under @nogc requires allocator;
-        // using GC slice temporarily (Run 2 will migrate to @nogc alloc).
-        RouterBuildingHelper[][] table;
+        // → fixed-size RouterBuildingHelper[128][16] to avoid GC.
+        RouterBuildingHelper[128][16] table_buf;
+        size_t[16] table_counts;
+        size_t table_len = 0;
         size_t idx = 0;
-        const sentinel = size_t.max;
-
-        auto active_routes = m_routes[0 .. m_router_size];
 
         // Sort is skipped under @nogc for the one-to-one pass
         // (std::ranges::sort → deferred to Run 3 with a @nogc sort)
 
-        auto handler = new RouteHandler!Derived();
+        auto handler = make!(RouteHandler!Derived)();
 
         while (idx < m_router_size) {
-            insert_route(m_routes[idx], table);
+            insert_route(m_routes[idx], table_buf, table_counts, table_len);
             ++idx;
         }
 
-        foreach (row; table) {
+        foreach (ri; 0 .. table_len) {
             size_t cumulative_children = 0;
-            foreach (i, node; row) {
+            foreach (i; 0 .. table_counts[ri]) {
+                auto kind       = table_buf[ri][i].kind;
+                auto literal    = table_buf[ri][i].literal;
+                auto children   = table_buf[ri][i].children;
+                auto handlers   = table_buf[ri][i].handlers;
+                auto middlewares = table_buf[ri][i].middlewares;
                 size_t offset = 0;
-                if (node.children > 0)
-                    offset = row.length - i + cumulative_children;
+                if (children > 0)
+                    offset = table_counts[ri] - i + cumulative_children;
 
-                cumulative_children += node.children;
+                cumulative_children += children;
 
-                handler.add_route(node.kind, node.literal, offset,
-                                   node.handlers, node.middlewares,
-                                   cast(ubyte)node.children);
+                handler.add_route(kind, literal, offset,
+                                   handlers, middlewares,
+                                   cast(ubyte)children);
             }
         }
 
@@ -125,8 +129,12 @@ class RouterContext(Derived,
         return (EdgeKind.Path, path);
     }
 
+    // PORT-NOTE: C++ uses std::vector<std::vector<RouterBuildingHelper>>;
+    // D uses fixed-size RouterBuildingHelper[128][16] to avoid GC.
     private void insert_route(Route!Derived route,
-                               ref RouterBuildingHelper[][] table) {
+                               ref RouterBuildingHelper[128][16] table_buf,
+                               ref size_t[16] table_counts,
+                               ref size_t table_len) {
         if (route.get_child_routes() != 0) {
             if (route.is_build()) return;
 
@@ -145,9 +153,9 @@ class RouterContext(Derived,
 
             if (route.get_base_router() != size_t.max) {
                 bool found = false;
-                foreach (ri, ref row; table) {
-                    foreach (ref sub; row) {
-                        if (sub.router_number == route.get_base_router()) {
+                foreach (ri; 0 .. table_len) {
+                    foreach (ci; 0 .. table_counts[ri]) {
+                        if (table_buf[ri][ci].router_number == route.get_base_router()) {
                             new_idx = ri + 1;
                             found = true;
                             break;
@@ -159,10 +167,12 @@ class RouterContext(Derived,
                     assert(false, "Parent router not found");
             }
 
-            if (new_idx >= table.length)
-                table.length = new_idx + 1;
+            if (new_idx >= table_len)
+                table_len = new_idx + 1;
 
-            table[new_idx] ~= RouterBuildingHelper(
+            assert(table_counts[new_idx] < 128, "insert_route: row overflow");
+            // PORT-NOTE: C++ uses std::vector; D uses fixed-size T[N] to avoid GC.
+            table_buf[new_idx][table_counts[new_idx]++] = RouterBuildingHelper(
                 kind, literal, route.get_handlers(), route.get_middlewares(),
                 route.get_child_routes(), route.get_router_number());
 
@@ -178,9 +188,9 @@ class RouterContext(Derived,
 
             if (route.get_base_router() != size_t.max) {
                 bool found = false;
-                foreach (ri, ref row; table) {
-                    foreach (ref sub; row) {
-                        if (sub.router_number == route.get_base_router()) {
+                foreach (ri; 0 .. table_len) {
+                    foreach (ci; 0 .. table_counts[ri]) {
+                        if (table_buf[ri][ci].router_number == route.get_base_router()) {
                             new_idx = ri + 1;
                             found = true;
                             break;
@@ -192,10 +202,12 @@ class RouterContext(Derived,
                     assert(false, "Parent router not found");
             }
 
-            if (new_idx >= table.length)
-                table.length = new_idx + 1;
+            if (new_idx >= table_len)
+                table_len = new_idx + 1;
 
-            table[new_idx] ~= RouterBuildingHelper(
+            assert(table_counts[new_idx] < 128, "insert_route: row overflow");
+            // PORT-NOTE: C++ uses std::vector; D uses fixed-size T[N] to avoid GC.
+            table_buf[new_idx][table_counts[new_idx]++] = RouterBuildingHelper(
                 kind, literal, route.get_handlers(), route.get_middlewares(),
                 route.get_child_routes(), 0);
 
@@ -218,8 +230,13 @@ class Route(Derived, size_t MaxHandlerSize = 8, size_t MaxMiddlewareSize = 10) {
         m_router_number   = 0;
         m_base_router     = 0;
         m_child_routes    = 0;
-        m_handler         = new Handler!(Derived, MaxHandlerSize)();
-        m_local_middleware = new Middleware!(Derived, MaxMiddlewareSize)();
+        m_handler         = make!(Handler!(Derived, MaxHandlerSize))();
+        m_local_middleware = make!(Middleware!(Derived, MaxMiddlewareSize))();
+    }
+
+    ~this() {
+        dispose(m_handler);
+        dispose(m_local_middleware);
     }
 
     this(const(char)[] path) {
@@ -228,8 +245,8 @@ class Route(Derived, size_t MaxHandlerSize = 8, size_t MaxMiddlewareSize = 10) {
         m_router_number   = 0;
         m_base_router     = 0;
         m_child_routes    = 0;
-        m_handler         = new Handler!(Derived, MaxHandlerSize)();
-        m_local_middleware = new Middleware!(Derived, MaxMiddlewareSize)();
+        m_handler         = make!(Handler!(Derived, MaxHandlerSize))();
+        m_local_middleware = make!(Middleware!(Derived, MaxMiddlewareSize))();
         if (path != "*") {
             bool has_slash = false;
             foreach (c; path) { if (c == '/') { has_slash = true; break; } }
@@ -335,7 +352,7 @@ class Router(Derived, size_t MaxMiddlewareSize = 10) {
         m_ctx           = ctx;
         m_router_number = ctx.get_highest_router_number();
         m_router_index  = m_ctx.add_route(
-            (new Route!Derived(path)).set_router_number(m_router_number));
+            (make!(Route!Derived)(path)).set_router_number(m_router_number));
     }
 
     Router!Derived use(MiddlewareFn!Derived middleware) {
@@ -395,8 +412,13 @@ class RouteBuilder(Derived) {
   public:
     this() {
         m_port = 0;
-        m_root_route     = (new Route!Derived("/")).set_base_router(size_t.max);
-        m_fallback_route = (new Route!Derived("*")).set_base_router(size_t.max);
+        m_root_route     = (make!(Route!Derived)("/")).set_base_router(size_t.max);
+        m_fallback_route = (make!(Route!Derived)("*")).set_base_router(size_t.max);
+    }
+
+    ~this() {
+        dispose(m_root_route);
+        dispose(m_fallback_route);
     }
 
     RouteBuilder!Derived address(const(char)[] addr) {

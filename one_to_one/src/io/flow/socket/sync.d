@@ -11,6 +11,7 @@ import utils.buffering.writter;
 import utils.buffering.node;
 import utils.hashmap.swiss;
 import core_.logger;
+import util.alloc : make, dispose;
 
 // PORT-NOTE: C++ was template <socket::Protocol Protocol>; D port is concrete over TCP.
 // Template variants can be added in Run 3 if needed.
@@ -235,19 +236,23 @@ class WorkerSocket {
   public:
     this(Socket sock) {
         m_socket = sock;
-        m_sender = new SyncSender(m_socket);
-        m_receiver = new SyncReceiver(m_socket);
+        m_sender = make!SyncSender(m_socket);
+        m_receiver = make!SyncReceiver(m_socket);
     }
 
     this(Socket sock,
          void function(void*, int, int) @nogc nothrow on_send_error, void* send_err_ctx,
          void function(void*, int, int) @nogc nothrow on_recv_error, void* recv_err_ctx) {
         m_socket = sock;
-        m_sender = new SyncSender(m_socket, on_send_error, send_err_ctx);
-        m_receiver = new SyncReceiver(m_socket, on_recv_error, recv_err_ctx);
+        m_sender = make!SyncSender(m_socket, on_send_error, send_err_ctx);
+        m_receiver = make!SyncReceiver(m_socket, on_recv_error, recv_err_ctx);
     }
 
-    ~this() { close(); }
+    ~this() {
+        dispose(m_sender);
+        dispose(m_receiver);
+        close();
+    }
 
     void add_on_read(void function(void*, ref BufferReader) @nogc nothrow on_read, void* ctx) {
         m_receiver.add_on_read(on_read, ctx);
@@ -300,13 +305,13 @@ alias ConnectionEstablishedFn =
 class ServerFlowSocket {
   public:
     this(ref Endpoint end, ref Leverager leverager_ref, ref HandlerController controller_ref) {
-        m_base_socket = new ServerBaseSocket(end, leverager_ref);
+        m_base_socket = make!ServerBaseSocket(end, leverager_ref);
         m_leverager = &leverager_ref;
         m_controller = &controller_ref;
         m_on_established = null;
         m_on_established_ctx = null;
         // PORT-NOTE: m_workers is a SwissHashMap<int, WorkerSocket*>; allocated on construction.
-        m_workers = new SwissHashMap!(int, WorkerSocket*)();
+        m_workers = make!(SwissHashMap!(int, WorkerSocket*))();
     }
 
     ~this() {
@@ -314,6 +319,8 @@ class ServerFlowSocket {
         core.logger.debug_("io/flow", "closing base socket");
         // PORT-NOTE: C++ iterated m_workers and called worker->close().
         // TODO: iterate SwissHashMap and close all workers (Run 3).
+        dispose(m_base_socket);
+        dispose(m_workers);
     }
 
     void add_on_accept(ConnectionEstablishedFn on_established, void* ctx) {

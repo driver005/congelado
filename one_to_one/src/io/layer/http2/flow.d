@@ -16,6 +16,7 @@ import utils.buffering.reader : BufferReader;
 import utils.buffering.node   : BufferNode;
 import shared.flow : ReadCallback, SendCallback, CloseCallback;
 import interfaces.protocol : ReceiveDispatchFn, SendDispatchFn;
+import util.alloc : make, dispose;
 
 // ─── ServerFlow ──────────────────────────────────────────────────────────────
 
@@ -24,8 +25,8 @@ class ServerFlow {
   public:
     this(SendCallback send, CloseCallback close,
          ReceiveDispatchFn dispatch = ReceiveDispatchFn.init) {
-        m_session   = new Session(send, close, dispatch);
-        m_handshake = new Handshake(
+        m_session   = make!Session(send, close, dispatch);
+        m_handshake = make!Handshake(
             m_session.get_local_settings(),
             SendCallback(cast(void*) m_session,
                 (void* ctx, BufferNode node) @nogc nothrow {
@@ -33,6 +34,11 @@ class ServerFlow {
                 }),
             true /* is_server */);
         m_handshake_completed = false;
+    }
+
+    ~this() {
+        dispose(m_session);
+        dispose(m_handshake);
     }
 
     ReadCallback on_read() {
@@ -68,14 +74,19 @@ class ClientFlow {
   public:
     this(SendCallback send, CloseCallback close,
          ReceiveDispatchFn dispatch = ReceiveDispatchFn.init) {
-        m_session   = new Session(send, close, dispatch);
-        m_handshake = new Handshake(
+        m_session   = make!Session(send, close, dispatch);
+        m_handshake = make!Handshake(
             m_session.get_local_settings(),
             SendCallback(cast(void*) m_session,
                 (void* ctx, BufferNode node) @nogc nothrow {
                     (cast(Session) ctx).send_node(node);
                 }),
             false /* client */);
+    }
+
+    ~this() {
+        dispose(m_session);
+        dispose(m_handshake);
     }
 
     /// Returns a SendDispatchFn that submits requests on this session.

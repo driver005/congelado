@@ -15,6 +15,7 @@ import utils.buffering.node   : BufferNode;
 // PORT-NOTE: shared.flow uses the path "shared.flow" (module named shared.flow
 // but directory is one_to_one/src/shared/).
 import shared.flow : SendCallback;
+import util.alloc : make, dispose;
 
 /// io::layer::http2::HandshakeState
 enum HandshakeState : ubyte {
@@ -98,33 +99,38 @@ class Handshake {
         ubyte[128] settings_buf;
         size_t settings_len = write_settings(m_local_settings, settings_buf[]);
 
-        auto frame = new FrameBuilder();
+        auto frame = make!FrameBuilder();
         frame.add_type(FrameType.SETTINGS).add_flags(0).add_stream_id(0)
              .add_payload(settings_buf[0 .. settings_len]).build();
 
         if (!m_is_server) {
             // Client: send HTTP2_CONNECTION_PREFACE + SETTINGS frame.
-            size_t total_size = HTTP2_CONNECTION_PREFACE.length + frame.get_size();
-            ubyte[] wire;
-            wire.reserve(total_size);
-            wire ~= HTTP2_CONNECTION_PREFACE[];
-            write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire);
+            // PORT-NOTE: C++ uses std::vector; D uses stack buffer to avoid GC.
+            ubyte[64] wire_buf;
+            size_t wire_len = 0;
+            // Copy preface into wire_buf.
+            wire_buf[wire_len .. wire_len + HTTP2_CONNECTION_PREFACE.length] = HTTP2_CONNECTION_PREFACE[];
+            wire_len += HTTP2_CONNECTION_PREFACE.length;
+            // Write SETTINGS frame into wire_buf after preface.
+            ubyte[] wire_slice = wire_buf[];
+            write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire_slice, wire_len);
 
-            // PORT-NOTE: C++ used BufferNode; D port allocates via GC for Run 1.
-            // Run 3: use util.alloc make!/dispose.
-            auto node = new BufferNode(cast(const(ubyte)[]) wire);
+            auto node = make!BufferNode(cast(const(ubyte)[]) wire_buf[0 .. wire_len]);
             if (m_submitter.fn !is null)
                 m_submitter.fn(m_submitter.ctx, node);
         } else {
             // Server: send only SETTINGS frame.
-            ubyte[] wire;
-            write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire);
+            ubyte[64] wire_buf;
+            size_t wire_len = 0;
+            ubyte[] wire_slice = wire_buf[];
+            write_frame_builder(frame, m_local_settings.get_max_frame_size(), wire_slice, wire_len);
 
-            auto node = new BufferNode(cast(const(ubyte)[]) wire);
+            auto node = make!BufferNode(cast(const(ubyte)[]) wire_buf[0 .. wire_len]);
             if (m_submitter.fn !is null)
                 m_submitter.fn(m_submitter.ctx, node);
         }
 
+        dispose(frame);
         m_sent_settings = true;
     }
 

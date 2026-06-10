@@ -8,6 +8,7 @@ import io.codec.shared;
 import io.codec.shared.atom : Atom;
 import io.shared.http.header;
 import io.shared.http.types : Token;
+import util.alloc : make, dispose, make_struct, dispose_struct;
 
 private static immutable const(char)[] COOKIE_SEPARATOR = "; ";
 
@@ -16,10 +17,15 @@ private static immutable const(char)[] COOKIE_SEPARATOR = "; ";
 class QPack(UInt = uint, int Width = 4) if (DecodeWidth!Width) {
   public:
     this(size_t table_size = 4096) {
-        m_decoding_table        = new QPackTable(table_size);
-        m_encoding_table        = new QPackTable(table_size);
+        m_decoding_table        = make!QPackTable(table_size);
+        m_encoding_table        = make!QPackTable(table_size);
         m_known_received_count  = 0;
         m_cookie_index          = null;
+    }
+
+    ~this() {
+        dispose(m_decoding_table);
+        dispose(m_encoding_table);
     }
 
     this(QPackTable* decoding_table, QPackTable* encoding_table) {
@@ -241,14 +247,14 @@ class QPack(UInt = uint, int Width = 4) if (DecodeWidth!Width) {
                     // append to existing cookie field
                     // PORT-NOTE: GC concatenation needed here in improvement pass
                 } else {
-                    auto cookie_field = new HeaderField();
+                    auto cookie_field = make_struct!HeaderField();
                     cookie_field.m_name  = NAME;
                     cookie_field.m_value = value;
                     m_table = m_table ~ DynEntry(false, cookie_field);
                     m_cookie_index = cookie_field;
                 }
             } else {
-                auto f = new HeaderField();
+                auto f = make_struct!HeaderField();
                 f.m_name  = NAME;
                 f.m_value = value;
                 m_table = m_table ~ DynEntry(false, f);
@@ -270,7 +276,7 @@ class QPack(UInt = uint, int Width = 4) if (DecodeWidth!Width) {
             if (name == "cookie") {
                 // PORT-NOTE: see push_helper cookie path
             } else {
-                auto field = new HeaderField();
+                auto field = make_struct!HeaderField();
                 field.m_name  = name;
                 field.m_value = value;
                 m_table = m_table ~ DynEntry(false, field);
@@ -594,8 +600,9 @@ class QPack(UInt = uint, int Width = 4) if (DecodeWidth!Width) {
     }
 
 
-    QPackTable*   m_decoding_table;
-    QPackTable*   m_encoding_table;
+    // PORT-NOTE: QPackTable is a class (reference type); * removed for correct D semantics.
+    QPackTable    m_decoding_table;
+    QPackTable    m_encoding_table;
     DynEntry[]    m_table;
     UInt          m_known_received_count;
     HeaderField*  m_cookie_index;
