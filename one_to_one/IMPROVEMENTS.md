@@ -67,3 +67,37 @@ None of these were implemented — they are proposals for the Run 3 improvement 
   ...)` pairs to stay @nogc. For the improvement pass, evaluate a thin `Closure!Fn`
   struct (fn pointer + opaque context word) so call sites get type-checked context
   instead of bare void*.
+
+- **interfaces/io.cppm** — "Concept definitions replaced by comments only"
+  The C++ file is purely concept declarations (no runtime code). The D port renders them
+  as structured comments. For Run 3, evaluate whether D `template` constraints or a
+  dedicated `Satisfies!(T, ...)` mixin can give compile-time enforcement without
+  duplicating the entire constraint at every instantiation site.
+
+- **interfaces/request.cppm + response.cppm** — "Builder chaining lost in CRTP port"
+  C++ used deducing-this (`Self&&`) to return the derived type from `add_header`,
+  `remove_header`, `with_status`, and `build`. D has no equivalent; the methods are
+  dropped to abstract stubs. For Run 3, consider a mixin template `BuilderMixin`
+  that concrete classes include to re-add the chaining pattern.
+
+- **interfaces/logger.cppm** — "ILogger as extern(C++) interface"
+  Marking ILogger `extern(C++)` gives ABI stability across plugin .so boundaries
+  (matching the C++ intent). In Run 3 verify that LDC correctly mangles the vtable
+  and that the D-side destructor slot aligns with the C++ virtual destructor.
+
+- **interfaces/protocol.cppm** — "ReceiveDispatchFn / SendDispatchFn as fn+ctx structs"
+  The C++ `std::function` wrappers are replaced with `struct { fn; ctx; }` pairs. For
+  Run 3, replace them with the proposed `Closure!Fn` type from shared/flow once that
+  improvement is implemented, to keep dispatch callback shapes consistent.
+
+- **interfaces/protocol.cppm** — "IProtocol::get_server/get_client return null instead of throw"
+  C++ default implementations throw `std::runtime_error`; the D port returns `null`
+  (exception-free). Callers that previously relied on the throw for "not implemented"
+  detection must now null-check. In Run 3, document or enforce this via an assert/abort
+  in debug builds.
+
+- **interfaces/codec/cache.cppm + db.cppm** — "ICacheCodec/IDbCodec as template classes, not interfaces"
+  D interfaces cannot be parameterized; ICacheCodec!T and IDbCodec!T are D template
+  classes. This loses the guarantee that they have no data members. In Run 3, add a
+  `static assert(ICacheCodec!T.sizeof == __traits(classInstanceSize, Object))` style
+  check, or restructure as abstract mixin templates.
