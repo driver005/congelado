@@ -174,3 +174,83 @@ Items from the write-only pass over Groups 1-5. None implemented.
   `decode_int` and `decode_string` signal errors by returning `consumed == 0`. C++ threw
   exceptions. In Run 3, upgrade to `Result!(T, DecodeError)` from `util.result` so call
   sites cannot silently ignore decode failures.
+
+---
+
+# Improvement Ideas (Run 1 — io/error + io/base/leverage + io/base/socket)
+
+Items from the write-only pass over the 12 files in this batch. None implemented.
+
+- **io/error/http.cppm** — "Exception hierarchy → tagged-union Result type"
+  All 10 exception classes (Http2Exception, StreamError, ConnectionError, DecodeError and
+  its 7 sub-types, CompressionError) were collapsed to plain structs with a `DecodeErrorKind`
+  tag enum. In Run 3, unify them under a `Result!(T, IoError)` where `IoError` is a sum type
+  over all error variants, so call sites get exhaustive matching via `final switch`.
+
+- **io/error/base.cppm** — "TlsError fixed-size message buffer"
+  The C++ TlsError formatted dynamically into `std::string`. The D port uses a 512-byte
+  stack buffer (ctx + ": " + ERR_error_string). In Run 3, evaluate whether 512 bytes is
+  sufficient in practice, or introduce a caller-supplied buffer parameter to make the limit
+  explicit.
+
+- **io/base/leverage/uring.cppm** — "for_each_cqe macro expansion vs peek loop"
+  The C++ `io_uring_for_each_cqe` macro uses a two-argument head/cqe loop for efficiency;
+  the D port replaces it with a sequential `io_uring_peek_cqe` + `io_uring_cqe_seen` loop.
+  In Run 3, expose a proper `io_uring_for_each_cqe` binding (possibly via ImportC shim) to
+  restore the original batch-drain semantics without the extra `io_uring_cqe_seen` per entry.
+
+- **io/base/leverage/uring.cppm** — "io_uring_cqe_get_res helper is not a real liburing API"
+  The D port declares `io_uring_cqe_get_res` and `io_uring_cqe_get_user_data` as extern(C)
+  helpers, but these don't exist in liburing — cqe->res is a direct field access. In Run 2,
+  expose the `io_uring_cqe` struct layout in the c/uring.c ImportC shim and replace the
+  helper calls with direct field access.
+
+- **io/base/leverage/posix.cppm** — "sync_file_range flags field not set"
+  The C++ sets `sqe->sync_range_flags = sync_range_flags` after `io_uring_prep_rw`. In the
+  D port this is stubbed out with a comment because the `io_uring_sqe` struct layout is
+  not exposed by the c/uring.c shim. In Run 2, expose the sqe field offsets in the shim.
+
+- **io/base/leverage/types.cppm** — "completion_callback as fn+ctx pair vs typed closure"
+  C++ used `std::move_only_function<void(int)>` (owning, non-copyable). D port uses a bare
+  `fn + ctx` pair (copyable, non-owning). This means the ctx pointer must outlive every
+  call. In Run 3, introduce a `Closure!(void, int)` type from `util.closure` that owns a
+  malloc'd context block and frees it on last copy, matching the C++ ownership semantics.
+
+- **io/base/leverage/win32.cppm** — "AcceptEx / ConnectEx extension function loading missing"
+  `load_extension_functions()` is a stub — the WSAID_CONNECTEX / WSAID_ACCEPTEX GUIDs and
+  WSAIoctl calls are commented out. In Run 2, wire the full Win32 extension-function loading
+  so `accept()` and `connect()` actually use overlapped I/O rather than returning
+  `ERROR_NOT_SUPPORTED`.
+
+- **io/base/socket/socket.cppm** — "Endpoint address stored as char[256] limits long hostnames"
+  C++ used `std::string` (unbounded). D port uses `char[256]` for @nogc compatibility.
+  255-character hostnames are unusual but valid; in Run 3 consider raising to 1024 or
+  accepting a caller-supplied buffer to handle edge cases.
+
+- **io/base/socket/socket.cppm** — "async_connect / async_accept / async_send / async_receive stubs"
+  All four async methods are stubbed with a PORT-NOTE comment. The C++ used
+  `shared_ptr<function<void(int)>>` for recursive retry; @nogc D needs an explicit
+  heap-allocated continuation struct. In Run 2, implement these using `make!/dispose` from
+  `util.alloc` with a fixed retry-state struct per operation.
+
+- **io/base/socket/socket.cppm** — "generate_certificate() dropped entirely"
+  C++ called `std::system("openssl ...")` which is inherently allocating/blocking. The D
+  @nogc port drops the function entirely. In Run 3, add a clear API note (or a separate
+  non-@nogc helper in a utility module) to make certificate generation explicit.
+
+- **io/base/socket/socket.cppm** — "ALPN wire-format buffer is fixed 512 bytes"
+  C++ used `std::vector<unsigned char>` (unbounded). D port uses `ubyte[512]`. ALPN wire
+  format for a typical h2+http/1.1 pair is ~16 bytes; 512 is safe but the overflow is
+  currently a silent `error()` log. In Run 3, return a `Result` or assert the limit more
+  visibly.
+
+- **io/base/socket/posix.cppm** — "ioctlsocket shim is a stub"
+  `ioctlsocket` always returns 0. The POSIX caller should call `ioctl` directly. In Run 2,
+  remove the stub and update socket.d to call `ioctl(FIONREAD, ...)` directly in
+  `get_pending_bytes()`.
+
+- **io/base/socket/socket.cppm** — "join() multicast not implemented"
+  The C++ multicast join used `std::to_string(port)` (allocating) and several
+  `getaddrinfo` calls. The D port stubs it with `fatal()`. In Run 3, implement using
+  a stack-allocated port string (already done for the main constructor) and the existing
+  `getaddrinfo` pattern.
