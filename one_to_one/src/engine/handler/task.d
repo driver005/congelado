@@ -256,13 +256,15 @@ class TaskHandler(Protocol) {
 
     static ubyte[] flatten_body(ref IRequest!Protocol req) {
         auto view = req.get_body();
-        // PORT-NOTE: returns caller-owned slice built from body view
-        ubyte[] out_;
-        // TODO: @nogc append — wire with util.alloc in Run 2
+        // PORT-NOTE: C++ accumulated body bytes into std::vector<uint8_t>;
+        // D uses fixed-size stack buffer[4096] to avoid GC.
+        static ubyte[4096] buf;
+        size_t buf_len = 0;
         foreach (b; view) {
-            out_ ~= b;
+            assert(buf_len < buf.length, "flatten_body overflow");
+            buf[buf_len++] = b;
         }
-        return out_;
+        return buf[0 .. buf_len];
     }
 
     // Returns index of last '/' in slice, or 0 if none.

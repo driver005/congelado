@@ -2,6 +2,8 @@ module worker.config;
 
 @nogc nothrow:
 
+import util.alloc : make;
+
 // PORT-NOTE: C++ included <toml++/toml.hpp> and used toml::parse_file / toml::table.
 // D port stubs from_file() — full TOML parsing deferred to Run 2 (no @nogc TOML lib yet).
 // The class shapes are preserved exactly.
@@ -28,12 +30,13 @@ class WorkerConfig {
     // Logging via core::logger deferred — wire in Run 2 when logger is stable.
     static WorkerConfig from_file(const(char)[] path) {
         // TODO: wire @nogc TOML parser in Run 2 (toml-d or hand-rolled subset)
-        return new WorkerConfig();
+        return make!WorkerConfig();
     }
 
     void add_task(TaskConfig task) {
-        // PORT-NOTE: @nogc dynamic append — wire util.alloc in Run 2
-        m_tasks ~= task;
+        // PORT-NOTE: C++ uses std::vector<TaskConfig>; D uses fixed-size buffer[64] to avoid GC.
+        assert(m_tasks_count < 64, "too many tasks");
+        m_tasks_buf[m_tasks_count++] = task;
     }
 
     void set_engine_url(const(char)[] url) { m_engine_url = url; }
@@ -43,11 +46,14 @@ class WorkerConfig {
     const(char)[] get_engine_url() const { return m_engine_url; }
     const(char)[] get_worker_id() const { return m_worker_id; }
     uint get_concurrency() const { return m_concurrency; }
-    TaskConfig[] get_tasks() const { return cast(TaskConfig[]) m_tasks; }
+    TaskConfig[] get_tasks() const { return cast(TaskConfig[]) m_tasks_buf[0 .. m_tasks_count]; }
+    TaskConfig[] tasks() { return m_tasks_buf[0 .. m_tasks_count]; }
 
   private:
     const(char)[] m_engine_url;
     const(char)[] m_worker_id;
     uint m_concurrency = 0;
-    TaskConfig[] m_tasks;
+    // PORT-NOTE: C++ uses std::vector<TaskConfig>; D uses fixed-size buffer[64] to avoid GC.
+    TaskConfig[64] m_tasks_buf;
+    size_t         m_tasks_count;
 }

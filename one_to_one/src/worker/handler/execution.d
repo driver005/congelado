@@ -92,12 +92,15 @@ class ExecutionHandler(Protocol) {
     }
 
     static ubyte[] bytes_from(const(char)[] text) {
-        // PORT-NOTE: @nogc alloc deferred — wire util.alloc in Run 2
-        ubyte[] result;
+        // PORT-NOTE: C++ cast char span to ubyte span inline; D uses fixed-size
+        // stack buffer[4096] to avoid GC.
+        static ubyte[4096] buf;
+        size_t buf_len = 0;
         foreach (ch; text) {
-            result ~= cast(ubyte) ch;
+            assert(buf_len < buf.length, "bytes_from overflow");
+            buf[buf_len++] = cast(ubyte) ch;
         }
-        return result;
+        return buf[0 .. buf_len];
     }
 
     static size_t last_slash(const(char)[] s) {
