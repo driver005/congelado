@@ -507,3 +507,100 @@ Items from the write-only pass over 14 engine/worker files. None implemented.
   `bytes.length = k_ok.length` triggers a GC allocation. In Run 2, replace with a
   `ubyte[32]` stack buffer and a manual copy loop (k_ok is only 16 bytes).
 
+---
+
+# Improvement Ideas (Run 1 — model + serde + connector + SDK + top-level)
+
+Items from the write-only pass over the final 28 files. None implemented.
+
+- **model/common/identifiers.cppm** — "generate_id() uses getrandom(2) directly"
+  C++ used uuids::uuid_system_generator (stduuid library). D port calls getrandom(2)
+  directly and sets RFC 4122 version/variant bits. In Run 2, verify this produces
+  valid v4 UUIDs and add a unit test for the nil-detection path.
+
+- **model/common/identifiers.cppm** — "Uuid as 16-byte struct vs deimos binding"
+  stduuid is a C++ header library with no D equivalent. The Uuid struct is a plain
+  16-byte value type. In Run 3, consider adding a to_string(Uuid) helper that formats
+  the canonical xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx form using a stack char[36].
+
+- **model/common/timestamps.cppm** — "ExecutionTimings uses Optional!long for timestamps"
+  C++ used std::optional<std::chrono::system_clock::time_point>. D uses Optional!long
+  (Unix epoch ms). In Run 2, verify that all callers consistently pass epoch-ms and
+  document the epoch-ms contract at the module level.
+
+- **model/task/definition.cppm + instance.cppm** — "Fixed-size arrays may be too small"
+  TaskDef uses const(char)[][32] for input/output keys; TaskInstance uses KvEntry[64]
+  for data maps. Real workflows may have more fields. In Run 3, replace with a
+  bump-allocator backed slice or raise the caps to 128 with a compile-time assert.
+
+- **model/workflow/exec.cppm** — "WorkflowExecution.m_task_instances fixed at 128"
+  Complex workflows can have hundreds of task steps. In Run 3, raise the cap to 512
+  or introduce a heap-allocated buffer via util.alloc for large workflow executions.
+
+- **serde/core.cppm** — "Serializable!T specialization protocol not enforced"
+  D has no partial specialization syntax like C++. The current approach requires each
+  model class to manually define a Serializable!T block. In Run 3, add a compile-time
+  check via static assert(is_serializable!T) at registration sites to catch missing
+  specializations early.
+
+- **serde/converter.cppm** — "FieldConverter machinery is almost entirely stubbed"
+  The C++ FieldConverter<VT> did JSON/TOML encoding via rfl.hpp and simdjson.
+  D port stubs all methods. In Run 2, wire mir-ion (or a minimal hand-rolled JSON
+  encoder) for the concrete specializations: Uuid, long, const(char)[], bool, enums.
+
+- **serde/json.cppm** — "Json.encode / decode entirely stubbed"
+  All JSON encode/decode returns empty strings or error. In Run 2, integrate a
+  @nogc-compatible JSON library (mir-ion recommended) and implement
+  encode/decode over Serializable!T.fields() iteration.
+
+- **serde/toml.cppm** — "Toml.encode / decode entirely stubbed"
+  TOML encode/decode returns empty/error. In Run 2, integrate a D TOML library
+  (toml-d from DUB or a hand-rolled subset matching toml++ semantics) and wire
+  ModelToml.from_toml() as the primary config loading path.
+
+- **serde/sql.cppm** — "All Sql.build_*_sql methods stubbed"
+  C++ built SQL strings via std::format + FieldDesc iteration. D stubs all builders.
+  In Run 2, implement using snprintf into stack buffers + Serializable!T.fields()
+  iteration once field iteration is available.
+
+- **serde/cache.cppm** — "Cache.pk_string / cache_key stubbed"
+  Both methods return empty strings. In Run 2, wire Serializable!T.fields() iteration
+  to find the primary_key=true field and format "table:pk_value" into a stack buffer.
+
+- **connector/connector.cppm** — "Pending operation queue is never drained"
+  The m_pending_buf circular buffer is allocated but on_execute() returns a null
+  WorkerFunction stub. In Run 2, implement the queue draining loop in on_execute()
+  using the existing PendingOp fn+ctx pattern.
+
+- **connector/connector.cppm** — "Per-type local stores not implemented"
+  C++ used unordered_map<type_index, any> to store per-type T→T maps. D port defers
+  this to Run 2. The simplest @nogc approach is a fixed array of opaque store pointers
+  with a runtime type tag (e.g. a const(char)[] type name string from T.stringof).
+
+- **connector/local_cache.cppm** — "Linear scan O(n) lookup"
+  LocalCache uses a StoreEntry[256] linear array. In Run 3, replace with
+  SwissHashMap!(const(char)[], const(char)[]) for O(1) average get/set/remove.
+
+- **sdk/worker/congelado_worker.cppm** — "TaskRegistry.get_all fills caller slice"
+  C++ returned std::vector<ITask*>. D fills a caller-supplied ITask[] slice. In Run 3,
+  expose a size_t count_tasks() accessor so callers can stack-allocate the right size.
+
+- **sdk/plugin/congelado_plugin.cppm** — "Plugin.get_requires / get_load_before_types return const(char)[][]"
+  C++ returned std::span<const std::string_view>. D returns const(const(char)[])[].
+  The slice must remain valid for the plugin's lifetime. In Run 2, add documentation
+  that implementations must return slices over static arrays (string literals only).
+
+- **sdk/plugin/plugin.d** — "CongeladoPlugin mixin __gshared static caches"
+  The s_cache arrays in congelado_requires / congelado_load_before_types use
+  __gshared bool s_built flags. This is not thread-safe at load time. In Run 2,
+  gate on a pthread_once or D's shared static this() to ensure single init.
+
+- **defaults/plugins/http2/http2.cc** — "Http2Plugin imports reference unfinished modules"
+  http2.d imports io.layer.http2, core_.server.builder, core_.contract.contract, etc.
+  Several of these are themselves partially stubbed. In Run 2, audit which protocol
+  paths are live and stub/comment the remainder to prevent link failures.
+
+- **include/congelado.cppm** — "Umbrella module re-exports three sub-trees"
+  congelado.d re-exports interfaces, shared_, and core_.ffi. In Run 2, verify that
+  all three sub-modules compile clean before enabling the umbrella import at app sites.
+

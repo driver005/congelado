@@ -21,7 +21,7 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] Run 0: D project skeleton under one_to_one/ builds an empty hello-target
 - [x] Run 0: D_STYLE_GUIDE.md written, derived from .clang-format + observed C++ style
 - [x] Run 0: Full file inventory enumerated, per-file checklist generated
-- [ ] Run 1: All files converted (write-only pass, no verification)
+- [x] Run 1: All files converted (write-only pass, no verification)
 - [ ] Run 2: Project compiles clean with LDC, -betterC/@nogc enforced
 - [ ] Run 2: Syntax/semantics sanity pass complete (read-through, no build errors)
 - [ ] Run 3: IMPROVEMENTS.md finalized and presented to user for selection
@@ -218,33 +218,33 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/worker/handler/status.cppm      → one_to_one/src/worker/handler/status.d
 
 ### Model + Serde + Connector
-- [ ] include/model/common/identifiers.cppm   → one_to_one/src/model/common/identifiers.d
-- [ ] include/model/common/timestamps.cppm    → one_to_one/src/model/common/timestamps.d
-- [ ] include/model/common/audit.cppm         → one_to_one/src/model/common/audit.d
-- [ ] include/model/common/policies.cppm      → one_to_one/src/model/common/policies.d
-- [ ] include/model/task/status.cppm          → one_to_one/src/model/task/status.d
-- [ ] include/model/task/definition.cppm      → one_to_one/src/model/task/definition.d
-- [ ] include/model/task/instance.cppm        → one_to_one/src/model/task/instance.d
-- [ ] include/model/workflow/status.cppm      → one_to_one/src/model/workflow/status.d
-- [ ] include/model/workflow/event.cppm       → one_to_one/src/model/workflow/event.d
-- [ ] include/model/workflow/definition.cppm  → one_to_one/src/model/workflow/definition.d
-- [ ] include/model/workflow/dag.cppm         → one_to_one/src/model/workflow/dag.d
-- [ ] include/model/workflow/exec.cppm        → one_to_one/src/model/workflow/exec.d
-- [ ] include/model/model.cppm                → one_to_one/src/model/model.d
-- [ ] include/serde/core.cppm                 → one_to_one/src/serde/core.d
-- [ ] include/serde/converter.cppm            → one_to_one/src/serde/converter.d
-- [ ] include/serde/json.cppm                 → one_to_one/src/serde/json.d
-- [ ] include/serde/toml.cppm                 → one_to_one/src/serde/toml.d
-- [ ] include/serde/cache.cppm                → one_to_one/src/serde/cache.d
-- [ ] include/serde/sql.cppm                  → one_to_one/src/serde/sql.d
-- [ ] include/serde/serde.cppm                → one_to_one/src/serde/serde.d
-- [ ] include/connector/local_cache.cppm      → one_to_one/src/connector/local_cache.d
-- [ ] include/connector/connector.cppm        → one_to_one/src/connector/connector.d
+- [x] include/model/common/identifiers.cppm   → one_to_one/src/model/common/identifiers.d
+- [x] include/model/common/timestamps.cppm    → one_to_one/src/model/common/timestamps.d
+- [x] include/model/common/audit.cppm         → one_to_one/src/model/common/audit.d
+- [x] include/model/common/policies.cppm      → one_to_one/src/model/common/policies.d
+- [x] include/model/task/status.cppm          → one_to_one/src/model/task/status.d
+- [x] include/model/task/definition.cppm      → one_to_one/src/model/task/definition.d
+- [x] include/model/task/instance.cppm        → one_to_one/src/model/task/instance.d
+- [x] include/model/workflow/status.cppm      → one_to_one/src/model/workflow/status.d
+- [x] include/model/workflow/event.cppm       → one_to_one/src/model/workflow/event.d
+- [x] include/model/workflow/definition.cppm  → one_to_one/src/model/workflow/definition.d
+- [x] include/model/workflow/dag.cppm         → one_to_one/src/model/workflow/dag.d
+- [x] include/model/workflow/exec.cppm        → one_to_one/src/model/workflow/exec.d
+- [x] include/model/model.cppm                → one_to_one/src/model/model.d
+- [x] include/serde/core.cppm                 → one_to_one/src/serde/core.d
+- [x] include/serde/converter.cppm            → one_to_one/src/serde/converter.d
+- [x] include/serde/json.cppm                 → one_to_one/src/serde/json.d
+- [x] include/serde/toml.cppm                 → one_to_one/src/serde/toml.d
+- [x] include/serde/cache.cppm                → one_to_one/src/serde/cache.d
+- [x] include/serde/sql.cppm                  → one_to_one/src/serde/sql.d
+- [x] include/serde/serde.cppm                → one_to_one/src/serde/serde.d
+- [x] include/connector/local_cache.cppm      → one_to_one/src/connector/local_cache.d
+- [x] include/connector/connector.cppm        → one_to_one/src/connector/connector.d
 
 ### SDK + Top-level
-- [ ] sdk/worker/include/congelado/worker.h   → one_to_one/src/sdk/worker/worker.d
-- [ ] sdk/plugin/include/congelado/plugin.h   → one_to_one/src/sdk/plugin/plugin.d
-- [ ] sdk/worker/congelado_worker.cppm        → one_to_one/src/sdk/worker/congelado_worker.d
-- [ ] sdk/plugin/congelado_plugin.cppm        → one_to_one/src/sdk/plugin/congelado_plugin.d
-- [ ] include/congelado.cppm                  → one_to_one/src/congelado.d
-- [ ] defaults/plugins/http2/http2.cc         → one_to_one/src/defaults/plugins/http2/http2.d
+- [x] sdk/worker/include/congelado/worker.h   → one_to_one/src/sdk/worker/worker.d
+- [x] sdk/plugin/include/congelado/plugin.h   → one_to_one/src/sdk/plugin/plugin.d
+- [x] sdk/worker/congelado_worker.cppm        → one_to_one/src/sdk/worker/congelado_worker.d
+- [x] sdk/plugin/congelado_plugin.cppm        → one_to_one/src/sdk/plugin/congelado_plugin.d
+- [x] include/congelado.cppm                  → one_to_one/src/congelado.d
+- [x] defaults/plugins/http2/http2.cc         → one_to_one/src/defaults/plugins/http2/http2.d
