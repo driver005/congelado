@@ -53,6 +53,7 @@ class Session {
         dispose(m_decoding_table);
         dispose(m_encoding_table);
         dispose(m_connection_stream);
+        if (m_safe_header !is null) { dispose(m_safe_header); }
         foreach (i; 0 .. m_streams_count)
             dispose(m_streams_buf[i]);
     }
@@ -111,6 +112,7 @@ class Session {
             return;
 
         auto header = m_safe_header;
+        if (m_safe_header !is null) { dispose(m_safe_header); }
         m_safe_header = null;
 
         uint stream_id = header.get_stream_id();
@@ -181,6 +183,7 @@ class Session {
         send_frame(frame);
         dispose(frame);
 
+        if (m_safe_header !is null) { dispose(m_safe_header); }
         m_safe_header = null;
         // Remove streams with id > stream_id
         foreach (i; 0 .. m_streams_count) {

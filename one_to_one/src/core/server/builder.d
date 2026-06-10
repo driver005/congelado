@@ -34,6 +34,14 @@ class RouterContext(Derived,
         m_base_router_children    = 0;
     }
 
+    ~this() @nogc nothrow {
+        // Dispose Route objects added via add_route() (indices 2+).
+        // Indices 0 and 1 are owned by RouteBuilder and disposed there.
+        foreach (ref r; m_routes[2 .. m_router_size]) {
+            if (r !is null) dispose(r);
+        }
+    }
+
     size_t add_route(Route!(Derived) route) {
         const auto idx = m_router_size++;
         m_routes[idx] = route;
