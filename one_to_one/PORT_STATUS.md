@@ -87,38 +87,38 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/interfaces/interfaces.cppm      → one_to_one/src/interfaces/interfaces.d
 
 ### IO shared + codec shared
-- [ ] include/io/shared/consts.cppm           → one_to_one/src/io/shared/consts.d
-- [ ] include/io/shared/types.cppm            → one_to_one/src/io/shared/types.d
-- [ ] include/io/shared/shared.cppm           → one_to_one/src/io/shared/shared.d
-- [ ] include/io/shared/http/types.cppm       → one_to_one/src/io/shared/http/types.d
-- [ ] include/io/shared/http/header.cppm      → one_to_one/src/io/shared/http/header.d
-- [ ] include/io/shared/http/http.cppm        → one_to_one/src/io/shared/http/http.d
-- [ ] include/io/codec/shared/consts.cppm     → one_to_one/src/io/codec/shared/consts.d
-- [ ] include/io/codec/shared/types.cppm      → one_to_one/src/io/codec/shared/types.d
-- [ ] include/io/codec/shared/atom.cppm       → one_to_one/src/io/codec/shared/atom.d
-- [ ] include/io/codec/shared/huffman.cppm    → one_to_one/src/io/codec/shared/huffman.d
-- [ ] include/io/codec/shared/lowlevel.cppm   → one_to_one/src/io/codec/shared/lowlevel.d
-- [ ] include/io/codec/shared/table.cppm      → one_to_one/src/io/codec/shared/table.d
-- [ ] include/io/codec/shared/shared.cppm     → one_to_one/src/io/codec/shared/shared.d
+- [x] include/io/shared/consts.cppm           → one_to_one/src/io/shared/consts.d
+- [x] include/io/shared/types.cppm            → one_to_one/src/io/shared/types.d
+- [x] include/io/shared/shared.cppm           → one_to_one/src/io/shared/shared.d
+- [x] include/io/shared/http/types.cppm       → one_to_one/src/io/shared/http/types.d
+- [x] include/io/shared/http/header.cppm      → one_to_one/src/io/shared/http/header.d
+- [x] include/io/shared/http/http.cppm        → one_to_one/src/io/shared/http/http.d
+- [x] include/io/codec/shared/consts.cppm     → one_to_one/src/io/codec/shared/consts.d
+- [x] include/io/codec/shared/types.cppm      → one_to_one/src/io/codec/shared/types.d
+- [x] include/io/codec/shared/atom.cppm       → one_to_one/src/io/codec/shared/atom.d
+- [x] include/io/codec/shared/huffman.cppm    → one_to_one/src/io/codec/shared/huffman.d
+- [x] include/io/codec/shared/lowlevel.cppm   → one_to_one/src/io/codec/shared/lowlevel.d
+- [x] include/io/codec/shared/table.cppm      → one_to_one/src/io/codec/shared/table.d
+- [x] include/io/codec/shared/shared.cppm     → one_to_one/src/io/codec/shared/shared.d
 
 ### IO codec: HPACK
-- [ ] include/io/codec/hpack/consts.cppm      → one_to_one/src/io/codec/hpack/consts.d
-- [ ] include/io/codec/hpack/types.cppm       → one_to_one/src/io/codec/hpack/types.d
-- [ ] include/io/codec/hpack/table.cppm       → one_to_one/src/io/codec/hpack/table.d
-- [ ] include/io/codec/hpack/hpack.cppm       → one_to_one/src/io/codec/hpack/hpack.d
+- [x] include/io/codec/hpack/consts.cppm      → one_to_one/src/io/codec/hpack/consts.d
+- [x] include/io/codec/hpack/types.cppm       → one_to_one/src/io/codec/hpack/types.d
+- [x] include/io/codec/hpack/table.cppm       → one_to_one/src/io/codec/hpack/table.d
+- [x] include/io/codec/hpack/hpack.cppm       → one_to_one/src/io/codec/hpack/hpack.d
 
 ### IO codec: QPACK
-- [ ] include/io/codec/qpack/consts.cppm      → one_to_one/src/io/codec/qpack/consts.d
-- [ ] include/io/codec/qpack/types.cppm       → one_to_one/src/io/codec/qpack/types.d
-- [ ] include/io/codec/qpack/table.cppm       → one_to_one/src/io/codec/qpack/table.d
-- [ ] include/io/codec/qpack/qpack.cppm       → one_to_one/src/io/codec/qpack/qpack.d
+- [x] include/io/codec/qpack/consts.cppm      → one_to_one/src/io/codec/qpack/consts.d
+- [x] include/io/codec/qpack/types.cppm       → one_to_one/src/io/codec/qpack/types.d
+- [x] include/io/codec/qpack/table.cppm       → one_to_one/src/io/codec/qpack/table.d
+- [x] include/io/codec/qpack/qpack.cppm       → one_to_one/src/io/codec/qpack/qpack.d
 
 ### IO codec: QUIC
-- [ ] include/io/codec/quic/types.cppm        → one_to_one/src/io/codec/quic/types.d
-- [ ] include/io/codec/quic/crypto.cppm       → one_to_one/src/io/codec/quic/crypto.d
-- [ ] include/io/codec/quic/tls.cppm          → one_to_one/src/io/codec/quic/tls.d
-- [ ] include/io/codec/quic/connection.cppm   → one_to_one/src/io/codec/quic/connection.d
-- [ ] include/io/codec/quic/quic.cppm         → one_to_one/src/io/codec/quic/quic.d
+- [x] include/io/codec/quic/types.cppm        → one_to_one/src/io/codec/quic/types.d
+- [x] include/io/codec/quic/crypto.cppm       → one_to_one/src/io/codec/quic/crypto.d
+- [x] include/io/codec/quic/tls.cppm          → one_to_one/src/io/codec/quic/tls.d
+- [x] include/io/codec/quic/connection.cppm   → one_to_one/src/io/codec/quic/connection.d
+- [x] include/io/codec/quic/quic.cppm         → one_to_one/src/io/codec/quic/quic.d
 
 ### IO errors
 - [ ] include/io/error/base.cppm              → one_to_one/src/io/error/base.d

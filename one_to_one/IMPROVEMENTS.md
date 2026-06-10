@@ -101,3 +101,76 @@ None of these were implemented — they are proposals for the Run 3 improvement 
   classes. This loses the guarantee that they have no data members. In Run 3, add a
   `static assert(ICacheCodec!T.sizeof == __traits(classInstanceSize, Object))` style
   check, or restructure as abstract mixin templates.
+
+---
+
+# Improvement Ideas (Run 1 — io/shared + io/codec/*)
+
+Items from the write-only pass over Groups 1-5. None implemented.
+
+- **io/codec/shared/huffman.cppm** — "Huffman TransTable as CTFE immutable"
+  C++ left `inline static const TransTable<W> TABLE = build_table<W>()` with a
+  `TODO: make constexpr`. D port uses `shared static this()` for runtime init, preserving
+  that TODO. In Run 3, evaluate whether `build_table!W()` can be evaluated at compile time
+  as a CTFE function and stored as `static immutable`. This would eliminate the runtime
+  `shared static this()` and make the lookup table a true compile-time constant.
+
+- **io/codec/shared/table.cppm** — "DynamicTable ring-buffer eviction via circular array"
+  The C++ port used a `std::deque`; D port uses a dynamic array `m_deque[]` with linear
+  eviction. For Run 3, replace with a ring-buffer (power-of-two capacity, head+tail
+  indices) to make O(1) eviction without any heap reallocation.
+
+- **io/codec/shared/table.cppm** — "StaticTable template param (non-type ref) not portable to D"
+  C++ StaticTable is `template<const auto& Table>` (non-type parameter binding a static
+  array). D has no direct equivalent. The D port uses `StaticTableBase` with a runtime
+  `init(slice)` call. In Run 3, consider a template `StaticTableBase(alias Table)` that
+  accepts an alias to the immutable array for compile-time resolution of the slice.
+
+- **io/codec/hpack/table.cppm + io/codec/qpack/table.cppm** — "Static field tables as CTFE"
+  Both HPackTable and QPackTable initialize `__gshared HeaderFieldStatic[N]` arrays in
+  `shared static this()`. These entries are literal constants (all string and token values
+  known at compile time). In Run 3, convert to `static immutable HeaderFieldStatic[N]`
+  initialized via a CTFE lambda, eliminating the mutable shared statics entirely.
+
+- **io/codec/hpack/hpack.cppm** — "HpackEncoder m_buf as mutable member note"
+  C++ declared `mutable std::array<std::byte, 16384> m_buf` to permit buffer writes on
+  a logically-const encoder. D has no `mutable`; the field is a plain member. In Run 3,
+  audit all `const` call sites to verify no `m_buf` mutation is attempted through a
+  const reference.
+
+- **io/codec/qpack/qpack.cppm** — "Huffman encode/decode paths stubbed as TODO"
+  The QPACK encoder/decoder string paths have `// TODO: huffman encode/decode` stubs
+  matching the C++ TODO comments. In Run 3, wire the `Huffman!W.encode()` and
+  `Huffman!W.decode()` calls from `io.codec.shared.huffman` to complete the
+  Huffman-compressed string encoding path.
+
+- **io/codec/quic/tls.cppm** — "ALPN select callback dropped"
+  The C++ TlsContext wired an ALPN select callback (`SSL_CTX_set_alpn_select_cb`) using
+  a lambda capture. D's `@nogc nothrow` function pointers cannot capture; the callback
+  was dropped with a TODO. In Run 3, implement via a module-level C-ABI callback
+  (`extern(C) int alpn_select_cb(...)`) that reads an immutable protocol list from a
+  module-level constant, restoring ALPN negotiation without GC.
+
+- **io/codec/quic/connection.cppm** — "StreamEntry[] linear scan → SwissHashMap"
+  C++ `std::unordered_map<uint64_t, SSL*>` was ported to D `StreamEntry[]` dynamic array.
+  Stream lookup (`write_stream`) is O(n). In Run 3, replace with
+  `SwissHashMap!(ulong, SSL*)` from `util.hashmap.swiss` for O(1) average lookup,
+  matching the original C++ intent.
+
+- **io/codec/quic/connection.cppm** — "Stream read buffer stack-allocated, limits message size"
+  `poll_streams` uses a `ubyte[65536]` stack buffer per stream per tick. QUIC streams can
+  carry larger application messages. In Run 3, replace with a caller-supplied
+  `BufferWriter` node or a module-level ring-buffer passed by reference, removing the 64
+  KiB cap and the risk of stack overflow on deeply recursive poll paths.
+
+- **io/shared/http/header.cppm** — "HeaderEntry tagged union vs std::variant"
+  C++ used `std::variant<shared_ptr<HeaderField<true>>, shared_ptr<HeaderField<false>>>`.
+  D port uses a manual tagged union `struct HeaderEntry { HeaderEntryKind kind; union { ... } }`.
+  In Run 3, evaluate `std.variant.Algebraic` or a custom `SumType!T` for safer exhaustive
+  matching, or add a helper `opDispatch`/`match` to make the tag-switch pattern less
+  error-prone at call sites.
+
+- **io/codec/shared/atom.cppm** — "Sentinel-return error convention needs documentation"
+  `decode_int` and `decode_string` signal errors by returning `consumed == 0`. C++ threw
+  exceptions. In Run 3, upgrade to `Result!(T, DecodeError)` from `util.result` so call
+  sites cannot silently ignore decode failures.
