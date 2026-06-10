@@ -58,6 +58,12 @@ abstract class HandlerBase {
 
     abstract WorkerFunction  on_execute() @nogc nothrow;
 
+    auto create(TController, Args...)(ref TController controller, auto ref Args args) @nogc nothrow
+        if (HandlerController!TController)
+    {
+        return controller.create(get_name(), on_execute(), on_released(), on_error(), args);
+    }
+
     ReleaseFunction on_released() @nogc nothrow { return null; }
 
     ErrorHandler on_error() @nogc nothrow { return null; }
