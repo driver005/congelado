@@ -254,3 +254,68 @@ Items from the write-only pass over the 12 files in this batch. None implemented
   `getaddrinfo` calls. The D port stubs it with `fatal()`. In Run 3, implement using
   a stack-allocated port string (already done for the main constructor) and the existing
   `getaddrinfo` pattern.
+
+---
+
+# Improvement Ideas (Run 1 — io/layer/http2 + io/layer/shared + congelado/io/service)
+
+Items from the write-only pass. None implemented.
+
+- **io/layer/http2/settings.cppm** — "ReadSettingsAdaptor/WriteSettingsAdaptor as range pipelines"
+  C++ used C++26 `range_adaptor_closure` + `std::views::chunk` + `fold_left`. D port uses
+  plain slice-reading/writing functions. In Run 3, wrap these with an optional range-adapter
+  facade (using `InputRange` protocol) if call sites want pipeline composition.
+
+- **io/layer/http2/frame.cppm** — "WriteFrameClosureAdapter multi-chunk split is O(n²)"
+  The D `write_frame_builder` loops over chunks with `~=` (realloc per append). In Run 3,
+  replace with a pre-sized BufferNode + a single pass using known total size to avoid
+  repeated reallocations.
+
+- **io/layer/http2/stream.cppm** — "ConnectionStream.copy_reader_bytes is O(n) per call"
+  The helper drains the BufferReader byte-by-byte via `front()`/`consume()`. In Run 3,
+  add a `BufferReader.read_into(ubyte[], size_t)` bulk helper that advances across nodes
+  in a single pass.
+
+- **io/layer/http2/stream.cppm** — "DataStream.handle_header HPACK decode stubbed"
+  The C++ wired `Hpack<Protocol>.decode(view)` from io.codec.hpack. The D port has a
+  TODO stub. In Run 3, connect `HpackEncoder.decode()` using the existing D HPACK tables
+  and wire decoding errors back to `Http2ErrorCode.COMPRESSION_ERROR`.
+
+- **io/layer/http2/session.cppm** — "m_streams linear scan → SwissHashMap"
+  C++ used `std::map<uint32_t, unique_ptr<Stream<>>>` for O(log n) lookup. D port uses
+  a `DataStream[]` with O(n) linear scan. In Run 3, replace with
+  `SwissHashMap!(uint, DataStream*)` for O(1) average lookup.
+
+- **io/layer/http2/session.cppm** — "BufferNode allocation uses GC slice conversion"
+  Every `send_frame`/`send` call builds a `ubyte[]` then wraps it with `new BufferNode(wire)`.
+  This doubles the allocation. In Run 3, write directly into a pre-sized `BufferNode` using
+  `get_data()`/`expand_written()` instead of the intermediate slice.
+
+- **io/layer/http2/handshake.cppm** — "Preface comparison limited to first contiguous chunk"
+  The D `is_valid_preface` only compares against the first contiguous chunk from `front()`.
+  If the 24-byte preface spans two BufferNode boundaries the comparison silently fails.
+  In Run 3, implement a proper multi-node compare loop (or add `BufferReader.read_into`
+  as noted above).
+
+- **io/layer/http2/plugin.cppm** — "Server.build() and dispatch not wired"
+  `core.server.RouteBuilder`, `RouteHandler`, and the method→enum mapping are all stubbed
+  with TODOs. Wire these once `core/server` is ported in the Core batch.
+
+- **io/layer/http2/req.cppm + res.cppm** — "Custom header SwissHashMap deferred"
+  Both `insert_str()` methods are no-ops; custom headers are silently dropped. In Run 3,
+  wire `SwissHashMap!(const(char)[], HeaderField*)` for custom header storage, matching
+  the C++ behaviour.
+
+- **io/layer/http2/req.cppm** — "find_header() is a stub"
+  C++ called `tokenize(name)` → static slot or hashmap lookup. D port always returns `[]`.
+  In Run 3, implement tokenize and route to `m_static_headers` or the custom map.
+
+- **congelado/io/service.cppm** — "CRTP pattern not enforceable without templates"
+  C++ CRTP used `static_cast<Derived*>(this)`. D uses `cast(Derived) this`, which is
+  a runtime downcast. In Run 3, add `static assert(is(Derived : IoServiceBase!Derived))`
+  to the class template body to restore compile-time CRTP verification.
+
+- **congelado/io/service.cppm** — "OpenFlags operator| / operator& as module-level fns"
+  C++ defined these as `constexpr` friend operators on the enum. D has no in-enum operators;
+  the D port adds two `opOr`/`opAnd` module-level functions. In Run 3, use D's `opBinary`
+  template to restore the natural `a | b` syntax for call sites.
