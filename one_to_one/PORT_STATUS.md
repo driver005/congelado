@@ -32,24 +32,24 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 ## Per-File Conversion Checklist (Run 1)
 
 ### Leaf utilities
-- [ ] include/utils/consts.cppm               → one_to_one/src/utils/consts.d
-- [ ] include/utils/encode.cppm               → one_to_one/src/utils/encode.d
-- [ ] include/utils/helper.cppm               → one_to_one/src/utils/helper.d
-- [ ] include/utils/codec/atom.cppm           → one_to_one/src/utils/codec/atom.d
-- [ ] include/utils/codec/codec.cppm          → one_to_one/src/utils/codec/codec.d
-- [ ] include/utils/buffering/node.cppm       → one_to_one/src/utils/buffering/node.d
-- [ ] include/utils/buffering/base.cppm       → one_to_one/src/utils/buffering/base.d
-- [ ] include/utils/buffering/deleter.cppm    → one_to_one/src/utils/buffering/deleter.d
-- [ ] include/utils/buffering/reader.cppm     → one_to_one/src/utils/buffering/reader.d
-- [ ] include/utils/buffering/view.cppm       → one_to_one/src/utils/buffering/view.d
-- [ ] include/utils/buffering/writter.cppm    → one_to_one/src/utils/buffering/writter.d
-- [ ] include/utils/hashmap/base.cppm         → one_to_one/src/utils/hashmap/base.d
-- [ ] include/utils/hashmap/swiss.cppm        → one_to_one/src/utils/hashmap/swiss.d
-- [ ] include/utils/queue/node.cppm           → one_to_one/src/utils/queue/node.d
-- [ ] include/utils/queue/page.cppm           → one_to_one/src/utils/queue/page.d
-- [ ] include/utils/queue/pager.cppm          → one_to_one/src/utils/queue/pager.d
-- [ ] include/utils/queue/atomic_list.cppm    → one_to_one/src/utils/queue/atomic_list.d
-- [ ] include/utils/queue/queue.cppm          → one_to_one/src/utils/queue/queue.d
+- [x] include/utils/consts.cppm               → one_to_one/src/utils/consts.d
+- [x] include/utils/encode.cppm               → one_to_one/src/utils/encode.d
+- [x] include/utils/helper.cppm               → one_to_one/src/utils/helper.d
+- [x] include/utils/codec/atom.cppm           → one_to_one/src/utils/codec/atom.d
+- [x] include/utils/codec/codec.cppm          → one_to_one/src/utils/codec/codec.d
+- [x] include/utils/buffering/node.cppm       → one_to_one/src/utils/buffering/node.d
+- [x] include/utils/buffering/base.cppm       → one_to_one/src/utils/buffering/base.d
+- [x] include/utils/buffering/deleter.cppm    → one_to_one/src/utils/buffering/deleter.d
+- [x] include/utils/buffering/reader.cppm     → one_to_one/src/utils/buffering/reader.d
+- [x] include/utils/buffering/view.cppm       → one_to_one/src/utils/buffering/view.d
+- [x] include/utils/buffering/writter.cppm    → one_to_one/src/utils/buffering/writter.d
+- [x] include/utils/hashmap/base.cppm         → one_to_one/src/utils/hashmap/base.d
+- [x] include/utils/hashmap/swiss.cppm        → one_to_one/src/utils/hashmap/swiss.d
+- [x] include/utils/queue/node.cppm           → one_to_one/src/utils/queue/node.d
+- [x] include/utils/queue/page.cppm           → one_to_one/src/utils/queue/page.d
+- [x] include/utils/queue/pager.cppm          → one_to_one/src/utils/queue/pager.d
+- [x] include/utils/queue/atomic_list.cppm    → one_to_one/src/utils/queue/atomic_list.d
+- [x] include/utils/queue/queue.cppm          → one_to_one/src/utils/queue/queue.d
 
 ### Modules (C stdlib wrappers)
 - [ ] include/modules/asio.cppm               → one_to_one/src/modules/asio.d
