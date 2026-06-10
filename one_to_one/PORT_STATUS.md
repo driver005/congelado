@@ -121,22 +121,22 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/io/codec/quic/quic.cppm         → one_to_one/src/io/codec/quic/quic.d
 
 ### IO errors
-- [ ] include/io/error/base.cppm              → one_to_one/src/io/error/base.d
-- [ ] include/io/error/http.cppm              → one_to_one/src/io/error/http.d
-- [ ] include/io/error/error.cppm             → one_to_one/src/io/error/error.d
+- [x] include/io/error/base.cppm              → one_to_one/src/io/error/base.d
+- [x] include/io/error/http.cppm              → one_to_one/src/io/error/http.d
+- [x] include/io/error/error.cppm             → one_to_one/src/io/error/error.d
 
 ### IO base: leverage (io_uring / posix / win32)
-- [ ] include/io/base/leverage/types.cppm     → one_to_one/src/io/base/leverage/types.d
-- [ ] include/io/base/leverage/posix.cppm     → one_to_one/src/io/base/leverage/posix.d
-- [ ] include/io/base/leverage/uring.cppm     → one_to_one/src/io/base/leverage/uring.d
-- [ ] include/io/base/leverage/win32.cppm     → one_to_one/src/io/base/leverage/win32.d
-- [ ] include/io/base/leverage/base.cppm      → one_to_one/src/io/base/leverage/base.d
+- [x] include/io/base/leverage/types.cppm     → one_to_one/src/io/base/leverage/types.d
+- [x] include/io/base/leverage/posix.cppm     → one_to_one/src/io/base/leverage/posix.d
+- [x] include/io/base/leverage/uring.cppm     → one_to_one/src/io/base/leverage/uring.d
+- [x] include/io/base/leverage/win32.cppm     → one_to_one/src/io/base/leverage/win32.d
+- [x] include/io/base/leverage/base.cppm      → one_to_one/src/io/base/leverage/base.d
 
 ### IO base: socket
-- [ ] include/io/base/socket/consts.cppm      → one_to_one/src/io/base/socket/consts.d
-- [ ] include/io/base/socket/posix.cppm       → one_to_one/src/io/base/socket/posix.d
-- [ ] include/io/base/socket/win32.cppm       → one_to_one/src/io/base/socket/win32.d
-- [ ] include/io/base/socket/socket.cppm      → one_to_one/src/io/base/socket/socket.d
+- [x] include/io/base/socket/consts.cppm      → one_to_one/src/io/base/socket/consts.d
+- [x] include/io/base/socket/posix.cppm       → one_to_one/src/io/base/socket/posix.d
+- [x] include/io/base/socket/win32.cppm       → one_to_one/src/io/base/socket/win32.d
+- [x] include/io/base/socket/socket.cppm      → one_to_one/src/io/base/socket/socket.d
 
 ### IO flow
 - [ ] include/io/flow/receiver/sync.cppm      → one_to_one/src/io/flow/receiver/sync.d
