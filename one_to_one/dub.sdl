@@ -1,0 +1,25 @@
+name "congelado"
+description "Zero-GC D port of congelado C++23/26 server framework"
+authors "Adrian"
+license "proprietary"
+targetType "executable"
+
+toolchainRequirements ldc=">=1.35.0"
+
+dflags "-preview=dip1000" "-preview=in" "--checkaction=C" platform="posix"
+
+buildRequirements "allowWarnings"
+
+libs "ssl" "crypto" platform="posix"
+
+sourcePaths "src"
+importPaths "src"
+
+configuration "default" {
+    targetType "executable"
+}
+
+configuration "python_runtime" {
+    versions "RuntimePython"
+    targetType "executable"
+}
