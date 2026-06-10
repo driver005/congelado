@@ -418,3 +418,92 @@ Items from the write-only pass over the 26 core files. None implemented.
   C++ `m_base_request{}` default-constructed the request. The D port calls
   `new IRequest!Protocol()` directly. If `IRequest` is abstract this will fail to compile.
   In Run 2, replace with a protocol-specific concrete request type or a factory function.
+
+---
+
+# Improvement Ideas (Run 1 — engine + worker)
+
+Items from the write-only pass over 14 engine/worker files. None implemented.
+
+- **engine/context.cppm** — "EngineContext pointer-to-connector ABI mismatch"
+  C++ Connector is a value member. D port uses `ref Connector get_connector()` returning
+  a ref to the embedded member. If Connector is a D class (reference type) the ref is
+  redundant. In Run 2, decide class vs struct for Connector and remove the ref if it
+  becomes a class.
+
+- **engine/handler/metadata.cppm + task.cppm + workflow.cppm** — "std::reference_wrapper → raw pointer"
+  C++ used `std::reference_wrapper<EngineContext> m_ctx` (rebindable reference). D port
+  uses `EngineContext* m_ctx`. Both have the same null-risk; the D raw pointer is simpler.
+  In Run 2, consider using `ref` parameters where re-binding is not needed to avoid the
+  raw pointer entirely.
+
+- **engine/handler/task.cppm** — "flatten_body uses GC ~= append"
+  `flatten_body` builds a `ubyte[]` with GC-backed `~=`. In Run 2, replace with a
+  fixed-size stack buffer (e.g. `ubyte[65536]`) or a `BufferWriter` node from `util.alloc`
+  to eliminate GC pressure on the hot request path.
+
+- **engine/handler/task.cppm + workflow.cppm** — "last_slash / last_slash_before helpers duplicated"
+  Both files define the same two private helper functions. In Run 3, factor them into a
+  shared `engine.util` module (or `shared.util`) to eliminate the duplication.
+
+- **engine/handler/workflow.cppm** — "WorkflowExecution allocated with make! but never disposed"
+  `start_execution` allocates via `make!WorkflowExecution()` but the pointer is captured
+  in the insert callback; no `dispose` call exists. In Run 2, decide ownership: either
+  move into the callback (store by value) or track disposal explicitly.
+
+- **engine/routes.cppm** — "Handler lifetime not enforced"
+  C++ used `std::shared_ptr` to guarantee handler lifetime matched route lifetime. D port
+  uses raw pointers with a comment. In Run 2, wire an explicit arena or tie handler lifetime
+  to a scope that outlives the router, and add a static assert or documentation contract.
+
+- **worker/config.cppm** — "from_file() is a stub; TOML parsing missing"
+  The full C++ TOML parsing (engine_url, worker_id, concurrency, tasks array) is dropped.
+  In Run 2, integrate a D TOML library (e.g. `toml-d` from DUB) or the hand-rolled subset
+  from `core.config.loader` once that stub is filled in.
+
+- **worker/config.cppm** — "TaskConfig / WorkerConfig fields stored as borrowed const(char)[]"
+  C++ used owning `std::string`. D port uses borrowed slices for @nogc. In Run 3, decide
+  ownership: either copy into a bump allocator arena or document that config slices must
+  outlive all WorkerConfig uses.
+
+- **worker/task_worker.cppm** — "TaskInput get overloads lack double parsing"
+  `get_double` stubs the float parser and always returns none. In Run 2, implement a
+  minimal @nogc `strtod`-equivalent (or bind libc's `strtod` via extern(C)) to restore
+  full numeric TaskInput support.
+
+- **worker/task_worker.cppm** — "ITaskWorker on_released / on_error return fn pointers, not closures"
+  C++ returned `std::function<void()>` (owning closure). D port returns bare
+  `void function() @nogc nothrow` (no capture). Any ITaskWorker implementation that
+  needs captured state must use a global/TLS variable. In Run 3, introduce a `Closure!Fn`
+  struct (from `util.closure`) to restore owning-capture semantics without GC.
+
+- **worker/context.cppm** — "run_task swallows errors silently"
+  C++ called `on_error(std::current_exception())` on any exception. D is nothrow — the
+  port has no exception path, so `on_error` is never invoked. In Run 2, define an explicit
+  `ResultCode` return from `execute()` or an out-param error so failures are not silent.
+
+- **worker/context.cppm** — "get_task_types fills caller-supplied slice; length unknown to callers"
+  C++ returned a heap vector. D port uses a caller-supplied output slice, requiring callers
+  to pre-size. In Run 3, expose a `size_t count_task_types() const` accessor so callers
+  can stack-allocate the right size before calling `get_task_types`.
+
+- **worker/context.cppm** — "m_workers uses GC ~= append"
+  `add_task_worker` appends with `~=`. In Run 2, replace with a fixed-size
+  `ITaskWorker[64]` array + length counter (typical deployments have few task types)
+  to eliminate GC on the registration path.
+
+- **worker/handler/execution.cppm + poll.cppm** — "call_engine bodies entirely commented out"
+  All three execution routes and both poll routes are stubs — the call_engine integration
+  was never wired in C++ either (all bodies are `//`-commented). In Run 2, unblock by
+  wiring the EngineClient (once its replacement for the deleted engine_client.cppm is
+  designed) and un-commenting the logic.
+
+- **worker/handler/poll.cppm** — "build_submit_json returns empty slice"
+  The JSON builder is a stub. In Run 2, implement @nogc JSON serialisation for
+  `{result: "...", output_data: {...}}` using a stack buffer + a simple write loop,
+  matching the C++ `std::format` output.
+
+- **worker/handler/status.cppm** — "health_check body length assignment uses GC"
+  `bytes.length = k_ok.length` triggers a GC allocation. In Run 2, replace with a
+  `ubyte[32]` stack buffer and a manual copy loop (k_ok is only 16 bytes).
+

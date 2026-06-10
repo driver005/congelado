@@ -202,20 +202,20 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/core/client/client.cppm         → one_to_one/src/core/client/client.d
 
 ### Engine + Worker
-- [ ] include/engine/context.cppm             → one_to_one/src/engine/context.d
-- [ ] include/engine/routes.cppm              → one_to_one/src/engine/routes.d
-- [ ] include/engine/engine.cppm              → one_to_one/src/engine/engine.d
-- [ ] include/engine/handler/context.cppm     → one_to_one/src/engine/handler/context.d
-- [ ] include/engine/handler/metadata.cppm    → one_to_one/src/engine/handler/metadata.d
-- [ ] include/engine/handler/task.cppm        → one_to_one/src/engine/handler/task.d
-- [ ] include/engine/handler/workflow.cppm    → one_to_one/src/engine/handler/workflow.d
-- [ ] include/worker/config.cppm              → one_to_one/src/worker/config.d
-- [ ] include/worker/context.cppm             → one_to_one/src/worker/context.d
-- [ ] include/worker/task_worker.cppm         → one_to_one/src/worker/task_worker.d
-- [ ] include/worker/worker.cppm              → one_to_one/src/worker/worker.d
-- [ ] include/worker/handler/execution.cppm   → one_to_one/src/worker/handler/execution.d
-- [ ] include/worker/handler/poll.cppm        → one_to_one/src/worker/handler/poll.d
-- [ ] include/worker/handler/status.cppm      → one_to_one/src/worker/handler/status.d
+- [x] include/engine/context.cppm             → one_to_one/src/engine/context.d
+- [x] include/engine/routes.cppm              → one_to_one/src/engine/routes.d
+- [x] include/engine/engine.cppm              → one_to_one/src/engine/engine.d
+- [x] include/engine/handler/context.cppm     → one_to_one/src/engine/handler/context.d
+- [x] include/engine/handler/metadata.cppm    → one_to_one/src/engine/handler/metadata.d
+- [x] include/engine/handler/task.cppm        → one_to_one/src/engine/handler/task.d
+- [x] include/engine/handler/workflow.cppm    → one_to_one/src/engine/handler/workflow.d
+- [x] include/worker/config.cppm              → one_to_one/src/worker/config.d
+- [x] include/worker/context.cppm             → one_to_one/src/worker/context.d
+- [x] include/worker/task_worker.cppm         → one_to_one/src/worker/task_worker.d
+- [x] include/worker/worker.cppm              → one_to_one/src/worker/worker.d
+- [x] include/worker/handler/execution.cppm   → one_to_one/src/worker/handler/execution.d
+- [x] include/worker/handler/poll.cppm        → one_to_one/src/worker/handler/poll.d
+- [x] include/worker/handler/status.cppm      → one_to_one/src/worker/handler/status.d
 
 ### Model + Serde + Connector
 - [ ] include/model/common/identifiers.cppm   → one_to_one/src/model/common/identifiers.d
