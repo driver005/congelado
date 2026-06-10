@@ -73,18 +73,18 @@ approximately 236 source units spanning C++26 named modules, two C SDK headers, 
 - [x] include/shared/shared.cppm              → one_to_one/src/shared/shared.d
 
 ### Interfaces
-- [ ] include/interfaces/status.cppm          → one_to_one/src/interfaces/status.d
-- [ ] include/interfaces/logger.cppm          → one_to_one/src/interfaces/logger.d
-- [ ] include/interfaces/io.cppm              → one_to_one/src/interfaces/io.d
-- [ ] include/interfaces/request.cppm         → one_to_one/src/interfaces/request.d
-- [ ] include/interfaces/response.cppm        → one_to_one/src/interfaces/response.d
-- [ ] include/interfaces/cache.cppm           → one_to_one/src/interfaces/cache.d
-- [ ] include/interfaces/database.cppm        → one_to_one/src/interfaces/database.d
-- [ ] include/interfaces/client.cppm          → one_to_one/src/interfaces/client.d
-- [ ] include/interfaces/protocol.cppm        → one_to_one/src/interfaces/protocol.d
-- [ ] include/interfaces/codec/cache.cppm     → one_to_one/src/interfaces/codec/cache.d
-- [ ] include/interfaces/codec/db.cppm        → one_to_one/src/interfaces/codec/db.d
-- [ ] include/interfaces/interfaces.cppm      → one_to_one/src/interfaces/interfaces.d
+- [x] include/interfaces/status.cppm          → one_to_one/src/interfaces/status.d
+- [x] include/interfaces/logger.cppm          → one_to_one/src/interfaces/logger.d
+- [x] include/interfaces/io.cppm              → one_to_one/src/interfaces/io.d
+- [x] include/interfaces/request.cppm         → one_to_one/src/interfaces/request.d
+- [x] include/interfaces/response.cppm        → one_to_one/src/interfaces/response.d
+- [x] include/interfaces/cache.cppm           → one_to_one/src/interfaces/cache.d
+- [x] include/interfaces/database.cppm        → one_to_one/src/interfaces/database.d
+- [x] include/interfaces/client.cppm          → one_to_one/src/interfaces/client.d
+- [x] include/interfaces/protocol.cppm        → one_to_one/src/interfaces/protocol.d
+- [x] include/interfaces/codec/cache.cppm     → one_to_one/src/interfaces/codec/cache.d
+- [x] include/interfaces/codec/db.cppm        → one_to_one/src/interfaces/codec/db.d
+- [x] include/interfaces/interfaces.cppm      → one_to_one/src/interfaces/interfaces.d
 
 ### IO shared + codec shared
 - [ ] include/io/shared/consts.cppm           → one_to_one/src/io/shared/consts.d
