@@ -6,6 +6,7 @@ import io.base.leverage.types : off_t;
 import io.base.socket.consts;
 import shared_.logger : error, warning, debug_, fatal;
 import util.optional  : Optional;
+import util.alloc     : make;
 
 public import io.base.socket.consts;
 
@@ -792,7 +793,7 @@ class Socket(Protocol proto, bool RootSocket = false) {
                 int ERR = get_error_code();
                 if (ERR == EWOULDBLOCK || ERR == EAGAIN || ERR == EINTR) {
                     debug_("SocketLib", "socket accept would block");
-                    return new Socket!proto();
+                    return make!(Socket!proto)();
                 }
                 error("SocketLib", "Critical failure in accept() syscall");
             }
@@ -812,11 +813,11 @@ class Socket(Protocol proto, bool RootSocket = false) {
 
                 auto endpoint = Endpoint(cast(const(sockaddr)*) &client_addr);
                 debug_("SocketLib", "socket accepted TLS");
-                return new Socket!proto(client_fd, client_ssl, endpoint);
+                return make!(Socket!proto)(client_fd, client_ssl, endpoint);
             } else {
                 auto endpoint = Endpoint(cast(const(sockaddr)*) &client_addr);
                 debug_("SocketLib", "socket accepted TCP");
-                return new Socket!proto(client_fd, endpoint);
+                return make!(Socket!proto)(client_fd, endpoint);
             }
         } else static if (proto == Protocol.QUIC) {
             if (m_ssl is null) {
@@ -827,10 +828,10 @@ class Socket(Protocol proto, bool RootSocket = false) {
                 error("SocketLib", "failed to accept new QUIC connection");
             }
             debug_("SocketLib", "socket accepted QUIC connection");
-            return new Socket!proto(m_socket, client_ssl);
+            return make!(Socket!proto)(m_socket, client_ssl);
         } else {
             fatal("SocketLib", "Accept is only supported for TCP, TLS and QUIC protocols");
-            return new Socket!proto();
+            return make!(Socket!proto)();
         }
     }
 
@@ -841,7 +842,8 @@ class Socket(Protocol proto, bool RootSocket = false) {
         static if (proto == Protocol.TCP || proto == Protocol.TLS) {
             if (m_leverager !is null) {
                 // PORT-NOTE: full async accept deferred to Run 2
-                callback(new Socket!proto(), ctx);
+                auto sock = make!(Socket!proto)();
+                callback(sock, ctx);
             } else {
                 fatal("SocketLib", "m_leverager is not set so async function calls cannot be used");
             }
@@ -1184,8 +1186,7 @@ class Socket(Protocol proto, bool RootSocket = false) {
         }
     }
 
-    template!(bool CreateSocket = true)
-    SocketStatus connect_addr(addrinfo* addr, ulong timeout) {
+    SocketStatus connect_addr(bool CreateSocket = true)(addrinfo* addr, ulong timeout) {
         static if (proto == Protocol.TCP || proto == Protocol.TLS) {
             static if (CreateSocket) {
                 debug_("SocketLib", "socket closing to retry connect");
