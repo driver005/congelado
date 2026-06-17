@@ -1,3 +1,5 @@
+module;
+#define CONGELADO_GUEST
 export module congelado_plugin;
 
 import std;
@@ -11,10 +13,10 @@ class HostCallbacks {
     using LogFn = void (*)(void *ctx, int level, const char *msg, std::size_t len);
     using SchedFn = void (*)(void *ctx);
 
-    HostCallbacks(LogFn log, SchedFn sched, void *router_ctx,
-                  void *controller_ctx, void *leverager_ctx, void *ctx) noexcept
-        : m_log{log}, m_sched{sched}, m_router_ctx{router_ctx},
-          m_controller_ctx{controller_ctx}, m_leverager_ctx{leverager_ctx}, m_ctx{ctx} {}
+    HostCallbacks(LogFn log, SchedFn sched, void *router_ctx, void *controller_ctx,
+                  void *leverager_ctx, void *ctx) noexcept
+        : m_log{log}, m_sched{sched}, m_router_ctx{router_ctx}, m_controller_ctx{controller_ctx},
+          m_leverager_ctx{leverager_ctx}, m_ctx{ctx} {}
 
     void log(int level, std::string_view msg) const noexcept {
         if (m_log != nullptr) {
@@ -27,12 +29,21 @@ class HostCallbacks {
         }
     }
     // Typed accessors — C ABI carries void* across the dlopen boundary; cast happens here.
-    template <typename T> [[nodiscard]] T *router_ctx()     const noexcept { return static_cast<T *>(m_router_ctx); }
-    template <typename T> [[nodiscard]] T *controller_ctx() const noexcept { return static_cast<T *>(m_controller_ctx); }
-    template <typename T> [[nodiscard]] T *leverager_ctx()  const noexcept { return static_cast<T *>(m_leverager_ctx); }
+    template <typename T>
+    [[nodiscard]] T *router_ctx() const noexcept {
+        return static_cast<T *>(m_router_ctx);
+    }
+    template <typename T>
+    [[nodiscard]] T *controller_ctx() const noexcept {
+        return static_cast<T *>(m_controller_ctx);
+    }
+    template <typename T>
+    [[nodiscard]] T *leverager_ctx() const noexcept {
+        return static_cast<T *>(m_leverager_ctx);
+    }
 
   private:
-    LogFn  m_log{nullptr};
+    LogFn m_log{nullptr};
     SchedFn m_sched{nullptr};
     void *m_router_ctx{nullptr};
     void *m_controller_ctx{nullptr};
@@ -111,10 +122,6 @@ class Plugin {
 
     virtual void on_load(HostCallbacks const & /*host*/, ConfigView const & /*cfg*/) {}
     virtual void on_unload() {}
-    virtual void logger_write(int /*level*/, std::string_view /*msg*/) noexcept {}
-    virtual void *protocol_get() noexcept { return nullptr; }
-    // Returns interfaces::IDatabase* cast to void*. Override with CONGELADO_CAP_STORAGE.
-    virtual void *storage_get() noexcept { return nullptr; }
 };
 
 } // namespace congelado
