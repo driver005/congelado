@@ -40,8 +40,11 @@ class Closure {
         m_raw = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure), &m_code));
         if (m_raw == nullptr)
             throw std::bad_alloc{};
-        if (ffi_prep_closure_loc(m_raw, &m_cif, thunk, user_data, m_code) != FFI_OK)
+        if (ffi_prep_closure_loc(m_raw, &m_cif, thunk, user_data, m_code) != FFI_OK) {
+            ffi_closure_free(m_raw);
+            m_raw = nullptr;
             throw std::runtime_error{"ffi_prep_closure_loc failed"};
+        }
     }
 
     ~Closure() {
@@ -63,7 +66,7 @@ class Closure {
     void *m_code{nullptr};
 };
 
-struct PluginSymbols {
+class PluginSymbols { public:
     using NameFn                = const char *(*)() noexcept;
     using VersionFn             = const char *(*)() noexcept;
     using CapsFn                = uint32_t (*)() noexcept;
@@ -108,7 +111,7 @@ class BridgeImpl : public interfaces::ILogger {
     open(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr) {
         void *lib = open_lib(path);
         if (lib == nullptr)
-            return std::unexpected{std::format("dlopen failed: {}", path.string())};
+            return std::unexpected{std::format("dlopen failed: {}: {}", path.string(), dlerror())};
 
         auto bridge = std::shared_ptr<BridgeImpl>(new BridgeImpl{lib});
 
@@ -167,7 +170,7 @@ class BridgeImpl : public interfaces::ILogger {
     [[nodiscard]] std::string_view get_name()        const noexcept { return m_lib_name; }
     [[nodiscard]] std::string_view get_version()     const noexcept { return m_lib_version; }
     [[nodiscard]] std::string_view get_unique_type() const noexcept { return m_unique_type; }
-    [[nodiscard]] std::uint32_t    capabilities()    const noexcept { return m_caps; }
+    [[nodiscard]] std::uint32_t    get_capabilities() const noexcept { return m_caps; }
     [[nodiscard]] std::span<const std::string> get_requires()         const noexcept { return m_requires; }
     [[nodiscard]] std::span<const std::string> get_load_before_types() const noexcept { return m_load_before_types; }
 
@@ -308,7 +311,7 @@ class BridgeImpl : public interfaces::ILogger {
 };
 
 // Adapter: wraps BridgeImpl and exposes it as congelado::Plugin.
-// Constructed by PluginManager::addPlugin(); not directly accessible outside loader.cppm.
+// Constructed by PluginManager::add_plugin(); not directly accessible outside loader.cppm.
 class ManagedPlugin final : public congelado::Plugin {
   public:
     explicit ManagedPlugin(std::shared_ptr<BridgeImpl> bridge)
@@ -321,7 +324,7 @@ class ManagedPlugin final : public congelado::Plugin {
 
     [[nodiscard]] std::string_view get_name()    const noexcept override { return m_bridge->get_name(); }
     [[nodiscard]] std::string_view get_version() const noexcept override { return m_bridge->get_version(); }
-    [[nodiscard]] std::uint32_t    capabilities() const noexcept override { return m_bridge->capabilities(); }
+    [[nodiscard]] std::uint32_t    capabilities() const noexcept override { return m_bridge->get_capabilities(); }
     [[nodiscard]] std::string_view get_unique_type() const noexcept override { return m_bridge->get_unique_type(); }
 
     [[nodiscard]] std::span<const std::string_view> get_requires() const noexcept override {
@@ -335,8 +338,8 @@ class ManagedPlugin final : public congelado::Plugin {
                  congelado::ConfigView const & /*cfg*/) override {}
     void on_unload() override { m_bridge->release(); }
 
-    [[nodiscard]] BridgeImpl &bridge() noexcept { return *m_bridge; }
-    [[nodiscard]] std::shared_ptr<BridgeImpl> bridge_ptr() noexcept { return m_bridge; }
+    [[nodiscard]] BridgeImpl &get_bridge() noexcept { return *m_bridge; }
+    [[nodiscard]] std::shared_ptr<BridgeImpl> get_bridge_ptr() noexcept { return m_bridge; }
 
   private:
     std::shared_ptr<BridgeImpl> m_bridge;
@@ -371,8 +374,8 @@ class PluginManager {
     PluginManager &operator=(PluginManager &&) = default;
 
     // Phase 1: open one .so, probe symbols, read metadata. Does not call on_load.
-    void addPlugin(const std::filesystem::path &path,
-                   const core::config::PluginConfig *config = nullptr) {
+    void add_plugin(const std::filesystem::path &path,
+                    const core::config::PluginConfig *config = nullptr) {
         auto result = detail::BridgeImpl::open(path, config);
         if (!result) {
             std::println(stderr, "[manager] failed to open '{}': {}", path.string(),
@@ -390,31 +393,31 @@ class PluginManager {
         std::unordered_map<std::string, std::string> seen_types;
         std::vector<detail::ManagedPlugin *> surviving;
         for (auto &plugin : m_plugins) {
-            std::string utype{plugin->bridge().get_unique_type()};
+            std::string utype{plugin->get_bridge().get_unique_type()};
             if (utype.empty()) {
                 surviving.push_back(plugin.get());
                 continue;
             }
             if (!seen_types.contains(utype)) {
-                seen_types[utype] = std::string{plugin->bridge().get_name()};
+                seen_types[utype] = std::string{plugin->get_bridge().get_name()};
                 surviving.push_back(plugin.get());
             } else {
                 std::println(stderr,
                              "[manager] '{}' skipped — unique type '{}' already claimed by '{}'",
-                             plugin->bridge().get_name(), utype, seen_types[utype]);
+                             plugin->get_bridge().get_name(), utype, seen_types[utype]);
             }
         }
 
         // Phase 3: Kahn's topological sort
         std::unordered_map<std::string, detail::ManagedPlugin *> name_map;
         for (auto *plugin : surviving)
-            name_map[std::string{plugin->bridge().get_name()}] = plugin;
+            name_map[std::string{plugin->get_bridge().get_name()}] = plugin;
 
         for (auto *plugin : surviving) {
-            for (const auto &req : plugin->bridge().get_requires()) {
+            for (const auto &req : plugin->get_bridge().get_requires()) {
                 if (!name_map.contains(req)) {
                     std::println(stderr, "[manager] '{}' requires '{}' which is not loaded",
-                                 plugin->bridge().get_name(), req);
+                                 plugin->get_bridge().get_name(), req);
                     std::abort();
                 }
             }
@@ -423,9 +426,9 @@ class PluginManager {
         std::unordered_map<std::string, int> in_degree;
         std::unordered_map<std::string, std::vector<std::string>> dependents;
         for (auto *plugin : surviving) {
-            std::string name{plugin->bridge().get_name()};
+            std::string name{plugin->get_bridge().get_name()};
             in_degree.try_emplace(name, 0);
-            for (const auto &req : plugin->bridge().get_requires()) {
+            for (const auto &req : plugin->get_bridge().get_requires()) {
                 dependents[req].push_back(name);
                 ++in_degree[name];
             }
@@ -434,13 +437,13 @@ class PluginManager {
         {
             std::unordered_map<std::string, std::vector<std::string>> type_to_names;
             for (auto *plugin : surviving) {
-                std::string utype{plugin->bridge().get_unique_type()};
+                std::string utype{plugin->get_bridge().get_unique_type()};
                 if (!utype.empty())
-                    type_to_names[utype].push_back(std::string{plugin->bridge().get_name()});
+                    type_to_names[utype].push_back(std::string{plugin->get_bridge().get_name()});
             }
             for (auto *plugin : surviving) {
-                std::string from{plugin->bridge().get_name()};
-                for (const auto &type_tag : plugin->bridge().get_load_before_types()) {
+                std::string from{plugin->get_bridge().get_name()};
+                for (const auto &type_tag : plugin->get_bridge().get_load_before_types()) {
                     auto it = type_to_names.find(std::string{type_tag});
                     if (it == type_to_names.end()) continue;
                     for (const auto &target : it->second) {
@@ -476,25 +479,25 @@ class PluginManager {
 
         // Phase 4: activate in sorted order
         for (auto *plugin : sorted) {
-            plugin->bridge().activate(router_ctx, controller_ctx, leverager_ctx);
+            plugin->get_bridge().activate(router_ctx, controller_ctx, leverager_ctx);
             m_activation_order.push_back(plugin);
             m_plugin_ptrs.push_back(plugin);
-            std::println("[manager] loaded plugin '{}'", plugin->bridge().get_name());
+            std::println("[manager] loaded plugin '{}'", plugin->get_bridge().get_name());
 
-            if ((plugin->bridge().capabilities() & CONGELADO_CAP_LOGGER) != 0) {
-                core::logger::LoggerRegistry::register_logger(plugin->bridge_ptr());
+            if ((plugin->get_bridge().get_capabilities() & CONGELADO_CAP_LOGGER) != 0) {
+                core::logger::LoggerRegistry::register_logger(plugin->get_bridge_ptr());
             }
         }
     }
 
-    [[nodiscard]] congelado::Plugin *getByCapability(Cap cap) const noexcept {
+    [[nodiscard]] congelado::Plugin *get_by_capability(Cap cap) const noexcept {
         for (auto *ptr : m_plugin_ptrs) {
             if ((ptr->capabilities() & std::to_underlying(cap)) != 0) return ptr;
         }
         return nullptr;
     }
 
-    [[nodiscard]] std::span<congelado::Plugin *const> getAll() const noexcept {
+    [[nodiscard]] std::span<congelado::Plugin *const> get_all() const noexcept {
         return m_plugin_ptrs;
     }
 
