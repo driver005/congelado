@@ -15,9 +15,8 @@ std::filesystem::path expand_tilde(std::filesystem::path path) {
     std::string path_str = path.string();
     if (!path_str.empty() && path_str[0] == '~') {
         const char *home = std::getenv("HOME");
-        if (home) {
+        if (home)
             path_str.replace(0, 1, home);
-        }
     }
     return std::filesystem::path(path_str);
 }
@@ -36,32 +35,21 @@ class App {
         }
 
         AppContext ctx;
-        std::vector<core::plugin::PluginHandle> plugins;
-        std::vector<std::shared_ptr<interfaces::IProtocol>> protos;
-        bool plugin_logger = load_plugins(*cfg, ctx, plugins, protos);
+        bool plugin_logger = load_plugins(*cfg, ctx);
 
         if (!plugin_logger) {
             std::println(stderr, "[heart] no logger plugin found — aborting");
             std::abort();
         }
 
-        if (protos.empty()) {
-            std::println(stderr,
-                         "[heart] no protocol plugin found — load a plugin with Cap::Protocol");
-            std::abort();
-        }
-
-        for (auto &proto : protos)
-            proto->build(ctx.get_router());
-
         std::println("[heart] finished initialization");
-        // Block forever until process termination.
         std::promise<void>().get_future().wait();
         return 0;
     }
 
   private:
     std::filesystem::path m_plugin_dir;
+    core::plugin::PluginManager m_manager;
 
     std::optional<core::config::Config> load_config(const std::filesystem::path &raw_path) {
         std::filesystem::path path = expand_tilde(raw_path);
@@ -82,19 +70,7 @@ class App {
         return std::move(*result);
     }
 
-    // Probes, filters, sorts, and activates all plugins from config.
-    // Phase 1: probe (open .so, read metadata).
-    // Phase 2: uniqueness filter — skip duplicates by type tag.
-    // Phase 3: dependency sort (Kahn's algorithm) — abort on missing dep or cycle.
-    //          Also applies get_load_before_types() ordering constraints.
-    // Phase 4: activate in sorted order — register loggers, collect protocols.
-    // Returns true if any logger plugin registered.
-    bool load_plugins(const core::config::Config &cfg, AppContext &ctx,
-                      std::vector<core::plugin::PluginHandle> &handles,
-                      std::vector<std::shared_ptr<interfaces::IProtocol>> &protos) {
-        // ── Phase 1: probe ────────────────────────────────────────────────────
-        std::vector<core::plugin::PluginHandle> probed;
-
+    bool load_plugins(const core::config::Config &cfg, AppContext &ctx) {
         for (auto &[name, plugin_cfg] : cfg.get_plugins()) {
 #if defined(_WIN32)
             auto so = m_plugin_dir / (name + ".dll");
@@ -105,140 +81,12 @@ class App {
                 std::println(stderr, "[heart] plugin '{}' not found at '{}'", name, so.string());
                 continue;
             }
-
-            auto result = core::plugin::open(so, &plugin_cfg);
-            if (!result) {
-                std::println(stderr, "[heart] plugin '{}' failed to open: {}", name,
-                             result.error().get_detail());
-                continue;
-            }
-
-            probed.push_back(std::move(*result));
+            m_manager.add_plugin(so, &plugin_cfg);
         }
 
-        // ── Phase 2: uniqueness filter ────────────────────────────────────────
-        std::unordered_map<std::string, std::string> seen_types; // type_tag → first plugin name
-        std::vector<core::plugin::PluginHandle> surviving;
+        m_manager.activate(ctx.get_router(), &ctx.get_contract_group(), &ctx.get_leverager());
 
-        for (auto &bridge : probed) {
-            auto unique_type = std::string{bridge->get_unique_type()};
-            if (unique_type.empty()) {
-                surviving.push_back(bridge);
-                continue;
-            }
-            if (!seen_types.contains(unique_type)) {
-                seen_types[unique_type] = std::string{bridge->get_name()};
-                surviving.push_back(bridge);
-            } else {
-                std::println(
-                    stderr,
-                    "[heart] plugin '{}' skipped — unique type '{}' already claimed by '{}'",
-                    bridge->get_name(), unique_type, seen_types[unique_type]);
-            }
-        }
-
-        // ── Phase 3: dependency sort (Kahn's algorithm) ───────────────────────
-        std::unordered_map<std::string, core::plugin::PluginHandle> name_map;
-        for (auto &bridge : surviving)
-            name_map[std::string{bridge->get_name()}] = bridge;
-
-        // Verify all declared requirements are present.
-        for (auto &bridge : surviving) {
-            for (auto &req : bridge->get_requires()) {
-                if (!name_map.contains(req)) {
-                    std::println(stderr,
-                                 "[heart] plugin '{}' requires '{}' which is not loaded — aborting",
-                                 bridge->get_name(), req);
-                    std::abort();
-                }
-            }
-        }
-
-        // Build in-degree and adjacency list.
-        std::unordered_map<std::string, int> in_degree;
-        std::unordered_map<std::string, std::vector<std::string>> dependents;
-
-        for (auto &bridge : surviving) {
-            auto name = std::string{bridge->get_name()};
-            in_degree.try_emplace(name, 0);
-            for (auto &req : bridge->get_requires()) {
-                dependents[req].push_back(name);
-                ++in_degree[name];
-            }
-        }
-
-        // Apply get_load_before_types() ordering: plugin must activate before any plugin
-        // whose unique_type matches a declared tag.
-        {
-            std::unordered_map<std::string, std::vector<std::string>> type_to_names;
-            for (auto &bridge : surviving) {
-                auto utype = std::string{bridge->get_unique_type()};
-                if (!utype.empty())
-                    type_to_names[utype].push_back(std::string{bridge->get_name()});
-            }
-
-            for (auto &bridge : surviving) {
-                auto from = std::string{bridge->get_name()};
-                for (const auto &type_tag : bridge->get_load_before_types()) {
-                    auto it = type_to_names.find(type_tag);
-                    if (it == type_to_names.end())
-                        continue;
-                    for (const auto &target : it->second) {
-                        if (target == from)
-                            continue;
-                        auto &deps = dependents[from];
-                        if (std::ranges::find(deps, target) == deps.end()) {
-                            deps.push_back(target);
-                            ++in_degree[target];
-                        }
-                    }
-                }
-            }
-        }
-
-        std::queue<std::string> ready;
-        for (auto &[name, deg] : in_degree) {
-            if (deg == 0)
-                ready.push(name);
-        }
-
-        std::vector<core::plugin::PluginHandle> sorted;
-        sorted.reserve(surviving.size());
-        while (!ready.empty()) {
-            auto name = ready.front();
-            ready.pop();
-            sorted.push_back(name_map[name]);
-            for (auto &dependent : dependents[name]) {
-                if (--in_degree[dependent] == 0)
-                    ready.push(dependent);
-            }
-        }
-
-        if (sorted.size() != surviving.size()) {
-            std::println(stderr, "[heart] plugin dependency cycle detected — aborting");
-            std::abort();
-        }
-
-        // ── Phase 4: activate ─────────────────────────────────────────────────
-        auto *router_ctx = ctx.get_router();
-        auto *controller_ctx = &ctx.get_contract_group();
-        auto *leverager_ctx = &ctx.get_leverager();
-
-        for (auto &bridge : sorted) {
-            bridge->activate(router_ctx, controller_ctx, leverager_ctx);
-            handles.push_back(bridge);
-            std::println("[heart] loaded plugin '{}'", bridge->get_name());
-
-            if (auto logger = core::plugin::make_logger(bridge)) {
-                core::logger::LoggerRegistry::register_logger(std::move(logger));
-            }
-            if (auto protocol = core::plugin::make_protocol(bridge)) {
-                protos.push_back(std::move(protocol));
-            }
-        }
-
-        std::println("[heart] loaded {} plugins", handles.size());
-
+        std::println("[heart] loaded {} plugins", m_manager.get_all().size());
         return core::logger::LoggerRegistry::has_logger();
     }
 };
