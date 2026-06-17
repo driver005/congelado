@@ -1,3 +1,2 @@
 export module core_ffi;
-
-export import :bridge;
+// bridge partition moved to core_plugin:loader
