@@ -83,20 +83,20 @@ class PluginSymbols {
     using LoadBeforeTypesFn     = const char *const *(*)() noexcept;
     using LoadBeforeTypesCountFn = std::size_t (*)() noexcept;
 
-    NameFn                name{nullptr};
-    VersionFn             version{nullptr};
-    CapsFn                capabilities{nullptr};
-    OnLoadFn              on_load{nullptr};
-    OnUnloadFn            on_unload{nullptr};
-    LogWriteFn            logger_write{nullptr};
-    LogWriteErrFn         logger_write_error{nullptr};
-    ProtoGetFn            protocol_get{nullptr};
-    StorageGetFn          storage_get{nullptr};
-    UniqueTypeFn          unique_type{nullptr};
-    RequiresFn            requires_get{nullptr};
-    RequiresCountFn       requires_count{nullptr};
-    LoadBeforeTypesFn     load_before_types_get{nullptr};
-    LoadBeforeTypesCountFn load_before_types_count{nullptr};
+    NameFn                m_name{nullptr};
+    VersionFn             m_version{nullptr};
+    CapsFn                m_capabilities{nullptr};
+    OnLoadFn              m_on_load{nullptr};
+    OnUnloadFn            m_on_unload{nullptr};
+    LogWriteFn            m_logger_write{nullptr};
+    LogWriteErrFn         m_logger_write_error{nullptr};
+    ProtoGetFn            m_protocol_get{nullptr};
+    StorageGetFn          m_storage_get{nullptr};
+    UniqueTypeFn          m_unique_type{nullptr};
+    RequiresFn            m_requires_get{nullptr};
+    RequiresCountFn       m_requires_count{nullptr};
+    LoadBeforeTypesFn     m_load_before_types_get{nullptr};
+    LoadBeforeTypesCountFn m_load_before_types_count{nullptr};
 };
 
 // Loads one plugin .so via dlopen + libffi. Implements ILogger for logger plugins.
@@ -119,8 +119,8 @@ class BridgeImpl : public interfaces::ILogger {
         if (auto err = bridge->resolve_symbols(); !err.empty())
             return std::unexpected{std::move(err)};
 
-        bridge->m_lib_name    = bridge->m_syms.name();
-        bridge->m_lib_version = bridge->m_syms.version();
+        bridge->m_lib_name    = bridge->m_syms.m_name();
+        bridge->m_lib_version = bridge->m_syms.m_version();
         bridge->build_config_view(plugin_cfg);
         bridge->read_metadata();
         return bridge;
@@ -150,10 +150,10 @@ class BridgeImpl : public interfaces::ILogger {
             .ctx            = this,
         };
 
-        if (m_syms.on_load != nullptr)
-            m_syms.on_load(&callbacks, &m_cfg_view);
+        if (m_syms.m_on_load != nullptr)
+            m_syms.m_on_load(&callbacks, &m_cfg_view);
 
-        m_caps = (m_syms.capabilities != nullptr) ? m_syms.capabilities() : 0;
+        m_caps = (m_syms.m_capabilities != nullptr) ? m_syms.m_capabilities() : 0;
     }
 
     ~BridgeImpl() override {
@@ -162,8 +162,8 @@ class BridgeImpl : public interfaces::ILogger {
     }
 
     void release() noexcept {
-        if (m_syms.on_unload != nullptr) {
-            m_syms.on_unload();
+        if (m_syms.m_on_unload != nullptr) {
+            m_syms.m_on_unload();
             m_syms = {};
         }
     }
@@ -176,12 +176,12 @@ class BridgeImpl : public interfaces::ILogger {
     [[nodiscard]] std::span<const std::string> get_load_before_types() const noexcept { return m_load_before_types; }
 
     void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
-        if (m_syms.logger_write != nullptr)
-            m_syms.logger_write(static_cast<int>(level), msg.data(), msg.size());
+        if (m_syms.m_logger_write != nullptr)
+            m_syms.m_logger_write(static_cast<int>(level), msg.data(), msg.size());
     }
     void error(std::string_view msg) noexcept override {
-        if (m_syms.logger_write_error != nullptr)
-            m_syms.logger_write_error(msg.data(), msg.size());
+        if (m_syms.m_logger_write_error != nullptr)
+            m_syms.m_logger_write_error(msg.data(), msg.size());
     }
 
   private:
@@ -247,24 +247,24 @@ class BridgeImpl : public interfaces::ILogger {
     }
 
     [[nodiscard]] std::string resolve_symbols() noexcept {
-        m_syms.name         = probe<PluginSymbols::NameFn>("congelado_plugin_name");
-        m_syms.version      = probe<PluginSymbols::VersionFn>("congelado_plugin_version");
-        m_syms.capabilities = probe<PluginSymbols::CapsFn>("congelado_capabilities");
+        m_syms.m_name         = probe<PluginSymbols::NameFn>("congelado_plugin_name");
+        m_syms.m_version      = probe<PluginSymbols::VersionFn>("congelado_plugin_version");
+        m_syms.m_capabilities = probe<PluginSymbols::CapsFn>("congelado_capabilities");
 
-        if (m_syms.name == nullptr || m_syms.version == nullptr || m_syms.capabilities == nullptr)
+        if (m_syms.m_name == nullptr || m_syms.m_version == nullptr || m_syms.m_capabilities == nullptr)
             return "missing required symbols: congelado_plugin_name / congelado_plugin_version / congelado_capabilities";
 
-        m_syms.on_load              = probe<PluginSymbols::OnLoadFn>("congelado_on_load");
-        m_syms.on_unload            = probe<PluginSymbols::OnUnloadFn>("congelado_on_unload");
-        m_syms.logger_write         = probe<PluginSymbols::LogWriteFn>("congelado_logger_write");
-        m_syms.logger_write_error   = probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
-        m_syms.protocol_get         = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
-        m_syms.storage_get          = probe<PluginSymbols::StorageGetFn>("congelado_storage_get");
-        m_syms.unique_type          = probe<PluginSymbols::UniqueTypeFn>("congelado_unique_type");
-        m_syms.requires_get         = probe<PluginSymbols::RequiresFn>("congelado_requires");
-        m_syms.requires_count       = probe<PluginSymbols::RequiresCountFn>("congelado_requires_count");
-        m_syms.load_before_types_get   = probe<PluginSymbols::LoadBeforeTypesFn>("congelado_load_before_types");
-        m_syms.load_before_types_count = probe<PluginSymbols::LoadBeforeTypesCountFn>("congelado_load_before_types_count");
+        m_syms.m_on_load              = probe<PluginSymbols::OnLoadFn>("congelado_on_load");
+        m_syms.m_on_unload            = probe<PluginSymbols::OnUnloadFn>("congelado_on_unload");
+        m_syms.m_logger_write         = probe<PluginSymbols::LogWriteFn>("congelado_logger_write");
+        m_syms.m_logger_write_error   = probe<PluginSymbols::LogWriteErrFn>("congelado_logger_write_error");
+        m_syms.m_protocol_get         = probe<PluginSymbols::ProtoGetFn>("congelado_protocol_get");
+        m_syms.m_storage_get          = probe<PluginSymbols::StorageGetFn>("congelado_storage_get");
+        m_syms.m_unique_type          = probe<PluginSymbols::UniqueTypeFn>("congelado_unique_type");
+        m_syms.m_requires_get         = probe<PluginSymbols::RequiresFn>("congelado_requires");
+        m_syms.m_requires_count       = probe<PluginSymbols::RequiresCountFn>("congelado_requires_count");
+        m_syms.m_load_before_types_get   = probe<PluginSymbols::LoadBeforeTypesFn>("congelado_load_before_types");
+        m_syms.m_load_before_types_count = probe<PluginSymbols::LoadBeforeTypesCountFn>("congelado_load_before_types_count");
         return {};
     }
 
@@ -284,22 +284,22 @@ class BridgeImpl : public interfaces::ILogger {
     }
 
     void read_metadata() noexcept {
-        if (m_syms.unique_type != nullptr) {
-            const char *utype = m_syms.unique_type();
+        if (m_syms.m_unique_type != nullptr) {
+            const char *utype = m_syms.m_unique_type();
             m_unique_type = (utype != nullptr) ? std::string{utype} : "";
         }
-        if (m_syms.requires_count != nullptr && m_syms.requires_get != nullptr) {
-            const auto count = m_syms.requires_count();
-            const auto *arr  = m_syms.requires_get();
+        if (m_syms.m_requires_count != nullptr && m_syms.m_requires_get != nullptr) {
+            const auto count = m_syms.m_requires_count();
+            const auto *arr  = m_syms.m_requires_get();
             if (arr != nullptr) {
                 m_requires.reserve(count);
                 for (std::size_t i = 0; i < count; ++i)
                     if (arr[i] != nullptr) m_requires.emplace_back(arr[i]);
             }
         }
-        if (m_syms.load_before_types_count != nullptr && m_syms.load_before_types_get != nullptr) {
-            const auto count = m_syms.load_before_types_count();
-            const auto *arr  = m_syms.load_before_types_get();
+        if (m_syms.m_load_before_types_count != nullptr && m_syms.m_load_before_types_get != nullptr) {
+            const auto count = m_syms.m_load_before_types_count();
+            const auto *arr  = m_syms.m_load_before_types_get();
             if (arr != nullptr) {
                 m_load_before_types.reserve(count);
                 for (std::size_t i = 0; i < count; ++i)
@@ -378,6 +378,7 @@ class PluginManager {
   public:
     PluginManager() = default;
     ~PluginManager() {
+        // m_plugins (unique_ptr owner) is destroyed after this body — raw-ptr iteration is safe.
         for (auto it = m_activation_order.rbegin(); it != m_activation_order.rend(); ++it)
             (*it)->on_unload();
     }
