@@ -1,5 +1,6 @@
 module;
 
+#define CONGELADO_GUEST
 #include <congelado/plugin.h>
 #include <libpq-fe.h>
 

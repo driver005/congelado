@@ -1,4 +1,5 @@
 #include <memory>
+#define CONGELADO_GUEST
 import congelado_plugin;
 #include <congelado/plugin.h>
 

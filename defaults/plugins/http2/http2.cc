@@ -1,4 +1,5 @@
 #include <memory>
+#define CONGELADO_GUEST
 import congelado_plugin;
 #include <congelado/plugin.h>
 
@@ -37,20 +38,24 @@ class Http2Plugin final : public congelado::Plugin {
             cfg.add_field(std::string{key}, std::string{val});
         });
 
-        m_protocol =
-            std::make_unique<io::layer::http2::Http2Protocol>(cfg_view.empty() ? nullptr : &cfg);
+        auto protocol = io::layer::http2::Http2Protocol{cfg_view.empty() ? nullptr : &cfg};
 
-        auto *router_ctx = host.router_ctx<core::server::RouterContext<io::shared::http::Protocol>>();
+        m_server = protocol.get_server();
+
+        auto *router_ctx =
+            host.router_ctx<core::server::RouterContext<io::shared::http::Protocol>>();
 
         if (router_ctx != nullptr) {
             router_ctx->add_route(core::server::Route<io::shared::http::Protocol>{"/hello"}.get(
                 [](interfaces::IRequest<io::shared::http::Protocol> &,
                    interfaces::IResponse<io::shared::http::Protocol> &res) noexcept {
-                    constexpr std::string_view BODY = R"({"hello":"world time for bed !!!!"})";
+                    constexpr std::string_view BODY =
+                        R"({"message":"Hello from the HTTP/2 server plugin :D"})";
                     std::vector<std::byte> body;
                     body.reserve(BODY.size());
-                    for (char ch : BODY)
+                    for (char ch : BODY) {
                         body.push_back(static_cast<std::byte>(ch));
+                    }
                     res.set_status(interfaces::Status::OK);
                     res.add_header(io::shared::http::Token::CONTENT_TYPE, "application/json");
                     res.set_body(std::move(body));
@@ -58,35 +63,36 @@ class Http2Plugin final : public congelado::Plugin {
         }
 
         auto *contract_group = host.controller_ctx<core::contract::ContractGroup<>>();
-        auto *leverager     = host.leverager_ctx<io::base::leverage::Leverager<io::base::leverage::Context>>();
+        auto *leverager =
+            host.leverager_ctx<io::base::leverage::Leverager<io::base::leverage::Context>>();
 
         if (contract_group == nullptr || leverager == nullptr) {
             core::logger::error("http2", "no contract group or leverager");
             return;
         }
 
-        core::logger::important("http2", "listening on {}:{}", m_protocol->get_bind_host(),
-                                m_protocol->get_bind_port());
+        core::logger::important("http2", "listening on {}:{}", protocol.get_bind_host(),
+                                protocol.get_bind_port());
 
-        m_socket_flow.emplace(io::base::socket::Endpoint{std::string{m_protocol->get_bind_host()},
-                                                         m_protocol->get_bind_port()},
+        m_socket_flow.emplace(io::base::socket::Endpoint{std::string{protocol.get_bind_host()},
+                                                         protocol.get_bind_port()},
                               *leverager, *contract_group);
         m_socket_flow->add_on_accept(
             [this](shared::SendCallback send, shared::CloseCallback close) -> shared::ReadCallback {
-                return m_protocol->on_connect(std::move(send), std::move(close));
+                return m_server->on_connect(std::move(send), std::move(close));
             });
         m_socket_flow->build();
     }
 
     void on_unload() override {
         m_socket_flow.reset();
-        m_protocol.reset();
+        m_server.reset();
     }
 
-    void *protocol_get() noexcept override { return static_cast<void *>(m_protocol.get()); }
+    void *protocol_get() noexcept override { return static_cast<void *>(m_server.get()); }
 
   private:
-    std::unique_ptr<io::layer::http2::Http2Protocol> m_protocol;
+    std::unique_ptr<io::layer::http2::Server> m_server;
     std::optional<io::base::flow::sync::ServerFlowSocket<core::contract::ContractGroup<>,
                                                          io::base::socket::Protocol::TLS>>
         m_socket_flow;
