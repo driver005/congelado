@@ -66,7 +66,8 @@ class Closure {
     void *m_code{nullptr};
 };
 
-class PluginSymbols { public:
+class PluginSymbols {
+  public:
     using NameFn                = const char *(*)() noexcept;
     using VersionFn             = const char *(*)() noexcept;
     using CapsFn                = uint32_t (*)() noexcept;
@@ -111,7 +112,7 @@ class BridgeImpl : public interfaces::ILogger {
     open(const std::filesystem::path &path, const core::config::PluginConfig *plugin_cfg = nullptr) {
         void *lib = open_lib(path);
         if (lib == nullptr)
-            return std::unexpected{std::format("dlopen failed: {}: {}", path.string(), dlerror())};
+            return std::unexpected{std::format("dlopen failed: {}: {}", path.string(), last_lib_error())};
 
         auto bridge = std::shared_ptr<BridgeImpl>(new BridgeImpl{lib});
 
@@ -200,6 +201,18 @@ class BridgeImpl : public interfaces::ILogger {
                                void *user_data) noexcept {
         std::println(stderr, "[plugin::{}] schedule requested",
                      static_cast<BridgeImpl *>(user_data)->m_lib_name);
+    }
+
+    [[nodiscard]] static std::string last_lib_error() noexcept {
+#if defined(_WIN32)
+        DWORD err = GetLastError();
+        char buf[256]{};
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, 0, buf, sizeof(buf), nullptr);
+        return buf;
+#else
+        const char *msg = dlerror();
+        return msg ? msg : "unknown error";
+#endif
     }
 
     [[nodiscard]] static void *open_lib(const std::filesystem::path &path) noexcept {
@@ -370,8 +383,8 @@ class PluginManager {
     }
     PluginManager(const PluginManager &) = delete;
     PluginManager &operator=(const PluginManager &) = delete;
-    PluginManager(PluginManager &&) = default;
-    PluginManager &operator=(PluginManager &&) = default;
+    PluginManager(PluginManager &&) = delete;
+    PluginManager &operator=(PluginManager &&) = delete;
 
     // Phase 1: open one .so, probe symbols, read metadata. Does not call on_load.
     void add_plugin(const std::filesystem::path &path,
