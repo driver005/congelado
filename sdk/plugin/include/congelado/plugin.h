@@ -1,5 +1,6 @@
 // NOLINTBEGIN
 #pragma once
+#include <congelado/mode.h>
 // Plugin SDK macro header.
 // Use 'import congelado_plugin;' for C++ types (Plugin, HostCallbacks, ConfigView).
 // Include this header for CONGELADO_PLUGIN(T) and CONGELADO_CAP_* macros.
@@ -48,6 +49,7 @@ typedef struct CongeladoConfigView {
 // Generates all C dlsym symbols from a congelado::Plugin subclass.
 // The C ABI is internal — plugin authors write pure C++; the macro bridges to dlsym.
 // Drop exactly once at the bottom of your plugin .cc, after the class definition.
+#ifdef CONGELADO_GUEST
 #define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                                  \
     static T *s_plugin = nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */       \
     extern "C" const char *congelado_plugin_name() noexcept {                                            \
@@ -130,4 +132,5 @@ typedef struct CongeladoConfigView {
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \
         return s_plugin->get_load_before_types().size();                                                  \
     }
+#endif // CONGELADO_GUEST
 // NOLINTEND
