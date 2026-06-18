@@ -60,6 +60,7 @@ class Http2Plugin final : public congelado::Plugin {
                     res.add_header(io::shared::http::Token::CONTENT_TYPE, "application/json");
                     res.set_body(std::move(body));
                 }));
+            m_server->build(static_cast<void *>(router_ctx));
         }
 
         auto *contract_group = host.controller_ctx<core::contract::ContractGroup<>>();
@@ -89,7 +90,7 @@ class Http2Plugin final : public congelado::Plugin {
         m_server.reset();
     }
 
-    void *protocol_get() noexcept override { return static_cast<void *>(m_server.get()); }
+    void *protocol_get() noexcept { return static_cast<void *>(m_server.get()); }
 
   private:
     std::unique_ptr<io::layer::http2::Server> m_server;
