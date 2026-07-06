@@ -21,12 +21,8 @@ using types::PluginUint32Fn;
 using types::PluginUnloadFn;
 using types::WorkerExecuteFn;
 using types::WorkerTypeFn;
+using FfiRuntime;
 using types::PluginRef;
-using types::is_shared_lib;
-
-// ── PluginRef is now defined in core::plugin::types (class)
-
-[[nodiscard]] bool is_shared_lib(const std::filesystem::path &p) = delete; // use types::is_shared_lib
 
 class SharedLibrary {
   public:
@@ -37,10 +33,10 @@ class SharedLibrary {
 
     SharedLibrary(SharedLibrary &&other) noexcept
         : m_scanned_called{other.m_scanned_called}, m_scanned{std::move(other.m_scanned)},
-          m_plugins{std::move(other.m_plugins)}, m_order{std::move(other.m_order)} {
+          m_runtimes{std::move(other.m_runtimes)}, m_order{std::move(other.m_order)} {
         other.m_scanned_called = false;
         other.m_scanned.clear();
-        other.m_plugins.clear();
+        other.m_runtimes.clear();
         other.m_order.clear();
     }
 
@@ -49,17 +45,28 @@ class SharedLibrary {
             close_all();
             m_scanned_called = other.m_scanned_called;
             m_scanned = std::move(other.m_scanned);
-            m_plugins = std::move(other.m_plugins);
+            m_runtimes = std::move(other.m_runtimes);
             m_order = std::move(other.m_order);
             other.m_scanned_called = false;
             other.m_scanned.clear();
-            other.m_plugins.clear();
+            other.m_runtimes.clear();
             other.m_order.clear();
         }
         return *this;
     }
 
     ~SharedLibrary() { close_all(); }
+
+    static bool is_shared_lib(const std::filesystem::path &p) {
+        auto ext = p.extension().string();
+    #if defined(_WIN32)
+        return ext == ".dll";
+    #elif defined(__APPLE__)
+        return ext == ".dylib";
+    #else
+        return ext == ".so";
+    #endif
+    }
 
     // ── Phase 1: discover shared libs in directory ──────────────────────
 
@@ -70,7 +77,7 @@ class SharedLibrary {
         for (auto const &entry : std::filesystem::directory_iterator{dir}) {
             if (!entry.is_regular_file())
                 continue;
-            if (!types::is_shared_lib(entry.path()))
+            if (!is_shared_lib(entry.path()))
                 continue;
             auto stem = entry.path().stem().string();
             if (stem.starts_with("lib"))
@@ -81,77 +88,56 @@ class SharedLibrary {
 
     // ── Phase 2: open single plugin + resolve deps recursively ─────────
 
-    [[nodiscard]] std::expected<void, types::PluginError> open(const std::filesystem::path &path) {
+    void open_or_throw(const std::filesystem::path &path) {
         if (!m_scanned_called)
-            return std::unexpected{types::PluginError::not_found("scan() not called")};
+            throw types::PluginError::not_found("scan() not called");
 
         auto stem = path.stem().string();
         if (stem.starts_with("lib"))
             stem = stem.substr(3);
 
-        if (m_plugins.contains(stem))
-            return {};
+        if (m_runtimes.contains(stem))
+            return;
 
         void *raw = ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!raw)
-            return std::unexpected{
-                types::PluginError::dlopen_failed(std::format("dlopen: {}", ::dlerror()))};
+            throw types::PluginError::dlopen_failed(std::format("dlopen: {}", ::dlerror()));
 
-        std::unique_ptr<void, PluginRef::DlDeleter> handle(raw);
-        auto ref = load_pluginref(std::move(handle), path.string());
-        if (!ref->m_data.contains("congelado_init"))
-            return std::unexpected{
-                types::PluginError::dlopen_failed("missing congelado_init symbol")};
+        std::unique_ptr<void, types::PluginRef::DlDeleter> handle(raw);
+        auto pref = load_pluginref(std::move(handle), path.string());
+        if (!pref->m_data.contains(std::string{types::PluginRef::shared_symbol_name(0)}))
+            throw types::PluginError::dlopen_failed("missing congelado_init symbol");
 
-        auto &name = std::any_cast<const std::string &>(ref->m_data.at("name"));
+        auto &name = std::any_cast<const std::string &>(pref->m_data.at("name"));
 
-        if (auto it = ref->m_data.find("congelado_requires"); it != ref->m_data.end()) {
+        if (auto it = pref->m_data.find("congelado_requires"); it != pref->m_data.end()) {
             auto &requires_list = std::any_cast<const std::vector<std::string> &>(it->second);
             for (auto &dep_name : requires_list) {
-                if (m_plugins.contains(dep_name))
+                if (m_runtimes.contains(dep_name))
                     continue;
                 auto dep_it = m_scanned.find(dep_name);
                 if (dep_it == m_scanned.end())
-                    return std::unexpected{types::PluginError::not_found(
-                        std::format("dependency '{}' not found for '{}'", dep_name, name))};
-                auto res = open(dep_it->second);
-                if (!res)
-                    return std::unexpected{types::PluginError::not_found(
-                        std::format("dependency '{}' failed to load for '{}': {}",
-                                    dep_name, name, res.error().get_message()))};
+                    throw types::PluginError::not_found(std::format("dependency '{}' not found for '{}'", dep_name, name));
+                open_or_throw(dep_it->second);
             }
         }
 
-        m_plugins.emplace(name, ref);
+        auto runtime = std::make_shared<FfiRuntime>();
+        runtime->attach_plugin(pref);
+        m_runtimes.emplace(name, runtime);
         m_order.push_back(name);
-        return {};
     }
 
-    // ── Phase 2: open all scanned plugins ──────────────────────────────
-
-    [[nodiscard]] std::expected<void, types::PluginError> open_all() {
-        for (auto &[name, path] : m_scanned) {
-            auto res = open(path);
-            if (!res)
-                return std::unexpected{std::move(res.error())};
-        }
-        return {};
-    }
-
-    // ── Phase 3: init all opened plugins ───────────────────────────────
-
-    [[nodiscard]] std::expected<std::vector<FfiRuntime>, types::PluginError>
-    build(const CongeladoHostCallbacks &host_cb,
+    [[nodiscard]] void build(const CongeladoHostCallbacks &host_cb,
           const std::unordered_map<std::string, types::GenerationConfig> &configs) {
         if (!m_scanned_called)
-            return std::unexpected{types::PluginError::not_found("scan() not called")};
-
-        std::vector<FfiRuntime> runtimes;
+            throw types::PluginError::not_found("scan() not called");
 
         for (auto &name : m_order) {
-            auto ref = find(name);
-            if (!ref)
+            auto it = m_runtimes.find(name);
+            if (it == m_runtimes.end())
                 continue;
+            auto runtime = it->second;
 
             types::GenerationConfig default_cfg;
             const types::GenerationConfig *gen_cfg = &default_cfg;
@@ -172,57 +158,29 @@ class SharedLibrary {
 
             auto view = cfg_view.view();
 
-            if (reinterpret_cast<InitFn>(std::any_cast<void *>(ref->m_data.at("congelado_init")))
-                    (&host_cb, &view) != 0)
-                return std::unexpected{types::PluginError::dlopen_failed(
-                    std::format("congelado_init failed for '{}'", name))};
-
-            runtimes.emplace_back(*gen_cfg);
+            if (runtime->init(&host_cb, &view) != 0)
+                throw types::PluginError::dlopen_failed(std::format("congelado_init failed for '{}'", name));
         }
 
-        for (auto &name : m_order)
-            if (auto ref = find(name); ref)
-                if (auto it = ref->m_data.find("congelado_plugin_on_ready");
-                    it != ref->m_data.end())
-                    reinterpret_cast<PluginReadyFn>(std::any_cast<void *>(it->second))();
-
-        return runtimes;
+        for (auto &name : m_order) {
+            if (auto it = m_runtimes.find(name); it != m_runtimes.end())
+                it->second->on_ready();
+        }
     }
-
-    // ── Accessors ───────────────────────────────────────────────────────
-
-    [[nodiscard]] std::shared_ptr<PluginRef> find(std::string_view name) noexcept {
-        auto it = m_plugins.find(std::string{name});
-        return it != m_plugins.end() ? it->second : nullptr;
-    }
-
-    [[nodiscard]] std::shared_ptr<const PluginRef> find(std::string_view name) const noexcept {
-        auto it = m_plugins.find(std::string{name});
-        return it != m_plugins.end() ? it->second : nullptr;
-    }
-
-    [[nodiscard]] std::size_t get_count() const noexcept { return m_plugins.size(); }
 
     void close_all() noexcept {
         for (auto it = m_order.rbegin(); it != m_order.rend(); ++it) {
-            if (auto pit = m_plugins.find(*it); pit != m_plugins.end()) {
-                if (auto it2 = pit->second->m_data.find("congelado_plugin_on_unload");
-                    it2 != pit->second->m_data.end())
-                    reinterpret_cast<PluginUnloadFn>(std::any_cast<void *>(it2->second))();
+            if (auto rit = m_runtimes.find(*it); rit != m_runtimes.end()) {
+                rit->second->on_unload();
             }
         }
-        m_plugins.clear();
+        m_runtimes.clear();
         m_order.clear();
     }
 
-    // ── Iteration (insertion order via m_order) ─────────────────────────
-
-    template <typename Self, std::invocable<PluginRef &> Fn>
-    void for_each(this Self &&self, Fn &&fn) {
-        for (auto &name : self.m_order) {
-            if (auto it = self.m_plugins.find(name); it != self.m_plugins.end())
-                std::invoke(std::forward<Fn>(fn), *it->second);
-        }
+    [[nodiscard]] std::shared_ptr<FfiRuntime> find(std::string_view name) noexcept {
+        auto it = m_runtimes.find(std::string{name});
+        return it != m_runtimes.end() ? it->second : nullptr;
     }
 
   private:
@@ -295,7 +253,7 @@ class SharedLibrary {
 
         load_symbols(raw_handle, PluginRef::shared_symbols, ref);
 
-        auto type_it = ref->m_data.find("congelado_type");
+        auto type_it = ref->m_data.find(std::string{PluginRef::shared_symbol_name(1)});
         auto &type = (type_it != ref->m_data.end())
                          ? std::any_cast<const std::string &>(type_it->second)
                          : s_empty_type;
@@ -313,9 +271,8 @@ class SharedLibrary {
 
     bool m_scanned_called{false};
     std::unordered_map<std::string, std::filesystem::path> m_scanned;
-    std::unordered_map<std::string, std::shared_ptr<PluginRef>> m_plugins;
+    std::unordered_map<std::string, std::shared_ptr<FfiRuntime>> m_runtimes;
     std::vector<std::string> m_order;
 };
 
 } // namespace core::plugin
-
