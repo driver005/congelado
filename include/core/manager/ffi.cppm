@@ -108,15 +108,18 @@ class FfiRuntime {
   public:
     FfiRuntime() = default;
     explicit FfiRuntime(types::GenerationConfig cfg) : m_cfg{std::move(cfg)} {}
+    FfiRuntime(types::GenerationConfig cfg, std::shared_ptr<types::PluginRef> plugin)
+        : m_cfg{std::move(cfg)}, m_plugin{std::move(plugin)} {}
 
     FfiRuntime(const FfiRuntime &) = delete;
     FfiRuntime &operator=(const FfiRuntime &) = delete;
     FfiRuntime(FfiRuntime &&) = default;
     FfiRuntime &operator=(FfiRuntime &&) = default;
 
-    void register_entry(FnEntry e) {
-        m_entries.insert_or_assign(std::string{e.get_key()}, std::move(e));
-    }
+    void set_config(types::GenerationConfig cfg) { m_cfg = std::move(cfg); }
+    void attach_plugin(std::shared_ptr<types::PluginRef> plugin) { m_plugin = std::move(plugin); }
+
+    void register_entry(FnEntry e) { m_entries.insert_or_assign(std::string{e.get_key()}, std::move(e)); }
 
 #ifdef __cpp_reflection
     template <typename T>
@@ -149,8 +152,7 @@ class FfiRuntime {
 
                 // Create one FnContext per bridge (each bridge owns its own)
                 for (auto &b : bridges) {
-                    auto fn_ctx =
-                        std::make_unique<FnContext>(std::any{invoke_fn}, std::string{reg_key});
+                    auto fn_ctx = std::make_unique<FnContext>(std::any{invoke_fn}, std::string{reg_key});
                     b->install_method(std::move(fn_ctx), lang_name);
                 }
             }
@@ -164,6 +166,39 @@ class FfiRuntime {
     template <typename T>
     void register_class(const types::GenerationConfig & = {}, std::string_view = "") {}
 #endif
+
+    // ── Plugin lifecycle helpers (now own plugin ref) ─────────────────────
+
+    int init(const CongeladoHostCallbacks *host_cb, const CongeladoConfigView *view) noexcept {
+        if (!m_plugin)
+            return -1;
+        try {
+            auto key = std::string{types::PluginRef::shared_symbol_name(0)}; // index 0 == congelado_init
+            if (auto it = m_plugin->m_data.find(key); it != m_plugin->m_data.end()) {
+                auto fn = reinterpret_cast<InitFn>(std::any_cast<void *>(it->second));
+                return fn(host_cb, view);
+            }
+            return -1;
+        } catch (...) {
+            return -1;
+        }
+    }
+
+    void on_ready() noexcept {
+        if (!m_plugin)
+            return;
+        auto key = std::string{types::PluginRef::shared_symbol_name(3)}; // index 3 == congelado_on_ready
+        if (auto it = m_plugin->m_data.find(key); it != m_plugin->m_data.end())
+            reinterpret_cast<PluginReadyFn>(std::any_cast<void *>(it->second))();
+    }
+
+    void on_unload() noexcept {
+        if (!m_plugin)
+            return;
+        auto key = std::string{types::PluginRef::shared_symbol_name(2)}; // index 2 == congelado_on_unload
+        if (auto it = m_plugin->m_data.find(key); it != m_plugin->m_data.end())
+            reinterpret_cast<PluginUnloadFn>(std::any_cast<void *>(it->second))();
+    }
 
     // ── Function dispatch ───────────────────────────────────────────────────
 
@@ -192,16 +227,18 @@ class FfiRuntime {
         return m_last_error.empty() ? "no error" : m_last_error.c_str();
     }
 
-    // ── Accessors ──────────────────────────────────────────────────────────
+    // ── Accessors ─────────────────────────────────────────────────────────[...]
 
     [[nodiscard]] std::size_t get_size() const noexcept { return m_entries.size(); }
     [[nodiscard]] const types::GenerationConfig &get_config() const noexcept { return m_cfg; }
+    [[nodiscard]] std::shared_ptr<types::PluginRef> get_plugin() const noexcept { return m_plugin; }
 
   private:
     types::GenerationConfig m_cfg;
     std::unordered_map<std::string, FnEntry> m_entries;
     std::vector<std::unique_ptr<interfaces::IBridge>> m_bridges;
     std::string m_last_error;
+    std::shared_ptr<types::PluginRef> m_plugin;
 };
 
 } // namespace core::plugin
