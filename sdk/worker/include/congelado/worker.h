@@ -12,6 +12,10 @@ int run_worker(int argc, char **argv);
    at file scope in the task .cc file, after the class definition.
    Requires: import congelado_worker; (provides congelado::ITask and TaskRegistry). */
 
+#if defined(CONGELADO_PLUGIN_USED)
+#error "CONGELADO_TASK cannot be used in the same translation unit as CONGELADO_PLUGIN; move task definitions to a separate file."
+#endif
+
 #ifndef CONGELADO_TASK_USED
 #define CONGELADO_TASK_USED
 #define CONGELADO_TASK(T)                                                                          \
