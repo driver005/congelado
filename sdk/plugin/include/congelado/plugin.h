@@ -8,7 +8,7 @@
 // Requires: import congelado_plugin; before use (provides congelado::Plugin, free functions).
 #include <string_view>
 
-// ── Capability bitmask ────────────────────────────────────────────────────────
+// ── Capability bitmask ───────────────────────────────────────────────────────
 #define CONGELADO_CAP_LOGGER   1u
 #define CONGELADO_CAP_PROTOCOL 2u
 #define CONGELADO_CAP_STORAGE  4u
@@ -57,18 +57,19 @@
         if (s_plugin == nullptr) return {};                                                          \
         return s_plugin->execute_worker(input);                                                      \
     }                                                                                                     \
-    extern "C" void congelado_plugin_on_unload() noexcept {                                              \
+    /* Lifecycle: expose standardized shared names (no _plugin suffix) */                                 \
+    extern "C" void congelado_on_unload() noexcept {                                                   \
         if (s_plugin != nullptr) {                                                                        \
             s_plugin->on_unload();                                                                        \
             delete s_plugin; /* NOLINT(cppcoreguidelines-owning-memory) */                               \
             s_plugin = nullptr;                                                                           \
         }                                                                                                 \
     }                                                                                                     \
-    extern "C" void congelado_plugin_on_ready() noexcept {                                               \
+    extern "C" void congelado_on_ready() noexcept {                                                    \
         if (s_plugin != nullptr)                                                                          \
             s_plugin->on_ready();                                                                         \
     }                                                                                                     \
-    extern "C" int congelado_plugin_on_reload_requested() noexcept {                                     \
+    extern "C" int congelado_on_reload_requested() noexcept {                                            \
         return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;                           \
     }                                                                                                     \
     extern "C" void congelado_logger_write(int level, const char *msg, size_t len) noexcept {            \
