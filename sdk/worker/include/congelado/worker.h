@@ -11,6 +11,9 @@ int run_worker(int argc, char **argv);
    T must publicly inherit congelado::ITask. Drop exactly once per task class
    at file scope in the task .cc file, after the class definition.
    Requires: import congelado_worker; (provides congelado::ITask and TaskRegistry). */
+
+#ifndef CONGELADO_TASK_USED
+#define CONGELADO_TASK_USED
 #define CONGELADO_TASK(T)                                                                          \
     namespace { /* NOLINT(cert-dcl59-cpp) */                                                      \
     [[maybe_unused]] bool const _congelado_registered_##T = []() -> bool {              \
@@ -35,6 +38,9 @@ int run_worker(int argc, char **argv);
     extern "C" int congelado_on_reload_requested() noexcept {                                   \
         return 1; /* allow reloads by default */                                                 \
     }
+#else
+#error "Only one CONGELADO_TASK macro invocation is allowed per translation unit. Move additional tasks to separate files or use module-level registration."
+#endif // CONGELADO_TASK_USED
 
 #endif // __cplusplus
 // NOLINTEND
