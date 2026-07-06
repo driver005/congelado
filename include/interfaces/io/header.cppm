@@ -1,0 +1,66 @@
+export module interfaces:io_header;
+
+import std;
+import :consts;
+import :io_types;
+
+export namespace interfaces::io {
+
+template <bool IsStatic = false>
+class HeaderField {
+  public:
+    HeaderField() : m_name{}, m_value{""} {}
+
+    HeaderField(types::Token name_token, std::string_view value)
+        requires(IsStatic)
+        : m_name{name_token}, m_value{value} {}
+
+    HeaderField(std::string_view name, std::string_view value)
+        requires(!IsStatic)
+        : m_name{std::string(name)}, m_value{value} {
+        if (name.empty())
+            throw std::runtime_error("Empty name");
+    }
+
+    // Accessors
+    const auto &get_name() const noexcept { return m_name; }
+    [[nodiscard]] const std::string &get_value() const noexcept { return m_value; }
+
+    // Logic for name size
+    [[nodiscard]] std::size_t size() const noexcept {
+        if constexpr (IsStatic) {
+            return sizeof(types::Token) + m_value.size() + consts::ENTRY_OVERHEAD;
+        } else {
+            return m_name.size() + m_value.size() + consts::ENTRY_OVERHEAD;
+        }
+    }
+
+    [[nodiscard]] bool is_empty() const noexcept { return m_value.empty(); }
+
+    // Setters (Only for dynamic version)
+    void set_name(std::string name)
+        requires(!IsStatic)
+    {
+        if (name.empty()) {
+            throw std::runtime_error("Empty name");
+        }
+        m_name = std::move(name);
+    }
+
+    void set_value(std::string value) { m_value = std::move(value); }
+
+    bool operator==(const HeaderField &other) const noexcept {
+
+        return m_name == other.m_name && m_value == other.m_value;
+    };
+
+  private:
+    std::conditional_t<IsStatic, types::Token, std::string> m_name;
+    std::string m_value;
+};
+
+// Export a common type for header entries, which can be either static or dynamic
+using HeaderEntry =
+    std::variant<std::shared_ptr<HeaderField<true>>, std::shared_ptr<HeaderField<false>>>;
+
+} // namespace interfaces::io

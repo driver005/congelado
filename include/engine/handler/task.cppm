@@ -52,30 +52,27 @@ export namespace engine {
 //   DELETE /api/v1/tasks/:name         → remove_definition
 //   GET    /api/v1/tasks/queue/:type   → poll
 //   POST   /api/v1/tasks/:id/result    → submit_result
-template <typename Protocol>
 class TaskHandler {
   public:
     explicit TaskHandler(EngineContext &ctx) noexcept : m_ctx{ctx} {}
 
-    void get_definition(interfaces::IRequest<Protocol> &req,
-                        interfaces::IResponse<Protocol> &res) noexcept {
+    void get_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
-        auto target = req.get_target();
+        auto target = req.get_path();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
         m_ctx.get().get_connector().find<model::TaskDef>(
             name, [&](std::optional<model::TaskDef> result) noexcept {
                 if (!result) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::Status::NOT_FOUND);
+                          interfaces::io::types::Status::NOT_FOUND);
                     return;
                 }
                 reply(res, serde::Ser::serialize(accept, *result));
             });
     }
 
-    void create_definition(interfaces::IRequest<Protocol> &req,
-                           interfaces::IResponse<Protocol> &res) noexcept {
+    void create_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
@@ -84,31 +81,31 @@ class TaskHandler {
         if (!parsed) {
             core::logger::warning("engine", "task/create bad request: {}", parsed.error());
             reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::Status::BAD_REQUEST);
+                  interfaces::io::types::Status::BAD_REQUEST);
             return;
         }
 
         if (auto validate = parsed->validate(); !validate) {
             core::logger::warning("engine", "task/create invalid: {}", validate.error());
             reply(res, serde::Ser::serialize_error(accept, validate.error()),
-                  interfaces::Status::UNPROCESSABLE_CONTENT);
+                  interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_connector().insert<model::TaskDef>(*parsed, [&](bool okee) noexcept {
-            if (!okee) {
+        m_ctx.get().get_connector().insert<model::TaskDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
                 core::logger::error("engine", "task/create db insert failed");
                 reply(res, serde::Ser::serialize_error(accept, "insert failed"),
-                      interfaces::Status::INTERNAL_SERVER_ERROR);
+                      interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
                 return;
             }
             core::logger::info("engine", "task created: '{}'", parsed->get_name());
-            reply(res, serde::Ser::serialize(accept, *parsed), interfaces::Status::CREATED);
+            reply(res, serde::Ser::serialize(accept, *parsed),
+                  interfaces::io::types::Status::CREATED);
         });
     }
 
-    void update_definition(interfaces::IRequest<Protocol> &req,
-                           interfaces::IResponse<Protocol> &res) noexcept {
+    void update_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
@@ -117,49 +114,48 @@ class TaskHandler {
         if (!parsed) {
             core::logger::warning("engine", "task/update bad request: {}", parsed.error());
             reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::Status::BAD_REQUEST);
+                  interfaces::io::types::Status::BAD_REQUEST);
             return;
         }
 
         if (auto validate = parsed->validate(); !validate) {
             core::logger::warning("engine", "task/update invalid: {}", validate.error());
             reply(res, serde::Ser::serialize_error(accept, validate.error()),
-                  interfaces::Status::UNPROCESSABLE_CONTENT);
+                  interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
             return;
         }
 
-        m_ctx.get().get_connector().update<model::TaskDef>(*parsed, [&](bool okee) noexcept {
-            if (!okee) {
+        m_ctx.get().get_connector().update<model::TaskDef>(*parsed, [&](bool oke) noexcept {
+            if (!oke) {
                 core::logger::warning("engine", "task/update not found: '{}'", parsed->get_name());
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
-                      interfaces::Status::NOT_FOUND);
+                      interfaces::io::types::Status::NOT_FOUND);
                 return;
             }
             reply(res, serde::Ser::serialize(accept, *parsed));
         });
     }
 
-    void remove_definition(interfaces::IRequest<Protocol> &req,
-                           interfaces::IResponse<Protocol> &res) noexcept {
+    void remove_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
-        auto target = req.get_target();
+        auto target = req.get_path();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
 
-        m_ctx.get().get_connector().remove<model::TaskDef>(name, [&](bool okee) noexcept {
-            if (!okee) {
+        m_ctx.get().get_connector().remove<model::TaskDef>(name, [&](bool oke) noexcept {
+            if (!oke) {
                 core::logger::warning("engine", "task/remove not found: '{}'", name);
                 reply(res, serde::Ser::serialize_error(accept, "not found"),
-                      interfaces::Status::NOT_FOUND);
+                      interfaces::io::types::Status::NOT_FOUND);
                 return;
             }
             core::logger::info("engine", "task deleted: '{}'", name);
-            res.set_status(interfaces::Status::NO_CONTENT);
+            res.set_status(interfaces::io::types::Status::NO_CONTENT);
         });
     }
 
-    void poll(interfaces::IRequest<Protocol> &req, interfaces::IResponse<Protocol> &res) noexcept {
+    void poll(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
-        auto target = req.get_target();
+        auto target = req.get_path();
         auto worker_type = std::string{target.substr(target.rfind('/') + 1)};
 
         auto options =
@@ -191,7 +187,7 @@ class TaskHandler {
             },
             [&, accept](std::optional<model::TaskInstance> found) mutable noexcept {
                 if (!found) {
-                    res.set_status(interfaces::Status::NO_CONTENT);
+                    res.set_status(interfaces::io::types::Status::NO_CONTENT);
                     return;
                 }
                 found->set_status(model::TaskStatus::IN_PROGRESS);
@@ -200,7 +196,7 @@ class TaskHandler {
                     claimed, [&res, accept, claimed](bool oke) mutable noexcept {
                         if (!oke) {
                             reply(res, serde::Ser::serialize_error(accept, "claim failed"),
-                                  interfaces::Status::INTERNAL_SERVER_ERROR);
+                                  interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
                             return;
                         }
                         reply(res, serde::Ser::serialize(accept, claimed));
@@ -208,11 +204,10 @@ class TaskHandler {
             });
     }
 
-    void submit_result(interfaces::IRequest<Protocol> &req,
-                       interfaces::IResponse<Protocol> &res) noexcept {
+    void submit_result(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
-        auto target = req.get_target();
+        auto target = req.get_path();
         auto last = target.rfind('/');
         auto before = target.rfind('/', last > 0 ? last - 1 : 0);
         auto task_id = std::string{target.substr(before + 1, last - before - 1)};
@@ -221,7 +216,7 @@ class TaskHandler {
         auto parsed = serde::Ser::deserialize<TaskSubmitBody>(content_type, body);
         if (!parsed) {
             reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::Status::BAD_REQUEST);
+                  interfaces::io::types::Status::BAD_REQUEST);
             return;
         }
 
@@ -230,7 +225,7 @@ class TaskHandler {
                          std::optional<model::TaskInstance> found) mutable noexcept {
                 if (!found) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::Status::NOT_FOUND);
+                          interfaces::io::types::Status::NOT_FOUND);
                     return;
                 }
 
@@ -257,7 +252,7 @@ class TaskHandler {
                     updated, [&res, accept, updated](bool oke) mutable noexcept {
                         if (!oke) {
                             reply(res, serde::Ser::serialize_error(accept, "not found"),
-                                  interfaces::Status::NOT_FOUND);
+                                  interfaces::io::types::Status::NOT_FOUND);
                             return;
                         }
                         reply(res, serde::Ser::serialize(accept, updated));
@@ -268,13 +263,14 @@ class TaskHandler {
   private:
     std::reference_wrapper<EngineContext> m_ctx;
 
-    static void reply(interfaces::IResponse<Protocol> &res, std::vector<std::byte> bytes,
-                      interfaces::Status status = interfaces::Status::OK) noexcept {
+    static void
+    reply(interfaces::io::IResponse &res, std::vector<std::byte> bytes,
+          interfaces::io::types::Status status = interfaces::io::types::Status::OK) noexcept {
         res.set_body(std::move(bytes));
         res.set_status(status);
     }
 
-    static std::string flatten_body(interfaces::IRequest<Protocol> &req) noexcept {
+    static std::string flatten_body(interfaces::io::IRequest &req) noexcept {
         std::string out;
         auto &view = req.get_body();
         out.reserve(view.size());

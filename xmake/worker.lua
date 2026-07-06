@@ -5,20 +5,18 @@
 rule("congelado.worker")
 on_load(function(target)
 	target:add("deps", "congelado_lib")
-	if not os.isfile(path.join(target:scriptdir(), "main.cc")) then
-		target:add("files", "$(projectdir)/sdk/worker/main.cc")
-	end
 end)
 rule_end()
 
 function worker(name, ...)
 	target(name)
-	set_kind("binary")
+	set_kind("shared")
 	set_languages("c++26")
 	set_policy("build.c++.modules", true)
 	add_rules("congelado.worker")
 	add_files(...)
 	add_includedirs("$(projectdir)/include")
+	set_targetdir("$(builddir)/workers")
 	if is_plat("linux", "macosx") then
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 	end

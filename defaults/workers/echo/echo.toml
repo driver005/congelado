@@ -1,7 +1,0 @@
-engine_url = "http://localhost:8080"
-worker_id = "echo-worker-1"
-concurrency = 2
-
-[[tasks]]
-name = "echo_task"
-worker_type = "echo_worker"

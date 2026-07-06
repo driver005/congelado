@@ -19,6 +19,9 @@ class Connector : public shared::HandlerBase {
     void set_cache(interfaces::ICache *cache) noexcept { m_cache = cache; }
     void set_database(interfaces::IDatabase *database) noexcept { m_database = database; }
 
+    [[nodiscard]] interfaces::ICache *get_cache() const noexcept { return m_cache; }
+    [[nodiscard]] interfaces::IDatabase *get_database() const noexcept { return m_database; }
+
     [[nodiscard]] std::string_view get_name() const noexcept override { return "connector"; }
 
     shared::WorkerFunction on_execute() override {
