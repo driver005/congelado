@@ -19,6 +19,14 @@
 // The C ABI is internal — plugin authors write pure C++; the macro bridges to dlsym.
 // Drop exactly once at the bottom of your plugin .cc, after the class definition.
 #ifdef CONGELADO_GUEST
+
+#if defined(CONGELADO_TASK_USED)
+#error "CONGELADO_PLUGIN cannot be used in the same translation unit as CONGELADO_TASK; move plugin definitions to a separate file."
+#endif
+
+#ifndef CONGELADO_PLUGIN_USED
+#define CONGELADO_PLUGIN_USED
+
 #define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                                  \
     static T *s_plugin = nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */       \
     extern "C" const char *congelado_plugin_name() noexcept {                                            \
@@ -53,7 +61,7 @@
         return s_plugin->get_worker_type().data();                                                   \
     }                                                                                                \
     extern "C" CongeladoConfigView congelado_worker_execute(                                          \
-                                     const CongeladoConfigView *input) noexcept {                    \
+                                      const CongeladoConfigView *input) noexcept {                    \
         if (s_plugin == nullptr) return {};                                                          \
         return s_plugin->execute_worker(input);                                                      \
     }                                                                                                     \
@@ -128,5 +136,8 @@
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \
         return s_plugin->get_load_before_types().size();                                                  \
     }
+#endif // CONGELADO_PLUGIN_USED
+
 #endif // CONGELADO_GUEST
+
 // NOLINTEND
