@@ -8,7 +8,7 @@ export module io_codec_hpack;
 export import :types;
 export import :table;
 
-import io_shared;
+import interfaces;
 import io_layer_shared;
 import io_codec_shared;
 import utils_codec;
@@ -25,7 +25,7 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
   public:
     using FlushCallback = std::function<void(std::span<const std::byte>, HpackFlushReason)>;
 
-    explicit HpackEncoder(HPackTable &table, std::span<const shared::http::HeaderEntry> headers,
+    explicit HpackEncoder(HPackTable &table, std::span<const interfaces::io::HeaderEntry> headers,
                           std::size_t max_frame_size, FlushCallback on_flush,
                           bool use_auto_policy = true, bool use_huffman = true) noexcept
         : m_table{table}, m_headers{headers}, m_flush_size{max_frame_size},
@@ -156,21 +156,21 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
         }
     }
 
-    void encode_entry(const shared::http::HeaderEntry &entry) const {
+    void encode_entry(const interfaces::io::HeaderEntry &entry) const {
         std::visit(
             [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
                 std::string_view name;
-                if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
-                    name = shared::http::token_to_string(ptr->get_name());
+                if constexpr (std::is_same_v<FieldType, interfaces::io::HeaderField<true>>) {
+                    name = interfaces::io::types::token_to_string(ptr->get_name());
                 } else {
                     name = ptr->get_name();
                 }
 
                 const std::string_view VALUE = ptr->get_value();
 
-                if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
-                    if (ptr->get_name() == shared::http::Token::COOKIE) {
+                if constexpr (std::is_same_v<FieldType, interfaces::io::HeaderField<true>>) {
+                    if (ptr->get_name() == interfaces::io::types::Token::COOKIE) {
                         encode_cookies(VALUE);
                         return;
                     }
@@ -184,7 +184,7 @@ class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt
     }
 
     mutable std::reference_wrapper<HPackTable> m_table;
-    std::span<const shared::http::HeaderEntry> m_headers;
+    std::span<const interfaces::io::HeaderEntry> m_headers;
     std::size_t m_flush_size;
     FlushCallback m_on_flush;
     bool m_use_auto_policy;
@@ -209,12 +209,12 @@ class HpackTableSizeUpdateAdaptor
     std::reference_wrapper<HPackTable> m_table;
 };
 
-template <typename Protocol, std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
 class HpackDecoderAdapter
-    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<Protocol, UInt, Width>> {
+    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width>> {
   public:
-    explicit HpackDecoderAdapter(HPackTable &table, interfaces::IRequest<Protocol> &req) noexcept
+    explicit HpackDecoderAdapter(HPackTable &table, interfaces::io::IRequest &req) noexcept
         : m_table{table}, m_request{req} {}
 
     template <std::ranges::viewable_range R>
@@ -313,13 +313,13 @@ class HpackDecoderAdapter
         }
     }
 
-    void add_field(const shared::http::HeaderEntry &entry) const {
+    void add_field(const interfaces::io::HeaderEntry &entry) const {
         std::visit(
             [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
-                if constexpr (std::is_same_v<FieldType, shared::http::HeaderField<true>>) {
-                    m_request.get().add_header(shared::http::token_to_string(ptr->get_name()),
-                                               ptr->get_value());
+                if constexpr (std::is_same_v<FieldType, interfaces::io::HeaderField<true>>) {
+                    m_request.get().add_header(
+                        interfaces::io::types::token_to_string(ptr->get_name()), ptr->get_value());
                 } else {
                     m_request.get().add_header(ptr->get_name(), ptr->get_value());
                 }
@@ -404,15 +404,15 @@ class HpackDecoderAdapter
     }
 
     std::reference_wrapper<HPackTable> m_table;
-    std::reference_wrapper<interfaces::IRequest<Protocol>> m_request;
+    std::reference_wrapper<interfaces::io::IRequest> m_request;
 };
 
-template <typename Protocol, std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
 class Hpack {
   public:
     explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table,
-                   interfaces::IRequest<Protocol> &req, interfaces::IResponse<Protocol> &res,
+                   interfaces::io::IRequest &req, interfaces::io::IResponse &res,
                    bool use_huffman = true) noexcept
         : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req},
           m_response{res}, m_use_huffman{use_huffman} {}
@@ -430,7 +430,7 @@ class Hpack {
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] std::size_t decode(R &&data) {
         return std::views::all(std::forward<R>(data)) |
-               HpackDecoderAdapter<Protocol, UInt, Width>{m_decoding_table, m_request};
+               HpackDecoderAdapter<UInt, Width>{m_decoding_table, m_request};
     }
 
     [[nodiscard]] auto encode_table_size_update(UInt size) {
@@ -440,8 +440,8 @@ class Hpack {
   private:
     std::reference_wrapper<HPackTable> m_encoding_table;
     std::reference_wrapper<HPackTable> m_decoding_table;
-    std::reference_wrapper<interfaces::IRequest<Protocol>> m_request;
-    std::reference_wrapper<interfaces::IResponse<Protocol>> m_response;
+    std::reference_wrapper<interfaces::io::IRequest> m_request;
+    std::reference_wrapper<interfaces::io::IResponse> m_response;
     bool m_use_huffman;
 };
 
@@ -472,7 +472,8 @@ class Hpack {
 //
 //                     using FieldType = std::decay_t<decltype(*ptr)>;
 //
-//                     if constexpr (std::is_same_v<FieldType, io::shared::http::HeaderField<true>>)
+//                     if constexpr (std::is_same_v<FieldType,
+//                     io::interfaces::io::HeaderField<true>>)
 //                     {
 //                         if (ptr->get_name() == "cookie") {
 //                             encode_cookies(ptr->get_value(), out);
@@ -549,12 +550,12 @@ class Hpack {
 //         }
 //     }
 //
-//     void add_field(const shared::http::HeaderEntry &entry) {
+//     void add_field(const interfaces::io::HeaderEntry &entry) {
 //         std::visit([&](const auto &f) { add_field(f); }, entry);
 //     }
 //
 //     template <bool IsStatic>
-//     void add_field(std::shared_ptr<shared::http::HeaderField<IsStatic>> field) {
+//     void add_field(std::shared_ptr<interfaces::io::HeaderField<IsStatic>> field) {
 //         m_request.get().insert(field);
 //     }
 //
@@ -619,7 +620,7 @@ class Hpack {
 //                                 m_request.get().insert(inserted_field_ptr);
 //                             }
 //                         },
-//                         [&] -> shared::http::HeaderEntry {
+//                         [&] -> interfaces::io::HeaderEntry {
 //                             if constexpr (IsDecoder) {
 //                                 auto ins_idx =
 //                                 m_decoding_table.get().insert(field_ptr->get_name(), value);
@@ -646,7 +647,7 @@ class Hpack {
 //             throw error::http::EmptyNameError{};
 //
 //         if constexpr (IsIndexable) {
-//             const auto new_field = [&] -> shared::http::HeaderEntry {
+//             const auto new_field = [&] -> interfaces::io::HeaderEntry {
 //                 if constexpr (IsDecoder) {
 //                     auto ins_idx = m_decoding_table.get().insert(name, value);
 //                     return m_decoding_table.get()[HPackStatic::STATIC_SIZE + 1 +

@@ -7,10 +7,10 @@ import std;
 
 export namespace io::shared::http {
 
-class Protocol {
-  public:
-    using Header = HeaderEntry;
-    using Token = Token;
-};
+// class Protocol {
+//   public:
+//     using Header = HeaderEntry;
+//     using Token = Token;
+// };
 
 } // namespace io::shared::http

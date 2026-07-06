@@ -12,33 +12,43 @@ import :frame;
 
 export namespace io::layer::http2 {
 
-enum class HandshakeState : std::uint8_t { AWAITING_PREFACE, PREFACE_RECEIVED, PREFACE_ERROR, COMPLETED };
+enum class HandshakeState : std::uint8_t {
+    AWAITING_PREFACE,
+    PREFACE_RECEIVED,
+    PREFACE_ERROR,
+    COMPLETED
+};
 
 template <bool IsServer = true>
 class Handshake {
   public:
     Handshake(Settings &settings, shared::SendCallback submiter)
-        : m_local_settings{settings}, m_submiter{std::move(submiter)}, m_sent_settings{false} {
+        : m_local_settings{settings}, m_submiter{std::move(submiter)}, m_sent_settings{false} {}
+
+    HandshakeState process(utils::buffering::BufferReader &view)
+        requires(IsServer)
+    {
+        core::logger::debug("http2/handshake", "process size={}", view.size());
+        send_handshake();
+
+        return is_valid_preface(view);
     }
 
-    HandshakeState process(utils::buffering::BufferReader &view) {
-        core::logger::debug("http2/handshake", "process size={}", view.size());
-        if constexpr (IsServer) {
-            send_handshake();
+    HandshakeState process()
+        requires(!IsServer)
+    {
+        core::logger::debug("http2/handshake", "process");
+        send_handshake();
 
-            return is_valid_preface(view);
-        } else {
-            send_handshake();
-
-            return HandshakeState::COMPLETED;
-        }
+        return HandshakeState::COMPLETED;
     }
 
   private:
     HandshakeState is_valid_preface(utils::buffering::BufferReader &view) const {
         const auto &preface = HTTP2_CONNECTION_PREFACE;
         if (view.size() < preface.size()) {
-            core::logger::debug("http2/handshake", "awaiting preface rx={} need={}", view.size(), preface.size());
+            core::logger::debug("http2/handshake", "awaiting preface rx={} need={}", view.size(),
+                                preface.size());
 
             return HandshakeState::AWAITING_PREFACE;
         }
@@ -75,14 +85,17 @@ class Handshake {
 
         if constexpr (!IsServer) {
             auto size = HTTP2_CONNECTION_PREFACE.size() + frame.get_size();
-            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame), m_local_settings.get().get_max_frame_size()};
-            auto node =
-                std::span{HTTP2_CONNECTION_PREFACE} | adaptor | std::ranges::to<utils::buffering::BufferNode>(size);
+            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame),
+                                                    m_local_settings.get().get_max_frame_size()};
+            auto node = std::span{HTTP2_CONNECTION_PREFACE} | adaptor |
+                        std::ranges::to<utils::buffering::BufferNode>(size);
             m_submiter(std::move(node));
         } else {
             auto size = frame.get_size();
-            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame), m_local_settings.get().get_max_frame_size()};
-            auto node = std::views::empty<std::byte> | adaptor | std::ranges::to<utils::buffering::BufferNode>(size);
+            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame),
+                                                    m_local_settings.get().get_max_frame_size()};
+            auto node = std::views::empty<std::byte> | adaptor |
+                        std::ranges::to<utils::buffering::BufferNode>(size);
             m_submiter(std::move(node));
         }
 

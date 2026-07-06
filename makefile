@@ -11,7 +11,7 @@ dependency:
 	conan profile detect --force
 
 install:
-	xmake f -c -v
+	xmake f -c -v -y
 
 dev: build editor
 

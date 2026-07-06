@@ -2,6 +2,7 @@ module;
 // TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing
 // me
 #include <ranges>
+#include <variant>
 
 export module io_layer_http2:session;
 
@@ -20,12 +21,10 @@ import :stream;
 
 export namespace io::layer::http2 {
 
-using DispatchFn = interfaces::DispatchFn;
-
 class Session {
   public:
     explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback,
-                     DispatchFn dispatch = {})
+                     interfaces::io::ReceiveDispatchFn dispatch = {})
         : m_running{true}, m_last_server_stream_id{0}, m_last_client_stream_id{1},
           m_local_settings{}, m_remote_settings{}, m_closed_streams{}, m_header_buffer{},
           m_decoding_table{}, m_encoding_table{},
@@ -221,14 +220,13 @@ class Session {
         auto &req = stream.get_request();
         auto &res = stream.get_response();
 
-        res.set_status(interfaces::Status::NOT_FOUND);
+        res.set_status(interfaces::io::types::Status::NOT_FOUND);
 
         try {
-            if (m_dispatch)
-                m_dispatch(req, res);
+            m_dispatch(req, res);
         } catch (const std::exception &e) {
             core::logger::error("http2/session", "handler threw: {}", e.what());
-            res.set_status(interfaces::Status::INTERNAL_SERVER_ERROR);
+            res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
         }
 
         auto node =
@@ -326,7 +324,7 @@ class Session {
     ::shared::SendCallback m_submiter;
     ::shared::CloseCallback m_closer;
     std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>> m_safe_header;
-    DispatchFn m_dispatch;
+    interfaces::io::ReceiveDispatchFn m_dispatch;
 };
 
 } // namespace io::layer::http2

@@ -179,9 +179,9 @@ class QPack {
         encode_insert_count_increment(increment, out);
     }
 
-    void add_field(const std::shared_ptr<shared::http::HeaderField<>> &field) { m_table.push_back(field); }
+    void add_field(const std::shared_ptr<interfaces::io::HeaderField<>> &field) { m_table.push_back(field); }
 
-    void set_table(const std::vector<std::shared_ptr<shared::http::HeaderField<>>> &table) { m_table = table; }
+    void set_table(const std::vector<std::shared_ptr<interfaces::io::HeaderField<>>> &table) { m_table = table; }
 
   private:
     // Helper
@@ -217,12 +217,12 @@ class QPack {
                             m_cookie_index->set_value(m_cookie_index->get_value() + COOKIE_SEPARATOR +
                                                       std::string{value});
                         } else {
-                            auto cookie_field = std::make_shared<shared::http::HeaderField<>>(NAME, std::string{value});
+                            auto cookie_field = std::make_shared<interfaces::io::HeaderField<>>(NAME, std::string{value});
                             m_table.push_back(cookie_field);
                             m_cookie_index = cookie_field;
                         }
                     } else {
-                        m_table.push_back(std::make_shared<shared::http::HeaderField<>>(NAME, std::string{value}));
+                        m_table.push_back(std::make_shared<interfaces::io::HeaderField<>>(NAME, std::string{value}));
                     }
                 }
             },
@@ -246,12 +246,12 @@ class QPack {
                 if (!m_cookie_index->is_empty()) {
                     m_cookie_index->set_value(m_cookie_index->get_value() + COOKIE_SEPARATOR + std::string{value});
                 } else {
-                    auto field = std::make_shared<shared::http::HeaderField<>>(std::string{name}, std::string{value});
+                    auto field = std::make_shared<interfaces::io::HeaderField<>>(std::string{name}, std::string{value});
                     m_table.push_back(field);
                     m_cookie_index = field;
                 }
             } else {
-                m_table.push_back(std::make_shared<shared::http::HeaderField<>>(std::string{name}, std::string{value}));
+                m_table.push_back(std::make_shared<interfaces::io::HeaderField<>>(std::string{name}, std::string{value}));
             }
         }
     }
@@ -593,8 +593,8 @@ class QPack {
     std::shared_ptr<QPackTable> m_decoding_table;
     std::shared_ptr<QPackTable> m_encoding_table;
     shared_codec::huffman::Huffman<> m_huffman;
-    std::vector<std::shared_ptr<shared::http::HeaderField<>>> m_table;
+    std::vector<std::shared_ptr<interfaces::io::HeaderField<>>> m_table;
     UInt m_known_received_count;
-    std::shared_ptr<shared::http::HeaderField<>> m_cookie_index;
+    std::shared_ptr<interfaces::io::HeaderField<>> m_cookie_index;
 };
 } // namespace io::codec::qpack

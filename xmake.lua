@@ -86,6 +86,8 @@ add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
 add_requires("conan::tomlplusplus/3.4.0", { alias = "tomlplusplus", configs = conan })
 add_requires("conan::stduuid/1.2.3", { alias = "stduuid", configs = conan })
+add_requires("conan::cpython/3.12.7", { alias = "cpython", configs = conan })
+add_requires("conan::lua/5.4.7", { alias = "lua", configs = conan })
 add_requires("conan::reflect-cpp/0.23.0", {
 	alias = "reflectcpp",
 	configs = {
@@ -146,15 +148,14 @@ if is_plat("windows", "mingw") then
 	add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
 else
 	add_links("c++", "uring", "pthread", "dl", "ssl", "crypto")
+	add_syslinks("python3.12")
 end
 
 add_defines("CLANG_ITERATE_MODULES")
 
 add_files("include/**.cppm", { public = true })
-add_files("sdk/worker/congelado_worker.cppm", { public = true })
 add_files("sdk/plugin/congelado_plugin.cppm", { public = true })
 add_files("src/**.cc")
-add_files("sdk/worker/runtime.cc")
 
 remove_files("src/main.cc")
 
@@ -169,7 +170,6 @@ else
 end
 
 add_includedirs("include", { public = true })
-add_includedirs("sdk/worker/include", { public = true })
 add_includedirs("sdk/plugin/include", { public = true })
 
 add_packages(
@@ -190,6 +190,8 @@ add_packages(
 	"range-v3",
 	"stduuid",
 	"sqlgen",
+	"cpython",
+	"lua",
 	{ public = true }
 )
 
@@ -205,22 +207,20 @@ add_packages("fmt", "simdjson")
 add_rpathdirs("$ORIGIN")
 target_end()
 
--- target("model_test")
--- set_kind("binary")
--- set_languages("c++26")
--- set_policy("build.c++.modules", true)
--- add_files("tests/model/model_test.cc")
--- add_deps("congelado_lib")
--- add_packages("catch2")
--- add_cxflags("-fpermissive")
--- if is_plat("linux", "macosx") then
--- 	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
--- 	add_syslinks("uuid")
--- end
--- if is_plat("windows", "mingw") then
--- 	add_cxflags("--target=x86_64-w64-mingw32")
--- end
--- add_tests("default")
+-- target("engine_worker_test")
+--     set_kind("binary")
+--     set_languages("c++26")
+--     set_policy("build.c++.modules", true)
+--     add_cxflags("-fPIC")
+--     add_defines("CLANG_ITERATE_MODULES", "CONGELADO_MODE_HOST", "CONGELADO_MODE_GUEST", "CONGELADO_IMPL")
+--     add_files("tests/core/engine/engine_worker_test.cc")
+--     add_deps("congelado_lib")
+--     add_packages("catch2")
+--     if is_plat("linux", "macosx") then
+--         add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
+--         add_syslinks("uuid")
+--     end
+--     add_tests("default")
 -- target_end()
 
 -- for _, benchfile in ipairs(os.files("benchmarks/**.cc")) do

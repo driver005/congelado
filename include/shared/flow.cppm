@@ -22,11 +22,11 @@ concept FlowLayer = requires(SendCallback send, CloseCallback close) {
 
 
 template <typename T, typename Controller, typename Leverager>
-concept FlowBase =
-    HandlerController<Controller> && requires(ReadCallback &&on_read, Leverager &leverager, Controller controller) {
-        T{std::move(on_read), leverager, controller};
-    } && requires(T t, int fd) {
-        { t.on_send(fd) } -> std::convertible_to<SendCallback>;
-    };
+concept FlowBase = HandlerController<Controller> &&
+                   requires(ReadCallback &&on_read, Leverager &leverager, Controller controller) {
+                       T{std::move(on_read), leverager, controller};
+                   } && requires(T t, int fd) {
+                       { t.on_send(fd) } -> std::convertible_to<SendCallback>;
+                   };
 
 } // namespace shared

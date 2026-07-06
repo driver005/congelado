@@ -1,127 +1,108 @@
 module;
-#define CONGELADO_GUEST
+
+#include "congelado/abi.h"
+
 export module congelado_plugin;
 
 import std;
-
+import interfaces;
+export import core_plugin;
 export namespace congelado {
 
-// C++ view of the host callback table. Constructed by CONGELADO_PLUGIN from C ABI arguments.
-// Valid only for the duration of on_load(). Do not store.
-class HostCallbacks {
-  public:
-    using LogFn = void (*)(void *ctx, int level, const char *msg, std::size_t len);
-    using SchedFn = void (*)(void *ctx);
-
-    HostCallbacks(LogFn log, SchedFn sched, void *router_ctx, void *controller_ctx,
-                  void *leverager_ctx, void *ctx) noexcept
-        : m_log{log}, m_sched{sched}, m_router_ctx{router_ctx}, m_controller_ctx{controller_ctx},
-          m_leverager_ctx{leverager_ctx}, m_ctx{ctx} {}
-
-    void log(int level, std::string_view msg) const noexcept {
-        if (m_log != nullptr) {
-            m_log(m_ctx, level, msg.data(), msg.size());
-        }
-    }
-    void schedule() const noexcept {
-        if (m_sched != nullptr) {
-            m_sched(m_ctx);
-        }
-    }
-    // Typed accessors — C ABI carries void* across the dlopen boundary; cast happens here.
-    template <typename T>
-    [[nodiscard]] T *router_ctx() const noexcept {
-        return static_cast<T *>(m_router_ctx);
-    }
-    template <typename T>
-    [[nodiscard]] T *controller_ctx() const noexcept {
-        return static_cast<T *>(m_controller_ctx);
-    }
-    template <typename T>
-    [[nodiscard]] T *leverager_ctx() const noexcept {
-        return static_cast<T *>(m_leverager_ctx);
-    }
-
-  private:
-    LogFn m_log{nullptr};
-    SchedFn m_sched{nullptr};
-    void *m_router_ctx{nullptr};
-    void *m_controller_ctx{nullptr};
-    void *m_leverager_ctx{nullptr};
-    void *m_ctx{nullptr};
-};
-
-// Read-only view of the plugin's [plugins.name] config section.
-// Valid only for the duration of on_load(). Do not store.
-class ConfigView {
-  public:
-    ConfigView(const char *const *keys, const char *const *values, std::size_t count) noexcept
-        : m_keys{keys}, m_values{values}, m_count{count} {}
-
-    [[nodiscard]] std::size_t size() const noexcept { return m_count; }
-    [[nodiscard]] bool empty() const noexcept { return m_count == 0; }
-
-    [[nodiscard]] std::optional<std::string_view> get(std::string_view key) const noexcept {
-        for (std::size_t i = 0; i < m_count; ++i) {
-            if (std::string_view{m_keys[i]} == key) {
-                return std::string_view{m_values[i]};
-            }
-        }
-        return std::nullopt;
-    }
-
-    template <typename Callback>
-    void for_each(Callback &&callback) const noexcept {
-        for (std::size_t i = 0; i < m_count; ++i) {
-            std::forward<Callback>(callback)(std::string_view{m_keys[i]},
-                                             std::string_view{m_values[i]});
-        }
-    }
-
-  private:
-    const char *const *m_keys{nullptr};
-    const char *const *m_values{nullptr};
-    std::size_t m_count{0};
-};
-
-// C++ base class for plugin authors.
-// Inherit this, override virtual methods, drop CONGELADO_PLUGIN(T) at the bottom of your .cc.
-class Plugin {
+class Plugin : public interfaces::ILogger {
   public:
     Plugin() noexcept = default;
-    virtual ~Plugin() = default;
+    ~Plugin() override = default;
     Plugin(const Plugin &) = delete;
     Plugin &operator=(const Plugin &) = delete;
     Plugin(Plugin &&) = delete;
     Plugin &operator=(Plugin &&) = delete;
 
-    // IMPORTANT: returned string_view::data() is used as a raw const char*.
-    // Implementations MUST return a view into a string literal or stable member.
-    [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
+    [[nodiscard]] virtual std::string_view get_name() const noexcept override = 0;
     [[nodiscard]] virtual std::string_view get_version() const noexcept = 0;
     [[nodiscard]] virtual std::uint32_t capabilities() const noexcept { return 0; }
-
-    // Returns a type tag for uniqueness enforcement. Empty string = not unique.
-    // Only one plugin with a given tag loads; the first in config order wins.
-    // MUST return a view into a string literal.
     [[nodiscard]] virtual std::string_view get_unique_type() const noexcept { return {}; }
+    [[nodiscard]] virtual std::string_view get_type() const noexcept { return "plugin"; }
+    [[nodiscard]] virtual std::span<const std::string_view> get_requires() const noexcept { return {}; }
+    [[nodiscard]] virtual std::span<const std::string_view> get_load_before_types() const noexcept { return {}; }
 
-    // Returns the names of plugins that must be loaded before this plugin.
-    // Each name must exactly match get_name() of the required plugin.
-    // MUST return a span over a static array of string literals.
-    [[nodiscard]] virtual std::span<const std::string_view> get_requires() const noexcept {
+    [[nodiscard]] virtual std::string_view get_worker_type() const noexcept { return {}; }
+    [[nodiscard]] virtual CongeladoConfigView execute_worker(
+        const CongeladoConfigView * /*input*/) {
         return {};
     }
 
-    // Returns unique-type tags this plugin must be loaded before.
-    // Any plugin whose get_unique_type() matches a returned tag will be sorted after this plugin.
-    // MUST return a span over a static array of string literals.
-    [[nodiscard]] virtual std::span<const std::string_view> get_load_before_types() const noexcept {
-        return {};
-    }
+    virtual void on_load(CongeladoHostCallbacks const & /*host*/,
+                         CongeladoConfigView const & /*cfg*/) {}
+    virtual void on_unload() noexcept {}
+    virtual void on_ready() noexcept {}
+    [[nodiscard]] virtual bool on_reload_requested() noexcept { return true; }
 
-    virtual void on_load(HostCallbacks const & /*host*/, ConfigView const & /*cfg*/) {}
-    virtual void on_unload() {}
+    virtual void logger_write(int /*level*/, std::string_view /*msg*/) noexcept {}
+    void write(interfaces::LogLevel level, std::string_view msg) noexcept final {
+        logger_write(static_cast<int>(level), msg);
+    }
+    void error(std::string_view msg) noexcept final { logger_write(4, msg); }
 };
+
+namespace _cap_dispatch {
+
+template <typename T>
+concept has_logger_write = requires(T *p) { p->logger_write(int{}, std::string_view{}); };
+
+template <typename T>
+void logger_write(T *p, int level, std::string_view msg) noexcept {
+    if constexpr (has_logger_write<T>)
+        p->logger_write(level, msg);
+}
+
+template <typename T>
+concept has_protocol_get = requires(T *p) { p->protocol_get(); };
+
+template <typename T>
+void *protocol_get(T *p) noexcept {
+    if constexpr (has_protocol_get<T>)
+        return p->protocol_get();
+    return nullptr;
+}
+
+template <typename T>
+concept has_storage_get = requires(T *p) { p->storage_get(); };
+
+template <typename T>
+void *storage_get(T *p) noexcept {
+    if constexpr (has_storage_get<T>)
+        return p->storage_get();
+    return nullptr;
+}
+
+} // namespace _cap_dispatch
+
+// ── Re-exports ───────────────────────────────────────────────────────────────
+
+using core::plugin::types::router_ctx;
+using core::plugin::types::controller_ctx;
+using core::plugin::types::leverager_ctx;
+using core::plugin::types::config_get;
+using core::plugin::types::config_for_each;
+using core::plugin::types::ConfigViewBuilder;
+using FfiRuntime = core::plugin::FfiRuntime;
+
+using GenerationConfig = core::plugin::types::GenerationConfig;
+using Runtime = core::plugin::types::Runtime;
+using PythonConfig = core::plugin::types::PythonConfig;
+using LuaConfig = core::plugin::types::LuaConfig;
+
+// Value types
+using Value = core::plugin::Value;
+using None = core::plugin::None;
+using Int = core::plugin::Int;
+using Float = core::plugin::Float;
+using Bool = core::plugin::Bool;
+using Str = core::plugin::Str;
+using Map = core::plugin::Map;
+using Array = core::plugin::Array;
+template <typename T>
+using ValueTraits = core::plugin::ValueTraits<T>;
 
 } // namespace congelado

@@ -14,13 +14,12 @@ export namespace engine {
 //   GET /api/v1/metadata/tasks       → list_task_definitions
 //   GET /api/v1/metadata/workflows   → list_workflow_definitions
 //   GET /api/v1/metadata/health      → health_check
-template <typename Protocol>
 class MetadataHandler {
   public:
     explicit MetadataHandler(EngineContext &ctx) noexcept : m_ctx{ctx} {}
 
-    void list_task_definitions(interfaces::IRequest<Protocol> &req,
-                               interfaces::IResponse<Protocol> &res) noexcept {
+    void list_task_definitions(interfaces::io::IRequest &req,
+                               interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
 
         m_ctx.get().get_connector().find_all<model::TaskDef>(
@@ -29,8 +28,8 @@ class MetadataHandler {
             });
     }
 
-    void list_workflow_definitions(interfaces::IRequest<Protocol> &req,
-                                   interfaces::IResponse<Protocol> &res) noexcept {
+    void list_workflow_definitions(interfaces::io::IRequest &req,
+                                   interfaces::io::IResponse &res) noexcept {
         auto accept = req.find_header("accept");
 
         m_ctx.get().get_connector().find_all<model::WorkflowDef>(
@@ -39,8 +38,7 @@ class MetadataHandler {
             });
     }
 
-    void health_check(interfaces::IRequest<Protocol> &req,
-                      interfaces::IResponse<Protocol> &res) noexcept {
+    void health_check(interfaces::io::IRequest &req, interfaces::io::IResponse &res) noexcept {
         static constexpr std::string_view CACHE_KEY = "engine:health";
         static constexpr std::string_view OKE = R"({"status":"ok"})";
         static constexpr std::string_view BARE = R"({"status":"ok","db":false,"cache":false})";
@@ -79,8 +77,9 @@ class MetadataHandler {
   private:
     std::reference_wrapper<EngineContext> m_ctx;
 
-    static void reply(interfaces::IResponse<Protocol> &res, std::vector<std::byte> bytes,
-                      interfaces::Status status = interfaces::Status::OK) noexcept {
+    static void
+    reply(interfaces::io::IResponse &res, std::vector<std::byte> bytes,
+          interfaces::io::types::Status status = interfaces::io::types::Status::OK) noexcept {
         res.set_body(std::move(bytes));
         res.set_status(status);
     }

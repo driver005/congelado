@@ -6,7 +6,7 @@ import congelado_plugin;
 import std;
 import interfaces;
 import io_shared;
-import core_server;
+import core_router;
 import engine;
 import core_logger;
 
@@ -20,17 +20,17 @@ class EnginePlugin final : public congelado::Plugin {
         return {};
     }
 
-    [[nodiscard]] std::span<const std::string_view> get_load_before_types() const noexcept override {
+    [[nodiscard]] std::span<const std::string_view>
+    get_load_before_types() const noexcept override {
         static constexpr std::string_view types[] = {"protocol"};
         return types;
     }
 
     [[nodiscard]] uint32_t capabilities() const noexcept override { return CONGELADO_CAP_CUSTOM; }
 
-    void on_load(congelado::HostCallbacks const &host,
-                 congelado::ConfigView const & /*cfg_view*/) override {
-        auto *router_ctx =
-            host.router_ctx<core::server::RouterContext<io::shared::http::Protocol>>();
+    void on_load(CongeladoHostCallbacks const &host,
+                 CongeladoConfigView const & /*cfg_view*/) override {
+        auto *router_ctx = congelado::router_ctx<core::router::RouterContext<>>(host);
 
         if (router_ctx == nullptr) {
             core::logger::error("engine", "no router context");
@@ -41,7 +41,7 @@ class EnginePlugin final : public congelado::Plugin {
         core::logger::important("engine", "routes registered");
     }
 
-    void on_unload() override {}
+    void on_unload() noexcept override {}
 
   private:
     engine::EngineContext m_engine_ctx;

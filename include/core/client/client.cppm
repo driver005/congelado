@@ -5,37 +5,69 @@ import interfaces;
 
 export namespace core::client {
 
-template <typename Derived>
-class ClientHandler {
+class Client {
   public:
-    using ResponseFn = std::function<void(int status, std::string body)>;
+    Client() = delete;
+    ~Client() = default;
 
-    // send<Protocol> — Protocol at call site, dispatches to Derived::do_send
-    template <typename Protocol>
-    void send(std::unique_ptr<interfaces::IRequest<Protocol>> req, ResponseFn cb) {
-        static_cast<Derived&>(*this).do_send(std::move(req), std::move(cb));
+    Client(const Client &) = delete;
+    Client &operator=(const Client &) = delete;
+
+    Client(Client &&) = default;
+    Client &operator=(Client &&) = default;
+
+    static Client get(std::string_view path) { return {"GET", path}; }
+    static Client head(std::string_view path) { return {"HEAD", path}; }
+    static Client post(std::string_view path) { return {"POST", path}; }
+    static Client put(std::string_view path) { return {"PUT", path}; }
+    static Client del(std::string_view path) { return {"DELETE", path}; }
+    static Client patch(std::string_view path) { return {"PATCH", path}; }
+    static Client options(std::string_view path) { return {"OPTIONS", path}; }
+
+    Client &&with_runtime(interfaces::IClient &client) && {
+        m_client = client;
+        return std::move(*this);
     }
 
-    // Generic factory — method as runtime string; body optional
-    template <typename Protocol>
-    [[nodiscard]] auto request(std::string_view method, std::string_view path,
-                 std::string_view body = {}) {
-        return static_cast<Derived&>(*this).template make_request<Protocol>(method, path, body);
+    Client &&on_receive(interfaces::io::ReceiveDispatchFn &&func) && {
+        m_receive_dispatch_fn = std::move(func);
+        return std::move(*this);
     }
 
-    // Verb convenience — all body-free; use request<P> directly for body
-    template <typename Protocol>
-    [[nodiscard]] auto get(std::string_view path)   { return request<Protocol>("GET",    path); }
-    template <typename Protocol>
-    [[nodiscard]] auto post(std::string_view path)  { return request<Protocol>("POST",   path); }
-    template <typename Protocol>
-    [[nodiscard]] auto put(std::string_view path)   { return request<Protocol>("PUT",    path); }
-    template <typename Protocol>
-    [[nodiscard]] auto del(std::string_view path)   { return request<Protocol>("DELETE", path); }
-    template <typename Protocol>
-    [[nodiscard]] auto patch(std::string_view path) { return request<Protocol>("PATCH",  path); }
-    template <typename Protocol>
-    [[nodiscard]] auto head(std::string_view path)  { return request<Protocol>("HEAD",   path); }
+    void set_runtime(interfaces::IClient &client) { m_client = client; }
+
+    void set_on_receive(interfaces::io::ReceiveDispatchFn &&func) {
+        m_receive_dispatch_fn = std::move(func);
+    }
+
+    void add_header(std::string_view key, std::string_view value) {
+        m_base_request.add_header(key, value);
+    }
+
+    // TODO: add_body has to append to utils::buffering::BuggerView via get_body()
+    void add_body(std::string_view body) {}
+
+
+    void send() {
+        if (!m_client.has_value()) {
+            throw std::runtime_error("Please set runtime first");
+        }
+        auto &client = m_client.value().get();
+        client.send(m_base_request);
+    }
+
+
+  private:
+    Client(std::string_view method, std::string_view path)
+        : m_path{path}, m_base_request{}, m_client{} {
+        m_base_request.add_header("method", method);
+        m_base_request.add_header("authority", m_path);
+    }
+
+    std::string m_path;
+    interfaces::io::IRequest m_base_request;
+    interfaces::io::ReceiveDispatchFn m_receive_dispatch_fn;
+    std::optional<std::reference_wrapper<interfaces::IClient>> m_client;
 };
 
 } // namespace core::client

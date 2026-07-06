@@ -19,33 +19,34 @@ class PostgresPlugin : public congelado::Plugin, public interfaces::IDatabase {
         return CONGELADO_CAP_STORAGE;
     }
 
-    void on_load(congelado::HostCallbacks const &host, congelado::ConfigView const &cfg) override {
-        const auto user = std::string{cfg.get("user").value_or("postgres")};
-        const auto pass = std::string{cfg.get("password").value_or("")};
-        const auto host_s = std::string{cfg.get("host").value_or("localhost")};
-        const auto dbname = std::string{cfg.get("dbname").value_or("congelado")};
-        const auto port_s = std::string{cfg.get("port").value_or("5432")};
+    void on_load(CongeladoHostCallbacks const &host, CongeladoConfigView const &cfg) override {
+        const auto user = std::string{congelado::config_get(cfg, "user").value_or("postgres")};
+        const auto pass = std::string{congelado::config_get(cfg, "password").value_or("")};
+        const auto host_s = std::string{congelado::config_get(cfg, "host").value_or("localhost")};
+        const auto dbname = std::string{congelado::config_get(cfg, "dbname").value_or("congelado")};
+        const auto port_s = std::string{congelado::config_get(cfg, "port").value_or("5432")};
 
         const auto connstr = std::format("host='{}' port='{}' dbname='{}' user='{}' password='{}'",
                                          host_s, port_s, dbname, user, pass);
         m_conn = PQconnectdb(connstr.c_str());
         if (PQstatus(m_conn) != CONNECTION_OK) {
-            host.log(3, std::format("postgres: {}", PQerrorMessage(m_conn)));
+            auto msg = std::format("postgres: {}", PQerrorMessage(m_conn));
+            if (host.log) host.log(host.ctx, 3, msg.data(), msg.size());
             PQfinish(m_conn);
             m_conn = nullptr;
         } else {
-            host.log(2, "postgres plugin loaded");
+            if (host.log) host.log(host.ctx, 2, "postgres plugin loaded", 22);
         }
     }
 
-    void on_unload() override {
+    void on_unload() noexcept override {
         if (m_conn) {
             PQfinish(m_conn);
             m_conn = nullptr;
         }
     }
 
-    void *storage_get() noexcept override { return static_cast<interfaces::IDatabase *>(this); }
+    void *storage_get() noexcept { return static_cast<interfaces::IDatabase *>(this); }
 
     [[nodiscard]] std::string_view backend_name() const noexcept override { return "postgres"; }
     [[nodiscard]] bool required() const noexcept override { return true; }
