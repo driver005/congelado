@@ -21,76 +21,12 @@ using types::PluginUint32Fn;
 using types::PluginUnloadFn;
 using types::WorkerExecuteFn;
 using types::WorkerTypeFn;
+using types::PluginRef;
+using types::is_shared_lib;
 
-// ── PluginRef (plain data view) ───────────────────────────────────────────
+// ── PluginRef is now defined in core::plugin::types (class)
 
-struct PluginRef {
-    // ── Symbol descriptor types ─────────────────────────────────────────
-
-    enum class SymbolKind : std::uint8_t {
-        FUNCTION,  // single function pointer — void*(*)()
-        STRING_FN, // const char*(*)() — string getter
-        UINT32,    // uint32_t(*)()
-        SIZE_T,    // size_t(*)()
-        ARRAY,     // data pointer + count pair (auto-loads "{name}" + "{name}_count")
-    };
-
-    struct SymbolInfo {
-        std::string_view name;
-        SymbolKind kind;
-    };
-
-    // ── Symbol lists ─────────────────────────────────────────────────────
-
-    static constexpr SymbolInfo shared_symbols[] = {
-        {.name = "congelado_init", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_type", .kind = SymbolKind::STRING_FN},
-    };
-
-    static constexpr SymbolInfo plugin_symbols[] = {
-        {.name = "congelado_plugin_on_unload", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_plugin_on_ready", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_plugin_name", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_plugin_version", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_plugin_author", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_plugin_description", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_capabilities", .kind = SymbolKind::UINT32},
-        {.name = "congelado_unique_type", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_requires", .kind = SymbolKind::ARRAY},
-        {.name = "congelado_load_before_types", .kind = SymbolKind::ARRAY},
-        {.name = "congelado_logger_write", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_logger_write_error", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_protocol_get", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_storage_get", .kind = SymbolKind::FUNCTION},
-    };
-
-    static constexpr SymbolInfo worker_symbols[] = {
-        {.name = "congelado_plugin_on_unload", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_plugin_on_ready", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_plugin_name", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_plugin_version", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_capabilities", .kind = SymbolKind::UINT32},
-        {.name = "congelado_requires", .kind = SymbolKind::ARRAY},
-        {.name = "congelado_worker_type", .kind = SymbolKind::STRING_FN},
-        {.name = "congelado_worker_execute", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_logger_write", .kind = SymbolKind::FUNCTION},
-        {.name = "congelado_logger_write_error", .kind = SymbolKind::FUNCTION},
-    };
-
-    // ── Data members ────────────────────────────────────────────────────
-
-    struct DlDeleter {
-        void operator()(void *h) const {
-            if (h)
-                ::dlclose(h);
-        }
-    };
-    std::unique_ptr<void, DlDeleter> m_handle;
-    std::unordered_map<std::string, std::any> m_data;
-};
-
-
-[[nodiscard]] bool is_shared_lib(const std::filesystem::path &p);
+[[nodiscard]] bool is_shared_lib(const std::filesystem::path &p) = delete; // use types::is_shared_lib
 
 class SharedLibrary {
   public:
@@ -134,7 +70,7 @@ class SharedLibrary {
         for (auto const &entry : std::filesystem::directory_iterator{dir}) {
             if (!entry.is_regular_file())
                 continue;
-            if (!is_shared_lib(entry.path()))
+            if (!types::is_shared_lib(entry.path()))
                 continue;
             auto stem = entry.path().stem().string();
             if (stem.starts_with("lib"))
@@ -236,8 +172,8 @@ class SharedLibrary {
 
             auto view = cfg_view.view();
 
-            if (reinterpret_cast<InitFn>(std::any_cast<void *>(ref->m_data.at("congelado_init")))(
-                    &host_cb, &view) != 0)
+            if (reinterpret_cast<InitFn>(std::any_cast<void *>(ref->m_data.at("congelado_init")))
+                    (&host_cb, &view) != 0)
                 return std::unexpected{types::PluginError::dlopen_failed(
                     std::format("congelado_init failed for '{}'", name))};
 
@@ -351,7 +287,7 @@ class SharedLibrary {
         auto *raw_handle = handle.get();
         ref->m_handle = std::move(handle);
         ref->m_data["path"] = std::move(file_path);
-        auto stem = std::filesystem::path{std::any_cast<const std::string &>(ref->m_data["path"])}
+        auto stem = std::filesystem::path{std::any_cast<const std::string &>(ref->m_data["path"]) }
                         .stem()
                         .string();
         if (stem.starts_with("lib"))
@@ -383,17 +319,3 @@ class SharedLibrary {
 
 } // namespace core::plugin
 
-export namespace core::plugin {
-
-[[nodiscard]] inline bool is_shared_lib(const std::filesystem::path &p) {
-    auto ext = p.extension().string();
-#if defined(_WIN32)
-    return ext == ".dll";
-#elif defined(__APPLE__)
-    return ext == ".dylib";
-#else
-    return ext == ".so";
-#endif
-}
-
-} // namespace core::plugin
