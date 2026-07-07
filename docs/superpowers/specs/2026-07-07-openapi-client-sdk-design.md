@@ -37,8 +37,19 @@ class Runtime {
     static void setClient(interfaces::IClient &client) noexcept;
     static interfaces::IClient &getClient() noexcept;  // aborts if unset — precondition
 
+    // interfaces::io::IRequest's base-class virtuals (set_header, get_body, ...) all
+    // std::abort() — it's a CRTP base, not directly constructible/usable. A real request
+    // must be a concrete protocol subtype (e.g. io::layer::http2::HttpRequest), which
+    // Runtime — deliberately protocol-agnostic — cannot construct itself. The consumer
+    // supplies a factory once at startup alongside the client.
+    using RequestFactory = std::function<std::unique_ptr<interfaces::io::IRequest>(std::uint32_t streamId)>;
+    static void setRequestFactory(RequestFactory factory) noexcept;
+
+    // Assigns the next stream id and asks the factory for a concrete request carrying it.
+    [[nodiscard]] static std::unique_ptr<interfaces::io::IRequest> newRequest();
+
     template <typename Res>
-    static void send(interfaces::io::IRequest &&request,
+    static void send(std::unique_ptr<interfaces::io::IRequest> request,
                      std::function<void(Res)> onResponse,
                      std::function<void(std::string)> onError = [](std::string) {});
 
@@ -47,6 +58,7 @@ class Runtime {
 
   private:
     static inline interfaces::IClient *client = nullptr;
+    static inline RequestFactory requestFactory;
     static inline std::unordered_map<std::uint32_t,
                                      std::function<void(interfaces::io::IResponse &)>> pending;
     static inline std::uint32_t nextStreamId{1};
@@ -55,7 +67,8 @@ class Runtime {
 } // namespace congelado::client
 ```
 
-- `send<Res>()`: assigns a stream id (`nextStreamId++`), sets it on `request`, wraps `onResponse`/`onError` into a type-erased closure that runs `serde::Ser::deserialize<Res>(response.get_content_type(), response.get_body())` and dispatches to one or the other, stores it in `pending` keyed by stream id, then calls `getClient().send(request)`.
+- `newRequest()`: calls `requestFactory(nextStreamId++)` — the returned request already carries the right stream id (concrete request types take it in their constructor, e.g. `HttpRequest(std::uint32_t stream_id)`), so no separate `set_stream_id()` call is needed.
+- `send<Res>()`: takes an already-built request (generated code calls `Runtime::newRequest()` then chains `.with_method(...).with_path(...).with_content_type(...).with_body(...)` — these fluent builders dispatch to the concrete subtype's overridden virtuals, so they work correctly on the object `newRequest()` returned, just not on a bare `IRequest`). Wraps `onResponse`/`onError` into a type-erased closure that runs `serde::Ser::deserialize<Res>(response.get_content_type(), response.get_body())` and dispatches to one or the other, stores it in `pending` keyed by `request->get_stream_id()`, then calls `getClient().send(*request)`.
 - `dispatch()`: looks up `request.get_stream_id()` in `pending`; if found, invokes it with `response` and erases the entry; if not found, no-ops (a response for something no longer tracked is not an error — e.g. after a future timeout feature drops it).
 - Both `IRequest` and `IResponse` already carry `get_stream_id()`/`set_stream_id()` (`interfaces/io/request.cppm`, `interfaces/io/response.cppm`) — this is the existing correlation mechanism, not new plumbing.
 
@@ -89,13 +102,16 @@ Parses `openapi.json` with `simdjson::dom` (whole-document read-then-walk — si
    - Request body param (if the operation has one): the DTO/shared-model type, taken by `const&`.
    - Path params (`{name}` segments): `std::string_view`, in path order, before the body param.
    - Always-present trailing params: `std::function<void(ResponseType)> onResponse`, `std::function<void(std::string)> onError = {}` (defaulted no-op).
-   - Body: builds an `IRequest` (method + interpolated path + JSON-encoded body if any), calls `Runtime::send<ResponseType>(std::move(request), std::move(onResponse), std::move(onError))`.
+   - Body: calls `Runtime::newRequest()`, chains `.with_method(...).with_path(interpolated)` and, if there's a request body, `.with_content_type("application/json")` + `.with_body(...)` with the JSON-encoded bytes, then calls `Runtime::send<ResponseType>(std::move(request), std::move(onResponse), std::move(onError))`.
    - If an operation has multiple response status codes, use the `2xx` one for the typed callback (first `2xx` found; if none, `void` response — callback becomes `std::function<void()>`).
 
 ## Consumer usage (once generated)
 
 ```cpp
 congelado::client::Runtime::setClient(myHttp2Client);   // once, at startup
+congelado::client::Runtime::setRequestFactory([](std::uint32_t streamId) {
+    return std::make_unique<io::layer::http2::HttpRequest>(streamId);
+});
 
 client::tasks::post(def,
     [](client::dto::TaskDef created) { /* success */ },
@@ -104,7 +120,7 @@ client::tasks::post(def,
 
 ## Error handling
 
-- `Runtime::getClient()` before `setClient()`: precondition violation → `std::abort()` (matches existing project convention, e.g. `IResponse`'s virtual defaults).
+- `Runtime::getClient()` before `setClient()`, or `newRequest()` before `setRequestFactory()`: precondition violation → `std::abort()` (matches existing project convention, e.g. `IResponse`'s virtual defaults).
 - Response deserialize failure: `onError` called with the decode error message, not `onResponse` with a default-constructed value.
 - Stray/untracked stream id on `dispatch()`: silent no-op, not an error.
 - `Generator::generate()` I/O or parse failure (bad JSON, unwritable output dir): returns `std::expected<void, std::string>` rather than throwing, matching `core::config::load`/`SharedLibrary::open_all`'s existing style.
@@ -113,5 +129,5 @@ client::tasks::post(def,
 
 - **Server-side schema change**: rebuild, run the app, `curl /openapi.json`, confirm `components.schemas.TaskDef` (etc.) exist and operations reference them via `$ref`. No regression in existing paths/methods (already covered by the prior session's verification).
 - **Generator**: run it against this server's own real `openapi.json` (dogfooding, no separate fixture needed), generate into a scratch dir, confirm the emitted `.cppm` files compile standalone.
-- **`Runtime`**: unit-style test with a fake `IClient` that synchronously echoes a canned response from `send()`; assert `Runtime::send<T>()`'s callback fires with the correctly deserialized value, keyed by the right stream id.
+- **`Runtime`**: unit-style test with a fake `IClient` (records the request it was given, synchronously invokes a stored dispatch callback with a canned response) and a request factory returning a minimal concrete test `IRequest` subclass (in-memory header/body storage, no real networking); assert `Runtime::send<T>()`'s callback fires with the correctly deserialized value, keyed by the right stream id.
 - **End-to-end** (optional/manual, not required for this spec to land): generate a client for the real engine API with `.sharedModels("model")`, run it against the live server from the earlier verification session. Flagged optional given network-sandbox flakiness hit earlier in this session.
