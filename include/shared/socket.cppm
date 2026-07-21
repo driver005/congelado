@@ -12,39 +12,39 @@ export namespace shared::socket {
 
 template <typename E>
 concept AsyncSocket =
-    requires(E &e) {
-        { e.run() } -> std::same_as<void>;
-        { e.stop() } -> std::same_as<void>;
-        { e.poll() } -> std::same_as<void>;
+    requires(E &engine) {
+        { engine.run() } -> std::same_as<void>;
+        { engine.stop() } -> std::same_as<void>;
+        { engine.poll() } -> std::same_as<void>;
     } &&
-    requires(E &e, leverage::CompletionCallback cb, leverage::IFlags iflags) {
-        { e.close(cb, iflags) } -> std::same_as<void>;
+    requires(E &engine, leverage::CompletionCallback callback, leverage::IFlags iflags) {
+        { engine.close(callback, iflags) } -> std::same_as<void>;
     } &&
-    requires(E &e, void *buf, const void *cbuf, unsigned nbytes, off_t offset, leverage::CompletionCallback cb,
+    requires(E &engine, void *buf, const void *cbuf, unsigned nbytes, off_t offset, leverage::CompletionCallback callback,
              leverage::IFlags iflags) {
-        { e.read(buf, nbytes, offset, cb, iflags) } -> std::same_as<void>;
-        { e.write(cbuf, nbytes, offset, cb, iflags) } -> std::same_as<void>;
+        { engine.read(buf, nbytes, offset, callback, iflags) } -> std::same_as<void>;
+        { engine.write(cbuf, nbytes, offset, callback, iflags) } -> std::same_as<void>;
     } &&
-    requires(E &e, sockaddr *addr, socklen_t *addrlen, int flags, leverage::CompletionCallback cb,
+    requires(E &engine, sockaddr *addr, socklen_t *addrlen, int flags, leverage::CompletionCallback callback,
              leverage::IFlags iflags) {
-        { e.accept(addr, addrlen, flags, cb, iflags) } -> std::same_as<void>;
-        { e.connect(addr, *addrlen, cb, iflags) } -> std::same_as<void>;
+        { engine.accept(addr, addrlen, flags, callback, iflags) } -> std::same_as<void>;
+        { engine.connect(addr, *addrlen, callback, iflags) } -> std::same_as<void>;
     } &&
-    requires(E &e, void *buf, const void *cbuf, unsigned nbytes, int flags, leverage::CompletionCallback cb,
+    requires(E &engine, void *buf, const void *cbuf, unsigned nbytes, int flags, leverage::CompletionCallback callback,
              leverage::IFlags iflags) {
-        { e.recv(buf, nbytes, flags, cb, iflags) } -> std::same_as<void>;
-        { e.send(cbuf, nbytes, flags, cb, iflags) } -> std::same_as<void>;
+        { engine.recv(buf, nbytes, flags, callback, iflags) } -> std::same_as<void>;
+        { engine.send(cbuf, nbytes, flags, callback, iflags) } -> std::same_as<void>;
     } &&
-    // requires(E &e, const char *path, int flags, mode_t mode, leverage::CompletionCallback cb, leverage::IFlags
+    // requires(E &engine, const char *path, int flags, mode_t mode, leverage::CompletionCallback callback, leverage::IFlags
     // iflags) {
-    //     { e.openat(path, flags, mode, cb, iflags) } -> std::same_as<void>;
-    //     { e.unlinkat(path, flags, cb, iflags) } -> std::same_as<void>;
+    //     { engine.openat(path, flags, mode, callback, iflags) } -> std::same_as<void>;
+    //     { engine.unlinkat(path, flags, callback, iflags) } -> std::same_as<void>;
     // } &&
-    requires(E &e, std::span<const int> fds, std::span<const iovec> iovecs) {
-        { e.register_files(fds) } -> std::same_as<void>;
-        { e.register_buffers(iovecs) } -> std::same_as<void>;
-        { e.unregister_files() } -> std::same_as<int>;
-        { e.unregister_buffers() } -> std::same_as<int>;
+    requires(E &engine, std::span<const int> fds, std::span<const iovec> iovecs) {
+        { engine.register_files(fds) } -> std::same_as<void>;
+        { engine.register_buffers(iovecs) } -> std::same_as<void>;
+        { engine.unregister_files() } -> std::same_as<int>;
+        { engine.unregister_buffers() } -> std::same_as<int>;
     };
 
 

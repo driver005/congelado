@@ -8,15 +8,15 @@ export namespace shared {
 //
 // constexpr std::string_view to_string(LogLevel level) {
 //     switch (level) {
-//     case LogLevel::Debug:
+//     case LogLevel::DEBUG:
 //         return "DEBUG";
-//     case LogLevel::Info:
+//     case LogLevel::INFO:
 //         return "INFO";
-//     case LogLevel::Warning:
+//     case LogLevel::WARNING:
 //         return "WARNING";
-//     case LogLevel::Error:
+//     case LogLevel::ERROR:
 //         return "ERROR";
-//     case LogLevel::Fatal:
+//     case LogLevel::FATAL:
 //         return "FATAL";
 //     }
 //     return "UNKNOWN";

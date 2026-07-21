@@ -27,6 +27,41 @@
 #ifndef CONGELADO_PLUGIN_USED
 #define CONGELADO_PLUGIN_USED
 
+/**
+ * @def CONGELADO_PLUGIN(T)
+ * @brief Drops a lazily-constructed `static T *s_plugin` and every `extern "C"` symbol the host
+ * dlsym's off a plugin `.so`, all wired straight to that one instance — this is the whole bridge
+ * from pure-C++ `congelado::Plugin` subclasses to the C ABI, no cap.
+ * @warning Exactly one invocation per translation unit (enforced by the
+ * `CONGELADO_PLUGIN_USED` guard above), and it cannot coexist with `CONGELADO_TASK` in the same
+ * TU — drop it once, at the bottom of your plugin `.cc`, after `T`'s definition. Mess up either
+ * rule and it's a straight compile-time L via the `#error`s guarding this block.
+ * @details Generated C symbols, each lazily constructing `s_plugin` on first touch if it isn't
+ * already up:
+ * - `congelado_plugin_name()` → `T::get_name()`
+ * - `congelado_plugin_version()` → `T::get_version()`
+ * - `congelado_capabilities()` → `T::capabilities()`
+ * - `congelado_init(host, cfg)` → constructs `s_plugin`, calls `T::on_load`; catches everything
+ *   and returns `-1` on any exception instead of letting it escape the ABI boundary
+ * - `congelado_type()` → `T::get_type()`
+ * - `congelado_worker_type()` → `T::get_worker_type()`
+ * - `congelado_worker_execute(input)` → `T::execute_worker(input)`; no-op `{}` if `s_plugin` was
+ *   never constructed
+ * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
+ * - `congelado_on_ready()` → `T::on_ready()`
+ * - `congelado_on_reload_requested()` → `T::on_reload_requested()` as `1`/`0`
+ * - `congelado_logger_write(level, msg, len)` / `congelado_logger_write_error(msg, len)` →
+ *   routed through `_cap_dispatch::logger_write`, a no-op if `T` never implements
+ *   `logger_write`
+ * - `congelado_protocol_get()` / `congelado_storage_get()` → routed through
+ *   `_cap_dispatch::protocol_get`/`storage_get`, `nullptr` if `T` doesn't implement them
+ * - `congelado_unique_type()` → `T::get_unique_type()`
+ * - `congelado_requires()` / `congelado_requires_count()` → caches `T::get_requires()` into a
+ *   static `const char*` array on first call
+ * - `congelado_load_before_types()` / `congelado_load_before_types_count()` → same caching deal
+ *   for `T::get_load_before_types()`
+ * @param T the `congelado::Plugin` subclass to bridge — must be default-constructible.
+ */
 #define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                                  \
     static T *s_plugin = nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */       \
     extern "C" const char *congelado_plugin_name() noexcept {                                            \

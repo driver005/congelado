@@ -102,6 +102,11 @@ Diagnostics:
       - "cppcoreguidelines-pro-bounds-pointer-arithmetic"
       # Overly pedantic about every implicit conversion
       - "cppcoreguidelines-narrowing-conversions"
+      # LLVM 22's dataflow-analysis framework segfaults (runTypeErasedDataflowAnalysis) on
+      # certain std::optional/std::variant-heavy code in this codebase (verified crash on
+      # core::plugin::HandleTable::map_get in include/core/manager/value.cppm) — a clang-tidy
+      # tool bug, not a code issue; disabled until upstream fixes the crash.
+      - "bugprone-unchecked-optional-access"
 
     CheckOptions:
       # Enforce consistent naming across the codebase

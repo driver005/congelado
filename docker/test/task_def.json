@@ -1,0 +1,16 @@
+{
+  "name": "echo-task",
+  "type": "SIMPLE",
+  "worker_type": "echo",
+  "input_keys": ["n"],
+  "output_keys": ["n"],
+  "retry": {
+    "max_attempts": 3,
+    "backoff": "FIXED",
+    "interval_ms": 1000
+  },
+  "timeout": {
+    "timeout_ms": 30000,
+    "action": "FAIL_WORKFLOW"
+  }
+}

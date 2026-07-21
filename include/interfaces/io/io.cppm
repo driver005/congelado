@@ -24,15 +24,15 @@ concept ReceiveOutput = std::indirectly_writable<T, std::byte>;
 // SYNC
 
 template <typename T, typename Status, typename... Args>
-concept SyncSendable = requires(const T sock, const std::byte *buf, std::size_t len, Args... args) {
-    { sock.sync_send(buf, len, args...) } -> std::same_as<std::pair<std::size_t, Status>>;
+concept SyncSendable = requires(const T SOCK, const std::byte *buf, std::size_t len, Args... args) {
+    { SOCK.sync_send(buf, len, args...) } -> std::same_as<std::pair<std::size_t, Status>>;
 };
 
 template <typename T, typename Status, typename Out, typename... Args>
 concept SyncReceivable = ReceiveOutput<Out> && requires(T sock, Out out, std::size_t len,
-                                                        const std::size_t offset, Args... args) {
+                                                        const std::size_t OFFSET, Args... args) {
     {
-        sock.sync_receive(out, len, offset, args...)
+        sock.sync_receive(out, len, OFFSET, args...)
     } -> std::same_as<std::pair<std::size_t, Status>>;
 };
 
@@ -67,14 +67,14 @@ concept IoSyncOps = SyncSendable<T, Status, Args...> && SyncReceivable<T, Status
 
 template <typename T, typename Status, typename... Args>
 concept AsyncSendable =
-    requires(T sock, const std::byte *buf, std::size_t len, IoCallback<Status> cb, Args... args) {
-        { sock.async_send(buf, len, std::move(cb), args...) } noexcept -> std::same_as<void>;
+    requires(T sock, const std::byte *buf, std::size_t len, IoCallback<Status> callback, Args... args) {
+        { sock.async_send(buf, len, std::move(callback), args...) } noexcept -> std::same_as<void>;
     };
 
 template <typename T, typename Status, typename Out, typename... Args>
 concept AsyncReceivable = ReceiveOutput<Out> && requires(T sock, Out out, std::size_t len,
-                                                         IoCallback<Status> cb, Args... args) {
-    { sock.async_receive(out, len, std::move(cb), args...) } noexcept -> std::same_as<void>;
+                                                         IoCallback<Status> callback, Args... args) {
+    { sock.async_receive(out, len, std::move(callback), args...) } noexcept -> std::same_as<void>;
 };
 
 template <typename T>

@@ -5,7 +5,7 @@ import std;
 export namespace io::error::http {
 
 // HTTP/2 Error Codes as defined in RFC 9113
-enum class Http2ErrorCode : std::uint32_t {
+enum class Http2ErrorCode : std::uint8_t {
     // The condition is not a result of an error; used for graceful shutdown [2].
     NO_ERROR_CODE = 0x00,
 
@@ -50,6 +50,8 @@ enum class Http2ErrorCode : std::uint32_t {
 };
 
 constexpr Http2ErrorCode get_http2_error_code(std::uint32_t code) {
+    // Straight roundtrip for every known RFC 9113 code — the switch just validates `code`
+    // actually maps to a real enumerator instead of blindly casting an arbitrary uint32.
     switch (code) {
     case std::to_underlying(Http2ErrorCode::NO_ERROR_CODE):
         return Http2ErrorCode::NO_ERROR_CODE;
@@ -88,33 +90,66 @@ constexpr Http2ErrorCode get_http2_error_code(std::uint32_t code) {
 // Base class for HTTP/2 protocol errors
 class Http2Exception : public std::runtime_error {
   public:
-    Http2Exception(Http2ErrorCode code, const std::string &msg) : std::runtime_error(msg), error_code(code) {}
-    Http2ErrorCode get_code() const { return error_code; }
+    /**
+     * @brief Builds an Http2Exception tagging the RFC 9113 error code onto a plain runtime_error
+     * message.
+     * @param code the HTTP/2 error code (RFC 9113 §7) this exception represents.
+     * @param msg human-readable description, forwarded straight to `std::runtime_error`.
+     */
+    Http2Exception(Http2ErrorCode code, const std::string &msg) : std::runtime_error(msg), m_error_code(code) {}
+    /**
+     * @brief Gets the RFC 9113 error code this exception carries.
+     * @return the HTTP/2 error code.
+     */
+    [[nodiscard]] Http2ErrorCode get_code() const { return m_error_code; }
 
   private:
-    Http2ErrorCode error_code;
+    Http2ErrorCode m_error_code;
 };
 
 // Represents a Stream Error (Section 5.4.2) [3]
 class StreamError : public Http2Exception {
   public:
+    /**
+     * @brief Builds a StreamError — a per-stream HTTP/2 failure (RFC 9113 §5.4.2), scoped to one
+     * stream instead of tanking the whole connection.
+     * @param stream_id the stream this error is scoped to.
+     * @param code the HTTP/2 error code for this failure.
+     * @param msg human-readable description.
+     */
     StreamError(std::uint32_t stream_id, Http2ErrorCode code, const std::string &msg)
         : Http2Exception(code, msg), m_stream_id{stream_id} {}
 
-    std::uint32_t get_stream_id() const { return m_stream_id; }
+    /**
+     * @brief Gets the stream id this error is scoped to.
+     * @return the affected stream's id.
+     */
+    [[nodiscard]] std::uint32_t get_stream_id() const { return m_stream_id; }
 
   private:
     std::uint32_t m_stream_id;
 };
 
-inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1u << 31) - 1; // 2147483647 (2^31 - 1)
+inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1U << 31) - 1; // 2147483647 (2^31 - 1)
 // Represents a Connection Error (Section 5.4.1) [2]
 class ConnectionError : public Http2Exception {
   public:
+    /**
+     * @brief Builds a ConnectionError — a connection-wide HTTP/2 failure (RFC 9113 §5.4.1), the
+     * whole session's cooked once one of these fires, not just a single stream.
+     * @param code the HTTP/2 error code for this failure.
+     * @param msg human-readable description.
+     * @param last_stream_id the highest stream id the sender processed before bailing, defaults
+     * to `MAX_CONNECTED_STREAMS` when the caller doesn't know or care.
+     */
     ConnectionError(Http2ErrorCode code, const std::string &msg, std::uint32_t last_stream_id = MAX_CONNECTED_STREAMS)
         : Http2Exception{code, msg}, m_last_stream_id{last_stream_id} {}
 
-    std::uint32_t get_last_stream_id() const { return m_last_stream_id; }
+    /**
+     * @brief Gets the last stream id the sender processed before the connection went down.
+     * @return the last processed stream id.
+     */
+    [[nodiscard]] std::uint32_t get_last_stream_id() const { return m_last_stream_id; }
 
   private:
     std::uint32_t m_last_stream_id;
@@ -123,17 +158,31 @@ class ConnectionError : public Http2Exception {
 // Base class for all HPACK decoding errors
 class DecodeError : public std::runtime_error {
   public:
-    explicit DecodeError(std::string msg) : std::runtime_error{std::move(msg)} {}
+    /**
+     * @brief Builds a bare DecodeError wrapping any HPACK decode failure message.
+     * @param msg the failure description, moved into the base `runtime_error`.
+     */
+    explicit DecodeError(const std::string &msg) : std::runtime_error{msg} {}
 };
 
 // Invalid index — index 0 or index beyond table size
 template <std::unsigned_integral UInt = std::uint32_t>
 class InvalidIndexError : public DecodeError {
   public:
+    /**
+     * @brief Builds an InvalidIndexError for an HPACK index that's either 0 or past the combined
+     * static+dynamic table size — lowkey just straight out of bounds, no valid header lives
+     * there.
+     * @param index the offending index.
+     */
     explicit InvalidIndexError(UInt index)
         : DecodeError{std::format("hpack: invalid index {}", index)}, m_index{index} {}
 
-    std::size_t index() const noexcept { return m_index; }
+    /**
+     * @brief Gets the out-of-range index that triggered this error.
+     * @return the offending index.
+     */
+    [[nodiscard]] std::size_t index() const noexcept { return m_index; }
 
   private:
     std::size_t m_index;
@@ -142,18 +191,36 @@ class InvalidIndexError : public DecodeError {
 // Empty header name in a literal representation
 class EmptyNameError : public DecodeError {
   public:
+    /**
+     * @brief Builds an EmptyNameError — fires when a literal header field representation shows up
+     * with a zero-length name, which HPACK doesn't allow.
+     */
     EmptyNameError() : DecodeError{"hpack: literal header field has empty name"} {}
 };
 
 // Dynamic table size update exceeds the acknowledged limit
 class TableSizeError : public DecodeError {
   public:
+    /**
+     * @brief Builds a TableSizeError — the peer tried to grow the HPACK dynamic table past the
+     * size limit both sides already agreed on. Straight L, that update's getting rejected.
+     * @param requested the table size the peer asked for.
+     * @param limit the acknowledged max size that got exceeded.
+     */
     TableSizeError(std::size_t requested, std::size_t limit)
         : DecodeError{std::format("hpack: table size update {} exceeds acknowledged limit {}", requested, limit)},
           m_requested{requested}, m_limit{limit} {}
 
-    std::size_t requested() const noexcept { return m_requested; }
-    std::size_t limit() const noexcept { return m_limit; }
+    /**
+     * @brief Gets the table size that was requested.
+     * @return the requested size.
+     */
+    [[nodiscard]] std::size_t requested() const noexcept { return m_requested; }
+    /**
+     * @brief Gets the acknowledged limit that got exceeded.
+     * @return the size limit.
+     */
+    [[nodiscard]] std::size_t limit() const noexcept { return m_limit; }
 
   private:
     std::size_t m_requested;
@@ -163,45 +230,82 @@ class TableSizeError : public DecodeError {
 // Unexpected end of header block
 class TruncatedDataError : public DecodeError {
   public:
+    /**
+     * @brief Builds a TruncatedDataError — the header block ran out of bytes mid-decode, cut off
+     * before a complete field could be read.
+     */
     TruncatedDataError() : DecodeError{"hpack: unexpected end of header block"} {}
 };
 
 // Huffman decoding failure
 class HuffmanDecodeError : public DecodeError {
   public:
-    explicit HuffmanDecodeError(std::string msg)
-        : DecodeError{std::format("hpack: huffman error — {}", std::move(msg))} {}
+    /**
+     * @brief Builds a HuffmanDecodeError wrapping a Huffman-specific decode failure.
+     * @param msg the failure description.
+     */
+    explicit HuffmanDecodeError(const std::string &msg)
+        : DecodeError{std::format("hpack: huffman error — {}", msg)} {}
 };
 
 // Integer overflow or malformed continuation
 class IntegerDecodeError : public DecodeError {
   public:
-    explicit IntegerDecodeError(std::string msg)
-        : DecodeError{std::format("hpack: integer decode error — {}", std::move(msg))} {}
+    /**
+     * @brief Builds an IntegerDecodeError — fires on HPACK varint overflow or a malformed
+     * continuation byte sequence, bet.
+     * @param msg the failure description.
+     */
+    explicit IntegerDecodeError(const std::string &msg)
+        : DecodeError{std::format("hpack: integer decode error — {}", msg)} {}
 };
 
 class StringDecodeError : public DecodeError {
   public:
-    explicit StringDecodeError(std::string msg)
-        : DecodeError{std::format("hpack: string decode error — {}", std::move(msg))} {}
+    /**
+     * @brief Builds a StringDecodeError wrapping a string-literal decode failure.
+     * @param msg the failure description.
+     */
+    explicit StringDecodeError(const std::string &msg)
+        : DecodeError{std::format("hpack: string decode error — {}", msg)} {}
 };
 
 
 class CompressionError : public std::runtime_error {
   public:
-    explicit CompressionError(std::string msg) : std::runtime_error{std::move(msg)} {}
+    /**
+     * @brief Builds a bare CompressionError wrapping any HPACK compression-context failure.
+     * @param msg the failure description, moved into the base `runtime_error`.
+     */
+    explicit CompressionError(const std::string &msg) : std::runtime_error{msg} {}
 };
 
 } // namespace io::error::http
 
 export template <>
 struct std::formatter<io::error::http::Http2ErrorCode> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief Parses the format spec for `Http2ErrorCode` — there isn't one, this thing only ever
+     * prints its name, so parsing is just handing back the untouched begin iterator.
+     * @param ctx the format parse context.
+     * @return iterator to the (unconsumed) start of the format spec.
+     */
+    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief Formats a `Http2ErrorCode` as its RFC 9113 name (e.g. `PROTOCOL_ERROR`), no cap
+     * falling back to `"UNKNOWN"` for anything that doesn't match a known enumerator.
+     * @tparam FormatContext the format context type, deduced by `std::format`.
+     * @param error_code the error code to format.
+     * @param ctx the format context to write into.
+     * @return output iterator past the written name.
+     */
     template <typename FormatContext>
-    auto format(io::error::http::Http2ErrorCode e, FormatContext &ctx) const {
+    auto format(io::error::http::Http2ErrorCode error_code, FormatContext &ctx) const {
         using enum io::error::http::Http2ErrorCode;
         std::string_view name;
-        switch (e) {
+        // Every enumerator maps to its own literal name; anything unmatched falls to "UNKNOWN"
+        // down in the default case below.
+        switch (error_code) {
         case NO_ERROR_CODE: {
             name = "NO_ERROR_CODE";
             break;

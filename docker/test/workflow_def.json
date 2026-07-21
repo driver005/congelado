@@ -1,0 +1,17 @@
+{
+  "name": "simple-workflow",
+  "version": 1,
+  "nodes": [
+    {
+      "task_def_name": "echo-task",
+      "edges": []
+    }
+  ],
+  "input_params": ["n"],
+  "output_mappings": [
+    {
+      "source": "echo-task",
+      "target": "n"
+    }
+  ]
+}

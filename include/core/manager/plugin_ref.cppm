@@ -1,13 +1,13 @@
 module;
 
-#include <congelado/abi.h>
 #include <any>
+#include <congelado/abi.h>
+#include <dlfcn.h>
+#include <filesystem>
 #include <memory>
+#include <span>
 #include <unordered_map>
 #include <vector>
-#include <span>
-#include <filesystem>
-#include <dlfcn.h>
 
 export module core_plugin:plugin_ref;
 
@@ -17,9 +17,34 @@ export namespace core::plugin::types {
 
 class PluginRef {
   public:
+    struct DlDeleter {
+        /**
+         * @brief Closes the dlopen handle it owns — the deleter for `unique_ptr<void, DlDeleter>`.
+         * @warning This is the only thing standing between a loaded plugin and a leaked
+         * `.so` mapping. Skip calling this (e.g. by leaking the unique_ptr) and the shared
+         * library never gets dlclose'd — no cap, that's a real handle leak.
+         * @param handle the raw dlopen handle to close; no-op if null.
+         */
+        void operator()(void *handle) const {
+            if (handle != nullptr) {
+                ::dlclose(handle);
+            }
+        }
+    };
+
+    /// @brief Default-constructs an empty PluginRef with no handle and no loaded symbols yet.
     PluginRef() = default;
-    PluginRef(std::unique_ptr<void, DlDeleter> handle, std::string file_path) {
-        m_handle = std::move(handle);
+    /**
+     * @brief Builds a PluginRef around an already-opened dlopen handle.
+     * @note Stashes `file_path` straight into `m_data["path"]` so it's available as a symbol
+     * lookup down the line — lowkey doubling `m_data` as both a symbol table and metadata bag.
+     * @param handle the owning dlopen handle (closed automatically via DlDeleter on destruction).
+     * @param file_path filesystem path the shared library was loaded from.
+     */
+    PluginRef(std::unique_ptr<void, DlDeleter> handle, std::string file_path)
+        : m_handle(std::move(handle)) {
+        // Take ownership of the dlopen handle, then stash the load path into
+        // m_data so it's reachable through the same symbol-lookup table later.
         m_data["path"] = std::move(file_path);
     }
 
@@ -34,66 +59,69 @@ class PluginRef {
     };
 
     struct SymbolInfo {
-        std::string_view name;
-        SymbolKind kind;
+        std::string_view m_name;
+        SymbolKind m_kind;
     };
 
     // ── Shared symbol list (ordering is significant for index-based lookups) ─
-    static constexpr SymbolInfo shared_symbols[] = {
-        {"congelado_init", SymbolKind::FUNCTION},              // index 0
-        {"congelado_type", SymbolKind::STRING_FN},             // index 1
-        {"congelado_on_unload", SymbolKind::FUNCTION},  // index 2
-        {"congelado_on_ready", SymbolKind::FUNCTION},   // index 3
+    static constexpr SymbolInfo SHARED_SYMBOLS[] = {
+        {.m_name = "congelado_init", .m_kind = SymbolKind::FUNCTION},      // index 0
+        {.m_name = "congelado_type", .m_kind = SymbolKind::STRING_FN},     // index 1
+        {.m_name = "congelado_on_unload", .m_kind = SymbolKind::FUNCTION}, // index 2
+        {.m_name = "congelado_on_ready", .m_kind = SymbolKind::FUNCTION},  // index 3
     };
 
-    // helper to return the name for a given position in the shared_symbols array
-    [[nodiscard]] static std::string_view shared_symbol_name(std::size_t idx) noexcept {
-        constexpr std::size_t N = sizeof(shared_symbols) / sizeof(shared_symbols[0]);
-        return idx < N ? shared_symbols[idx].name : std::string_view{};
+    // helper to return the name for a given position in the SHARED_SYMBOLS array
+    /**
+     * @brief Gets the symbol name at a given index in `SHARED_SYMBOLS`.
+     * @param symbol_index position into the `SHARED_SYMBOLS` array (see the index comments
+     * on each entry — 0 is `congelado_init`, 1 is `congelado_type`, and so on).
+     * @return the symbol name at that index, or an empty string_view if out of range — this
+     * never throws, an out-of-bounds index is just a W-less empty result, not a crash.
+     */
+    [[nodiscard]] static std::string_view shared_symbol_name(std::size_t symbol_index) noexcept {
+        constexpr std::size_t SYMBOL_COUNT = sizeof(SHARED_SYMBOLS) / sizeof(SHARED_SYMBOLS[0]);
+        return symbol_index < SYMBOL_COUNT
+                   ? SHARED_SYMBOLS[symbol_index].m_name
+                   : std::string_view{}; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                         // non-constant array index
     }
 
     // ── Plugin-specific symbol lists ─────────────────────────────────────
-    static constexpr SymbolInfo plugin_symbols[] = {
-        {"congelado_plugin_name", SymbolKind::STRING_FN},
-        {"congelado_plugin_version", SymbolKind::STRING_FN},
-        {"congelado_plugin_author", SymbolKind::STRING_FN},
-        {"congelado_plugin_description", SymbolKind::STRING_FN},
-        {"congelado_capabilities", SymbolKind::UINT32},
-        {"congelado_unique_type", SymbolKind::STRING_FN},
-        {"congelado_requires", SymbolKind::ARRAY},
-        {"congelado_load_before_types", SymbolKind::ARRAY},
-        {"congelado_logger_write", SymbolKind::FUNCTION},
-        {"congelado_logger_write_error", SymbolKind::FUNCTION},
-        {"congelado_protocol_get", SymbolKind::FUNCTION},
-        {"congelado_storage_get", SymbolKind::FUNCTION},
+    static constexpr SymbolInfo PLUGIN_SYMBOLS[] = {
+        {.m_name = "congelado_plugin_name", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_plugin_version", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_plugin_author", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_plugin_description", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_capabilities", .m_kind = SymbolKind::UINT32},
+        {.m_name = "congelado_unique_type", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_requires", .m_kind = SymbolKind::ARRAY},
+        {.m_name = "congelado_load_before_types", .m_kind = SymbolKind::ARRAY},
+        {.m_name = "congelado_logger_write", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_logger_write_error", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_protocol_get", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_storage_get", .m_kind = SymbolKind::FUNCTION},
     };
 
-    static constexpr SymbolInfo worker_symbols[] = {
-        {"congelado_worker_type", SymbolKind::STRING_FN},
-        {"congelado_worker_execute", SymbolKind::FUNCTION},
-        {"congelado_logger_write", SymbolKind::FUNCTION},
-        {"congelado_logger_write_error", SymbolKind::FUNCTION},
+    static constexpr SymbolInfo WORKER_SYMBOLS[] = {
+        {.m_name = "congelado_worker_type", .m_kind = SymbolKind::STRING_FN},
+        {.m_name = "congelado_worker_execute", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_logger_write", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_logger_write_error", .m_kind = SymbolKind::FUNCTION},
     };
 
     // ── Data members ────────────────────────────────────────────────────
-
-    struct DlDeleter {
-        void operator()(void *h) const {
-            if (h)
-                ::dlclose(h);
-        }
-    };
 
     std::unique_ptr<void, DlDeleter> m_handle;
     std::unordered_map<std::string, std::any> m_data;
 };
 
 
-[[nodiscard]] inline bool is_shared_lib(const std::filesystem::path &p) {
-    auto ext = p.extension().string();
-#if defined(_WIN32)
+[[nodiscard]] inline bool is_shared_lib(const std::filesystem::path &file_path) {
+    auto ext = file_path.extension().string();
+#ifdef _WIN32
     return ext == ".dll";
-#elif defined(__APPLE__)
+#elifdef __APPLE__
     return ext == ".dylib";
 #else
     return ext == ".so";

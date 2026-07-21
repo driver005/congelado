@@ -14,17 +14,45 @@ export namespace io::base::flow {
 template <::shared::HandlerController Controller, typename... Ts>
 class Flow {
   public:
+    /**
+     * @brief Builds a Flow bound to a leverager and controller — starts with an empty recipe
+     * tuple, nothing's actually instantiated until build() gets called.
+     * @param lev the leverager handed to every recipe when it's eventually invoked.
+     * @param ctrl the controller handed to every recipe when it's eventually invoked.
+     */
     Flow(leverage::Leverager<leverage::Context> &lev, Controller ctrl) : m_leverager(lev), m_controller(ctrl) {}
 
+    /**
+     * @brief Builder-chain add — queues up a new `T` recipe (constructed lazily at build() time)
+     * and returns a fresh `Flow` whose type pack now includes it. Bet: this doesn't mutate
+     * `*this`, it hands back a brand-new `Flow<Controller, Ts..., decltype(recipe)>` instead, so
+     * each `.add()` call in a chain changes the static type.
+     * @tparam T the flow component type to add, must satisfy `shared::FlowBase` for this
+     * Controller/Leverager pair.
+     * @tparam Args extra constructor args forwarded to `T`'s constructor at build() time.
+     * @param shared the read callback shared with the new component.
+     * @param args extra args forwarded straight through to `T`'s constructor.
+     * @return a new `Flow` with the recipe for `T` appended to its type pack.
+     */
     template <typename T, typename... Args>
         requires ::shared::FlowBase<T, Controller, leverage::Leverager<leverage::Context>>
     auto add(::shared::ReadCallback shared, Args... args) {
+        // Stash a lazy recipe — nothing gets built yet, just captures what's needed to build `T`
+        // once the leverager/controller are actually available.
         auto recipe = [=](auto &lev, auto &ctrl) { return T{shared, lev, ctrl, args...}; };
+        // Hand back a new Flow whose recipe tuple grows by one — the old *this stays untouched.
         return Flow<Controller, Ts..., decltype(recipe)>{m_leverager, m_controller,
                                                          std::tuple_cat(m_recipes, std::make_tuple(recipe))};
     }
 
     // Build: Triggers instantiation
+    /**
+     * @brief Actually instantiates every queued recipe, in order, against the stored leverager
+     * and controller — this is where all that lazy `.add()` chaining finally turns into real
+     * objects. No cap, this is the whole payoff of the builder pattern up top.
+     * @return a tuple holding one constructed instance per queued component, same order they
+     * were added in.
+     */
     auto build() {
         return std::apply([&](auto &...recipes) { return std::make_tuple(recipes(m_leverager, m_controller)...); },
                           m_recipes);
@@ -32,10 +60,18 @@ class Flow {
 
   private:
     // Private constructor for internal builder transitions
+    /**
+     * @brief Internal ctor used by add() to hand back a new Flow carrying the previous recipes
+     * plus the freshly appended one — lowkey just plumbing, not meant to be called directly
+     * outside the builder chain.
+     * @param lev the leverager to carry forward.
+     * @param ctrl the controller to carry forward.
+     * @param recipes the concatenated recipe tuple (previous recipes + the new one).
+     */
     Flow(leverage::Leverager<leverage::Context> &lev, Controller ctrl, auto recipes)
         : m_leverager(lev), m_controller(ctrl), m_recipes(recipes) {}
 
-    leverage::Leverager<leverage::Context> &m_leverager;
+    leverage::Leverager<leverage::Context> &m_leverager;  // FIXME(clang-tidy): cppcoreguidelines-avoid-const-or-ref-data-members — switching to a pointer would change nullability/rebinding semantics across the builder chain (add()/build()); not a mechanical fix
     Controller m_controller;
     std::tuple<Ts...> m_recipes = std::make_tuple();
 };

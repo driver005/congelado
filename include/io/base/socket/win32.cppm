@@ -30,13 +30,16 @@ inline const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
         struct sockaddr_in6 sai6;
     } addr;
     int res;
+    // zero the whole union first so whichever member we don't touch below stays clean
     memset(&addr, 0, sizeof(addr));
     addr.sa.sa_family = (unsigned short)af;
+    // copy the raw address bytes into the right union member depending on v4 vs v6
     if (af == AF_INET6) {
         memcpy(&addr.sai6.sin6_addr, src, sizeof(addr.sai6.sin6_addr));
     } else {
         memcpy(&addr.sai.sin_addr, src, sizeof(addr.sai.sin_addr));
     }
+    // let WinSock cook — it does the actual address-to-string formatting, no native inet_ntop here
     res = WSAAddressToStringA(&addr.sa, sizeof(addr), 0, dst, reinterpret_cast<LPDWORD>(&size));
     if (res != 0)
         return NULL;
@@ -70,6 +73,8 @@ struct WSA : std::enable_shared_from_this<WSA> {
 
     /// Startup
     WSA() : wsa_data{} {
+        // fire off WSAStartup once — a non-zero status means the whole Windows Socket API
+        // is unusable, so translate the code into something readable before panicking
         if (const auto status = WSAStartup(MAKEWORD(2, 2), &wsa_data); status != 0) {
             std::string error_message;
             switch (
@@ -101,6 +106,7 @@ struct WSA : std::enable_shared_from_this<WSA> {
 
             error::handle_error(error_message);
         }
+        // debug-only trace, compiled away entirely when DEBUG is false
         if constexpr (DEBUG) {
             std::cerr << "Initialized Windows Socket API\n";
         }
@@ -108,6 +114,7 @@ struct WSA : std::enable_shared_from_this<WSA> {
 
     /// Cleanup
     ~WSA() {
+        // release WinSock and clear the global raw pointer so getWSA() knows to recreate it
         WSACleanup();
         internal_state::global_WSA = nullptr;
         if constexpr (DEBUG) {
@@ -140,12 +147,23 @@ class OsPayload {
     std::shared_ptr<win32_specific::WSA> wsa_ptr;
 
   public:
+    /**
+     * @brief Grabs (or lazily creates) the process-wide WSA singleton via `getWSA()` — bet, the
+     * whole point of this class is being a `[[no_unique_address]]` member that keeps WinSock
+     * alive for as long as at least one socket referencing it is around. On posix this type is
+     * just an empty `std::monostate`, so this ctor only exists on win32.
+     */
     OsPayload() : wsa_ptr{win32_specific::getWSA()} {}
 
+    /** @brief Move ctor — defaulted, just moves the shared_ptr ref to the WSA singleton. */
     OsPayload(OsPayload &&) noexcept = default;
+    /** @brief Move assignment — defaulted, mirrors the move ctor. */
     OsPayload &operator=(OsPayload &&) noexcept = default;
 
+    /** @brief Deleted — copying would be harmless (it's just a shared_ptr bump) but there's lowkey
+     * no use case for it here, sockets move, they don't get duplicated payloads. */
     OsPayload(const OsPayload &) = delete;
+    /** @brief Deleted — mirrors the copy ctor. */
     OsPayload &operator=(const OsPayload &) = delete;
 };
 
@@ -167,6 +185,7 @@ inline int get_error_code() {
 }
 
 inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
+    // FIONBIO takes a u_long in/out mode flag rather than a bitmask like posix's O_NONBLOCK
     u_long mode = non_blocking ? 1 : 0;
     if (ioctlsocket(socket, FIONBIO, &mode) < 0) {
         error::handle_error("Failed to set socket non-blocking");

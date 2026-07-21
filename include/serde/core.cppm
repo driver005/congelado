@@ -13,20 +13,44 @@ export namespace serde {
 
 template <std::size_t N>
 struct StringLiteral {
-    consteval StringLiteral(const char (&str)[N]) noexcept {
-        std::copy_n(str, N, value);
+    /**
+     * @brief Copies a string literal's characters (including the trailing NUL) into `value`
+     * at compile time — this is the whole trick that lets a literal ride along as a
+     * template parameter, no cap.
+     * @param source the string literal being wrapped, e.g. `"application/json"`.
+     */
+    consteval StringLiteral(const char (&source)[N]) noexcept {
+        std::copy_n(source, N, m_value);
     }
-    char value[N];
+    char m_value[N]{};
 
+    /**
+     * @brief Gets a view over the literal, trailing NUL excluded.
+     * @return a `string_view` of length `N - 1` over `m_value`.
+     */
     [[nodiscard]] constexpr std::string_view string_view() const noexcept {
-        return {value, N - 1};
+        return {m_value, N - 1};
     }
 
+    /**
+     * @brief Compares two StringLiterals for equality, char by char — different lengths are
+     * an instant false, same length falls through to a straight scan.
+     * @tparam M the other StringLiteral's length (including its trailing NUL).
+     * @param other the StringLiteral being compared against.
+     * @return true if both literals hold the same characters.
+     */
     template <std::size_t M>
     [[nodiscard]] constexpr bool operator==(const StringLiteral<M> &other) const noexcept {
-        if constexpr (N != M) return false;
-        for (std::size_t i = 0; i < N; ++i)
-            if (value[i] != other.value[i]) return false;
+        // Different lengths can never be equal — bail before touching a single char.
+        if constexpr (N != M) {
+            return false;
+        }
+        // Same length, so straight scan char by char, first mismatch is an instant false.
+        for (std::size_t index = 0; index < N; ++index) {
+            if (m_value[index] != other.m_value[index]) {
+                return false;
+            }
+        }
         return true;
     }
 };
@@ -52,40 +76,72 @@ struct MFPTraits<R (C::*)() const noexcept> {
 
 class FieldOptionsDb {
   public:
-    bool             primary_key = false;
-    bool             unique      = false;
-    bool             nullable    = true;
-    bool             skip_insert = false;
-    bool             skip_update = false;
-    const char *ref_table  = nullptr;
-    const char *ref_column = nullptr;
+    bool             m_primary_key = false;
+    bool             m_unique      = false;
+    bool             m_nullable    = true;
+    bool             m_skip_insert = false;
+    bool             m_skip_update = false;
+    const char *m_ref_table  = nullptr;
+    const char *m_ref_column = nullptr;
 
-    static constexpr FieldOptionsDb init() { return {}; }
+    /// @brief Builds a default-initialized FieldOptionsDb — the fluent-chain starting point.
+    /// @return a fresh FieldOptionsDb with every flag at its default (nullable, no PK/unique).
+    [[nodiscard]] static constexpr FieldOptionsDb init() { return {}; }
 
-    constexpr FieldOptionsDb pk() const {
+    /**
+     * @brief Returns a copy with `m_primary_key` flipped on — chain this on `init()` to mark
+     * a column as the table's PK, bet.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptionsDb pk() const {
         auto opt = *this;
-        opt.primary_key = true;
+        opt.m_primary_key = true;
         return opt;
     }
-    constexpr FieldOptionsDb not_null() const {
+    /**
+     * @brief Returns a copy with `m_nullable` flipped off.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptionsDb not_null() const {
         auto opt = *this;
-        opt.nullable = false;
+        opt.m_nullable = false;
         return opt;
     }
-    constexpr FieldOptionsDb no_insert() const {
+    /**
+     * @brief Returns a copy with `m_skip_insert` flipped on, so Sql::build_insert_sql /
+     * build_insert_many_sql leave this column out of generated INSERTs.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptionsDb no_insert() const {
         auto opt = *this;
-        opt.skip_insert = true;
+        opt.m_skip_insert = true;
         return opt;
     }
-    constexpr FieldOptionsDb no_update() const {
+    /**
+     * @brief Returns a copy with `m_skip_update` flipped on, so Sql::build_update_sql leaves
+     * this column out of generated UPDATE SET clauses.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptionsDb no_update() const {
         auto opt = *this;
-        opt.skip_update = true;
+        opt.m_skip_update = true;
         return opt;
     }
-    constexpr FieldOptionsDb references(const char *tbl, const char *col) const {
+    /**
+     * @brief Returns a copy with a foreign-key reference attached, rendered as
+     * `REFERENCES table(column)` by Sql::build_create_sql.
+     * @param table_name the referenced table's name.
+     * @param column_name the referenced column's name.
+     * @warning Both pointers are stashed raw, no copy made — pass string literals (as every
+     * call site does) or `table_name`/`column_name` must outlive every FieldOptionsDb copied
+     * from this one. Pass a temporary `std::string::c_str()` and it's a dangling-pointer L
+     * waiting to happen.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptionsDb references(const char *table_name, const char *column_name) const {
         auto opt = *this;
-        opt.ref_table = tbl;
-        opt.ref_column = col;
+        opt.m_ref_table = table_name;
+        opt.m_ref_column = column_name;
         return opt;
     }
 };
@@ -94,13 +150,21 @@ class FieldOptionsDb {
 
 class FieldOptions {
   public:
-    FieldOptionsDb db{};
+    FieldOptionsDb m_db{};
 
-    static constexpr FieldOptions init() { return {}; }
+    /// @brief Builds a default-initialized FieldOptions — the fluent-chain starting point.
+    /// @return a fresh FieldOptions with a default-constructed `m_db` block.
+    [[nodiscard]] static constexpr FieldOptions init() { return {}; }
 
-    constexpr FieldOptions with_db(FieldOptionsDb dbo) const {
+    /**
+     * @brief Returns a copy with `m_db` swapped in — this is how FieldDesc's `Opts` template
+     * param picks up its DB-column metadata (PK, nullability, FK, etc).
+     * @param db_options the FieldOptionsDb to attach.
+     * @return the modified copy; the original is untouched.
+     */
+    [[nodiscard]] constexpr FieldOptions with_db(FieldOptionsDb db_options) const {
         auto opt = *this;
-        opt.db = dbo;
+        opt.m_db = db_options;
         return opt;
     }
 };
@@ -110,12 +174,16 @@ class FieldOptions {
 template <rfl::internal::StringLiteral Name, auto Getter, auto Setter,
           FieldOptions Opts = FieldOptions{}>
 struct FieldDesc {
-    static constexpr auto         name    = Name;
-    static constexpr auto         getter  = Getter;
-    static constexpr auto         setter  = Setter;
-    static constexpr FieldOptions options = Opts;
-    using ClassType = typename MFPTraits<decltype(Getter)>::class_t;
-    using ValueType = typename MFPTraits<decltype(Getter)>::value_t;
+    // FIXME(clang-tidy): readability-identifier-naming — name/getter/setter/options have
+    // external callers across 20+ files (e.g. include/model/**, include/serde/sql.cppm,
+    // include/serde/cache.cppm, sdk/client/**, plugins/engine/handler/**); rename needs a
+    // repo-wide sweep.
+    static constexpr auto         name    = Name;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr auto         getter  = Getter;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr auto         setter  = Setter;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr FieldOptions options = Opts;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
+    using ClassType = MFPTraits<decltype(Getter)>::class_t;
+    using ValueType = MFPTraits<decltype(Getter)>::value_t;
 };
 
 // ─── Serializable<T> + concepts ───────────────────────────────────────────────
@@ -155,11 +223,11 @@ concept IFormat =
 template <typename F, typename T>
 concept ICacheHelper =
     IConnectable<T> &&
-    requires(const T &value, std::string_view pk) {
-        { F::pk_string(value)          } -> std::same_as<std::string>;
-        { F::cache_key(value)          } -> std::same_as<std::string>;
-        { F::template cache_key<T>(pk) } -> std::same_as<std::string>;
-        { F::cache_value(value)        } -> std::same_as<std::string>;
+    requires(const T &value, std::string_view pk_value) {
+        { F::pk_string(value)                } -> std::same_as<std::string>;
+        { F::cache_key(value)                } -> std::same_as<std::string>;
+        { F::template cache_key<T>(pk_value) } -> std::same_as<std::string>;
+        { F::cache_value(value)              } -> std::same_as<std::string>;
     };
 
 template <typename F, typename T>

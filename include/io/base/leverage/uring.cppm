@@ -4,9 +4,13 @@ module;
 
 export module io_base_leverage:uring;
 
+import std;
+
 export namespace liburing {
 
-inline constexpr int enomem = ENOMEM;
+// FIXME(clang-tidy): readability-identifier-naming — 'enomem' can't be uppercased to 'ENOMEM',
+// that would collide with the <errno.h> macro of the same name.
+inline constexpr int enomem = ENOMEM;  // NOLINT(readability-identifier-naming) — ENOMEM is an errno.h macro, can't rename to match
 inline constexpr int OP_SYNC_FILE_RANGE = IORING_OP_SYNC_FILE_RANGE;
 inline constexpr int OP_READ = IORING_OP_READ;
 inline constexpr int OP_WRITE = IORING_OP_WRITE;
@@ -66,10 +70,14 @@ using ::io_uring_unregister_files;
 using ::io_uring_wait_cqe;
 
 template <typename Func>
-void for_each_cqe(io_uring *ring, Func &&func) {
-    io_uring_cqe *cqe;
-    unsigned head;
+void for_each_cqe(io_uring *ring, Func &&func) {  // NOLINT(cppcoreguidelines-missing-std-forward) — func is called once per cqe in a loop; forwarding it would use-after-move on the second call
+    io_uring_cqe *cqe = nullptr;
+    unsigned head = 0;
 
+    // walk every cqe that's currently ready on the ring and hand each one off to func — head
+    // is just the macro's internal iterator slot, nothing callers need to touch. func is
+    // invoked once per cqe, so it must be called as an lvalue each time rather than forwarded
+    // (forwarding a forwarding-reference repeatedly in a loop is a genuine use-after-move risk).
     io_uring_for_each_cqe(ring, head, cqe) { func(cqe); }
 }
 

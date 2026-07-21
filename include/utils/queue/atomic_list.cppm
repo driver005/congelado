@@ -8,10 +8,27 @@ import consts;
 
 export class AtomicList {
   public:
+    /**
+     * @brief Lock-free pop off the freelist — this is the whole ABA-proofing trick from
+     * moodycamel's concurrentqueue: bump a node's refcount before trying to unlink it, so if
+     * another thread wins the race to reclaim/re-add that same node in between, this thread's
+     * still holding a live reference and can safely back out instead of touching freed memory.
+     * @warning Not a simple CAS loop, don't skim it like one. Every failed attempt has to walk
+     * back through fetch_sub-ing the refcount it optimistically bumped, and if that fetch_sub
+     * reveals it was the last ref *and* the should-be-on-list bit says so, it re-adds the node
+     * itself via add_internal() before looping again. Miss that path in a refactor and nodes
+     * silently stop making it back onto the list — a leak that only shows up under real
+     * contention, not exactly a fun one to chase down.
+     * @return a node pulled off the freelist, or nullptr if the list was empty.
+     */
     Node *try_get() noexcept {
-        auto head = m_head.load(std::memory_order_acquire);
+        auto *head = m_head.load(std::memory_order_acquire);
         while (head != nullptr) {
-            auto prevHead = head;
+            auto *prev_head = head;
+            // Try to bump the observed head's refcount before touching anything else, lowkey the
+            // whole ABA-proofing trick — a zero-refcount head means it's already being reclaimed
+            // elsewhere, and a failed CAS means someone else raced us to it. Either way, reload
+            // and try again instead of pressing on with a node we don't safely own yet.
             auto refs = head->m_refs.load(std::memory_order_relaxed);
             if ((refs & REFS_MASK) == 0 ||
                 !head->m_refs.compare_exchange_strong(refs, refs + 1, std::memory_order_acquire)) {
@@ -23,7 +40,7 @@ export class AtomicList {
 
             // Good, reference count has been incremented (it wasn't at zero), which means we can read the
             // next and not worry about it changing between now and the time we do the CAS
-            auto next = head->m_next.load(std::memory_order_relaxed);
+            auto *next = head->m_next.load(std::memory_order_relaxed);
             if (m_head.compare_exchange_strong(head, next, std::memory_order_acquire, std::memory_order_relaxed)) {
                 // Yay, got the node. This means it was on the list, which means shouldBeOnAtomicList must be false no
                 // matter the refcount (because nobody else knows it's been taken off yet, it can't have been put back
@@ -36,16 +53,23 @@ export class AtomicList {
             // OK, the head must have changed on us, but we still need to decrease the refcount we increased.
             // Note that we don't need to release any memory effects, but we do need to ensure that the reference
             // count decrement happens-after the CAS on the head.
-            refs = prevHead->m_refs.fetch_sub(1, std::memory_order_acq_rel);
+            refs = prev_head->m_refs.fetch_sub(1, std::memory_order_acq_rel);
             if (refs == SHOULD_BE_ON_LIST + 1) {
                 // assert(refs == SHOULD_BE_ON_LIST + 1);
-                add_internal(prevHead);
+                add_internal(prev_head);
             }
         }
 
         return nullptr;
     }
 
+    /**
+     * @brief Marks `node` as wanting to be back on the freelist and, if this call turns out to be
+     * the last reference standing, actually pushes it on via add_internal(). If someone else is
+     * still holding a ref, they're the one who'll add it once they drop theirs — no double-add,
+     * no cap.
+     * @param node the node to return to the freelist.
+     */
     void add(Node *node) noexcept {
         // We know that the should-be-on-freelist bit is 0 at this point, so it's safe to
         // set it using a fetch_add
@@ -57,12 +81,28 @@ export class AtomicList {
         }
     }
 
-    Node *get_head() const noexcept { return m_head.load(std::memory_order_relaxed); }
+    /**
+     * @brief Peeks the current head without taking a reference or removing anything.
+     * @warning Relaxed load, no synchronization — the pointer you get back can be immediately
+     * stale if another thread pops it concurrently. Fine for a rough peek, not fine to treat as
+     * "the node I now own." Straight vibes-based, no ownership guarantee attached.
+     * @return the current head node, or nullptr if the list is empty.
+     */
+    [[nodiscard]] Node *get_head() const noexcept { return m_head.load(std::memory_order_relaxed); }
 
   private:
+    /**
+     * @brief The actual freelist push — CAS-loops `node` onto the head, and if it loses the race,
+     * retries by walking the refcount back down until it's safe to try again. Straightforward
+     * CAS-retry motion once you see past the refcount bookkeeping.
+     * @param node the node to push, must already have its should-be-on-list bit set by the
+     * caller.
+     */
     void add_internal(Node *node) noexcept {
-        auto head = m_head.load(std::memory_order_relaxed);
+        auto *head = m_head.load(std::memory_order_relaxed);
         while (true) {
+            // Stage `node` in front of the last-observed head and reset its refcount to 1 (just
+            // the list's own ownership) before attempting the CAS that actually splices it in.
             node->m_next.store(head, std::memory_order_relaxed);
             node->m_refs.store(1, std::memory_order_release);
             if (!m_head.compare_exchange_strong(head, node, std::memory_order_release, std::memory_order_relaxed)) {

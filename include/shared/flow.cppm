@@ -16,8 +16,8 @@ using QueryReadFn = std::move_only_function<void(std::string_view)>;
 template <typename T>
 concept FlowLayer = requires(SendCallback send, CloseCallback close) {
     { T(send, close) };
-} && requires(T t) {
-    { t.on_read() } -> std::convertible_to<ReadCallback>;
+} && requires(T instance) {
+    { instance.on_read() } -> std::convertible_to<ReadCallback>;
 };
 
 
@@ -25,8 +25,8 @@ template <typename T, typename Controller, typename Leverager>
 concept FlowBase = HandlerController<Controller> &&
                    requires(ReadCallback &&on_read, Leverager &leverager, Controller controller) {
                        T{std::move(on_read), leverager, controller};
-                   } && requires(T t, int fd) {
-                       { t.on_send(fd) } -> std::convertible_to<SendCallback>;
+                   } && requires(T instance, int descriptor) {
+                       { instance.on_send(descriptor) } -> std::convertible_to<SendCallback>;
                    };
 
 } // namespace shared
