@@ -1,0 +1,11 @@
+# Congelado Worker Configuration
+# Used by the worker Docker container to connect to the engine server
+
+engine_host = "server"
+engine_port = 8080
+worker_id = "docker-worker-1"
+concurrency = 2
+
+# TLS — empty strings disable TLS verification for Docker internal network
+engine_cert = ""
+engine_key = ""

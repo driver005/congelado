@@ -13,28 +13,58 @@ class SearchResult {
     static constexpr std::size_t NPOS = std::numeric_limits<std::size_t>::max();
 
     // Default constructor (initializes to NPOS)
+    /** @brief Builds a "not found" result by default — `m_value` starts at NPOS, no motion. */
     constexpr SearchResult() noexcept : m_value(NPOS) {}
 
     // Main constructor to replace sr_make
+    /**
+     * @brief Packs an index plus static/full-match flags into one word — two high bits stolen
+     * for flags, the rest is the index. This is the whole encoding scheme for the type.
+     * @param idx the table index this result points at.
+     * @param is_static true if the entry lives in the static table, false (default) for dynamic.
+     * @param is_full true if it's a full name+value match, false (default) for name-only.
+     */
     constexpr SearchResult(std::size_t idx, bool is_static = false, bool is_full = false) noexcept
         : m_value((is_static ? STATIC_BIT : 0) | (is_full ? FULL_BIT : 0) | (idx & INDEX_MASK)) {}
 
     // Static helper for "Not Found"
+    /** @brief Gets a "not found" result. @return a SearchResult equivalent to the default ctor. */
     static constexpr SearchResult none() noexcept { return {}; }
 
     // Status checks
+    /**
+     * @brief Checks whether this result represents an actual hit.
+     * @return true unless `m_value` is NPOS.
+     */
     [[nodiscard]] constexpr bool found() const noexcept { return m_value != NPOS; }
+    /**
+     * @brief Checks the static-table flag.
+     * @return true if this is a found result pointing into the static table.
+     */
     [[nodiscard]] constexpr bool is_static() const noexcept {
         return ((m_value & STATIC_BIT) != 0U) && m_value != NPOS;
     }
+    /**
+     * @brief Checks the full-match flag.
+     * @return true if this is a found result representing a full name+value match, as opposed to
+     * name-only.
+     */
     [[nodiscard]] constexpr bool is_full_match() const noexcept {
         return ((m_value & FULL_BIT) != 0U) && m_value != NPOS;
     }
 
     // Data retrieval
+    /**
+     * @brief Gets the packed table index, flag bits masked off.
+     * @warning No `found()` check here — call this on a not-found result and you get whatever
+     * `NPOS & INDEX_MASK` happens to be, not a sentinel that screams "invalid." Check found()
+     * first, don't trust index() alone.
+     * @return the table index.
+     */
     [[nodiscard]] constexpr std::size_t index() const noexcept { return m_value & INDEX_MASK; }
 
     // Optional: Implicit conversion to bool for easy "if (result)" checks
+    /** @brief Explicit bool conversion for `if (result)` checks. @return same as found(). */
     constexpr explicit operator bool() const noexcept { return found(); }
 
   private:
@@ -49,14 +79,46 @@ class SearchResult {
 template <std::unsigned_integral UInt = std::uint32_t>
 class DecodeIntResult {
   public:
+    /**
+     * @brief Bundles a decoded integer with the prefix metadata bits and byte count that came
+     * along with it — everything Atom::decode_int()/DecodeIntAdaptor need to hand back in one
+     * shot.
+     * @param value the decoded integer.
+     * @param prefix_bits the bits sitting before the integer prefix in the first octet
+     * (representation-type flags); only meaningful when `PrefixOffset > 0` was used to decode.
+     * @param consumed how many bytes the decode consumed; defaults to 0 for callers (like
+     * Atom::decode_int()) that track position externally instead.
+     */
     DecodeIntResult(UInt value, std::uint8_t prefix_bits, std::size_t consumed = 0)
         : m_value{value}, m_prefix_bits{prefix_bits}, m_consumed{consumed} {}
 
+    /** @brief Trivial dtor — nothing owned here beyond plain value types. */
     ~DecodeIntResult() = default;
+    /** @brief Trivially copyable — plain value types only. */
+    DecodeIntResult(const DecodeIntResult &) = default;
+    /** @brief Trivially copyable — plain value types only. */
+    DecodeIntResult &operator=(const DecodeIntResult &) = default;
+    /** @brief Trivially movable — plain value types only. */
+    DecodeIntResult(DecodeIntResult &&) noexcept = default;
+    /** @brief Trivially movable — plain value types only. */
+    DecodeIntResult &operator=(DecodeIntResult &&) noexcept = default;
 
-    constexpr UInt value() const noexcept { return m_value; }
+    /** @brief Gets the decoded integer value. @return the value. */
+    [[nodiscard]] constexpr UInt value() const noexcept { return m_value; }
+    /**
+     * @brief Gets how many bytes the decode consumed.
+     * @return byte count, or 0 if the caller tracks position itself.
+     */
     [[nodiscard]] constexpr std::size_t consumed() const noexcept { return m_consumed; }
+    /**
+     * @brief Checks the "never indexed" bit (HPACK §6.2.3 literal representation flag).
+     * @return true if that bit's set.
+     */
     [[nodiscard]] constexpr bool is_never_indexed() const noexcept { return (m_prefix_bits & 0x02) != 0; }
+    /**
+     * @brief Checks the "static table" bit in the prefix metadata.
+     * @return true if that bit's set.
+     */
     [[nodiscard]] constexpr bool is_static() const noexcept { return (m_prefix_bits & 0x01) != 0; }
 
   private:
@@ -118,6 +180,9 @@ enum class PrefixHelper : std::uint8_t {
 };
 
 [[nodiscard]] PrefixHelper detect_representation_hpack(std::uint8_t byte) {
+    // Most-specific mask first (bit 7 alone), down to least-specific (bits 7-4) — matches the
+    // priority order laid out in the comment block above, otherwise a byte with multiple high
+    // bits set would mis-classify against a looser mask.
     if ((byte & std::to_underlying(PrefixHelper::HPACK_INDEXED_FIELD)) != 0) {
         return PrefixHelper::HPACK_INDEXED_FIELD;
     }
@@ -130,10 +195,13 @@ enum class PrefixHelper : std::uint8_t {
     if ((byte & std::to_underlying(PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)) != 0) {
         return PrefixHelper::HPACK_LITERAL_NEVER_INDEXED;
     }
+    // Nothing else matched — the 0000xxxx pattern by elimination.
     return PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING;
 }
 
 [[nodiscard]] PrefixHelper detect_representation_qpack_stream(std::uint8_t byte) {
+    // Same most-specific-first priority order as the HPACK detector, just against the QPACK
+    // request-stream representation set.
     if ((byte & std::to_underlying(PrefixHelper::QPACK_INDEXED_FIELD)) != 0) {
         return PrefixHelper::QPACK_INDEXED_FIELD;
     }
@@ -150,10 +218,13 @@ enum class PrefixHelper : std::uint8_t {
         return PrefixHelper::QPACK_POST_BASE_INDEXED_NAME;
     }
 
+    // Nothing matched at all — unlike the HPACK version there's no catch-all bucket here, so an
+    // unrecognized pattern is treated as hostile/malformed input.
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 
 [[nodiscard]] PrefixHelper detect_representation_qpack_encoder(std::uint8_t byte) {
+    // Priority-ordered mask checks for the QPACK encoder-stream instruction set.
     if ((byte & std::to_underlying(PrefixHelper::QPACK_INSERT_LITERAL_NAME)) != 0) {
         return PrefixHelper::QPACK_INSERT_LITERAL_NAME;
     }
@@ -167,10 +238,12 @@ enum class PrefixHelper : std::uint8_t {
         return PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE;
     }
 
+    // No pattern matched — malformed/hostile input on the wire, hard failure.
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 
 [[nodiscard]] PrefixHelper detect_representation_qpack_decoder(std::uint8_t byte) {
+    // Priority-ordered mask checks for the QPACK decoder-stream instruction set.
     if ((byte & std::to_underlying(PrefixHelper::QPACK_DEC_ACK)) != 0) {
         return PrefixHelper::QPACK_DEC_ACK;
     }
@@ -181,6 +254,7 @@ enum class PrefixHelper : std::uint8_t {
         return PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT;
     }
 
+    // No pattern matched — malformed/hostile input on the wire, hard failure.
     throw error::http::DecodeError("Invalid first byte for HPACK representation");
 }
 

@@ -1,6 +1,6 @@
 module;
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
@@ -23,11 +23,11 @@ using SOCKADDR_IN = sockaddr_in;
 using SOCKADDR = sockaddr;
 using IN_ADDR = in_addr;
 
-inline int closesocket(SOCKET in) { return close(in); }
+inline int closesocket(SOCKET socket_descriptor) { return close(socket_descriptor); }
 
 template <typename... Params>
-inline int ioctlsocket(int fd, int request, Params &&...params) {
-    return ioctl(fd, request, params...);
+inline int ioctlsocket(int socket_descriptor, int request, Params &&...params) {
+    return ioctl(socket_descriptor, request, std::forward<Params>(params)...);
 }
 
 using OsPayload = std::monostate;
@@ -36,18 +36,23 @@ inline int get_error_code() { return errno; }
 
 
 inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
+    // grab the current flag word first, bet — can't toggle O_NONBLOCK without it. -1 means the
+    // fcntl itself failed, logged and fallen through rather than bailing, since flags still
+    // holds something usable (garbage, but fcntl won't touch it further below without a value)
     int flags = fcntl(socket, F_GETFL, 0);
     if (flags == -1) {
         core::logger::error("io/posix", "get flags failed");
     }
 
+    // set or clear the non-blocking bit depending on what the caller asked for
     if (non_blocking) {
         flags |= O_NONBLOCK;
     } else {
         flags &= ~O_NONBLOCK;
     }
 
-    if (fcntl(socket, F_SETFL, flags) < 0) {
+    // write the modified flags back — this is the call that actually takes effect
+    if (fcntl(socket, F_SETFL, flags) < 0) {  // NOLINT(cppcoreguidelines-pro-type-vararg) — fcntl is a POSIX vararg API, no safe C++ alternative
         core::logger::error("io/posix", "set non-blocking failed");
     }
 

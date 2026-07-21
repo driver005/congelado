@@ -1,0 +1,123 @@
+[16:10:17.916013583] [IMPORTANT]: FileLogger: congelado.log (file>=DEBUG, stdout>=DEBUG)
+[16:10:18.832442001] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:18.832727118] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[16:10:18.832921170] [DEBUG]: |core/contract| worker 0 ready
+[16:10:18.833110998] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:18.833266636] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:18.833420005] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:18.833557624] [DEBUG]: |core/contract| worker 0 executing
+[16:10:18.833762701] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:18.833943762] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:18.834103524] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:18.834247546] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:19.834527939] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:19.834680572] [DEBUG]: |core/signal_tree| next worker 0 bias 9223372036854775809
+[16:10:19.834787885] [DEBUG]: |core/contract| worker 0 ready
+[16:10:19.834902845] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:19.834994185] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:19.835113628] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:19.835210414] [DEBUG]: |core/contract| worker 0 executing
+[16:10:19.835317149] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:19.835422307] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:19.835514789] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:19.835603741] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:20.835877261] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:20.836135540] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[16:10:20.836410306] [DEBUG]: |core/contract| worker 0 ready
+[16:10:20.836587000] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:20.836720937] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:20.836865938] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:20.837006976] [DEBUG]: |core/contract| worker 0 executing
+[16:10:20.837164549] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:20.837299663] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:20.837489361] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:20.837655283] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:21.838042659] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:21.838434881] [DEBUG]: |core/signal_tree| next worker 0 bias 9223372036854775809
+[16:10:21.838732360] [DEBUG]: |core/contract| worker 0 ready
+[16:10:21.839170878] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:21.839514219] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:21.839761340] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:21.840109097] [DEBUG]: |core/contract| worker 0 executing
+[16:10:21.840428924] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:21.840688438] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:21.840993522] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:21.841268907] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:22.841749882] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:22.842217479] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[16:10:22.842606763] [DEBUG]: |core/contract| worker 0 ready
+[16:10:22.843017446] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:22.843414564] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:22.843810181] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:22.844178533] [DEBUG]: |core/contract| worker 0 executing
+[16:10:22.844607866] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:22.844997623] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:22.845385817] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:22.845724726] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:23.846151223] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:23.846358549] [DEBUG]: |core/signal_tree| next worker 0 bias 9223372036854775809
+[16:10:23.846501410] [DEBUG]: |core/contract| worker 0 ready
+[16:10:23.846687161] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:23.846787769] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:23.846880386] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:23.847048112] [DEBUG]: |core/contract| worker 0 executing
+[16:10:23.847245770] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:23.847419453] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:23.847528335] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:23.847648026] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:24.848036863] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:24.848438885] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[16:10:24.848779823] [DEBUG]: |core/contract| worker 0 ready
+[16:10:24.849192870] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:24.849520737] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:24.849879742] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:24.850172229] [DEBUG]: |core/contract| worker 0 executing
+[16:10:24.850520516] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:24.850751844] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:24.851062422] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:24.851368977] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:25.851767753] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:25.851981482] [DEBUG]: |core/signal_tree| next worker 0 bias 9223372036854775809
+[16:10:25.852103328] [DEBUG]: |core/contract| worker 0 ready
+[16:10:25.852241699] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:25.852370882] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:25.852493808] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:25.852602580] [DEBUG]: |core/contract| worker 0 executing
+[16:10:25.852752285] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:25.852895932] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:25.853018422] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:25.853134908] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[16:10:26.853336905] [DEBUG]: |core/signal_tree| ready bit 0
+[16:10:26.853461133] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[16:10:26.853525939] [DEBUG]: |core/contract| worker 0 ready
+[16:10:26.853591703] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[16:10:26.853650088] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[16:10:26.853706339] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[16:10:26.853763271] [DEBUG]: |core/contract| worker 0 executing
+[16:10:26.853856111] [DEBUG]: |SocketLib| socket 5 accept would block
+[16:10:26.853926504] [DEBUG]: |core/contract| worker 0 scheduled
+[16:10:26.853987484] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[16:10:26.854042048] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[13:59:59.208337824] [IMPORTANT]: FileLogger: congelado.log (file>=DEBUG, stdout>=DEBUG)
+[14:00:00.199074113] [DEBUG]: |core/signal_tree| ready bit 0
+[14:00:00.199194273] [DEBUG]: |core/signal_tree| next worker 0 bias 1
+[14:00:00.199296233] [DEBUG]: |core/contract| worker 0 ready
+[14:00:00.199378115] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[14:00:00.199438236] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[14:00:00.199495312] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[14:00:00.199554015] [DEBUG]: |core/contract| worker 0 executing
+[14:00:00.199654749] [DEBUG]: |SocketLib| socket 5 accept would block
+[14:00:00.199726045] [DEBUG]: |core/contract| worker 0 scheduled
+[14:00:00.199786132] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[14:00:00.199843163] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0
+[14:00:01.200101863] [DEBUG]: |core/signal_tree| ready bit 0
+[14:00:01.200218838] [DEBUG]: |core/signal_tree| next worker 0 bias 9223372036854775809
+[14:00:01.200299160] [DEBUG]: |core/contract| worker 0 ready
+[14:00:01.200379506] [DEBUG]: |core/worker| claimed, state → EXECUTING
+[14:00:01.200451388] [DEBUG]: |core/signal_tree| descheduled 0 at bit 0
+[14:00:01.200525775] [DEBUG]: |core/signal_tree| descheduled 0 from branch 0
+[14:00:01.200603115] [DEBUG]: |core/contract| worker 0 executing
+[14:00:01.200710259] [DEBUG]: |SocketLib| socket 5 accept would block
+[14:00:01.200786544] [DEBUG]: |core/contract| worker 0 scheduled
+[14:00:01.200855449] [DEBUG]: |core/signal_tree| scheduled 0 from branch 0
+[14:00:01.200930745] [DEBUG]: |core/signal_tree| scheduled 0 at bit 0

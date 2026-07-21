@@ -99,11 +99,14 @@ enum class Method : std::uint8_t {
 }
 
 [[nodiscard]] inline Method parse_method(std::string_view view) noexcept {
+    // Empty string can't be a method, no cap — straight to unknown, nothing left to check.
     if (view.empty()) [[unlikely]] {
         return Method::UNKNOWN;
     }
 
-    switch (view[0]) {
+    // Dispatch off the first char first — narrows every candidate down to at most a couple
+    // exact-match checks instead of testing all nine methods in sequence.
+    switch (view[0]) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
     case 'G':
         if (view == "GET") {
             return Method::GET;
@@ -115,6 +118,8 @@ enum class Method : std::uint8_t {
         }
         break;
     case 'P':
+        // G/H/D/C/O/T only ever match one method apiece, but P covers three (POST/PUT/PATCH),
+        // so length breaks the tie before the string compare even runs.
         switch (view.size()) {
         case 4:
             if (view == "POST") {
@@ -163,7 +168,7 @@ enum class Method : std::uint8_t {
 }
 
 
-enum class Token : std::uint32_t {
+enum class Token : std::uint8_t {
     NONE = 0,
     AUTHORITY = 1,
     METHOD = 2,
@@ -238,277 +243,396 @@ enum class Token : std::uint32_t {
     X_XSS_PROTECTION = 71,
 };
 
-[[nodiscard]] constexpr std::optional<Token> tokenize(std::string_view name) noexcept {
-    switch (name.length()) {
-    case 3:
-        if (name == "age") {
-            return Token::AGE;
-        }
-        if (name == "via") {
-            return Token::VIA;
-        }
-        break;
-    case 4:
-        if (name == "date") {
-            return Token::DATE;
-        }
-        if (name == "etag") {
-            return Token::E_TAG;
-        }
-        if (name == "from") {
-            return Token::FROM;
-        }
-        if (name == "host") {
-            return Token::HOST;
-        }
-        if (name == "link") {
-            return Token::LINK;
-        }
-        if (name == "vary") {
-            return Token::VARY;
-        }
-        break;
-    case 5:
-        if (name == ":path") {
-            return Token::PATH;
-        }
-        if (name == "allow") {
-            return Token::ALLOW;
-        }
-        if (name == "range") {
-            return Token::RANGE;
-        }
-        break;
-    case 6:
-        if (name == "accept") {
-            return Token::ACCEPT;
-        }
-        if (name == "cookie") {
-            return Token::COOKIE;
-        }
-        if (name == "expect") {
-            return Token::EXPECT;
-        }
-        if (name == "origin") {
-            return Token::ORIGIN;
-        }
-        if (name == "server") {
-            return Token::SERVER;
-        }
-        break;
-    case 7:
-        if (name == ":method") {
-            return Token::METHOD;
-        }
-        if (name == ":scheme") {
-            return Token::SCHEME;
-        }
-        if (name == ":status") {
-            return Token::STATUS;
-        }
-        if (name == "alt-svc") {
-            return Token::ALT_SVC;
-        }
-        if (name == "expires") {
-            return Token::EXPIRES;
-        }
-        if (name == "purpose") {
-            return Token::PURPOSE;
-        }
-        if (name == "referer") {
-            return Token::REFERER;
-        }
-        if (name == "refresh") {
-            return Token::REFRESH;
-        }
-        break;
-    case 8:
-        if (name == "if-match") {
-            return Token::IF_MATCH;
-        }
-        if (name == "if-range") {
-            return Token::IF_RANGE;
-        }
-        if (name == "location") {
-            return Token::LOCATION;
-        }
-        break;
-    case 9:
-        if (name == "expect-ct") {
-            return Token::EXPECT_CT;
-        }
-        if (name == "forwarded") {
-            return Token::FORWARDED;
-        }
-        break;
-    case 10:
-        if (name == ":authority") {
-            return Token::AUTHORITY;
-        }
-        if (name == "early-data") {
-            return Token::EARLY_DATA;
-        }
-        if (name == "set-cookie") {
-            return Token::SET_COOKIE;
-        }
-        if (name == "user-agent") {
-            return Token::USER_AGENT;
-        }
-        break;
-    case 11:
-        if (name == "retry-after") {
-            return Token::RETRY_AFTER;
-        }
-        break;
-    case 12:
-        if (name == "accept-ranges") {
-            return Token::ACCEPT_RANGES;
-        }
-        if (name == "content-type") {
-            return Token::CONTENT_TYPE;
-        }
-        if (name == "max-forwards") {
-            return Token::MAX_FORWARDS;
-        }
-        break;
-    case 13:
-        if (name == "authorization") {
-            return Token::AUTHORIZATION;
-        }
-        if (name == "cache-control") {
-            return Token::CACHE_CONTROL;
-        }
-        if (name == "content-range") {
-            return Token::CONTENT_RANGE;
-        }
-        if (name == "if-none-match") {
-            return Token::IF_NONE_MATCH;
-        }
-        if (name == "last-modified") {
-            return Token::LAST_MODIFIED;
-        }
-        break;
-    case 14:
-        if (name == "accept-charset") {
-            return Token::ACCEPT_CHARSET;
-        }
-        if (name == "content-length") {
-            return Token::CONTENT_LENGTH;
-        }
-        break;
-    case 15:
-        if (name == "accept-encoding") {
-            return Token::ACCEPT_ENCODING;
-        }
-        if (name == "accept-language") {
-            return Token::ACCEPT_LANGUAGE;
-        }
-        break;
-    case 16:
-        if (name == "content-encoding") {
-            return Token::CONTENT_ENCODING;
-        }
-        if (name == "content-language") {
-            return Token::CONTENT_LANGUAGE;
-        }
-        if (name == "content-location") {
-            return Token::CONTENT_LOCATION;
-        }
-        if (name == "www-authenticate") {
-            return Token::WWW_AUTHENTICATE;
-        }
-        break;
-    case 17:
-        if (name == "if-modified-since") {
-            return Token::IF_MODIFIED_SINCE;
-        }
-        if (name == "transfer-encoding") {
-            return Token::TRANSFER_ENCODING;
-        }
-        break;
-    case 18:
-        if (name == "proxy-authenticate") {
-            return Token::PROXY_AUTHENTICATE;
-        }
-        if (name == "x-xss-protection") {
-            return Token::X_XSS_PROTECTION;
-        }
-        break;
-    case 19:
-        if (name == "content-disposition") {
-            return Token::CONTENT_DISPOSITION;
-        }
-        if (name == "if-unmodified-since") {
-            return Token::IF_UNMODIFIED_SINCE;
-        }
-        if (name == "proxy-authorization") {
-            return Token::PROXY_AUTHORIZATION;
-        }
-        if (name == "timing-allow-origin") {
-            return Token::TIMING_ALLOW_ORIGIN;
-        }
-        if (name == "x-frame-options") {
-            return Token::X_FRAME_OPTIONS;
-        }
-        break;
-    case 20:
-        if (name == "x-forwarded-for") {
-            return Token::X_FORWARDED_FOR;
-        }
-        break;
-    case 22:
-        if (name == "x-content-type-options") {
-            return Token::X_CONTENT_TYPE_OPTIONS;
-        }
-        break;
-    case 23:
-        if (name == "content-security-policy") {
-            return Token::CONTENT_SECURITY_POLICY;
-        }
-        break;
-    case 25:
-        if (name == "strict-transport-security") {
-            return Token::STRICT_TRANSPORT_SECURITY;
-        }
-        if (name == "upgrade-insecure-requests") {
-            return Token::UPGRADE_INSECURE_REQUESTS;
-        }
-        break;
-    case 27:
-        if (name == "access-control-allow-origin") {
-            return Token::ACCESS_CONTROL_ALLOW_ORIGIN;
-        }
-        break;
-    case 28:
-        if (name == "access-control-allow-headers") {
-            return Token::ACCESS_CONTROL_ALLOW_HEADERS;
-        }
-        if (name == "access-control-allow-methods") {
-            return Token::ACCESS_CONTROL_ALLOW_METHODS;
-        }
-        break;
-    case 29:
-        if (name == "access-control-expose-headers") {
-            return Token::ACCESS_CONTROL_EXPOSE_HEADERS;
-        }
-        if (name == "access-control-request-method") {
-            return Token::ACCESS_CONTROL_REQUEST_METHOD;
-        }
-        break;
-    case 30:
-        if (name == "access-control-request-headers") {
-            return Token::ACCESS_CONTROL_REQUEST_HEADERS;
-        }
-        break;
-    case 32:
-        if (name == "access-control-allow-credentials") {
-            return Token::ACCESS_CONTROL_ALLOW_CREDENTIALS;
-        }
-        break;
-    default:
-        break;
+} // namespace interfaces::io::types
+
+// Non-exported: per-length lookup helpers for tokenize() below. Each one holds exactly the
+// handful of header names that share that exact length, so pulling them out of tokenize's
+// switch drops every "if" here back to nesting level 0 (no more nesting penalty from being
+// inside the outer switch) without changing which names match or the order they're checked in.
+namespace interfaces::io::types {
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_3(std::string_view name) noexcept {
+    if (name == "age") {
+        return Token::AGE;
+    }
+    if (name == "via") {
+        return Token::VIA;
     }
     return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_4(std::string_view name) noexcept {
+    if (name == "date") {
+        return Token::DATE;
+    }
+    if (name == "etag") {
+        return Token::E_TAG;
+    }
+    if (name == "from") {
+        return Token::FROM;
+    }
+    if (name == "host") {
+        return Token::HOST;
+    }
+    if (name == "link") {
+        return Token::LINK;
+    }
+    if (name == "vary") {
+        return Token::VARY;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_5(std::string_view name) noexcept {
+    if (name == ":path") {
+        return Token::PATH;
+    }
+    if (name == "allow") {
+        return Token::ALLOW;
+    }
+    if (name == "range") {
+        return Token::RANGE;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_6(std::string_view name) noexcept {
+    if (name == "accept") {
+        return Token::ACCEPT;
+    }
+    if (name == "cookie") {
+        return Token::COOKIE;
+    }
+    if (name == "expect") {
+        return Token::EXPECT;
+    }
+    if (name == "origin") {
+        return Token::ORIGIN;
+    }
+    if (name == "server") {
+        return Token::SERVER;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_7(std::string_view name) noexcept {
+    if (name == ":method") {
+        return Token::METHOD;
+    }
+    if (name == ":scheme") {
+        return Token::SCHEME;
+    }
+    if (name == ":status") {
+        return Token::STATUS;
+    }
+    if (name == "alt-svc") {
+        return Token::ALT_SVC;
+    }
+    if (name == "expires") {
+        return Token::EXPIRES;
+    }
+    if (name == "purpose") {
+        return Token::PURPOSE;
+    }
+    if (name == "referer") {
+        return Token::REFERER;
+    }
+    if (name == "refresh") {
+        return Token::REFRESH;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_8(std::string_view name) noexcept {
+    if (name == "if-match") {
+        return Token::IF_MATCH;
+    }
+    if (name == "if-range") {
+        return Token::IF_RANGE;
+    }
+    if (name == "location") {
+        return Token::LOCATION;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_9(std::string_view name) noexcept {
+    if (name == "expect-ct") {
+        return Token::EXPECT_CT;
+    }
+    if (name == "forwarded") {
+        return Token::FORWARDED;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_10(std::string_view name) noexcept {
+    if (name == ":authority") {
+        return Token::AUTHORITY;
+    }
+    if (name == "early-data") {
+        return Token::EARLY_DATA;
+    }
+    if (name == "set-cookie") {
+        return Token::SET_COOKIE;
+    }
+    if (name == "user-agent") {
+        return Token::USER_AGENT;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_11(std::string_view name) noexcept {
+    if (name == "retry-after") {
+        return Token::RETRY_AFTER;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_12(std::string_view name) noexcept {
+    if (name == "accept-ranges") {
+        return Token::ACCEPT_RANGES;
+    }
+    if (name == "content-type") {
+        return Token::CONTENT_TYPE;
+    }
+    if (name == "max-forwards") {
+        return Token::MAX_FORWARDS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_13(std::string_view name) noexcept {
+    if (name == "authorization") {
+        return Token::AUTHORIZATION;
+    }
+    if (name == "cache-control") {
+        return Token::CACHE_CONTROL;
+    }
+    if (name == "content-range") {
+        return Token::CONTENT_RANGE;
+    }
+    if (name == "if-none-match") {
+        return Token::IF_NONE_MATCH;
+    }
+    if (name == "last-modified") {
+        return Token::LAST_MODIFIED;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_14(std::string_view name) noexcept {
+    if (name == "accept-charset") {
+        return Token::ACCEPT_CHARSET;
+    }
+    if (name == "content-length") {
+        return Token::CONTENT_LENGTH;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_15(std::string_view name) noexcept {
+    if (name == "accept-encoding") {
+        return Token::ACCEPT_ENCODING;
+    }
+    if (name == "accept-language") {
+        return Token::ACCEPT_LANGUAGE;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_16(std::string_view name) noexcept {
+    if (name == "content-encoding") {
+        return Token::CONTENT_ENCODING;
+    }
+    if (name == "content-language") {
+        return Token::CONTENT_LANGUAGE;
+    }
+    if (name == "content-location") {
+        return Token::CONTENT_LOCATION;
+    }
+    if (name == "www-authenticate") {
+        return Token::WWW_AUTHENTICATE;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_17(std::string_view name) noexcept {
+    if (name == "if-modified-since") {
+        return Token::IF_MODIFIED_SINCE;
+    }
+    if (name == "transfer-encoding") {
+        return Token::TRANSFER_ENCODING;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_18(std::string_view name) noexcept {
+    if (name == "proxy-authenticate") {
+        return Token::PROXY_AUTHENTICATE;
+    }
+    if (name == "x-xss-protection") {
+        return Token::X_XSS_PROTECTION;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_19(std::string_view name) noexcept {
+    if (name == "content-disposition") {
+        return Token::CONTENT_DISPOSITION;
+    }
+    if (name == "if-unmodified-since") {
+        return Token::IF_UNMODIFIED_SINCE;
+    }
+    if (name == "proxy-authorization") {
+        return Token::PROXY_AUTHORIZATION;
+    }
+    if (name == "timing-allow-origin") {
+        return Token::TIMING_ALLOW_ORIGIN;
+    }
+    if (name == "x-frame-options") {
+        return Token::X_FRAME_OPTIONS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_20(std::string_view name) noexcept {
+    if (name == "x-forwarded-for") {
+        return Token::X_FORWARDED_FOR;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_22(std::string_view name) noexcept {
+    if (name == "x-content-type-options") {
+        return Token::X_CONTENT_TYPE_OPTIONS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_23(std::string_view name) noexcept {
+    if (name == "content-security-policy") {
+        return Token::CONTENT_SECURITY_POLICY;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_25(std::string_view name) noexcept {
+    if (name == "strict-transport-security") {
+        return Token::STRICT_TRANSPORT_SECURITY;
+    }
+    if (name == "upgrade-insecure-requests") {
+        return Token::UPGRADE_INSECURE_REQUESTS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_27(std::string_view name) noexcept {
+    if (name == "access-control-allow-origin") {
+        return Token::ACCESS_CONTROL_ALLOW_ORIGIN;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_28(std::string_view name) noexcept {
+    if (name == "access-control-allow-headers") {
+        return Token::ACCESS_CONTROL_ALLOW_HEADERS;
+    }
+    if (name == "access-control-allow-methods") {
+        return Token::ACCESS_CONTROL_ALLOW_METHODS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_29(std::string_view name) noexcept {
+    if (name == "access-control-expose-headers") {
+        return Token::ACCESS_CONTROL_EXPOSE_HEADERS;
+    }
+    if (name == "access-control-request-method") {
+        return Token::ACCESS_CONTROL_REQUEST_METHOD;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_30(std::string_view name) noexcept {
+    if (name == "access-control-request-headers") {
+        return Token::ACCESS_CONTROL_REQUEST_HEADERS;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_32(std::string_view name) noexcept {
+    if (name == "access-control-allow-credentials") {
+        return Token::ACCESS_CONTROL_ALLOW_CREDENTIALS;
+    }
+    return std::nullopt;
+}
+
+} // namespace interfaces::io::types
+
+export namespace interfaces::io::types {
+
+[[nodiscard]] constexpr std::optional<Token> tokenize(std::string_view name) noexcept {
+    // Bucket by string length first — most header names don't collide on anything else, so this
+    // shrinks the actual string comparisons down to just the handful sharing that exact length.
+    // Each bucket's string compares live in tokenize_length_N() above; dispatch here is a flat
+    // switch with one call per case, so this function itself carries no branching complexity.
+    switch (name.length()) {
+    case 3:
+        return tokenize_length_3(name);
+    case 4:
+        return tokenize_length_4(name);
+    case 5:
+        return tokenize_length_5(name);
+    case 6:
+        return tokenize_length_6(name);
+    case 7:
+        return tokenize_length_7(name);
+    case 8:
+        return tokenize_length_8(name);
+    case 9:
+        return tokenize_length_9(name);
+    case 10:
+        return tokenize_length_10(name);
+    case 11:
+        return tokenize_length_11(name);
+    case 12:
+        return tokenize_length_12(name);
+    case 13:
+        return tokenize_length_13(name);
+    case 14:
+        return tokenize_length_14(name);
+    case 15:
+        return tokenize_length_15(name);
+    case 16:
+        return tokenize_length_16(name);
+    case 17:
+        return tokenize_length_17(name);
+    case 18:
+        return tokenize_length_18(name);
+    case 19:
+        return tokenize_length_19(name);
+    case 20:
+        return tokenize_length_20(name);
+    case 22:
+        return tokenize_length_22(name);
+    case 23:
+        return tokenize_length_23(name);
+    case 25:
+        return tokenize_length_25(name);
+    case 27:
+        return tokenize_length_27(name);
+    case 28:
+        return tokenize_length_28(name);
+    case 29:
+        return tokenize_length_29(name);
+    case 30:
+        return tokenize_length_30(name);
+    case 32:
+        return tokenize_length_32(name);
+    default:
+        return std::nullopt;
+    }
 }
 
 constexpr std::string_view token_to_string(const Token &tkst) noexcept {

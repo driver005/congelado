@@ -16,6 +16,7 @@ function worker(name, ...)
 	add_rules("congelado.worker")
 	add_files(...)
 	add_includedirs("$(projectdir)/include")
+	add_includedirs("$(projectdir)/sdk/worker/include")
 	set_targetdir("$(builddir)/workers")
 	if is_plat("linux", "macosx") then
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")

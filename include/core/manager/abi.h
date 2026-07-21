@@ -1,4 +1,4 @@
-// clang-format off
+// NOLINTBEGIN
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -33,18 +33,18 @@ typedef void (*congelado_log_fn)(void *ctx, int level, const char *msg, size_t l
 typedef void (*congelado_sched_fn)(void *ctx);
 
 typedef struct CongeladoHostCallbacks {
-    congelado_log_fn   log;
+    congelado_log_fn log;
     congelado_sched_fn schedule;
-    void              *router_ctx;
-    void              *controller_ctx;
-    void              *leverager_ctx;
-    void              *ctx;
+    void *router_ctx;
+    void *controller_ctx;
+    void *leverager_ctx;
+    void *ctx;
 } CongeladoHostCallbacks;
 
 typedef struct CongeladoConfigView {
     const char *const *keys;
     const char *const *values;
-    size_t             count;
+    size_t count;
 } CongeladoConfigView;
 
 /* ── Plugin C ABI ────────────────────────────────────────────────────────────
@@ -63,4 +63,4 @@ typedef struct CongeladoConfigView {
 #ifdef __cplusplus
 }
 #endif
-// clang-format on
+// NOLINTEND

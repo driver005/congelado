@@ -15,7 +15,7 @@ module;
 #pragma comment(lib, "mswsock.lib")
 
 #else
-#include <errno.h>
+#include <cerrno>
 #include <linux/time_types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -30,33 +30,33 @@ import shared;
 
 export namespace io::base::leverage {
 
-enum class op_type : int {
-    read,
-    write,
-    readv,
-    writev,
-    fsync,
-    close,
-    openat,
-    accept,
-    connect,
-    recv,
-    send,
-    recvmsg,
-    sendmsg,
-    poll,
-    timeout,
-    nop,
-    statx,
-    splice,
-    tee,
-    shutdown,
-    renameat,
-    mkdirat,
-    symlinkat,
-    linkat,
-    unlinkat,
-    msg_ring,
+enum class op_type : std::uint8_t {
+    READ,
+    WRITE,
+    READV,
+    WRITEV,
+    FSYNC,
+    CLOSE,
+    OPENAT,
+    ACCEPT,
+    CONNECT,
+    RECV,
+    SEND,
+    RECVMSG,
+    SENDMSG,
+    POLL,
+    TIMEOUT,
+    NOP,
+    STATX,
+    SPLICE,
+    TEE,
+    SHUTDOWN,
+    RENAMEAT,
+    MKDIRAT,
+    SYMLINKAT,
+    LINKAT,
+    UNLINKAT,
+    MSG_RING,
 };
 
 #ifdef _WIN32
@@ -66,7 +66,7 @@ constexpr socket_t invalid_socket = INVALID_SOCKET;
 #else
 using native_fd_t = int;
 using socket_t = int;
-constexpr socket_t invalid_socket = -1;
+constexpr socket_t INVALID_SOCKET_VALUE = -1;
 #endif
 
 #ifdef _WIN32
@@ -262,6 +262,8 @@ constexpr void verbose_print(std::string_view fmt, Args &&...args) {
 }
 
 inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = false) {
+    // negative ret means a syscall failure — unless the caller opted to shrug off EAGAIN/
+    // EWOULDBLOCK specifically (the "not ready yet, not a real error" case), panic
     if (ret < 0 && (!ignore_eagain ||
 #ifdef _WIN32
                     ret != -WSAEWOULDBLOCK
@@ -276,119 +278,490 @@ inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = fal
 template <typename SharedContext>
 class Leverager : public shared::HandlerBase {
   public:
+    /**
+     * @brief Spins up the backing async I/O context — io_uring on posix, IOCP on win32, whichever
+     * `SharedContext` specialization gets linked in. The primary template has no body; every
+     * real implementation lives in an explicit specialization over on `Context`
+     * (`leverage/posix.cppm` or `leverage/win32.cppm`), so this signature is a contract, not code.
+     * @param entries submission queue depth to reserve (posix io_uring) — ignored on win32.
+     * @param flags io_uring setup flags — ignored on win32.
+     * @param wq_fd shared async worker-queue descriptor to attach to (io_uring `IORING_SETUP_ATTACH_WQ`)
+     * — ignored on win32.
+     */
     Leverager(int entries = 64, std::uint32_t flags = 0, std::uint32_t wq_fd = 0);
 
-    ~Leverager() noexcept;
+    /**
+     * @brief Tears down `m_context` — actual ring/IOCP teardown is on the platform specialization.
+     */
+    ~Leverager() noexcept override;
 
+    /** @brief Deleted — copying an owning ring/IOCP handle would double-close it, straight cooked. */
     Leverager(const Leverager &) = delete;
+    /** @brief Deleted — same reasoning as the copy ctor, no aliasing the underlying handle. */
     Leverager &operator=(const Leverager &) = delete;
+    /** @brief Deleted — no move either, downstream code holds refs/pointers into this instance. */
     Leverager(Leverager &&) = delete;
+    /** @brief Deleted — mirrors the move ctor, this thing stays put once constructed. */
     Leverager &operator=(Leverager &&) = delete;
 
     // Async operation methods
-    void readv(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
+    /**
+     * @brief Queues a scatter-gather read (`preadv`-style) and fires `callback` once it lands.
+     * @param descriptor file/socket descriptor to read from.
+     * @param iovecs scatter buffers to fill — caller owns this memory till `callback` fires, don't
+     * free it early or you're asking for a UAF.
+     * @param nr_vecs number of entries in `iovecs`.
+     * @param offset file offset to read from.
+     * @param callback completion callback, invoked with the syscall result (bytes read, or `-errno`).
+     * @param iflags io_uring SQE flags (e.g. `IOSQE_IO_LINK`) — no-op on the win32 backend.
+     */
+    void readv(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback callback,
                std::uint8_t iflags = 0);
 
-    void readv2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
+    /**
+     * @brief Same motion as readv() but with an extra `flags` word (`preadv2`-style, e.g.
+     * `RWF_NOWAIT`).
+     * @param descriptor file/socket descriptor to read from.
+     * @param iovecs scatter buffers to fill — caller-owned till `callback` fires.
+     * @param nr_vecs number of entries in `iovecs`.
+     * @param offset file offset to read from.
+     * @param flags `preadv2`-style read flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void readv2(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback callback,
                 std::uint8_t iflags = 0);
 
-    void writev(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback cb,
+    /**
+     * @brief Queues a scatter-gather write (`pwritev`-style) and fires `callback` once it lands.
+     * @param descriptor file/socket descriptor to write to.
+     * @param iovecs scatter buffers to write out — caller-owned till `callback` fires.
+     * @param nr_vecs number of entries in `iovecs`.
+     * @param offset file offset to write at.
+     * @param callback completion callback, invoked with the syscall result (bytes written, or `-errno`).
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void writev(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback callback,
                 std::uint8_t iflags = 0);
 
-    void writev2(int fd, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback cb,
+    /**
+     * @brief Same motion as writev() but with an extra `flags` word (`pwritev2`-style).
+     * @param descriptor file/socket descriptor to write to.
+     * @param iovecs scatter buffers to write out — caller-owned till `callback` fires.
+     * @param nr_vecs number of entries in `iovecs`.
+     * @param offset file offset to write at.
+     * @param flags `pwritev2`-style write flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void writev2(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback callback,
                  std::uint8_t iflags = 0);
 
-    void read(int fd, void *buf, unsigned nbytes, off_t offset, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a single-buffer read and fires `callback` once it lands.
+     * @param descriptor file/socket descriptor to read from.
+     * @param buf destination buffer — caller-owned till `callback` fires.
+     * @param nbytes max bytes to read into `buf`.
+     * @param offset file offset to read from.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void read(int descriptor, void *buf, unsigned nbytes, off_t offset, completion_callback callback, std::uint8_t iflags = 0);
 
-    void write(int fd, const void *buf, unsigned nbytes, off_t offset, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a single-buffer write and fires `callback` once it lands.
+     * @param descriptor file/socket descriptor to write to.
+     * @param buf source buffer — caller-owned till `callback` fires.
+     * @param nbytes bytes to write from `buf`.
+     * @param offset file offset to write at.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void write(int descriptor, const void *buf, unsigned nbytes, off_t offset, completion_callback callback, std::uint8_t iflags = 0);
 
-    void read_fixed(int fd, void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback cb,
+    /**
+     * @brief Queues a read against a pre-registered fixed buffer (skips the usual pin/unpin
+     * per-op, cheaper on posix; on win32 this just falls back to a regular async read).
+     * @param descriptor file/socket descriptor to read from.
+     * @param buf destination — must fall inside a buffer registered via register_buffers() on
+     * the posix backend, or the kernel will bounce the op.
+     * @param nbytes max bytes to read into `buf`.
+     * @param offset file offset to read from.
+     * @param buf_index index of the registered buffer `buf` lives in.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void read_fixed(int descriptor, void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback callback,
                     std::uint8_t iflags = 0);
 
-    void write_fixed(int fd, const void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback cb,
+    /**
+     * @brief Fixed-buffer counterpart to write() — see read_fixed() for the registration caveat.
+     * @param descriptor file/socket descriptor to write to.
+     * @param buf source — must fall inside a buffer registered via register_buffers() on posix.
+     * @param nbytes bytes to write from `buf`.
+     * @param offset file offset to write at.
+     * @param buf_index index of the registered buffer `buf` lives in.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void write_fixed(int descriptor, const void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback callback,
                      std::uint8_t iflags = 0);
 
-    void fsync(int fd, unsigned fsync_flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an `fsync`/`FlushFileBuffers`-style flush for `descriptor`.
+     * @param descriptor file descriptor to sync.
+     * @param fsync_flags posix fsync flags (e.g. `FSYNC_DATASYNC`) — ignored on win32, which just
+     * calls `FlushFileBuffers`.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void fsync(int descriptor, unsigned fsync_flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned sync_range_flags, completion_callback cb,
+    /**
+     * @brief Queues a `sync_file_range`-style partial flush. No cap, this one's posix-only in
+     * spirit — the win32 backend just proxies it to a full fsync().
+     * @param descriptor file descriptor to sync a range of.
+     * @param offset byte offset the range starts at.
+     * @param nbytes byte length of the range (0 means "to EOF").
+     * @param sync_range_flags `sync_file_range`-style flags (e.g. `SYNC_FILE_RANGE_WRITE`).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void sync_file_range(int descriptor, off64_t offset, off64_t nbytes, unsigned sync_range_flags, completion_callback callback,
                          std::uint8_t iflags = 0);
 
-    void recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a `recvmsg`-style receive for scatter buffers + ancillary data.
+     * @param sockfd socket descriptor to receive on.
+     * @param msg message header describing the destination iovecs/control buffer — caller-owned
+     * till `callback` fires.
+     * @param flags `recvmsg` flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a `sendmsg`-style send for scatter buffers + ancillary data.
+     * @param sockfd socket descriptor to send on.
+     * @param msg message header describing the source iovecs/control buffer — caller-owned till
+     * `callback` fires.
+     * @param flags `sendmsg` flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
+    /**
+     * @brief Queues a single-buffer `recv`.
+     * @param sockfd socket descriptor to receive on.
+     * @param buf destination buffer — caller-owned till `callback` fires.
+     * @param nbytes max bytes to receive into `buf`.
+     * @param flags `recv` flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags, completion_callback callback,
               std::uint8_t iflags = 0);
 
-    void send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags, completion_callback cb,
+    /**
+     * @brief Queues a single-buffer `send`.
+     * @param sockfd socket descriptor to send on.
+     * @param buf source buffer — caller-owned till `callback` fires.
+     * @param nbytes bytes to send from `buf`.
+     * @param flags `send` flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags, completion_callback callback,
               std::uint8_t iflags = 0);
 
-    void poll(int fd, short poll_mask, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a `poll`-style readiness watch on `descriptor` — fires `callback` once the requested
+     * event mask is ready, no data movement here.
+     * @warning The win32 IOCP backend has no real poll primitive, so this specialization is a
+     * straight no-op stub that just calls `callback(0)` immediately — don't rely on it actually
+     * watching anything there. That's an L waiting to happen if you assume parity across
+     * backends.
+     * @param descriptor file/socket descriptor to poll.
+     * @param poll_mask event mask to wait for (e.g. `POLLIN`).
+     * @param callback completion callback, invoked once the mask is satisfied (or immediately on win32).
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void poll(int descriptor, short poll_mask, completion_callback callback, std::uint8_t iflags = 0);
 
-    void yield(completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a no-op SQE purely to get a completion round-trip — bet, this is the cheapest
+     * way to yield back into the ring/loop without doing real I/O.
+     * @param callback completion callback, invoked once the nop lands.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void yield(completion_callback callback, std::uint8_t iflags = 0);
 
-    void accept(int fd, sockaddr *addr, socklen_t *addrlen, int flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `accept` on a listening socket.
+     * @param descriptor listening socket descriptor.
+     * @param addr out-param for the accepted peer's address — caller-owned till `callback` fires.
+     * @param addrlen[in,out] in: size of `addr`'s storage; out: actual peer address length.
+     * @param flags `accept4`-style flags (e.g. `SOCK_NONBLOCK`).
+     * @param callback completion callback, invoked with the new socket descriptor (or `-errno`).
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void accept(int descriptor, sockaddr *addr, socklen_t *addrlen, int flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void connect(int fd, sockaddr *addr, socklen_t addrlen, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `connect`.
+     * @param descriptor socket descriptor to connect.
+     * @param addr peer address to connect to — caller-owned till `callback` fires.
+     * @param addrlen length of `addr`.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void connect(int descriptor, sockaddr *addr, socklen_t addrlen, completion_callback callback, std::uint8_t iflags = 0);
 
-    void timeout(__kernel_timespec *ts, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues a one-shot timer, `callback` fires once it expires.
+     * @param timeout_spec absolute/relative timeout spec (backend-dependent) — caller-owned till `callback` fires.
+     * @param callback completion callback, invoked once the timer fires.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void timeout(__kernel_timespec *timeout_spec, completion_callback callback, std::uint8_t iflags = 0);
 
-    void openat(int dfd, const char *path, int flags, mode_t mode, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `openat`.
+     * @param dfd directory descriptor `path` is relative to (or `AT_FDCWD`).
+     * @param path path to open — caller-owned till `callback` fires.
+     * @param flags `open`-style flags (e.g. `O_RDWR | O_CREAT`).
+     * @param mode file mode bits used when creating a new file.
+     * @param callback completion callback, invoked with the new descriptor (or `-errno`).
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void openat(int dfd, const char *path, int flags, mode_t mode, completion_callback callback, std::uint8_t iflags = 0);
 
-    void close(int fd, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `close` for `descriptor`.
+     * @param descriptor descriptor to close.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void close(int descriptor, completion_callback callback, std::uint8_t iflags = 0);
 
-    void statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf, completion_callback cb,
+    /**
+     * @brief Queues an async `statx`.
+     * @param dfd directory descriptor `path` is relative to (or `AT_FDCWD`).
+     * @param path path to stat — caller-owned till `callback` fires.
+     * @param flags `statx`-style flags (e.g. `AT_SYMLINK_NOFOLLOW`).
+     * @param mask which stat fields to actually fill in.
+     * @param statxbuf out-param the result gets written into — caller-owned till `callback` fires.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf, completion_callback callback,
                std::uint8_t iflags = 0);
 
+    /**
+     * @brief Queues an async `splice` between two fds (zero-copy pipe move).
+     * @param fd_in source descriptor.
+     * @param off_in source offset, or `-1` to use/advance the descriptor's current position.
+     * @param fd_out destination descriptor.
+     * @param off_out destination offset, or `-1` to use/advance the descriptor's current position.
+     * @param nbytes max bytes to move.
+     * @param flags `splice`-style flags (e.g. `SPLICE_F_MOVE`).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
     void splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out, size_t nbytes, unsigned flags,
-                completion_callback cb, std::uint8_t iflags = 0);
+                completion_callback callback, std::uint8_t iflags = 0);
 
-    void tee(int fd_in, int fd_out, size_t nbytes, unsigned flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `tee` — like splice() but doesn't drain the source pipe.
+     * @param fd_in source descriptor (must be a pipe).
+     * @param fd_out destination descriptor (must be a pipe).
+     * @param nbytes max bytes to duplicate.
+     * @param flags `tee`-style flags.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void tee(int fd_in, int fd_out, size_t nbytes, unsigned flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void shutdown(int fd, int how, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async socket `shutdown`.
+     * @param descriptor socket descriptor to shut down.
+     * @param how which directions to shut down (`SHUT_RD`/`SHUT_WR`/`SHUT_RDWR`).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void shutdown(int descriptor, int how, completion_callback callback, std::uint8_t iflags = 0);
 
+    /**
+     * @brief Queues an async `renameat2`.
+     * @param olddfd directory descriptor `oldpath` is relative to.
+     * @param oldpath current path — caller-owned till `callback` fires.
+     * @param newdfd directory descriptor `newpath` is relative to.
+     * @param newpath destination path — caller-owned till `callback` fires.
+     * @param flags `renameat2`-style flags (e.g. `RENAME_NOREPLACE`).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
     void renameat(int olddfd, const char *oldpath, int newdfd, const char *newpath, unsigned flags,
-                  completion_callback cb, std::uint8_t iflags = 0);
+                  completion_callback callback, std::uint8_t iflags = 0);
 
-    void mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `mkdirat`.
+     * @param dirfd directory descriptor `pathname` is relative to.
+     * @param pathname directory path to create — caller-owned till `callback` fires.
+     * @param mode permission bits for the new directory.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback callback, std::uint8_t iflags = 0);
 
-    void symlinkat(const char *target, int newdirfd, const char *linkpath, completion_callback cb,
+    /**
+     * @brief Queues an async `symlinkat`.
+     * @param target the text the symlink will point at — caller-owned till `callback` fires.
+     * @param newdirfd directory descriptor `linkpath` is relative to.
+     * @param linkpath where the new symlink gets created — caller-owned till `callback` fires.
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void symlinkat(const char *target, int newdirfd, const char *linkpath, completion_callback callback,
                    std::uint8_t iflags = 0);
 
-    void linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, completion_callback cb,
+    /**
+     * @brief Queues an async `linkat` (hard link).
+     * @param olddirfd directory descriptor `oldpath` is relative to.
+     * @param oldpath existing path to link from — caller-owned till `callback` fires.
+     * @param newdirfd directory descriptor `newpath` is relative to.
+     * @param newpath new hard link path — caller-owned till `callback` fires.
+     * @param flags `linkat`-style flags (e.g. `AT_SYMLINK_FOLLOW`).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, completion_callback callback,
                 std::uint8_t iflags = 0);
 
-    void unlinkat(int dfd, const char *path, unsigned flags, completion_callback cb, std::uint8_t iflags = 0);
+    /**
+     * @brief Queues an async `unlinkat`.
+     * @param dfd directory descriptor `path` is relative to.
+     * @param path path to remove — caller-owned till `callback` fires.
+     * @param flags `unlinkat`-style flags (e.g. `AT_REMOVEDIR` to rmdir instead of unlink).
+     * @param callback completion callback, invoked with the syscall result.
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void unlinkat(int dfd, const char *path, unsigned flags, completion_callback callback, std::uint8_t iflags = 0);
 
-    void msg_ring(int fd, unsigned len, std::uint64_t data, unsigned flags, completion_callback cb,
+    /**
+     * @brief Queues an io_uring `msg_ring` — pokes a message/descriptor across into another ring's
+     * completion queue. Posix-only motion, the win32 backend just no-ops it out with an error.
+     * @param descriptor the target ring's descriptor to message.
+     * @param len value threaded through as the target CQE's `res` field.
+     * @param data value threaded through as the target CQE's `user_data`.
+     * @param flags `msg_ring`-style flags.
+     * @param callback completion callback, invoked with the syscall result (on the *sending* ring).
+     * @param iflags io_uring SQE flags — no-op on win32.
+     */
+    void msg_ring(int descriptor, unsigned len, std::uint64_t data, unsigned flags, completion_callback callback,
                   std::uint8_t iflags = 0);
 
+    /**
+     * @brief Blocks submitting whatever's queued and waits for at least one completion, then
+     * drains the completion queue. This is the core pump — call it in a loop to actually make
+     * queued ops progress.
+     */
     void run();
+    /**
+     * @brief Non-blocking completion drain — peeks the queue and processes whatever's already
+     * landed without waiting. Overloaded against run(): this one never blocks.
+     */
     void poll();
+    /** @brief Flags the run loop to stop — posix backend just flips a bool; win32 also wakes the
+     * IOCP with a null completion so a blocked run() actually notices. */
     void stop();
 
-    void register_file(int fd);
-    void unregister_file(unsigned int fd) noexcept;
+    /**
+     * @brief Registers a single descriptor for fixed-file ops (cheaper repeated I/O, skips descriptor lookup per
+     * op on posix). Thin wrapper around register_files() with a one-element span.
+     * @param descriptor descriptor to register.
+     */
+    void register_file(int descriptor);
+    /**
+     * @brief Unregisters a single fixed file by slot, replacing it with a sentinel. Thin wrapper
+     * around register_files_update().
+     * @param descriptor the *slot index*, not a raw descriptor — mind the naming, it's a leftover from the
+     * single-descriptor convenience wrapper.
+     */
+    void unregister_file(unsigned int descriptor) noexcept;
 
+    /**
+     * @brief Registers a whole batch of fds for fixed-file I/O in one shot.
+     * @param fds descriptors to register — caller-owned for the duration of the call, not
+     * retained after it returns.
+     * @throws std::system_error via panic_on_err() if the underlying registration syscall fails.
+     */
     void register_files(std::span<const int> fds);
+    /**
+     * @brief Swaps a subset of already-registered fixed files starting at `off`.
+     * @param off slot offset to start updating at.
+     * @param files replacement descriptors — caller-owned for the duration of the call.
+     * @throws std::system_error via panic_on_err() if the underlying update syscall fails.
+     */
     void register_files_update(unsigned off, std::span<int> files);
+    /**
+     * @brief Drops the entire fixed-file registration table.
+     * @return the raw syscall result — 0 on success, negative errno on failure. Unlike its
+     * register_* siblings this one doesn't panic, it just hands the code back, so check it W.
+     */
     int unregister_files() noexcept;
 
+    /**
+     * @brief Registers fixed buffers for read_fixed()/write_fixed() to reference by index.
+     * @param iovecs buffer descriptors to register — caller-owned for the duration of the call.
+     * @throws std::system_error via panic_on_err() if the underlying registration syscall fails.
+     */
     void register_buffers(std::span<const iovec> iovecs);
+    /**
+     * @brief Drops the entire fixed-buffer registration table.
+     * @return the raw syscall result — 0 on success, negative errno on failure.
+     */
     int unregister_buffers() noexcept;
 
+    /**
+     * @brief Grabs the backing platform context (the io_uring ring or the IOCP wrapper).
+     * @return a mutable reference to `m_context`.
+     */
     [[nodiscard]] SharedContext &context() noexcept { return m_context; }
+    /**
+     * @brief Const overload of context() — same deal, read-only view.
+     * @return a const reference to `m_context`.
+     */
     [[nodiscard]] const SharedContext &context() const noexcept { return m_context; }
 
-    std::string_view get_name() const noexcept override { return "Leverager"; }
+    /**
+     * @brief HandlerBase override — this handler's registered name is always the literal string
+     * `"Leverager"`.
+     * @return `"Leverager"`.
+     */
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "Leverager"; }
 
+    /**
+     * @brief HandlerBase override — the work this handler does when scheduled is a single run()
+     * pump followed by re-scheduling itself, so it keeps pumping completions forever once wired
+     * into a controller.
+     * @return the callable the controller invokes to do one pump-and-reschedule cycle.
+     */
     shared::WorkerFunction on_execute() override {
+        // pump one run() cycle, then re-queue this handler so it keeps getting scheduled forever
         return [this]() {
             run();
             shared::this_handler::shedule();
         };
     }
 
+    /**
+     * @brief HandlerBase override — cleanup hook that calls stop() when this handler gets
+     * released from its controller.
+     * @return the release callback.
+     */
     shared::ReleaseFunction on_released() noexcept override {
         return [this]() noexcept { stop(); };
     }
@@ -396,7 +769,7 @@ class Leverager : public shared::HandlerBase {
   private:
     SharedContext m_context;
 
-    bool m_running;
+    bool m_running{false};
 };
 
 } // namespace io::base::leverage

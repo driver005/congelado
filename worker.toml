@@ -1,0 +1,16 @@
+# Congelado Worker Configuration
+
+engine_host = "localhost"
+engine_port = 8080
+engine_cert = ""
+engine_key = ""
+worker_id = "worker-1"
+concurrency = 4
+
+[[tasks]]
+name = "echo_task"
+worker_type = "echo"
+
+[[tasks]]
+name = "transform_task"
+worker_type = "transform"

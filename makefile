@@ -18,12 +18,17 @@ dev: build editor
 config-debug:
 	xmake f -m debug --debugger=gdb
 
-
 debug: config-debug 
 	xmake run -D -d congelado
 
 run:
 	xmake run
+
+run-worker:
+	xmake run congelado_worker worker.toml ./build/workers
+
+run-worker-docker:
+	xmake run congelado_worker worker.toml ./build/workers
 
 build:
 	xmake build

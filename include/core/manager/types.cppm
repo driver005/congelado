@@ -12,19 +12,44 @@ enum class Kind : std::uint8_t { NOT_FOUND, DLOPEN_FAILED, ALREADY_LOADED };
 
 class PluginError {
   public:
+    /**
+     * @brief Constructs a PluginError directly from a kind and message.
+     * @param kind the error category — prefer the not_found()/dlopen_failed()/already_loaded()
+     * factories over calling this straight, they read clearer at the call site.
+     * @param message human-readable detail describing what went wrong.
+     */
     PluginError(Kind kind, std::string message) : m_kind{kind}, m_message{std::move(message)} {}
 
+    /**
+     * @brief Builds a NOT_FOUND-kind PluginError.
+     * @param message detail on what wasn't found (missing dependency, unscanned plugin, etc).
+     * @return the constructed PluginError.
+     */
     [[nodiscard]] static PluginError not_found(std::string message) {
         return {Kind::NOT_FOUND, std::move(message)};
     }
+    /**
+     * @brief Builds a DLOPEN_FAILED-kind PluginError.
+     * @param message detail on the dlopen()/dlsym() failure or ABI mismatch that caused it.
+     * @return the constructed PluginError.
+     */
     [[nodiscard]] static PluginError dlopen_failed(std::string message) {
         return {Kind::DLOPEN_FAILED, std::move(message)};
     }
+    /**
+     * @brief Builds an ALREADY_LOADED-kind PluginError.
+     * @param message detail on which plugin was already loaded.
+     * @return the constructed PluginError.
+     */
     [[nodiscard]] static PluginError already_loaded(std::string message) {
         return {Kind::ALREADY_LOADED, std::move(message)};
     }
 
+    /// @brief Gets the error's category.
+    /// @return the Kind this error was constructed with.
     [[nodiscard]] Kind get_kind() const noexcept { return m_kind; }
+    /// @brief Gets the human-readable detail message.
+    /// @return the message this error was constructed with.
     [[nodiscard]] std::string_view get_message() const noexcept { return m_message; }
 
   private:
@@ -32,15 +57,15 @@ class PluginError {
     std::string m_message;
 };
 
-enum class Runtime : std::uint32_t {
+enum class Runtime : std::uint8_t {
     NONE = 0,
     NATIVE = 1 << 0,
     PYTHON = 1 << 1,
     LUA = 1 << 2,
     WASM = 1 << 3,
 };
-constexpr Runtime operator|(Runtime rigth, Runtime left) noexcept {
-    return static_cast<Runtime>(std::to_underlying(rigth) | std::to_underlying(left));
+constexpr Runtime operator|(Runtime left, Runtime right) noexcept {
+    return static_cast<Runtime>(std::to_underlying(left) | std::to_underlying(right));
 }
 constexpr bool has(Runtime set, Runtime flag) noexcept {
     return (std::to_underlying(set) & std::to_underlying(flag)) != 0;
@@ -48,10 +73,15 @@ constexpr bool has(Runtime set, Runtime flag) noexcept {
 
 class PythonConfig {
   public:
+    /// @brief Constructs a PythonConfig defaulting the module name to `"congelado"`.
     PythonConfig() : m_module_name{"congelado"} {};
 
+    /// @brief Sets the Python module name plugin-registered functions get installed under.
+    /// @param name the new module name.
     void set_module_name(std::string name) { m_module_name = std::move(name); }
 
+    /// @brief Gets the Python module name plugin-registered functions get installed under.
+    /// @return the configured module name.
     [[nodiscard]] std::string_view get_module_name() const noexcept { return m_module_name; }
 
   private:
@@ -60,38 +90,71 @@ class PythonConfig {
 
 class LuaConfig {
   public:
-    LuaConfig() : m_table_name{"congelado"}, m_safe_mode{true} {};
+    /// @brief Constructs a LuaConfig defaulting the table name to `"congelado"` and safe mode on.
+    LuaConfig() : m_table_name{"congelado"} {};
 
+    /// @brief Sets the Lua global table name plugin-registered functions get installed under.
+    /// @param name the new table name.
     void set_table_name(std::string name) { m_table_name = std::move(name); }
+    /// @brief Sets whether the Lua state runs in safe mode.
+    /// @param safe_mode true to enable safe mode, false to disable it.
     void set_safe_mode(bool safe_mode) { m_safe_mode = safe_mode; }
 
+    /// @brief Gets the Lua global table name plugin-registered functions get installed under.
+    /// @return the configured table name.
     [[nodiscard]] std::string_view get_table_name() const noexcept { return m_table_name; }
+    /// @brief Gets whether the Lua state is configured to run in safe mode.
+    /// @return true if safe mode is on, false otherwise.
     [[nodiscard]] bool get_safe_mode() const noexcept { return m_safe_mode; }
 
   private:
     std::string m_table_name;
-    bool m_safe_mode;
+    bool m_safe_mode{true};
 };
 
 class GenerationConfig {
   public:
+    /// @brief Default-constructs, wanting only the NATIVE runtime.
     GenerationConfig() : GenerationConfig(Runtime::NATIVE) {};
+    /// @brief Constructs with an explicit (possibly OR'd) set of wanted runtimes.
+    /// @param runtimes the runtime flag set — combine flags with `operator|` for multiple.
     GenerationConfig(Runtime runtimes) : m_runtimes{runtimes} {}
 
+    /// @brief Sets the wanted runtime flag set, replacing whatever was configured before.
+    /// @param runtimes the new runtime flag set.
     void set_runtimes(Runtime runtimes) { m_runtimes = runtimes; }
+    /// @brief Sets the Python-specific config (module name, etc).
+    /// @param config the new PythonConfig.
     void set_python_config(PythonConfig config) { m_python = std::move(config); }
+    /// @brief Sets the Lua-specific config (table name, safe mode, etc).
+    /// @param config the new LuaConfig.
     void set_lua_config(LuaConfig config) { m_lua = std::move(config); }
+    /// @brief Sets free-form extra key/value config passed through to the plugin at init time.
+    /// @param extra the replacement extra config map.
     void set_extra(std::unordered_map<std::string, std::string> extra) {
         m_extra = std::move(extra);
     }
 
+    /// @brief Gets the configured runtime flag set.
+    /// @return the wanted runtimes.
     [[nodiscard]] const Runtime &get_runtimes() const noexcept { return m_runtimes; }
+    /// @brief Gets the Python-specific config.
+    /// @return the configured PythonConfig.
     [[nodiscard]] const PythonConfig &get_python_config() const noexcept { return m_python; }
+    /// @brief Gets the Lua-specific config.
+    /// @return the configured LuaConfig.
     [[nodiscard]] const LuaConfig &get_lua_config() const noexcept { return m_lua; }
+    /// @brief Gets the free-form extra key/value config.
+    /// @return the extra config map, forwarded to the plugin's `congelado_init` as key/value pairs.
     [[nodiscard]] const std::unordered_map<std::string, std::string> &get_extra() const noexcept {
         return m_extra;
     }
 
+    /**
+     * @brief Checks whether a given runtime flag is set in this config.
+     * @param runtime the single runtime flag to test for.
+     * @return true if `runtime` is included in the configured flag set.
+     */
     [[nodiscard]] bool wants(Runtime runtime) const noexcept { return has(m_runtimes, runtime); }
 
   private:
@@ -130,32 +193,57 @@ template <typename T>
 }
 
 inline std::optional<std::string> config_get(const CongeladoConfigView &cfg,
-                                             std::string key) noexcept {
-    for (std::size_t i = 0; i < cfg.count; ++i)
-        if (std::string_view{cfg.keys[i]} == key)
-            return std::string{cfg.values[i]};
+                                             const std::string &key) noexcept {
+    // Linear scan over the parallel keys/values arrays — first match wins.
+    for (std::size_t index = 0; index < cfg.count; ++index) {
+        if (std::string_view{cfg.keys[index]} == key) {
+            return std::string{cfg.values[index]};
+        }
+    }
     return std::nullopt;
 }
 template <typename Callback>
-void config_for_each(const CongeladoConfigView &cfg, Callback &&callback) noexcept {
-    for (std::size_t i = 0; i < cfg.count; ++i)
-        std::forward<Callback>(callback)(std::string_view{cfg.keys[i]},
-                                         std::string_view{cfg.values[i]});
+void config_for_each(const CongeladoConfigView &cfg, Callback &&callback) noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward) — deliberately not forwarded, see below
+    // Just fan out every key/value pair in the view to the caller's callback. callback is
+    // invoked once per entry, so it must NOT be std::forward'd here — forwarding on the first
+    // iteration would move from an rvalue-ref callback, leaving every later call operating on
+    // a moved-from callable (this was a real bugprone-use-after-move bug).
+    for (std::size_t index = 0; index < cfg.count; ++index) {
+        callback(std::string_view{cfg.keys[index]}, std::string_view{cfg.values[index]});
+    }
 }
 
 // ── Config view builder ───────────────────────────────────────────────────
 
 class ConfigViewBuilder {
   public:
+    /**
+     * @brief Appends a key/value pair, keeping the backing strings alive for view().
+     * @warning `m_keys`/`m_values` are `std::deque`s specifically because pointers into deque
+     * elements stay stable across further push_back calls (unlike `std::vector`, which can
+     * reallocate and dangle every pointer collected so far). Swap that container type out and
+     * this whole class turns into a UB generator — don't be that guy.
+     * @param key the config key.
+     * @param value the config value.
+     */
     void add(std::string key, std::string value) {
+        // Own the strings in the stable deques first, then collect raw pointers
+        // into them — order matters, bet, the pointer arrays borrow from the deques.
         m_keys.push_back(std::move(key));
         m_values.push_back(std::move(value));
         m_key_ptrs.push_back(m_keys.back().c_str());
         m_val_ptrs.push_back(m_values.back().c_str());
     }
 
+    /**
+     * @brief Builds a C-ABI CongeladoConfigView over everything added so far.
+     * @warning The returned view borrows pointers into this builder's own deques — it's only
+     * valid as long as this ConfigViewBuilder stays alive and untouched. Let the builder go
+     * out of scope (or call add() again after taking the view) and those pointers are cooked.
+     * @return a view exposing the accumulated keys/values as parallel C-string arrays.
+     */
     [[nodiscard]] CongeladoConfigView view() const noexcept {
-        return {m_key_ptrs.data(), m_val_ptrs.data(), m_key_ptrs.size()};
+        return {.keys = m_key_ptrs.data(), .values = m_val_ptrs.data(), .count = m_key_ptrs.size()};
     }
 
   private:
@@ -168,7 +256,7 @@ class ConfigViewBuilder {
 // ── Lua state ownership ──────────────────────────────────────────────────────
 
 inline std::shared_ptr<lua_State> make_lua_state() {
-    return std::shared_ptr<lua_State>{luaL_newstate(), [](lua_State *L) { lua_close(L); }};
+    return std::shared_ptr<lua_State>{luaL_newstate(), [](lua_State *state) { lua_close(state); }};
 }
 
 } // namespace core::plugin::types

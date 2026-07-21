@@ -16,16 +16,21 @@ constexpr std::string_view NEVER_INDEXED[] = {
 export namespace io::codec::hpack {
 
 enum class EncodePolicy : std::uint8_t {
-    WithIndexing,
-    WithoutIndexing,
-    NeverIndexed,
+    WITH_INDEXING,
+    WITHOUT_INDEXING,
+    NEVER_INDEXED,
 };
 
 [[nodiscard]] constexpr EncodePolicy policy_for(std::string_view name) noexcept {
-    for (auto s : NEVER_INDEXED)
-        if (name == s)
-            return EncodePolicy::NeverIndexed;
+    // Walk the sensitive-header list — an exact match means this one's never getting
+    // cached in the dynamic table, no cap.
+    for (auto header : NEVER_INDEXED) {
+        if (name == header) {
+            return EncodePolicy::NEVER_INDEXED;
+        }
+    }
 
-    return EncodePolicy::WithIndexing;
+    // Nothing sensitive matched, so default to normal indexing.
+    return EncodePolicy::WITH_INDEXING;
 }
 } // namespace codec::hpack

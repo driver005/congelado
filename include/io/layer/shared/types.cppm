@@ -42,11 +42,27 @@ enum class FrameType : std::uint8_t {
 
 export template <>
 struct std::formatter<io::shared_layer::StreamState> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief No format-spec support here — StreamState only ever prints as its plain name, so
+     * parsing just accepts an empty spec and bounces straight back.
+     * @param ctx the format parse context.
+     * @return iterator to the start of the (expected-empty) format spec.
+     */
+    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief Maps a StreamState onto its human-readable name (e.g. "Idle", "HalfClosedLocal")
+     * and writes it straight out — any value outside the known enumerators falls back to
+     * "UNKNOWN", no crashes.
+     * @tparam FormatContext the format context type, deduced by `std::format`.
+     * @param state the StreamState to format.
+     * @param ctx the format context to write into.
+     * @return output iterator past the written name.
+     */
     template <typename FormatContext>
     auto format(io::shared_layer::StreamState state, FormatContext &ctx) const {
         using enum io::shared_layer::StreamState;
         std::string_view name;
+        // Map the enum value onto its human-readable name; anything unrecognized falls back to "UNKNOWN".
         switch (state) {
         case IDLE: {
             name = "Idle";
@@ -81,17 +97,35 @@ struct std::formatter<io::shared_layer::StreamState> {
             break;
         }
         }
+        // Write the resolved name out through the format context.
         return std::format_to(ctx.out(), "{}", name);
     }
 };
 
 export template <>
 struct std::formatter<io::shared_layer::FrameType> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief Same deal as the StreamState formatter above — no format-spec support, empty spec
+     * only.
+     * @param ctx the format parse context.
+     * @return iterator to the start of the (expected-empty) format spec.
+     */
+    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    /**
+     * @brief Maps a FrameType onto its wire-format name (e.g. "DATA", "HEADERS") and writes it
+     * out — PRIORITY gets flagged "(DEPRECATED)" since it's still parsed for interop but nobody
+     * should be sending it fresh. Unknown values fall back to "UNKNOWN" — safe default, that's
+     * the W.
+     * @tparam FormatContext the format context type, deduced by `std::format`.
+     * @param type the FrameType to format.
+     * @param ctx the format context to write into.
+     * @return output iterator past the written name.
+     */
     template <typename FormatContext>
     auto format(io::shared_layer::FrameType type, FormatContext &ctx) const {
         using enum io::shared_layer::FrameType;
         std::string_view name;
+        // Map the enum value onto its wire-format name; PRIORITY gets flagged deprecated, unknowns fall back to "UNKNOWN".
         switch (type) {
         case DATA: {
             name = "DATA";
@@ -138,6 +172,7 @@ struct std::formatter<io::shared_layer::FrameType> {
             break;
         }
         }
+        // Write the resolved name out through the format context.
         return std::format_to(ctx.out(), "{}", name);
     }
 };

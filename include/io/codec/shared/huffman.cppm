@@ -159,16 +159,20 @@ struct Trie {
 // TODO: make consteval
 Trie build_trie() {
     Trie trie;
+    // Walk every symbol's canonical Huffman code and thread it into the trie bit by bit.
     for (auto [sym, entry] : std::views::enumerate(CODES)) {
         const auto [code, len] = entry;
         int cur = 0;
+        // MSB-first — each bit either follows an existing child or lazily allocates a new node.
         for (int shift : std::views::iota(0, static_cast<int>(len)) | std::views::reverse) {
-            const int BIT = (code >> shift) & 1;
-            if (trie.m_nodes[cur].m_child[BIT] < 0)
-                trie.m_nodes[cur].m_child[BIT] = static_cast<int>(trie.m_size++);
-            cur = trie.m_nodes[cur].m_child[BIT];
+            const int BIT = static_cast<int>((code >> shift) & 1);
+            if (trie.m_nodes[cur].m_child[BIT] < 0) {  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                trie.m_nodes[cur].m_child[BIT] = static_cast<int>(trie.m_size++);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            }
+            cur = trie.m_nodes[cur].m_child[BIT];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
         }
-        trie.m_nodes[cur].m_sym = static_cast<std::uint32_t>(sym);
+        // Landed on the leaf for this code — tag it with the symbol it decodes to.
+        trie.m_nodes[cur].m_sym = static_cast<std::uint32_t>(sym);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
     }
     return trie;
 }
@@ -184,9 +188,13 @@ struct TransTable {
 template <int W>
 TransTable<W> build_table() {
     constexpr int CHUNKS = TransTable<W>::CHUNK_COUNT;
+    // Build the bit-level trie first — the table below is just this trie collapsed into
+    // W-bit-at-a-time transitions.
     Trie trie = build_trie();
     TransTable<W> table;
 
+    // node_to_row maps a trie node to its row in the output table, lazily assigned as nodes
+    // get discovered; queue drives the BFS that discovers them.
     std::array<int, TRIE_CAP> node_to_row{};
     node_to_row.fill(-1);
     std::array<int, TRIE_CAP> queue{};
@@ -195,47 +203,53 @@ TransTable<W> build_table() {
 
     auto alloc_row = [&](int node) -> int {
         const int ROW = static_cast<int>(table.m_row_count++);
-        node_to_row[node] = ROW;
+        node_to_row[node] = ROW;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
         return ROW;
     };
 
+    // Seed the BFS at the trie root.
     alloc_row(0);
-    queue[q_tail++] = 0;
+    queue[q_tail++] = 0;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
 
+    // Standard BFS — pop a row's trie node, work out where every possible W-bit chunk sends it.
     while (q_head < q_tail) {
-        const int START = queue[q_head++];
-        const int ROW = node_to_row[START];
+        const int START = queue[q_head++];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        const int ROW = node_to_row[START];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
 
         for (int chunk : std::views::iota(0, CHUNKS)) {
             int cur = START;
             std::uint32_t emitted_sym = SYM_NONE;
             bool invalid = false;
 
+            // Walk this chunk's W bits through the trie, one at a time. Landing on a leaf
+            // mid-chunk emits a symbol and resets back to the trie root for the remaining bits.
             for (int shift : std::views::iota(0, W) | std::views::reverse) {
                 const int BIT = (chunk >> shift) & 1;
-                const int NEXT = trie.m_nodes[cur].m_child[BIT];
+                const int NEXT = trie.m_nodes[cur].m_child[BIT];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
                 if (NEXT < 0) {
                     invalid = true;
                     break;
                 }
                 cur = NEXT;
-                if (trie.m_nodes[cur].m_sym != SYM_NONE) {
-                    emitted_sym = trie.m_nodes[cur].m_sym;
+                if (trie.m_nodes[cur].m_sym != SYM_NONE) {  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                    emitted_sym = trie.m_nodes[cur].m_sym;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
                     cur = 0;
                 }
             }
 
+            // Invalid chunk (no such Huffman code) gets a sentinel; otherwise record the
+            // destination row (allocating one if this node's new) plus whatever symbol emitted.
             const std::size_t SLOT = (static_cast<std::size_t>(ROW) * CHUNKS) + chunk;
             if (invalid) {
-                table.m_entries[SLOT] = {0xFFFFU, 0xFFFFU};
+                table.m_entries[SLOT] = {0xFFFFU, 0xFFFFU};  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
             } else {
-                if (node_to_row[cur] < 0) {
+                if (node_to_row[cur] < 0) {  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
                     alloc_row(cur);
-                    queue[q_tail++] = cur;
+                    queue[q_tail++] = cur;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
                 }
                 const std::uint16_t SYM16 =
                     (emitted_sym == SYM_NONE) ? 0xFFFEU : static_cast<std::uint16_t>(emitted_sym);
-                table.m_entries[SLOT] = {static_cast<std::uint16_t>(node_to_row[cur]), SYM16};
+                table.m_entries[SLOT] = {static_cast<std::uint16_t>(node_to_row[cur]), SYM16};  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
             }
         }
     }
@@ -263,32 +277,67 @@ class HuffmanEncodeView {
         using iterator_category = std::input_iterator_tag;
         using iterator_concept = std::input_iterator_tag;
 
+        /**
+         * @brief Builds a sentinel/empty iterator — not attached to any range, just for `=
+         * default`.
+         */
         Iterator() = default;
 
+        /**
+         * @brief Attaches the iterator to `base` and primes the bit accumulator by pulling in the
+         * first symbol's Huffman code.
+         * @param base the input range to encode; iterator holds begin/end into it, not a copy.
+         */
         explicit Iterator(R &base)
-            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_bits{}, m_shift{},
-              m_done{} {
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)} {
             advance();
         }
 
+        /**
+         * @brief Reads the next fully-buffered output byte off the top of the bit accumulator.
+         * @return the byte.
+         */
         [[nodiscard]] std::byte operator*() const noexcept {
             return std::byte{static_cast<unsigned char>(m_bits >> (m_shift - 8))};
         }
 
+        /**
+         * @brief Consumes the byte just read and pulls more Huffman-coded bits in behind it.
+         * @return `*this`, advanced.
+         */
         Iterator &operator++() {
             m_shift -= 8;
             advance();
             return *this;
         }
 
+        /**
+         * @brief Postfix increment — same motion as prefix, just discards the "old value" nobody
+         * asked for.
+         */
         void operator++(int) { ++*this; }
 
+        /**
+         * @brief Sentinel comparison — this is how range-for knows the view's exhausted.
+         * @return true once every input symbol's been consumed and the final padded byte's been
+         * emitted.
+         */
         [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept {
             return m_done;
         }
 
       private:
+        /**
+         * @brief Pumps more Huffman-coded bits into the 64-bit MSB-first accumulator — either the
+         * next input symbol's code, or (once input's exhausted) the EOS padding bits (RFC 7541
+         * §5.2: pad with the high-order bits of the EOS code, i.e. all 1s) to round out the final
+         * byte.
+         * @note Sets `m_done` once there's nothing left to emit — no more input and the
+         * accumulator's fully drained (shift back to 0).
+         */
         void advance() {
+            // Input's exhausted — either we're fully drained (done), or there's a partial byte
+            // left that needs EOS padding bits to round it out.
             if (m_inner == m_end) {
                 if (m_shift == 0) {
                     m_done = true;
@@ -298,6 +347,8 @@ class HuffmanEncodeView {
                 m_bits = (m_bits << PAD) | ((1U << PAD) - 1U);
                 m_shift = 8;
             } else {
+                // Normal motion — pull the next symbol's Huffman code and stack it onto the
+                // accumulator.
                 const auto [code, len] = CODES[std::to_integer<unsigned char>(*m_inner++)];
                 m_bits = (m_bits << len) | static_cast<std::uint64_t>(code);
                 m_shift += static_cast<int>(len);
@@ -306,22 +357,41 @@ class HuffmanEncodeView {
 
         std::ranges::iterator_t<R> m_inner;
         std::ranges::sentinel_t<R> m_end;
-        std::uint64_t m_bits;
-        int m_shift;
-        bool m_done;
+        std::uint64_t m_bits{};
+        int m_shift{};
+        bool m_done{};
     };
 
+    /** @brief Builds an empty view, no backing range yet — for `= default` scenarios only. */
     HuffmanEncodeView() = default;
+    /**
+     * @brief Wraps `base` for lazy Huffman encoding — nothing gets encoded until iteration
+     * actually starts pulling bytes.
+     * @param base the input char/byte range to encode.
+     */
     explicit HuffmanEncodeView(R base) : m_base{std::move(base)} {}
 
+    /** @brief Trivial dtor — `m_base` cleans up its own storage, no motion needed here. */
     ~HuffmanEncodeView() = default;
 
+    /**
+     * @brief Deleted — copying the base range could be arbitrarily expensive/wrong for arbitrary
+     * `R`, so it's off the table.
+     */
     HuffmanEncodeView(const HuffmanEncodeView &) = delete;
+    /** @brief Deleted for the same reason as the copy ctor. */
     HuffmanEncodeView &operator=(const HuffmanEncodeView &) = delete;
+    /** @brief Defaulted — moving just relocates `m_base`, nothing fancy. */
     HuffmanEncodeView(HuffmanEncodeView &&) = default;
+    /** @brief Defaulted move-assign, same deal as the move ctor. */
     HuffmanEncodeView &operator=(HuffmanEncodeView &&) = default;
 
+    /**
+     * @brief Gets a fresh Iterator primed on `m_base` — starts the lazy encode.
+     * @return an Iterator at the start.
+     */
     [[nodiscard]] Iterator begin() { return Iterator{m_base}; }
+    /** @brief Gets the sentinel that marks "encoding's done". @return a default_sentinel_t. */
     [[nodiscard]] std::default_sentinel_t end() const noexcept { return {}; }
 
   private:
@@ -344,7 +414,13 @@ class HuffmanDecodeView {
     static constexpr int CHUNKS_PER_BYTE = 8 / W;
     static constexpr int CHUNK_MASK = CHUNKS - 1;
     // TODO: make constexpr when GCC supports it
-    inline static const TransTable<W> TABLE = build_table<W>();
+    // Lazily built on first use (C++11 magic-statics, thread-safe) instead of a static-duration
+    // member initialized at load time — build_table<W>() can throw, and this way the throw
+    // happens on first real use instead of during static initialization, where it can't be caught.
+    [[nodiscard]] static const TransTable<W> &get_table() {
+        static const TransTable<W> TABLE = build_table<W>();
+        return TABLE;
+    }
 
     class Iterator {
       public:
@@ -353,30 +429,70 @@ class HuffmanDecodeView {
         using iterator_category = std::input_iterator_tag;
         using iterator_concept = std::input_iterator_tag;
 
+        /**
+         * @brief Builds a sentinel/empty iterator — not attached to any range, just for `=
+         * default`.
+         */
         Iterator() = default;
 
+        /**
+         * @brief Attaches the iterator to `base` and decodes the first output character to prime
+         * it.
+         * @param base the input byte range to Huffman-decode; iterator holds begin/end into it.
+         */
         explicit Iterator(R &base)
-            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)}, m_chunk_idx{0},
-              m_current{}, m_done{}, m_padding_bits{} {
+            : m_inner{std::ranges::begin(base)}, m_end{std::ranges::end(base)} {
             advance();
         }
 
+        /**
+         * @brief Gets the currently-decoded output character.
+         * @return the last symbol emitted by advance().
+         */
         [[nodiscard]] char operator*() const noexcept { return m_current; }
 
+        /**
+         * @brief Decodes the next output character.
+         * @return `*this`, advanced past the one just emitted.
+         */
         Iterator &operator++() {
             advance();
             return *this;
         }
 
+        /**
+         * @brief Postfix increment — same motion as prefix, discards the "old value" nobody asked
+         * for.
+         */
         void operator++(int) { ++*this; }
 
+        /**
+         * @brief Sentinel comparison — how range-for knows the decode's finished.
+         * @return true once the FSM's fully drained the input with no more symbols to emit.
+         */
         [[nodiscard]] bool operator==(std::default_sentinel_t /*unused*/) const noexcept {
             return m_done;
         }
 
       private:
+        /**
+         * @brief Drives the W-bit chunk FSM forward, table-lookup-decoding chunks until a real
+         * symbol pops out (`sym < 256`), then stashes it in `m_current` and returns.
+         * @note Runs the transition table (`TABLE`) chunk-by-chunk against the input bytes,
+         * tracking `m_fsm` state across calls — this is the whole decode loop, one character at a
+         * time, lazy.
+         * @warning A malformed Huffman stream doesn't fail quietly: an invalid code (`sym ==
+         * 0xFFFF`), an EOS symbol showing up mid-stream, or a truncated stream with too many
+         * leftover padding bits (`m_padding_bits > 7`) all throw
+         * `error::http::HuffmanDecodeError`. This is untrusted wire data — treat every throw as a
+         * hostile-input signal, not a bug.
+         */
         void advance() {
+            // Loop chunk-by-chunk until a real symbol pops out or the stream runs dry.
             while (true) {
+                // Input's exhausted — only a clean finish if we're byte-aligned and any leftover
+                // padding is a valid EOS prefix (7 bits or fewer); anything else is a cut-off
+                // stream.
                 if (m_inner == m_end) {
                     if (m_chunk_idx != 0) {
                         throw error::http::HuffmanDecodeError{"truncated Huffman stream"};
@@ -388,6 +504,8 @@ class HuffmanDecodeView {
                     return;
                 }
 
+                // Pull the next W-bit chunk out of the current byte, advancing to the next byte
+                // once every chunk in this one's been consumed.
                 const int CHUNK = CHUNK_MASK & (std::to_integer<unsigned>(*m_inner) >>
                                                 (8 - (W * (m_chunk_idx + 1))));
 
@@ -396,10 +514,14 @@ class HuffmanDecodeView {
                     m_chunk_idx = 0;
                 }
 
+                // Table lookup drives the FSM to its next state and (maybe) hands back a symbol.
                 const auto &[ns, sym] =
-                    TABLE.m_entries[(static_cast<std::size_t>(m_fsm) * CHUNKS) + CHUNK];
+                    get_table().m_entries[(static_cast<std::size_t>(m_fsm) * CHUNKS) + CHUNK];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
                 m_fsm = ns;
 
+                // A real symbol (< 256) is the common case — stash it and return. Otherwise
+                // it's either a hard decode error (invalid code, stray EOS) or just more padding
+                // bits accumulating with no symbol yet, so keep looping.
                 if (sym < 256U) [[likely]] {
                     m_current = static_cast<char>(sym);
                     m_padding_bits = 0;
@@ -417,23 +539,42 @@ class HuffmanDecodeView {
         std::ranges::iterator_t<R> m_inner;
         std::ranges::sentinel_t<R> m_end;
         std::uint32_t m_fsm{};
-        int m_chunk_idx;
-        char m_current;
-        bool m_done;
-        int m_padding_bits;
+        int m_chunk_idx{};
+        char m_current{};
+        bool m_done{};
+        int m_padding_bits{};
     };
 
+    /** @brief Builds an empty view, no backing range yet — for `= default` scenarios only. */
     HuffmanDecodeView() = default;
-    explicit HuffmanDecodeView(R &&base) : m_base{std::forward<R>(base)} {}
+    /**
+     * @brief Wraps `base` for lazy Huffman decoding — nothing gets decoded until iteration
+     * actually starts pulling characters.
+     * @param base the input `std::byte` range to decode.
+     */
+    explicit HuffmanDecodeView(R &&base) : m_base{std::move(base)} {}
 
+    /** @brief Trivial dtor — `m_base` cleans up its own storage, no motion needed here. */
     ~HuffmanDecodeView() = default;
 
+    /**
+     * @brief Deleted — copying the base range could be arbitrarily expensive/wrong for arbitrary
+     * `R`.
+     */
     HuffmanDecodeView(const HuffmanDecodeView &) = delete;
+    /** @brief Deleted for the same reason as the copy ctor. */
     HuffmanDecodeView &operator=(const HuffmanDecodeView &) = delete;
+    /** @brief Defaulted — moving just relocates `m_base`, nothing fancy. */
     HuffmanDecodeView(HuffmanDecodeView &&) = default;
+    /** @brief Defaulted move-assign, same deal as the move ctor. */
     HuffmanDecodeView &operator=(HuffmanDecodeView &&) = default;
 
+    /**
+     * @brief Gets a fresh Iterator primed on `m_base` — starts the lazy decode.
+     * @return an Iterator at the start.
+     */
     [[nodiscard]] Iterator begin() { return Iterator{m_base}; }
+    /** @brief Gets the sentinel that marks "decoding's done". @return a default_sentinel_t. */
     [[nodiscard]] std::default_sentinel_t end() const noexcept { return {}; }
 
   private:
@@ -441,6 +582,14 @@ class HuffmanDecodeView {
 };
 
 struct HuffmanEncodeAdaptor : std::ranges::range_adaptor_closure<HuffmanEncodeAdaptor> {
+    /**
+     * @brief Pipe-adaptor call: turns `range | HuffmanEncodeAdaptor{}` into a lazy
+     * HuffmanEncodeView over it. This is what makes `some_range | huffman::Huffman<>::encode()`
+     * read clean, no cap.
+     * @tparam R the viewable range type piped in.
+     * @param range the char/byte range to encode.
+     * @return a HuffmanEncodeView wrapping `range`.
+     */
     template <std::ranges::viewable_range R>
         requires std::convertible_to<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] auto operator()(R &&range) const {
@@ -451,6 +600,13 @@ struct HuffmanEncodeAdaptor : std::ranges::range_adaptor_closure<HuffmanEncodeAd
 template <int W = 4>
     requires DecodeWidth<W>
 struct HuffmanDecodeAdaptor : std::ranges::range_adaptor_closure<HuffmanDecodeAdaptor<W>> {
+    /**
+     * @brief Pipe-adaptor call: turns `range | HuffmanDecodeAdaptor<W>{}` into a lazy
+     * HuffmanDecodeView over it.
+     * @tparam R the viewable range type piped in.
+     * @param range the `std::byte` range to decode.
+     * @return a HuffmanDecodeView<W, ...> wrapping `range`.
+     */
     template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] auto operator()(R &&range) const {
@@ -461,7 +617,15 @@ struct HuffmanDecodeAdaptor : std::ranges::range_adaptor_closure<HuffmanDecodeAd
 template <int W = 4>
     requires DecodeWidth<W>
 struct Huffman {
+    /**
+     * @brief Gets a pipeable encode adaptor.
+     * @return a fresh HuffmanEncodeAdaptor, stateless so any instance works.
+     */
     [[nodiscard]] static HuffmanEncodeAdaptor encode() noexcept { return {}; }
+    /**
+     * @brief Gets a pipeable decode adaptor at chunk-width `W`.
+     * @return a fresh HuffmanDecodeAdaptor<W>, stateless.
+     */
     [[nodiscard]] static HuffmanDecodeAdaptor<W> decode() noexcept { return {}; }
 };
 

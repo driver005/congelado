@@ -10,9 +10,42 @@ import :types;
 
 namespace core::config {
 
+// Helper for parse_json() below — pulled out purely to keep parse_json()'s own cognitive
+// complexity down (the per-key string/int/bool dispatch was the bulk of it). Not exported,
+// only ever used by this translation unit.
+class JsonPluginFieldParser {
+  public:
+    /**
+     * @brief Decodes one JSON plugin-section key/value pair and stashes it on `plugin_config`,
+     * trying string/int/bool in that order — same three-way dispatch parse_toml() does for
+     * TOML values. "type" also gets promoted onto its own dedicated field.
+     * @param plugin_config the plugin config being built; mutated in place.
+     * @param key the section key.
+     * @param value the raw simdjson element to decode.
+     */
+    static void parse_field(PluginConfig &plugin_config, std::string_view key,
+                            simdjson::dom::element value) {
+        std::string_view view;
+        std::int64_t int_value = 0;
+        bool bool_value = false;
+
+        if (value.get_string().get(view) == 0U) {
+            if (key == "type") {
+                plugin_config.set_type(std::string{view});
+            }
+            plugin_config.add_field(std::string{key}, std::string{view});
+        } else if (value.get_int64().get(int_value) == 0U) {
+            plugin_config.add_field(std::string{key}, std::to_string(int_value));
+        } else if (value.get_bool().get(bool_value) == 0U) {
+            plugin_config.add_field(std::string{key}, bool_value ? "true" : "false");
+        }
+    }
+};
+
 static std::expected<Config, std::string> parse_toml(const std::filesystem::path &path) {
     Config config{};
 
+    // Parse the file first — bail early with a wrapped error if the TOML itself is busted.
     toml::table toml_table;
     try {
         toml_table = toml::parse_file(path.string());
@@ -20,8 +53,10 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
         return std::unexpected(std::format("TOML parse error in '{}': {}", path.string(), e.what()));
     }
 
-    if (auto *plugins = toml_table["plugins"].as_table()) {
+    // No [plugins] table at all is fine — just means an empty config, nothing more to do.
+    if (auto *plugins = toml_table["plugins"].as_table()) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
         for (auto &[name, section] : *plugins) {
+            // Each plugin section has to itself be a table — skip anything that isn't.
             auto *table = section.as_table();
             if (table == nullptr) {
                 continue;
@@ -30,6 +65,8 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
             PluginConfig plugin_config;
             plugin_config.set_name(std::string{name.str()});
 
+            // Walk every key in the section and stash it verbatim, string/int/bool alike —
+            // "type" gets a little extra love since it's pulled out onto its own field too.
             for (auto &[section_key, section_value] : *table) {
                 std::string key{section_key.str()};
                 if (auto view = section_value.value<std::string>()) {
@@ -44,6 +81,7 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
                 }
             }
 
+            // Section's fully parsed — register it under its own name, W.
             config.get_plugins()[plugin_config.get_name()] = std::move(plugin_config);
         }
     }
@@ -54,18 +92,21 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
 static std::expected<Config, std::string> parse_json(const std::filesystem::path &path) {
     Config config{};
 
+    // Load + parse the file — simdjson hands back a nonzero error code instead of throwing.
     simdjson::dom::parser parser;
     simdjson::dom::element doc;
     if (auto ec = parser.load(path.string()).get(doc); ec) {
         return std::unexpected(std::format("JSON parse error in '{}': {}", path.string(), simdjson::error_message(ec)));
     }
 
+    // No "plugins" key, or it's not actually an object — either way, empty config's the move.
     simdjson::dom::element plugins_element;
-    if (doc["plugins"].get(plugins_element) == 0U) {
+    if (doc["plugins"].get(plugins_element) == 0U) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
         simdjson::dom::object plugins_obj;
 
         if (plugins_element.get(plugins_obj) == 0U) {
             for (auto [pname, psection] : plugins_obj) {
+                // Each plugin section has to itself be an object — skip anything that isn't.
                 simdjson::dom::object section_obj;
                 if (psection.get(section_obj) != 0U) {
                     continue;
@@ -74,24 +115,14 @@ static std::expected<Config, std::string> parse_json(const std::filesystem::path
                 PluginConfig plugin_config;
                 plugin_config.set_name(std::string{pname});
 
+                // Walk every key in the section — dispatch pulled into JsonPluginFieldParser
+                // above to keep this function's own complexity down.
                 for (auto [section_key, section_value] : section_obj) {
-                    std::string key{section_key};
-                    std::string_view view;
-                    std::int64_t value = 0;
-                    bool js_bool = false;
-
-                    if (section_value.get_string().get(view) == 0U) {
-                        if (key == "type") {
-                            plugin_config.set_type(std::string{view});
-                        }
-                        plugin_config.add_field(key, std::string{view});
-                    } else if (section_value.get_int64().get(value) == 0U) {
-                        plugin_config.add_field(key, std::to_string(value));
-                    } else if (section_value.get_bool().get(js_bool) == 0U) {
-                        plugin_config.add_field(key, js_bool ? "true" : "false");
-                    }
+                    JsonPluginFieldParser::parse_field(plugin_config, std::string_view{section_key},
+                                                       section_value);
                 }
 
+                // Section's fully parsed — register it under its own name.
                 config.get_plugins()[plugin_config.get_name()] = std::move(plugin_config);
             }
         }
@@ -105,10 +136,12 @@ static std::expected<Config, std::string> parse_json(const std::filesystem::path
 export namespace core::config {
 
 [[nodiscard]] std::expected<Config, std::string> load(const std::filesystem::path &path) {
+    // No path given — lowkey not an error, it just means an empty/default config.
     if (path.empty()) {
         return Config{};
     }
 
+    // Dispatch on extension to the matching parser.
     auto ext = path.extension().string();
     if (ext == ".toml") {
         return parse_toml(path);

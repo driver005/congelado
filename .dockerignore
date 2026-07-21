@@ -1,0 +1,10 @@
+build/
+build
+out/
+.git/
+.git
+*.o
+*.so
+*.a
+*.d
+*.exe
