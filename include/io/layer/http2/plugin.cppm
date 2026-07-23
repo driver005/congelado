@@ -6,7 +6,11 @@ import interfaces;
 import core_config;
 import core_router;
 import core_logger;
+import core_contract;
 import io_shared;
+import io_base_socket;
+import io_base_leverage;
+import io_flow_socket;
 import :flow;
 import :request;
 
@@ -79,9 +83,15 @@ class Client final : public interfaces::IClient {
      * footgun if some other `IRequest` implementation ever gets routed to this client by
      * mistake.
      * @param req the request to send — must actually be an `HttpRequest` at runtime.
+     * @note No-ops (logged) if called before `on_connect()` has fired — `m_flow` doesn't exist
+     * yet at that point, so there's nothing to send through.
      */
     // Please pass in a HttpRequest object. Else this function will throw a std::bad_cast exception.
     void send(interfaces::io::IRequest &req) override {
+        if (!m_flow) {
+            core::logger::error("http2", "send() called before the connection was established");
+            return;
+        }
         try {
             // Downcast to the concrete request type this protocol actually knows how to frame.
             auto &http_request = dynamic_cast<HttpRequest &>(req);
@@ -95,9 +105,60 @@ class Client final : public interfaces::IClient {
         }
     }
 
+    /**
+     * @brief Builds a fresh `HttpRequest` tagged with `stream_id` — the concrete-type escape
+     * hatch generic callers (holding just an `IClient&`) reach through instead of naming
+     * `HttpRequest` themselves.
+     * @param stream_id the stream id to tag the new request with.
+     * @return a heap-allocated `HttpRequest`.
+     */
+    [[nodiscard]] std::unique_ptr<interfaces::io::IRequest>
+    create_request(std::uint32_t stream_id) override {
+        return std::make_unique<HttpRequest>(stream_id);
+    }
+
+    /**
+     * @brief Opens the outbound TCP/TLS connection to `endpoint` and drives this client's own
+     * on_connect() once it lands — the socket-transport counterpart to
+     * `Http2Protocol::get_client()`, so callers work through this `Client` abstraction instead
+     * of wiring a `ClientFlowSocket` themselves.
+     * @param endpoint the peer endpoint to connect to.
+     * @param leverager the io_uring leverager backing the connection.
+     * @param contract_group the contract group the connector/worker get registered against.
+     * @param verify_peer forwarded straight to the underlying socket — `false` to skip
+     * verifying a self-signed/dev peer cert not in the system trust store.
+     * @param on_connected fires once the TCP/TLS connect and HTTP/2 handshake actually land —
+     * this is the earliest point `send()` is safe to call (before that, `m_flow` is still null
+     * and `send()` would dereference it). Callers that hand this client off to something that
+     * calls `send()` concurrently (e.g. a poll loop on another thread) must wait for this
+     * callback rather than assuming `connect()` returning means the connection is ready — the
+     * connect/handshake sequence is async, `connect()` only kicks it off.
+     * @throws std::runtime_error if the underlying connect fails (propagated from
+     * `ClientFlowSocket::build()`).
+     */
+    void connect(io::base::socket::Endpoint endpoint,
+                io::base::leverage::Leverager<io::base::leverage::Context> &leverager,
+                core::contract::ContractGroup<> &contract_group, bool verify_peer = true,
+                std::function<void()> on_connected = {}) {
+        m_socket_flow.emplace(std::move(endpoint), leverager, contract_group, verify_peer);
+        m_socket_flow->add_on_accept(
+            [this, on_connected = std::move(on_connected)](
+                ::shared::SendCallback send, ::shared::CloseCallback close) -> ::shared::ReadCallback {
+                auto read_callback = on_connect(std::move(send), std::move(close));
+                if (on_connected) {
+                    on_connected();
+                }
+                return read_callback;
+            });
+        m_socket_flow->build();
+    }
+
   private:
     std::unique_ptr<ClientFlow> m_flow;
     interfaces::io::ReceiveDispatchFn m_dispatch;
+    std::optional<io::base::flow::sync::ClientFlowSocket<core::contract::ContractGroup<>,
+                                                          io::base::socket::Protocol::TLS>>
+        m_socket_flow;
 };
 
 class Server {

@@ -1,5 +1,6 @@
 export module interfaces:client;
 
+import std;
 import io_shared;
 import shared;
 import :io;
@@ -51,6 +52,19 @@ class IClient {
      * @param request the request to send — implementer decides how it gets serialized/dispatched.
      */
     virtual void send(io::IRequest &request) = 0;
+
+    /**
+     * @brief Builds a fresh request of whatever concrete type this client's protocol actually
+     * deals in (e.g. io::layer::http2::HttpRequest), tagged with `stream_id`. This is the
+     * protocol-agnostic escape hatch: `IRequest`'s own base-class virtuals all abort — only a
+     * concrete subtype is ever actually usable — but generic code holding just an `IClient&`
+     * has no way to name that concrete type. Calling this instead of constructing one directly
+     * dispatches to whichever concrete client is actually behind the reference, no cast needed
+     * anywhere in the generic caller.
+     * @param stream_id the stream id to tag the new request with.
+     * @return a heap-allocated request of this client's concrete protocol type.
+     */
+    [[nodiscard]] virtual std::unique_ptr<io::IRequest> create_request(std::uint32_t stream_id) = 0;
 
   protected:
     /**

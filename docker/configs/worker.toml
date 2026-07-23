@@ -3,6 +3,8 @@
 
 engine_host = "server"
 engine_port = 8080
+bind_host = "0.0.0.0"
+bind_port = 8081
 worker_id = "docker-worker-1"
 concurrency = 2
 

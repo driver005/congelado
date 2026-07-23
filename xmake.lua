@@ -4,9 +4,18 @@ set_version("0.1.0")
 add_rules("mode.debug", "mode.release")
 set_defaultmode("debug")
 
+-- Generic build-script feature (wire_build_script) — needed by both xmake/plugin.lua's loop
+-- and congelado_worker's own target below, so it's included first.
+includes("xmake/buildscript.lua")
+
 if is_plat("linux") then
 	set_toolchains("clang")
 	add_ldflags("-fuse-ld=lld")
+	-- liburing < 2.15 unconditionally defines IOURINGINLINE as "static inline", which a
+	-- C++20 module partition can't export (internal linkage). Newer liburing guards this
+	-- with #ifndef and picks plain "inline" under C++20+; predefine it ourselves so older
+	-- distro packages (e.g. Ubuntu 25.10's liburing-dev 2.11) behave the same way.
+	add_defines("IOURINGINLINE=inline")
 elseif is_plat("windows", "mingw") then
 	set_config("sdk", "/opt/llvm-mingw")
 	set_toolchains("clang")
@@ -138,32 +147,62 @@ if is_arch("x86_64") then
 	add_cxflags("-mbmi2")
 end
 
-target("congelado_lib")
-set_kind("shared")
-add_cxflags("-fPIC")
+-- fmt/grpc/ngtcp2 are deliberately absent here: their add_requires() calls are commented out
+-- above (and ngtcp2 never had one at all), and nothing in the codebase uses fmt::/grpc:: —
+-- this project uses std::format/std::println throughout instead. Keeping dead names in
+-- add_packages() just tolerated silently; dropped rather than carried forward.
+local core_packages = {
+	"simdjson",
+	"tomlplusplus",
+	"reflectcpp",
+	"protobuf",
+	"asio",
+	"openssl",
+	"nghttp2",
+	"nghttp3",
+	"backward",
+	"libffi",
+	"microsoft-gsl",
+	"range-v3",
+	"stduuid",
+	"sqlgen",
+	"cpython",
+	"lua",
+}
 
-if is_plat("windows", "mingw") then
-	add_syslinks("ws2_32", "mswsock", "stdc++", "gcc_s")
-	add_defines("_WIN32_WINNT=0x0A00")
-	add_cxflags("--target=x86_64-w64-mingw32")
-	add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
-else
-	add_links("c++", "uring", "pthread", "dl", "ssl", "crypto")
-	add_syslinks("python3.12")
+-- Shared setup for the three layered shared libs below (congelado_include/sdk/lib): platform
+-- link flags, the CLANG_ITERATE_MODULES define, and the common package set. Each caller still
+-- does its own set_kind/add_deps/add_files/target_end — this only covers what's identical
+-- across all three.
+local function apply_common_layer_settings(opts)
+	opts = opts or {}
+	add_cxflags("-fPIC")
+
+	if is_plat("windows", "mingw") then
+		add_syslinks("ws2_32", "mswsock", "stdc++", "gcc_s")
+		add_defines("_WIN32_WINNT=0x0A00")
+		add_cxflags("--target=x86_64-w64-mingw32")
+		add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
+	else
+		add_links("c++", "uring", "pthread", "dl", "ssl", "crypto")
+		add_syslinks("python3.12")
+	end
+
+	add_defines("CLANG_ITERATE_MODULES")
+	add_includedirs("include", { public = true })
+	if opts.plugin_includedir then
+		add_includedirs("sdk/plugin/include", { public = true })
+	end
+	add_packages(table.unpack(table.join(core_packages, { { public = true } })))
 end
 
-add_defines("CLANG_ITERATE_MODULES")
+-- congelado_include: include/** only (interfaces, io layer, utils, model, shared) — the
+-- bottommost layer. Nothing here imports anything from sdk/ or plugins/.
+target("congelado_include")
+set_kind("shared")
+apply_common_layer_settings()
 
 add_files("include/**.cppm", { public = true })
-add_files("plugins/**.cppm", { public = true })
-add_files("sdk/plugin/congelado_plugin.cppm", { public = true })
-add_files("sdk/client/congelado_client.cppm", "sdk/client/runtime.cppm", "sdk/client/schema_model.cppm", "sdk/client/dto_writer.cppm", "sdk/client/route_writer.cppm", "sdk/client/generator.cppm", { public = true })
-add_files("sdk/heart/heart.cppm", "sdk/heart/app.cppm", "sdk/heart/context.cppm", "sdk/heart/adapters.cppm", { public = true })
-add_files("sdk/worker/congelado_worker.cppm", "sdk/worker/task.cppm", "sdk/worker/config.cppm", { public = true })
-add_files("src/**.cc")
-
-remove_files("src/main.cc")
-remove_files("src/cli_main.cc")
 
 if is_plat("windows", "mingw") then
 	remove_files("include/**/posix.cppm")
@@ -174,42 +213,42 @@ else
 	remove_files("include/**/win32.cppm")
 	remove_files("include/modules/winsock2.cppm")
 end
+target_end()
 
-add_includedirs("include", { public = true })
-add_includedirs("sdk/plugin/include", { public = true })
+-- congelado_sdk: sdk/** (plugin ABI, client SDK codegen, heart, worker) — built on top of
+-- congelado_include rather than merged with it; every sdk/** file imports include/**'s
+-- modules (interfaces, core_*, io_*, utils_*, model, ...), never the other way round.
+target("congelado_sdk")
+set_kind("shared")
+add_deps("congelado_include")
+apply_common_layer_settings({ plugin_includedir = true })
 
-add_packages(
-	"fmt",
-	"simdjson",
-	"tomlplusplus",
-	"reflectcpp",
-	"grpc",
-	"protobuf",
-	"asio",
-	"openssl",
-	"nghttp2",
-	"ngtcp2",
-	"nghttp3",
-	"backward",
-	"libffi",
-	"microsoft-gsl",
-	"range-v3",
-	"stduuid",
-	"sqlgen",
-	"cpython",
-	"lua",
-	{ public = true }
-)
+add_files("sdk/**.cppm", { public = true })
+target_end()
+
+-- congelado_lib: plugins/**.cppm (engine, worker's HTTP surface, etc.) + the src/**.cc entry
+-- points — the plugin-implementation layer, built on top of congelado_include/congelado_sdk
+-- rather than merged with them. Everything that previously depended on congelado_lib still
+-- does; this dependency is what actually enforces "include, then sdk, then plugins".
+target("congelado_lib")
+set_kind("shared")
+add_deps("congelado_sdk")
+apply_common_layer_settings({ plugin_includedir = true })
+
+add_files("plugins/**.cppm", { public = true })
+add_files("src/**.cc")
+
+remove_files("src/main.cc")
+remove_files("src/cli_main.cc")
 
 includes("xmake/plugin.lua")
-includes("xmake/worker.lua")
 
 target("congelado")
 set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/main.cc")
 add_deps("congelado_lib")
-add_packages("fmt", "simdjson")
+add_packages("simdjson")
 add_rpathdirs("$ORIGIN")
 target_end()
 
@@ -218,7 +257,7 @@ set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/worker_main.cc")
 add_deps("congelado_lib")
-add_packages("fmt", "backward")
+add_packages("backward")
 add_rpathdirs("$ORIGIN")
 target_end()
 

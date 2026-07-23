@@ -3,10 +3,16 @@ version: "3.8"
 services:
   # ── Engine Server ──────────────────────────────────────────────────────────
   server:
+    image: localhost/congelado-server:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.server
     container_name: congelado-server
+    # io_uring is this project's only I/O leverager backend (no epoll/posix fallback) —
+    # container runtimes' default seccomp profiles commonly block the io_uring syscalls,
+    # so the engine needs them explicitly allowed to start at all.
+    security_opt:
+      - seccomp:unconfined
     ports:
       - "8080:8080"
     networks:
@@ -20,10 +26,14 @@ services:
 
   # ── Worker ────────────────────────────────────────────────────────────────
   worker:
+    image: localhost/congelado-worker:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.worker
     container_name: congelado-worker
+    # Same io_uring seccomp requirement as the server — see the comment there.
+    security_opt:
+      - seccomp:unconfined
     depends_on:
       server:
         condition: service_healthy
@@ -32,6 +42,7 @@ services:
 
   # ── Integration Tests ─────────────────────────────────────────────────────
   test:
+    image: localhost/congelado-test:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.test

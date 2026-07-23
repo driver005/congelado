@@ -1,71 +1,107 @@
 # ── Congelado Tests ────────────────────────────────────────────────────────────
 # Multi-stage build: runs integration tests against all engine routes
+# Base: Arch Linux — matches the toolchain this project is actually developed against.
+# See Dockerfile.server for why (Debian/Ubuntu GCC versions each hit real "import std"
+# module bugs; Arch's rolling-release clang+gcc avoids all of that by construction).
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Builder ───────────────────────────────────────────────────────────
-FROM ubuntu:24.04 AS builder
+FROM archlinux:latest AS builder
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Container runs as root with no USER directive; xmake refuses to run as root otherwise.
+ENV XMAKE_ROOT=y
+# Cap parallel compile jobs — 12 host cores against limited container RAM has been
+# spiking swap hard enough to trigger silent kills during the openssl/cpython/bison
+# Conan builds; capping keeps peak memory bounded.
+ENV MAKEFLAGS=-j4
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget gnupg ca-certificates lsb-release software-properties-common \
-    python3 python3-pip git unzip \
-    && rm -rf /var/lib/apt/lists/*
+RUN pacman -Syu --noconfirm \
+    && pacman -S --noconfirm --needed \
+       curl wget git unzip base-devel readline cmake ninja pkgconf liburing \
+       python python-pip clang lld libc++ libc++abi tk \
+       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
+       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
+       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor
 
-# Clang 20 + LLD
-RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
-    && echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" \
-       > /etc/apt/sources.list.d/llvm-20.list \
-    && apt-get update && apt-get install -y --no-install-recommends \
-       clang-20 lld-20 libc++-20-dev libc++abi-20-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
-    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-20 100
+# Arch's gcc package installs libstdc++.modules.json under /usr/lib/gcc/<target>/<ver>/
+# but ships the actual bits/std.cc (the C++23 std module source) under the unrelated
+# /usr/include/c++/<ver>/ tree instead of "next to" the manifest as its own relative
+# source-path (../include/c++/<ver>/bits/std.cc) assumes. Symlink it into place so
+# clang's std-module lookup (which follows that relative path literally) finds it.
+RUN gccver=$(gcc -dumpversion | cut -d. -f1) \
+    && mkdir -p /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits \
+    && ln -sf /usr/include/c++/${gccver}/bits/std.cc \
+       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.cc \
+    && ln -sf /usr/include/c++/${gccver}/bits/std.compat.cc \
+       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.compat.cc
 
 # xmake
 RUN curl -fsSL https://xmake.io/shget.text | bash \
     && ln -sf /root/.local/bin/xmake /usr/local/bin/xmake
 
 # Conan 2
-RUN pip3 install --no-cache-dir conan \
+RUN pip3 install --no-cache-dir --break-system-packages conan \
     && conan profile detect --force
 
 # Copy project
 WORKDIR /app
 COPY . .
 
-# Configure xmake
+# Configure xmake — no --sdk override needed; Arch's clang/libc++/gcc live at the default
+# paths xmake already expects (this mirrors how the project builds on bare-metal Arch).
 RUN xmake f -c -v -y
 
 # Install Conan dependencies
-RUN xmake require --force
+RUN xmake require --force -y
 
-# Build all targets
-RUN xmake build congelado congelado_lib
+# Build all targets — one target per invocation; this xmake version rejects multiple
+# positional target names in a single "xmake build" call. congelado_include, congelado_sdk,
+# and congelado_lib each must fully finish — as their own process invocation — before the
+# next starts: xmake's cross-target C++ module BMI tracking doesn't reliably gate a
+# dependent's start on its dependency's completion within a single invocation, so building
+# them together races and fails intermittently on missing .pcm files.
+RUN xmake build congelado_include
+RUN xmake build congelado_sdk
+RUN xmake build congelado_lib
+RUN xmake build congelado
 
 # Build plugins
-RUN xmake build engine file_logger http2
+RUN xmake build engine
+# engine's build.cc (via engine_build, an add_deps of "engine" above) writes a generated
+# client SDK into plugins/engine/generated/ — inside congelado_lib's own plugins/**.cppm
+# glob. This second pass picks those freshly-written files up and actually compiles them,
+# instead of leaving generated-but-never-built dead output.
+RUN xmake build congelado_lib
+RUN xmake build file_logger
+RUN xmake build http2
 
 # Build workers
-RUN xmake build echo transform
+RUN xmake build echo
+RUN xmake build transform
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM ubuntu:24.04 AS runtime
+FROM archlinux:latest AS runtime
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates libstdc++6 libgcc-s1 curl jq openssl \
-    && rm -rf /var/lib/apt/lists/*
+# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain)
+# plus the X11/xcb chain pulled transitively into cpython's Tk support at build time —
+# `tk` brings the same X11/xcb libs in as runtime deps that the builder had as headers.
+RUN pacman -Syu --noconfirm \
+    && pacman -S --noconfirm --needed ca-certificates curl jq openssl \
+       libc++ libc++abi liburing tk \
+       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
+       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
+       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor \
+    && pacman -Scc --noconfirm
 
 WORKDIR /app
 
 # Copy built artifacts
-COPY --from=builder /app/build/linux/x86_64/debug/bin/congelado ./congelado
-COPY --from=builder /app/build/linux/x86_64/debug/plugins/ ./plugins/
-COPY --from=builder /app/build/linux/x86_64/debug/workers/ ./workers/
+COPY --from=builder /app/build/linux/x86_64/debug/congelado ./congelado
+COPY --from=builder /app/build/plugins/ ./plugins/
+COPY --from=builder /app/build/workers/ ./workers/
 COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_lib.so ./libcongelado_lib.so
+COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_include.so ./libcongelado_include.so
+COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_sdk.so ./libcongelado_sdk.so
 
 # Copy config
 COPY src/congelado.toml ./congelado.toml
