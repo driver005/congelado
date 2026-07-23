@@ -2,9 +2,15 @@ export module core_client;
 
 import std;
 import interfaces;
+import utils_buffering;
 
 export namespace core::client {
 
+// Fluent HTTP-verb request builder. Protocol-agnostic by construction: it never names a
+// concrete request type itself (interfaces::io::IRequest's base-class virtuals all abort —
+// it's a CRTP base, not directly usable). Building the real concrete request is the
+// runtime IClient's own job — see IClient::create_request() — so send() asks the client
+// wired in via with_runtime() to build one rather than needing to know its type.
 class Client {
   public:
     /**
@@ -81,6 +87,14 @@ class Client {
      * @return a Client pre-loaded with the OPTIONS method and `path`.
      */
     static Client options(std::string_view path) { return {"OPTIONS", path}; }
+    /**
+     * @brief Spins up a fresh Client for an arbitrary method string — the escape hatch for
+     * runtime-determined verbs the fixed get()/post()/etc. factories above don't cover.
+     * @param method the HTTP method string, verbatim.
+     * @param path the request path/target.
+     * @return a Client pre-loaded with `method` and `path`.
+     */
+    static Client custom(std::string_view method, std::string_view path) { return {method, path}; }
 
     /**
      * @brief Builder chain — wires this Client up to the runtime IClient that'll actually ship
@@ -91,6 +105,17 @@ class Client {
      */
     Client &&with_runtime(interfaces::IClient &client) && {
         m_client = client;
+        return std::move(*this);
+    }
+
+    /**
+     * @brief Builder chain — sets the stream id the eventually-built request gets tagged
+     * with, and that response correlation on the caller's side keys off of.
+     * @param stream_id the stream id to use.
+     * @return `*this`, moved, so the chain keeps going.
+     */
+    Client &&with_stream_id(std::uint32_t stream_id) && noexcept {
+        m_stream_id = stream_id;
         return std::move(*this);
     }
 
@@ -113,6 +138,12 @@ class Client {
     void set_runtime(interfaces::IClient &client) { m_client = client; }
 
     /**
+     * @brief In-place version of with_stream_id().
+     * @param stream_id the stream id to use.
+     */
+    void set_stream_id(std::uint32_t stream_id) noexcept { m_stream_id = stream_id; }
+
+    /**
      * @brief In-place version of on_receive().
      * @param func the receive-dispatch callback to install.
      */
@@ -121,66 +152,93 @@ class Client {
     }
 
     /**
-     * @brief Adds a header straight onto the underlying base request.
+     * @brief Buffers a header by string name — applied onto the real request once send()
+     * builds it, since there's no concrete request to stamp it onto yet.
      * @param key the header name.
      * @param value the header value.
      */
     void add_header(std::string_view key, std::string_view value) {
-        m_base_request.add_header(key, value);
+        m_headers.emplace_back(std::string{key}, std::string{value});
     }
 
-    // TODO: add_body has to append to utils::buffering::BuggerView via get_body()
     /**
-     * @brief Supposed to append `body` onto the request body.
-     * @warning Straight up empty right now — see the TODO right above, this is a stub that
-     * does nothing. Calling it is a silent no-op, not an error, so don't expect your body to
-     * actually show up on send(). No cap, this one's just not built yet.
-     * @param body the bytes meant to get appended, once this actually does something.
+     * @brief Buffers a header by interned `Token` — same deal as the string-name overload,
+     * just the faster-lookup token path.
+     * @param token the header's token.
+     * @param value the header value.
      */
-    void add_body(std::string_view body) {}
-
+    void add_header(interfaces::io::types::Token token, std::string_view value) {
+        m_headers.emplace_back(token, std::string{value});
+    }
 
     /**
-     * @brief Fires the request off through whatever runtime client got wired in via
-     * with_runtime()/set_runtime().
-     * @throws std::runtime_error if no runtime client was ever set — this throws loud instead
-     * of quietly no-op'ing, so forgetting with_runtime() gets caught right away.
+     * @brief Buffers bytes to append onto the request body once send() builds the real
+     * request — same reasoning as add_header(), nothing to write onto yet.
+     * @param body the bytes to append.
+     */
+    void add_body(std::string_view body) { m_body.append(body); }
+
+    /**
+     * @brief Asks the runtime client to build the real concrete request (via
+     * IClient::create_request(), so this class never has to name the concrete type
+     * itself), stamps method/path/headers/body onto it, and fires it off through that same
+     * client.
+     * @throws std::runtime_error if no runtime client was ever set — throws loud instead of
+     * quietly no-op'ing or aborting.
      */
     void send() {
-        // Guard clause — no runtime wired in means there's nowhere to actually ship this to.
+        // Guard clause — no runtime means there's nowhere to actually ship this to, and
+        // nothing to build the real request out of either.
         if (!m_client.has_value()) {
             throw std::runtime_error("Please set runtime first");
         }
-        // Runtime's set, bet — hand the base request off to it.
         auto &client = m_client.value().get();
-        client.send(m_base_request);
-    }
 
+        // The client builds its own concrete request type — only now does anything exist
+        // to stamp method/path/headers/body onto.
+        auto request = client.create_request(m_stream_id);
+        request->set_header(interfaces::io::types::Token::METHOD, m_method);
+        request->set_header(interfaces::io::types::Token::PATH, m_path);
+        for (const auto &[name_or_token, value] : m_headers) {
+            std::visit([&](const auto &name) { request->set_header(name, value); }, name_or_token);
+        }
+
+        if (!m_body.empty()) {
+            // Matches the buffering pattern already used at every other call_engine()-style
+            // call site in this codebase (see plugins/engine/worker/context.cppm).
+            // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need
+            // gsl::owner<BufferNode *>, but this codebase has no GSL dependency; the buffering
+            // subsystem's push_back()/acquire() are all noexcept, raw-pointer, terminate-on-OOM
+            // by convention.
+            auto *node = new utils::buffering::BufferNode(m_body.size());  // NOLINT(cppcoreguidelines-owning-memory)
+            for (char character : m_body) {
+                node->push_back(static_cast<std::byte>(character));
+            }
+            request->get_body().push_back(node, 0, m_body.size());
+        }
+
+        // Fire it off through the same client that built it.
+        client.send(*request);
+    }
 
   private:
     /**
-     * @brief Real ctor behind every static factory — stamps method and path onto the base
-     * request.
-     * @warning `m_base_request.add_header("authority", m_path)` sets the *authority* header to
-     * the path value, not an actual host/authority. Looks like a mix-up (authority should be
-     * host[:port], not the request path) but that's the existing behavior — flagging it here
-     * since this pass is comment-only, not touching the logic.
-     * @param method the HTTP method string (GET/POST/etc) to store as the "method" header.
-     * @param path the request path/target, stored both as `m_path` and (per the warning above)
-     * as the "authority" header.
+     * @brief Real ctor behind every static factory — stashes method and path for send() to
+     * stamp onto the real request once it's actually built.
+     * @param method the HTTP method string (GET/POST/etc).
+     * @param path the request path/target.
      */
     Client(std::string_view method, std::string_view path)
-        : m_path{path} {
-        // Stamp the method header first...
-        m_base_request.add_header("method", method);
-        // ...then the (mislabeled, see warning above) authority header.
-        m_base_request.add_header("authority", m_path);
-    }
+        : m_method{method}, m_path{path} {}
 
+    std::string m_method;
     std::string m_path;
-    interfaces::io::IRequest m_base_request;
+    std::vector<std::pair<std::variant<std::string, interfaces::io::types::Token>, std::string>>
+        m_headers;
+    std::string m_body;
     interfaces::io::ReceiveDispatchFn m_receive_dispatch_fn;
     std::optional<std::reference_wrapper<interfaces::IClient>> m_client;
+    std::uint32_t m_stream_id{0};
 };
 
 } // namespace core::client

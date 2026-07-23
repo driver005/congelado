@@ -874,25 +874,19 @@ class ClientFlowSocket {
      * @param end the endpoint to eventually connect to.
      * @param leverager the io_uring leverager backing the connection.
      * @param controller the controller the connector/worker get registered against.
+     * @param verify_peer forwarded straight to `Socket::set_verify_peer()` before connecting —
+     * `false` when connecting to a self-signed/dev cert not in the system trust store.
      */
-    ClientFlowSocket(socket::Endpoint end, Leverager &leverager, Controller &controller)
+    ClientFlowSocket(socket::Endpoint end, Leverager &leverager, Controller &controller,
+                     bool verify_peer = true)
         : m_endpoint{std::move(end)}, m_leverager{leverager}, m_controller{controller},
-          m_on_established{nullptr} {}
+          m_on_established{nullptr}, m_verify_peer{verify_peer} {}
 
-    /**
-     * @brief Intends to close out the live worker, if any.
-     * @warning This loop is `for (auto &[fd, worker] : m_worker)` but `m_worker` is declared as
-     * `std::optional<std::shared_ptr<WorkerSocket<Protocol>>>` down in the private members, not
-     * a map or any other range type — `std::optional` isn't iterable, it has no `begin()`/
-     * `end()`. Reads like a copy-paste from `ServerFlowSocket`'s destructor (where `m_workers`
-     * really is a hashmap) that never got adjusted for the single-worker client case. As written
-     * this does not compile. Flagging hard, not touching the logic — comment-only pass.
-     */
+    /// @brief Closes out the live worker, if any.
     ~ClientFlowSocket() {
-        // Walk and close out the live worker, if any (see warning above — this loop doesn't
-        // actually compile against `m_worker`'s real `std::optional` type).
-        for (auto &[fd, worker] : m_worker) {
-            worker->close();
+        // m_worker is a single optional, not a range — close it directly if it's there.
+        if (m_worker) {
+            (*m_worker)->close();
         }
     }
 
@@ -912,7 +906,8 @@ class ClientFlowSocket {
     ClientFlowSocket(ClientFlowSocket &&other) noexcept
         : m_endpoint{std::move(other.m_endpoint)}, m_leverager{other.m_leverager},
           m_controller{std::move(other.m_controller)}, m_worker{std::move(other.m_worker)},
-          m_on_established{std::move(other.m_on_established)} {}
+          m_on_established{std::move(other.m_on_established)},
+          m_verify_peer{other.m_verify_peer} {}
     /**
      * @brief Move assignment — self-assignment guarded, steals `other`'s state.
      * @param other the flow socket to move from.
@@ -926,6 +921,7 @@ class ClientFlowSocket {
             m_controller = std::move(other.m_controller);
             m_worker = std::move(other.m_worker);
             m_on_established = std::move(other.m_on_established);
+            m_verify_peer = other.m_verify_peer;
         }
         return *this;
     }
@@ -956,22 +952,13 @@ class ClientFlowSocket {
 
     /**
      * @brief Hands back a callback that sends through the live worker's sender, if there is one.
-     * @warning The condition here is backwards, no cap — it calls `m_worker.value()` in the
-     * init-statement *before* `m_worker.has_value()` ever gets checked in the condition. If
-     * `m_worker` is empty (no connection established yet), `.value()` throws
-     * `std::bad_optional_access` right there instead of this cleanly falling through to
-     * `return nullptr`. The `has_value()` check reads like the intended guard, but it runs too
-     * late to save you. Flagging, not fixing — comment-only pass.
-     * @throws std::bad_optional_access if `m_worker` is empty when this gets called (see warning
-     * above — this is a real, reachable throw, not a hypothetical).
-     * @return a send callback bound to the worker's sender, or `nullptr` if no worker exists yet
-     * (in the cases where the buggy `.value()` call above doesn't throw first).
+     * @return a send callback bound to the worker's sender, or `nullptr` if no worker exists yet.
      */
     shared::SendCallback on_send() {
-        // Pull the worker out and check has_value() second (see warning above — the order's
-        // backwards, so an empty m_worker throws on .value() before the guard ever runs) then
-        // hand back a send callback bound to it.
-        if (auto value = m_worker.value(); m_worker.has_value()) {
+        // Check has_value() first, only then dereference — an empty m_worker just falls
+        // through to nullptr instead of throwing std::bad_optional_access.
+        if (m_worker.has_value()) {
+            auto &value = *m_worker;
             return [sender = &value->get_sender()](utils::buffering::BufferNode &&node) {
                 sender->send(std::move(node));
             };
@@ -981,33 +968,31 @@ class ClientFlowSocket {
 
   private:
     /**
-     * @brief Builds a raw socket for `endpoint`, registers h2 ALPN, loads a TLS cert/key pair,
-     * and attempts a sync connect — flips non-blocking only once connected.
-     * @warning This does a bare `return;` (no value) on the connect-failure path despite the
-     * function's declared return type being `socket::Socket<Protocol>`, not void. A value-less
-     * `return;` in a non-void function is ill-formed in standard C++ — this path doesn't compile
-     * as written. Straight cooked, no cap — flagging hard since this pass is comment-only, not
-     * touching the logic.
+     * @brief Builds a raw socket for `endpoint`, registers h2 ALPN, and attempts a sync connect
+     * — flips non-blocking only once connected.
+     * @note No cert/key gets loaded here — that's a server-side concern (presenting a cert to
+     * clients). `sync_connect()` handles the client-side TLS setup itself, internally, via
+     * `setup_tls()` once the raw TCP connect lands (ALPN + peer verification against the
+     * default trust store, no cert of its own to load).
      * @param endpoint the target endpoint to connect to.
-     * @return a socket connected and flipped non-blocking on success (see warning above for the
-     * failure path, which as written won't even compile).
+     * @param verify_peer forwarded to `Socket::set_verify_peer()` before connecting.
+     * @return a socket connected and flipped non-blocking on success.
+     * @throws std::runtime_error if the sync connect fails — `helper()` uses the returned
+     * socket unconditionally with no failure check, so a failed connect can't return a
+     * half-usable socket here.
      */
-    static socket::Socket<Protocol> create_socket(socket::Endpoint endpoint) {
+    static socket::Socket<Protocol> create_socket(socket::Endpoint endpoint, bool verify_peer) {
         // Build the raw socket and advertise h2 before doing anything else.
         socket::Socket<Protocol> socket{std::move(endpoint)};
         socket.add_alpn_proto("h2");
+        socket.set_verify_peer(verify_peer);
 
-        // Load the TLS cert/key pair the handshake will need.
-        socket.generate_certificate("./server.crt", "server.key");
-        socket.load_certificate("./server.crt", "server.key");
-
-        // Attempt the sync connect — bail on failure (see warning above — this `return;` doesn't
-        // actually compile against the declared non-void return type).
+        // Attempt the sync connect — throw on failure, since helper() below uses the
+        // returned socket unconditionally with no failure check of its own.
         auto connect_status = socket.sync_connect();
         if (connect_status.get_status() != socket::VALUES::VALID) {
-            core::logger::error("io/flow/client", "connect to {} failed",
-                                socket.get_endpoint().to_string());
-            return;
+            throw std::runtime_error(
+                std::format("connect to {} failed", socket.get_endpoint().to_string()));
         }
         // Connected — flip non-blocking and hand the socket back.
         socket.set_non_blocking();
@@ -1027,7 +1012,7 @@ class ClientFlowSocket {
         // Build and connect the raw socket first.
         core::logger::debug("io/flow", "base socket {} start", m_endpoint.to_string());
 
-        auto socket = create_socket(m_endpoint);
+        auto socket = create_socket(m_endpoint, m_verify_peer);
 
         core::logger::debug("io/flow", "fd {} handshake start", socket.get_fd());
 
@@ -1086,6 +1071,7 @@ class ClientFlowSocket {
     std::reference_wrapper<Controller> m_controller;
     std::optional<std::shared_ptr<WorkerSocket<Protocol>>> m_worker;
     ConnectionEstablishedCallback m_on_established;
+    bool m_verify_peer;
 };
 
 } // namespace io::base::flow::sync

@@ -51,6 +51,12 @@ class WorkerConfig {
     void setEngineHost(std::string host) { m_engine_host = std::move(host); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the engine port to connect to. @param port the engine's port number.
     void setEnginePort(std::uint32_t port) { m_engine_port = port; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the host this worker's own inbound HTTP server binds to. @param host the
+    /// bind host.
+    void setBindHost(std::string host) { m_bind_host = std::move(host); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the port this worker's own inbound HTTP server binds to. @param port the
+    /// bind port.
+    void setBindPort(std::uint32_t port) { m_bind_port = port; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the TLS cert used for the engine connection. @param cert the cert contents.
     void setEngineCert(std::string cert) { m_engine_cert = std::move(cert); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the TLS key used for the engine connection. @param key the key contents.
@@ -74,6 +80,12 @@ class WorkerConfig {
     [[nodiscard]] const std::string &getEngineHost() const noexcept { return m_engine_host; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the engine port. @return the engine's port number.
     [[nodiscard]] std::uint32_t getEnginePort() const noexcept { return m_engine_port; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the bind host for this worker's own inbound HTTP server. @return the bind
+    /// host.
+    [[nodiscard]] const std::string &getBindHost() const noexcept { return m_bind_host; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the bind port for this worker's own inbound HTTP server. @return the bind
+    /// port.
+    [[nodiscard]] std::uint32_t getBindPort() const noexcept { return m_bind_port; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the TLS cert for the engine connection. @return the cert contents.
     [[nodiscard]] const std::string &getEngineCert() const noexcept { return m_engine_cert; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the TLS key for the engine connection. @return the key contents.
@@ -100,6 +112,8 @@ class WorkerConfig {
     std::uint32_t m_concurrency{0};
     std::string m_engine_host;
     std::uint32_t m_engine_port{0};
+    std::string m_bind_host;
+    std::uint32_t m_bind_port{0};
     std::string m_engine_cert;
     std::string m_engine_key;
     std::vector<TaskConfig> m_tasks;
@@ -131,6 +145,8 @@ struct serde::Serializable<congelado::worker::WorkerConfig> {
                              &WorkerConfig::setEngineHost>{},
             serde::FieldDesc<"engine_port", &WorkerConfig::getEnginePort,
                              &WorkerConfig::setEnginePort>{},
+            serde::FieldDesc<"bind_host", &WorkerConfig::getBindHost, &WorkerConfig::setBindHost>{},
+            serde::FieldDesc<"bind_port", &WorkerConfig::getBindPort, &WorkerConfig::setBindPort>{},
             serde::FieldDesc<"engine_cert", &WorkerConfig::getEngineCert,
                              &WorkerConfig::setEngineCert>{},
             serde::FieldDesc<"engine_key", &WorkerConfig::getEngineKey,

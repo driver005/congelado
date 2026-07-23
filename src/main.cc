@@ -1,4 +1,5 @@
 #include "backward.hpp"
+#include <csignal>
 
 import std;
 import congelado_heart;
@@ -25,6 +26,12 @@ int main(int argc, char *argv[]) {
     try {
         // Install crash-signal handling before anything else can go wrong.
         backward::SignalHandling sh;
+
+        // A client (or the worker) closing its connection mid-write raises SIGPIPE on the next
+        // write to that socket — default disposition kills the whole process, so every dropped
+        // connection would otherwise take the server down. Ignore it; the write call itself
+        // still reports the failure through errno/EPIPE.
+        std::signal(SIGPIPE, SIG_IGN);
 
         // Derive the plugins directory relative to the running binary's own path — falls back
         // to an empty base if argv[0] somehow isn't there.

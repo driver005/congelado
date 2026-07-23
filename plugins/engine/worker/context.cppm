@@ -3,14 +3,11 @@ export module worker:context;
 import std;
 import core_logger;
 import core_client;
-import io_shared;
-import io_layer_http2;
-import utils_buffering;
 import interfaces;
-// TODO: interfaces/io_layer_http2/utils_buffering/core_logger are still imported directly
-// here (not via sdk) — the task-execution core already moved into congelado_worker; the
-// HTTP-client-to-engine half below is this module's own remaining concern ("the API part"),
-// but should eventually also route through sdk re-exports once those exist.
+// TODO: interfaces/core_logger are still imported directly here (not via sdk) — the
+// task-execution core already moved into congelado_worker; the HTTP-client-to-engine half
+// below is this module's own remaining concern ("the API part"), but should eventually
+// also route through sdk re-exports once those exist.
 import congelado_worker;
 
 export namespace worker {
@@ -168,30 +165,23 @@ class WorkerContext {
             m_pending[stream_id] = &promise;
         }
 
-        // Build the outbound request — method/path headers first.
-        io::layer::http2::HttpRequest req{stream_id};
-        req.set_header(interfaces::io::types::Token::METHOD, method);
-        req.set_header(interfaces::io::types::Token::PATH, path);
+        // Build the outbound request through the client abstraction — it owns method/path/
+        // header/body buffering and the actual send(), leaving stream-id bookkeeping and
+        // response correlation (the promise/future dance) as this class's own concern.
+        auto client = core::client::Client::custom(method, path)
+                          .with_runtime(*m_engine)
+                          .with_stream_id(stream_id);
 
         if (!body.empty()) {
             // Only stamp content headers and buffer a body when there's actually one to send.
-            req.set_header(interfaces::io::types::Token::CONTENT_TYPE, "application/json");
-            req.set_header(interfaces::io::types::Token::CONTENT_LENGTH,
-                           std::to_string(body.size()));
-
-            // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need
-            // gsl::owner<BufferNode *>, but this codebase has no GSL dependency; the buffering
-            // subsystem's push_back()/acquire() are all noexcept, raw-pointer, terminate-on-OOM
-            // by convention (see include/utils/buffering/writter.cppm) — matches that pattern.
-            auto *node = new utils::buffering::BufferNode(body.size());  // NOLINT(cppcoreguidelines-owning-memory)
-            for (char ch : body) {
-                node->push_back(static_cast<std::byte>(ch));
-            }
-            req.get_body().push_back(node, 0, body.size());
+            client.add_header(interfaces::io::types::Token::CONTENT_TYPE, "application/json");
+            client.add_header(interfaces::io::types::Token::CONTENT_LENGTH,
+                              std::to_string(body.size()));
+            client.add_body(body);
         }
 
         // Fire it off — the response lands async, on a different thread, via make_dispatch().
-        m_engine->send(req);
+        client.send();
 
         // Block here till resolve_response() wakes this promise up. No timeout, straight L
         // if the engine ghosts us — see the warning above.

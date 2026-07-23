@@ -2372,6 +2372,16 @@ class Socket {
     }
 
     /**
+     * @brief Sets whether a client-side TLS handshake (`setup_tls()`) requires and verifies the
+     * peer's certificate against the default trust store. Must be called before `sync_connect()`
+     * /`async_connect()` — `setup_tls()` reads this flag once, right when it builds `m_ssl_ctx`.
+     * @param verify `false` to set `SSL_VERIFY_NONE` instead of `SSL_VERIFY_PEER` — needed for
+     * connecting to a self-signed/dev cert that isn't in the system trust store; `true` (the
+     * default) keeps normal peer verification.
+     */
+    void set_verify_peer(bool verify) noexcept { m_verify_peer = verify; }
+
+    /**
      * @brief Grabs the compile-time protocol this Socket instantiation is bound to.
      * @return the `Protocol` template parameter's value.
      */
@@ -2915,7 +2925,9 @@ class Socket {
         // (not just request) a verified peer cert against the default trust store.
         SSL_CTX_set_options(m_ssl_ctx, SSL_OP_ENABLE_KTLS);
 
-        SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER, nullptr);
+        // Require+verify the peer cert against the default trust store, unless the caller
+        // opted out via set_verify_peer(false) — e.g. connecting to a self-signed dev cert.
+        SSL_CTX_set_verify(m_ssl_ctx, m_verify_peer ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, nullptr);
         SSL_CTX_set_default_verify_paths(m_ssl_ctx);
 
         // Context's ready — now build the actual SSL object and wire it to the connected fd.
@@ -3356,6 +3368,7 @@ class Socket {
     std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> m_leverager;
     bool m_ktls_tx;
     bool m_ktls_rx;
+    bool m_verify_peer{true};
     [[no_unique_address]] OsPayload m_os;
 };
 

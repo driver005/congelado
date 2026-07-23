@@ -246,9 +246,9 @@ class FfiWorker final : public ITaskWorker {
 export namespace congelado::worker {
 
 // Host-side loading and execution of task plugins (the CONGELADO_TASK ABI, e.g.
-// defaults/workers/echo, defaults/workers/transform) — fully self-contained, no HTTP
-// surface. Owns both the dlopen/FFI-symbol-resolution machinery and the task-type
-// registry directly (no wrapped/external "worker" module dependency).
+// plugins/engine/worker/internal/echo, plugins/engine/worker/internal/transform) — fully
+// self-contained, no HTTP surface. Owns both the dlopen/FFI-symbol-resolution machinery
+// and the task-type registry directly (no wrapped/external "worker" module dependency).
 class TaskRunner {
   public:
     /**

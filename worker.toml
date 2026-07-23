@@ -2,6 +2,8 @@
 
 engine_host = "localhost"
 engine_port = 8080
+bind_host = "0.0.0.0"
+bind_port = 8081
 engine_cert = ""
 engine_key = ""
 worker_id = "worker-1"
