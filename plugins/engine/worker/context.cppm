@@ -63,12 +63,16 @@ class WorkerContext {
     // ── Task worker registry (delegates to congelado::worker::TaskRunner) ─────
 
     /**
-     * @brief Loads task worker plugins found under `directory` into the registry, via
-     * TaskRunner.
-     * @param directory the path to scan for task worker plugins.
+     * @brief Loads task worker plugins found under `external_directory` (if given) and
+     * `internal_directory` into the registry, via TaskRunner.
+     * @param external_directory optional user-chosen directory for custom, non-built-in
+     * workers. This is the only argument a normal caller should ever pass.
+     * @param internal_directory the built-in workers directory (defaults to `"workers"`). Do
+     * NOT change how this is populated or defaulted under normal circumstances.
      */
-    void load_workers(const std::filesystem::path &directory) {
-        m_task_runner.load_workers(directory);
+    void load_workers(const std::optional<std::filesystem::path> &external_directory = std::nullopt,
+                      const std::filesystem::path &internal_directory = "workers") {
+        m_task_runner.load_workers(external_directory, internal_directory);
     }
 
     /**
@@ -216,8 +220,8 @@ class WorkerContext {
             promise->set_value({.m_status = status, .m_body = std::move(body)});
         } else {
             // Nothing was waiting on this stream id — log and drop it on the floor, silent L.
-            core::logger::warning("worker/context",
-                                  "no pending promise for stream_id={}", stream_id);
+            core::logger::warning("worker/context", "no pending promise for stream_id={}",
+                                  stream_id);
         }
     }
 
@@ -248,7 +252,6 @@ class WorkerContext {
 
   private:
     congelado::worker::TaskRunner m_task_runner;
-
     interfaces::IClient *m_engine{nullptr};
     std::mutex m_mutex;
     std::atomic<std::uint32_t> m_next_stream_id{1};

@@ -286,18 +286,28 @@ class TaskRunner {
     void setWorkerId(std::string_view workerId) { m_worker_id = workerId; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after the prefix), not snake_case
 
     /**
-     * @brief Scans `directory` for `CONGELADO_TASK`-ABI shared libraries, opens every one it
-     * finds, and registers a `detail::FfiWorker` for each that actually exports a non-empty
-     * worker type and execute symbol — this is the real bulk-loading entrypoint most worker
-     * hosts call once at startup.
+     * @brief Scans `external_directory` (if given) and `internal_directory` for
+     * `CONGELADO_TASK`-ABI shared libraries, opens every one it finds, and registers a
+     * `detail::FfiWorker` for each that actually exports a non-empty worker type and execute
+     * symbol — this is the real bulk-loading entrypoint most worker hosts call once at startup.
      * @warning Aborts the process (`std::abort()`) if any discovered shared library fails to
      * open — this is a boot-time hard-fail, not a per-file skip.
-     * @param directory filesystem directory to scan for worker `.so`s.
+     * @param external_directory optional user-chosen directory for custom, non-built-in
+     * workers. This is the only argument a normal caller should ever pass.
+     * @param internal_directory the built-in workers directory (defaults to `"workers"`, i.e.
+     * `$(builddir)/workers` in the shipped layout). Do NOT change how this is populated or
+     * defaulted under normal circumstances — this is the SDK-managed build-output location,
+     * not a user-facing knob.
      */
-    void load_workers(const std::filesystem::path &directory) {
-        // Scan the directory and open every discovered shared library — a hard boot-time
-        // fail if any of them can't be opened, no partial-load recovery here.
-        auto directory_str = directory.string();
+    void load_workers(const std::optional<std::filesystem::path> &external_directory = std::nullopt,
+                       const std::filesystem::path &internal_directory = "workers") {
+        // Scan both directories (external first, if given) before opening anything — a single
+        // open_all()/for_each() pass below keeps this call idempotent-safe to call once, unlike
+        // calling load_workers() twice which would re-wrap already-loaded entries.
+        if (external_directory && !external_directory->empty()) {
+            m_store.scan(external_directory->string());
+        }
+        auto directory_str = internal_directory.string();
         m_store.scan(directory_str);
         auto res = m_store.open_all();
         if (!res) {

@@ -200,6 +200,12 @@ end
 -- bottommost layer. Nothing here imports anything from sdk/ or plugins/.
 target("congelado_include")
 set_kind("shared")
+-- Cross-target C++ module BMI tracking doesn't reliably gate a dependent's start on this
+-- target's completion under "xmake build"'s default cross-target parallelism — congelado_sdk
+-- can start compiling before congelado_include's BMIs are actually done, failing with
+-- "module file not found" (see docker/Dockerfile.server's build-one-target-at-a-time
+-- workaround for the same root cause). build.fence forces every dependent target to wait.
+set_policy("build.fence", true)
 apply_common_layer_settings()
 
 add_files("include/**.cppm", { public = true })
@@ -221,6 +227,9 @@ target_end()
 target("congelado_sdk")
 set_kind("shared")
 add_deps("congelado_include")
+-- Same cross-target BMI race as congelado_include above — fence this one too so
+-- congelado_lib can't start before congelado_sdk's modules are actually built.
+set_policy("build.fence", true)
 apply_common_layer_settings({ plugin_includedir = true })
 
 add_files("sdk/**.cppm", { public = true })
@@ -233,6 +242,9 @@ target_end()
 target("congelado_lib")
 set_kind("shared")
 add_deps("congelado_sdk")
+-- Same cross-target BMI race as the two layers above — the binaries/plugins/workers that
+-- depend on this one need its modules fully built first.
+set_policy("build.fence", true)
 apply_common_layer_settings({ plugin_includedir = true })
 
 add_files("plugins/**.cppm", { public = true })
