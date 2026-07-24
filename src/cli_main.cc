@@ -88,7 +88,11 @@ int main(int argc, char *argv[]) {
         }
 
         if (serve_cmd->parsed()) {
-            return congelado::heart::ServerRunner{plugin_dir}.run(config_path);
+            // --plugin-dir is the one directory this subcommand ever scans — pass it as the
+            // external dir and blank out the internal default so no unrelated "./plugins" gets
+            // picked up.
+            return congelado::heart::ServerRunner{plugin_dir, std::filesystem::path{}}
+                .run(config_path);
         }
 
         if (task_cmd->parsed()) {
@@ -107,7 +111,10 @@ int main(int argc, char *argv[]) {
             // Scan the workers directory for task-plugin .so files before checking whether the
             // requested type actually showed up among them.
             congelado::worker::TaskRunner runner{worker_id};
-            runner.load_workers(workers_dir);
+            // --workers-dir is the one directory this subcommand ever scans — pass it as the
+            // external dir and blank out the internal default so no unrelated "./workers" gets
+            // picked up.
+            runner.load_workers(workers_dir, std::filesystem::path{});
 
             if (!runner.has_task_type(task_type)) {
                 std::println(stderr, "task failed: no worker registered for type '{}'", task_type);

@@ -35,11 +35,19 @@ export namespace congelado::heart {
 class ServerRunner {
   public:
     /**
-     * @brief Builds a runner pointed at the directory it'll scan for plugin shared libraries.
-     * @param plugin_dir filesystem directory to scan for plugin `.so`s on `run()`.
+     * @brief Builds a runner pointed at the directory (or directories) it'll scan for plugin
+     * shared libraries.
+     * @param external_plugin_dir optional user-chosen directory for custom, non-built-in
+     * plugins. This is the only argument a normal caller should ever pass.
+     * @param internal_plugin_dir the built-in plugins directory (defaults to `"plugins"`, i.e.
+     * `$(builddir)/plugins` in the shipped layout). Do NOT change how this is populated or
+     * defaulted under normal circumstances — this is the SDK-managed build-output location,
+     * not a user-facing knob.
      */
-    explicit ServerRunner(std::filesystem::path plugin_dir)
-        : m_plugin_dir{std::move(plugin_dir)} {}
+    explicit ServerRunner(std::optional<std::filesystem::path> external_plugin_dir = std::nullopt,
+                          std::filesystem::path internal_plugin_dir = "plugins")
+        : m_external_plugin_dir{std::move(external_plugin_dir)},
+          m_internal_plugin_dir{std::move(internal_plugin_dir)} {}
 
     /**
      * @brief The whole heart entrypoint — loads config, boots up the app context, loads every
@@ -76,7 +84,8 @@ class ServerRunner {
     }
 
   private:
-    std::filesystem::path m_plugin_dir;
+    std::optional<std::filesystem::path> m_external_plugin_dir;
+    std::filesystem::path m_internal_plugin_dir;
     core::plugin::SharedLibrary m_store{"plugin"};
 
     /**
@@ -112,7 +121,8 @@ class ServerRunner {
     /**
      * @brief Does basically everything: builds the host callback table, resolves per-plugin
      * generation configs, registers the OpenAPI serve route ahead of time, scans/opens/builds
-     * every plugin `.so` in `m_plugin_dir`, writes out the generated OpenAPI document, and wires
+     * every plugin `.so` in `m_external_plugin_dir`/`m_internal_plugin_dir`, writes out the
+     * generated OpenAPI document, and wires
      * up a logger adapter for whichever plugin(s) export the logger capability. Big function,
      * does a lot of heavy lifting — that's the motion.
      * @warning Aborts the process (`std::abort()`) if plugin open or plugin build fails — this
@@ -160,10 +170,15 @@ class ServerRunner {
         // by then. The handler builds its body lazily from Registry at request time.
         ctx.get_router()->add_route(generator.serve());
 
-        // Scan the plugin directory, open every discovered .so, then build/init each one
-        // against the host callback table and per-plugin generation configs — both steps
-        // are boot-time hard-fails, no partial-load recovery.
-        m_store.scan(m_plugin_dir);
+        // Scan the plugin directory (or directories), open every discovered .so, then
+        // build/init each one against the host callback table and per-plugin generation
+        // configs — both steps are boot-time hard-fails, no partial-load recovery. External
+        // scans first, if given, then the internal (build-output) directory, all before the
+        // single open_all()/for_each() pass below.
+        if (m_external_plugin_dir && !m_external_plugin_dir->empty()) {
+            m_store.scan(*m_external_plugin_dir);
+        }
+        m_store.scan(m_internal_plugin_dir);
         auto open_res = m_store.open_all();
         if (!open_res) {
             std::println(stderr, "[heart] plugin load failed: {} — aborting",

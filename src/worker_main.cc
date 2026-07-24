@@ -136,7 +136,9 @@ void poll_cycle(worker::WorkerContext &ctx) {
  * concurrency slot until killed.
  * @param argc argument count.
  * @param argv `argv[1]` (optional) is the worker config path, defaults to `"worker.toml"`;
- * `argv[2]` (optional) is the task-worker plugin directory, defaults to `"./workers"`.
+ * `argv[2]` (optional) is the internal (built-in) task-worker plugin directory, defaults to
+ * `"./workers"` — should not normally be overridden; `argv[3]` (optional) is the external
+ * (user-provided, custom) task-worker plugin directory, the intended user-facing knob.
  * @return `0` on a clean shutdown, `1` on config load or task-worker load failure.
  */
 int run_worker(int argc, char *argv[]) {
@@ -148,7 +150,9 @@ int run_worker(int argc, char *argv[]) {
     std::signal(SIGPIPE, SIG_IGN);
 
     auto config_path = argc > 1 ? std::string{argv[1]} : "worker.toml";
-    auto workers_dir = argc > 2 ? std::string{argv[2]} : "./workers";
+    auto internal_workers_dir = argc > 2 ? std::string{argv[2]} : "./workers";
+    auto external_workers_dir =
+        argc > 3 ? std::optional<std::string>{argv[3]} : std::nullopt;
 
     // ── 1. Load worker config ──────────────────────────────────────────
     auto cfg_result = congelado::worker::WorkerConfig::from_file(expand_tilde(config_path));
@@ -167,10 +171,10 @@ int run_worker(int argc, char *argv[]) {
 
     // ── 3. Load FFI task-worker plugins from directory ─────────────────
     try {
-        ctx.load_workers(workers_dir);
+        ctx.load_workers(external_workers_dir, internal_workers_dir);
     } catch (const std::exception &e) {
-        std::println(stderr, "[worker] failed to load workers from '{}': {}", workers_dir,
-                     e.what());
+        std::println(stderr, "[worker] failed to load workers from '{}' (internal) / '{}' (external): {}",
+                     internal_workers_dir, external_workers_dir.value_or("<none>"), e.what());
         return 1;
     }
 

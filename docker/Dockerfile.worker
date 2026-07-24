@@ -47,27 +47,16 @@ RUN pip3 install --no-cache-dir --break-system-packages conan \
 WORKDIR /app
 COPY . .
 
-# Configure xmake — no --sdk override needed; Arch's clang/libc++/gcc live at the default
-# paths xmake already expects (this mirrors how the project builds on bare-metal Arch).
-RUN xmake f -c -v -y
+# Configure xmake (fetches Conan deps too) — no --sdk override needed; Arch's
+# clang/libc++/gcc live at the default paths xmake already expects, mirroring how the
+# project builds on bare-metal Arch.
+RUN make install
 
-# Install Conan dependencies
-RUN xmake require --force -y
-
-# Build worker binary + library + workers — one target per invocation; this xmake
-# version rejects multiple positional target names in a single "xmake build" call.
-# congelado_include, congelado_sdk, and congelado_lib each must fully finish — as their own
-# process invocation — before the next starts: xmake's cross-target C++ module BMI tracking
-# doesn't reliably gate a dependent's start on its dependency's completion within a single
-# invocation.
-RUN xmake build congelado_include
-RUN xmake build congelado_sdk
-RUN xmake build congelado_lib
-RUN xmake build congelado_worker
-
-# Build FFI workers
-RUN xmake build echo
-RUN xmake build transform
+# Build everything — congelado_include/congelado_sdk/congelado_lib all carry
+# set_policy("build.fence", true) in xmake.lua, so a single "make build" ("xmake build",
+# all targets) builds the whole dep chain in correct order without racing on module BMIs.
+# No codegen bootstrap concern here (that's an engine-plugin-only thing) — one pass is enough.
+RUN make build
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM archlinux:latest AS runtime

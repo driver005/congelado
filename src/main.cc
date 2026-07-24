@@ -9,13 +9,14 @@ import congelado_heart;
  * `ServerRunner` pointed at the sibling `plugins` directory (derived from the running binary's
  * own path) and a config path.
  * @warning The config path passed to `run()` is a hardcoded `"~/cc/congelado/src/congelado.toml"`
- * string, unlike the plugin directory which is genuinely derived from `argv[0]`. There's no
- * tilde-expansion happening anywhere in this call — the OS/filesystem layer won't expand `~` for
- * you — so this only ever finds the config on a checkout sitting at exactly that path. Straight
- * cooked for anyone running the binary from anywhere else or on another machine.
+ * string, unlike the internal plugin directory which is genuinely derived from `argv[0]`. There's
+ * no tilde-expansion happening anywhere in this call — the OS/filesystem layer won't expand `~`
+ * for you — so this only ever finds the config on a checkout sitting at exactly that path.
+ * Straight cooked for anyone running the binary from anywhere else or on another machine.
  * @param argc argument count; only checked for `> 0` to decide whether `argv[0]` is safe to read.
- * @param argv argument vector; `argv[0]` is used to derive the plugins directory relative to the
- * running binary.
+ * @param argv argument vector; `argv[0]` is used to derive the internal plugins directory
+ * relative to the running binary (should not normally be overridden). `argv[1]` (optional) is
+ * the external (user-provided, custom) plugins directory, the intended user-facing knob.
  * @return whatever `ServerRunner::run` returns.
  */
 int main(int argc, char *argv[]) {
@@ -33,14 +34,19 @@ int main(int argc, char *argv[]) {
         // still reports the failure through errno/EPIPE.
         std::signal(SIGPIPE, SIG_IGN);
 
-        // Derive the plugins directory relative to the running binary's own path — falls back
-        // to an empty base if argv[0] somehow isn't there.
+        // Derive the internal plugins directory relative to the running binary's own path —
+        // falls back to an empty base if argv[0] somehow isn't there. Not a user-facing knob.
         auto base =
             argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
+        auto internal_plugin_dir =
+            std::filesystem::path{std::format("{}/../../../plugins", base.string())};
+
+        // argv[1] (optional) is the external, user-provided plugins directory.
+        auto external_plugin_dir =
+            argc > 1 ? std::optional<std::filesystem::path>{argv[1]} : std::nullopt;
 
         // Hand off to ServerRunner for the actual server main loop.
-        return congelado::heart::ServerRunner{
-            std::filesystem::path{std::format("{}/../../../plugins", base.string())}}
+        return congelado::heart::ServerRunner{external_plugin_dir, internal_plugin_dir}
             .run("~/cc/congelado/src/congelado.toml");
     } catch (const std::exception &exception) {
         try {
