@@ -635,7 +635,12 @@ class Route {
     constexpr void increment_child_routes() noexcept { ++m_child_routes; }
 
   private:
-    std::string_view m_path;
+    // Owned, not a view — routes are commonly built from a builder's own member string (see
+    // utils::openapi::Generator::serve()'s m_serve_path), which lives only as long as the
+    // temporary that produced it. A view here would dangle the moment that temporary is
+    // destroyed at the end of the full-expression that constructed this Route, well before
+    // RouterContext::build() ever gets around to reading get_path().
+    std::string m_path;
     bool m_is_build;
     std::size_t m_router_number;
     std::size_t m_base_router;
