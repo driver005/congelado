@@ -4,4 +4,5 @@ export import :model;
 export import :schema;
 export import :registry;
 export import :route;
-export import :generator;
+export import :generator_interface;
+export import :generator_registry;

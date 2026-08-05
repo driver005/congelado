@@ -4,6 +4,7 @@ export module io_layer_http2:flow;
 
 import std;
 import shared;
+import core_events;
 import core_logger;
 import :handshake;
 import :session;
@@ -55,6 +56,7 @@ class ServerFlow {
                 } else if (result == HandshakeState::PREFACE_ERROR) {
                     // Bad preface — L, kill the connection and don't touch whatever's left in view.
                     core::logger::error("http2/server/flow", "invalid preface");
+                    core::events::publish("http2.flow.invalid_preface");
                     m_session.close(error::http::Http2ErrorCode::PROTOCOL_ERROR);
                     return;
                 } else {

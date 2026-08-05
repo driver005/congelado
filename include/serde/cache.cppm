@@ -1,8 +1,10 @@
+module;
+#include <rfl/json.hpp>
+
 export module serde:cache;
 
 import :core;
 import :converter;
-import :json;
 import std;
 
 namespace serde {
@@ -86,14 +88,14 @@ class Cache {
 
     /**
      * @brief Serializes `value` to the string that actually gets stored under the cache key —
-     * just JSON-encodes it via Json::encode, no separate cache-specific format.
+     * just JSON-encodes it via rfl::json::write, no separate cache-specific format.
      * @tparam T the connectable type being cached.
      * @param value the instance to serialize.
      * @return the JSON-encoded cache payload.
      */
     template <IConnectable T>
     [[nodiscard]] static std::string cache_value(const T &value) {
-        return Json::encode(value);
+        return rfl::json::write(value);
     }
 };
 

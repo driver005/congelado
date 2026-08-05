@@ -1,6 +1,8 @@
 build/
 build
 out/
+.xmake/
+.xmake
 .git/
 .git
 *.o

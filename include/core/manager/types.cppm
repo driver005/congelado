@@ -1,6 +1,5 @@
 module;
 #include <congelado/abi.h>
-#include <lua.hpp>
 
 export module core_plugin:types;
 
@@ -57,20 +56,6 @@ class PluginError {
     std::string m_message;
 };
 
-enum class Runtime : std::uint8_t {
-    NONE = 0,
-    NATIVE = 1 << 0,
-    PYTHON = 1 << 1,
-    LUA = 1 << 2,
-    WASM = 1 << 3,
-};
-constexpr Runtime operator|(Runtime left, Runtime right) noexcept {
-    return static_cast<Runtime>(std::to_underlying(left) | std::to_underlying(right));
-}
-constexpr bool has(Runtime set, Runtime flag) noexcept {
-    return (std::to_underlying(set) & std::to_underlying(flag)) != 0;
-}
-
 class PythonConfig {
   public:
     /// @brief Constructs a PythonConfig defaulting the module name to `"congelado"`.
@@ -114,15 +99,14 @@ class LuaConfig {
 
 class GenerationConfig {
   public:
-    /// @brief Default-constructs, wanting only the NATIVE runtime.
-    GenerationConfig() : GenerationConfig(Runtime::NATIVE) {};
-    /// @brief Constructs with an explicit (possibly OR'd) set of wanted runtimes.
-    /// @param runtimes the runtime flag set — combine flags with `operator|` for multiple.
-    GenerationConfig(Runtime runtimes) : m_runtimes{runtimes} {}
+    /// @brief Default-constructs, wanting no bridge runtimes (native-only).
+    GenerationConfig() = default;
 
-    /// @brief Sets the wanted runtime flag set, replacing whatever was configured before.
-    /// @param runtimes the new runtime flag set.
-    void set_runtimes(Runtime runtimes) { m_runtimes = runtimes; }
+    /// @brief Adds a wanted runtime by name (e.g. `"python"`, `"lua"`, or any user-registered
+    /// bridge's own `runtime_name()`) — open set, no fixed enum of supported languages. No-op
+    /// if already present.
+    /// @param runtime_name the runtime name to add.
+    void add_runtime(std::string runtime_name) { m_wanted_runtimes.insert(std::move(runtime_name)); }
     /// @brief Sets the Python-specific config (module name, etc).
     /// @param config the new PythonConfig.
     void set_python_config(PythonConfig config) { m_python = std::move(config); }
@@ -135,9 +119,11 @@ class GenerationConfig {
         m_extra = std::move(extra);
     }
 
-    /// @brief Gets the configured runtime flag set.
-    /// @return the wanted runtimes.
-    [[nodiscard]] const Runtime &get_runtimes() const noexcept { return m_runtimes; }
+    /// @brief Gets the configured set of wanted runtime names.
+    /// @return the wanted runtime names.
+    [[nodiscard]] const std::set<std::string> &get_wanted_runtimes() const noexcept {
+        return m_wanted_runtimes;
+    }
     /// @brief Gets the Python-specific config.
     /// @return the configured PythonConfig.
     [[nodiscard]] const PythonConfig &get_python_config() const noexcept { return m_python; }
@@ -151,14 +137,16 @@ class GenerationConfig {
     }
 
     /**
-     * @brief Checks whether a given runtime flag is set in this config.
-     * @param runtime the single runtime flag to test for.
-     * @return true if `runtime` is included in the configured flag set.
+     * @brief Checks whether a given runtime name is in the wanted set.
+     * @param runtime_name the runtime name to test for.
+     * @return true if `runtime_name` is included in the configured set.
      */
-    [[nodiscard]] bool wants(Runtime runtime) const noexcept { return has(m_runtimes, runtime); }
+    [[nodiscard]] bool wants(std::string_view runtime_name) const noexcept {
+        return m_wanted_runtimes.contains(std::string{runtime_name});
+    }
 
   private:
-    Runtime m_runtimes;
+    std::set<std::string> m_wanted_runtimes;
     PythonConfig m_python;
     LuaConfig m_lua;
     std::unordered_map<std::string, std::string> m_extra;
@@ -190,6 +178,59 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T *leverager_ctx(const CongeladoHostCallbacks &host) noexcept {
     return static_cast<T *>(host.leverager_ctx);
+}
+/**
+ * @brief Gets the resolved storage-capable plugin's interface pointer, if one was found before
+ * this host callback table got built — a plugin's `on_load` reads this to wire a storage
+ * backend into its own connector, since capability resolution normally happens too late (after
+ * every plugin's `on_load` has already run) for that to work any other way.
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::IDatabase`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no storage-capable plugin was found.
+ */
+template <typename T>
+[[nodiscard]] T *database_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.database_ctx);
+}
+/**
+ * @brief Gets the resolved "lua" runtime's interfaces::IBridge*, if a lua_bridge plugin was
+ * found before this host callback table got built — same "resolve before build()" reasoning
+ * (and same shape) as database_ctx() above, for a plugin (e.g. engine) whose on_load needs a
+ * live Lua bridge to evaluate expressions with.
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::IBridge`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no lua_bridge plugin was found.
+ */
+template <typename T>
+[[nodiscard]] T *lua_bridge_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.lua_bridge_ctx);
+}
+/**
+ * @brief Gets the resolved search-capable plugin's interfaces::ISearchProvider*, if one was
+ * found before this host callback table got built — same "resolve before build()" reasoning
+ * (and same shape) as database_ctx() above, for the engine plugin's on_load to wire a search
+ * backend into its own terminal-transition projector.
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::ISearchProvider`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no search-capable plugin was found.
+ */
+template <typename T>
+[[nodiscard]] T *search_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.search_ctx);
+}
+/**
+ * @brief Gets the resolved cache-capable plugin's interfaces::ICache*, if one was found before
+ * this host callback table got built — same "resolve before build()" reasoning (and same shape)
+ * as database_ctx() above, for the engine plugin's on_load to wire a cache backend into its own
+ * Connector via set_cache().
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::ICache`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no cache-capable plugin was found (Connector
+ * falls back to its own in-process LocalCache in that case).
+ */
+template <typename T>
+[[nodiscard]] T *cache_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.cache_ctx);
 }
 
 inline std::optional<std::string> config_get(const CongeladoConfigView &cfg,
@@ -252,11 +293,5 @@ class ConfigViewBuilder {
     std::vector<const char *> m_key_ptrs;
     std::vector<const char *> m_val_ptrs;
 };
-
-// ── Lua state ownership ──────────────────────────────────────────────────────
-
-inline std::shared_ptr<lua_State> make_lua_state() {
-    return std::shared_ptr<lua_State>{luaL_newstate(), [](lua_State *state) { lua_close(state); }};
-}
 
 } // namespace core::plugin::types

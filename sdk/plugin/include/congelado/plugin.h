@@ -13,6 +13,13 @@
 #define CONGELADO_CAP_PROTOCOL 2u
 #define CONGELADO_CAP_STORAGE  4u
 #define CONGELADO_CAP_CUSTOM   8u
+#define CONGELADO_CAP_SERDE    16u
+#define CONGELADO_CAP_BRIDGE   32u
+#define CONGELADO_CAP_OTEL     64u
+#define CONGELADO_CAP_OPENAPI  128u
+#define CONGELADO_CAP_SEARCH   256u
+#define CONGELADO_CAP_EVENTS   512u
+#define CONGELADO_CAP_CACHE    1024u
 
 // ── CONGELADO_PLUGIN(T) ───────────────────────────────────────────────────────
 // Generates all C dlsym symbols from a congelado::Plugin subclass.
@@ -50,11 +57,14 @@
  * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
  * - `congelado_on_ready()` → `T::on_ready()`
  * - `congelado_on_reload_requested()` → `T::on_reload_requested()` as `1`/`0`
- * - `congelado_logger_write(level, msg, len)` / `congelado_logger_write_error(msg, len)` →
- *   routed through `_cap_dispatch::logger_write`, a no-op if `T` never implements
- *   `logger_write`
- * - `congelado_protocol_get()` / `congelado_storage_get()` → routed through
- *   `_cap_dispatch::protocol_get`/`storage_get`, `nullptr` if `T` doesn't implement them
+ * - `congelado_call(type, action, args, args_count)` → the universal capability-call ABI,
+ *   routed through `_cap_dispatch::call`. `CONGELADO_RUN_LOGGER` + `WRITE`/`ERROR` forwards to
+ *   `_cap_dispatch::logger_write` (a no-op if `T` never implements `logger_write`);
+ *   `CONGELADO_RUN_STORAGE`/`PROTOCOL`/`SERDE` + `GET` forward to
+ *   `_cap_dispatch::storage_get`/`protocol_get`/`serde_get` (`nullptr` if `T` doesn't implement
+ *   the matching method) — replaces what used to be 4 separate named C symbols
+ *   (`congelado_logger_write(_error)`, `congelado_protocol_get`, `congelado_storage_get`) with
+ *   one dlsym'd entrypoint.
  * - `congelado_unique_type()` → `T::get_unique_type()`
  * - `congelado_requires()` / `congelado_requires_count()` → caches `T::get_requires()` into a
  *   static `const char*` array on first call
@@ -115,21 +125,10 @@
     extern "C" int congelado_on_reload_requested() noexcept {                                            \
         return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;                           \
     }                                                                                                     \
-    extern "C" void congelado_logger_write(int level, const char *msg, size_t len) noexcept {            \
-        if (s_plugin != nullptr)                                                                          \
-            ::congelado::_cap_dispatch::logger_write(s_plugin, level,                                    \
-                                                      std::string_view{msg, len});                         \
-    }                                                                                                     \
-    extern "C" void congelado_logger_write_error(const char *msg, size_t len) noexcept {                 \
-        if (s_plugin != nullptr)                                                                          \
-            ::congelado::_cap_dispatch::logger_write(s_plugin, 4,                                        \
-                                                      std::string_view{msg, len});                         \
-    }                                                                                                     \
-    extern "C" void *congelado_protocol_get() noexcept {                                                 \
-        return s_plugin != nullptr ? ::congelado::_cap_dispatch::protocol_get(s_plugin) : nullptr;       \
-    }                                                                                                     \
-    extern "C" void *congelado_storage_get() noexcept {                                                  \
-        return s_plugin != nullptr ? ::congelado::_cap_dispatch::storage_get(s_plugin) : nullptr;        \
+    extern "C" CongeladoAny congelado_call(CongeladoRunType type, CongeladoRunAction action,               \
+                                           const CongeladoAny *args, size_t args_count) noexcept {         \
+        if (s_plugin == nullptr) return CongeladoAny{};                                                    \
+        return ::congelado::_cap_dispatch::call(s_plugin, type, action, args, args_count);                 \
     }                                                                                                     \
     extern "C" const char *congelado_unique_type() noexcept {                                            \
         if (s_plugin == nullptr) s_plugin = new T{};                                                     \

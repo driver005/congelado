@@ -5,6 +5,7 @@ export module io_layer_http2:handshake;
 import std;
 import utils_buffering;
 import io_layer_shared;
+import core_events;
 import core_logger;
 import :consts;
 import :settings;
@@ -102,6 +103,7 @@ class Handshake {
 
         // Bytes are there but don't match — this connection's cooked, straight PREFACE_ERROR.
         core::logger::warning("http2/handshake", "invalid preface");
+        core::events::publish("http2.handshake.invalid_preface");
         return HandshakeState::PREFACE_ERROR;
     }
 

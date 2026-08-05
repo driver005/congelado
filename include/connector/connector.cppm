@@ -1,12 +1,414 @@
+module;
+#define UUID_SYSTEM_GENERATOR
+#include <uuid.h>
+
 export module connector;
 
 export import :local_cache;
 
 import core_contract;
+import core_events;
+import core_otel;
 import interfaces;
 import shared;
 import serde;
 import std;
+
+// ─── SQL DDL/query codegen ────────────────────────────────────────────────────────────────────
+//
+// This is Connector's own per-T reflection step, not a wire-format concern in itself — it's
+// driven by an arbitrary host-defined T reflected at compile time, so it can never cross a
+// dlopen boundary into a plugin .so built before any host T existed. Connector is its only real
+// caller, so this stays right here. What CAN cross the plugin boundary is everything downstream
+// of that reflection: once T's fields are reduced into a plain SqlRequest (below — no T
+// anywhere), Sql::build_*_sql<T>() dispatches it through the exact same serde::Ser/
+// SerdeFormatRegistry machinery JSON/TOML already use (serde::Ser::serialize("application/sql+
+// postgres", request)) — a dialect plugin (plugins/sql_postgres) does the actual text
+// generation. serde::value_kind_of<VT>()/pk_column_name<T>() (the two genuinely dialect-agnostic
+// reflection helpers this used to hand-roll locally) now live in serde::core, usable by anything.
+
+// ─── Query options ────────────────────────────────────────────────────────────
+
+export namespace connector {
+
+class QueryOptions {
+  public:
+    /**
+     * @brief Adds a raw JOIN clause fragment to the query — appended verbatim after the base
+     * `FROM table`, so it needs to be a complete `JOIN ... ON ...` string.
+     * @param join the raw SQL join fragment to add.
+     * @warning No validation or escaping happens here — this gets spliced straight into the
+     * generated SQL by Sql::build_inner_query. Only feed it trusted, pre-built fragments, never
+     * raw user input, or it's an instant SQL-injection L.
+     * @return `*this`, for chaining.
+     */
+    QueryOptions &add_join(std::string join) noexcept {
+        m_joins.push_back(std::move(join));
+        return *this;
+    }
+    /**
+     * @brief Adds a raw WHERE condition — multiple conditions get joined with `AND` by
+     * Sql::build_inner_query.
+     * @param condition the raw SQL boolean condition to add.
+     * @warning Same deal as `add_join` — no escaping, spliced in raw. Trusted fragments only,
+     * bet.
+     * @return `*this`, for chaining.
+     */
+    QueryOptions &add_where(std::string condition) noexcept {
+        m_where_conditions.push_back(std::move(condition));
+        return *this;
+    }
+    /**
+     * @brief Adds an ORDER BY clause on `column`, defaulting to ascending — multiple calls
+     * stack as comma-separated clauses in the order added.
+     * @param column the column name to sort by.
+     * @param ascending true for `ASC`, false for `DESC`.
+     * @return `*this`, for chaining.
+     */
+    QueryOptions &add_order_by(std::string column, bool ascending = true) noexcept {
+        m_order_by_clauses.emplace_back(std::move(column), ascending);
+        return *this;
+    }
+    /**
+     * @brief Sets a `LIMIT` on the query — only the last call before build wins, this isn't
+     * cumulative like the adders.
+     * @param limit the max row count to cap the query at.
+     * @return `*this`, for chaining.
+     */
+    QueryOptions &set_limit(std::size_t limit) noexcept {
+        m_limit = limit;
+        return *this;
+    }
+
+    /// @brief Gets the accumulated JOIN fragments, in add order.
+    /// @return the JOIN clauses added so far.
+    [[nodiscard]] const std::vector<std::string> &get_joins() const noexcept { return m_joins; }
+    /// @brief Gets the accumulated WHERE conditions, in add order.
+    /// @return the WHERE conditions added so far — joined with `AND` at build time.
+    [[nodiscard]] const std::vector<std::string> &get_where_conditions() const noexcept {
+        return m_where_conditions;
+    }
+    /// @brief Gets the accumulated ORDER BY clauses, in add order.
+    /// @return each clause as a `(column, ascending)` pair.
+    [[nodiscard]] const std::vector<std::pair<std::string, bool>> &
+    get_order_by_clauses() const noexcept {
+        return m_order_by_clauses;
+    }
+    /// @brief Gets the configured row limit, if any.
+    /// @return the limit set via `set_limit`, or `nullopt` if never set.
+    [[nodiscard]] const std::optional<std::size_t> &get_limit() const noexcept { return m_limit; }
+
+  private:
+    std::vector<std::string> m_joins;
+    std::vector<std::string> m_where_conditions;
+    std::vector<std::pair<std::string, bool>> m_order_by_clauses;
+    std::optional<std::size_t> m_limit;
+};
+
+} // namespace connector
+
+// ─── SQL builders ─────────────────────────────────────────────────────────────
+//
+// Plain runtime-data types crossing into the active SQL dialect plugin via serde::Ser — no
+// shared header with the plugin, just matching field names on both sides (same principle as
+// this session's Document duplication for the client codegen tool): only the reduced
+// rfl::Generic shape has to agree, not C++ type identity.
+
+namespace connector {
+
+struct SqlColumnDesc {
+    std::string name;
+    serde::ValueKind kind{serde::ValueKind::OTHER};
+    bool primary_key = false;
+    bool nullable = true;
+    bool unique = false;
+    bool skip_update = false;
+    std::string ref_table;
+    std::string ref_column;
+};
+
+struct SqlQueryOptions {
+    std::vector<std::string> joins;
+    std::vector<std::string> where_conditions;
+    std::vector<std::pair<std::string, bool>> order_by_clauses;
+    std::optional<std::size_t> limit;
+};
+
+struct SqlRequest {
+    std::string op;
+    std::string table_name;
+    std::vector<SqlColumnDesc> columns;
+    std::string pk_column;
+    std::string key;
+    std::vector<std::string> keys;
+    std::string json_payload;
+    std::string json_array_payload;
+    std::vector<std::string> set_columns;
+    std::vector<std::string> update_columns;
+    SqlQueryOptions options;
+};
+
+/// @brief The content-type the active SQL dialect plugin registers under — hardcoded, matches
+/// Connector's existing single-backend-at-a-time design (see plugins/sql_postgres).
+inline constexpr std::string_view SQL_DIALECT_CONTENT_TYPE = "application/sql+postgres";
+
+} // namespace connector
+
+export namespace connector {
+
+class Sql {
+  public:
+    /**
+     * @brief Generates a `CREATE TABLE IF NOT EXISTS` statement for T from its reflected
+     * fields — column kinds come from `serde::value_kind_of`, constraints (PK/NOT NULL/UNIQUE/
+     * FK) come straight off each field's FieldOptionsDb. The active SQL dialect plugin turns
+     * this into actual DDL text.
+     * @tparam T the connectable type to generate DDL for.
+     * @return the generated `CREATE TABLE` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_create_sql() {
+        std::vector<SqlColumnDesc> columns;
+        std::apply(
+            [&](auto... fields) {
+                (columns.push_back(SqlColumnDesc{
+                     .name = std::string{fields.name.string_view()},
+                     .kind = serde::value_kind_of<typename decltype(fields)::ValueType>(),
+                     .primary_key = fields.options.m_db.m_primary_key,
+                     .nullable = fields.options.m_db.m_nullable,
+                     .unique = fields.options.m_db.m_unique,
+                     .skip_update = fields.options.m_db.m_skip_update,
+                     .ref_table = fields.options.m_db.m_ref_table != nullptr
+                                      ? std::string{fields.options.m_db.m_ref_table}
+                                      : std::string{},
+                     .ref_column = fields.options.m_db.m_ref_column != nullptr
+                                       ? std::string{fields.options.m_db.m_ref_column}
+                                       : std::string{},
+                 }),
+                 ...);
+            },
+            serde::Serializable<T>::fields());
+        return dispatch(SqlRequest{.op = "create_table",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .columns = std::move(columns)});
+    }
+
+    /**
+     * @brief Generates a statement fetching one row by primary key.
+     * @tparam T the connectable type being queried.
+     * @param key the primary-key value to match, e.g. from serde::Cache::pk_string.
+     * @warning `key` rides through to the dialect plugin as plain text — only feed this
+     * trusted, already-validated key material (e.g. a UUID or an id you generated), never raw
+     * external input; escaping/parameterization is the dialect plugin's responsibility.
+     * @return the generated `SELECT` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_sql(std::string_view key) {
+        return dispatch(SqlRequest{.op = "select",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = std::string{serde::pk_column_name<T>()},
+                                   .key = std::string{key}});
+    }
+
+    /**
+     * @brief Generates a statement fetching every row whose primary key is in `keys`.
+     * @tparam T the connectable type being queried.
+     * @param keys the primary-key values to match against.
+     * @return the generated `SELECT ... IN (...)` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_many_sql(std::span<const std::string> keys) {
+        return dispatch(SqlRequest{.op = "select_many",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = std::string{serde::pk_column_name<T>()},
+                                   .keys = {keys.begin(), keys.end()}});
+    }
+
+    /**
+     * @brief Generates a statement fetching every row in T's table, no filtering.
+     * @tparam T the connectable type being queried.
+     * @return the generated `SELECT` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_all_sql() {
+        return dispatch(SqlRequest{.op = "select_all",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()}});
+    }
+
+    /**
+     * @brief Generates an `INSERT` statement for a single row.
+     * @tparam T the connectable type being inserted.
+     * @param value the instance to insert.
+     * @note `value` is JSON-encoded via `serde::Ser::encode_json` first, so this inherits
+     * whatever type-coercion behavior that encoder has (e.g. how it renders optional/null
+     * fields).
+     * @return the generated `INSERT` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_insert_sql(const T &value) {
+        return dispatch(SqlRequest{.op = "insert",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .json_payload = serde::Ser::encode_json(value)});
+    }
+
+    /**
+     * @brief Generates a bulk `INSERT` statement for multiple rows.
+     * @tparam T the connectable type being inserted.
+     * @param values the instances to insert, in order.
+     * @return the generated bulk `INSERT` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_insert_many_sql(std::span<const T> values) {
+        std::string rows = "[";
+        for (std::size_t index = 0; index < values.size(); ++index) {
+            if (index > 0) {
+                rows += ',';
+            }
+            rows += serde::Ser::encode_json(values[index]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        }
+        rows += ']';
+        return dispatch(SqlRequest{.op = "insert_many",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .json_array_payload = std::move(rows)});
+    }
+
+    /**
+     * @brief Generates an `UPDATE` statement matched by primary key, setting every column
+     * except the PK and any marked `skip_update` in its FieldOptionsDb.
+     * @tparam T the connectable type being updated.
+     * @param value the instance whose fields (and PK, for the WHERE match) drive the update.
+     * @return the generated `UPDATE` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_update_sql(const T &value) {
+        std::vector<std::string> set_columns;
+        std::apply(
+            [&](auto... fields) {
+                ((fields.options.m_db.m_primary_key || fields.options.m_db.m_skip_update
+                      ? void()
+                      : void(set_columns.emplace_back(fields.name.string_view()))),
+                 ...);
+            },
+            serde::Serializable<T>::fields());
+        auto pk_column = std::string{serde::pk_column_name<T>()};
+        return dispatch(SqlRequest{.op = "update",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = pk_column,
+                                   .json_payload = serde::Ser::encode_json(value),
+                                   .set_columns = std::move(set_columns)});
+    }
+
+    /**
+     * @brief Generates an upsert statement — every non-PK column gets updated on conflict.
+     * @tparam T the connectable type being upserted.
+     * @param value the instance to insert or update.
+     * @return the generated upsert SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_upsert_sql(const T &value) {
+        std::vector<std::string> update_columns;
+        std::apply(
+            [&](auto... fields) {
+                ((fields.options.m_db.m_primary_key
+                      ? void()
+                      : void(update_columns.emplace_back(fields.name.string_view()))),
+                 ...);
+            },
+            serde::Serializable<T>::fields());
+        return dispatch(SqlRequest{.op = "upsert",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = std::string{serde::pk_column_name<T>()},
+                                   .json_payload = serde::Ser::encode_json(value),
+                                   .update_columns = std::move(update_columns)});
+    }
+
+    /**
+     * @brief Generates a `DELETE` statement matched by primary key.
+     * @tparam T the connectable type being deleted from.
+     * @param key the primary-key value to match.
+     * @return the generated `DELETE` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_delete_sql(std::string_view key) {
+        return dispatch(SqlRequest{.op = "delete",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = std::string{serde::pk_column_name<T>()},
+                                   .key = std::string{key}});
+    }
+
+    /**
+     * @brief Generates a `DELETE` statement matching any row whose primary key is in `keys`.
+     * @tparam T the connectable type being deleted from.
+     * @param keys the primary-key values to match against.
+     * @return the generated `DELETE ... IN (...)` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_delete_many_sql(std::span<const std::string> keys) {
+        return dispatch(SqlRequest{.op = "delete_many",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .pk_column = std::string{serde::pk_column_name<T>()},
+                                   .keys = {keys.begin(), keys.end()}});
+    }
+
+    /**
+     * @brief Generates a statement over an arbitrary query built from `options` (joins, where,
+     * order by, limit) — the general-purpose query path, versus the fixed-shape `build_select_*`
+     * methods above.
+     * @tparam T the connectable type being queried.
+     * @param options the joins/conditions/ordering/limit to compose the query from.
+     * @return the generated `SELECT` SQL string, rows aggregated.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_query_sql(const QueryOptions &options) {
+        return dispatch(SqlRequest{.op = "query",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .options = to_sql_query_options(options)});
+    }
+
+    /**
+     * @brief Same as `build_query_sql`, but requests only the first match.
+     * @tparam T the connectable type being queried.
+     * @param options the joins/conditions/ordering to compose the query from — any
+     * `options.get_limit()` value is ignored by the dialect plugin, which always forces
+     * `LIMIT 1` for this operation.
+     * @return the generated `SELECT ... LIMIT 1` SQL string.
+     */
+    template <serde::IConnectable T>
+    [[nodiscard]] static std::string build_query_first_sql(const QueryOptions &options) {
+        return dispatch(SqlRequest{.op = "query_first",
+                                   .table_name = std::string{serde::Serializable<T>::table_name()},
+                                   .options = to_sql_query_options(options)});
+    }
+
+  private:
+    /// @brief Snapshots a `QueryOptions` builder into the plain-data shape that crosses to the
+    /// dialect plugin.
+    /// @param options the builder to snapshot.
+    /// @return the equivalent plain `SqlQueryOptions`.
+    [[nodiscard]] static SqlQueryOptions to_sql_query_options(const QueryOptions &options) {
+        return SqlQueryOptions{.joins = options.get_joins(),
+                               .where_conditions = options.get_where_conditions(),
+                               .order_by_clauses = options.get_order_by_clauses(),
+                               .limit = options.get_limit()};
+    }
+
+    /**
+     * @brief Sends `request` through the active SQL dialect format plugin and returns the
+     * generated SQL text.
+     * @param request the fully-built request describing which operation to generate SQL for.
+     * @warning No format plugin registered for `SQL_DIALECT_CONTENT_TYPE` means
+     * `serde::Ser::serialize` already returns a clean JSON error payload (its existing
+     * no-silent-fallback behavior) instead of SQL text — that payload would then fail loud when
+     * a caller tries to execute it as SQL, rather than corrupting a query silently.
+     * @return the generated SQL text, or an error-shaped JSON payload if no dialect is loaded.
+     */
+    [[nodiscard]] static std::string dispatch(const SqlRequest &request) {
+        auto encoded = serde::Ser::serialize(SQL_DIALECT_CONTENT_TYPE, request);
+        return {reinterpret_cast<const char *>(encoded.data()), encoded.size()};  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) — byte-vector-to-string is the standard shape Ser::serialize's callers use to get text back out
+    }
+};
+
+} // namespace connector
 
 export namespace connector {
 
@@ -95,7 +497,7 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void create_table(std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, callback = std::move(callback)]() mutable {
+        enqueue("create_table", [this, callback = std::move(callback)]() mutable {
             // No database wired up — nothing to create, just say it worked.
             if (!m_database) {
                 callback(true);
@@ -103,7 +505,7 @@ class Connector : public shared::HandlerBase {
             }
             // Otherwise fire the CREATE TABLE statement and report whether it landed.
             active_database().query(
-                serde::Sql::template build_create_sql<T>(),
+                Sql::template build_create_sql<T>(),
                 [callback = std::move(callback)](std::string_view result) mutable {
                     callback(!result.empty());
                 });
@@ -122,7 +524,7 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void find(std::string_view key,
               std::move_only_function<void(std::optional<T>)> callback) noexcept {
-        enqueue([this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
+        enqueue("find", [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
             // Build the cache key up front, then check the cache before anything slower.
             auto cache_key_string = serde::Cache::template cache_key<T>(owned_key);
             active_cache().get(cache_key_string, [this, owned_key, cache_key_string,
@@ -130,7 +532,7 @@ class Connector : public shared::HandlerBase {
                                                      std::string_view cached_value) mutable {
                 // Cache hit — decode it straight up, no need to go any further.
                 if (!cached_value.empty()) {
-                    auto decoded = serde::Json::decode<T>(cached_value);
+                    auto decoded = serde::Ser::deserialize<T>("application/json", cached_value);
                     callback(decoded ? std::optional<T>{std::move(*decoded)} : std::nullopt);
                     return;
                 }
@@ -144,7 +546,7 @@ class Connector : public shared::HandlerBase {
                     return;
                 }
                 // Cache miss with a real database — go fetch it there.
-                active_database().query(serde::Sql::template build_select_sql<T>(owned_key),
+                active_database().query(Sql::template build_select_sql<T>(owned_key),
                                         [this, cache_key_string, callback = std::move(callback)](
                                             std::string_view db_result) mutable {
                                             // Nothing came back — treat it as a full miss.
@@ -153,7 +555,7 @@ class Connector : public shared::HandlerBase {
                                                 return;
                                             }
                                             // Got a row but it failed to decode — same deal, a miss.
-                                            auto decoded = serde::Json::decode<T>(db_result);
+                                            auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
                                             if (!decoded) {
                                                 callback(std::nullopt);
                                                 return;
@@ -182,7 +584,7 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void find_many(std::span<const std::string_view> keys,
                    std::move_only_function<void(std::vector<T>)> callback) noexcept {
-        enqueue([this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
+        enqueue("find_many", [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
                  callback = std::move(callback)]() mutable {
             // No database — walk the local store and collect whatever keys actually hit, bet.
             if (!m_database) {
@@ -199,7 +601,7 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — one query for the whole batch instead of looping.
             active_database().query(
-                serde::Sql::template build_select_many_sql<T>(owned_keys),
+                Sql::template build_select_many_sql<T>(owned_keys),
                 [callback = std::move(callback)](std::string_view db_result) mutable {
                     // Empty result means nothing matched; otherwise decode the array and
                     // hand back whatever came through.
@@ -207,7 +609,7 @@ class Connector : public shared::HandlerBase {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Json::decode_array<T>(db_result);
+                    auto decoded = serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
@@ -226,11 +628,11 @@ class Connector : public shared::HandlerBase {
      * @param callback gets the first matching row, or std::nullopt if nothing matched.
      */
     template <serde::IConnectable T>
-    void find_first(serde::QueryOptions options,
+    void find_first(QueryOptions options,
                     std::move_only_function<bool(const T &)> predicate,
                     std::move_only_function<bool(const T &, const T &)> sorter,
                     std::move_only_function<void(std::optional<T>)> callback) noexcept {
-        enqueue([this, options = std::move(options), predicate = std::move(predicate),
+        enqueue("find_first", [this, options = std::move(options), predicate = std::move(predicate),
                  sorter = std::move(sorter), callback = std::move(callback)]() mutable {
             // No database — lowkey just filter the local store by hand with the caller's predicate.
             if (!m_database) {
@@ -254,13 +656,13 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — trust `options` already encodes filter/order server-side.
             active_database().query(
-                serde::Sql::template build_query_first_sql<T>(options),
+                Sql::template build_query_first_sql<T>(options),
                 [callback = std::move(callback)](std::string_view db_result) mutable {
                     if (db_result.empty()) {
                         callback(std::nullopt);
                         return;
                     }
-                    auto decoded = serde::Json::decode<T>(db_result);
+                    auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
                     callback(decoded ? std::optional<T>{std::move(*decoded)} : std::nullopt);
                 });
         });
@@ -274,7 +676,7 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void find_all(std::move_only_function<void(std::vector<T>)> callback) noexcept {
-        enqueue([this, callback = std::move(callback)]() mutable {
+        enqueue("find_all", [this, callback = std::move(callback)]() mutable {
             // No database — just dump every row out of the local store.
             if (!m_database) {
                 auto &store = get_local_store<T>();
@@ -288,13 +690,13 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — pull the whole table in one query and decode the array.
             active_database().query(
-                serde::Sql::template build_select_all_sql<T>(),
+                Sql::template build_select_all_sql<T>(),
                 [callback = std::move(callback)](std::string_view db_result) mutable {
                     if (db_result.empty()) {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Json::decode_array<T>(db_result);
+                    auto decoded = serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
@@ -310,8 +712,8 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void insert(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, value, callback = std::move(callback)]() mutable {
-            write_through(value, serde::Sql::template build_insert_sql<T>(value),
+        enqueue("insert", [this, value, callback = std::move(callback)]() mutable {
+            write_through("insert", value, Sql::template build_insert_sql<T>(value),
                           std::move(callback));
         });
     }
@@ -329,7 +731,7 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void insert_many(std::span<const T> values,
                      std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, owned_values = std::vector<T>{values.begin(), values.end()},
+        enqueue("insert_many", [this, owned_values = std::vector<T>{values.begin(), values.end()},
                  callback = std::move(callback)]() mutable {
             // No database — upsert every value straight into the local store, always a W.
             if (!m_database) {
@@ -342,7 +744,7 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — one batched INSERT for the whole set.
             active_database().query(
-                serde::Sql::template build_insert_many_sql<T>(owned_values),
+                Sql::template build_insert_many_sql<T>(owned_values),
                 [callback = std::move(callback)](std::string_view result) mutable {
                     callback(!result.empty());
                 });
@@ -358,8 +760,8 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void update(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, value, callback = std::move(callback)]() mutable {
-            write_through(value, serde::Sql::template build_update_sql<T>(value),
+        enqueue("update", [this, value, callback = std::move(callback)]() mutable {
+            write_through("update", value, Sql::template build_update_sql<T>(value),
                           std::move(callback));
         });
     }
@@ -373,8 +775,8 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void upsert(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, value, callback = std::move(callback)]() mutable {
-            write_through(value, serde::Sql::template build_upsert_sql<T>(value),
+        enqueue("upsert", [this, value, callback = std::move(callback)]() mutable {
+            write_through("upsert", value, Sql::template build_upsert_sql<T>(value),
                           std::move(callback));
         });
     }
@@ -389,7 +791,7 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void remove(std::string_view key, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
+        enqueue("remove", [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
             // Cache entry goes first, unconditionally, fire-and-forget.
             active_cache().remove(serde::Cache::template cache_key<T>(owned_key),
                                   [](std::string_view) {});
@@ -401,7 +803,7 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — fire the DELETE and report whether it hit.
             active_database().remove(
-                serde::Sql::template build_delete_sql<T>(owned_key),
+                Sql::template build_delete_sql<T>(owned_key),
                 [callback = std::move(callback)](std::string_view result) mutable {
                     callback(!result.empty());
                 });
@@ -418,7 +820,7 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void remove_many(std::span<const std::string_view> keys,
                      std::move_only_function<void(bool)> callback) noexcept {
-        enqueue([this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
+        enqueue("remove_many", [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
                  callback = std::move(callback)]() mutable {
             // Clear every key out of the cache first, same fire-and-forget deal as remove().
             for (const auto &key : owned_keys) {
@@ -436,7 +838,7 @@ class Connector : public shared::HandlerBase {
             }
             // Database configured — one batched DELETE for the whole set.
             active_database().remove(
-                serde::Sql::template build_delete_many_sql<T>(owned_keys),
+                Sql::template build_delete_many_sql<T>(owned_keys),
                 [callback = std::move(callback)](std::string_view result) mutable {
                     callback(!result.empty());
                 });
@@ -447,16 +849,33 @@ class Connector : public shared::HandlerBase {
     /**
      * @brief Runs `operation` right now if there's no database configured (local-only mode is
      * fully synchronous), otherwise queues it up to be drained one-at-a-time by on_execute().
+     * Wraps it in a `db.{operation_name}` span either way.
+     * @note The span's recorded duration covers queueing + dispatch-to-backend (the window this
+     * class actually controls) — if the configured `IDatabase` backend's own callback fires
+     * later, fully asynchronously, past `operation()`'s own synchronous return, the true
+     * round-trip runs a bit longer than what gets reported here. Still real, useful signal
+     * (queue latency is itself worth seeing), just not a claim of exact end-to-end coverage for
+     * every possible backend.
+     * @param operation_name the operation's name for the span (e.g. `"find"`, `"insert"`).
      * @param operation the unit of work to run or queue.
      */
-    void enqueue(std::move_only_function<void()> operation) noexcept {
-        // No database means fully synchronous — run it now; otherwise queue it up for
-        // on_execute() to drain one at a time.
+    void enqueue(std::string_view operation_name, std::move_only_function<void()> operation) noexcept {
+        auto span_name = std::format("db.{}", operation_name);
+        // No database means fully synchronous — the calling thread is still right here when
+        // `operation()` returns, so an ordinary ambient ScopedSpan is accurate and simplest.
         if (m_database == nullptr) {
+            auto span = core::otel::start_span(span_name, interfaces::SpanKind::INTERNAL);
             operation();
-        } else {
-            m_pending.push(std::move(operation));
+            return;
         }
+        // Queued for a later tick, possibly drained by a different pool thread — same
+        // genuine-async-gap situation as ClientRuntime's send()/dispatch(), so this needs a
+        // DetachedSpan (no ambient stack involvement) rather than a ScopedSpan.
+        auto span = core::otel::start_detached_span(span_name, interfaces::SpanKind::CLIENT);
+        m_pending.push([operation = std::move(operation), span = std::move(span)]() mutable {
+            operation();
+            span.end();
+        });
     }
 
     /**
@@ -482,12 +901,14 @@ class Connector : public shared::HandlerBase {
      * cache, then either upserts it into the local store or fires `sql` at the database,
      * whichever's configured.
      * @tparam T the connectable type being written.
+     * @param operation_name the write operation's name (`"insert"`/`"update"`/`"upsert"`), used
+     * to tag the `connector.write.*` event published once the outcome is known.
      * @param value the row being written — used to derive the cache key and the local-store key.
      * @param sql the pre-built SQL statement to run when a database is configured.
      * @param callback gets the write outcome.
      */
     template <typename T>
-    void write_through(const T &value, const std::string &sql,
+    void write_through(std::string_view operation_name, const T &value, const std::string &sql,
                        std::move_only_function<void(bool)> callback) {
         // Cache gets the write unconditionally — insert/update/upsert all funnel through here.
         active_cache().set(serde::Cache::cache_key(value), serde::Cache::cache_value(value),
@@ -495,14 +916,21 @@ class Connector : public shared::HandlerBase {
         // No database — the local store is the source of truth, upsert it there.
         if (!m_database) {
             get_local_store<T>().insert_or_assign(serde::Cache::pk_string(value), value);
+            core::events::publish("connector.write.completed",
+                                  {{"operation", std::string{operation_name}},
+                                   {"backend", "local"}});
             callback(true);
             return;
         }
         // Database configured — run the pre-built SQL and report whether it landed.
-        active_database().query(sql,
-                                [callback = std::move(callback)](std::string_view result) mutable {
-                                    callback(!result.empty());
-                                });
+        active_database().query(
+            sql, [callback = std::move(callback),
+                 operation_name = std::string{operation_name}](std::string_view result) mutable {
+                bool const ok = !result.empty();
+                core::events::publish(ok ? "connector.write.completed" : "connector.write.failed",
+                                      {{"operation", operation_name}, {"backend", "database"}});
+                callback(ok);
+            });
     }
 
     /**

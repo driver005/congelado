@@ -1,74 +1,28 @@
 # ── Congelado Worker ────────────────────────────────────────────────────────────
-# Multi-stage build: task worker that polls engine for work
-# Base: Arch Linux — matches the toolchain this project is actually developed against.
-# See Dockerfile.server for why (Debian/Ubuntu GCC versions each hit real "import std"
-# module bugs; Arch's rolling-release clang+gcc avoids all of that by construction).
+# Runtime-only image — compiled artifacts arrive via the shared `build_output` volume, produced
+# once by the `builder` service (see docker/Dockerfile.builder + the `builder`/`worker` entries
+# in docker-compose.yml, which mounts that volume at /app/build and gates this container on
+# `builder` finishing first via `depends_on: condition: service_completed_successfully`).
+# Base: Arch Linux — matches the toolchain this project is actually developed against, for the
+# runtime .so ABI compatibility this image still needs even though it no longer compiles
+# anything itself.
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ── Stage 1: Builder ───────────────────────────────────────────────────────────
-FROM archlinux:latest AS builder
-
-# Container runs as root with no USER directive; xmake refuses to run as root otherwise.
-ENV XMAKE_ROOT=y
-# Cap parallel compile jobs — 12 host cores against limited container RAM has been
-# spiking swap hard enough to trigger silent kills during the openssl/cpython/bison
-# Conan builds; capping keeps peak memory bounded.
-ENV MAKEFLAGS=-j4
-
-RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed \
-       curl wget git unzip base-devel readline cmake ninja pkgconf liburing \
-       python python-pip clang lld libc++ libc++abi tk \
-       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
-       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
-       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor
-
-# Arch's gcc package installs libstdc++.modules.json under /usr/lib/gcc/<target>/<ver>/
-# but ships the actual bits/std.cc (the C++23 std module source) under the unrelated
-# /usr/include/c++/<ver>/ tree instead of "next to" the manifest as its own relative
-# source-path (../include/c++/<ver>/bits/std.cc) assumes. Symlink it into place so
-# clang's std-module lookup (which follows that relative path literally) finds it.
-RUN gccver=$(gcc -dumpversion | cut -d. -f1) \
-    && mkdir -p /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.cc \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.compat.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.compat.cc
-
-# xmake
-RUN curl -fsSL https://xmake.io/shget.text | bash \
-    && ln -sf /root/.local/bin/xmake /usr/local/bin/xmake
-
-# Conan 2
-RUN pip3 install --no-cache-dir --break-system-packages conan \
-    && conan profile detect --force
-
-# Copy project
-WORKDIR /app
-COPY . .
-
-# Configure xmake (fetches Conan deps too) — no --sdk override needed; Arch's
-# clang/libc++/gcc live at the default paths xmake already expects, mirroring how the
-# project builds on bare-metal Arch.
-RUN make install
-
-# Build everything — congelado_include/congelado_sdk/congelado_lib all carry
-# set_policy("build.fence", true) in xmake.lua, so a single "make build" ("xmake build",
-# all targets) builds the whole dep chain in correct order without racing on module BMIs.
-# No codegen bootstrap concern here (that's an engine-plugin-only thing) — one pass is enough.
-RUN make build
-
-# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM archlinux:latest AS runtime
 
-# CMD below runs "xmake run", which also refuses to run as root without this.
-ENV XMAKE_ROOT=y
-
-# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain)
-# plus the X11/xcb chain pulled transitively into cpython's Tk support at build time —
-# `tk` brings the same X11/xcb libs in as runtime deps that the builder had as headers.
+# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain) plus the
+# X11/xcb chain pulled transitively into cpython's Tk support at build time — `tk` brings the
+# same X11/xcb libs in as runtime deps that the builder had as headers. krb5 provides
+# libgssapi_krb5.so.2 — needed now that the worker actually finds build/plugins/ (see the
+# argv[0]-relative path note below) and loads libpostgres_plugin.so along with everything else
+# in that directory; previously a flattened binary path silently pointed the plugin scan at a
+# nonexistent directory, so this dependency was never exercised.
+# kmod provides modprobe — used at container start to load the host's kTLS ("tls") kernel
+# module for outbound TLS connections (WorkerContext::call_engine/ClientRuntime). Needs
+# cap_add: SYS_MODULE + a bind mount of the host's /lib/modules in docker-compose.yml to
+# actually work — see Dockerfile.server's CMD comment for the full explanation.
 RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed gcc-libs libc++ libc++abi liburing tk \
+    && pacman -S --noconfirm --needed gcc-libs libc++ libc++abi liburing tk krb5 kmod \
        libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
        libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
        xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor \
@@ -76,20 +30,20 @@ RUN pacman -Syu --noconfirm \
 
 WORKDIR /app
 
-# Copy built artifacts
-COPY --from=builder /app/build/linux/x86_64/debug/congelado_worker ./congelado_worker
-COPY --from=builder /app/build/workers/ ./workers/
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_lib.so ./libcongelado_lib.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_include.so ./libcongelado_include.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_sdk.so ./libcongelado_sdk.so
-
-# Copy xmake binary for xmake run command
-COPY --from=builder /root/.local/bin/xmake /usr/local/bin/xmake
-
 # Copy worker config
-COPY docker/configs/worker.toml ./worker.toml
+COPY config/worker.toml ./worker.toml
 
-# LD_LIBRARY_PATH for shared libs
-ENV LD_LIBRARY_PATH=/app:$LD_LIBRARY_PATH
+# build/ itself (binary, plugins, workers, libs) is NOT copied here — it arrives at container
+# start via the build_output volume mounted at ./build (read-only), populated once by the
+# `builder` service. LD_LIBRARY_PATH points at the nested lib location that volume preserves.
+ENV LD_LIBRARY_PATH=/app/build/linux/x86_64/debug:$LD_LIBRARY_PATH
+# worker scans the same build/plugins/ as server and can load python_bridge_plugin too — same
+# PYTHONHOME need, see Dockerfile.server's comment.
+ENV PYTHONHOME=/app/build/python-stdlib
 
-CMD ["xmake", "run", "congelado_worker", "worker.toml", "./workers"]
+# run_worker()'s argv[0]-relative plugin-dir lookup ("<binary's own dir>/../../../plugins", same
+# offset math as src/main.cc — see src/worker_main.cc) needs the binary invoked at its real
+# nested build/linux/x86_64/debug/ path, not flattened, so that offset lands on build/plugins
+# instead of the filesystem root. Passing "./build/workers" explicitly as the internal-workers-dir
+# argument for the same reason — its own default ("./workers") assumed the old flattened layout.
+CMD ["sh", "-c", "modprobe tls 2>/dev/null || true; exec ./build/linux/x86_64/debug/congelado_worker worker.toml ./build/workers"]

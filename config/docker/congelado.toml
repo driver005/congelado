@@ -1,0 +1,126 @@
+# Congelado engine configuration — the docker-deployment congelado.toml. docker/Dockerfile.server
+# COPYs this file into the image at main.cc's hardcoded config path
+# ("~/cc/congelado/config/congelado.toml", see src/main.cc's own doc comment). Endpoints below
+# (postgres/prometheus/tempo/loki/rabbitmq/kafka/redis/elasticsearch as hostnames) resolve inside
+# the docker-compose network via service name — they will NOT resolve for a bare-metal run outside
+# that network. For `make run`/`make debug` on the host, see config/congelado.toml instead (the
+# same repo-relative path a bare-metal run actually loads, since main.cc's path isn't
+# parameterized — the two files only diverge because Dockerfile.server copies from here instead).
+
+[plugins.http2]
+type = "protocol"
+# 0.0.0.0, not "localhost" — this container needs to accept connections arriving on its real
+# bridge-network interface (from other containers, and from the host via the published port),
+# not just its own loopback. config/worker.toml's bind_host was already "0.0.0.0" —
+# this was a real inconsistency, not a deliberate choice.
+host = "0.0.0.0"
+port = 8080
+threads = 4
+cert = "server.crt"
+key = "server.key"
+
+[plugins.file_logger]
+type = "logger"
+file = "congelado.log"
+level = "debug"
+stdout_level = "debug"
+
+[plugins.engine]
+type = "custom"
+
+# Section key matches the plugin's stripped .so stem ("libpostgres_plugin.so" -> "postgres_plugin",
+# see core/manager/shared_lib.cppm's scan()), not the plugin's own get_name() ("postgres") — same
+# convention [plugins.otel_otlp_plugin] below already follows. host = the postgres service name
+# in docker-compose.yml, resolved via the shared "congelado" bridge network; user/password/dbname
+# match that service's own POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB.
+[plugins.postgres_plugin]
+type = "storage"
+host = "postgres"
+port = 5432
+user = "congelado"
+password = "congelado"
+dbname = "congelado"
+# postgres_plugin also implements ISearchProvider (see plugins/postgres/src/postgres_plugin.cc)
+# — see the [providers] table at the bottom of this file for which capability picks which
+# plugin.
+
+# Metrics land in Prometheus (see docker/prometheus/prometheus.yml + the prometheus service's
+# --web.enable-otlp-receiver flag in docker-compose.yml) via its own non-standard OTLP path.
+# Traces land in Tempo — standard OTLP/HTTP path (/v1/traces), Tempo embeds the same
+# otlpreceiver component a real Collector would use, so no path override is needed there.
+# Logs land in Loki — its native OTLP ingestion endpoint (added in Loki 3.x) is the
+# non-standard "/otlp/v1/logs", not the plain "/v1/logs" a Collector would expose.
+[plugins.otel_otlp_plugin]
+type = "custom"
+service_name = "congelado-server"
+metrics_endpoint = "http://prometheus:9090/api/v1/otlp/v1/metrics"
+traces_endpoint = "http://tempo:4318/v1/traces"
+logs_endpoint = "http://loki:3100/otlp/v1/logs"
+
+# Alternative ISearchProvider backend to postgres_plugin's own — only meaningfully active if the
+# docker-compose "search" profile is opted into (see docker-compose.yml's elasticsearch service);
+# otherwise this just points at a host with nothing listening, which elasticsearch_plugin
+# degrades gracefully around (logs a warning, returns empty results), same as postgres_plugin's
+# own "no live connection" story. Left present (not commented out) so opting in is a
+# docker-compose profile flag away, not a config edit too.
+[plugins.elasticsearch_plugin]
+type = "search"
+hosts = "http://elasticsearch:9200"
+index_prefix = "congelado_"
+
+# Event-bus backends (interfaces::IEventSink) — memory_events_plugin has no [plugins.*] section
+# of its own (nothing to configure beyond its `max_events` default). All three below only do
+# anything if the "events" compose profile is opted into (`docker compose --profile events up`);
+# otherwise each just points at a host with nothing listening, which every one of these plugins
+# degrades gracefully around (logs a warning, drops the publish), same story as
+# elasticsearch_plugin's own "no live connection" posture.
+[plugins.rabbitmq_events_plugin]
+type = "custom"
+host = "rabbitmq"
+port = 5672
+vhost = "/"
+user = "guest"
+password = "guest"
+exchange = ""
+
+[plugins.kafka_events_plugin]
+type = "custom"
+bootstrap_servers = "kafka:9092"
+topic = "congelado-events"
+
+[plugins.redis_events_plugin]
+type = "custom"
+host = "redis"
+port = 6379
+channel_prefix = "congelado."
+# redis_events_plugin also implements interfaces::ICache (see plugins/events/redis/src/
+# redis_events_plugin.cc) — see the [providers] table at the bottom of this file for which
+# capability picks which plugin. key_prefix is optional (default ""), prepended to every cache
+# key so Connector's cache namespace can't collide with the pub/sub channel namespace above.
+key_prefix = "congelado:cache:"
+
+# Which plugin(s) get picked per capability, by stem (the [plugins.<stem>] section key above,
+# not the plugin's own get_name()) — see sdk/heart/app.cppm's load_plugins() for exactly how
+# each entry gets resolved. database/search only ever use the first name listed (single active
+# backend); logger and events are genuine lists — their registries fan out to every one named,
+# unlike database/search's "pick one" story.
+[providers]
+database = "postgres_plugin"
+# Swap to elasticsearch instead of postgres_plugin's own ISearchProvider — also bring up the
+# "search" compose profile (`docker compose --profile search up`), otherwise this just points
+# at a host with nothing listening (elasticsearch_plugin degrades gracefully around that: logs
+# a warning, returns empty results).
+search = "postgres_plugin"
+# search = "elasticsearch_plugin"
+logger = ["file_logger"]
+# memory_events_plugin is always active by default (zero external deps, nothing to opt into).
+# Add rabbitmq/kafka/redis to this list — and bring up the "events" compose profile — to also
+# publish onto those brokers; all three coexist just fine (events is a fan-out registry, same
+# shape as logger, not a single-active-backend pick).
+events = ["memory_events_plugin"]
+# events = ["memory_events_plugin", "rabbitmq_events_plugin", "kafka_events_plugin", "redis_events_plugin"]
+# No entry by default — Connector falls back to its own in-process LocalCache, same
+# graceful-degradation story as database/search with nothing configured. Uncomment to route
+# Connector's cache reads/writes through Redis instead — also bring up the "events" compose
+# profile (redis_events_plugin, and the redis service itself, are both gated behind it).
+# cache = "redis_events_plugin"

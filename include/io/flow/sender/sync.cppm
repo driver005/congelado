@@ -1,12 +1,14 @@
 export module io_flow_sender:sync;
 
 import std;
+import core_events;
 import core_logger;
 import interfaces;
 import utils_buffering;
 import io_base_leverage;
 import io_base_socket;
 import shared;
+import utils_errno_translator;
 
 export namespace io::base::flow::sync {
 
@@ -93,17 +95,22 @@ class Sender : public shared::HandlerBase {
 
     /**
      * @brief Builds the work callback the controller runs each time this handler's turn comes up
-     * — resume()s and reschedules if there's more to do, no release-on-failure branch here,
-     * straight up.
+     * — resume()s and either reschedules itself or releases depending on the outcome, same
+     * release-on-failure pattern as the async Sender.
      * @return the per-execution work callable.
      */
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            // Reschedule only while there's still work to do — no release-on-failure branch on
-            // the sync path.
+            const auto DESCRIPTOR = m_worker.get().get_fd();
+            // Still open — attempt the next write and stay in the scheduler's rotation.
             if (resume()) {
-                core::logger::debug("io/send", "fd {} rescheduled", m_worker.get().get_fd());
+                core::logger::debug("io/send", "fd {} rescheduled", DESCRIPTOR);
                 shared::this_handler::shedule();
+            } else {
+                // Closed — reschedule would spin forever competing for a scheduler slot with a
+                // dead connection, so release() this contract instead and free the slot.
+                core::logger::debug("io/send", "fd {} releasing", DESCRIPTOR);
+                shared::this_handler::release();
             }
         };
     }
@@ -136,12 +143,21 @@ class Sender : public shared::HandlerBase {
             } catch (const std::system_error &e) {
                 core::logger::warning("io/send", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
                                       e.what(), e.code().value());
+                core::events::publish("io.send.sys_error",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()},
+                                       {"code", std::to_string(e.code().value())}});
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
                 core::logger::warning("io/send", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
+                core::events::publish("io.send.exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()}});
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
                 core::logger::warning("io/send", "fd {} unknown exception", m_worker.get().get_fd());
+                core::events::publish("io.send.unknown_exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())}});
                 m_on_error(m_worker.get().get_fd(), -1);
             }
         };
@@ -217,6 +233,7 @@ class Sender : public shared::HandlerBase {
         // Guard against writing on an already-closed sender.
         if (m_closed) {
             core::logger::warning("io/send", "fd {} write on closed", DESCRIPTOR);
+            core::events::publish("io.send.write_on_closed", {{"fd", std::to_string(DESCRIPTOR)}});
             m_stalled = false;
             return;
         }
@@ -252,9 +269,16 @@ class Sender : public shared::HandlerBase {
         case socket::VALUES::ERRORED:
         case socket::VALUES::CLEANLY_DISCONNECTED:
         case socket::VALUES::TIMED_OUT:
-            core::logger::warning("io/send", "fd {} send error: {}", DESCRIPTOR, result);
+            core::logger::warning("io/send", "fd {} send error: {} ({})", DESCRIPTOR,
+                                  status.get_error_code(),
+                                  utils::ErrnoTranslator::describe_errno(status.get_error_code()));
+            core::events::publish(
+                "io.send.send_error",
+                {{"fd", std::to_string(DESCRIPTOR)},
+                 {"error_code", std::to_string(status.get_error_code())},
+                 {"error", std::string{utils::ErrnoTranslator::describe_errno(status.get_error_code())}}});
             m_closed = true;
-            m_on_error(DESCRIPTOR, status.get_value());
+            m_on_error(DESCRIPTOR, status.get_error_code());
             return;
         }
     }

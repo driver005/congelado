@@ -21,6 +21,7 @@ fleet that executes tasks straight off the wire. No cap, no legacy header soup.*
 - [Requirements](#requirements)
 - [The GCC module bug you WILL hit](#the-gcc-module-bug-you-will-hit)
 - [Getting started](#getting-started)
+- [UI](#ui)
 - [Docker](#docker)
 - [License](#license)
 
@@ -50,7 +51,7 @@ own custom workers/plugins don't have to live inside the build tree to get loade
   directory in the same call, so custom workers/plugins never have to be smuggled into the
   build output to get picked up.
 - **Zero-boilerplate OpenAPI client SDK generation** (`congelado_cli generate`) straight
-  from a running engine's own `openapi.json`.
+  from any running server's live `/openapi` route — engine and worker both serve their own.
 - **io_uring only** — no epoll/posix fallback path to maintain, one leverager, one way to
   do I/O, that's the motion.
 
@@ -68,7 +69,7 @@ construction. If you're not on Arch, a container is the path of least resistance
 | Tool | Version |
 |---|---|
 | xmake | 3.0.9+ |
-| Conan | 2.19.1+ |
+| Conan | 2.21.0+ |
 | clang / clang++ | 22.1.8+ |
 | LLD | 22.1.7+ |
 
@@ -163,6 +164,35 @@ See the `makefile` itself for the full target list — `windows`/`linux` for pla
 reconfiguration, `clean`/`clean-all` for teardown, `info-outdated` for Conan dependency
 drift.
 
+## UI
+
+Plugins can optionally ship real UI — their own pages mounted into one shared sidebar/tabs
+shell — as ordinary hand-written Flutter code, strictly independent of the C++ backend. Every
+plugin's C++ sources live under `plugins/<name>/src/`; a plugin that wants UI adds a sibling
+`plugins/<name>/ui/` Dart package (see `plugins/engine/ui/` as the reference example) that
+talks to that plugin's own REST endpoints with plain `package:http` — no code generation, no
+FFI, no engine involvement at all. `app/` is the one Flutter project (see `app/README.md`)
+that all of this compiles into, spanning web, desktop, and mobile from a single codebase.
+
+```bash
+# One-time: scaffold app/'s platform runner folders (needs the Flutter SDK)
+cd app && flutter create --platforms=web,linux,windows,macos,android,ios --project-name congelado_app . && cd ..
+
+# Run the shell against a live engine (start one with `make run` first)
+make ui-run
+
+# Build for web
+make ui-build-web
+```
+
+Don't have the Flutter SDK on your host? `docker/Dockerfile.ui` builds the web target inside a
+container that has it and serves it over nginx — wired up as the `ui` service in
+`docker/docker-compose.yml`, available at http://localhost:8081 once it's up:
+
+```bash
+podman compose -f docker/docker-compose.yml up -d ui
+```
+
 ## Docker
 
 Don't want to touch your host toolchain at all? `docker/docker-compose.yml` wires up all
@@ -181,6 +211,15 @@ podman compose -f docker/docker-compose.yml up --build
 
 The Dockerfile itself already carries the GCC modules.json fix (see above) baked in — one
 less thing to think about.
+
+**Debug vs release:** `docker/docker-compose.yml` builds in release mode by default (the builder
+image's own `BUILD_MODE` build arg defaults to `release`). `docker/docker-compose.debug.yml` is an
+identical-topology twin that builds in debug mode instead — same services, same ports, only the
+compile mode differs. `make compose-up`/`make compose-update`/`make compose-rm` point at the debug
+file (fast dev iteration); `make compose-release-up`/`make compose-release-update`/`make
+compose-release-rm` point at the release one. Prefer the raw `docker`/`podman compose` invocations
+above? Just swap `-f docker/docker-compose.yml` for `-f docker/docker-compose.debug.yml` to get the
+debug build instead.
 
 ## License
 

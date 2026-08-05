@@ -1,0 +1,15 @@
+# Auto-provisions Prometheus as a Grafana datasource on container start — no manual "add
+# datasource" click-through needed. Grafana loads every file under
+# provisioning/datasources/ at boot.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # Fixed uid (not auto-generated) so the provisioned dashboard's panels can reference it
+    # deterministically instead of needing a Grafana "input variable" indirection.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true

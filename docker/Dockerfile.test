@@ -1,105 +1,24 @@
 # ── Congelado Tests ────────────────────────────────────────────────────────────
-# Multi-stage build: runs integration tests against all engine routes
-# Base: Arch Linux — matches the toolchain this project is actually developed against.
-# See Dockerfile.server for why (Debian/Ubuntu GCC versions each hit real "import std"
-# module bugs; Arch's rolling-release clang+gcc avoids all of that by construction).
+# Runs integration tests against the engine's routes purely over HTTP — docker/test/run.sh only
+# curls the remote `server` service, it never executes a local congelado binary. This image
+# previously carried a full "FROM archlinux AS builder" compile stage (identical to
+# Dockerfile.server's) plus COPY'd the compiled binary/plugins/workers/libs in — none of which
+# run.sh ever actually uses. Dropped entirely: no compile, no build/ artifacts, just curl/jq/
+# openssl and the test scripts.
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ── Stage 1: Builder ───────────────────────────────────────────────────────────
-FROM archlinux:latest AS builder
-
-# Container runs as root with no USER directive; xmake refuses to run as root otherwise.
-ENV XMAKE_ROOT=y
-# Cap parallel compile jobs — 12 host cores against limited container RAM has been
-# spiking swap hard enough to trigger silent kills during the openssl/cpython/bison
-# Conan builds; capping keeps peak memory bounded.
-ENV MAKEFLAGS=-j4
-
-RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed \
-       curl wget git unzip base-devel readline cmake ninja pkgconf liburing \
-       python python-pip clang lld libc++ libc++abi tk \
-       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
-       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
-       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor
-
-# Arch's gcc package installs libstdc++.modules.json under /usr/lib/gcc/<target>/<ver>/
-# but ships the actual bits/std.cc (the C++23 std module source) under the unrelated
-# /usr/include/c++/<ver>/ tree instead of "next to" the manifest as its own relative
-# source-path (../include/c++/<ver>/bits/std.cc) assumes. Symlink it into place so
-# clang's std-module lookup (which follows that relative path literally) finds it.
-RUN gccver=$(gcc -dumpversion | cut -d. -f1) \
-    && mkdir -p /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.cc \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.compat.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.compat.cc
-
-# xmake
-RUN curl -fsSL https://xmake.io/shget.text | bash \
-    && ln -sf /root/.local/bin/xmake /usr/local/bin/xmake
-
-# Conan 2
-RUN pip3 install --no-cache-dir --break-system-packages conan \
-    && conan profile detect --force
-
-# Copy project
-WORKDIR /app
-COPY . .
-
-# Configure xmake (fetches Conan deps too) — no --sdk override needed; Arch's
-# clang/libc++/gcc live at the default paths xmake already expects, mirroring how the
-# project builds on bare-metal Arch.
-RUN make install
-
-# Build everything, twice. congelado_include/congelado_sdk/congelado_lib all carry
-# set_policy("build.fence", true) in xmake.lua, so a single "make build" ("xmake build",
-# all targets) now builds the whole dep chain in correct order without racing on module
-# BMIs. The second pass is unrelated to that — engine's build.cc writes a generated OpenAPI
-# client SDK into plugins/engine/generated/ *during* the first pass, too late for that same
-# pass to compile it in; the second "make build" picks those freshly-written files up.
-RUN make build
-RUN make build
-
-# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM archlinux:latest AS runtime
 
-# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain)
-# plus the X11/xcb chain pulled transitively into cpython's Tk support at build time —
-# `tk` brings the same X11/xcb libs in as runtime deps that the builder had as headers.
 RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed ca-certificates curl jq openssl \
-       libc++ libc++abi liburing tk \
-       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
-       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
-       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor \
+    && pacman -S --noconfirm --needed ca-certificates curl jq openssl bash \
     && pacman -Scc --noconfirm
 
 WORKDIR /app
-
-# Copy built artifacts
-COPY --from=builder /app/build/linux/x86_64/debug/congelado ./congelado
-COPY --from=builder /app/build/plugins/ ./plugins/
-COPY --from=builder /app/build/workers/ ./workers/
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_lib.so ./libcongelado_lib.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_include.so ./libcongelado_include.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_sdk.so ./libcongelado_sdk.so
-
-# Copy config
-COPY src/congelado.toml ./congelado.toml
-
-# Generate self-signed TLS certs
-RUN openssl req -x509 -newkey rsa:2048 -nodes \
-    -keyout server.key -out server.crt \
-    -days 365 -subj "/CN=localhost"
 
 # Copy test scripts and payloads
 COPY docker/test/run.sh ./test/run.sh
 COPY docker/test/task_def.json ./test/task_def.json
 COPY docker/test/workflow_def.json ./test/workflow_def.json
 RUN chmod +x ./test/run.sh
-
-# LD_LIBRARY_PATH for shared libs
-ENV LD_LIBRARY_PATH=/app:$LD_LIBRARY_PATH
 
 ENTRYPOINT ["./test/run.sh"]

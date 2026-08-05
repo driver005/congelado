@@ -11,6 +11,7 @@ import io_shared;
 import io_error;
 import io_codec_hpack;
 import utils_codec;
+import core_events;
 import core_logger;
 import utils_buffering;
 import :settings;
@@ -337,6 +338,7 @@ class Stream {
                     reader | std::views::take(8) | std::ranges::to<std::vector<std::byte>>();
                 if (!m_remote_settings.get().get_ping_tracker().on_ack(payload_array)) {
                     core::logger::warning("http2/conn", "unsolicited PING ACK, ignoring");
+                    core::events::publish("http2.stream.unsolicited_ping_ack");
                 }
             } else {
                 m_remote_settings.get().get_ping_tracker().note_activity();

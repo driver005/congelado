@@ -6,6 +6,7 @@ module;
 export module core_config:loader;
 
 import std;
+import core_events;
 import :types;
 
 namespace core::config {
@@ -50,6 +51,8 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
     try {
         toml_table = toml::parse_file(path.string());
     } catch (const toml::parse_error &e) {
+        core::events::publish("config.load.parse_failed",
+                              {{"path", path.string()}, {"error", e.what()}});
         return std::unexpected(std::format("TOML parse error in '{}': {}", path.string(), e.what()));
     }
 
@@ -83,6 +86,28 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
 
             // Section's fully parsed — register it under its own name, W.
             config.get_plugins()[plugin_config.get_name()] = std::move(plugin_config);
+        }
+    }
+
+    // No [providers] table at all is fine — every capability resolution falls back to its own
+    // "first one found" default. Each key's value is either a bare string (`database =
+    // "postgres"`) or an array (`logger = ["file_logger", "otel_otlp_plugin"]`) — normalized to
+    // a list either way, see Config::add_provider()'s own docs on why.
+    if (auto *providers = toml_table["providers"].as_table()) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        for (auto &[capability, value] : *providers) {
+            std::vector<std::string> names;
+            if (auto single = value.value<std::string>()) {
+                names.push_back(*single);
+            } else if (auto *array = value.as_array()) {
+                for (auto &&element : *array) {
+                    if (auto name = element.value<std::string>()) {
+                        names.push_back(*name);
+                    }
+                }
+            }
+            if (!names.empty()) {
+                config.add_provider(std::string{capability.str()}, std::move(names));
+            }
         }
     }
 
@@ -124,6 +149,33 @@ static std::expected<Config, std::string> parse_json(const std::filesystem::path
 
                 // Section's fully parsed — register it under its own name.
                 config.get_plugins()[plugin_config.get_name()] = std::move(plugin_config);
+            }
+        }
+    }
+
+    // Same "providers" table, JSON shape — see parse_toml()'s own comment for the
+    // string-or-array normalization reasoning.
+    simdjson::dom::element providers_element;
+    if (doc["providers"].get(providers_element) == 0U) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        simdjson::dom::object providers_obj;
+        if (providers_element.get(providers_obj) == 0U) {
+            for (auto [capability, value] : providers_obj) {
+                std::vector<std::string> names;
+                std::string_view single;
+                simdjson::dom::array array;
+                if (value.get_string().get(single) == 0U) {
+                    names.emplace_back(single);
+                } else if (value.get_array().get(array) == 0U) {
+                    for (auto element : array) {
+                        std::string_view name;
+                        if (element.get_string().get(name) == 0U) {
+                            names.emplace_back(name);
+                        }
+                    }
+                }
+                if (!names.empty()) {
+                    config.add_provider(std::string{capability}, std::move(names));
+                }
             }
         }
     }

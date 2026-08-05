@@ -1,0 +1,40 @@
+# Congelado Worker Configuration
+# Used by the worker Docker container to connect to the engine server
+
+engine_host = "server"
+engine_port = 8080
+bind_host = "0.0.0.0"
+bind_port = 8081
+worker_id = "docker-worker-1"
+concurrency = 2
+
+# TLS — empty strings disable TLS verification for Docker internal network
+engine_cert = ""
+engine_key = ""
+
+[[tasks]]
+name = "echo_task"
+worker_type = "echo"
+
+[[tasks]]
+name = "transform_task"
+worker_type = "transform"
+
+# file_logger — a distinct filename from config/congelado.toml's ("worker.log" vs
+# "congelado.log") since both containers share the same /app working directory convention.
+[plugins.file_logger]
+type = "logger"
+file = "worker.log"
+level = "debug"
+stdout_level = "debug"
+
+# Points otel_otlp_plugin at the same Tempo/Loki/Prometheus services config/congelado.toml
+# does — see src/worker_main.cc's plugin_configs wiring (core::config::load() reads this section
+# before any plugin loads, no chicken-and-egg with the pluggable TOML serde format needed here).
+# service_name distinguishes this process from congelado-server in Grafana/Loki/Tempo.
+[plugins.otel_otlp_plugin]
+type = "custom"
+service_name = "congelado-worker"
+metrics_endpoint = "http://prometheus:9090/api/v1/otlp/v1/metrics"
+traces_endpoint = "http://tempo:4318/v1/traces"
+logs_endpoint = "http://loki:3100/otlp/v1/logs"

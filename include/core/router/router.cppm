@@ -2,6 +2,8 @@ export module core_router:router;
 
 import std;
 import interfaces;
+import core_otel;
+import core_events;
 import :utils;
 import :handler;
 import :consts;
@@ -275,12 +277,69 @@ class RouteHandler {
                 if (current.get_handler_mask() != HANDLER_MASK) {
                     const auto HANDLER_FN = m_handler.find(current.get_handler_offset(),
                                                            current.get_handler_mask(), method);
-                    // W — got a handler for this method, run it and we're done
+                    // W — got a handler for this method, run it and we're done. Every dispatch
+                    // through here automatically runs inside a SERVER span — same "just works,
+                    // no per-route boilerplate" deal as OpenAPI metadata capture (ApiRoute/
+                    // ApiRouter), just at dispatch time instead of registration time. Propagates
+                    // an inbound `traceparent` header as the parent if present.
                     if (HANDLER_FN) {
-                        HANDLER_FN(req, res);
+                        auto method_str = interfaces::io::types::method_str(method);
+                        auto span_name = std::format("{} {}", method_str, path);
+                        auto incoming =
+                            core::otel::parse_traceparent(req.find_header("traceparent"));
+                        auto span = incoming.has_value()
+                                        ? core::otel::start_span(span_name,
+                                                                interfaces::SpanKind::SERVER,
+                                                                *incoming)
+                                        : core::otel::start_span(span_name,
+                                                                interfaces::SpanKind::SERVER);
+                        // Same choke point as the span above — one change here covers every
+                        // dispatched request, mirroring src/worker_main.cc's poll_cycle metrics
+                        // (task.completed/task.duration_ms) so the server has its own metrics
+                        // signal instead of only ever coming from the worker.
+                        const auto start_time = std::chrono::steady_clock::now();
+                        const std::array<interfaces::Attribute, 2> metric_attrs{
+                            interfaces::Attribute{"method", method_str},
+                            interfaces::Attribute{"path", path},
+                        };
+                        try {
+                            HANDLER_FN(req, res);
+                            span.set_status(interfaces::SpanStatus::OK, "");
+                            core::otel::counter_add("http.server.requests", 1.0, metric_attrs);
+                            core::events::publish("router.request.completed",
+                                                  {{"method", std::string{method_str}},
+                                                   {"path", std::string{path}}});
+                        } catch (const std::exception &e) {
+                            span.set_status(interfaces::SpanStatus::ERROR, e.what());
+                            const std::array<interfaces::Attribute, 3> error_attrs{
+                                interfaces::Attribute{"method", method_str},
+                                interfaces::Attribute{"path", path},
+                                interfaces::Attribute{"result", "error"},
+                            };
+                            core::otel::counter_add("http.server.requests", 1.0, error_attrs);
+                            const auto elapsed_ms = std::chrono::duration<double, std::milli>(
+                                                        std::chrono::steady_clock::now() - start_time)
+                                                        .count();
+                            core::otel::histogram_record("http.server.request.duration_ms",
+                                                          elapsed_ms, metric_attrs);
+                            core::events::publish("router.request.failed",
+                                                  {{"method", std::string{method_str}},
+                                                   {"path", std::string{path}},
+                                                   {"error", e.what()}});
+                            throw;
+                        }
+                        const auto elapsed_ms = std::chrono::duration<double, std::milli>(
+                                                    std::chrono::steady_clock::now() - start_time)
+                                                    .count();
+                        core::otel::histogram_record("http.server.request.duration_ms", elapsed_ms,
+                                                      metric_attrs);
                         return;
                     }
                     // node exists but nothing registered for this method — 405-style L
+                    core::events::publish(
+                        "router.request.method_not_allowed",
+                        {{"path", std::string{path}},
+                         {"method", std::string{interfaces::io::types::method_str(method)}}});
                     throw std::runtime_error(
                         std::format("Wrong method for route: {}", std::to_underlying(method)));
                 }
@@ -288,6 +347,7 @@ class RouteHandler {
         }
 
         // either the segment walk broke early or the node had no handlers at all — 404
+        core::events::publish("router.request.not_found", {{"path", std::string{path}}});
         throw std::runtime_error("Route not found");
     }
 

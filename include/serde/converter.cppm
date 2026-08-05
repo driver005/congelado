@@ -18,8 +18,8 @@ class TomlParser {
   public:
     /**
      * @brief Populates every reflected field of `T` from a parsed TOML table — the
-     * recursive engine behind Toml::decode and every ISerializable FieldConverter's
-     * `from_toml`. Forward-declared here so FieldConverter<ISerializable T> can call it
+     * recursive engine behind every ISerializable FieldConverter's `from_toml`. Forward-
+     * declared here so FieldConverter<ISerializable T> can call it
      * before its actual definition (further down this file, after Serializable<T> is fully
      * usable).
      * @tparam T the serializable type being populated.

@@ -1,24 +1,96 @@
+module;
+#include <rfl/from_generic.hpp>
+#include <rfl/json.hpp>
+#include <rfl/to_generic.hpp>
+
 export module serde;
 
 export import :core;
 export import :converter;
-export import :json;
-export import :toml;
 export import :cache;
-export import :sql;
+
+import interfaces;
 
 export namespace serde {
 
+/// @brief The dynamic reflected-value type every format plugin's encode/decode crosses the
+/// ABI as — everything outside `serde` (and the two format plugins, which implement the ABI
+/// contract itself) should reach `rfl::Generic` through this alias rather than including any
+/// `<rfl/...>` header directly; `serde` is the only place that's supposed to know rfl exists.
+using Value = rfl::Generic;
+
+/**
+ * @brief Holds every registered wire-format plugin (JSON, TOML, ...) for one process, keyed by
+ * content-type — mirrors `core::logger::LoggerRegistry` exactly. Instance-owned (not a static
+ * singleton) — exactly one lives inside `congelado::heart::AppContext` (the engine) or a local
+ * variable in the worker's `main()`, and `set_active()` points the ambient `Ser::serialize`/
+ * `deserialize` facade (dozens of call sites across engine handlers, deliberately kept
+ * untouched) at it. Only `s_active` — a single pointer, not the format data itself — is
+ * process-global. A format only becomes usable once its plugin actually registers here;
+ * nothing is compiled in by default.
+ */
+class SerdeFormatRegistry {
+  public:
+    /**
+     * @brief Registers a loaded format plugin. No-op if `format` is null.
+     * @param format the format instance to add.
+     */
+    void add_format(std::shared_ptr<interfaces::ISerdeFormat> format) {
+        if (format) {
+            m_formats.push_back(std::move(format));
+        }
+    }
+
+    /**
+     * @brief Looks up a registered format by content-type.
+     * @param content_type the wire content-type to match (e.g. `"application/json"`).
+     * @return the matching format, or `nullptr` if no plugin registered for it — i.e. the
+     * format plugin simply isn't loaded.
+     */
+    [[nodiscard]] interfaces::ISerdeFormat *find(std::string_view content_type) const noexcept {
+        for (auto &format : m_formats) {
+            if (format->content_type() == content_type) {
+                return format.get();
+            }
+        }
+        return nullptr;
+    }
+
+    /// @brief Gets every registered format. @return all registered formats, in registration order.
+    [[nodiscard]] const std::vector<std::shared_ptr<interfaces::ISerdeFormat>> &
+    get_formats() const noexcept {
+        return m_formats;
+    }
+
+    /**
+     * @brief Points the ambient `Ser` facade at this instance — call once, right after
+     * constructing the process's one `SerdeFormatRegistry`, before any `Ser::serialize`/
+     * `deserialize` call.
+     * @param registry the instance to make active, or `nullptr` to clear it.
+     */
+    static void set_active(SerdeFormatRegistry *registry) noexcept { s_active = registry; }
+
+    /**
+     * @brief Gets the currently active registry, if one was set.
+     * @return the active `SerdeFormatRegistry`, or `nullptr` if `set_active()` was never called.
+     */
+    [[nodiscard]] static SerdeFormatRegistry *get_active() noexcept { return s_active; }
+
+  private:
+    std::vector<std::shared_ptr<interfaces::ISerdeFormat>> m_formats;
+    static inline SerdeFormatRegistry *s_active{nullptr};
+};
+
 // ─── SerBase / Ser ────────────────────────────────────────────────────────────
 //
-// Runtime wire-format dispatch. Reads the Accept / Content-Type header value
-// and dispatches to a format class satisfying IFormat<F,T>.
+// Runtime wire-format dispatch. Reads the Accept / Content-Type header value and dispatches
+// to whatever format plugin is registered in SerdeFormatRegistry for it — no plugin loaded
+// for that content-type means the format genuinely isn't available, no silent fallback.
 //
-// To add a new wire format: define a class satisfying IFormat<F,T> and append
-// it to the Ser alias at the bottom of this file.
+// To add a new wire format: ship a plugin implementing interfaces::ISerdeFormat; nothing to
+// change here.
 
-template <IAnyFormat... Fmts>
-class SerBase {
+class Ser {
     /**
      * @brief Converts a plain string into a byte vector — the wire types this class hands
      * back everywhere, since that's what the transport layer actually wants.
@@ -34,112 +106,112 @@ class SerBase {
 
   public:
     /**
-     * @brief Serializes a single value, picking the format whose `content_type` matches
-     * `accept` out of the `Fmts...` pack — falls back to Json::encode if nothing matches,
-     * so this never actually fails, bet.
-     * @tparam T the serializable type being encoded.
+     * @brief Serializes a single value, dispatching to whichever format plugin is registered
+     * in `SerdeFormatRegistry` for `accept`.
+     * @note Any `T` works here, not just `ISerializable` ones — `rfl::to_generic` reduces it
+     * to an `rfl::Generic` first (using the `Reflector<T>` specialization `converter.cppm`
+     * already provides for `ISerializable` types, or rfl's own native reflection otherwise),
+     * and only that generic value crosses into the plugin's `encode`.
+     * @tparam T the type being encoded.
      * @param accept the requested content-type (e.g. an Accept header value) to match
-     * against each format's `content_type`.
+     * against a registered format's `content_type`.
      * @param value the instance to serialize.
-     * @return the encoded bytes, in whichever format matched (or JSON if none did).
-     */
-    template <ISerializable T>
-    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view accept, const T &value) {
-        std::string encoded;
-        // Fold across Fmts... looking for a content_type match — first hit encodes and short
-        // circuits the ||. Nothing matched? Fall back to JSON, bet, this never actually fails.
-        bool matched =
-            ((Fmts::content_type == accept && (encoded = Fmts::encode(value), true)) || ...);
-        if (!matched) {
-            encoded = Json::encode(value);
-        }
-        return to_bytes(encoded);
-    }
-
-    /**
-     * @brief Serializes a vector of values as a JSON array — always JSON here regardless of
-     * `accept`, unlike the single-value overload above. Straight up hardcoded to
-     * Json::encode per element, no format-pack dispatch for this shape.
-     * @tparam T the serializable element type.
-     * @param values the instances to serialize, in order.
-     * @warning `accept` is silently ignored — a caller requesting `"application/toml"` for
-     * a vector still gets JSON back, no error, no fallback signal. Inconsistent with the
-     * single-value overload right above it, which actually honors `accept`. Real footgun if
-     * a Toml-only client ever hits a list endpoint.
-     * @return the encoded `[elem,elem,...]` JSON array as bytes.
-     */
-    template <ISerializable T>
-    [[nodiscard]] static std::vector<std::byte> serialize(std::string_view /*accept*/,
-                                                          const std::vector<T> &values) {
-        std::string encoded = "[";
-        bool first = true;
-        // Walk every element, comma-separating all but the first — straight linear join, no
-        // format-pack dispatch here since this overload is hardcoded to JSON regardless of accept.
-        for (const auto &value : values) {
-            if (!first) {
-                encoded += ',';
-            }
-            encoded += Json::encode(value);
-            first = false;
-        }
-        encoded += ']';
-        return to_bytes(encoded);
-    }
-
-    /**
-     * @brief Serializes a non-ISerializable value, same content-negotiation motion as the
-     * ISerializable single-value overload — matches `accept` against the `Fmts...` pack,
-     * falls back to JSON if nothing matches.
-     * @tparam T the type being encoded, constrained to NOT satisfy ISerializable.
-     * @param accept the requested content-type to match against each format's
-     * `content_type`.
-     * @param value the instance to serialize.
-     * @return the encoded bytes, in whichever format matched (or JSON if none did).
+     * @warning No silent JSON fallback — if no format plugin is registered for `accept`, this
+     * returns an error payload instead of guessing. That's the whole point: a format that
+     * isn't loaded isn't available.
+     * @return the encoded bytes, or an error payload if no format is registered for `accept`
+     * or the registered format's `encode` itself fails.
      */
     template <typename T>
-        requires(!ISerializable<T>)
     [[nodiscard]] static std::vector<std::byte> serialize(std::string_view accept, const T &value) {
-        std::string encoded;
-        // Same fold-and-fallback motion as the ISerializable overload above — match accept
-        // against Fmts..., default to JSON if nothing lands.
-        bool matched =
-            ((Fmts::content_type == accept && (encoded = Fmts::encode(value), true)) || ...);
-        if (!matched) {
-            encoded = Json::encode(value);
+        auto *registry = SerdeFormatRegistry::get_active();
+        auto *format = registry != nullptr ? registry->find(accept) : nullptr;
+        if (format == nullptr) {
+            return serialize_error(accept, std::format("no format plugin loaded for '{}'", accept));
         }
-        return to_bytes(encoded);
+        auto encoded = format->encode(rfl::to_generic(value));
+        if (!encoded) {
+            return serialize_error(accept, encoded.error());
+        }
+        return to_bytes(*encoded);
     }
 
     /**
-     * @brief Deserializes raw bytes into T, picking the format whose `content_type` matches
-     * `content_type` out of the `Fmts...` pack.
-     * @tparam T the serializable type being decoded into.
+     * @brief Deserializes raw bytes into T, dispatching to whichever format plugin is
+     * registered in `SerdeFormatRegistry` for `content_type`.
+     * @tparam T the type being decoded into.
      * @param content_type the wire content-type (e.g. a Content-Type header value) used to
-     * pick which format's `decode` runs.
+     * pick which registered format's `decode` runs.
      * @param data the raw encoded bytes/text to decode.
-     * @warning Unlike `serialize`, there's no silent JSON fallback here — if `content_type`
-     * doesn't match any format in `Fmts...`, this returns the `"unsupported content-type"`
-     * error straight up, no cap.
-     * @return the decoded T, or an error message on an unsupported content-type or a decode
-     * failure from the matched format.
+     * @warning No format registered for `content_type` (i.e. the plugin isn't loaded) returns
+     * a clean error, same as an unsupported content-type always did — no silent fallback.
+     * @return the decoded T, or an error message if no format is registered for
+     * `content_type`, the registered format's `decode` fails, or the decoded generic value
+     * doesn't match T's shape.
      */
-    template <ISerializable T>
+    template <typename T>
     [[nodiscard]] static std::expected<T, std::string> deserialize(std::string_view content_type,
                                                                    std::string_view data) {
-        // Default to an error — only a matching Fmts entry overwrites this, so no match at all
-        // just leaves the "unsupported content-type" result standing, no JSON fallback like
-        // serialize() gets.
-        std::expected<T, std::string> result =
-            std::unexpected{std::string{"unsupported content-type"}};
-        (void)((Fmts::content_type == content_type &&
-                (result = Fmts::template decode<T>(data), true)) ||
-               ...);
-        return result;
+        auto *registry = SerdeFormatRegistry::get_active();
+        auto *format = registry != nullptr ? registry->find(content_type) : nullptr;
+        if (format == nullptr) {
+            return std::unexpected{
+                std::format("no format plugin loaded for '{}'", content_type)};
+        }
+        auto decoded = format->decode(data);
+        if (!decoded) {
+            return std::unexpected{decoded.error()};
+        }
+        auto result = rfl::from_generic<T>(*decoded);
+        if (!result) {
+            return std::unexpected{std::string{result.error().what()}};
+        }
+        return *result;
+    }
+
+    /**
+     * @brief Decodes raw bytes into the dynamic `rfl::Generic` tree itself, dispatching to
+     * whichever format plugin is registered for `content_type` — skips the `rfl::from_generic
+     * <T>` step `deserialize<T>()` does, for callers that want to navigate an unknown-shape
+     * document (e.g. walking an OpenAPI spec) rather than decode into a known reflected type.
+     * @param content_type the wire content-type used to pick which registered format's
+     * `decode` runs.
+     * @param data the raw encoded bytes/text to decode.
+     * @warning Same no-silent-fallback rule as `deserialize<T>()` — no format registered for
+     * `content_type` is a clean error, not a guess.
+     * @return the decoded `rfl::Generic` tree, or an error message if no format is registered
+     * for `content_type` or the registered format's `decode` fails.
+     */
+    [[nodiscard]] static std::expected<Value, std::string>
+    decode_generic(std::string_view content_type, std::string_view data) {
+        auto *registry = SerdeFormatRegistry::get_active();
+        auto *format = registry != nullptr ? registry->find(content_type) : nullptr;
+        if (format == nullptr) {
+            return std::unexpected{
+                std::format("no format plugin loaded for '{}'", content_type)};
+        }
+        return format->decode(data);
+    }
+
+    /**
+     * @brief JSON-encodes `value` directly via `rfl::json::write` — always JSON, no registry
+     * lookup, no `accept` parameter. For callers that need JSON specifically as an internal
+     * storage/embedding format (e.g. `Cache::cache_value`, `connector::Sql`'s
+     * `json_populate_record` payloads) rather than a content-negotiated wire format; those
+     * callers shouldn't need their own `#include <rfl/json.hpp>` just for this one call.
+     * @tparam T the type being encoded.
+     * @param value the instance to encode.
+     * @return the JSON-encoded string.
+     */
+    template <typename T>
+    [[nodiscard]] static std::string encode_json(const T &value) {
+        return rfl::json::write(value);
     }
 
     /**
      * @brief Wraps an error message as a minimal `{"error":"..."}` JSON payload — always
-     * JSON, `accept` is ignored here too.
+     * JSON, `accept` is ignored here too. Hand-formatted, not routed through any format
+     * plugin — has to work even when nothing is loaded, since it's what reports that.
      * @param message the error text to embed.
      * @warning `message` is dropped straight into the JSON string with no escaping — a
      * message containing a `"` or control character produces malformed JSON. Only feed this
@@ -162,7 +234,5 @@ class SerBase {
         return to_bytes(data);
     }
 };
-
-using Ser = SerBase<Json, Toml>;
 
 } // namespace serde

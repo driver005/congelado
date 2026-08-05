@@ -374,6 +374,25 @@ class HttpRequest : public interfaces::io::IRequest {
         return m_body;
     }
 
+    /**
+     * @brief `IRequest::set_body()` override — wraps `body` in a freshly-allocated `BufferNode`
+     * and installs it as this request's entire body chain.
+     * @note An empty `body` leaves `m_body` untouched (no node pushed), so `get_body().empty()`
+     * still reads true — same as a request that never had its body set at all, and matches
+     * `WriteHttpRequestAdaptor::operator()`'s own `get_body().empty()` check for the
+     * empty-DATA-frame path.
+     * @param body the bytes to install as the request body.
+     */
+    void set_body(std::vector<std::byte> &&body) & override {
+        if (body.empty()) {
+            return;
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — same raw-`new`-into-`push_back()`
+        // pattern `BufferWriter::acquire()` uses elsewhere in this buffering subsystem; the
+        // chain's ref-counted acquire()/release() owns it from here.
+        auto *node = new utils::buffering::BufferNode{std::from_range, body};
+        m_body.push_back(node, 0, node->get_written());
+    }
 
     //  TODO: set verion automaticly
     //  virtual void set_version(std::string_view version) & noexcept { std::abort(); }

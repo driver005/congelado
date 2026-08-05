@@ -155,12 +155,23 @@ class RouterContext {
 
     /**
      * @brief Hands out the next free router number and advances the counter.
-     * @warning Reads like a getter but it's not — every call mutates `m_highest_router_number`
-     * via post-increment. Call it twice expecting the same value back and you're cooked, you'll
-     * get two different numbers.
-     * @return the router number to claim for this call, pre-increment value.
+     * @warning Reads like a getter but it's not — every call mutates a process-wide counter via
+     * fetch_add. Call it twice expecting the same value back and you're cooked, you'll get two
+     * different numbers.
+     * @note Drawn from a `static inline` counter shared across every `RouterContext` instance in
+     * the process (for this template instantiation), not a per-instance one — `utils::openapi::
+     * Registry` is itself a process-wide singleton that more than one `RouterContext` can feed
+     * (e.g. engine's live router plus a throwaway one built purely to register another module's
+     * routes for documentation, see `engine.cc`'s `on_load`), and Generator reconstructs full
+     * paths by walking `router_number`/`base_router` across that ENTIRE Registry, not scoped to
+     * whichever `RouterContext` produced a given entry. A per-instance counter that always
+     * restarts at 1 collides across instances — two unrelated nodes end up sharing the same
+     * `router_number`, and the path-reconstruction walk picks up the wrong parent chain for
+     * whichever entry it finds first. A shared counter makes every number unique process-wide,
+     * matching what Registry's own flat, cross-instance walk actually needs.
+     * @return the router number to claim for this call.
      */
-    constexpr std::size_t get_highest_router_number() noexcept { return m_highest_router_number++; }
+    std::size_t get_highest_router_number() noexcept { return s_global_router_number.fetch_add(1, std::memory_order_relaxed); }
     /**
      * @brief Gets how many routes (including the reserved root/fallback slots) are currently
      * stored.
@@ -330,7 +341,10 @@ class RouterContext {
     // Middleware<MaxMiddlewareSize> m_middlewares;
     std::array<Route<MaxHandlerSize, MaxMiddlewareSize>, RouterSize> m_routes{};
     std::size_t m_router_size{2};
-    std::size_t m_highest_router_number{1};
+    // Shared across every RouterContext<RouterSize, MaxHandlerSize, MaxMiddlewareSize> instance
+    // in the process — see get_highest_router_number()'s own doc comment for why this can't be
+    // a per-instance counter. Starts at 1, same as the old per-instance default.
+    static inline std::atomic<std::size_t> s_global_router_number{1};
     std::size_t m_base_router_children{0};
 };
 

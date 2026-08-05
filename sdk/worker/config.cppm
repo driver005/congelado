@@ -7,8 +7,8 @@ export namespace congelado::worker {
 
 class TaskConfig {
   public:
-    /// @brief Default-constructs an empty TaskConfig — fields get filled in by the
-    /// `serde::Toml` decoder or by the setters below.
+    /// @brief Default-constructs an empty TaskConfig — fields get filled in by
+    /// `serde::Ser::deserialize` (dispatched to the TOML format plugin) or by the setters below.
     TaskConfig() = default;
 
     /// @brief Sets the task's config-file entry name. @param name the task's name.
@@ -29,7 +29,7 @@ class TaskConfig {
 
 // engine_url is the only field left genuinely optional (std::optional<std::string> — the
 // one optional-primitive FieldConverter this project's serde already has a specialization
-// for). Every other field is required: serde::Toml::decode errors on a missing required
+// for). Every other field is required: serde::Ser::deserialize errors on a missing required
 // field rather than silently defaulting, which is a clearer failure mode for a config
 // loader than the previous hand-rolled parser's silent "localhost"/8080 fallbacks — and the
 // real worker.toml already sets all of them explicitly.
@@ -96,7 +96,7 @@ class WorkerConfig {
     /**
      * @brief Reads and TOML-decodes a `WorkerConfig` straight off disk — this is the real
      * entrypoint worker authors hit at startup, no cap.
-     * @note Every field except `engine_url` is required: `serde::Toml::decode` errors on a
+     * @note Every field except `engine_url` is required: `serde::Ser::deserialize` errors on a
      * missing required field rather than silently defaulting, which is a clearer failure mode
      * than the old hand-rolled parser's silent `"localhost"`/`8080` fallbacks.
      * @param path filesystem path to the TOML config file.
@@ -163,8 +163,9 @@ congelado::worker::WorkerConfig::from_file(const std::filesystem::path &path) {
     if (!file) {
         return std::unexpected{std::format("failed to open '{}'", path.string())};
     }
-    // Slurp the whole file, then let serde::Toml handle validation/decoding — required-field
-    // errors surface from decode() itself, not here.
+    // Slurp the whole file, then let serde::Ser handle validation/decoding (dispatches to the
+    // TOML format plugin, force-loaded before this ever runs — see worker_main.cc) —
+    // required-field errors surface from deserialize() itself, not here.
     std::string contents{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
-    return serde::Toml::decode<WorkerConfig>(contents);
+    return serde::Ser::deserialize<WorkerConfig>("application/toml", contents);
 }

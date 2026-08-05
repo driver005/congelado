@@ -1,76 +1,30 @@
 # ── Congelado Server ────────────────────────────────────────────────────────────
-# Multi-stage build: C++26 engine with xmake + Conan + Clang
+# Runtime-only image — compiled artifacts arrive via the shared `build_output` volume, produced
+# once by the `builder` service (see docker/Dockerfile.builder + the `builder`/`server` entries
+# in docker-compose.yml, which mounts that volume at /app/build and gates this container on
+# `builder` finishing first via `depends_on: condition: service_completed_successfully`).
 # Base: Arch Linux — matches the toolchain (clang/gcc/liburing versions) this project is
-# actually developed against. Debian/Ubuntu's packaged GCC (13/14/15) each hit real,
-# version-specific "import std" module bugs (missing <print>, missing std.cc entirely,
-# missing std module export for range-adaptor pipe operators); Arch's rolling-release
-# clang+gcc avoids all of that by construction.
+# actually developed against, for the runtime .so ABI compatibility this image still needs even
+# though it no longer compiles anything itself.
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ── Stage 1: Builder ───────────────────────────────────────────────────────────
-FROM archlinux:latest AS builder
-
-# Container runs as root with no USER directive; xmake refuses to run as root otherwise.
-ENV XMAKE_ROOT=y
-# Cap parallel compile jobs — 12 host cores against limited container RAM has been
-# spiking swap hard enough to trigger silent kills during the openssl/cpython/bison
-# Conan builds; capping keeps peak memory bounded.
-ENV MAKEFLAGS=-j4
-
-RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed \
-       curl wget git unzip base-devel readline cmake ninja pkgconf liburing \
-       python python-pip clang lld libc++ libc++abi tk \
-       libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
-       libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
-       xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor
-
-# Arch's gcc package installs libstdc++.modules.json under /usr/lib/gcc/<target>/<ver>/
-# but ships the actual bits/std.cc (the C++23 std module source) under the unrelated
-# /usr/include/c++/<ver>/ tree instead of "next to" the manifest as its own relative
-# source-path (../include/c++/<ver>/bits/std.cc) assumes. Symlink it into place so
-# clang's std-module lookup (which follows that relative path literally) finds it.
-RUN gccver=$(gcc -dumpversion | cut -d. -f1) \
-    && mkdir -p /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.cc \
-    && ln -sf /usr/include/c++/${gccver}/bits/std.compat.cc \
-       /usr/lib/gcc/x86_64-pc-linux-gnu/include/c++/${gccver}/bits/std.compat.cc
-
-# xmake
-RUN curl -fsSL https://xmake.io/shget.text | bash \
-    && ln -sf /root/.local/bin/xmake /usr/local/bin/xmake
-
-# Conan 2
-RUN pip3 install --no-cache-dir --break-system-packages conan \
-    && conan profile detect --force
-
-# Copy project
-WORKDIR /app
-COPY . .
-
-# Configure xmake (fetches Conan deps too) — no --sdk override needed; Arch's
-# clang/libc++/gcc live at the default paths xmake already expects, mirroring how the
-# project builds on bare-metal Arch.
-RUN make install
-
-# Build everything, twice. congelado_include/congelado_sdk/congelado_lib all carry
-# set_policy("build.fence", true) in xmake.lua, so a single "make build" ("xmake build",
-# all targets) now builds the whole dep chain in correct order without racing on module
-# BMIs. The second pass is unrelated to that — engine's build.cc writes a generated OpenAPI
-# client SDK into plugins/engine/generated/ *during* the first pass, too late for that same
-# pass to compile it in; the second "make build" picks those freshly-written files up.
-RUN make build
-RUN make build
-
-# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM archlinux:latest AS runtime
 
-# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain)
-# plus the X11/xcb chain pulled transitively into cpython's Tk support at build time —
-# `tk` brings the same X11/xcb libs in as runtime deps that the builder had as headers.
+# Runtime needs libc++/liburing (dynamically linked, matching the builder's toolchain) plus the
+# X11/xcb chain pulled transitively into cpython's Tk support at build time — `tk` brings the
+# same X11/xcb libs in as runtime deps that the builder had as headers. krb5 provides
+# libgssapi_krb5.so.2, needed by libpostgres_plugin.so — see docker/Dockerfile.builder's comment
+# on why GSSAPI support gets linked in.
+# kmod provides modprobe — used at container start to load the host's kTLS ("tls") kernel
+# module. Needs cap_add: SYS_MODULE + a bind mount of the host's /lib/modules in
+# docker-compose.yml to actually work — see the CMD comment below for why both are required.
+# curl is for docker-compose.yml's own healthcheck ("curl -k -f https://localhost:8080/..."),
+# which runs INSIDE this container — without it here, the healthcheck command itself fails to
+# even launch (exit 127, "not found"), reported as unhealthy regardless of whether the server is
+# actually up and answering fine (confirmed: hitting the same URL from the host in a real client
+# worked the whole time this was missing).
 RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed gcc-libs libc++ libc++abi liburing tk \
+    && pacman -S --noconfirm --needed gcc-libs libc++ libc++abi liburing tk krb5 kmod curl \
        libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
        libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
        xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor \
@@ -78,24 +32,17 @@ RUN pacman -Syu --noconfirm \
 
 WORKDIR /app
 
-# src/main.cc derives the plugins directory as "<binary's own dir>/../../../plugins" — the
-# exact relative offset xmake's own build/linux/x86_64/debug/<bin> layout produces (plugins
-# land in build/plugins). Preserve that nesting here rather than flattening it, so the
-# lookup that main.cc actually does resolves to a real directory.
-COPY --from=builder /app/build/linux/x86_64/debug/congelado ./build/linux/x86_64/debug/congelado
-COPY --from=builder /app/build/plugins/ ./build/plugins/
-COPY --from=builder /app/build/workers/ ./workers/
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_lib.so ./libcongelado_lib.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_include.so ./libcongelado_include.so
-COPY --from=builder /app/build/linux/x86_64/debug/libcongelado_sdk.so ./libcongelado_sdk.so
-
-# main.cc's config path is a hardcoded, non-tilde-expanded-by-the-OS "~/cc/congelado/src/
+# main.cc's config path is a hardcoded, non-tilde-expanded-by-the-OS "~/cc/congelado/config/
 # congelado.toml" string (see its own doc comment) — congelado::heart's loader expands the
 # "~" itself via $HOME, so with HOME=/root (default for this root-only image) it resolves
 # to exactly this path. Not a real deploy-friendly path, but this is pre-existing,
-# documented behavior — replicate what it expects rather than patch main.cc.
-RUN mkdir -p /root/cc/congelado/src
-COPY src/congelado.toml /root/cc/congelado/src/congelado.toml
+# documented behavior — replicate what it expects rather than patch main.cc. Copies from
+# config/docker/congelado.toml, NOT config/congelado.toml — the two have diverged on purpose
+# (docker-compose service-name hostnames here vs. localhost endpoints in the local one bare-metal
+# `make run` loads straight from that same repo-relative path) — see either file's own header
+# comment for why one canonical copy didn't work.
+RUN mkdir -p /root/cc/congelado/config
+COPY config/docker/congelado.toml /root/cc/congelado/config/congelado.toml
 
 # Generate self-signed TLS certs
 RUN pacman -S --noconfirm --needed openssl \
@@ -104,9 +51,26 @@ RUN pacman -S --noconfirm --needed openssl \
        -days 365 -subj "/CN=localhost" \
     && pacman -Scc --noconfirm
 
-# LD_LIBRARY_PATH for shared libs
-ENV LD_LIBRARY_PATH=/app:$LD_LIBRARY_PATH
+# build/ itself (binary, plugins, workers, libs) is NOT copied here — it arrives at container
+# start via the build_output volume mounted at ./build (read-only), populated once by the
+# `builder` service. LD_LIBRARY_PATH points at the nested lib location that volume preserves
+# (build/linux/x86_64/debug/), rather than flattening the .so files to /app root.
+ENV LD_LIBRARY_PATH=/app/build/linux/x86_64/debug:$LD_LIBRARY_PATH
+# python_bridge_plugin embeds CPython — PYTHONHOME points it at the stdlib tree the builder
+# copied out of conan's cache into build/python-stdlib (see Dockerfile.builder's comment on
+# why that copy is needed at all). Python's default posix layout expects the stdlib at
+# $PYTHONHOME/lib/python3.12, which is exactly what got copied there.
+ENV PYTHONHOME=/app/build/python-stdlib
 
 EXPOSE 8080
 
-CMD ["./build/linux/x86_64/debug/congelado"]
+# modprobe tls loads the kernel's TLS ULP module — containers share the host kernel, so this
+# only actually succeeds if docker-compose.yml grants this container CAP_SYS_MODULE (modprobe
+# needs it to call init_module/finit_module) AND bind-mounts the host's /lib/modules (the .ko
+# files live on the host, not in this Arch image — `uname -r` inside the container still
+# reports the real host kernel version, so the bind mount's per-version subdirectory lines up
+# correctly). `|| true` — best-effort: if the host kernel genuinely has no tls module at all
+# (not just unloaded), this just leaves it unavailable and Socket::ktls_kernel_supported()'s
+# own runtime probe (include/io/base/socket/socket.cppm) already falls back to plain TLS
+# without it, same as on any host without kTLS.
+CMD ["sh", "-c", "modprobe tls 2>/dev/null || true; exec ./build/linux/x86_64/debug/congelado"]

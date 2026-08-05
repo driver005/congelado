@@ -7,7 +7,6 @@ export module core_contract:types;
 
 import std;
 import shared;
-import core_logger;
 
 export namespace core::contract {
 
@@ -247,7 +246,6 @@ class Worker {
             const auto DESIRED = (current & ~ContractState::SCHEDULED) | ContractState::EXECUTING;
 
             if (compare_exchange(current, DESIRED)) {
-                core::logger::debug("core/worker", "claimed, state → {}", DESIRED);
                 return true;
             }
         }
