@@ -1,0 +1,137 @@
+version: "3.8"
+
+# Infra-only twin of docker-compose.yml — starts congelado's external dependencies (postgres,
+# redis, rabbitmq, kafka, elasticsearch) with none of congelado's own binaries (no builder,
+# server, worker, test, ui). Use this when running the engine/worker locally on the host
+# (outside a container) against a real backing stack instead of in-process/mocked plugins.
+services:
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  # Backs postgres_plugin's IDatabase (see config/docker/congelado.toml's
+  # [plugins.postgres_plugin] section).
+  postgres:
+    image: postgres:16-alpine
+    container_name: congelado-postgres
+    environment:
+      - POSTGRES_USER=congelado
+      - POSTGRES_PASSWORD=congelado
+      - POSTGRES_DB=congelado
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U congelado"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Elasticsearch (opt-in) ────────────────────────────────────────────────
+  # Backs elasticsearch_plugin's ISearchProvider — alternative to postgres_plugin's own
+  # ISearchProvider (pick one, see include/interfaces/search.cppm). Gated behind the "search"
+  # profile, same as docker-compose.yml — opt in with `docker compose -f
+  # docker-compose.environment.yml --profile search up`.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: congelado-elasticsearch
+    profiles:
+      - search
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── RabbitMQ (opt-in) ─────────────────────────────────────────────────────
+  # Backs rabbitmq_events_plugin's IEventSink. Gated behind the "events" profile, same as
+  # docker-compose.yml — opt in with `docker compose -f docker-compose.environment.yml
+  # --profile events up`.
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: congelado-rabbitmq
+    profiles:
+      - events
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Kafka (opt-in) ────────────────────────────────────────────────────────
+  # Backs kafka_events_plugin's IEventSink. Same "events" profile as rabbitmq above. KRaft
+  # mode (no separate Zookeeper service) keeps this to one container instead of two.
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: congelado-kafka
+    profiles:
+      - events
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - CLUSTER_ID=congelado-kafka-cluster
+    ports:
+      - "9092:9092"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Redis (opt-in) ────────────────────────────────────────────────────────
+  # Backs redis_events_plugin's IEventSink. Same "events" profile as rabbitmq/kafka above.
+  # Pub/Sub only, no persistence configured — matches this backend's own documented
+  # "fire-and-forget, no delivery guarantee" trade-off.
+  redis:
+    image: redis:7-alpine
+    container_name: congelado-redis
+    profiles:
+      - events
+    ports:
+      - "6379:6379"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+networks:
+  congelado-env:
+    driver: bridge
+
+volumes:
+  # Same literal `name:` as docker-compose.yml/docker-compose.debug.yml so all three files
+  # share the same underlying postgres data regardless of which one is up.
+  postgres_data:
+    name: congelado_postgres_data
+  elasticsearch_data:

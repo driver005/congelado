@@ -2,7 +2,7 @@ CONAN_PROVIDER=out/conan_provider.cmake
 CMAKE_PRESET=Debug
 BUILD_DIR=out/build/$(CMAKE_PRESET)
 
-.PHONY: all download build clean info-outdated update editor dev test
+.PHONY: all download build clean info-outdated update editor dev test compose-env-up compose-env-rm
 
 all: dev
 
@@ -56,6 +56,12 @@ info-outdated:
 
 editor:
 	xmake project -k compile_commands
+
+compose-env-up:
+	podman compose -f docker/docker-compose.environment.yml up -d
+
+compose-env-rm:
+	podman compose -f docker/docker-compose.environment.yml down
 
 clean-conan:
 	conan remove "*"
