@@ -1,0 +1,255 @@
+{
+  "title": "Congelado",
+  "uid": "congelado",
+  "editable": true,
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["congelado", "otel"],
+  "templating": {
+    "list": [
+      {
+        "name": "task_type",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(task_completed_total, task_type)", "refId": "task_type" },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    { "id": 1, "type": "row", "title": "Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false, "panels": [] },
+
+    {
+      "id": 2,
+      "title": "Stack health",
+      "description": "Every scrape target Prometheus knows about, up or down. Always populated (self-scrape), independent of whether congelado has pushed anything.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "min(up)", "legendFormat": "targets up", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "ALL UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Task completion rate (5m)",
+      "description": "sum(rate(task_completed_total[5m])) — core::otel::counter_add(\"task.completed\", ...) in src/worker_main.cc's poll_cycle(). OTel dots-to-underscores + Prometheus's own counter naming convention give \"task_completed_total\".",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(task_completed_total{task_type=~\"$task_type\"}[5m]))", "legendFormat": "tasks/s", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 } }
+    },
+    {
+      "id": 4,
+      "title": "Task success ratio (5m)",
+      "description": "Fraction of completed tasks with task.result=\"success\" vs all completions — surfaces a rising failure rate immediately instead of it hiding inside a raw counter.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(task_completed_total{task_type=~\"$task_type\",task_result=\"success\"}[5m])) / clamp_min(sum(rate(task_completed_total{task_type=~\"$task_type\"}[5m])), 1e-9)",
+          "legendFormat": "success ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "p95 task duration",
+      "description": "histogram_quantile(0.95, ...) over task_duration_ms_bucket — core::otel::histogram_record(\"task.duration_ms\", ...) in the same poll_cycle().",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(task_duration_ms_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 1 } }
+    },
+
+    { "id": 10, "type": "row", "title": "Task metrics", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "collapsed": false, "panels": [] },
+
+    {
+      "id": 11,
+      "title": "Task completions by type & result",
+      "description": "sum by (task_type, task_result) (rate(task_completed_total[5m]))",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (task_type, task_result) (rate(task_completed_total{task_type=~\"$task_type\"}[5m]))",
+          "legendFormat": "{{task_type}} / {{task_result}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 12,
+      "title": "Task duration percentiles",
+      "description": "p50/p95/p99 over task_duration_ms_bucket, per task_type.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum(rate(task_duration_ms_bucket{task_type=~\"$task_type\"}[5m])) by (le, task_type))",
+          "legendFormat": "p50 {{task_type}}",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(task_duration_ms_bucket{task_type=~\"$task_type\"}[5m])) by (le, task_type))",
+          "legendFormat": "p95 {{task_type}}",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum(rate(task_duration_ms_bucket{task_type=~\"$task_type\"}[5m])) by (le, task_type))",
+          "legendFormat": "p99 {{task_type}}",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 13,
+      "title": "Task duration distribution",
+      "description": "Raw bucket rate as a heatmap — shows the shape of the distribution, not just percentile lines.",
+      "type": "heatmap",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(task_duration_ms_bucket{task_type=~\"$task_type\"}[5m])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": { "calculate": false, "yAxis": { "unit": "ms" } }
+    },
+
+    { "id": 20, "type": "row", "title": "Prometheus internals", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }, "collapsed": false, "panels": [] },
+
+    {
+      "id": 21,
+      "title": "Scrape duration",
+      "description": "How long each scrape target took to respond — a quick self-monitoring signal that comes for free from the self-scrape job in prometheus.yml.",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "scrape_duration_seconds", "legendFormat": "{{job}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 22,
+      "title": "Samples ingested (rate)",
+      "description": "How much data Prometheus itself is actually storing — a rising floor here (even with zero congelado traffic) confirms the OTLP push path is landing samples.",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(prometheus_tsdb_head_samples_appended_total[5m])",
+          "legendFormat": "samples/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+
+    { "id": 30, "type": "row", "title": "Traces", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }, "collapsed": false, "panels": [] },
+
+    {
+      "id": 31,
+      "title": "Recent traces",
+      "description": "TraceQL search across every service (server + worker share the same otel_otlp_plugin, distinguished by the service.name resource attribute — see plugins/otel_otlp/otel_otlp_plugin.cc's service_name config field). Click a row to open the full trace view; from there, \"Logs for this span\" jumps to Loki filtered by trace_id (tracesToLogsV2, see the Tempo datasource's provisioning config).",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 31 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{}",
+          "limit": 50,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ]
+    },
+
+    { "id": 40, "type": "row", "title": "Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 }, "collapsed": false, "panels": [] },
+
+    {
+      "id": 41,
+      "title": "Recent logs",
+      "description": "core::logger::* calls fan out through OtelLogBridge (sdk/heart/adapters.cppm) into Loki whenever a log happens inside an active span — each line carries a trace_id as structured metadata (Loki's native OTLP ingestion default), giving the derived-field link to Tempo configured on the Loki datasource. \"congelado.*\" matches both congelado-server and any future congelado-worker service_name.",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 42 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=~\"congelado.*\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

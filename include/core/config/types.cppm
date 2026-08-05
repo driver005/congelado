@@ -90,8 +90,34 @@ class Config {
      */
     std::unordered_map<std::string, PluginConfig> &get_plugins() noexcept { return m_plugins; }
 
+    /**
+     * @brief Registers the chosen provider(s) for one capability, from the top-level
+     * `[providers]` table — e.g. `database = "postgres"` or `logger = ["file_logger",
+     * "otel_otlp_plugin"]`. Every value is stored as a list regardless of source shape (a bare
+     * TOML/JSON string becomes a one-element list) since some capabilities genuinely allow more
+     * than one active provider at once (logger fans out to every registered sink) while others
+     * only ever use the first entry (database/search pick a single active backend) — the list
+     * shape is uniform, the "how many actually get used" policy lives with each capability's own
+     * resolution code, not here.
+     * @param capability the capability name (e.g. `"database"`, `"search"`, `"logger"`).
+     * @param providers the plugin stem name(s) chosen for it, in preference order.
+     */
+    void add_provider(std::string capability, std::vector<std::string> providers) {
+        m_providers[std::move(capability)] = std::move(providers);
+    }
+
+    /**
+     * @brief Read-only view over every capability's chosen provider list.
+     * @return all provider selections, capability name → ordered list of plugin stem names.
+     */
+    [[nodiscard]] const std::unordered_map<std::string, std::vector<std::string>> &
+    get_providers() const noexcept {
+        return m_providers;
+    }
+
   private:
     std::unordered_map<std::string, PluginConfig> m_plugins;
+    std::unordered_map<std::string, std::vector<std::string>> m_providers;
 };
 
 } // namespace core::config

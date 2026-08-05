@@ -1,0 +1,28 @@
+# Auto-provisions Tempo as a Grafana datasource — same pattern as prometheus.yml.
+# tracesToLogsV2 wires the trace-view -> "logs for this span" link to Loki. otel_otlp_plugin's
+# LogBackend now stamps emitted log records with the calling span's trace_id (see
+# plugins/otel_otlp/otel_otlp_plugin.cc's LogBackend::emit), which Loki's native OTLP ingestion
+# stores as structured metadata field "trace_id" — matched here via LogQL, not a body regex.
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: false
+      # nodeGraph here is the single-trace span-relationship view (built from that one trace's
+      # own data) — NOT the cross-trace "service map" (that needs Tempo's metrics-generator
+      # pushing service-graph metrics into Prometheus via remote_write, not configured in this
+      # stack, so deliberately not wiring serviceMap here — it would show as an empty panel).
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false

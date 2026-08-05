@@ -1,0 +1,34 @@
+name: congelado_app
+description: >-
+  The one Flutter project spanning web, desktop, and mobile — a generic
+  sidebar/tabs shell that mounts every installed plugin's hand-written
+  Flutter UI (see plugins/*/ui/). Independent of the C++ backend: this shell
+  itself has no plugin-specific code, only registry.dart's merge step.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # shadcn/ui-inspired component library (forui.dev) — the design system's actual widget/theme
+  # implementation; sdk/ui_dart's theme/ module wraps FThemes.zinc into the one shared FThemeData
+  # every package here (this one, congelado_engine_ui) themes off of.
+  forui: ^0.25.0
+  congelado_ui_sdk:
+    path: ../sdk/ui_dart
+  # One path dependency per plugin that ships a ui/ package — add a line here
+  # (and to lib/registry.dart) when a new plugin's UI is onboarded.
+  congelado_engine_ui:
+    path: ../plugins/engine/ui
+  congelado_openapi_ui:
+    path: ../plugins/openapi_generator/ui
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

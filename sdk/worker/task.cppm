@@ -6,6 +6,7 @@ export module congelado_worker:task;
 
 import std;
 import core_plugin;
+import core_ffi;
 
 export namespace congelado::worker {
 
@@ -450,3 +451,29 @@ class TaskRunner {
 };
 
 } // namespace congelado::worker
+
+// FFI export — demonstrates the sdk-wide FFI generation pipeline (xmake/ffi.lua discovers
+// this specialization by scanning sdk/**.cppm for the ffi export marker below). Only exposes
+// has_task_type/getWorkerId — both take/return types ValueTraits already marshals
+// (std::string_view/bool), no new marshaling code needed for this example.
+// TODO(reflection): this whole specialization goes away once the toolchain has real P2996
+// reflection (GCC 16.1 has it via -freflection today, clang doesn't yet) — see
+// include/core/ffi/ffi.cppm's matching TODO for what replaces it.
+template <>
+struct core::ffi::Exported<congelado::worker::TaskRunner> {
+    [[nodiscard]] static constexpr auto methods() {
+        using congelado::worker::TaskRunner;
+        return std::tuple{
+            MethodDesc<"has_task_type", &TaskRunner::has_task_type>{},
+            MethodDesc<"getWorkerId", &TaskRunner::getWorkerId>{},
+        };
+    }
+
+    /// @brief The single instance every registered method binds against — a fresh, empty
+    /// TaskRunner (no workers loaded). Real deployments would want a way to point this at an
+    /// already-populated runner instead; out of scope for this demo.
+    [[nodiscard]] static congelado::worker::TaskRunner &instance() {
+        static congelado::worker::TaskRunner runner;
+        return runner;
+    }
+};

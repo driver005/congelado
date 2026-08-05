@@ -1,0 +1,27 @@
+name: congelado_openapi_ui
+description: >-
+  Flutter UI contributed by the openapi_generator plugin — a single page
+  showing the engine's live-generated OpenAPI document (GET /openapi.json,
+  already served by sdk/heart/app.cppm via IOpenApiGenerator::serve_document()
+  — no new backend route needed for this). Independent of
+  plugins/openapi_generator/src/ (the C++ backend).
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  forui: ^0.25.0
+  congelado_ui_sdk:
+    path: ../../../sdk/ui_dart
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

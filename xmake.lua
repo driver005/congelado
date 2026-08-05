@@ -8,258 +8,45 @@ set_defaultmode("debug")
 -- and congelado_worker's own target below, so it's included first.
 includes("xmake/buildscript.lua")
 
-if is_plat("linux") then
-	set_toolchains("clang")
-	add_ldflags("-fuse-ld=lld")
-	-- liburing < 2.15 unconditionally defines IOURINGINLINE as "static inline", which a
-	-- C++20 module partition can't export (internal linkage). Newer liburing guards this
-	-- with #ifndef and picks plain "inline" under C++20+; predefine it ourselves so older
-	-- distro packages (e.g. Ubuntu 25.10's liburing-dev 2.11) behave the same way.
-	add_defines("IOURINGINLINE=inline")
-elseif is_plat("windows", "mingw") then
-	set_config("sdk", "/opt/llvm-mingw")
-	set_toolchains("clang")
-end
+-- `xmake build-all` — the single-invocation entry point (builds standalone plugin projects in
+-- order, then this project). See xmake/tasks/build_all.lua for why plugins need to be separate
+-- xmake processes at all.
+includes("xmake/tasks/build_all.lua")
 
 --  TODO: use when the time is ready for now it is complining a lot!!!!
 -- set_runtimes("c++_shared")
 -- add_cxflags("-fexperimental-library")
 -- add_ldflags("-lc++exp")
 
-local posix_module_files = {
-	"include/modules/socket.cppm",
-	"include/modules/net.cppm",
-	"include/modules/netdb.cppm",
-	"include/modules/unistd.cppm",
-	"include/modules/fcntl.cppm",
-	"include/modules/errno.cppm",
-	"include/modules/cstring.cppm",
-	"include/transport/base/leverage/uring.cppm",
-}
-
-local conan = {
-	settings_build = {
-		"os=Linux",
-		"compiler=clang",
-		"compiler.version=20",
-		"compiler.cppstd=gnu26",
-		"compiler.libcxx=libstdc++11",
-	},
-	options = {
-		"openssl/*:enable_quic=True",
-	},
-	build = "missing",
-}
-
-if is_plat("windows", "mingw") then
-	conan.settings = {
-		"os=Windows",
-		"compiler=clang",
-		"compiler.version=20",
-		"compiler.cppstd=gnu26",
-		"compiler.libcxx=libc++",
-	}
-
-	conan.conf = {
-		"tools.build:compiler_executables={'c':'/opt/llvm-mingw/bin/clang','cpp':'/opt/llvm-mingw/bin/clang++','rc':'/opt/llvm-mingw/bin/x86_64-w64-mingw32-windres'}",
-		"tools.build:cflags=['--target=x86_64-w64-mingw32']",
-		"tools.build:cxxflags=['--target=x86_64-w64-mingw32']",
-		"tools.build:exelinkflags=['--target=x86_64-w64-mingw32','-fuse-ld=lld']",
-		"tools.cmake.cmaketoolchain:system_name=Windows",
-		"tools.cmake.cmaketoolchain:generator=Unix Makefiles",
-	}
-else
-	conan.settings = {
-		"os=Linux",
-		"compiler=clang",
-		"compiler.version=20",
-		"compiler.cppstd=gnu26",
-		"compiler.libcxx=libstdc++11",
-	}
-
-	conan.conf = {
-		"tools.build:compiler_executables={'c':'clang','cpp':'clang++'}",
-	}
-end
-
--- add_requires("conan::fmt/12.0.0", { alias = "fmt", configs = conan })
-add_requires("conan::asio/1.36.0", { alias = "asio", configs = conan })
-add_requires("conan::openssl/3.6.1", { alias = "openssl", configs = conan })
-add_requires("conan::libnghttp2/1.66.0", { alias = "nghttp2", configs = conan })
-add_requires("conan::nghttp3/1.12.0", { alias = "nghttp3", configs = conan })
-add_requires("conan::simdjson/4.2.4", { alias = "simdjson", configs = conan })
-add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
--- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
-add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
-add_requires("conan::cli11/2.4.2", { alias = "cli11", configs = conan })
-add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
-add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
-add_requires("conan::tomlplusplus/3.4.0", { alias = "tomlplusplus", configs = conan })
-add_requires("conan::stduuid/1.2.3", { alias = "stduuid", configs = conan })
-add_requires("conan::cpython/3.12.7", { alias = "cpython", configs = conan })
-add_requires("conan::lua/5.4.7", { alias = "lua", configs = conan })
-add_requires("conan::reflect-cpp/0.23.0", {
-	alias = "reflectcpp",
-	configs = {
-		settings_build = conan.settings_build,
-		settings = conan.settings,
-		conf = conan.conf,
-		build = "missing",
-		options = {
-			"reflect-cpp/*:toml=True",
-			"reflect-cpp/*:msgpack=True",
-			"reflect-cpp/*:xml=True",
-			"reflect-cpp/*:json=True",
-		},
-	},
-})
-add_requires("conan::sqlgen/0.4.0", { alias = "sqlgen", configs = conan })
-add_requires("microsoft-gsl", { configs = conan })
-add_requires("range-v3", { configs = conan })
-
-set_languages("c++26", "c11")
 -- TODO: please add again
 -- set_warnings("all", "extra", "error")
 
-set_policy("build.c++.modules", true)
+-- congelado_include/congelado_sdk (conan requires, toolchain setup, both target defs) live in
+-- xmake/core_layers.lua — shared with every standalone plugin project (plugins/<name>/xmake.lua),
+-- each of which builds its own copy of these two layers from source rather than depending on a
+-- prebuilt package (xmake has no mechanism to propagate C++20 module interfaces through
+-- add_packages() — see xmake/core_layers.lua's own comment).
+includes("xmake/core_layers.lua")
+setup_core_layers(os.projectdir())
+-- Root project still needs cli11 (congelado_cli) and backward (congelado_worker, congelado);
+-- catch2/cpython/lua/opentelemetrycpp no longer apply here — every plugin that used to need them
+-- inline now requires its own subset directly (see e.g. plugins/xmake.lua's own
+-- setup_extra_requires() call).
+setup_extra_requires({ "cli11" })
 
-if is_plat("linux", "macosx") then
-	-- Ensures debug paths are relative for reproducibility
-	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-elseif is_plat("mingw") then
-	add_cxflags("-Wno-unknown-pragmas")
-
-	after_build(function(target)
-		local conan_root = path.join(os.getenv("HOME"), ".conan2", "p", "b")
-		for _, dir in ipairs(os.dirs(path.join(conan_root, "proto*", "p", "lib"))) do
-			for _, lib in ipairs({ "utf8_validity", "utf8_range" }) do
-				local src = path.join(dir, "lib" .. lib .. ".a")
-				local dst = path.join(dir, "liblib" .. lib .. ".a")
-				if os.isfile(src) and not os.isfile(dst) then
-					os.ln(src, dst)
-				end
-			end
-		end
-	end)
-end
-
-if is_arch("x86_64") then
-	add_cxflags("-mbmi2")
-end
-
--- fmt/grpc/ngtcp2 are deliberately absent here: their add_requires() calls are commented out
--- above (and ngtcp2 never had one at all), and nothing in the codebase uses fmt::/grpc:: —
--- this project uses std::format/std::println throughout instead. Keeping dead names in
--- add_packages() just tolerated silently; dropped rather than carried forward.
-local core_packages = {
-	"simdjson",
-	"tomlplusplus",
-	"reflectcpp",
-	"protobuf",
-	"asio",
-	"openssl",
-	"nghttp2",
-	"nghttp3",
-	"backward",
-	"libffi",
-	"microsoft-gsl",
-	"range-v3",
-	"stduuid",
-	"sqlgen",
-	"cpython",
-	"lua",
-}
-
--- Shared setup for the three layered shared libs below (congelado_include/sdk/lib): platform
--- link flags, the CLANG_ITERATE_MODULES define, and the common package set. Each caller still
--- does its own set_kind/add_deps/add_files/target_end — this only covers what's identical
--- across all three.
-local function apply_common_layer_settings(opts)
-	opts = opts or {}
-	add_cxflags("-fPIC")
-
-	if is_plat("windows", "mingw") then
-		add_syslinks("ws2_32", "mswsock", "stdc++", "gcc_s")
-		add_defines("_WIN32_WINNT=0x0A00")
-		add_cxflags("--target=x86_64-w64-mingw32")
-		add_ldflags("--target=x86_64-w64-mingw32", "-lstdc++exp")
-	else
-		add_links("c++", "uring", "pthread", "dl", "ssl", "crypto")
-		add_syslinks("python3.12")
-	end
-
-	add_defines("CLANG_ITERATE_MODULES")
-	add_includedirs("include", { public = true })
-	if opts.plugin_includedir then
-		add_includedirs("sdk/plugin/include", { public = true })
-	end
-	add_packages(table.unpack(table.join(core_packages, { { public = true } })))
-end
-
--- congelado_include: include/** only (interfaces, io layer, utils, model, shared) — the
--- bottommost layer. Nothing here imports anything from sdk/ or plugins/.
-target("congelado_include")
-set_kind("shared")
--- Cross-target C++ module BMI tracking doesn't reliably gate a dependent's start on this
--- target's completion under "xmake build"'s default cross-target parallelism — congelado_sdk
--- can start compiling before congelado_include's BMIs are actually done, failing with
--- "module file not found" (see docker/Dockerfile.server's build-one-target-at-a-time
--- workaround for the same root cause). build.fence forces every dependent target to wait.
-set_policy("build.fence", true)
-apply_common_layer_settings()
-
-add_files("include/**.cppm", { public = true })
-
-if is_plat("windows", "mingw") then
-	remove_files("include/**/posix.cppm")
-	for _, f in ipairs(posix_module_files) do
-		remove_files(f)
-	end
-else
-	remove_files("include/**/win32.cppm")
-	remove_files("include/modules/winsock2.cppm")
-end
-target_end()
-
--- congelado_sdk: sdk/** (plugin ABI, client SDK codegen, heart, worker) — built on top of
--- congelado_include rather than merged with it; every sdk/** file imports include/**'s
--- modules (interfaces, core_*, io_*, utils_*, model, ...), never the other way round.
-target("congelado_sdk")
-set_kind("shared")
-add_deps("congelado_include")
--- Same cross-target BMI race as congelado_include above — fence this one too so
--- congelado_lib can't start before congelado_sdk's modules are actually built.
-set_policy("build.fence", true)
-apply_common_layer_settings({ plugin_includedir = true })
-
-add_files("sdk/**.cppm", { public = true })
-target_end()
-
--- congelado_lib: plugins/**.cppm (engine, worker's HTTP surface, etc.) + the src/**.cc entry
--- points — the plugin-implementation layer, built on top of congelado_include/congelado_sdk
--- rather than merged with them. Everything that previously depended on congelado_lib still
--- does; this dependency is what actually enforces "include, then sdk, then plugins".
-target("congelado_lib")
-set_kind("shared")
-add_deps("congelado_sdk")
--- Same cross-target BMI race as the two layers above — the binaries/plugins/workers that
--- depend on this one need its modules fully built first.
-set_policy("build.fence", true)
-apply_common_layer_settings({ plugin_includedir = true })
-
-add_files("plugins/**.cppm", { public = true })
-add_files("src/**.cc")
-
-remove_files("src/main.cc")
-remove_files("src/cli_main.cc")
-
-includes("xmake/plugin.lua")
+-- Every plugin now lives in its own standalone xmake project (plugins/<name>/xmake.lua, built by
+-- the orchestrator — xmake/tasks/build_all.lua) rather than as a target discovered inline here.
+-- That leaves nothing between congelado_sdk and the three entry-point binaries below — the old
+-- congelado_lib layer (plugins/**.cppm + src/**.cc) is gone: src/**.cc was always just the three
+-- mains, and plugins/**.cppm's only real content (engine's core/model/worker modules) moved to
+-- plugins/engine/xmake.lua. The three binaries below depend on congelado_sdk directly.
+includes("xmake/ffi.lua")
 
 target("congelado")
 set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/main.cc")
-add_deps("congelado_lib")
+add_deps("congelado_sdk")
 add_packages("simdjson")
 add_rpathdirs("$ORIGIN")
 target_end()
@@ -268,7 +55,17 @@ target("congelado_worker")
 set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/worker_main.cc")
-add_deps("congelado_lib")
+-- worker_main.cc's own module family ("worker" + its :poll/:execution/:status partitions,
+-- "model", and build.cc's generated client SDK) lives under plugins/engine/, which is engine's
+-- own standalone project (see plugins/engine/xmake.lua) — so congelado_worker compiles its own
+-- copy of just the subset it actually needs directly. The generated/ files only exist once the
+-- orchestrator has already run engine's project (see xmake/tasks/build_all.lua) — that's the
+-- entire point of the split: engine's project fully finishes, in its own separate invocation,
+-- before this target's own module scan ever starts.
+add_files("plugins/engine/src/model/**.cppm")
+add_files("plugins/engine/src/worker/**.cppm")
+add_files("plugins/engine/src/generated/client/**.cppm")
+add_deps("congelado_sdk")
 add_packages("backward")
 add_rpathdirs("$ORIGIN")
 target_end()
@@ -277,7 +74,7 @@ target("congelado_cli")
 set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/cli_main.cc")
-add_deps("congelado_lib")
+add_deps("congelado_sdk")
 add_packages("cli11")
 add_rpathdirs("$ORIGIN")
 target_end()

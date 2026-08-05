@@ -5,6 +5,7 @@ module;
 export module io_flow_sender:async;
 
 import std;
+import core_events;
 import core_logger;
 import interfaces;
 import utils_buffering;
@@ -143,12 +144,21 @@ class Sender : public shared::HandlerBase {
             } catch (const std::system_error &e) {
                 core::logger::warning("io/send", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
                                       e.what(), e.code().value());
+                core::events::publish("io.send.sys_error",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()},
+                                       {"code", std::to_string(e.code().value())}});
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
                 core::logger::warning("io/send", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
+                core::events::publish("io.send.exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()}});
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
                 core::logger::warning("io/send", "fd {} unknown exception", m_worker.get().get_fd());
+                core::events::publish("io.send.unknown_exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())}});
                 m_on_error(m_worker.get().get_fd(), -1);
             }
         };
@@ -249,6 +259,8 @@ class Sender : public shared::HandlerBase {
         if (result < 0) {
             const auto ERROR_CODE = -result;
             core::logger::warning("io/send", "fd {} send error: {}", FD, ERROR_CODE);
+            core::events::publish("io.send.send_error",
+                                  {{"fd", std::to_string(FD)}, {"error_code", std::to_string(ERROR_CODE)}});
             m_fatal = true;
             m_on_error(FD, ERROR_CODE);
             return;

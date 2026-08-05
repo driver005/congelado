@@ -1,0 +1,12 @@
+# Tells Grafana to load every dashboard JSON file under this directory automatically on
+# boot — same "no manual click-through" deal as the datasource provisioning.
+apiVersion: 1
+
+providers:
+  - name: congelado
+    type: file
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

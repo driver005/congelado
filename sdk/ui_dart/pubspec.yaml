@@ -1,0 +1,27 @@
+name: congelado_ui_sdk
+description: >-
+  Shared contract every plugin's ui/ package implements to contribute pages
+  into the congelado Flutter shell (app/). The Dart analog of sdk/plugin/ for
+  the C++ side — this package has zero dependency on the C++ backend.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Hosts the one shared FThemeData (theme/) every plugin ui/ package themes off of — see
+  # lib/src/theme.dart.
+  forui: ^0.25.0
+  # DAG layout for CWorkflowGraph (workflow_graph.dart) — SugiyamaAlgorithm lays out a
+  # WorkflowDef's nodes/edges as a layered graph.
+  graphview: ^1.5.1
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

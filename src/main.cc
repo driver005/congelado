@@ -8,11 +8,12 @@ import congelado_heart;
  * @brief Server process entry point — installs crash-signal handling, then hands off to
  * `ServerRunner` pointed at the sibling `plugins` directory (derived from the running binary's
  * own path) and a config path.
- * @warning The config path passed to `run()` is a hardcoded `"~/cc/congelado/src/congelado.toml"`
- * string, unlike the internal plugin directory which is genuinely derived from `argv[0]`. There's
- * no tilde-expansion happening anywhere in this call — the OS/filesystem layer won't expand `~`
- * for you — so this only ever finds the config on a checkout sitting at exactly that path.
- * Straight cooked for anyone running the binary from anywhere else or on another machine.
+ * @warning The config path passed to `run()` is a hardcoded `"~/cc/congelado/config/
+ * congelado.toml"` string, unlike the internal plugin directory which is genuinely derived from
+ * `argv[0]`. There's no tilde-expansion happening anywhere in this call — the OS/filesystem
+ * layer won't expand `~` for you — so this only ever finds the config on a checkout sitting at
+ * exactly that path. Straight cooked for anyone running the binary from anywhere else or on
+ * another machine.
  * @param argc argument count; only checked for `> 0` to decide whether `argv[0]` is safe to read.
  * @param argv argument vector; `argv[0]` is used to derive the internal plugins directory
  * relative to the running binary (should not normally be overridden). `argv[1]` (optional) is
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
 
         // Hand off to ServerRunner for the actual server main loop.
         return congelado::heart::ServerRunner{external_plugin_dir, internal_plugin_dir}
-            .run("~/cc/congelado/src/congelado.toml");
+            .run("~/cc/congelado/config/congelado.toml");
     } catch (const std::exception &exception) {
         try {
             std::println(stderr, "fatal: {}", exception.what());

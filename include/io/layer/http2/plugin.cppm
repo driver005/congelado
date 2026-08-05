@@ -5,6 +5,7 @@ import shared;
 import interfaces;
 import core_config;
 import core_router;
+import core_events;
 import core_logger;
 import core_contract;
 import io_shared;
@@ -90,6 +91,7 @@ class Client final : public interfaces::IClient {
     void send(interfaces::io::IRequest &req) override {
         if (!m_flow) {
             core::logger::error("http2", "send() called before the connection was established");
+            core::events::publish("http2.send.not_connected");
             return;
         }
         try {
@@ -102,6 +104,7 @@ class Client final : public interfaces::IClient {
             // Wrong IRequest type got routed here, no cap — log it and drop the request instead
             // of propagating the exception up to the caller.
             core::logger::error("http2", "Failed to cast IRequest to HttpRequest: {}", e.what());
+            core::events::publish("http2.request.cast_failed", {{"error", e.what()}});
         }
     }
 

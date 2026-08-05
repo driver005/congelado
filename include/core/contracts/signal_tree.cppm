@@ -102,7 +102,6 @@ class Node {
 
                 if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
                                                   std::memory_order_acquire)) {
-                    core::logger::debug("core/signal_tree", "scheduled {} from branch {}", local_id, BRANCH_IDX);
                     break;
                 }
             }
@@ -112,7 +111,6 @@ class Node {
             // Leaf — no counter, just flip the matching bit directly.
             const auto BIT = static_cast<std::uint8_t>(local_id & 0x3F);
             m_value.fetch_or(1ULL << BIT, std::memory_order_release);
-            core::logger::debug("core/signal_tree", "scheduled {} at bit {}", local_id, BIT);
         }
     }
 
@@ -144,7 +142,6 @@ class Node {
 
                 if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
                                                   std::memory_order_acquire)) {
-                    core::logger::debug("core/signal_tree", "descheduled {} from branch {}", local_id, BRANCH_IDX);
                     break;
                 }
             }
@@ -152,7 +149,6 @@ class Node {
             // Leaf — just clear the matching bit directly.
             const auto BIT = static_cast<std::uint8_t>(local_id & 0x3F);
             m_value.fetch_and(~(1ULL << BIT), std::memory_order_release);
-            core::logger::debug("core/signal_tree", "descheduled {} at bit {}", local_id, BIT);
         }
     }
 
@@ -214,7 +210,6 @@ class Node {
             const std::uint8_t BIT_IDX = (START + OFFSET) & 0x3F;
             bias = (bias & ~0x3FULL) | static_cast<std::uint64_t>((BIT_IDX + 1) & 0x3F);
 
-            core::logger::debug("core/signal_tree", "ready bit {}", BIT_IDX);
             return (accumulator << 6) | BIT_IDX;
         }
 
@@ -365,7 +360,6 @@ class SignalTree {
             }
             if (m_next_id.compare_exchange_weak(current, current + 1U, std::memory_order_relaxed,
                                                 std::memory_order_relaxed)) {
-                core::logger::debug("core/signal_tree", "worker {} selected", current);
                 return current;
             }
         }
@@ -387,14 +381,12 @@ class SignalTree {
         for (std::size_t i = 0; i < NUM_ROUTERS; ++i) {
             const std::size_t IDX = PREFER_RIGHT ? (NUM_ROUTERS - 1 - i) : i;
             if (auto result = m_routers[IDX].select_child_index(bias, IDX, BIAS_FLAG >> 1)) {  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
-                core::logger::debug("core/signal_tree", "next worker {} bias {}", *result, bias);
                 // Found one — flip the top bias bit so next call favors the other end.
                 bias ^= BIAS_FLAG;
                 return result;
             }
         }
 
-        core::logger::debug("core/signal_tree", "no ready worker, bias {}", bias);
         return std::nullopt;
     }
 

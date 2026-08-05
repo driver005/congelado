@@ -178,6 +178,138 @@ void *storage_get(T *plugin) noexcept {
     return nullptr;
 }
 
+template <typename T>
+concept has_serde_get = requires(T *plugin) { plugin->serde_get(); };
+
+template <typename T>
+void *serde_get(T *plugin) noexcept {
+    if constexpr (has_serde_get<T>) {
+        return plugin->serde_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_otel_get = requires(T *plugin) { plugin->otel_get(); };
+
+template <typename T>
+void *otel_get(T *plugin) noexcept {
+    if constexpr (has_otel_get<T>) {
+        return plugin->otel_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_bridge_get = requires(T *plugin) { plugin->bridge_get(); };
+
+template <typename T>
+void *bridge_get(T *plugin) noexcept {
+    if constexpr (has_bridge_get<T>) {
+        return plugin->bridge_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_openapi_get = requires(T *plugin) { plugin->openapi_get(); };
+
+template <typename T>
+void *openapi_get(T *plugin) noexcept {
+    if constexpr (has_openapi_get<T>) {
+        return plugin->openapi_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_search_get = requires(T *plugin) { plugin->search_get(); };
+
+template <typename T>
+void *search_get(T *plugin) noexcept {
+    if constexpr (has_search_get<T>) {
+        return plugin->search_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_event_get = requires(T *plugin) { plugin->event_get(); };
+
+template <typename T>
+void *event_get(T *plugin) noexcept {
+    if constexpr (has_event_get<T>) {
+        return plugin->event_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_cache_get = requires(T *plugin) { plugin->cache_get(); };
+
+template <typename T>
+void *cache_get(T *plugin) noexcept {
+    if constexpr (has_cache_get<T>) {
+        return plugin->cache_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_bridge_native_handle = requires(T *plugin) { plugin->bridge_native_handle(); };
+
+template <typename T>
+void *bridge_native_handle(T *plugin) noexcept {
+    if constexpr (has_bridge_native_handle<T>) {
+        return plugin->bridge_native_handle();
+    }
+    return nullptr;
+}
+
+/**
+ * @brief The universal plugin-call dispatcher — the macro-generated `congelado_call` symbol
+ * forwards every capability call here instead of exposing one C symbol per capability. GET
+ * actions (SERDE/STORAGE/PROTOCOL) hand back a raw interface pointer the host casts and calls
+ * virtuals on directly, in-process — same as the old storage_get/protocol_get. WRITE/ERROR
+ * (LOGGER) carry real marshaled data since ILogger is deliberately kept non-templated/ABI-stable.
+ */
+template <typename T>
+CongeladoAny call(T *plugin, CongeladoRunType type, CongeladoRunAction action,
+                  const CongeladoAny *args, std::size_t args_count) noexcept {
+    switch (type) {
+    case CONGELADO_RUN_LOGGER:
+        if (action == CONGELADO_ACTION_WRITE && args_count >= 2) {
+            logger_write(plugin, static_cast<int>(args[0].v_int64), std::string_view{args[1].v_cstr});
+        } else if (action == CONGELADO_ACTION_ERROR && args_count >= 1) {
+            logger_write(plugin, 4, std::string_view{args[0].v_cstr});
+        }
+        return CongeladoAny{};
+    case CONGELADO_RUN_STORAGE:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = storage_get(plugin)};
+    case CONGELADO_RUN_PROTOCOL:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = protocol_get(plugin)};
+    case CONGELADO_RUN_SERDE:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = serde_get(plugin)};
+    case CONGELADO_RUN_OTEL:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = otel_get(plugin)};
+    case CONGELADO_RUN_OPENAPI:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = openapi_get(plugin)};
+    case CONGELADO_RUN_SEARCH:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = search_get(plugin)};
+    case CONGELADO_RUN_EVENTS:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = event_get(plugin)};
+    case CONGELADO_RUN_CACHE:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = cache_get(plugin)};
+    case CONGELADO_RUN_BRIDGE:
+        if (action == CONGELADO_ACTION_GET_NATIVE_HANDLE) {
+            return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
+                                .v_ptr = bridge_native_handle(plugin)};
+        }
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = bridge_get(plugin)};
+    }
+    return CongeladoAny{};
+}
+
 } // namespace _cap_dispatch
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
@@ -185,13 +317,16 @@ void *storage_get(T *plugin) noexcept {
 using core::plugin::types::router_ctx;
 using core::plugin::types::controller_ctx;
 using core::plugin::types::leverager_ctx;
+using core::plugin::types::database_ctx;
+using core::plugin::types::lua_bridge_ctx;
+using core::plugin::types::search_ctx;
+using core::plugin::types::cache_ctx;
 using core::plugin::types::config_get;
 using core::plugin::types::config_for_each;
 using core::plugin::types::ConfigViewBuilder;
 using FfiRuntime = core::plugin::FfiRuntime;
 
 using GenerationConfig = core::plugin::types::GenerationConfig;
-using Runtime = core::plugin::types::Runtime;
 using PythonConfig = core::plugin::types::PythonConfig;
 using LuaConfig = core::plugin::types::LuaConfig;
 

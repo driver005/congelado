@@ -10,6 +10,7 @@ import std;
 import io_codec_hpack;
 import utils_buffering;
 import io_shared;
+import core_events;
 import core_logger;
 import shared;
 import utils_codec;
@@ -206,6 +207,7 @@ class Session {
         } catch (const error::http::ConnectionError &e) {
             // Connection-wide violation — tear the whole session down via close()/GOAWAY.
             core::logger::warning("http2/session", "connection error: {}", e.what());
+            core::events::publish("http2.session.connection_error", {{"error", e.what()}});
 
             close(e.get_code(), e.get_last_stream_id());
         } catch (const error::http::StreamError &e) {
@@ -224,6 +226,9 @@ class Session {
 
             core::logger::warning("http2/session", "stream {} error: {}", e.get_stream_id(),
                                   e.what());
+            core::events::publish("http2.session.stream_error",
+                                  {{"stream_id", std::to_string(e.get_stream_id())},
+                                   {"error", e.what()}});
 
             send_frame(frame);
             mark_stream_closed(e.get_stream_id());
@@ -346,6 +351,7 @@ class Session {
             m_dispatch(req, res);
         } catch (const std::exception &e) {
             core::logger::error("http2/session", "handler threw: {}", e.what());
+            core::events::publish("http2.session.handler_exception", {{"error", e.what()}});
             res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
         }
 

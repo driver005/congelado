@@ -2,6 +2,7 @@ export module congelado_client:runtime;
 
 import std;
 import interfaces;
+import core_otel;
 import serde;
 
 export namespace congelado::client {
@@ -10,12 +11,6 @@ class ClientRuntime {
   public:
     /** @brief Deleted — this is a static-only utility class, no instances allowed, no cap. */
     ClientRuntime() = delete;
-
-    // FIXME(clang-tidy): readability-identifier-naming — is_vector_v intentionally follows the
-    // standard library's is_*_v type-trait naming convention (lower_case + trailing _v), not
-    // UPPER_CASE; renaming it would be inconsistent with every std:: trait it mirrors.
-    template <typename T>
-    static constexpr bool is_vector_v = false;  // NOLINT(readability-identifier-naming) — intentionally mirrors std::is_*_v trait naming convention
 
     /**
      * @brief Points the runtime at the transport that actually sends requests — gotta call this
@@ -84,11 +79,18 @@ class ClientRuntime {
                      std::function<void()> onResponse,
                      std::function<void(std::string)> onError = [](const std::string &) {}) {
         auto stream_id = request->get_stream_id();
+        auto span = start_client_span(*request);
         // Stash the callback keyed by stream id, bet — dispatch() looks it up once the matching
-        // response actually shows up.
-        m_pending[stream_id] = [on_response = std::move(onResponse),
-                                on_error = std::move(onError)](interfaces::io::IResponse &response) {
-            if (response.is_success()) {
+        // response actually shows up. The span moves in with it: this is a genuine async gap
+        // (send() returns immediately, the callback fires later, possibly on a different
+        // thread), so it's held as a DetachedSpan rather than an ambient ScopedSpan — see
+        // DetachedSpan's own doc comment for why.
+        m_pending[stream_id] = [on_response = std::move(onResponse), on_error = std::move(onError),
+                                span = std::move(span)](interfaces::io::IResponse &response) mutable {
+            bool ok = response.is_success();
+            span.set_status(ok ? interfaces::SpanStatus::OK : interfaces::SpanStatus::ERROR, "");
+            span.end();
+            if (ok) {
                 on_response();
             } else {
                 on_error(std::string{response.get_status_text()});
@@ -99,9 +101,8 @@ class ClientRuntime {
 
     /**
      * @brief Sends a request and deserializes the response body into `Res` once it lands —
-     * vector-typed responses run through Json::decode_array (since a bare std::vector<T> isn't
-     * itself ISerializable, only T is), everything else takes the generic serde::Ser::deserialize
-     * path. No cap, this overload does the heavy lifting.
+     * `serde::Ser::deserialize<Res>` handles both plain and vector-typed `Res` generically (it
+     * bottoms out in `rfl::from_generic<Res>`, which already knows how to parse containers).
      * @tparam Res type to deserialize the response body into.
      * @param request request to send; ownership moves into the pending-callback map until the
      * matching response arrives.
@@ -113,29 +114,22 @@ class ClientRuntime {
                      std::function<void(Res)> onResponse,
                      std::function<void(std::string)> onError = [](const std::string &) {}) {
         auto stream_id = request->get_stream_id();
-        // Same pending-callback stash as the non-template overload, but this callback actually
+        auto span = start_client_span(*request);
+        // Same pending-callback stash as the non-template overload (including the DetachedSpan
+        // capture, see its sibling overload's comment above), but this callback actually
         // decodes the body before firing onResponse.
-        m_pending[stream_id] = [on_response = std::move(onResponse),
-                                on_error = std::move(onError)](interfaces::io::IResponse &response) {
+        m_pending[stream_id] = [on_response = std::move(onResponse), on_error = std::move(onError),
+                                span = std::move(span)](interfaces::io::IResponse &response) mutable {
             auto body_bytes = response.get_body();
             std::string body(reinterpret_cast<const char *>(body_bytes.data()), body_bytes.size());  // FIXME(clang-tidy): reinterpret_cast usage
-            // serde::Ser::deserialize<T> requires T itself to be ISerializable — a bare
-            // std::vector<T> never is (only its element type is), so array-typed responses
-            // (e.g. a "list" endpoint) go through Json::decode_array<T> instead.
-            if constexpr (is_vector_v<Res>) {
-                auto result = serde::Json::decode_array<typename Res::value_type>(body);
-                if (result) {
-                    on_response(std::move(*result));
-                } else {
-                    on_error(result.error());
-                }
+            auto result = serde::Ser::deserialize<Res>(response.get_content_type(), body);
+            bool ok = result.has_value();
+            span.set_status(ok ? interfaces::SpanStatus::OK : interfaces::SpanStatus::ERROR, "");
+            span.end();
+            if (ok) {
+                on_response(std::move(*result));
             } else {
-                auto result = serde::Ser::deserialize<Res>(response.get_content_type(), body);
-                if (result) {
-                    on_response(std::move(*result));
-                } else {
-                    on_error(result.error());
-                }
+                on_error(result.error());
             }
         };
         getClient().send(*request);
@@ -164,16 +158,29 @@ class ClientRuntime {
     }
 
   private:
+    /**
+     * @brief Starts a `CLIENT`-kind `DetachedSpan` for an outbound typed-client request and
+     * injects the resulting `traceparent` header into it — the shared bit both `send()`
+     * overloads need before stashing their pending callback.
+     * @param request the request about to be sent; read for its method/path (to build the
+     * span's name) and mutated to carry the outbound `traceparent` header.
+     * @return the started span, ready to be moved into the pending-callback closure.
+     */
+    [[nodiscard]] static core::otel::DetachedSpan start_client_span(interfaces::io::IRequest &request) {
+        auto name = std::format("{} {}", request.find_header(interfaces::io::types::Token::METHOD),
+                                request.find_header(interfaces::io::types::Token::PATH));
+        auto span = core::otel::start_detached_span(name, interfaces::SpanKind::CLIENT);
+        request.set_header("traceparent", core::otel::format_traceparent(span.context()));
+        return span;
+    }
+
     static inline interfaces::IClient *m_client = nullptr;
     static inline RequestFactory m_request_factory;
+    // move_only_function, not function: the stashed closure captures a DetachedSpan (move-only,
+    // since it uniquely owns the per-provider ISpan handles it'll end when the response lands).
     static inline std::unordered_map<std::uint32_t,
-                                     std::function<void(interfaces::io::IResponse &)>> m_pending;
+                                     std::move_only_function<void(interfaces::io::IResponse &)>> m_pending;
     static inline std::uint32_t m_next_stream_id{1};
 };
-
-// FIXME(clang-tidy): readability-identifier-naming — same is_vector_v naming call as above;
-// this is the specialization of that same std::is_*_v-style trait, kept consistent with it.
-template <typename T>
-constexpr bool ClientRuntime::is_vector_v<std::vector<T>> = true;  // NOLINT(readability-identifier-naming) — intentionally mirrors std::is_*_v trait naming convention
 
 } // namespace congelado::client

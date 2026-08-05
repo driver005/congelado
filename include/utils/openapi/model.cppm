@@ -540,7 +540,7 @@ struct serde::Serializable<utils::openapi::Operation> {
     /**
      * @brief Field-descriptor table wiring Operation's keys ("summary", "tags", "requestBody",
      * "responses", etc.) to their getters/setters — this is the whole reason .body<T>()/
-     * .response<T>() can round-trip through serde::Json::encode() without any bespoke encoder.
+     * .response<T>() can round-trip through serde::Ser::serialize() without any bespoke encoder.
      * @return the tuple of FieldDesc entries serde uses for this type.
      */
     static constexpr auto fields() {
@@ -579,7 +579,8 @@ struct serde::Serializable<utils::openapi::Document> {
     /**
      * @brief Field-descriptor table wiring Document's top-level keys ("openapi", "info",
      * "components", "paths") to their getters/setters — the root of the whole serialized
-     * document, this is what serde::Json::encode(document) ultimately walks. Whole W right
+     * document, this is what serde::Ser::serialize("application/json", document) ultimately
+     * walks. Whole W right
      * here, the entire spec output funnels through this one table.
      * @return the tuple of FieldDesc entries serde uses for this type.
      */

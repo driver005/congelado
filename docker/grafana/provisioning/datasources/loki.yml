@@ -1,0 +1,22 @@
+# Auto-provisions Loki as a Grafana datasource — same pattern as prometheus.yml.
+# derivedFields links each log line's "trace_id" field to a Tempo trace view. matcherType
+# "label" (not "regex") because Loki's native OTLP ingestion always stores trace_id/span_id as
+# structured metadata — a real field on the log entry, not text embedded in the log body — so
+# matcherRegex here is the structured-metadata field name itself, not a pattern.
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherType: label
+          matcherRegex: trace_id
+          name: TraceID
+          url: '$${__value.raw}'
+          urlDisplayLabel: 'View Trace'

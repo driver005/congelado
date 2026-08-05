@@ -97,17 +97,13 @@ class PluginRef {
         {.m_name = "congelado_unique_type", .m_kind = SymbolKind::STRING_FN},
         {.m_name = "congelado_requires", .m_kind = SymbolKind::ARRAY},
         {.m_name = "congelado_load_before_types", .m_kind = SymbolKind::ARRAY},
-        {.m_name = "congelado_logger_write", .m_kind = SymbolKind::FUNCTION},
-        {.m_name = "congelado_logger_write_error", .m_kind = SymbolKind::FUNCTION},
-        {.m_name = "congelado_protocol_get", .m_kind = SymbolKind::FUNCTION},
-        {.m_name = "congelado_storage_get", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_call", .m_kind = SymbolKind::FUNCTION},
     };
 
     static constexpr SymbolInfo WORKER_SYMBOLS[] = {
         {.m_name = "congelado_worker_type", .m_kind = SymbolKind::STRING_FN},
         {.m_name = "congelado_worker_execute", .m_kind = SymbolKind::FUNCTION},
-        {.m_name = "congelado_logger_write", .m_kind = SymbolKind::FUNCTION},
-        {.m_name = "congelado_logger_write_error", .m_kind = SymbolKind::FUNCTION},
+        {.m_name = "congelado_call", .m_kind = SymbolKind::FUNCTION},
     };
 
     // ── Data members ────────────────────────────────────────────────────

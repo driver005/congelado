@@ -1,6 +1,7 @@
 export module io_flow_receiver:async;
 
 import std;
+import core_events;
 import core_logger;
 import shared;
 import interfaces;
@@ -147,12 +148,19 @@ class Receiver : public shared::HandlerBase {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
                 core::logger::warning("io/recv", "fd {} sys error: {} (code: {})", DESCRIPTOR, e.what(), e.code().value());
+                core::events::publish("io.recv.sys_error",
+                                      {{"fd", std::to_string(DESCRIPTOR)},
+                                       {"error", e.what()},
+                                       {"code", std::to_string(e.code().value())}});
                 m_on_error(DESCRIPTOR, e.code().value());
             } catch (const std::exception &e) {
                 core::logger::warning("io/recv", "fd {} exception: {}", DESCRIPTOR, e.what());
+                core::events::publish("io.recv.exception",
+                                      {{"fd", std::to_string(DESCRIPTOR)}, {"error", e.what()}});
                 m_on_error(DESCRIPTOR, -1);
             } catch (...) {
                 core::logger::warning("io/recv", "fd {} unknown exception", DESCRIPTOR);
+                core::events::publish("io.recv.unknown_exception", {{"fd", std::to_string(DESCRIPTOR)}});
                 m_on_error(DESCRIPTOR, -1);
             }
         };
@@ -224,6 +232,8 @@ class Receiver : public shared::HandlerBase {
         // `result <= 0` means the read failed — flip fatal for good and report it, no retrying.
         if (result <= 0) {
             core::logger::warning("io/recv", "fd {} read error: {}", DESCRIPTOR, result);
+            core::events::publish("io.recv.read_error",
+                                  {{"fd", std::to_string(DESCRIPTOR)}, {"result", std::to_string(result)}});
             m_fatal = true;
             m_on_error(DESCRIPTOR, -result);
             return;

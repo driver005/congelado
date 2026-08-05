@@ -1,11 +1,13 @@
 export module io_flow_receiver:sync;
 
 import std;
+import core_events;
 import core_logger;
 import shared;
 import interfaces;
 import io_base_socket;
 import utils_buffering;
+import utils_errno_translator;
 
 export namespace io::base::flow::sync {
 
@@ -111,18 +113,22 @@ class Receiver : public shared::HandlerBase {
 
     /**
      * @brief Builds the work callback the controller runs each time this handler's turn comes up
-     * — resume()s and reschedules if there's more to do. Unlike the async Receiver, there's no
-     * release-on-failure branch here; a stalled/closed sync receiver just quietly stops
-     * rescheduling instead, straight up, no release() call involved.
+     * — resume()s and either reschedules itself or releases depending on the outcome, same
+     * release-on-failure pattern as the async Receiver.
      * @return the per-execution work callable.
      */
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            // Only reschedule when there's still something to do — no release-on-failure branch
-            // here, a stalled/closed receiver just stops rescheduling quietly.
+            const auto FILE_DESCRIPTOR = m_worker.get().get_fd();
+            // Still open — arm another read and stay in the scheduler's rotation.
             if (resume()) {
-                core::logger::debug("io/recv", "fd {} rescheduled", m_worker.get().get_fd());
+                core::logger::debug("io/recv", "fd {} rescheduled", FILE_DESCRIPTOR);
                 shared::this_handler::shedule();
+            } else {
+                // Closed — reschedule would spin forever competing for a scheduler slot with a
+                // dead connection, so release() this contract instead and free the slot.
+                core::logger::debug("io/recv", "fd {} releasing", FILE_DESCRIPTOR);
+                shared::this_handler::release();
             }
         };
     }
@@ -156,12 +162,21 @@ class Receiver : public shared::HandlerBase {
             } catch (const std::system_error &e) {
                 core::logger::warning("io/recv", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
                                       e.what(), e.code().value());
+                core::events::publish("io.recv.sys_error",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()},
+                                       {"code", std::to_string(e.code().value())}});
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
                 core::logger::warning("io/recv", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
+                core::events::publish("io.recv.exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())},
+                                       {"error", e.what()}});
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
                 core::logger::warning("io/recv", "fd {} unknown exception", m_worker.get().get_fd());
+                core::events::publish("io.recv.unknown_exception",
+                                      {{"fd", std::to_string(m_worker.get().get_fd())}});
                 m_on_error(m_worker.get().get_fd(), -1);
             }
         };
@@ -223,6 +238,7 @@ class Receiver : public shared::HandlerBase {
         // Guard against reading on an already-closed receiver.
         if (m_closed) {
             core::logger::warning("io/recv", "fd {} read on closed", FILE_DESCRIPTOR);
+            core::events::publish("io.recv.read_on_closed", {{"fd", std::to_string(FILE_DESCRIPTOR)}});
             m_stalled = false;
             return;
         }
@@ -254,9 +270,16 @@ class Receiver : public shared::HandlerBase {
         case socket::VALUES::ERRORED:
         case socket::VALUES::CLEANLY_DISCONNECTED:
         case socket::VALUES::TIMED_OUT: {
-            core::logger::warning("io/recv", "fd {} read error: {}", FILE_DESCRIPTOR, result);
+            core::logger::warning("io/recv", "fd {} read error: {} ({})", FILE_DESCRIPTOR,
+                                  status.get_error_code(),
+                                  utils::ErrnoTranslator::describe_errno(status.get_error_code()));
+            core::events::publish(
+                "io.recv.read_error",
+                {{"fd", std::to_string(FILE_DESCRIPTOR)},
+                 {"error_code", std::to_string(status.get_error_code())},
+                 {"error", std::string{utils::ErrnoTranslator::describe_errno(status.get_error_code())}}});
             m_closed = true;
-            m_on_error(FILE_DESCRIPTOR, status.get_value());
+            m_on_error(FILE_DESCRIPTOR, status.get_error_code());
             return;
         }
         }

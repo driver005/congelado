@@ -1,0 +1,15 @@
+# Prometheus config for the docker-compose stack. congelado's own metrics arrive via push
+# (Prometheus's native OTLP receiver, enabled via the --web.enable-otlp-receiver CLI flag on
+# the prometheus service in docker-compose.yml), not pull-based scraping — server/worker's
+# otel_otlp_plugin pushes directly to http://prometheus:9090/api/v1/otlp/v1/metrics, see
+# config/docker/congelado.toml. The one scrape job below is Prometheus monitoring itself, a
+# standard good-default include — gives the stack real, non-empty data (prometheus_* metrics)
+# from the moment it boots, independent of whether congelado has pushed anything yet.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

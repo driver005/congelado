@@ -1,6 +1,7 @@
 export module io_flow_socket:sync;
 
 import std;
+import core_events;
 import core_logger;
 import io_base_socket;
 import utils_buffering;
@@ -10,6 +11,7 @@ import io_flow_receiver;
 import interfaces;
 import shared;
 import hashmap;
+import utils_errno_translator;
 
 export namespace io::base::flow::sync {
 
@@ -137,6 +139,8 @@ class ServerBaseSocket : public shared::HandlerBase {
         if (m_closed) {
             core::logger::warning("io/socket", "endpoint {} closed, cannot resume",
                                   m_socket.get_endpoint().to_string());
+            core::events::publish("io.socket.closed_cannot_resume",
+                                  {{"endpoint", m_socket.get_endpoint().to_string()}});
             return false;
         }
         // Still open — try accepting a connection.
@@ -277,6 +281,8 @@ class ClientBaseSocket : public shared::HandlerBase {
         if (connect_status.get_status() != socket::VALUES::VALID) {
             core::logger::error("io/flow/client", "connect to {} failed",
                                 m_socket.get_endpoint().to_string());
+            core::events::publish("io.flow.client.connect_failed",
+                                  {{"endpoint", m_socket.get_endpoint().to_string()}});
             return;
         }
         // Connected — only now flip non-blocking.
@@ -391,6 +397,7 @@ class ConnectorSocket : public shared::HandlerBase {
         if (status.is_errored()) {
             // Hard failure — nothing more to try.
             core::logger::warning("io/connector", "fd {} handshake failed", get_fd());
+            core::events::publish("io.connector.handshake_failed", {{"fd", std::to_string(get_fd())}});
             return ConnectResult::ERROR;
         }
 
@@ -407,8 +414,10 @@ class ConnectorSocket : public shared::HandlerBase {
 
     /**
      * @brief Builds the work callback the controller runs each time this handler's turn comes up
-     * — keeps pumping handshake() while IN_PROGRESS, releases on ERROR, and on SUCCESS drops the
-     * self-ownership pointer (see `m_insane`/what_this_is_me()) so this connector can finally die.
+     * — keeps pumping handshake() while IN_PROGRESS; on both SUCCESS and ERROR it releases the
+     * handler instead of tearing down directly here. release() only flags/reschedules the
+     * contract, so the actual self-ownership drop (and, for the error path, the socket close)
+     * happens later in on_released(), once the controller is truly done with `this`.
      * @return the per-execution work callable.
      */
     shared::WorkerFunction on_execute() override {
@@ -420,24 +429,33 @@ class ConnectorSocket : public shared::HandlerBase {
                 shared::this_handler::shedule();
                 return;
             }
-            if (result == ConnectResult::ERROR) {
-                // Hard failure — release the handler.
-                shared::this_handler::release();
-                return;
-            }
 
-            // SUCCESS falls through here — drop the self-ownership pointer now that
-            // m_on_success has already fired.
-            m_insane.reset();
+            // Both SUCCESS and ERROR release the contract — release() is deferred (it just
+            // flags and reschedules), so the self-ownership pointer can't be reset here in
+            // either case; on_released() hasn't run yet and still needs `this` alive. Without
+            // this, SUCCESS never released its contract slot at all — a smaller, non-fatal
+            // leak (nothing spins on it, but it's never reclaimed either) left over from before.
+            shared::this_handler::release();
         };
     }
 
     /**
-     * @brief Builds the cleanup callback for release — closes the underlying socket.
+     * @brief Builds the cleanup callback for release — closes the underlying socket, then drops
+     * the self-ownership pointer (see `m_insane`/what_this_is_me()) now that the controller has
+     * actually finished with this handler. Runs for both the SUCCESS and ERROR exits; on SUCCESS
+     * `m_socket` has already been moved out to `m_on_success` in handshake() (left in its
+     * moved-from, `INVALID_SOCKET` state), so `sync_close()` here is a documented no-op — see
+     * `Socket::sync_close()` — it only ever actually closes anything on the ERROR path.
      * @return the release callback.
      */
     shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept { m_socket.sync_close(); };
+        return [this]() noexcept {
+            m_socket.sync_close();
+            // `release()` only reschedules for later processing — by the time this callback
+            // actually runs, the controller is done calling into `this`, so resetting here (and
+            // not right after `release()` in on_execute()) is the last safe moment to do it.
+            m_insane.reset();
+        };
     }
 
     /**
@@ -445,14 +463,13 @@ class ConnectorSocket : public shared::HandlerBase {
      * multi-step handshake instead of getting destroyed the moment the local variable that
      * created it goes out of scope.
      * @warning This is a self-ownership pattern — `m_insane` holds a `unique_ptr<ConnectorSocket>`
-     * pointing at `this`, so `this` object is keeping itself alive. `on_execute()`'s SUCCESS
-     * branch calls `m_insane.reset()` as its last action, which is effectively a "delete this"
-     * from inside a member function — technically fine here since nothing touches `this`
-     * afterward, but a real footgun if that ever changes. Worse: the ERROR branch never resets
-     * `m_insane` at all, it just releases the handler and returns — the self-owned
-     * ConnectorSocket (and its `unique_ptr` to itself) never gets freed on a failed handshake, so
-     * every failed connection permanently leaks one ConnectorSocket. No cap, that's a real leak,
-     * not just vibes.
+     * pointing at `this`, so `this` object is keeping itself alive. Both SUCCESS and ERROR exits
+     * in `on_execute()` call `shared::this_handler::release()` rather than resetting `m_insane`
+     * directly — `release()` only flags/reschedules the contract, so resetting there would
+     * destroy `this` while the controller still expects to invoke `on_released()` later. The
+     * actual reset lives in `on_released()` instead, after `m_socket.sync_close()`, the last
+     * point `this` is guaranteed to still be alive — a footgun if that invariant ever gets
+     * disturbed, so don't add code after that reset.
      * @param insane the unique_ptr to this same object, transferred in for self-ownership.
      */
     void what_this_is_me(std::unique_ptr<ConnectorSocket<Protocol>> insane) {
@@ -681,6 +698,7 @@ class ServerFlowSocket {
         } catch (...) {
             try {
                 core::logger::error("io/flow", "exception during ~ServerFlowSocket teardown");
+                core::events::publish("io.flow.server_teardown_exception");
             } catch (...) {  // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
             }
         }
@@ -808,13 +826,23 @@ class ServerFlowSocket {
                         std::move(encrypted_socket),
                         [this](socket::SOCKET socket_fd, int err) {
                             m_workers.erase(socket_fd);
-                            core::logger::error("io/flow/server", "send error on socket {}: {}",
-                                                socket_fd, err);
+                            core::logger::error("io/flow/server", "send error on socket {}: {} ({})",
+                                                socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                            core::events::publish(
+                                "io.flow.server.send_error",
+                                {{"fd", std::to_string(socket_fd)},
+                                 {"error_code", std::to_string(err)},
+                                 {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                         },
                         [this](socket::SOCKET socket_fd, int err) {
                             m_workers.erase(socket_fd);
-                            core::logger::error("io/flow/server", "receive error on socket {}: {}",
-                                                socket_fd, err);
+                            core::logger::error("io/flow/server", "receive error on socket {}: {} ({})",
+                                                socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                            core::events::publish(
+                                "io.flow.server.receive_error",
+                                {{"fd", std::to_string(socket_fd)},
+                                 {"error_code", std::to_string(err)},
+                                 {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                         });
 
                     // Ask the application layer for the actual read handler, handing it a send
@@ -1025,13 +1053,23 @@ class ClientFlowSocket {
                     std::move(encrypted_socket),
                     [this](socket::SOCKET socket_fd, int err) {
                         m_worker.reset();
-                        core::logger::error("io/flow/server", "send error on socket {}: {}",
-                                            socket_fd, err);
+                        core::logger::error("io/flow/server", "send error on socket {}: {} ({})",
+                                            socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                        core::events::publish(
+                            "io.flow.server.send_error",
+                            {{"fd", std::to_string(socket_fd)},
+                             {"error_code", std::to_string(err)},
+                             {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                     },
                     [this](socket::SOCKET socket_fd, int err) {
                         m_worker.reset();
-                        core::logger::error("io/flow/server", "receive error on socket {}: {}",
-                                            socket_fd, err);
+                        core::logger::error("io/flow/server", "receive error on socket {}: {} ({})",
+                                            socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                        core::events::publish(
+                            "io.flow.server.receive_error",
+                            {{"fd", std::to_string(socket_fd)},
+                             {"error_code", std::to_string(err)},
+                             {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                     });
 
                 // Ask the application layer for the read handler, handing it a send callback

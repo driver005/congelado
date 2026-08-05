@@ -42,6 +42,12 @@ function wire_build_scripts(target_name, dir, deps)
 		set_kind("binary")
 		set_languages("c++26")
 		set_policy("build.c++.modules", true)
+		-- Same cross-target BMI race as congelado_include/congelado_sdk/congelado_lib (see
+		-- xmake.lua) — this tool target add_deps() one of `deps` (typically the target whose
+		-- folder this build.cc lives in), and needs that target's own modules fully built before
+		-- it can compile a `build.cc` that imports them; xmake's default cross-target
+		-- parallelism doesn't reliably wait for that on its own.
+		set_policy("build.fence", true)
 		add_files(build_file)
 		for _, dep in ipairs(deps) do
 			add_deps(dep)
@@ -50,8 +56,25 @@ function wire_build_scripts(target_name, dir, deps)
 		if is_plat("linux", "macosx") then
 			add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 		end
+		-- Run via a subshell that cd's before exec'ing, rather than os.execv's own `curdir`
+		-- option: `curdir` does a process-wide chdir() in the CALLING xmake process — fine in
+		-- isolation, but this after_build hook can fire while OTHER compile jobs are running
+		-- concurrently in other coroutines during a real parallel build (confirmed empirically:
+		-- works every time run standalone/serially, fails every time inside a live -j build,
+		-- exact symptom of a shared-process-cwd race). A subshell's `cd` only affects that child
+		-- process's own state, so it's safe regardless of what else the parent process is doing.
+		-- build.cc conventionally uses paths relative to its own folder (e.g.
+		-- "generated/openapi.json", "../../build/plugins/libx.so") — that only resolves
+		-- correctly with cwd pinned to *this* folder, which stopped being implicitly true once
+		-- this folder's targets could share a project (and therefore a process cwd) with sibling
+		-- folders that aren't this one.
+		local build_dir = path.directory(build_file)
 		after_build(function(target)
-			os.execv(target:targetfile())
+			-- absolute, not target:targetfile() as-is: that's relative to the invoking process's
+			-- cwd (e.g. relative to plugins/, not plugins/engine/), which would resolve wrong
+			-- once the subshell below has already cd'd into build_dir.
+			local targetfile = path.absolute(target:targetfile())
+			os.execv("/bin/sh", { "-c", "cd \"$1\" && exec \"$2\"", "sh", build_dir, targetfile })
 		end)
 		target_end()
 

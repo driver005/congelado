@@ -1,6 +1,154 @@
 version: "3.8"
 
 services:
+  # ── Builder ───────────────────────────────────────────────────────────────
+  # Compiles the project exactly once and hands the result to server/worker via the
+  # `build_output` volume — previously each of server/worker/test ran its own independent
+  # "FROM archlinux AS builder" compile (three redundant from-scratch builds of the same
+  # source). `depends_on: condition: service_completed_successfully` below gates server/worker
+  # on this container actually finishing (exit 0) before they start, not just existing.
+  builder:
+    image: localhost/congelado-builder:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.builder
+    container_name: congelado-builder
+    volumes:
+      - build_output:/output
+    networks:
+      - congelado
+
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  # Backs postgres_plugin's IDatabase (see config/docker/congelado.toml's
+  # [plugins.postgres_plugin] section) — used both for the engine's own workflow/task
+  # persistence (via connector::Connector) and the SQL query viewer's POST /api/v1/query route.
+  postgres:
+    image: postgres:16-alpine
+    container_name: congelado-postgres
+    environment:
+      - POSTGRES_USER=congelado
+      - POSTGRES_PASSWORD=congelado
+      - POSTGRES_DB=congelado
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - congelado
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U congelado"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Elasticsearch (opt-in) ────────────────────────────────────────────────
+  # Backs elasticsearch_plugin's ISearchProvider (see config/docker/congelado.toml's
+  # [plugins.elasticsearch_plugin] section) — the alternative to postgres_plugin's own
+  # ISearchProvider implementation, not both-at-once (see include/interfaces/search.cppm's own
+  # docs: a deployment picks exactly one active search backend). Gated behind the "search"
+  # compose profile so a plain `docker compose up` never starts it — elasticsearch_plugin
+  # degrades gracefully (logs a warning, returns empty results) with no ES reachable, so leaving
+  # this off by default is safe either way; opt in explicitly with
+  # `docker compose --profile search up`.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: congelado-elasticsearch
+    profiles:
+      - search
+    environment:
+      - discovery.type=single-node
+      # Local dev/demo stack only — same posture as Grafana's plain admin/admin above, not
+      # something to carry into a real multi-tenant deployment unmodified.
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - congelado
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── RabbitMQ (opt-in) ─────────────────────────────────────────────────────
+  # Backs rabbitmq_events_plugin's IEventSink (see config/docker/congelado.toml's
+  # [plugins.rabbitmq_events_plugin] section) — one of several simultaneously-active event-bus
+  # backends (see include/interfaces/events.cppm's own docs: unlike search, more than one
+  # IEventSink can be registered at once). Gated behind the "events" compose profile so a plain
+  # `docker compose up` never starts it — rabbitmq_events_plugin degrades gracefully (logs a
+  # warning, drops the publish) with no broker reachable, so leaving this off by default is safe
+  # either way; opt in explicitly with `docker compose --profile events up`.
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: congelado-rabbitmq
+    profiles:
+      - events
+    ports:
+      - "5672:5672"
+      # Management UI, purely a local-dev convenience for inspecting queues/exchanges.
+      - "15672:15672"
+    networks:
+      - congelado
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Kafka (opt-in) ────────────────────────────────────────────────────────
+  # Backs kafka_events_plugin's IEventSink — same "events" compose profile, same graceful-
+  # degrade-with-no-broker story as rabbitmq above. KRaft mode (no separate Zookeeper service)
+  # keeps this to one container instead of two.
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: congelado-kafka
+    profiles:
+      - events
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - CLUSTER_ID=congelado-kafka-cluster
+    ports:
+      - "9092:9092"
+    networks:
+      - congelado
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Redis (opt-in) ────────────────────────────────────────────────────────
+  # Backs redis_events_plugin's IEventSink — same "events" compose profile, same graceful-
+  # degrade story as rabbitmq/kafka above. Pub/Sub only, no persistence configured — matches
+  # this backend's own documented "fire-and-forget, no delivery guarantee" trade-off.
+  redis:
+    image: redis:7-alpine
+    container_name: congelado-redis
+    profiles:
+      - events
+    ports:
+      - "6379:6379"
+    networks:
+      - congelado
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   # ── Engine Server ──────────────────────────────────────────────────────────
   server:
     image: localhost/congelado-server:local
@@ -13,13 +161,40 @@ services:
     # so the engine needs them explicitly allowed to start at all.
     security_opt:
       - seccomp:unconfined
+    # SYS_MODULE + the /lib/modules bind mount below let the container's own `modprobe tls`
+    # (Dockerfile.server's CMD) actually load the host's kTLS kernel module — a real elevated
+    # privilege grant, not something to copy into an untrusted/multi-tenant setup without
+    # thinking about it, but reasonable for a local dev/single-tenant stack. Without kTLS
+    # available at all, Socket::ktls_kernel_supported() already falls back to plain TLS
+    # gracefully — this is what makes kTLS actually available instead.
+    cap_add:
+      - SYS_MODULE
+    depends_on:
+      builder:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    volumes:
+      # Populated once by the builder service above; read-only since server never writes here.
+      - build_output:/app/build:ro
+      # Host's kernel module tree — modprobe needs the actual .ko files, which live here, not
+      # in the container's own Arch image. `uname -r` inside the container still reports the
+      # real host kernel version (containers share the host kernel), so this lines up correctly
+      # regardless of which kernel version the host is actually running.
+      - /lib/modules:/lib/modules:ro
     ports:
       - "8080:8080"
     networks:
       - congelado
     healthcheck:
+      # interval widened to 5m: at the old 5s interval, new healthcheck attempts piled up on top
+      # of earlier ones still mid-handshake (this server is intentionally single-threaded, see
+      # ContractThreadPool — ~3s per handshake), so checks kept competing with themselves and the
+      # container stayed permanently unhealthy even though real traffic worked fine underneath.
       test: ["CMD", "curl", "-k", "-f", "https://localhost:8080/api/v1/metadata/health"]
-      interval: 5s
+      interval: 5m
       timeout: 3s
       retries: 10
       start_period: 10s
@@ -34,9 +209,19 @@ services:
     # Same io_uring seccomp requirement as the server — see the comment there.
     security_opt:
       - seccomp:unconfined
+    # Same kTLS-loading grant as the server — see that service's cap_add comment.
+    cap_add:
+      - SYS_MODULE
     depends_on:
+      builder:
+        condition: service_completed_successfully
       server:
         condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    volumes:
+      - build_output:/app/build:ro
+      - /lib/modules:/lib/modules:ro
     networks:
       - congelado
 
@@ -56,6 +241,164 @@ services:
     networks:
       - congelado
 
+  # ── UI (Flutter shell) ────────────────────────────────────────────────────
+  # Static web build of app/ (docker/Dockerfile.ui), served over nginx — deliberately
+  # decoupled from the builder/server/worker chain: no shared build_output volume, no
+  # depends_on. The running shell talks to the engine's API straight from the browser (see
+  # plugins/*/ui/lib/api_client.dart's base URL), not container-to-container, so it doesn't
+  # need `server` up to start successfully — only later, when actually used.
+  ui:
+    image: localhost/congelado-ui:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ui
+    container_name: congelado-ui
+    ports:
+      - "8081:80"
+    networks:
+      - congelado
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  # Receives metrics pushed directly from server/worker's otel_otlp_plugin via Prometheus's
+  # own native OTLP receiver (--web.enable-otlp-receiver) — no separate OpenTelemetry
+  # Collector needed for the metrics signal. See config/docker/congelado.toml for the
+  # matching metrics_endpoint. Also self-scrapes (see prometheus.yml) so there's always at
+  # least some data visible even before congelado pushes anything.
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: congelado-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      # Bounded retention so a long-running local stack doesn't grow its data volume
+      # unbounded — 15d is plenty for local dev/demo use, adjust for anything longer-lived.
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - congelado
+    # Unlike tempo/loki below, prom/prometheus's official image is built FROM a busybox base
+    # (quay.io/prometheus/busybox) that genuinely bundles a working `wget` applet, so a normal
+    # exec-form healthcheck against Prometheus's own `/-/healthy` endpoint just works here.
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ── Loki ──────────────────────────────────────────────────────────────────
+  # Receives logs pushed directly from server/worker's otel_otlp_plugin via Loki's own native
+  # OTLP ingestion endpoint (added in Loki 3.x, no separate OpenTelemetry Collector needed) —
+  # see config/docker/congelado.toml's logs_endpoint, which points at Loki's actual OTLP path
+  # (/otlp/v1/logs — non-standard, same as Prometheus's own non-standard OTLP path).
+  loki:
+    image: grafana/loki:latest
+    container_name: congelado-loki
+    command:
+      - --config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - congelado
+
+  # ── Tempo ─────────────────────────────────────────────────────────────────
+  # Receives traces pushed directly from server/worker's otel_otlp_plugin via Tempo's own native
+  # OTLP receiver (standard Collector ports/paths — Tempo embeds the same otlpreceiver component
+  # a real Collector would use, so no per-signal path override is needed here unlike
+  # Prometheus/Loki). See config/docker/congelado.toml's traces_endpoint.
+  # NOTE: no `healthcheck:` block here (nor on loki below) — grafana/tempo's and grafana/loki's
+  # published images are both built FROM gcr.io/distroless/static(-debian12), which has no
+  # shell, no curl, and no wget, so there is no binary a Docker exec-form healthcheck could
+  # actually run inside this container (confirmed against tempo's own Dockerfile; busybox/sh
+  # used to be present but was removed — see grafana/tempo issues #5352, #5558, #6536, which
+  # are open feature requests asking Grafana to ship a native healthcheck command for exactly
+  # this reason). Adding a `curl`/`wget`-based healthcheck here would not "not work" quietly —
+  # it would make Docker report tempo as permanently unhealthy (command not found), which would
+  # be *worse* than today: anything gated on `condition: service_healthy` against tempo directly
+  # would never start at all. No dependency gating on tempo/loki readiness for server/worker —
+  # early spans/log records exported before tempo/loki are up will be dropped (no persistent
+  # retry in the OTel batch processor); this is a known, accepted gap, not fixed here.
+  tempo:
+    image: grafana/tempo:latest
+    container_name: congelado-tempo
+    command:
+      - -config.file=/etc/tempo.yaml
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      # 3200: Tempo's own HTTP API, used by Grafana's Tempo datasource to query traces (Tempo has
+      # no OTLP-level readiness signal — the OTLP receiver ports below accept connections before
+      # Tempo's internal ring/storage is actually ready, so :3200/ready would be the only
+      # meaningful readiness check, if anything polled it).
+      # 4317/4318: OTLP gRPC/HTTP ingestion — not published to the host, only reachable inside
+      # the congelado network (congelado's otel_otlp_plugin talks to these as "tempo:4318").
+      - "3200:3200"
+    networks:
+      - congelado
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  # Prometheus/Loki/Tempo datasources AND a starter "Congelado Metrics" dashboard are all
+  # auto-provisioned (docker/grafana/provisioning/) — log in at http://localhost:3000
+  # (admin / GF_SECURITY_ADMIN_PASSWORD below) and all of it is already there, no manual
+  # "add datasource" / "import dashboard" steps.
+  grafana:
+    image: grafana/grafana:latest
+    container_name: congelado-grafana
+    environment:
+      # Explicit, not just the image's own admin/admin default — makes the credential a
+      # real, visible knob (override via a .env file or `docker compose run -e ...`)
+      # instead of a silent implicit default.
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # Local single-user dev/demo stack — no need for public self-signup.
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - congelado
+
 networks:
   congelado:
     driver: bridge
+
+volumes:
+  # Named (not bind-mounted) so container recreation (rebuild, `docker compose up
+  # --force-recreate`) doesn't wipe metrics history / dashboard edits — only `docker compose
+  # down -v` does.
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  # Postgres's own data directory — same persistence reasoning as the observability volumes
+  # above, so recreating the postgres container doesn't wipe workflow/task state. Explicit
+  # literal `name:` (not the default <project>_postgres_data) so this stack and
+  # docker-compose.debug.yml's postgres service share the exact same underlying volume
+  # regardless of which compose project name either invocation resolves to — don't rely on
+  # both files happening to live in the same directory (and thus getting the same default
+  # project name) to keep that true.
+  postgres_data:
+    name: congelado_postgres_data
+  # Elasticsearch's own data directory — only ever populated if the "search" profile is
+  # actually opted into (see the elasticsearch service above); harmless, empty otherwise.
+  elasticsearch_data:
+  # Handoff volume from the builder service to server/worker — see the "Builder" section above.
+  # builder's CMD unconditionally overwrites this volume's contents on every run, so a normal
+  # `docker compose up --build` (which recreates the builder container whenever its image
+  # changes) keeps this in sync with the source — no special `down -v` step needed here, unlike
+  # the prometheus/grafana volumes above where the whole point is persisting across rebuilds.
+  build_output:

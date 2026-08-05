@@ -90,7 +90,7 @@ TEST_CASE("Three-thread engine+worker integration", "[integration]") {
             // Find next SCHEDULED task
             with_conn([&](auto &conn) {
                 conn.template find_first<model::TaskInstance>(
-                    serde::QueryOptions{}.add_order_by("seq"),
+                    connector::QueryOptions{}.add_order_by("seq"),
                     [](auto const &inst) {
                         return inst.get_status() == model::TaskStatus::SCHEDULED;
                     },

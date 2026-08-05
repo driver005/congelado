@@ -15,9 +15,11 @@ namespace core::logger {
 // After registration, fans out to all registered loggers.
 inline void write_to_plugin(interfaces::LogLevel level, std::string_view message) noexcept {
     try {
-        // Nothing registered yet — fall back to stderr so the message isn't just lost,
-        // then bail early since there's no fan-out target to reach.
-        const auto &all_loggers = LoggerRegistry::all();
+        // No active registry, or nothing registered in it yet — fall back to stderr so
+        // the message isn't just lost, then bail early since there's no fan-out target to reach.
+        auto *active_registry = LoggerRegistry::get_active();
+        static const std::vector<std::shared_ptr<interfaces::ILogger>> EMPTY_LOGGERS;
+        const auto &all_loggers = active_registry != nullptr ? active_registry->get_loggers() : EMPTY_LOGGERS;
         if (all_loggers.empty()) {
             std::println(stderr, "[pre-logger] {}", message);
             if (level == interfaces::LogLevel::FATAL) {

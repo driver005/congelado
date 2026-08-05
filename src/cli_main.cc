@@ -1,8 +1,10 @@
 #include <CLI/CLI.hpp>
+#include <congelado/abi.h>
 import std;
-import congelado_client;
 import congelado_heart;
 import congelado_worker;
+import core_plugin;
+import utils_openapi;
 
 /**
  * @brief Entry point for the congelado dev CLI — dispatches to `generate` (OpenAPI client SDK
@@ -70,16 +72,58 @@ int main(int argc, char *argv[]) {
         if (generate_cmd->parsed()) {
             std::filesystem::create_directories(output_dir);
 
-            // Build the generator, optionally pointing it at a pre-existing DTO module instead
-            // of having it generate its own.
-            auto generator = congelado::client::Generator{}.namespace_name(ns);
-            if (!shared_models.empty()) {
-                generator = std::move(generator).shared_models(shared_models);
+            // congelado::client::Generator moved out of this CLI's direct reach and into
+            // plugins/openapi_generator/ (see interfaces::IOpenApiGenerator) — client-SDK
+            // codegen is this subcommand's entire purpose, so a missing/failed plugin load is
+            // just as hard a failure as any other "generate failed" bail below. Plugin
+            // directory is derived from this binary's own path, same convention
+            // congelado_worker's main() already uses for its own plugin scan.
+            auto plugin_base =
+                argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
+            auto plugins_dir =
+                std::filesystem::path{std::format("{}/../../../plugins", plugin_base.string())};
+
+            core::plugin::SharedLibrary plugin_store{"plugin"};
+            plugin_store.scan(plugins_dir);
+            auto open_res = plugin_store.open(plugins_dir / "libopenapi_generator.so");
+            if (!open_res) {
+                std::println(stderr, "generate failed: plugin load failed: {}",
+                             open_res.error().get_message());
+                return 1;
             }
+            CongeladoHostCallbacks empty_host_cb{};
+            auto build_res = plugin_store.build(empty_host_cb, {});
+            if (!build_res) {
+                std::println(stderr, "generate failed: plugin build failed: {}",
+                             build_res.error().get_message());
+                return 1;
+            }
+
+            utils::openapi::OpenApiGeneratorRegistry generator_registry;
+            plugin_store.for_each(
+                [&generator_registry](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+                    auto plugin = runtime->get_plugin();
+                    if (!plugin) {
+                        return;
+                    }
+                    if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
+                        generator_registry.add_generator(std::move(generator));
+                    }
+                });
+            if (!generator_registry.has_generator()) {
+                std::println(stderr, "generate failed: no OpenAPI generator plugin loaded — "
+                                     "was openapi_generator built?");
+                return 1;
+            }
+            auto *doc_generator = generator_registry.get_generators().front().get();
 
             // Bad OpenAPI doc or write failure both land here — report and bail with a nonzero
             // exit instead of leaving a half-written output directory unexplained.
-            auto result = generator.generate(openapi_path, output_dir);
+            std::optional<std::string_view> shared_models_opt;
+            if (!shared_models.empty()) {
+                shared_models_opt = shared_models;
+            }
+            auto result = doc_generator->generate_client_sdk(openapi_path, output_dir, ns, shared_models_opt);
             if (!result) {
                 std::println(stderr, "generate failed: {}", result.error());
                 return 1;

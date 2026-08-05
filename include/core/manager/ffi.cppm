@@ -8,8 +8,9 @@ import std;
 import :value;
 import :types;
 import :plugin_ref;
-import :bridge;
 import interfaces;
+import core_events;
+import core_ffi;
 
 export namespace core::plugin {
 using std::runtime_error;
@@ -74,7 +75,7 @@ class FnEntry {
         using Ret = Info::Ret;
         constexpr std::size_t ARG_SIZE = Info::ARG_COUNT;
 
-        auto call = [instance, key](std::span<const Value> args) -> Value {
+        auto call = [instance, key, ARG_SIZE](std::span<const Value> args) -> Value {
             // Bail loud if the caller didn't pass the exact arity this member expects —
             // no partial application, no cap.
             if (args.size() != ARG_SIZE) {
@@ -129,26 +130,6 @@ class FnEntry {
     std::function<Value(std::span<const Value>)> m_call;
 };
 
-#ifdef __cpp_reflection
-template <typename T>
-consteval bool is_registerable(std::meta::info r) noexcept {
-    return std::meta::is_function(r) && std::meta::is_nonstatic_member(r) &&
-           !std::meta::is_constructor(r) && !std::meta::is_destructor(r) &&
-           !std::meta::is_operator_function(r) && !std::meta::is_special_member(r);
-}
-template <typename T>
-consteval bool is_overloaded(std::meta::info fn) noexcept {
-    auto ctx = std::meta::access_context::current();
-    auto name = std::meta::identifier_of(fn);
-    // Count every accessible member sharing this function's name — more than one
-    // hit means it's overloaded and register_class() should skip it.
-    std::size_t overload_count = 0;
-    for (auto member : std::meta::accessible_members_of(^^T, ctx))
-        if (std::meta::is_function(member) && std::meta::identifier_of(member) == name)
-            ++overload_count;
-    return overload_count > 1;
-}
-#endif
 
 class FfiRuntime {
   public:
@@ -192,75 +173,116 @@ class FfiRuntime {
         m_entries.insert_or_assign(std::string{entry.get_key()}, std::move(entry));
     }
 
-#ifdef __cpp_reflection
     /**
-     * @brief Reflects over `T`'s member functions and registers every eligible one as a
-     * callable FnEntry, wiring up a Python/Lua bridge for each wanted runtime in `cfg`.
-     * @warning Only compiled when `__cpp_reflection` is available — the non-reflection build
-     * falls back to the no-op overload below. Overloaded member functions get silently
-     * skipped via is_overloaded() (no ambiguity resolution attempted), and only functions
-     * passing is_registerable() (non-static, non-ctor/dtor, non-operator, non-special-member)
-     * get registered at all.
-     * @tparam T the reflected class to register methods from.
+     * @brief Registers a loaded bridge plugin against this runtime, keyed by its own
+     * `runtime_name()` — bridges are plain instance data here, not a global registry; each
+     * `FfiRuntime` (one per opened plugin, see `PluginStore::open()`) holds its own set,
+     * broadcast into it by `PluginStore::broadcast_bridge()` as bridge plugins load. No-op if
+     * `bridge` is null.
+     * @param bridge the bridge instance to add.
+     */
+    void add_bridge(std::shared_ptr<interfaces::IBridge> bridge) {
+        if (bridge) {
+            m_bridges[std::string{bridge->runtime_name()}] = std::move(bridge);
+        }
+    }
+
+    /**
+     * @brief Looks up a bridge previously added via add_bridge(), by runtime name (e.g.
+     * `"python"`, `"lua"`, or any other user-registered bridge's own name).
+     * @param runtime_name the runtime to look up.
+     * @return the matching bridge, or `nullptr` if none was added for it — i.e. that bridge
+     * plugin simply isn't loaded.
+     */
+    [[nodiscard]] interfaces::IBridge *get_bridge(std::string_view runtime_name) const noexcept {
+        auto it = m_bridges.find(std::string{runtime_name});
+        return it != m_bridges.end() ? it->second.get() : nullptr;
+    }
+
+    /**
+     * @brief Finds whichever added bridge self-reports handling `script_extension` (e.g.
+     * `".py"`, `".lua"`) — for a caller holding a script path and nothing else, so it never has
+     * to hardcode which extension belongs to which runtime name.
+     * @param script_extension the file extension to match (dot included).
+     * @return the matching bridge, or `nullptr` if none of the added bridges handle it.
+     */
+    [[nodiscard]] interfaces::IBridge *
+    find_bridge_for_extension(std::string_view script_extension) const noexcept {
+        for (const auto &[name, bridge] : m_bridges) {
+            if (bridge->script_extension() == script_extension) {
+                return bridge.get();
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Registers every method listed in `T`'s `core::ffi::Exported<T>` specialization as
+     * a callable FnEntry bound against `core::ffi::Exported<T>::instance()`, wiring up a
+     * Python/Lua bridge for each wanted runtime in `cfg`.
+     * @note No C++26 static reflection here on purpose — this toolchain doesn't support it
+     * (`__cpp_reflection` is undefined, no experimental flag enables it either). `T` opts in by
+     * hand, listing exactly which methods to export via `Exported<T>::methods()`, the same
+     * reflection-free convention `serde::Serializable<T>`/`FieldDesc` already uses for
+     * serialization.
+     * TODO(reflection): GCC 16.1 actually implements P2996 today via `-std=c++26
+     * -freflection` (confirmed directly — `std::meta::accessible_members_of`/`^^T` both
+     * compile and run) — clang doesn't yet, only via the separate bloomberg/clang-p2996
+     * fork. If this project's toolchain ever moves off mainline clang for real reflection,
+     * restore a `template <typename T> void register_class(...)` overload here that walks
+     * `std::meta::accessible_members_of(^^T, ctx)` directly (filtering ctors/dtors/operators/
+     * overloads, same as the version this replaced) instead of requiring a hand-written
+     * `core::ffi::Exported<T>` — and delete `core::ffi::Exported<T>`/`MethodDesc`
+     * (include/core/ffi/ffi.cppm) plus every hand-written specialization of it once nothing
+     * needs the fallback anymore.
+     * @tparam T a type with a `core::ffi::Exported<T>` specialization.
      * @param cfg which runtimes (Python/Lua) to build bridges for and how to configure them.
      * @param prefix namespace prefix used to build both the registered key (`prefix.method`)
-     * and the bridge-facing name (`prefix_method`); defaults to `T`'s own identifier.
+     * and the bridge-facing name (`prefix_method`) — required, since there's no reflection to
+     * pull `T`'s own name from.
      */
-    template <typename T>
-    void register_class(const types::GenerationConfig &cfg = {},
-                        std::string_view prefix = std::meta::identifier_of(^^T)) {
-        // 1. Create bridges based on config
-        std::vector<std::unique_ptr<interfaces::IBridge>> bridges;
-
-        // Only stand up a Python bridge if the caller actually wants Python.
-        if (cfg.wants(types::Runtime::PYTHON)) {
-            if (auto bridge = bridge::PythonBridge::setup(m_handles,
-                                                    cfg.get_python_config().get_module_name()))
-                bridges.push_back(std::move(bridge));
-        }
-        // Same deal for Lua — both runtimes can be wanted at once.
-        if (cfg.wants(types::Runtime::LUA)) {
-            if (auto bridge = bridge::LuaBridge::setup(m_handles,
-                                                  cfg.get_lua_config().get_table_name()))
-                bridges.push_back(std::move(bridge));
-        }
-
-        // 2. Register each reflected method
-        constexpr auto ctx = std::meta::access_context::current();
-        template for (constexpr auto method : std::meta::accessible_members_of(^^T, ctx)) {
-            if constexpr (is_registerable(method) && !is_overloaded<T>(method)) {
-                constexpr auto name = std::meta::identifier_of(method);
-                auto registered_key = std::string{prefix} + "." + std::string{name};
-                auto lang_name = std::string{prefix} + "_" + std::string{name};
-
-                // Create and store FnEntry
-                auto entry = FnEntry::from_method<[:method:]>(nullptr, std::string{registered_key});
-                auto invoke_function = entry.get_invoke_fn();
-                register_entry(std::move(entry));
-
-                // Create one FnContext per bridge (each bridge owns its own)
-                for (auto &bridge : bridges) {
-                    auto fn_context =
-                        std::make_unique<FnContext>(std::any{invoke_function}, std::string{registered_key});
-                    bridge->install_method(std::move(fn_context), lang_name);
-                }
+    template <core::ffi::IsExported T>
+    void register_class(const types::GenerationConfig &cfg, std::string_view prefix) {
+        // 1. Look up already-loaded bridges for whichever runtimes the caller wants — an open
+        // set of names (cfg.get_wanted_runtimes()), not a fixed pair. No bridge added for a
+        // wanted runtime means that runtime simply isn't available, same as an unregistered
+        // serde format.
+        std::vector<interfaces::IBridge *> bridges;
+        for (const auto &runtime_name : cfg.get_wanted_runtimes()) {
+            if (auto *bridge = get_bridge(runtime_name)) {
+                bridges.push_back(bridge);
             }
         }
 
-        // 3. Move bridges into this runtime's ownership
-        for (auto &bridge : bridges)
-            m_bridges.push_back(std::move(bridge));
+        // 2. Register every method listed in Exported<T>::methods(), bound against the
+        // single shared instance the specialization itself provides.
+        auto &instance = core::ffi::Exported<T>::instance();
+        std::apply(
+            [&](auto... method_desc) {
+                (
+                    [&] {
+                        auto registered_key =
+                            std::string{prefix} + "." + std::string{method_desc.name.string_view()};
+                        auto lang_name =
+                            std::string{prefix} + "_" + std::string{method_desc.name.string_view()};
+
+                        // Create and store the FnEntry, bound against the real instance —
+                        // fixes the previous reflection-era code's always-nullptr bind.
+                        auto entry = FnEntry::from_method<method_desc.member>(&instance, registered_key);
+                        auto invoke_function = entry.get_invoke_fn();
+                        register_entry(std::move(entry));
+
+                        // Create one FnContext per bridge (each bridge owns its own)
+                        for (auto &bridge : bridges) {
+                            auto fn_context = std::make_unique<FnContext>(std::any{invoke_function},
+                                                                          registered_key);
+                            bridge->install_method(std::move(fn_context), lang_name);
+                        }
+                    }(),
+                    ...);
+            },
+            core::ffi::Exported<T>::methods());
     }
-#else
-    /**
-     * @brief No-op fallback when `__cpp_reflection` isn't available — reflection-based class
-     * registration simply isn't possible without it, so this compiles clean and does nothing.
-     * @tparam T the class that would have been reflected over, had reflection been available.
-     */
-    template <typename T>
-    void register_class([[maybe_unused]] const types::GenerationConfig &cfg = {},
-                        [[maybe_unused]] std::string_view prefix = "") {}
-#endif
 
     // ── Plugin lifecycle helpers (now own plugin ref) ─────────────────────
 
@@ -292,6 +314,7 @@ class FfiRuntime {
         } catch (...) {
             // Never let a plugin-side throw escape across the ABI boundary — report
             // failure through the return code instead.
+            core::events::publish("ffi.plugin.init_failed");
             return -1;
         }
     }
@@ -317,6 +340,7 @@ class FfiRuntime {
                 reinterpret_cast<types::PluginReadyFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
             }
         } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+            core::events::publish("ffi.plugin.on_ready_failed");
         }
     }
 
@@ -340,6 +364,7 @@ class FfiRuntime {
                 reinterpret_cast<types::PluginUnloadFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
             }
         } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+            core::events::publish("ffi.plugin.on_unload_failed");
         }
     }
 
@@ -381,6 +406,8 @@ class FfiRuntime {
             // Arity mismatch, bad marshaling, or a plugin-side throw — report it
             // through get_last_error() instead of letting it cross the ABI boundary.
             m_last_error = exception.what();
+            core::events::publish("ffi.call.failed",
+                                  {{"key", std::string{key, key_len}}, {"error", m_last_error}});
             return -1;
         }
     }
@@ -405,15 +432,26 @@ class FfiRuntime {
     /// @brief Gets the attached plugin ref, if any.
     /// @return the attached PluginRef, or null if none is attached.
     [[nodiscard]] std::shared_ptr<types::PluginRef> get_plugin() const noexcept { return m_plugin; }
-    /// @brief Gets the shared handle table used for map/array handles crossing the FFI.
-    /// @return a reference to the runtime's HandleTable.
-    [[nodiscard]] HandleTable &get_handles() noexcept { return m_handles; }
+
+    /**
+     * @brief Gets a loaded bridge's native interpreter handle (e.g. Lua's `lua_State*`, as
+     * `void*` — core_plugin doesn't include `<lua.hpp>` any more than it includes `<Python.h>`,
+     * bridges are plugins now). A caller running a user script in that language needs this
+     * exact handle, not a freshly-created one, or it won't see the registered table/module.
+     * @param runtime_name which bridge to query (e.g. `"python"`, `"lua"`).
+     * @return the native handle as `void*` (the caller casts it to the concrete type it
+     * expects), or `nullptr` if that bridge isn't loaded or doesn't expose one (Python's
+     * interpreter is process-global, `PythonBridgePlugin` never has one to give back).
+     */
+    [[nodiscard]] void *get_bridge_native_handle(std::string_view runtime_name) const noexcept {
+        auto *bridge = get_bridge(runtime_name);
+        return bridge != nullptr ? bridge->native_handle() : nullptr;
+    }
 
   private:
     types::GenerationConfig m_cfg;
-    HandleTable m_handles;
     std::unordered_map<std::string, FnEntry> m_entries;
-    std::vector<std::unique_ptr<interfaces::IBridge>> m_bridges;
+    std::unordered_map<std::string, std::shared_ptr<interfaces::IBridge>> m_bridges;
     std::string m_last_error;
     std::shared_ptr<types::PluginRef> m_plugin;
 };

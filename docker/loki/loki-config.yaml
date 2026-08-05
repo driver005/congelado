@@ -1,0 +1,35 @@
+# Single-node Loki config for the docker-compose stack — filesystem storage, no auth, just
+# enough for local dev/demo. Based on Loki's own reference docker config
+# (cmd/loki/loki-docker-config.yaml in the Loki repo).
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Enabled by default in Loki 3.x+ already — explicit here since it's what lets Loki's native
+  # OTLP ingestion store trace_id/span_id as structured metadata (rather than reject the log
+  # payload outright), which the Loki datasource's derivedFields config relies on.
+  allow_structured_metadata: true

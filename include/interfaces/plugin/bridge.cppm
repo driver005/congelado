@@ -47,6 +47,45 @@ class IBridge {
      * @param lang_name the name the method gets exposed as on the target-language side.
      */
     virtual void install_method(std::unique_ptr<FnContext> ctx, const std::string &lang_name) = 0;
+
+    /**
+     * @brief Gets this bridge's underlying native interpreter handle, if it has one crossing
+     * the ABI as a plain pointer makes sense for (e.g. Lua's `lua_State*` — a script runner
+     * needs the exact same state the bridge installed methods into, not a fresh one).
+     * @note Defaults to `nullptr` — most bridges don't need this. Python's interpreter is
+     * process-global (`Py_Initialize()`), so `PythonBridge` never overrides it; there's no
+     * per-bridge handle to hand back.
+     * @return the native handle, or `nullptr` if this bridge doesn't expose one.
+     */
+    [[nodiscard]] virtual void *native_handle() noexcept { return nullptr; }
+
+    /**
+     * @brief The runtime this bridge implements (e.g. `"python"`, `"lua"`, or any other
+     * user-registered name) — this is the key each `core::plugin::FfiRuntime` looks bridges up
+     * by (via `add_bridge`/`get_bridge`), same self-identification role
+     * `ISerdeFormat::content_type()` plays for format plugins. The bridge says what it is;
+     * nothing else has to guess from unrelated metadata like a plugin's display name, and
+     * nothing hardcodes a fixed set of supported runtime names.
+     * @return the runtime name string.
+     */
+    [[nodiscard]] virtual std::string_view runtime_name() const noexcept = 0;
+
+    /**
+     * @brief The file extension (dot included, e.g. `".py"`, `".lua"`) of scripts this bridge
+     * can run. Self-reported so a caller with a script path never has to hardcode which
+     * extension belongs to which runtime — it just asks every loaded bridge until one matches.
+     * @return the extension this bridge handles.
+     */
+    [[nodiscard]] virtual std::string_view script_extension() const noexcept = 0;
+
+    /**
+     * @brief Runs an external script file through this bridge's own language runtime — the
+     * bridge owns whatever native API call that requires (e.g. `PyRun_SimpleFile`,
+     * `luaL_dofile`), so a caller never needs to touch the concrete language's C API itself.
+     * @param path path to the script file to run.
+     * @return the script's exit/result code (language-specific convention: 0 is success).
+     */
+    [[nodiscard]] virtual int run_script(std::string_view path) = 0;
 };
 
 } // namespace interfaces

@@ -9,6 +9,7 @@ export module core_plugin:shared_lib;
 import std;
 import :types;
 import :ffi;
+import interfaces;
 
 export namespace core::plugin {
 
@@ -174,6 +175,12 @@ class SharedLibrary {
         // record it both by name and in load order (for later init()/close_all()).
         auto runtime = std::make_shared<FfiRuntime>();
         runtime->attach_plugin(plugin_ref);
+        // Seed with every bridge broadcast so far — a plugin opened after a bridge plugin
+        // (e.g. python_bridge) still gets it; one opened before catches up via
+        // broadcast_bridge()'s own push into m_runtimes below.
+        for (const auto &bridge : m_known_bridges) {
+            runtime->add_bridge(bridge);
+        }
         m_runtimes.emplace(name, runtime);
         m_order.push_back(name);
         return {};
@@ -247,7 +254,8 @@ class SharedLibrary {
 
             // Flatten the resolved config into a flat key/value view crossing the ABI.
             types::ConfigViewBuilder cfg_view;
-            cfg_view.add("runtimes", std::to_string(std::to_underlying(gen_cfg->get_runtimes())));
+            cfg_view.add("runtimes", std::views::join_with(gen_cfg->get_wanted_runtimes(), ',') |
+                                          std::ranges::to<std::string>());
             cfg_view.add("python_module",
                          std::string{gen_cfg->get_python_config().get_module_name()});
             cfg_view.add("lua_table", std::string{gen_cfg->get_lua_config().get_table_name()});
@@ -277,6 +285,27 @@ class SharedLibrary {
     }
 
     /**
+     * @brief Drops a plugin that was opened but never `build()`-ed — dlcloses its handle and
+     * forgets it, without calling `congelado_on_unload`. Unlike `close_all()`, this is for a
+     * plugin that never got as far as `congelado_init`, so there's no live plugin state for
+     * `congelado_on_unload` to safely tear down; the dlclose alone (via `PluginRef`'s handle
+     * going out of scope once the last `shared_ptr<FfiRuntime>` reference here drops) is the
+     * whole story. Meant for provider-filtering: a capability plugin resolved right after
+     * open() but rejected by `[providers]` should never reach `build()`'s `congelado_init`
+     * at all, not just get silently un-registered after already having connected/spun up.
+     * @param name the resolved plugin name (as recorded by open(), not necessarily the file
+     * stem) — a miss is a no-op.
+     */
+    void discard(std::string_view name) noexcept {
+        auto it = m_runtimes.find(std::string{name});
+        if (it == m_runtimes.end()) {
+            return;
+        }
+        m_runtimes.erase(it);
+        std::erase(m_order, std::string{name});
+    }
+
+    /**
      * @brief Unloads every opened plugin, calling `congelado_on_unload` in reverse load order.
      * @note Reverse order matters here — dependencies were opened before their dependents, so
      * unloading in reverse keeps a dependent from calling back into an already-torn-down dep.
@@ -297,19 +326,38 @@ class SharedLibrary {
 
     /**
      * @brief Invokes `callback` on every opened runtime, in insertion (load) order.
-     * @tparam Self deduced `this` type (const or non-const, lvalue or rvalue) via the explicit
-     * object parameter — lets one method body serve both const and non-const iteration.
      * @tparam Callback invocable taking a `const std::shared_ptr<FfiRuntime> &`.
-     * @param self deduced object parameter, standing in for `*this`.
      * @param callback invoked once per opened runtime.
      */
-    template <typename Self, std::invocable<const std::shared_ptr<FfiRuntime> &> Callback>
-    void for_each(this Self &&self, Callback &&callback) {  // NOLINT(cppcoreguidelines-missing-std-forward) — self is only ever read (m_order/m_runtimes lookups) across every loop iteration, never forwarded; a deducing-this param used purely for read access has nothing to forward
+    template <typename Callback>
+    void for_each(Callback &&callback) {
         // Walk names in load order, skipping any that somehow no longer resolve
         // to a live runtime (shouldn't happen outside a concurrent mutation).
-        for (auto &name : self.m_order) {
-            auto it = self.m_runtimes.find(name);
-            if (it == self.m_runtimes.end()) {
+        for (auto &name : m_order) {
+            auto it = m_runtimes.find(name);
+            if (it == m_runtimes.end()) {
+                continue;
+            }
+            // NOTE: callback is invoked once per loop iteration, so it must NOT be
+            // std::forward'd here — forwarding on the first iteration would move from
+            // an rvalue-ref callback, leaving every subsequent call operating on a
+            // moved-from callable (this was a real bugprone-use-after-move bug).
+            std::invoke(callback, it->second);
+        }
+    }
+
+    /**
+     * @brief Invokes `callback` on every opened runtime, in insertion (load) order.
+     * @tparam Callback invocable taking a `const std::shared_ptr<FfiRuntime> &`.
+     * @param callback invoked once per opened runtime.
+     */
+    template <typename Callback>
+    void for_each(Callback &&callback) const {
+        // Walk names in load order, skipping any that somehow no longer resolve
+        // to a live runtime (shouldn't happen outside a concurrent mutation).
+        for (const auto &name : m_order) {
+            auto it = m_runtimes.find(name);
+            if (it == m_runtimes.end()) {
                 continue;
             }
             // NOTE: callback is invoked once per loop iteration, so it must NOT be
@@ -328,6 +376,25 @@ class SharedLibrary {
     [[nodiscard]] std::shared_ptr<FfiRuntime> find(std::string_view name) noexcept {
         auto iter = m_runtimes.find(std::string{name});
         return iter != m_runtimes.end() ? iter->second : nullptr;
+    }
+
+    /**
+     * @brief Broadcasts a newly-discovered bridge plugin into every currently-opened plugin's
+     * `FfiRuntime`, and remembers it so any plugin opened later gets seeded with it too (see
+     * open()). This is how a bridge (Python, Lua, or any other user-registered runtime) becomes
+     * visible to every `register_class<T>()` call regardless of load order — no global
+     * registry, each `FfiRuntime` just holds its own copy of the bridge set. No-op if `bridge`
+     * is null.
+     * @param bridge the bridge instance to broadcast.
+     */
+    void broadcast_bridge(std::shared_ptr<interfaces::IBridge> bridge) {
+        if (!bridge) {
+            return;
+        }
+        for (auto &[name, runtime] : m_runtimes) {
+            runtime->add_bridge(bridge);
+        }
+        m_known_bridges.push_back(std::move(bridge));
     }
 
   private:
@@ -586,6 +653,7 @@ class SharedLibrary {
     std::unordered_map<std::string, std::shared_ptr<FfiRuntime>> m_runtimes;
     std::vector<std::string> m_order;
     std::string m_expected_type;
+    std::vector<std::shared_ptr<interfaces::IBridge>> m_known_bridges;
 };
 
 } // namespace core::plugin

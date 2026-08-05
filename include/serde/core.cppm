@@ -1,5 +1,7 @@
 module;
+#define UUID_SYSTEM_GENERATOR
 #include <rfl.hpp>
+#include <uuid.h>
 
 export module serde:core;
 
@@ -217,6 +219,80 @@ concept IFormat =
         { F::encode(value) } -> std::same_as<std::string>;
         { F::decode(data) } -> std::same_as<std::expected<T, std::string>>;
     };
+
+// ─── Generic value-kind classification / field-reflection helpers ────────────
+//
+// Deliberately not SQL-specific: value_kind_of<VT>()/pk_column_name<T>() just classify a
+// reflected field's C++ type into a generic tag and find a type's PK field name — any
+// consumer needing that (SQL codegen, or anything else) reaches for these, not a
+// dialect-flavored string. Mapping a ValueKind to an actual column-type string (e.g.
+// Postgres's "TEXT"/"BIGINT"/"JSONB") is a dialect's own opinion, not serde's.
+
+enum class ValueKind : std::uint8_t {
+    STRING, BOOLEAN, INT64, UINT64, INT32, UINT32, DOUBLE, FLOAT, TIMESTAMP, UUID, OTHER
+};
+
+/**
+ * @brief Classifies a reflected field's C++ value type into a generic kind tag.
+ * @tparam VT the field's declared value type.
+ * @warning Anything that doesn't match a known kind falls through to `ValueKind::OTHER` — no
+ * compile error, no cap. A dialect plugin decides what that fallback actually means (e.g.
+ * Postgres treats it as `JSONB`).
+ * @return the value's generic kind.
+ */
+template <typename VT>
+constexpr ValueKind value_kind_of() {
+    if constexpr (std::same_as<VT, std::string> || std::same_as<VT, std::optional<std::string>> ||
+                  std::is_enum_v<VT>) {
+        return ValueKind::STRING;
+    } else if constexpr (std::same_as<VT, bool>) {
+        return ValueKind::BOOLEAN;
+    } else if constexpr (std::same_as<VT, std::chrono::system_clock::time_point> ||
+                       std::same_as<VT, std::optional<std::chrono::system_clock::time_point>>) {
+        return ValueKind::TIMESTAMP;
+    } else if constexpr (std::same_as<VT, std::int64_t>) {
+        return ValueKind::INT64;
+    } else if constexpr (std::same_as<VT, std::uint64_t>) {
+        return ValueKind::UINT64;
+    } else if constexpr (std::same_as<VT, std::int32_t>) {
+        return ValueKind::INT32;
+    } else if constexpr (std::same_as<VT, std::uint32_t>) {
+        return ValueKind::UINT32;
+    } else if constexpr (std::same_as<VT, double>) {
+        return ValueKind::DOUBLE;
+    } else if constexpr (std::same_as<VT, float>) {
+        return ValueKind::FLOAT;
+    } else if constexpr (std::same_as<VT, uuids::uuid> || std::same_as<VT, std::optional<uuids::uuid>>) {
+        return ValueKind::UUID;
+    } else {
+        return ValueKind::OTHER;
+    }
+}
+
+/**
+ * @brief Finds the column name of `T`'s primary-key field by scanning every reflected field for
+ * `options.m_db.m_primary_key`.
+ * @tparam T the connectable type whose PK field is being looked up.
+ * @warning If no field is marked `primary_key`, this quietly returns an empty `string_view`
+ * instead of erroring — every caller then splices that empty string into whatever it's building,
+ * a footgun for any `T` that forgot `.pk()` on its `FieldOptionsDb`.
+ * @return the primary key's field name, or empty if no field is marked as one.
+ */
+template <IConnectable T>
+std::string_view pk_column_name() {
+    std::string_view result;
+    // Fold over every reflected field looking for the one flagged primary_key — linear
+    // scan wearing a fold-expression trenchcoat.
+    std::apply(
+        [&](auto... fields) {
+            ((fields.options.m_db.m_primary_key
+                  ? (result = fields.name.string_view())
+                  : std::string_view{}),
+             ...);
+        },
+        Serializable<T>::fields());
+    return result;
+}
 
 // ─── Cache / SQL concepts ─────────────────────────────────────────────────────
 

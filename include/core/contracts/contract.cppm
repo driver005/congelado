@@ -4,6 +4,7 @@ export import :signal_tree;
 export import :types;
 
 import std;
+import core_events;
 import core_logger;
 import shared;
 import :consts;
@@ -97,8 +98,8 @@ class ContractGroup : shared::HandlerInterface {
         case ContractState::EXECUTING:
             // Not a valid state to hand in at creation time — log it instead of scheduling.
             core::logger::error("core/contract", "add_contract in EXECUTING state");
+            core::events::publish("contract.worker.invalid_state", {{"contract_id", std::to_string(CONTRACT_ID)}});
         }
-        core::logger::debug("core/contract", "worker {} added", CONTRACT_ID);
 
         return Contract<MaxCapacity>{*this, CONTRACT_ID};
     }
@@ -114,11 +115,12 @@ class ContractGroup : shared::HandlerInterface {
         // Guard clause — scheduling an already-scheduled worker's an L, a logic error upstream.
         if (m_workers[contract_id].is_scheduled()) { // FIXME(clang-tidy): unchecked operator[],
                                                      // consider .at(); non-constant array index
+            core::events::publish("contract.worker.fatal", {{"contract_id", std::to_string(contract_id)},
+                                                            {"reason", "already_scheduled"}});
             core::logger::fatal("core/contract", "worker {} already scheduled", contract_id);
             return;
         }
 
-        core::logger::debug("core/contract", "worker {} scheduled", contract_id);
         // Flip the worker's own flag first, and only touch the signal tree if that actually
         // took (it won't if another thread raced in and claimed it first).
         if (m_workers[contract_id].schedule()) { // FIXME(clang-tidy): unchecked operator[],
@@ -138,7 +140,6 @@ class ContractGroup : shared::HandlerInterface {
         // Happy path — actually scheduled, so pull it off the tree and mark it IDLE.
         if (m_workers[contract_id].is_scheduled()) { // FIXME(clang-tidy): unchecked operator[],
                                                      // consider .at(); non-constant array index
-            core::logger::debug("core/contract", "worker {} descheduling", contract_id);
             m_signal_tree.deschedule(contract_id);
             m_workers[contract_id].add_flags(
                 ContractState::IDLE); // FIXME(clang-tidy): unchecked operator[], consider .at();
@@ -147,6 +148,8 @@ class ContractGroup : shared::HandlerInterface {
         }
 
         // Not scheduled to begin with — nothing to pull off, log loud instead of no-op'ing.
+        core::events::publish("contract.worker.fatal", {{"contract_id", std::to_string(contract_id)},
+                                                        {"reason", "not_found_on_deschedule"}});
         core::logger::fatal("core/contract", "worker {} not found on deschedule", contract_id);
     }
 
@@ -158,7 +161,6 @@ class ContractGroup : shared::HandlerInterface {
     void release(std::uint32_t contract_id) override {
         // Mark it released first — that's the flag process_next_contract() checks to decide
         // whether to run the releaser instead of the worker.
-        core::logger::debug("core/contract", "worker {} released", contract_id);
         m_workers[contract_id].add_flags(
             ContractState::RELEASED); // FIXME(clang-tidy): unchecked operator[], consider .at();
                                       // non-constant array index
@@ -192,8 +194,6 @@ class ContractGroup : shared::HandlerInterface {
             return;
         }
 
-        core::logger::debug("core/contract", "worker {} ready", *ready_id);
-
         auto &worker = m_workers[*ready_id]; // FIXME(clang-tidy): unchecked operator[], consider
                                              // .at(); non-constant array index
         auto &releaser = m_releasers[*ready_id]; // FIXME(clang-tidy): unchecked operator[],
@@ -210,7 +210,7 @@ class ContractGroup : shared::HandlerInterface {
 
             // Released contracts get torn down via the releaser instead of re-running worker().
             if (worker.is_released()) {
-                core::logger::debug("core/contract", "worker {} releasing", *ready_id);
+                core::logger::debug("core/contract", "cycle: worker {} released", *ready_id);
                 AutoEraseContract erase_guard{*ready_id, worker, releaser, error, m_signal_tree};
                 try {
                     if (releaser) {
@@ -218,6 +218,9 @@ class ContractGroup : shared::HandlerInterface {
                     }
                 } catch (...) {
                     core::logger::warning("core/contract", "released worker {} error", *ready_id);
+                    core::events::publish("contract.worker.execution_failed",
+                                          {{"contract_id", std::to_string(*ready_id)},
+                                           {"phase", "released"}});
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -228,12 +231,15 @@ class ContractGroup : shared::HandlerInterface {
                 }
             } else {
                 // Normal scheduled run — call the worker itself.
-                core::logger::debug("core/contract", "worker {} executing", *ready_id);
+                core::logger::debug("core/contract", "cycle: worker {} executing", *ready_id);
                 AutoClearExecuteFlag clear_guard{worker, *ready_id, m_signal_tree};
                 try {
                     worker();
                 } catch (...) {
                     core::logger::warning("core/contract", "scheduled worker {} error", *ready_id);
+                    core::events::publish("contract.worker.execution_failed",
+                                          {{"contract_id", std::to_string(*ready_id)},
+                                           {"phase", "executing"}});
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -332,6 +338,7 @@ class ContractGroup : shared::HandlerInterface {
                 }
             } catch (...) {
                 // Never let an exception escape a destructor — log it loud instead.
+                core::events::publish("contract.autoclear.fatal", {{"contract_id", std::to_string(m_id)}});
                 core::logger::fatal("core/contract", "exception in ~AutoClearExecuteFlag");
             }
         }
@@ -362,6 +369,7 @@ class ContractThreadPool {
                                 std::size_t thread_count = std::thread::hardware_concurrency())
         : m_group{group}, m_running{true} {
         core::logger::important("core/thread_pool", "starting {} threads", thread_count);
+        core::events::publish("contract.thread_pool.started", {{"thread_count", std::to_string(thread_count)}});
         // Spin up each worker thread, all running the same loop against the shared group.
         for (std::size_t i = 0; i < thread_count; ++i) {
             m_workers.emplace_back(&ContractThreadPool::worker_loop, this);
