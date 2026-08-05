@@ -182,7 +182,9 @@ class SharedLibrary {
     // ── Phase 2b: open all scanned plugins ─────────────────────────────
 
     /**
-     * @brief Opens every plugin that scan() found, in whatever order the scan map iterates.
+     * @brief Opens every plugin that scan() found, in whatever order the scan map iterates,
+     * then reorders `m_order` so every plugin's declared `congelado_load_before_types()`
+     * constraint is actually honored (see `apply_load_before_ordering()`).
      * @return success once every scanned plugin is open, or the first PluginError hit —
      * bails immediately on the first failure, doesn't try to keep going and collect more L's.
      */
@@ -198,6 +200,7 @@ class SharedLibrary {
                 return std::unexpected{std::move(result.error())};
             }
         }
+        apply_load_before_ordering();
         return {};
     }
 
@@ -328,6 +331,107 @@ class SharedLibrary {
     }
 
   private:
+    // ── Private: load-order constraint enforcement ──────────────────────
+
+    /**
+     * @brief Reorders `m_order` so every plugin's declared `congelado_load_before_types()`
+     * constraint actually holds: a plugin `P` that lists type `T` in its load-before set is
+     * moved ahead of every currently-opened plugin whose `congelado_unique_type()` is `T`.
+     * @warning Without this, `m_order` was purely whatever `m_scanned` (an `unordered_map`)
+     * happened to iterate in — declaring `get_load_before_types()` had zero actual effect on
+     * `build()`'s init-pass order. A plugin whose route-registering `on_load` genuinely needs
+     * to run before a same-phase sibling's (not just before some *later* phase like a
+     * protocol plugin's `on_ready`) was at the mercy of hash-bucket luck.
+     * @note Stable multi-pass Kahn's algorithm: repeatedly sweeps the current order picking up
+     * every zero-indegree plugin left to right, so ties resolve to the original scan order
+     * instead of some arbitrary one. A dependency cycle (two plugins each demanding to load
+     * before the other's type) can't be satisfied — falls back to appending whatever's left in
+     * its original relative order rather than looping forever.
+     */
+    void apply_load_before_ordering() {
+        // Snapshot each opened plugin's own unique_type and load_before_types set, keyed by
+        // name — both are optional exports, missing either just leaves that plugin
+        // unconstrained (never gets an edge in or out).
+        std::unordered_map<std::string, std::string> unique_type;
+        std::unordered_map<std::string, std::vector<std::string>> load_before;
+        for (const auto &name : m_order) {
+            auto runtime_iter = m_runtimes.find(name);
+            if (runtime_iter == m_runtimes.end()) {
+                continue;
+            }
+            auto plugin_ref = runtime_iter->second->get_plugin();
+            if (!plugin_ref) {
+                continue;
+            }
+            if (auto it = plugin_ref->m_data.find("congelado_unique_type");
+                it != plugin_ref->m_data.end()) {
+                unique_type[name] = std::any_cast<const std::string &>(it->second);
+            }
+            if (auto it = plugin_ref->m_data.find("congelado_load_before_types");
+                it != plugin_ref->m_data.end()) {
+                load_before[name] = std::any_cast<const std::vector<std::string> &>(it->second);
+            }
+        }
+
+        // Build the constraint graph: an edge name -> dependent for every other plugin whose
+        // unique_type matches one of name's declared load-before types.
+        std::unordered_map<std::string, std::vector<std::string>> edges;
+        std::unordered_map<std::string, int> indegree;
+        for (const auto &name : m_order) {
+            indegree[name] = 0;
+        }
+        for (const auto &[name, types] : load_before) {
+            for (const auto &type : types) {
+                for (const auto &other : m_order) {
+                    if (other == name) {
+                        continue;
+                    }
+                    auto type_iter = unique_type.find(other);
+                    if (type_iter != unique_type.end() && type_iter->second == type) {
+                        edges[name].push_back(other);
+                        ++indegree[other];
+                    }
+                }
+            }
+        }
+
+        // Stable multi-pass Kahn's: each pass places every currently-zero-indegree plugin,
+        // left to right — ties (unconstrained plugins) keep their original scan-order position.
+        std::vector<std::string> ordered;
+        ordered.reserve(m_order.size());
+        std::vector<bool> placed(m_order.size(), false);
+        while (ordered.size() < m_order.size()) {
+            bool progressed = false;
+            for (std::size_t i = 0; i < m_order.size(); ++i) {
+                if (placed[i]) {
+                    continue;
+                }
+                const auto &name = m_order[i];
+                if (indegree[name] != 0) {
+                    continue;
+                }
+                ordered.push_back(name);
+                placed[i] = true;
+                progressed = true;
+                for (const auto &dependent : edges[name]) {
+                    --indegree[dependent];
+                }
+            }
+            if (!progressed) {
+                // Cycle among whatever's left — no valid order exists, so just append the
+                // remainder in its original relative order instead of spinning forever.
+                for (std::size_t i = 0; i < m_order.size(); ++i) {
+                    if (!placed[i]) {
+                        ordered.push_back(m_order[i]);
+                    }
+                }
+                break;
+            }
+        }
+
+        m_order = std::move(ordered);
+    }
+
     // ── Private: typed dlsym wrapper ────────────────────────────────────
 
     /**
