@@ -56,6 +56,19 @@ static std::expected<Config, std::string> parse_toml(const std::filesystem::path
         return std::unexpected(std::format("TOML parse error in '{}': {}", path.string(), e.what()));
     }
 
+    // Top-level `threads` scalar — the process-wide worker-thread count. Absent falls back to
+    // Config's own default (1). Drives the app context's contract thread pool and is injected as
+    // the per-plugin `threads` default downstream (see App::load_plugins).
+    if (auto threads = toml_table["threads"].value<std::int64_t>(); threads && *threads > 0) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        config.set_threads(static_cast<std::size_t>(*threads));
+    }
+
+    // Top-level `migrations_dir` scalar — where the host-owned global migration runner looks
+    // for `.sql` files. Absent falls back to Config's own default ("migrations").
+    if (auto migrations_dir = toml_table["migrations_dir"].value<std::string>()) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        config.set_migrations_dir(*migrations_dir);
+    }
+
     // No [plugins] table at all is fine — just means an empty config, nothing more to do.
     if (auto *plugins = toml_table["plugins"].as_table()) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
         for (auto &[name, section] : *plugins) {
@@ -122,6 +135,20 @@ static std::expected<Config, std::string> parse_json(const std::filesystem::path
     simdjson::dom::element doc;
     if (auto ec = parser.load(path.string()).get(doc); ec) {
         return std::unexpected(std::format("JSON parse error in '{}': {}", path.string(), simdjson::error_message(ec)));
+    }
+
+    // Top-level "threads" scalar — same process-wide worker-thread count as parse_toml() reads;
+    // absent falls back to Config's own default (1).
+    std::int64_t threads_value = 0;
+    if (doc["threads"].get_int64().get(threads_value) == 0U && threads_value > 0) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        config.set_threads(static_cast<std::size_t>(threads_value));
+    }
+
+    // Top-level "migrations_dir" scalar — same host-owned global migration directory as
+    // parse_toml() reads; absent falls back to Config's own default ("migrations").
+    std::string_view migrations_dir_value;
+    if (doc["migrations_dir"].get_string().get(migrations_dir_value) == 0U) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        config.set_migrations_dir(std::string{migrations_dir_value});
     }
 
     // No "plugins" key, or it's not actually an object — either way, empty config's the move.

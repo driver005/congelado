@@ -12,7 +12,8 @@ class BufferNode {
      * @param size how many bytes to allocate.
      */
     explicit BufferNode(std::size_t size)
-        : m_data{new std::byte[size], std::default_delete<std::byte[]>()}, m_limit{size}, m_written{0}, m_refs{0} {}
+        : m_data{new std::byte[size], std::default_delete<std::byte[]>()}, m_limit{size},
+          m_written{0}, m_refs{0} {}
 
     /**
      * @brief Wraps an externally-owned buffer instead of allocating — the no-op deleter means
@@ -22,7 +23,8 @@ class BufferNode {
      * @param size how many bytes are available (and considered written) at `data`.
      */
     explicit BufferNode(std::byte *data, std::size_t size)
-        : m_data{data, [](std::byte *) { /* no-op */ }}, m_limit{size}, m_written{size}, m_refs{0} {}
+        : m_data{data, [](std::byte *) { /* no-op */ }}, m_limit{size}, m_written{size}, m_refs{0} {
+    }
 
     /**
      * @brief Builds a node by copying an entire forward range in, byte by byte via push_back().
@@ -113,7 +115,9 @@ class BufferNode {
      * @param index the byte offset to grab.
      * @return a read-only reference to the byte at `index`.
      */
-    [[nodiscard]] const std::byte &operator[](std::size_t index) const noexcept { return m_data.get()[index]; }
+    [[nodiscard]] const std::byte &operator[](std::size_t index) const noexcept {
+        return m_data.get()[index];
+    }
 
     /**
      * @brief Start of the raw buffer.
@@ -152,7 +156,9 @@ class BufferNode {
      * @brief Grabs how many bytes have actually been written so far.
      * @return the written byte count, read with acquire ordering.
      */
-    [[nodiscard]] std::size_t get_written() const noexcept { return m_written.load(std::memory_order_acquire); }
+    [[nodiscard]] std::size_t get_written() const noexcept {
+        return m_written.load(std::memory_order_acquire);
+    }
     /**
      * @brief Grabs the remaining unwritten capacity.
      * @return `get_limit() - get_written()`.
@@ -168,18 +174,24 @@ class BufferNode {
      * nothing here stops you from blowing past it.
      * @param byte the byte to write.
      */
-    void push_back(std::byte byte) noexcept { m_data.get()[m_written.fetch_add(1, std::memory_order_acq_rel)] = byte; }
+    void push_back(std::byte byte) noexcept {
+        m_data.get()[m_written.fetch_add(1, std::memory_order_acq_rel)] = byte;
+    }
     /**
      * @brief Directly sets the written-byte count, bypassing push_back() entirely.
      * @param size the new written-byte count.
      */
-    void set_written(std::size_t size) noexcept { m_written.store(size, std::memory_order_release); }
+    void set_written(std::size_t size) noexcept {
+        m_written.store(size, std::memory_order_release);
+    }
     /**
      * @brief Bumps the written-byte count up by `size` atomically, for when bytes landed in the
      * buffer through some path other than push_back() (bulk I/O reads, for instance).
      * @param size how many bytes to add to the written count.
      */
-    void expand_written(std::size_t size) noexcept { m_written.fetch_add(size, std::memory_order_release); }
+    void expand_written(std::size_t size) noexcept {
+        m_written.fetch_add(size, std::memory_order_release);
+    }
 
     /**
      * @brief Bumps the ref count. Pair every acquire() with a release(), no exceptions, or this

@@ -5,17 +5,77 @@ import congelado_heart;
 import congelado_worker;
 import core_plugin;
 import utils_openapi;
+import utils_hash;
+import connector;
+import model;
+import serde;
+
+namespace {
+
+/**
+ * @brief Appends `connector::Sql::build_create_sql<T>()` for every T in Tuple, in tuple order.
+ * @tparam Tuple the tuple of model types to generate DDL for.
+ * @param out the DDL strings, one per model, appended in tuple order.
+ */
+template <typename Tuple, std::size_t... I>
+void collect_create_ddl(std::vector<std::string> &out, std::index_sequence<I...>) {
+    (out.push_back(connector::Sql::build_create_sql<std::tuple_element_t<I, Tuple>>()), ...);
+}
+
+/**
+ * @brief Builds a deterministic DDL dump for every registered model, one `CREATE TABLE`
+ * statement per model, in `model::AllModels`'s declared order.
+ * @return the DDL statements, semicolon-terminated and newline-joined.
+ */
+[[nodiscard]] std::string build_schema_dump() {
+    std::vector<std::string> statements;
+    collect_create_ddl<model::AllModels>(
+        statements, std::make_index_sequence<std::tuple_size_v<model::AllModels>>{});
+
+    std::string dump;
+    for (const auto &statement : statements) {
+        dump += statement;
+        dump += ";\n";
+    }
+    return dump;
+}
+
+/**
+ * @brief Finds the lexically-last `*.sql` file in `dir` (fixed-width timestamp filenames sort
+ * lexically in chronological order), if any.
+ * @param dir the migrations directory to scan.
+ * @return the newest migration file's path, or `std::nullopt` if `dir` has none.
+ */
+[[nodiscard]] std::optional<std::filesystem::path> find_last_migration(const std::filesystem::path &dir) {
+    std::optional<std::filesystem::path> last;
+    if (!std::filesystem::exists(dir)) {
+        return last;
+    }
+    for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+        if (!entry.is_regular_file() || entry.path().extension() != ".sql") {
+            continue;
+        }
+        if (!last || entry.path().filename().string() > last->filename().string()) {
+            last = entry.path();
+        }
+    }
+    return last;
+}
+
+} // namespace
 
 /**
  * @brief Entry point for the congelado dev CLI — dispatches to `generate` (OpenAPI client SDK
- * codegen), `serve` (run the server main loop via `ServerRunner`), or `task` (load task-plugin
- * workers from a directory and run one task via `TaskRunner`), based on whichever subcommand
- * CLI11 parsed off `argv`. Three commands, one bet.
+ * codegen), `serve` (run the server main loop via `ServerRunner`), `task` (load task-plugin
+ * workers from a directory and run one task via `TaskRunner`), or `migrate` (generate a
+ * versioned `.sql` migration file from the current model schema), based on whichever subcommand
+ * CLI11 parsed off `argv`.
  * @param argc argument count, forwarded straight into CLI11.
  * @param argv argument vector, forwarded straight into CLI11.
  * @return `0` on success; `1` if codegen fails, an `--input` pair is missing its `=`, no worker
- * is registered for the requested `--type`, or task execution errors out; otherwise whatever
- * `ServerRunner::run` returns for the `serve` subcommand.
+ * is registered for the requested `--type`, task execution errors out, or `migrate` can't load
+ * its SQL dialect plugin or write its output file; otherwise whatever `ServerRunner::run`
+ * returns for the `serve` subcommand.
  */
 int main(int argc, char *argv[]) {
     // Everything in this function can throw (CLI11's App/Option construction, parsing,
@@ -66,6 +126,13 @@ int main(int argc, char *argv[]) {
         task_cmd->add_option("-t,--type", task_type, "Task type to execute")->required();
         task_cmd->add_option("-i,--input", input_pairs, "Input key=value pair (repeatable)");
         task_cmd->add_option("--worker-id", worker_id, "Worker identity to report to the engine");
+
+        // ── migrate: generate a versioned migration file from the current model schema ──
+        auto *migrate_cmd = app.add_subcommand(
+            "migrate", "Generate a versioned migration file from the current model schema");
+        std::string migrations_out_dir = "migrations";
+        migrate_cmd->add_option("-d,--migrations-dir", migrations_out_dir,
+                                "Directory to write the generated migration into (default: migrations)");
 
         CLI11_PARSE(app, argc, argv);
 
@@ -176,6 +243,81 @@ int main(int argc, char *argv[]) {
             for (const auto &[key, value] : result->get_data()) {
                 std::println("{}={}", key, value);
             }
+        }
+
+        if (migrate_cmd->parsed()) {
+            // Only the SQL dialect serde plugin is needed to generate DDL text — no live DB,
+            // no Connector, no AppContext. Same single-.so open() pattern as `generate` above,
+            // so no protocol plugin's on_ready() listener is ever touched.
+            auto plugin_base =
+                argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
+            auto plugins_dir =
+                std::filesystem::path{std::format("{}/../../../plugins", plugin_base.string())};
+
+            core::plugin::SharedLibrary plugin_store{"plugin"};
+            plugin_store.scan(plugins_dir);
+            auto open_res = plugin_store.open(plugins_dir / "libsql_postgres_plugin.so");
+            if (!open_res) {
+                std::println(stderr, "migrate failed: plugin load failed: {}",
+                             open_res.error().get_message());
+                return 1;
+            }
+            CongeladoHostCallbacks empty_host_cb{};
+            auto build_res = plugin_store.build(empty_host_cb, {});
+            if (!build_res) {
+                std::println(stderr, "migrate failed: plugin build failed: {}",
+                             build_res.error().get_message());
+                return 1;
+            }
+
+            serde::SerdeFormatRegistry format_registry;
+            plugin_store.for_each(
+                [&format_registry](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+                    auto plugin = runtime->get_plugin();
+                    if (!plugin) {
+                        return;
+                    }
+                    if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
+                        format_registry.add_format(std::move(format));
+                    }
+                });
+            // Mirrors connector::Sql's own internal SQL_DIALECT_CONTENT_TYPE constant (not
+            // exported outside the connector module) — kept in sync with
+            // sql_postgres_plugin.cc's content_type() override, "application/sql+postgres".
+            if (format_registry.find("application/sql+postgres") == nullptr) {
+                std::println(stderr, "migrate failed: no SQL dialect plugin loaded — "
+                                     "was sql_postgres built?");
+                return 1;
+            }
+            serde::SerdeFormatRegistry::set_active(&format_registry);
+
+            auto dump = build_schema_dump();
+            auto checksum = utils::Sha256::hash_hex(dump);
+
+            std::filesystem::create_directories(migrations_out_dir);
+            auto last_migration = find_last_migration(migrations_out_dir);
+            if (last_migration) {
+                std::ifstream last_stream(*last_migration);
+                std::string last_contents((std::istreambuf_iterator<char>(last_stream)),
+                                          std::istreambuf_iterator<char>());
+                if (utils::Sha256::hash_hex(last_contents) == checksum) {
+                    std::println("no schema changes, nothing to generate");
+                    return 0;
+                }
+            }
+
+            auto timestamp = std::format("{:%Y%m%d%H%M%S}",
+                                         std::chrono::floor<std::chrono::seconds>(
+                                             std::chrono::system_clock::now()));
+            auto out_path =
+                std::filesystem::path{migrations_out_dir} / std::format("{}_schema.sql", timestamp);
+            std::ofstream out_stream(out_path);
+            if (!out_stream) {
+                std::println(stderr, "migrate failed: cannot write '{}'", out_path.string());
+                return 1;
+            }
+            out_stream << dump;
+            std::println("generated migration '{}'", out_path.string());
         }
 
         return 0;

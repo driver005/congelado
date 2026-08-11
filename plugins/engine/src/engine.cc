@@ -7,9 +7,11 @@ import std;
 import interfaces;
 import io_shared;
 import core_router;
+import core_contract;
 import engine;
 import core_events;
 import core_logger;
+import migration;
 
 namespace {
 
@@ -74,36 +76,30 @@ class EnginePlugin final : public congelado::Plugin {
             return;
         }
 
-        // Wire a resolved storage backend into this plugin's Connector, if one was found — the
-        // host resolves this before build() runs specifically so it's already here by now (see
-        // sdk/heart/app.cppm's load_plugins() for why capability resolution had to move earlier
-        // for this one case). No database configured is a valid state, not an error — Connector
-        // just runs local-only until one shows up.
-        if (auto *database = congelado::database_ctx<interfaces::IDatabase>(host)) {
-            m_engine_ctx.set_db(database);
+        // The SDK owns and registers the shared Connector with the host ContractGroup. Use it
+        // instead of creating an unregistered one here — otherwise DB ops queue forever. The cast
+        // and set happen inside the engine module so this .cc file doesn't need to import the
+        // connector module directly (doing so triggers a clang modules crash).
+        if (host.connector_ctx == nullptr) {
+            core::logger::error("engine", "no connector context");
+            core::events::publish("engine.no_connector_context");
+            return;
         }
+        engine::set_shared_connector(m_engine_ctx, host.connector_ctx);
 
-        // Same early-resolution story as database_ctx above, for the Lua bridge SWITCH/DO_WHILE
+        // Same early-resolution story as the connector above, for the Lua bridge SWITCH/DO_WHILE
         // condition evaluation needs — see sdk/heart/app.cppm's load_plugins() for where this
         // gets populated (a separate pre-build() walk filtered to runtime_name() == "lua").
         if (auto *bridge = congelado::lua_bridge_ctx<interfaces::IBridge>(host)) {
             m_engine_ctx.set_lua_bridge(bridge);
         }
 
-        // Same early-resolution story as database_ctx/lua_bridge_ctx above, for the search
+        // Same early-resolution story as connector_ctx/lua_bridge_ctx above, for the search
         // backend SummaryProjector pushes WorkflowSummary/TaskSummary projections into on every
         // terminal transition. No provider configured is fine — search routes just degrade to
         // empty results.
         if (auto *search = congelado::search_ctx<interfaces::ISearchProvider>(host)) {
             m_engine_ctx.set_search(search);
-        }
-
-        // Same early-resolution story as database_ctx/lua_bridge_ctx/search_ctx above, for a
-        // cache-capable plugin's interfaces::ICache* — wired into this engine's own Connector via
-        // set_cache(). No cache-capable plugin configured is fine — Connector falls back to its
-        // own in-process LocalCache.
-        if (auto *cache = congelado::cache_ctx<interfaces::ICache>(host)) {
-            m_engine_ctx.set_cache(cache);
         }
 
         // Plain local-disk default, not a resolved plugin capability — see
@@ -117,20 +113,30 @@ class EnginePlugin final : public congelado::Plugin {
         core::logger::important("engine", "routes registered");
         core::events::publish("engine.routes.registered");
 
+        // Register engine model baselines with the shared migration registry — registration
+        // only, no run. The host runs the one global migration pass itself, once, after every
+        // plugin has loaded and gone ready (see congelado::heart::App::load_plugins) — running
+        // migrations here, per-plugin, would mean any plugin loaded after `engine` never got its
+        // own baseline picked up before the run happened.
+        engine::register_migrations();
+
         // Background sweep: catches everything the synchronous submit_result → on_task_terminal
         // path structurally can't — a worker that polled a task and never called back, an armed
         // retry whose backoff has elapsed, a node that couldn't spawn earlier because its
-        // TaskDef's RateLimitPolicy was at capacity. There's no interval/wait-until primitive
-        // anywhere else in this codebase to hook a wall-clock sweep into (the ContractGroup/
-        // HandlerBase cooperative scheduler is driven purely by I/O-readiness), so this is a
-        // plain std::jthread on its own timer, joined via its stop_token in on_unload().
+        // TaskDef's RateLimitPolicy was at capacity. Registered as a proper core::contract
+        // handler (m_orchestrator itself is one — see Orchestrator::get_name()/on_execute()),
+        // same scheduling mechanism connector::Connector already uses, instead of a bespoke
+        // thread. Handed to the host's ContractRegistry rather than keeping the Contract<>
+        // handle here, so it gets released automatically at host shutdown (AppContext::stop())
+        // the same way the connector's own contract already does — nothing left to manage in
+        // on_unload() below.
         //
         // @warning Known, unresolved concurrency gap (flagged in the Conductor-parity plan, not
         // hand-waved): Connector's local-store mode (`m_local_stores`, used whenever no database
         // backend is configured) has zero internal locking, and this plugin's http2 binding
         // already runs `threads` (congelado.toml, default 4) concurrent request-handling
         // threads against the *same* `m_engine_ctx`/Connector instance — so local-store mode
-        // already has a latent data race today, independent of this sweep thread. Adding the
+        // already has a latent data race today, independent of this sweep contract. Adding the
         // sweep as one more concurrent caller doesn't introduce a new *kind* of risk, just one
         // more caller of an already-unsynchronized path — a real gap, but a pre-existing one
         // this pass doesn't attempt to fix (that would mean either mutex-guarding Connector
@@ -138,26 +144,21 @@ class EnginePlugin final : public congelado::Plugin {
         // bigger changes than this orchestrator pass). With a real database backend configured,
         // each request already goes through Connector's own single-consumer pending-op queue
         // (drained by whatever runs on_execute()), which is a different — and safer — story.
-        m_sweep_thread = std::jthread{[this](std::stop_token stop) {
-            engine::Orchestrator orchestrator{m_engine_ctx};
-            while (!stop.stop_requested()) {
-                orchestrator.sweep_timeouts();
-                orchestrator.sweep_retries();
-                orchestrator.sweep_advance();
-                orchestrator.sweep_schedules();
-                std::this_thread::sleep_for(std::chrono::seconds{5});
-            }
-        }};
+        auto *contract_group = congelado::controller_ctx<core::contract::ContractGroup<>>(host);
+        auto *contract_registry = congelado::registry_ctx<core::contract::ContractRegistry>(host);
+        if (contract_group == nullptr || contract_registry == nullptr) {
+            core::logger::error("engine", "no contract group/registry — sweep not started");
+            core::events::publish("engine.no_contract_group");
+        } else {
+            contract_registry->add(
+                m_orchestrator.create(*contract_group, core::contract::ContractState::SCHEDULED));
+        }
     }
-
-    /// @brief Signals the sweep thread to stop and joins it — `m_engine_ctx` itself cleans up on
-    /// its own past that.
-    void on_unload() noexcept override { m_sweep_thread.request_stop(); }
 
   private:
     engine::EngineContext m_engine_ctx;
     engine::LocalPayloadStorage m_payload_storage{std::filesystem::path{"payloads"}};
-    std::jthread m_sweep_thread;
+    engine::Orchestrator m_orchestrator{m_engine_ctx};
 };
 
 } // namespace

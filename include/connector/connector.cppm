@@ -231,8 +231,8 @@ class Sql {
      */
     template <serde::IConnectable T>
     [[nodiscard]] static std::string build_select_all_sql() {
-        return dispatch(SqlRequest{.op = "select_all",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()}});
+        return dispatch(SqlRequest{
+            .op = "select_all", .table_name = std::string{serde::Serializable<T>::table_name()}});
     }
 
     /**
@@ -264,7 +264,8 @@ class Sql {
             if (index > 0) {
                 rows += ',';
             }
-            rows += serde::Ser::encode_json(values[index]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            rows += serde::Ser::encode_json(
+                values[index]); // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
         rows += ']';
         return dispatch(SqlRequest{.op = "insert_many",
@@ -404,7 +405,10 @@ class Sql {
      */
     [[nodiscard]] static std::string dispatch(const SqlRequest &request) {
         auto encoded = serde::Ser::serialize(SQL_DIALECT_CONTENT_TYPE, request);
-        return {reinterpret_cast<const char *>(encoded.data()), encoded.size()};  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) — byte-vector-to-string is the standard shape Ser::serialize's callers use to get text back out
+        return {reinterpret_cast<const char *>(encoded.data()),
+                encoded.size()}; // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) —
+                                 // byte-vector-to-string is the standard shape Ser::serialize's
+                                 // callers use to get text back out
     }
 };
 
@@ -456,6 +460,13 @@ class Connector : public shared::HandlerBase {
     [[nodiscard]] interfaces::IDatabase *get_database() const noexcept { return m_database; }
 
     /**
+     * @brief Installs a callback enqueue() fires after pushing an async operation, so the
+     * owner can schedule this handler when it was idle. No-op if left unset.
+     * @param wake the callback to invoke under the pending-queue mutex.
+     */
+    void set_wake(std::move_only_function<void()> wake) noexcept { m_wake = std::move(wake); }
+
+    /**
      * @brief Identifies this handler for the controller's registry.
      * @return the fixed string "connector" — that's the whole identity, no cap.
      */
@@ -472,19 +483,41 @@ class Connector : public shared::HandlerBase {
      */
     shared::WorkerFunction on_execute() override {
         return [this]() {
-            // Nothing queued — quietly go idle, no rescheduling till enqueue() wakes us back up.
-            if (m_pending.empty()) {
-                return;
-            }
+            std::move_only_function<void()> pending_operation;
+            {
+                std::lock_guard lock{m_pending_mutex};
+                // Nothing queued — quietly go idle, no rescheduling till enqueue() wakes us back
+                // up.
+                if (m_pending.empty()) {
+                    return;
+                }
 
-            // Pull the next op off the front of the queue and run it, FIFO order.
-            auto pending_operation = std::move(m_pending.front());
-            m_pending.pop();
+                // Pull the next op off the front of the queue and run it, FIFO order. Mark
+                // ourselves executing so a reentrant enqueue() from within `operation()` (e.g. a
+                // baseline migration chaining straight into its next create_table() from inside
+                // this op's own completion callback, since a synchronous backend like Postgres
+                // fires that callback inline) knows not to wake us — see enqueue()'s own comment.
+                pending_operation = std::move(m_pending.front());
+                m_pending.pop();
+                m_executing = true;
+            }
 
             pending_operation();
 
-            // Reschedule so the following op (if any) gets drained on the next tick.
-            shared::this_handler::shedule();
+            bool has_more = false;
+            {
+                std::lock_guard lock{m_pending_mutex};
+                m_executing = false;
+                has_more = !m_pending.empty();
+            }
+            // Only reschedule if there's still work — either left over from before this tick, or
+            // pushed reentrantly by the operation just run. Rescheduling unconditionally would
+            // double-schedule the contract in the reentrant case (enqueue() already deferred its
+            // own wake to us while m_executing was true) and trip core/contract's "already
+            // scheduled" fatal guard.
+            if (has_more) {
+                shared::this_handler::shedule();
+            }
         };
     }
 
@@ -524,7 +557,8 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void find(std::string_view key,
               std::move_only_function<void(std::optional<T>)> callback) noexcept {
-        enqueue("find", [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
+        enqueue("find", [this, owned_key = std::string{key},
+                         callback = std::move(callback)]() mutable {
             // Build the cache key up front, then check the cache before anything slower.
             auto cache_key_string = serde::Cache::template cache_key<T>(owned_key);
             active_cache().get(cache_key_string, [this, owned_key, cache_key_string,
@@ -546,27 +580,27 @@ class Connector : public shared::HandlerBase {
                     return;
                 }
                 // Cache miss with a real database — go fetch it there.
-                active_database().query(Sql::template build_select_sql<T>(owned_key),
-                                        [this, cache_key_string, callback = std::move(callback)](
-                                            std::string_view db_result) mutable {
-                                            // Nothing came back — treat it as a full miss.
-                                            if (db_result.empty()) {
-                                                callback(std::nullopt);
-                                                return;
-                                            }
-                                            // Got a row but it failed to decode — same deal, a miss.
-                                            auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
-                                            if (!decoded) {
-                                                callback(std::nullopt);
-                                                return;
-                                            }
-                                            // Found and decoded — warm the cache before handing it
-                                            // back, classic cache-aside, no cap.
-                                            active_cache().set(cache_key_string,
-                                                               serde::Cache::cache_value(*decoded),
-                                                               [](std::string_view) {});
-                                            callback(std::optional<T>{std::move(*decoded)});
-                                        });
+                active_database().query(
+                    Sql::template build_select_sql<T>(owned_key),
+                    [this, cache_key_string,
+                     callback = std::move(callback)](std::string_view db_result) mutable {
+                        // Nothing came back — treat it as a full miss.
+                        if (db_result.empty()) {
+                            callback(std::nullopt);
+                            return;
+                        }
+                        // Got a row but it failed to decode — same deal, a miss.
+                        auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
+                        if (!decoded) {
+                            callback(std::nullopt);
+                            return;
+                        }
+                        // Found and decoded — warm the cache before handing it
+                        // back, classic cache-aside, no cap.
+                        active_cache().set(cache_key_string, serde::Cache::cache_value(*decoded),
+                                           [](std::string_view) {});
+                        callback(std::optional<T>{std::move(*decoded)});
+                    });
             });
         });
     }
@@ -585,7 +619,7 @@ class Connector : public shared::HandlerBase {
     void find_many(std::span<const std::string_view> keys,
                    std::move_only_function<void(std::vector<T>)> callback) noexcept {
         enqueue("find_many", [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
-                 callback = std::move(callback)]() mutable {
+                              callback = std::move(callback)]() mutable {
             // No database — walk the local store and collect whatever keys actually hit, bet.
             if (!m_database) {
                 auto &store = get_local_store<T>();
@@ -609,7 +643,8 @@ class Connector : public shared::HandlerBase {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
+                    auto decoded =
+                        serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
@@ -628,12 +663,12 @@ class Connector : public shared::HandlerBase {
      * @param callback gets the first matching row, or std::nullopt if nothing matched.
      */
     template <serde::IConnectable T>
-    void find_first(QueryOptions options,
-                    std::move_only_function<bool(const T &)> predicate,
+    void find_first(QueryOptions options, std::move_only_function<bool(const T &)> predicate,
                     std::move_only_function<bool(const T &, const T &)> sorter,
                     std::move_only_function<void(std::optional<T>)> callback) noexcept {
         enqueue("find_first", [this, options = std::move(options), predicate = std::move(predicate),
-                 sorter = std::move(sorter), callback = std::move(callback)]() mutable {
+                               sorter = std::move(sorter),
+                               callback = std::move(callback)]() mutable {
             // No database — lowkey just filter the local store by hand with the caller's predicate.
             if (!m_database) {
                 auto &store = get_local_store<T>();
@@ -696,7 +731,8 @@ class Connector : public shared::HandlerBase {
                         callback({});
                         return;
                     }
-                    auto decoded = serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
+                    auto decoded =
+                        serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
                     callback(decoded ? std::move(*decoded) : std::vector<T>{});
                 });
         });
@@ -732,7 +768,7 @@ class Connector : public shared::HandlerBase {
     void insert_many(std::span<const T> values,
                      std::move_only_function<void(bool)> callback) noexcept {
         enqueue("insert_many", [this, owned_values = std::vector<T>{values.begin(), values.end()},
-                 callback = std::move(callback)]() mutable {
+                                callback = std::move(callback)]() mutable {
             // No database — upsert every value straight into the local store, always a W.
             if (!m_database) {
                 auto &store = get_local_store<T>();
@@ -791,23 +827,24 @@ class Connector : public shared::HandlerBase {
      */
     template <serde::IConnectable T>
     void remove(std::string_view key, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("remove", [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
-            // Cache entry goes first, unconditionally, fire-and-forget.
-            active_cache().remove(serde::Cache::template cache_key<T>(owned_key),
-                                  [](std::string_view) {});
-            // No database — erasing it from the local store is the whole delete.
-            if (!m_database) {
-                get_local_store<T>().erase(owned_key);
-                callback(true);
-                return;
-            }
-            // Database configured — fire the DELETE and report whether it hit.
-            active_database().remove(
-                Sql::template build_delete_sql<T>(owned_key),
-                [callback = std::move(callback)](std::string_view result) mutable {
-                    callback(!result.empty());
+        enqueue("remove",
+                [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
+                    // Cache entry goes first, unconditionally, fire-and-forget.
+                    active_cache().remove(serde::Cache::template cache_key<T>(owned_key),
+                                          [](std::string_view) {});
+                    // No database — erasing it from the local store is the whole delete.
+                    if (!m_database) {
+                        get_local_store<T>().erase(owned_key);
+                        callback(true);
+                        return;
+                    }
+                    // Database configured — fire the DELETE and report whether it hit.
+                    active_database().remove(
+                        Sql::template build_delete_sql<T>(owned_key),
+                        [callback = std::move(callback)](std::string_view result) mutable {
+                            callback(!result.empty());
+                        });
                 });
-        });
     }
 
     /**
@@ -820,29 +857,31 @@ class Connector : public shared::HandlerBase {
     template <serde::IConnectable T>
     void remove_many(std::span<const std::string_view> keys,
                      std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("remove_many", [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
+        enqueue("remove_many",
+                [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
                  callback = std::move(callback)]() mutable {
-            // Clear every key out of the cache first, same fire-and-forget deal as remove().
-            for (const auto &key : owned_keys) {
-                active_cache().remove(serde::Cache::template cache_key<T>(key),
-                                      [](std::string_view) {});
-            }
-            // No database — erase the whole batch from the local store.
-            if (!m_database) {
-                auto &store = get_local_store<T>();
-                for (const auto &key : owned_keys) {
-                    store.erase(key);
-                }
-                callback(true);
-                return;
-            }
-            // Database configured — one batched DELETE for the whole set.
-            active_database().remove(
-                Sql::template build_delete_many_sql<T>(owned_keys),
-                [callback = std::move(callback)](std::string_view result) mutable {
-                    callback(!result.empty());
+                    // Clear every key out of the cache first, same fire-and-forget deal as
+                    // remove().
+                    for (const auto &key : owned_keys) {
+                        active_cache().remove(serde::Cache::template cache_key<T>(key),
+                                              [](std::string_view) {});
+                    }
+                    // No database — erase the whole batch from the local store.
+                    if (!m_database) {
+                        auto &store = get_local_store<T>();
+                        for (const auto &key : owned_keys) {
+                            store.erase(key);
+                        }
+                        callback(true);
+                        return;
+                    }
+                    // Database configured — one batched DELETE for the whole set.
+                    active_database().remove(
+                        Sql::template build_delete_many_sql<T>(owned_keys),
+                        [callback = std::move(callback)](std::string_view result) mutable {
+                            callback(!result.empty());
+                        });
                 });
-        });
     }
 
   private:
@@ -859,7 +898,8 @@ class Connector : public shared::HandlerBase {
      * @param operation_name the operation's name for the span (e.g. `"find"`, `"insert"`).
      * @param operation the unit of work to run or queue.
      */
-    void enqueue(std::string_view operation_name, std::move_only_function<void()> operation) noexcept {
+    void enqueue(std::string_view operation_name,
+                 std::move_only_function<void()> operation) noexcept {
         auto span_name = std::format("db.{}", operation_name);
         // No database means fully synchronous — the calling thread is still right here when
         // `operation()` returns, so an ordinary ambient ScopedSpan is accurate and simplest.
@@ -872,10 +912,28 @@ class Connector : public shared::HandlerBase {
         // genuine-async-gap situation as ClientRuntime's send()/dispatch(), so this needs a
         // DetachedSpan (no ambient stack involvement) rather than a ScopedSpan.
         auto span = core::otel::start_detached_span(span_name, interfaces::SpanKind::CLIENT);
-        m_pending.push([operation = std::move(operation), span = std::move(span)]() mutable {
-            operation();
-            span.end();
-        });
+        {
+            std::lock_guard lock{m_pending_mutex};
+            // Only wake the connector handler when transitioning from idle (empty queue) to
+            // having work. If the queue already had items, the handler is either scheduled or
+            // currently executing and will reschedule itself, so calling wake again would
+            // double-schedule the contract and trip `core/contract`'s "already scheduled" guard.
+            const bool was_idle = m_pending.empty();
+            m_pending.push([operation = std::move(operation), span = std::move(span)]() mutable {
+                operation();
+                span.end();
+            });
+            // Skip the wake if this push landed while on_execute() is mid-operation (m_executing)
+            // — that happens when the operation just run reentrantly enqueues its own next step
+            // (e.g. a migration's create_table<T> chaining into create_table<T+1> from inside a
+            // synchronous backend's inline completion callback). on_execute()'s own trailing
+            // reschedule check picks this item up once the operation returns; waking here too
+            // would double-schedule the contract and trip core/contract's "already scheduled"
+            // fatal guard.
+            if (was_idle && !m_executing && m_wake) {
+                m_wake();
+            }
+        }
     }
 
     /**
@@ -916,16 +974,16 @@ class Connector : public shared::HandlerBase {
         // No database — the local store is the source of truth, upsert it there.
         if (!m_database) {
             get_local_store<T>().insert_or_assign(serde::Cache::pk_string(value), value);
-            core::events::publish("connector.write.completed",
-                                  {{"operation", std::string{operation_name}},
-                                   {"backend", "local"}});
+            core::events::publish(
+                "connector.write.completed",
+                {{"operation", std::string{operation_name}}, {"backend", "local"}});
             callback(true);
             return;
         }
         // Database configured — run the pre-built SQL and report whether it landed.
         active_database().query(
             sql, [callback = std::move(callback),
-                 operation_name = std::string{operation_name}](std::string_view result) mutable {
+                  operation_name = std::string{operation_name}](std::string_view result) mutable {
                 bool const ok = !result.empty();
                 core::events::publish(ok ? "connector.write.completed" : "connector.write.failed",
                                       {{"operation", operation_name}, {"backend", "database"}});
@@ -954,6 +1012,12 @@ class Connector : public shared::HandlerBase {
     }
 
     std::queue<std::move_only_function<void()>> m_pending;
+    std::mutex m_pending_mutex;
+    std::move_only_function<void()> m_wake;
+    /// @brief True only while on_execute() is running a popped op — lets enqueue() tell a
+    /// reentrant push (from within that op's own completion callback) apart from an external one,
+    /// so it can defer to on_execute()'s trailing reschedule instead of waking twice.
+    bool m_executing{false};
     interfaces::ICache *m_cache{nullptr};
     interfaces::IDatabase *m_database{nullptr};
     LocalCache m_local_cache;

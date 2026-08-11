@@ -152,6 +152,18 @@ class LogRecordRegistry {
      */
     [[nodiscard]] static LogRecordRegistry *get_active() noexcept { return s_active; }
 
+    /**
+     * @brief Drops every registered provider.
+     * @warning Call this before tearing down the plugins that own those providers (e.g. via
+     * `core::plugin::SharedLibrary::close_all()`) — `OtelLogBridge::emit()` fans every
+     * `core::logger::*` call out to each provider here, and a plugin's own shutdown path can
+     * itself log (OTel's SDK does, from inside its own `Shutdown()`). Without clearing first,
+     * that reenters straight back into the same provider mid-teardown — confirmed live as a
+     * segfault. `has_provider()` returns `false` immediately after this, so `emit()` no-ops
+     * instead of touching a soon-to-be-dangling provider pointer.
+     */
+    void clear() noexcept { m_providers.clear(); }
+
   private:
     std::vector<std::shared_ptr<interfaces::ILogRecordProvider>> m_providers;
     static inline LogRecordRegistry *s_active{nullptr};

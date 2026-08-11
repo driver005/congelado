@@ -56,6 +56,8 @@
  *   never constructed
  * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
  * - `congelado_on_ready()` → `T::on_ready()`
+ * - `congelado_on_shutdown()` → `T::on_shutdown_requested()`, a no-op if `s_plugin` was never
+ *   constructed
  * - `congelado_on_reload_requested()` → `T::on_reload_requested()` as `1`/`0`
  * - `congelado_call(type, action, args, args_count)` → the universal capability-call ABI,
  *   routed through `_cap_dispatch::call`. `CONGELADO_RUN_LOGGER` + `WRITE`/`ERROR` forwards to
@@ -121,6 +123,10 @@
     extern "C" void congelado_on_ready() noexcept {                                                    \
         if (s_plugin != nullptr)                                                                          \
             s_plugin->on_ready();                                                                         \
+    }                                                                                                     \
+    extern "C" void congelado_on_shutdown() noexcept {                                                  \
+        if (s_plugin != nullptr)                                                                          \
+            s_plugin->on_shutdown_requested();                                                             \
     }                                                                                                     \
     extern "C" int congelado_on_reload_requested() noexcept {                                            \
         return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;                           \

@@ -1,5 +1,6 @@
 export module io_layer_http2;
 
+export import :extension;
 export import :frame;
 export import :handshake;
 export import :settings;

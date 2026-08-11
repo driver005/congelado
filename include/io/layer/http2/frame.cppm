@@ -207,7 +207,13 @@ class FrameHeader {
      * frame type or payload length at all.
      * @return `HEADER_SIZE` (9).
      */
-    [[nodiscard]] constexpr std::size_t get_size() const noexcept { return HEADER_SIZE; }
+    [[nodiscard]] constexpr std::size_t get_header_length() const noexcept { return HEADER_SIZE; }
+    /**
+     * @brief Full on-wire size of this frame — the fixed 9-byte header plus however much payload
+     * it declares. Combines `get_header_length()` and `get_length()`.
+     * @return `get_header_length() + get_length()`.
+     */
+    [[nodiscard]] std::size_t get_size() const noexcept { return get_header_length() + m_length; }
     /**
      * @brief Grabs the declared payload length.
      * @return the payload length in bytes.

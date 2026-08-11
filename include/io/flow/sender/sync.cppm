@@ -20,8 +20,8 @@ class Sender : public shared::HandlerBase {
      * @brief Builds a Sender with no error callback yet, starts open.
      * @param worker the worker whose fd this sender writes to.
      */
-    Sender(Worker &worker) : m_worker{worker}, m_on_error{nullptr}, m_stalled{false}, m_closed{false} {
-    }
+    Sender(Worker &worker)
+        : m_worker{worker}, m_on_error{nullptr}, m_stalled{false}, m_closed{false} {}
 
     /**
      * @brief Builds a Sender fully wired up with an error callback and validates it via build()
@@ -83,7 +83,8 @@ class Sender : public shared::HandlerBase {
      * @param slot the buffer node to enqueue for sending.
      */
     void send(utils::buffering::BufferNode slot) {
-        core::logger::debug("io/send", "fd {} enqueue {} bytes", m_worker.get().get_fd(), slot.get_written());
+        core::logger::debug("io/send", "fd {} enqueue {} bytes", m_worker.get().get_fd(),
+                            slot.get_written());
         m_pool.push(std::move(slot));
     }
 
@@ -122,8 +123,7 @@ class Sender : public shared::HandlerBase {
      * @return an empty no-op release callback.
      */
     shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept {
-        };
+        return [this]() noexcept {};
     }
 
     /**
@@ -141,21 +141,23 @@ class Sender : public shared::HandlerBase {
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
-                core::logger::warning("io/send", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
-                                      e.what(), e.code().value());
+                core::logger::warning("io/send", "fd {} sys error: {} ({})",
+                                      m_worker.get().get_fd(), e.what(), e.code().value());
                 core::events::publish("io.send.sys_error",
                                       {{"fd", std::to_string(m_worker.get().get_fd())},
                                        {"error", e.what()},
                                        {"code", std::to_string(e.code().value())}});
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
-                core::logger::warning("io/send", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
-                core::events::publish("io.send.exception",
-                                      {{"fd", std::to_string(m_worker.get().get_fd())},
-                                       {"error", e.what()}});
+                core::logger::warning("io/send", "fd {} exception: {}", m_worker.get().get_fd(),
+                                      e.what());
+                core::events::publish(
+                    "io.send.exception",
+                    {{"fd", std::to_string(m_worker.get().get_fd())}, {"error", e.what()}});
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
-                core::logger::warning("io/send", "fd {} unknown exception", m_worker.get().get_fd());
+                core::logger::warning("io/send", "fd {} unknown exception",
+                                      m_worker.get().get_fd());
                 core::events::publish("io.send.unknown_exception",
                                       {{"fd", std::to_string(m_worker.get().get_fd())}});
                 m_on_error(m_worker.get().get_fd(), -1);
@@ -179,8 +181,10 @@ class Sender : public shared::HandlerBase {
      * closed and nothing happened.
      */
     bool resume() {
-        // Closed sender never resumes.
-        if (m_closed) {
+        // A closed sender keeps flushing until its pool is empty (arm_write() now writes even when
+        // closed — see there), then releases. This lets a final GOAWAY / response tail go out over
+        // the still-open socket; a dead socket drops its backlog in arm_write(), so this converges.
+        if (m_closed && m_pool.empty()) {
             return false;
         }
         // Only kick off a new write if one isn't already mid-flight.
@@ -194,9 +198,7 @@ class Sender : public shared::HandlerBase {
     /**
      * @brief Marks this sender closed — resume() becomes a no-op after this, no cap.
      */
-    void set_closed() noexcept {
-        m_closed = true;
-    }
+    void set_closed() noexcept { m_closed = true; }
 
     /**
      * @brief Checks whether a write is currently in flight inside arm_write().
@@ -219,6 +221,12 @@ class Sender : public shared::HandlerBase {
      */
     [[nodiscard]] bool has_on_error() const noexcept { return !m_on_error; }
 
+    /**
+     * @brief Checks whether the outbound queue is empty — i.e. nothing left to send.
+     * @return true if there's no pending send data, false otherwise.
+     */
+    [[nodiscard]] bool is_idle() noexcept { return m_pool.get_view().empty(); }
+
   private:
     /**
      * @brief Does the actual `sync_send()` call for whatever's at the front of the outbound
@@ -230,15 +238,7 @@ class Sender : public shared::HandlerBase {
      */
     void arm_write() {
         const auto DESCRIPTOR = m_worker.get().get_fd();
-        // Guard against writing on an already-closed sender.
-        if (m_closed) {
-            core::logger::warning("io/send", "fd {} write on closed", DESCRIPTOR);
-            core::events::publish("io.send.write_on_closed", {{"fd", std::to_string(DESCRIPTOR)}});
-            m_stalled = false;
-            return;
-        }
 
-        // Nothing queued to send — bail without touching the socket.
         auto &view = m_pool.get_view();
         auto [data, size] = view.front();
 
@@ -272,12 +272,15 @@ class Sender : public shared::HandlerBase {
             core::logger::warning("io/send", "fd {} send error: {} ({})", DESCRIPTOR,
                                   status.get_error_code(),
                                   utils::ErrnoTranslator::describe_errno(status.get_error_code()));
-            core::events::publish(
-                "io.send.send_error",
-                {{"fd", std::to_string(DESCRIPTOR)},
-                 {"error_code", std::to_string(status.get_error_code())},
-                 {"error", std::string{utils::ErrnoTranslator::describe_errno(status.get_error_code())}}});
+            core::events::publish("io.send.send_error",
+                                  {{"fd", std::to_string(DESCRIPTOR)},
+                                   {"error_code", std::to_string(status.get_error_code())},
+                                   {"error", std::string{utils::ErrnoTranslator::describe_errno(
+                                                 status.get_error_code())}}});
             m_closed = true;
+            // Socket's dead — drop whatever's still queued so a closed sender's resume() sees an
+            // empty pool and releases instead of looping on an unsendable backlog.
+            view.consume(view.size());
             m_on_error(DESCRIPTOR, status.get_error_code());
             return;
         }
@@ -291,6 +294,7 @@ class Sender : public shared::HandlerBase {
 };
 
 
-static_assert(interfaces::io::SyncSendable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus>);
+static_assert(
+    interfaces::io::SyncSendable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus>);
 
 } // namespace io::base::flow::sync

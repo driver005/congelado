@@ -180,14 +180,17 @@ class HttpRequest : public interfaces::io::IRequest {
                     // everything else just recurses into the token overload below.
                     if (token == interfaces::io::types::Token::COOKIE) {
                         const auto IDX = std::to_underlying(interfaces::io::types::Token::COOKIE);
-                        if (m_static_headers[IDX] == nullptr) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
-                            m_static_headers[IDX] =  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                        if (m_static_headers[IDX] ==
+                            nullptr) { // FIXME(clang-tidy): unchecked operator[], consider .at()
+                            m_static_headers[IDX] = // FIXME(clang-tidy): unchecked operator[],
+                                                    // consider .at()
                                 std::make_shared<interfaces::io::HeaderField<true>>(
                                     interfaces::io::types::Token::COOKIE, std::string(value));
                         } else if (!value.empty()) {
-                            m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() +  // FIXME(clang-tidy): unchecked operator[], consider .at()
-                                                             interfaces::consts::COOKIE_SEPARATOR +
-                                                             std::string(value));
+                            m_static_headers[IDX]->set_value(
+                                m_static_headers[IDX]->get_value() + // FIXME(clang-tidy): unchecked
+                                                                     // operator[], consider .at()
+                                interfaces::consts::COOKIE_SEPARATOR + std::string(value));
                         }
                     } else {
                         set_header(token, value);
@@ -199,7 +202,9 @@ class HttpRequest : public interfaces::io::IRequest {
                         throw std::invalid_argument("interfaces::io::types::Token cannot be None");
                     }
 
-                    m_static_headers[std::to_underlying(name)] =  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                    m_static_headers[std::to_underlying(
+                        name)] = // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                 // non-constant array index
                         std::make_shared<interfaces::io::HeaderField<true>>(name,
                                                                             std::string(value));
                 }
@@ -220,13 +225,17 @@ class HttpRequest : public interfaces::io::IRequest {
                 using T = std::decay_t<decltype(name)>;
                 // Direct token — null out its static-header slot.
                 if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
-                    m_static_headers[std::to_underlying(name)] = nullptr;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                    m_static_headers[std::to_underlying(name)] =
+                        nullptr; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                 // non-constant array index
                 } else {
                     // String name — tokenizes to a known slot, or falls back to erasing from
                     // the dynamic hashmap.
                     auto token_opt = interfaces::io::types::tokenize(name);
                     if (token_opt.has_value()) {
-                        m_static_headers[std::to_underlying(token_opt.value())] = nullptr;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                        m_static_headers[std::to_underlying(token_opt.value())] =
+                            nullptr; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                     // non-constant array index
                     } else {
                         m_headers.erase(name);
                     }
@@ -310,7 +319,9 @@ class HttpRequest : public interfaces::io::IRequest {
         // that trips bugprone-exception-escape even though this variant is never valueless;
         // get_if() has no such check.
         if (const auto *token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
-            const auto &field = m_static_headers[std::to_underlying(*token)];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            const auto &field = m_static_headers[std::to_underlying(
+                *token)]; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
+                          // array index
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
 
@@ -319,7 +330,9 @@ class HttpRequest : public interfaces::io::IRequest {
         // String name — check if it tokenizes to a known static slot first...
         auto token_opt = interfaces::io::types::tokenize(name);
         if (token_opt.has_value()) {
-            const auto &field = m_static_headers[std::to_underlying(token_opt.value())];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            const auto &field = m_static_headers[std::to_underlying(
+                token_opt.value())]; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                     // non-constant array index
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
 
@@ -390,7 +403,7 @@ class HttpRequest : public interfaces::io::IRequest {
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — same raw-`new`-into-`push_back()`
         // pattern `BufferWriter::acquire()` uses elsewhere in this buffering subsystem; the
         // chain's ref-counted acquire()/release() owns it from here.
-        auto *node = new utils::buffering::BufferNode{std::from_range, body};
+        auto *node = new utils::buffering::BufferNode{std::from_range, std::move(body)};
         m_body.push_back(node, 0, node->get_written());
     }
 
@@ -479,52 +492,6 @@ class HttpRequest : public interfaces::io::IRequest {
 
 
   private:
-    // void add_header(std::string_view name, std::string_view value) {
-    //     if (name.empty()) {
-    //         throw std::invalid_argument("Header name cannot be empty");
-    //     }
-    //
-    //     auto token = interfaces::io::types::tokenize(name);
-    //     if (token == interfaces::io::types::Token::COOKIE) {
-    //         const auto IDX = std::to_underlying(interfaces::io::types::Token::COOKIE);
-    //         if (m_static_headers[IDX] == nullptr) {
-    //             m_static_headers[IDX] = std::make_shared<interfaces::io::HeaderField<true>>(
-    //                 interfaces::io::types::Token::COOKIE, std::string(value));
-    //         } else if (!value.empty()) {
-    //             m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() +
-    //                                              interfaces::consts::COOKIE_SEPARATOR +
-    //                                              std::string(value));
-    //         }
-    //     } else if (token == interfaces::io::types::Token::CUSTOM) {
-    //         if (!value.empty()) {
-    //             if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
-    //                 const auto &existing = *existing_opt;
-    //                 existing->set_value(existing->get_value() +
-    //                 interfaces::consts::VALUE_SEPARATOR +
-    //                                     std::string(value));
-    //             }
-    //             return;
-    //         }
-    //         m_headers.add_header(name, std::make_shared<interfaces::io::HeaderField<false>>(name,
-    //         value));
-    //     } else {
-    //         add_header(token, value);
-    //     }
-    // }
-    //
-    // void add_header(interfaces::io::types::Token token, std::string_view value) {
-    //     if (token == interfaces::io::types::Token::NONE) {
-    //         throw std::invalid_argument("interfaces::io::types::Token cannot be None");
-    //     }
-    //     if (token == interfaces::io::types::Token::CUSTOM) {
-    //         throw std::invalid_argument("interfaces::io::types::Token cannot be Custom");
-    //     }
-    //
-    //     m_static_headers[std::to_underlying(token)] =
-    //         std::make_shared<interfaces::io::HeaderField<true>>(token, std::string(value));
-    // }
-
-
     struct FactoryTag {};
 
     /**
@@ -551,7 +518,9 @@ class HttpRequest : public interfaces::io::IRequest {
      */
     std::shared_ptr<interfaces::io::HeaderField<true>>
     get_static(const interfaces::io::types::Token &token) {
-        return m_static_headers[std::to_underlying(token)];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        return m_static_headers[std::to_underlying(
+            token)]; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array
+                     // index
     }
 
     std::uint32_t m_stream_id{0};
@@ -597,7 +566,9 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
      * @param output the range to append the encoded request onto — mutated in place.
      */
     template <std::ranges::viewable_range R>
-    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — output is mutated via append_range() across multiple flush-callback invocations; forwarding it would use-after-move after the first call
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — output is mutated via append_range()
+    // across multiple flush-callback invocations; forwarding it would use-after-move after the
+    // first call
     auto operator()(R &&output) const {
         const auto STREAM_ID = m_req.get().get_stream_id();
         auto header_entries = m_req.get().get_headers();

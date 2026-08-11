@@ -27,7 +27,6 @@ target("congelado_sdk_ffi")
 	set_kind("binary")
 	set_languages("c++26")
 	set_policy("build.c++.modules", true)
-	add_defines("CLANG_ITERATE_MODULES")
 	add_includedirs("$(projectdir)/include")
 	add_deps("congelado_sdk")
 	-- No cpython/lua packages here: this binary never touches either language's C API directly

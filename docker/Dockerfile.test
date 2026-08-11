@@ -1,24 +1,41 @@
 # ── Congelado Tests ────────────────────────────────────────────────────────────
-# Runs integration tests against the engine's routes purely over HTTP — docker/test/run.sh only
-# curls the remote `server` service, it never executes a local congelado binary. This image
-# previously carried a full "FROM archlinux AS builder" compile stage (identical to
-# Dockerfile.server's) plus COPY'd the compiled binary/plugins/workers/libs in — none of which
-# run.sh ever actually uses. Dropped entirely: no compile, no build/ artifacts, just curl/jq/
-# openssl and the test scripts.
+# Runs the Insomnia-scripted API test suite against the engine's routes over HTTP/2, purely
+# as an HTTP client — it never executes a local congelado binary. Replaces the former
+# curl/jq run.sh harness with the modern `inso` CLI, which executes the after-response test
+# scripts embedded in the checked-in Insomnia collection (insomia/*.yaml). The collection's
+# `Docker` sub-environment resolves base_url to https://server:8080 (the compose service name).
 # ────────────────────────────────────────────────────────────────────────────────
 
 FROM archlinux:latest AS runtime
 
+ARG INSO_VERSION=13.1.0
+
 RUN pacman -Syu --noconfirm \
-    && pacman -S --noconfirm --needed ca-certificates curl jq openssl bash \
+    && pacman -S --noconfirm --needed ca-certificates curl tar xz \
     && pacman -Scc --noconfirm
+
+# Fetch the modern inso CLI (the `core@` release binary; npm's insomnia-inso is stuck at 3.x
+# and lacks `run collection`). Self-contained pkg'd binary — just drop it on PATH.
+RUN curl -sSL -o /tmp/inso.tar.xz \
+      "https://github.com/Kong/insomnia/releases/download/core@${INSO_VERSION}/inso-linux-x64-${INSO_VERSION}.tar.xz" \
+    && tar xf /tmp/inso.tar.xz -C /usr/local/bin inso \
+    && chmod +x /usr/local/bin/inso \
+    && rm /tmp/inso.tar.xz \
+    && inso --version
 
 WORKDIR /app
 
-# Copy test scripts and payloads
-COPY docker/test/run.sh ./test/run.sh
-COPY docker/test/task_def.json ./test/task_def.json
-COPY docker/test/workflow_def.json ./test/workflow_def.json
-RUN chmod +x ./test/run.sh
+# The checked-in Insomnia collection carries the requests + after-response test scripts +
+# the Local/Docker environments. Copy the whole dir (single v5 yaml export).
+COPY insomia/ ./insomia/
 
-ENTRYPOINT ["./test/run.sh"]
+# --disableCertValidation: server uses a self-signed TLS cert. No --bail: creates legitimately
+# return 201/202/204. --requestTimeout: bound the queue long-poll endpoints. --env Docker:
+# base_url -> https://server:8080.
+ENTRYPOINT ["inso", "run", "collection", "Congelado API 1.0.0", \
+    "--workingDir", "insomia/Congelado API 1.0.0-wrk_e999e591aaef4a51b27267d843c09433.yaml", \
+    "--env", "Docker", \
+    "--disableCertValidation", \
+    "--requestTimeout", "15000", \
+    "--reporter", "spec", \
+    "--ci"]

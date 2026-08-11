@@ -55,9 +55,10 @@ class Middleware {
      * `offset`/`length` were computed upstream. Get that math wrong and you run the wrong slice, no
      * cap.
      */
-    void execute(interfaces::io::IRequest &req, interfaces::io::IResponse &res, std::uint8_t offset,
+    void execute(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
+                 const std::function<void()> &send, std::uint8_t offset,
                  std::uint8_t length) const noexcept {
-        run_step(req, res, offset, offset + length);
+        run_step(req, res, send, offset, offset + length);
     }
 
     /**
@@ -117,7 +118,8 @@ class Middleware {
      * recursive descent.
      */
     void run_step(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                  std::uint8_t offset, std::uint8_t border) const noexcept {
+                  const std::function<void()> &send, std::uint8_t offset,
+                  std::uint8_t border) const noexcept {
         // once offset reaches border the slice is exhausted — recursion just stops here,
         // no fallthrough to anything else
         if (offset < border) {
@@ -127,9 +129,11 @@ class Middleware {
             // silently right here
             CURRENT_MW(req, res,
                        [&](interfaces::io::IRequest &next_req,
-                           interfaces::io::IResponse &next_res) noexcept {
-                           this->run_step(next_req, next_res, offset + 1, border);
-                       });
+                           interfaces::io::IResponse &next_res,
+                           std::function<void()> next_send) noexcept {
+                           this->run_step(next_req, next_res, next_send, offset + 1, border);
+                       },
+                       send);
         }
     }
 

@@ -31,7 +31,7 @@ RUN pacman -Syu --noconfirm \
 WORKDIR /app
 
 # Copy worker config
-COPY config/worker.toml ./worker.toml
+COPY config/docker/worker.toml ./worker.toml
 
 # build/ itself (binary, plugins, workers, libs) is NOT copied here — it arrives at container
 # start via the build_output volume mounted at ./build (read-only), populated once by the

@@ -105,6 +105,10 @@ class Plugin : public interfaces::ILogger {
     /// @brief Fires right before the plugin instance gets destroyed — default no-op, override
     /// to release resources ahead of teardown, otherwise whatever you were holding just leaks.
     virtual void on_unload() noexcept {}
+    /// @brief Fires when the host catches SIGINT/SIGTERM, before full plugin teardown starts —
+    /// default no-op. Protocol plugins override this to stop accepting new connections and close
+    /// every live one immediately, instead of waiting for `on_unload()` at full process teardown.
+    virtual void on_shutdown_requested() noexcept {}
     /// @brief Fires once every plugin has finished loading — default no-op, override for
     /// cross-plugin setup that needs everything already wired up, lowkey a "we're all here now"
     /// signal.
@@ -316,6 +320,7 @@ CongeladoAny call(T *plugin, CongeladoRunType type, CongeladoRunAction action,
 
 using core::plugin::types::router_ctx;
 using core::plugin::types::controller_ctx;
+using core::plugin::types::registry_ctx;
 using core::plugin::types::leverager_ctx;
 using core::plugin::types::database_ctx;
 using core::plugin::types::lua_bridge_ctx;

@@ -7,6 +7,13 @@
 # same repo-relative path a bare-metal run actually loads, since main.cc's path isn't
 # parameterized — the two files only diverge because Dockerfile.server copies from here instead).
 
+# Optional `threads` = process-wide worker-thread count driving the app context's contract thread
+# pool. Omitted here, so it defaults to std::thread::hardware_concurrency(). Set it explicitly
+# (e.g. `threads = 4`) to override.
+
+# Global, host-owned — scanned once after every plugin has loaded, not tied to any one plugin.
+migrations_dir = "migrations"
+
 [plugins.http2]
 type = "protocol"
 # 0.0.0.0, not "localhost" — this container needs to accept connections arriving on its real
@@ -15,7 +22,6 @@ type = "protocol"
 # this was a real inconsistency, not a deliberate choice.
 host = "0.0.0.0"
 port = 8080
-threads = 4
 cert = "server.crt"
 key = "server.key"
 
@@ -79,8 +85,8 @@ type = "custom"
 host = "rabbitmq"
 port = 5672
 vhost = "/"
-user = "guest"
-password = "guest"
+user = "admin"
+password = "admin"
 exchange = ""
 
 [plugins.kafka_events_plugin]

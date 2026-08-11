@@ -3,6 +3,7 @@ export module io_flow_socket:sync;
 import std;
 import core_events;
 import core_logger;
+import core_contract;
 import io_base_socket;
 import utils_buffering;
 import io_base_leverage;
@@ -152,7 +153,9 @@ class ServerBaseSocket : public shared::HandlerBase {
      * @brief Gets this handler's display name for the controller.
      * @return the fixed string `"ServerBaseSocket - Sync"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "ServerBaseSocket - Sync"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override {
+        return "ServerBaseSocket - Sync";
+    }
 
     /**
      * @brief Builds the work callback the controller runs each time this handler's turn comes up
@@ -353,24 +356,23 @@ class ConnectorSocket : public shared::HandlerBase {
      */
     ConnectorSocket &operator=(const ConnectorSocket &) = delete;
     /**
-     * @brief Move ctor — steals the socket, success callback, and self-ownership pointer off
-     * `other`.
+     * @brief Move ctor — steals the socket, success callback, and release hook off `other`.
      * @param other the connector to move from.
      */
     ConnectorSocket(ConnectorSocket &&other) noexcept
         : m_socket{std::move(other.m_socket)}, m_on_success{std::move(other.m_on_success)},
-          m_insane{std::move(other.m_insane)} {}
+          m_on_released_extra{std::move(other.m_on_released_extra)} {}
     /**
      * @brief Move assignment — self-assignment guarded, steals `other`'s state.
      * @param other the connector to move from.
      * @return `*this`.
      */
     ConnectorSocket &operator=(ConnectorSocket &&other) noexcept {
-        // Guard self-assignment, then steal `other`'s socket, callback, and self-ownership state.
+        // Guard self-assignment, then steal `other`'s socket, callback, and release hook.
         if (this != &other) {
             m_socket = std::move(other.m_socket);
             m_on_success = std::move(other.m_on_success);
-            m_insane = std::move(other.m_insane);
+            m_on_released_extra = std::move(other.m_on_released_extra);
         }
         return *this;
     };
@@ -397,7 +399,8 @@ class ConnectorSocket : public shared::HandlerBase {
         if (status.is_errored()) {
             // Hard failure — nothing more to try.
             core::logger::warning("io/connector", "fd {} handshake failed", get_fd());
-            core::events::publish("io.connector.handshake_failed", {{"fd", std::to_string(get_fd())}});
+            core::events::publish("io.connector.handshake_failed",
+                                  {{"fd", std::to_string(get_fd())}});
             return ConnectResult::ERROR;
         }
 
@@ -410,14 +413,16 @@ class ConnectorSocket : public shared::HandlerBase {
      * @brief Gets this handler's display name for the controller.
      * @return the fixed string `"ConnectorSocket - Sync"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "ConnectorSocket - Sync"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override {
+        return "ConnectorSocket - Sync";
+    }
 
     /**
      * @brief Builds the work callback the controller runs each time this handler's turn comes up
      * — keeps pumping handshake() while IN_PROGRESS; on both SUCCESS and ERROR it releases the
      * handler instead of tearing down directly here. release() only flags/reschedules the
-     * contract, so the actual self-ownership drop (and, for the error path, the socket close)
-     * happens later in on_released(), once the controller is truly done with `this`.
+     * contract, so the actual close (in on_released()) happens later, once the controller is
+     * truly done with `this`.
      * @return the per-execution work callable.
      */
     shared::WorkerFunction on_execute() override {
@@ -431,49 +436,46 @@ class ConnectorSocket : public shared::HandlerBase {
             }
 
             // Both SUCCESS and ERROR release the contract — release() is deferred (it just
-            // flags and reschedules), so the self-ownership pointer can't be reset here in
-            // either case; on_released() hasn't run yet and still needs `this` alive. Without
-            // this, SUCCESS never released its contract slot at all — a smaller, non-fatal
-            // leak (nothing spins on it, but it's never reclaimed either) left over from before.
+            // flags and reschedules), so on_released() hasn't run yet and still needs `this`
+            // alive. Without this, SUCCESS never released its contract slot at all — a smaller,
+            // non-fatal leak (nothing spins on it, but it's never reclaimed either) left over
+            // from before.
             shared::this_handler::release();
         };
     }
 
     /**
-     * @brief Builds the cleanup callback for release — closes the underlying socket, then drops
-     * the self-ownership pointer (see `m_insane`/what_this_is_me()) now that the controller has
-     * actually finished with this handler. Runs for both the SUCCESS and ERROR exits; on SUCCESS
-     * `m_socket` has already been moved out to `m_on_success` in handshake() (left in its
-     * moved-from, `INVALID_SOCKET` state), so `sync_close()` here is a documented no-op — see
-     * `Socket::sync_close()` — it only ever actually closes anything on the ERROR path.
+     * @brief Builds the cleanup callback for release — fires the "about to close" hook (see
+     * `set_on_released()`), which is what actually removes this connector from whichever
+     * container owns it (e.g. `ServerFlowSocket::m_pending_connectors`), destroying `this` in the
+     * process. No explicit socket close here: `~ConnectorSocket()`/`~Socket()` already close the
+     * underlying fd/SSL state automatically as part of that destruction, same as any other RAII
+     * teardown — see `Socket::~Socket()`. On SUCCESS, `m_socket` was already moved out to
+     * `m_on_success` in handshake() (left in its moved-from, `INVALID_SOCKET` state), so that
+     * destructor-time close is a documented no-op there too.
+     * @warning `m_on_released_extra()` is expected to destroy `this` (by dropping the owning
+     * container's entry) — it must stay the last statement here, nothing may touch `this`
+     * afterward.
      * @return the release callback.
      */
     shared::ReleaseFunction on_released() noexcept override {
         return [this]() noexcept {
-            m_socket.sync_close();
-            // `release()` only reschedules for later processing — by the time this callback
-            // actually runs, the controller is done calling into `this`, so resetting here (and
-            // not right after `release()` in on_execute()) is the last safe moment to do it.
-            m_insane.reset();
+            if (m_on_released_extra) {
+                m_on_released_extra();
+            }
         };
     }
 
     /**
-     * @brief Hands this connector its own `unique_ptr` so it can keep itself alive across the
-     * multi-step handshake instead of getting destroyed the moment the local variable that
-     * created it goes out of scope.
-     * @warning This is a self-ownership pattern — `m_insane` holds a `unique_ptr<ConnectorSocket>`
-     * pointing at `this`, so `this` object is keeping itself alive. Both SUCCESS and ERROR exits
-     * in `on_execute()` call `shared::this_handler::release()` rather than resetting `m_insane`
-     * directly — `release()` only flags/reschedules the contract, so resetting there would
-     * destroy `this` while the controller still expects to invoke `on_released()` later. The
-     * actual reset lives in `on_released()` instead, after `m_socket.sync_close()`, the last
-     * point `this` is guaranteed to still be alive — a footgun if that invariant ever gets
-     * disturbed, so don't add code after that reset.
-     * @param insane the unique_ptr to this same object, transferred in for self-ownership.
+     * @brief Sets the callback that owns/removes this connector once its handshake is done —
+     * fired from `on_released()` once the controller is finished with it. The callback is
+     * expected to drop whatever container is holding this connector (e.g.
+     * `ServerFlowSocket::m_pending_connectors.erase(fd)`), which destroys `this` as a side effect
+     * and closes the socket via `~ConnectorSocket()`/`~Socket()`.
+     * @param callback the callback to fire; replaces whatever was set before.
      */
-    void what_this_is_me(std::unique_ptr<ConnectorSocket<Protocol>> insane) {
-        m_insane = std::move(insane);
+    void set_on_released(std::function<void()> callback) {
+        m_on_released_extra = std::move(callback);
     }
 
     /**
@@ -490,7 +492,7 @@ class ConnectorSocket : public shared::HandlerBase {
   private:
     socket::Socket<Protocol> m_socket;
     OnHandshakeComplete m_on_success;
-    std::unique_ptr<ConnectorSocket<Protocol>> m_insane{nullptr};
+    std::function<void()> m_on_released_extra;
 };
 
 template <socket::Protocol Protocol>
@@ -533,10 +535,11 @@ class WorkerSocket {
     }
 
     /**
-     * @brief Closes this worker's socket via close() on the way out — teardown's guaranteed even
-     * if nobody remembered to call close() manually.
+     * @brief Tears the underlying socket down on destruction. By the time a worker is destroyed
+     * (erased after drain_senders() waited for its contracts to go idle) both halves are already
+     * closed and their contracts released, so this just closes the fd for real.
      */
-    ~WorkerSocket() { close(); }
+    ~WorkerSocket() { m_socket.sync_close(); }
 
     /**
      * @brief Copy ctor deleted — holds live sender/receiver state bound to one socket.
@@ -599,21 +602,33 @@ class WorkerSocket {
      */
     template <shared::HandlerController Controller>
     void start(Controller &controller) {
-        // Register both halves against the controller so they actually get scheduled.
-        m_sender.template create<Controller>(controller);
-        m_receiver.template create<Controller>(controller);
+        // Register both halves against the controller so they actually get scheduled, and stash
+        // the handles so we can release the contracts cleanly during shutdown/drain.
+        m_sender_contract.emplace(m_sender.template create<Controller>(controller));
+        m_receiver_contract.emplace(m_receiver.template create<Controller>(controller));
     }
 
     /**
-     * @brief Tears this worker down — marks both sender and receiver closed, then closes the
-     * underlying socket. Bet, that's the whole shutdown sequence.
+     * @brief Tears this worker down — marks both sender and receiver closed, releases their
+     * contracts, then closes the underlying socket.
      */
-    void close() {
-        // Mark both halves closed before actually tearing down the socket underneath them.
-        core::logger::debug("io/worker", "fd {} closed", get_fd());
+    void mark_close() {
+        core::logger::debug("io/worker", "fd {} closing", get_fd());
         m_sender.set_closed();
         m_receiver.set_closed();
-        m_socket.sync_close();
+    }
+
+    /**
+     * @brief Whether both of this worker's contracts have gone idle/released — i.e. the final
+     * closed passes have run (armed slot released). drain_senders() polls this before destroying
+     * the worker (which closes the socket).
+     * @return true if both contracts are released or idle.
+     */
+    [[nodiscard]] bool contracts_idle() const noexcept {
+        auto done = [](const std::optional<core::contract::Contract<>> &contract) {
+            return !contract.has_value() || contract->is_released() || contract->is_idle();
+        };
+        return done(m_sender_contract) && done(m_receiver_contract);
     }
 
     /**
@@ -659,6 +674,8 @@ class WorkerSocket {
     socket::Socket<Protocol> m_socket;
     Sender<socket::Socket<Protocol>, socket::SocketStatus> m_sender;
     Receiver<socket::Socket<Protocol>, socket::SocketStatus> m_receiver;
+    std::optional<core::contract::Contract<>> m_sender_contract;
+    std::optional<core::contract::Contract<>> m_receiver_contract;
 };
 
 // Wrapper that connects the base cocket to the worker and manages the types for the thread model.
@@ -685,23 +702,16 @@ class ServerFlowSocket {
      */
     ~ServerFlowSocket() {
         // Stop accepting new connections first, then walk and close out every worker still
-        // hanging around in the map. Destructors are implicitly noexcept, and logging/close()
-        // could in theory throw (formatting, allocation) — an escaped exception here would
-        // terminate the process, so swallow and best-effort the rest of the teardown instead.
-        try {
-            m_base_socket.set_closed();
-            core::logger::debug("io/flow", "closing base socket {}",
-                                m_base_socket.get_endpoint().to_string());
-            for (auto &[fd, worker] : m_workers) {
-                worker->close();
-            }
-        } catch (...) {
-            try {
-                core::logger::error("io/flow", "exception during ~ServerFlowSocket teardown");
-                core::events::publish("io.flow.server_teardown_exception");
-            } catch (...) {  // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
-            }
+        // hanging around in the map. Nothing here can actually throw: core::logger::*/
+        // core::events::publish are noexcept end to end, and Endpoint::to_string() (the one
+        // real throw site this used to guard) is noexcept now too — see its own doc.
+        m_base_socket.set_closed();
+        core::logger::debug("io/flow", "closing base socket {}",
+                            m_base_socket.get_endpoint().to_string());
+        for (auto &[fd, worker] : m_workers) {
+            worker->mark_close();
         }
+        close_pending_connectors();
     }
 
     /**
@@ -720,7 +730,9 @@ class ServerFlowSocket {
     ServerFlowSocket(ServerFlowSocket &&other) noexcept
         : m_base_socket{std::move(other.m_base_socket)}, m_leverager{other.m_leverager},
           m_controller{std::move(other.m_controller)}, m_workers{std::move(other.m_workers)},
-          m_on_established(std::move(other.m_on_established)) {}
+          m_pending_connectors{std::move(other.m_pending_connectors)},
+          m_on_established(std::move(other.m_on_established)),
+          m_base_socket_contract{std::move(other.m_base_socket_contract)} {}
     /**
      * @brief Move assignment — self-assignment guarded, steals `other`'s state.
      * @param other the flow socket to move from.
@@ -733,7 +745,9 @@ class ServerFlowSocket {
             m_leverager = other.m_leverager;
             m_controller = std::move(other.m_controller);
             m_workers = std::move(other.m_workers);
+            m_pending_connectors = std::move(other.m_pending_connectors);
             m_on_established = std::move(other.m_on_established);
+            m_base_socket_contract = std::move(other.m_base_socket_contract);
         }
         return *this;
     };
@@ -771,7 +785,85 @@ class ServerFlowSocket {
     void start() {
         core::logger::debug("io/flow", "base socket {} start",
                             m_base_socket.get_endpoint().to_string());
-        m_base_socket.template create<Controller>(m_controller);
+        m_base_socket_contract.emplace(m_base_socket.template create<Controller>(m_controller));
+    }
+
+    /**
+     * @brief Stops accepting new connections — closes the listening socket, releases its contract,
+     * and clears any connectors still mid-handshake.
+     */
+    void stop_accepting() {
+        m_base_socket.set_closed();
+        close_pending_connectors();
+        if (m_base_socket_contract.has_value()) {
+            m_base_socket_contract->release();
+            m_base_socket_contract.reset();
+        }
+    }
+
+    /**
+     * @brief Stops arming reads on every live worker immediately. Existing outbound sends still
+     * flush, but no more inbound data is read.
+     */
+    void stop_receiving() {
+        // for (auto &[fd, worker] : m_workers) {
+        //     worker->get_receiver().set_closed();
+        // }
+    }
+
+    /**
+     * @brief Returns how many live worker connections are still held.
+     */
+    [[nodiscard]] std::size_t active_connections() const noexcept { return m_workers.size(); }
+
+    /**
+     * @brief Force-closes every live worker. Used as a drain-timeout fallback.
+     */
+    void close_all_workers() {
+        for (auto &[fd, worker] : m_workers) {
+            worker->mark_close();
+        }
+    }
+
+    /**
+     * @brief Closes every live worker (flags both halves closed; the sender flushes on close),
+     * waits until each worker's contracts have gone idle — meaning the receiver ran its final
+     * closed arm_read() pass and released its armed buffer slot — then drops the workers.
+     * @note No timeout, and MUST run while the contract pool is still scheduling, so those final
+     * passes actually execute. Sockets are closed later in ~WorkerSocket(). Call after GOAWAY and
+     * session drain.
+     */
+    void drain_senders() noexcept {
+        std::vector<std::shared_ptr<WorkerSocket<Protocol>>> workers;
+        workers.reserve(m_workers.size());
+        for (auto &[fd, worker] : m_workers) {
+            workers.push_back(worker);
+        }
+
+        // Flag every worker closed — kicks off the self-releasing final pass on both contracts.
+        for (auto &worker : workers) {
+            worker->mark_close();
+        }
+
+        // Block until every worker's contracts have released/idled.
+        bool all_idle = false;
+        while (!all_idle) {
+            all_idle = true;
+            for (const auto &worker : workers) {
+                if (!worker->contracts_idle()) {
+                    all_idle = false;
+                    break;
+                }
+            }
+            if (!all_idle) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+
+        // Drop from the map — ~WorkerSocket() closes each fd once its last ref is gone.
+        for (auto &worker : workers) {
+            m_workers.erase(worker->get_fd());
+        }
     }
 
     /**
@@ -799,12 +891,12 @@ class ServerFlowSocket {
      * `WorkerSocket`, invokes `m_on_established` to get the application read callback, registers
      * the worker against the controller, and stashes it in `m_workers`.
      * @warning The nested lambdas here capture `this`, `worker` (a `shared_ptr`), and reach back
-     * into `m_workers` from deep inside handshake/read/error callbacks. If this `ServerFlowSocket`
-     * gets destroyed while a handshake or worker is still mid-flight, those captured `this`
-     * pointers dangle — same class of footgun as the raw-`this` captures in the async
-     * Sender/Receiver `arm_write()`/`arm_read()`. The `ConnectorSocket` self-ownership trick (see
-     * `ConnectorSocket::what_this_is_me()`) keeps the connector itself alive, but doesn't protect
-     * this `ServerFlowSocket` from an early death.
+     * into `m_workers`/`m_pending_connectors` from deep inside handshake/read/error callbacks. If
+     * this `ServerFlowSocket` gets destroyed while a handshake or worker is still mid-flight,
+     * those captured `this` pointers dangle — same class of footgun as the raw-`this` captures in
+     * the async Sender/Receiver `arm_write()`/`arm_read()`. `m_pending_connectors` (which owns
+     * every in-flight `ConnectorSocket` outright, see its own doc) keeps the connector itself
+     * alive across the handshake, but doesn't protect this `ServerFlowSocket` from an early death.
      */
     void helper() {
         // Wire what happens on every accepted raw connection.
@@ -826,33 +918,39 @@ class ServerFlowSocket {
                         std::move(encrypted_socket),
                         [this](socket::SOCKET socket_fd, int err) {
                             m_workers.erase(socket_fd);
-                            core::logger::error("io/flow/server", "send error on socket {}: {} ({})",
-                                                socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                            core::logger::error("io/flow/server",
+                                                "send error on socket {}: {} ({})", socket_fd, err,
+                                                utils::ErrnoTranslator::describe_errno(err));
                             core::events::publish(
                                 "io.flow.server.send_error",
                                 {{"fd", std::to_string(socket_fd)},
                                  {"error_code", std::to_string(err)},
-                                 {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
+                                 {"error",
+                                  std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                         },
                         [this](socket::SOCKET socket_fd, int err) {
                             m_workers.erase(socket_fd);
-                            core::logger::error("io/flow/server", "receive error on socket {}: {} ({})",
-                                                socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                            core::logger::error("io/flow/server",
+                                                "receive error on socket {}: {} ({})", socket_fd,
+                                                err, utils::ErrnoTranslator::describe_errno(err));
                             core::events::publish(
                                 "io.flow.server.receive_error",
                                 {{"fd", std::to_string(socket_fd)},
                                  {"error_code", std::to_string(err)},
-                                 {"error", std::string{utils::ErrnoTranslator::describe_errno(err)}}});
+                                 {"error",
+                                  std::string{utils::ErrnoTranslator::describe_errno(err)}}});
                         });
 
                     // Ask the application layer for the actual read handler, handing it a send
-                    // callback bound to this worker and a close callback that drops it from the map.
+                    // callback bound to this worker and a close callback that drops it from the
+                    // map.
                     auto read_calback = m_on_established(
                         [worker](utils::buffering::BufferNode &&node) {
                             worker->get_sender().send(std::move(node));
                         },
                         [this, worker]() {
                             core::logger::info("io/worker", "fd {} closed", worker->get_fd());
+                            worker->mark_close();
                             m_workers.erase(worker->get_fd());
                         });
 
@@ -870,11 +968,19 @@ class ServerFlowSocket {
                     m_workers.insert(worker->get_fd(), std::move(worker));
                 });
 
-            // Register the connector against the controller and hand it its own unique_ptr so it
-            // stays alive across the multi-step handshake.
+            // m_pending_connectors owns the connector outright for as long as its handshake
+            // stays in flight — see close_pending_connectors() and the member's own doc.
+            // set_on_released() erases this entry (destroying the connector, which closes its
+            // socket via ~ConnectorSocket()/~Socket()) the instant the handshake actually
+            // finishes, success or failure alike.
+            connector->set_on_released(
+                [this, ACCEPTED_FD]() { m_pending_connectors.erase(ACCEPTED_FD); });
+
+            // Register the connector against the controller, then hand ownership to
+            // m_pending_connectors so it stays alive across the multi-step handshake.
             core::logger::debug("io/flow", "fd {} handshake start", ACCEPTED_FD);
             connector->template create<Controller>(m_controller);
-            connector->what_this_is_me(std::move(connector));
+            m_pending_connectors.insert(ACCEPTED_FD, std::move(connector));
         });
 
         // Accept callback's wired — finalize the base socket itself.
@@ -883,11 +989,27 @@ class ServerFlowSocket {
         m_base_socket.build();
     }
 
+    /**
+     * @brief Closes out every connection still stuck mid-handshake in `m_pending_connectors`.
+     * @note Plain `clear()` — destroying each entry's owned `ConnectorSocket` closes its socket
+     * automatically via `~ConnectorSocket()`/`~Socket()`, no explicit close call needed. `clear()`
+     * runs those destructors through its own internal sweep (not our own iteration), so there's
+     * no risk of the on-released erase-hook (only fired from the controller-driven path, never
+     * from plain destruction) invalidating anything mid-loop. Without this, a connection still
+     * mid-TLS-handshake when shutdown hits never gets a chance to run its normal on_released()
+     * path either (nothing's left to schedule it there), leaking its socket/SSL state —
+     * confirmed live under LeakSanitizer.
+     */
+    void close_pending_connectors() { m_pending_connectors.clear(); }
+
     ServerBaseSocket<Protocol> m_base_socket;
     std::reference_wrapper<Leverager> m_leverager;
     std::reference_wrapper<Controller> m_controller;
     hashmap::swiss::SwissHashMap<socket::SOCKET, std::shared_ptr<WorkerSocket<Protocol>>> m_workers;
+    hashmap::swiss::SwissHashMap<socket::SOCKET, std::unique_ptr<ConnectorSocket<Protocol>>>
+        m_pending_connectors;
     ConnectionEstablishedCallback m_on_established;
+    std::optional<core::contract::Contract<>> m_base_socket_contract;
 };
 
 template <shared::HandlerController Controller, socket::Protocol Protocol>
@@ -914,7 +1036,7 @@ class ClientFlowSocket {
     ~ClientFlowSocket() {
         // m_worker is a single optional, not a range — close it directly if it's there.
         if (m_worker) {
-            (*m_worker)->close();
+            (*m_worker)->mark_close();
         }
     }
 
@@ -934,8 +1056,8 @@ class ClientFlowSocket {
     ClientFlowSocket(ClientFlowSocket &&other) noexcept
         : m_endpoint{std::move(other.m_endpoint)}, m_leverager{other.m_leverager},
           m_controller{std::move(other.m_controller)}, m_worker{std::move(other.m_worker)},
-          m_on_established{std::move(other.m_on_established)},
-          m_verify_peer{other.m_verify_peer} {}
+          m_pending_connector{std::move(other.m_pending_connector)},
+          m_on_established{std::move(other.m_on_established)}, m_verify_peer{other.m_verify_peer} {}
     /**
      * @brief Move assignment — self-assignment guarded, steals `other`'s state.
      * @param other the flow socket to move from.
@@ -948,6 +1070,7 @@ class ClientFlowSocket {
             m_leverager = other.m_leverager;
             m_controller = std::move(other.m_controller);
             m_worker = std::move(other.m_worker);
+            m_pending_connector = std::move(other.m_pending_connector);
             m_on_established = std::move(other.m_on_established);
             m_verify_peer = other.m_verify_peer;
         }
@@ -965,17 +1088,18 @@ class ClientFlowSocket {
     /**
      * @brief Validates the established callback is set, then drives the connect/handshake
      * sequence via helper().
-     * @throws std::runtime_error if the established callback hasn't been set yet.
+     * @return success, or an error if the established callback hasn't been set yet, or if the
+     * synchronous portion of the attempt (create_socket()) fails.
      */
-    void build() & {
+    std::expected<void, std::string> build() & {
         // Established callback's mandatory before the connect/handshake sequence can hand
         // anything off.
         if (!m_on_established) {
-            throw std::runtime_error(
+            return std::unexpected(
                 "ConnectionEstablished callback must be set before building the ClientFlowSocket");
         }
         // Callback confirmed — drive the actual connect/handshake/worker-setup sequence.
-        helper();
+        return helper();
     }
 
     /**
@@ -994,6 +1118,37 @@ class ClientFlowSocket {
         return nullptr;
     }
 
+    /**
+     * @brief True once a worker or a pending connector actually exists — something is in
+     * flight. False means the flow is idle: either never started, or a previous attempt has
+     * fully settled (succeeded and later dropped, or failed and given up).
+     * @return whether this flow currently has a worker or a connector alive.
+     */
+    [[nodiscard]] bool is_running() const noexcept {
+        return m_worker.has_value() || m_pending_connector.has_value();
+    }
+
+    /**
+     * @brief Retries the connect/handshake sequence. If nothing is currently connected or in
+     * flight, starts a fresh attempt immediately via helper(). If a handshake from a previous
+     * attempt is still in flight, defers instead of racing it — sets m_retry so that attempt's
+     * own set_on_released() (see helper()) starts the next attempt itself once it finishes,
+     * which is the only place this can safely happen without tearing down a connector that a
+     * pool thread might still be about to run.
+     * @return success, or an error if already connected, or if the synchronous portion of a
+     * fresh attempt (create_socket()) fails.
+     */
+    std::expected<void, std::string> retry() {
+        if (m_worker.has_value()) {
+            return std::unexpected("client worker already connected and running");
+        }
+        if (m_pending_connector.has_value()) {
+            m_retry = true;
+            return {};
+        }
+        return helper();
+    }
+
   private:
     /**
      * @brief Builds a raw socket for `endpoint`, registers h2 ALPN, and attempts a sync connect
@@ -1004,22 +1159,22 @@ class ClientFlowSocket {
      * default trust store, no cert of its own to load).
      * @param endpoint the target endpoint to connect to.
      * @param verify_peer forwarded to `Socket::set_verify_peer()` before connecting.
-     * @return a socket connected and flipped non-blocking on success.
-     * @throws std::runtime_error if the sync connect fails — `helper()` uses the returned
-     * socket unconditionally with no failure check, so a failed connect can't return a
-     * half-usable socket here.
+     * @return a socket connected and flipped non-blocking on success, or an error message if
+     * the sync connect fails — `helper()` checks this before touching the socket, so a failed
+     * connect can't produce a half-usable socket downstream.
      */
-    static socket::Socket<Protocol> create_socket(socket::Endpoint endpoint, bool verify_peer) {
+    static std::expected<socket::Socket<Protocol>, std::string>
+    create_socket(socket::Endpoint endpoint, bool verify_peer) {
         // Build the raw socket and advertise h2 before doing anything else.
         socket::Socket<Protocol> socket{std::move(endpoint)};
         socket.add_alpn_proto("h2");
         socket.set_verify_peer(verify_peer);
 
-        // Attempt the sync connect — throw on failure, since helper() below uses the
-        // returned socket unconditionally with no failure check of its own.
+        // Attempt the sync connect — helper() checks the result below instead of assuming
+        // success.
         auto connect_status = socket.sync_connect();
         if (connect_status.get_status() != socket::VALUES::VALID) {
-            throw std::runtime_error(
+            return std::unexpected(
                 std::format("connect to {} failed", socket.get_endpoint().to_string()));
         }
         // Connected — flip non-blocking and hand the socket back.
@@ -1035,12 +1190,18 @@ class ClientFlowSocket {
      * @warning Same nested-lambda `this`-capture lifetime concern as
      * `ServerFlowSocket::helper()` — if this `ClientFlowSocket` dies while the handshake or
      * worker setup is still in flight, the captured `this` in these callbacks dangles.
+     * @return success once the connector's registered and driving the handshake, or an error
+     * if the synchronous connect (create_socket()) fails.
      */
-    void helper() {
+    std::expected<void, std::string> helper() {
         // Build and connect the raw socket first.
         core::logger::debug("io/flow", "base socket {} start", m_endpoint.to_string());
 
-        auto socket = create_socket(m_endpoint, m_verify_peer);
+        auto socket_result = create_socket(m_endpoint, m_verify_peer);
+        if (!socket_result) {
+            return std::unexpected(socket_result.error());
+        }
+        auto socket = std::move(*socket_result);
 
         core::logger::debug("io/flow", "fd {} handshake start", socket.get_fd());
 
@@ -1054,7 +1215,8 @@ class ClientFlowSocket {
                     [this](socket::SOCKET socket_fd, int err) {
                         m_worker.reset();
                         core::logger::error("io/flow/server", "send error on socket {}: {} ({})",
-                                            socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                                            socket_fd, err,
+                                            utils::ErrnoTranslator::describe_errno(err));
                         core::events::publish(
                             "io.flow.server.send_error",
                             {{"fd", std::to_string(socket_fd)},
@@ -1064,7 +1226,8 @@ class ClientFlowSocket {
                     [this](socket::SOCKET socket_fd, int err) {
                         m_worker.reset();
                         core::logger::error("io/flow/server", "receive error on socket {}: {} ({})",
-                                            socket_fd, err, utils::ErrnoTranslator::describe_errno(err));
+                                            socket_fd, err,
+                                            utils::ErrnoTranslator::describe_errno(err));
                         core::events::publish(
                             "io.flow.server.receive_error",
                             {{"fd", std::to_string(socket_fd)},
@@ -1080,6 +1243,7 @@ class ClientFlowSocket {
                     },
                     [this, worker]() {
                         core::logger::info("io/worker", "fd {} closed", worker->get_fd());
+                        worker->mark_close();
                         m_worker.reset();
                     });
 
@@ -1097,19 +1261,32 @@ class ClientFlowSocket {
                 m_worker.emplace(std::move(worker));
             });
 
+        connector->set_on_released([this]() {
+            m_pending_connector.reset();
+            if (m_retry && !m_worker.has_value()) {
+                m_retry = false;
+                auto result = helper();
+                if (!result) {
+                    core::logger::warning("io/flow", "retry connect failed: {}", result.error());
+                }
+            }
+        });
 
-        // Register the connector against the controller and hand it its own unique_ptr so it
-        // stays alive across the multi-step handshake.
+        // Register the connector against the controller, then hand ownership to
+        // m_pending_connector so it stays alive across the multi-step handshake.
         connector->template create<Controller>(m_controller);
-        connector->what_this_is_me(std::move(connector));
+        m_pending_connector.emplace(std::move(connector));
+        return {};
     }
 
     socket::Endpoint m_endpoint;
     std::reference_wrapper<Leverager> m_leverager;
     std::reference_wrapper<Controller> m_controller;
     std::optional<std::shared_ptr<WorkerSocket<Protocol>>> m_worker;
+    std::optional<std::unique_ptr<ConnectorSocket<Protocol>>> m_pending_connector;
     ConnectionEstablishedCallback m_on_established;
     bool m_verify_peer;
+    bool m_retry{false};
 };
 
 } // namespace io::base::flow::sync

@@ -78,7 +78,7 @@ class RouterNode {
             for (std::uint32_t i = 0; i < m_children_length; ++i) {
                 std::uint8_t idx = current_index + ((HASH + i) % m_children_length);
 
-                auto &node = table[idx];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                auto &node = table[idx]; // FIXME(clang-tidy): unchecked operator[], consider .at()
                 std::println("Checking node at index {}: kind={}, literal={}", idx,
                              std::to_underlying(node.get_kind()), node.get_literal());
                 std::println("wild_index: {}",
@@ -104,7 +104,8 @@ class RouterNode {
             }
         } else {
             // single child — no hashing needed, just check the one node directly
-            auto &node = table[current_index];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            auto &node =
+                table[current_index]; // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             switch (node.get_kind()) {
             case EdgeKind::PATH:
@@ -123,7 +124,8 @@ class RouterNode {
         if (wild_index) {
             std::println("Returning wildcard node at index {}", *wild_index);
             current_index = *wild_index;
-            return std::make_optional(table[*wild_index]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            return std::make_optional(
+                table[*wild_index]); // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
 
         // truly nothing matched, not even a wildcard
@@ -227,7 +229,25 @@ class RouteHandler {
      * node (segments run out early, or a segment has no matching child).
      */
     constexpr void match(interfaces::io::types::Method method, std::string_view path,
-                         interfaces::io::IRequest &req, interfaces::io::IResponse &res) {
+                         interfaces::io::IRequest &req, interfaces::io::IResponse &res,
+                         const std::function<void()> &send) {
+        // Global middleware runs first, on every request, before the trie is even walked. Each
+        // gets a `next` that just flags "keep going"; a middleware continues by calling it and a
+        // rejecting one short-circuits by replying + `send` and NOT calling it. If any one
+        // doesn't continue, the whole trie walk + handler below is skipped and the response it
+        // already sent stands.
+        for (const auto &global_middleware : m_global_middleware) {
+            bool proceed = false;
+            global_middleware(
+                req, res,
+                [&proceed](interfaces::io::IRequest &, interfaces::io::IResponse &,
+                           std::function<void()>) noexcept { proceed = true; },
+                send);
+            if (!proceed) {
+                return;
+            }
+        }
+
         // break the request path into its `/`-separated segments up front
         auto segments = split_path(path);
         auto it = segments.begin();
@@ -235,11 +255,11 @@ class RouteHandler {
 
         {
             // walk the trie from the root, one path segment at a time
-            RouterNode current = m_table[0];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            RouterNode current =
+                m_table[0]; // FIXME(clang-tidy): unchecked operator[], consider .at()
             std::uint8_t current_index = 0;
 
             for (; it != end; ++it) {
-                std::println("Current node index: {}, looking for segment: {}", current_index, *it);
                 auto node = current.find_child(*it, m_table, current_index);
                 // segment has no matching child anywhere in the trie — walk stops short,
                 // `it != end` below is what flags this as an incomplete match
@@ -250,25 +270,11 @@ class RouteHandler {
                 // know whether the full path resolves or whether the final method has a
                 // handler — that's intentional per the node's own contract, not a bug fix here
                 if (node->get_middleware_length() > 0) {
-                    m_middleware.execute(req, res, node->get_middleware_offset(),
+                    m_middleware.execute(req, res, send, node->get_middleware_offset(),
                                          node->get_middleware_length());
                 }
                 current = *node;
             }
-
-            std::println("Edge kind: {}, literal: {}, children length: {}, middleware length: {}, "
-                         "handler offset: {}, "
-                         "handler mask: {:016X}",
-                         std::to_underlying(current.get_kind()), current.get_literal(),
-                         current.get_children_length(), current.get_middleware_length(),
-                         current.get_handler_offset(), current.get_handler_mask());
-
-            std::println("Handler mask: {:016X}, looking for method: {}",
-                         current.get_handler_mask(), std::to_underlying(method));
-
-            std::println("Gert handler offset: {}, middleware offset: {}, handler mask: {:016X}",
-                         current.get_handler_offset(), current.get_middleware_offset(),
-                         current.get_handler_mask());
 
             // path fully resolved to a node — now it's just a question of whether that node
             // has a handler for this specific method
@@ -287,12 +293,11 @@ class RouteHandler {
                         auto span_name = std::format("{} {}", method_str, path);
                         auto incoming =
                             core::otel::parse_traceparent(req.find_header("traceparent"));
-                        auto span = incoming.has_value()
-                                        ? core::otel::start_span(span_name,
-                                                                interfaces::SpanKind::SERVER,
-                                                                *incoming)
-                                        : core::otel::start_span(span_name,
-                                                                interfaces::SpanKind::SERVER);
+                        auto span =
+                            incoming.has_value()
+                                ? core::otel::start_span(span_name, interfaces::SpanKind::SERVER,
+                                                         *incoming)
+                                : core::otel::start_span(span_name, interfaces::SpanKind::SERVER);
                         // Same choke point as the span above — one change here covers every
                         // dispatched request, mirroring src/worker_main.cc's poll_cycle metrics
                         // (task.completed/task.duration_ms) so the server has its own metrics
@@ -303,12 +308,12 @@ class RouteHandler {
                             interfaces::Attribute{"path", path},
                         };
                         try {
-                            HANDLER_FN(req, res);
+                            HANDLER_FN(req, res, send);
                             span.set_status(interfaces::SpanStatus::OK, "");
                             core::otel::counter_add("http.server.requests", 1.0, metric_attrs);
-                            core::events::publish("router.request.completed",
-                                                  {{"method", std::string{method_str}},
-                                                   {"path", std::string{path}}});
+                            core::events::publish(
+                                "router.request.completed",
+                                {{"method", std::string{method_str}}, {"path", std::string{path}}});
                         } catch (const std::exception &e) {
                             span.set_status(interfaces::SpanStatus::ERROR, e.what());
                             const std::array<interfaces::Attribute, 3> error_attrs{
@@ -317,11 +322,12 @@ class RouteHandler {
                                 interfaces::Attribute{"result", "error"},
                             };
                             core::otel::counter_add("http.server.requests", 1.0, error_attrs);
-                            const auto elapsed_ms = std::chrono::duration<double, std::milli>(
-                                                        std::chrono::steady_clock::now() - start_time)
-                                                        .count();
+                            const auto elapsed_ms =
+                                std::chrono::duration<double, std::milli>(
+                                    std::chrono::steady_clock::now() - start_time)
+                                    .count();
                             core::otel::histogram_record("http.server.request.duration_ms",
-                                                          elapsed_ms, metric_attrs);
+                                                         elapsed_ms, metric_attrs);
                             core::events::publish("router.request.failed",
                                                   {{"method", std::string{method_str}},
                                                    {"path", std::string{path}},
@@ -332,7 +338,7 @@ class RouteHandler {
                                                     std::chrono::steady_clock::now() - start_time)
                                                     .count();
                         core::otel::histogram_record("http.server.request.duration_ms", elapsed_ms,
-                                                      metric_attrs);
+                                                     metric_attrs);
                         return;
                     }
                     // node exists but nothing registered for this method — 405-style L
@@ -394,22 +400,40 @@ class RouteHandler {
 
         // copy this node's middleware entries into the shared pool, in order
         for (std::uint8_t i = 0; i < middleware.get_size(); ++i) {
-            m_middleware.add_middleware(middleware.get_middlewares()[i]);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            m_middleware.add_middleware(
+                middleware.get_middlewares()[i]); // FIXME(clang-tidy): unchecked operator[],
+                                                  // consider .at(); non-constant array index
         }
 
         // same deal for handlers — copy into the shared handler pool
         for (std::uint8_t i = 0; i < handler.get_size(); ++i) {
-            m_handler.add_handler(handler.get_handler()[i]);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            m_handler.add_handler(
+                handler.get_handler()[i]); // FIXME(clang-tidy): unchecked operator[], consider
+                                           // .at(); non-constant array index
         }
 
         // finally, drop the node itself into the flat table
-        m_table[m_table_index++] = node;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        m_table[m_table_index++] = node; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                         // non-constant array index
+    }
+
+    /**
+     * @brief Appends a global middleware — one that runs on every request, before the trie walk
+     * and any per-node middleware, regardless of which route (if any) the path resolves to.
+     * Carried over from the builder's own global list by RouterContext::build().
+     * @param middleware the global middleware to append.
+     */
+    constexpr void add_global_middleware(interfaces::MiddlewareFn middleware) {
+        m_global_middleware.add_middleware(middleware);
     }
 
   private:
     std::array<RouterNode, RouterSize> m_table{};
     HandlerPool<HandlerSize> m_handler{};
     Middleware<MiddlewareSize> m_middleware{};
+    // Runs on every request before the trie walk — separate from m_middleware, which is the
+    // per-node offset pool the routes carve slices out of.
+    Middleware<MiddlewareSize> m_global_middleware{};
     std::uint8_t m_table_index{0};
 };
 

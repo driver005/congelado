@@ -15,7 +15,8 @@ class NodeView {
      * @param length how many bytes this view covers.
      * @param next the next view in the chain, defaults to none.
      */
-    explicit NodeView(BufferNode *node, std::size_t start, std::size_t length, NodeView *next = nullptr)
+    explicit NodeView(BufferNode *node, std::size_t start, std::size_t length,
+                      NodeView *next = nullptr)
         : m_node{node}, m_start{start}, m_length{length}, m_next{next} {
         node->acquire();
     }
@@ -39,7 +40,8 @@ class NodeView {
      * @param other the view to move from, reset to empty after.
      */
     NodeView(NodeView &&other) noexcept
-        : m_node{other.m_node}, m_start{other.m_start}, m_length{other.m_length}, m_next{other.m_next} {
+        : m_node{other.m_node}, m_start{other.m_start}, m_length{other.m_length},
+          m_next{other.m_next} {
         other.m_node = nullptr;
         other.m_start = 0;
         other.m_length = 0;
@@ -76,7 +78,9 @@ class NodeView {
      * @param index the offset within this view's slice.
      * @return a mutable reference to the byte at `m_start + index`.
      */
-    [[nodiscard]] std::byte &operator[](std::size_t index) noexcept { return (*m_node)[m_start + index]; }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    [[nodiscard]] std::byte &operator[](std::size_t index) noexcept {
+        return (*m_node)[m_start + index];
+    } // FIXME(clang-tidy): unchecked operator[], consider .at()
 
     /**
      * @brief Bumps the wrapped node's ref count.
@@ -157,13 +161,21 @@ class BufferView {
          * @param node the view to start iterating from.
          * @param offset the starting byte offset within `node`'s slice.
          */
-        Iterator(NodeView *node, std::size_t offset) : m_node{node}, m_offset{offset} {}
+        Iterator(NodeView *node, std::size_t offset) : m_node{node}, m_offset{offset} {
+            if (m_node != nullptr) {
+                m_node->acquire();
+            }
+        }
 
         /**
          * @brief Default dtor — no reference to release, construction didn't acquire one (see the
          * ctor's @warning).
          */
-        ~Iterator() = default;
+        ~Iterator() {
+            if (m_node != nullptr) {
+                m_node->release();
+            }
+        };
 
         /**
          * @brief Copy ctor — acquires a fresh reference on the shared node.
@@ -230,12 +242,16 @@ class BufferView {
          * @brief Dereferences the byte at the current position.
          * @return the byte under the iterator, read-only.
          */
-        reference operator*() const noexcept { return (*m_node)[m_offset]; }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        reference operator*() const noexcept {
+            return (*m_node)[m_offset];
+        } // FIXME(clang-tidy): unchecked operator[], consider .at()
         /**
          * @brief Arrow overload, mirrors operator*().
          * @return a pointer to the byte under the iterator.
          */
-        pointer operator->() const noexcept { return &((*m_node)[m_offset]); }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        pointer operator->() const noexcept {
+            return &((*m_node)[m_offset]);
+        } // FIXME(clang-tidy): unchecked operator[], consider .at()
 
         /**
          * @brief Advances one byte, hopping to the next slice (acquiring it, releasing the old
@@ -317,7 +333,9 @@ class BufferView {
          * @brief Equality check against the end sentinel.
          * @return true if this iterator has run off the end of the chain (null node).
          */
-        bool operator==(std::default_sentinel_t /*unused*/) const noexcept { return m_node == nullptr; }
+        bool operator==(std::default_sentinel_t /*unused*/) const noexcept {
+            return m_node == nullptr;
+        }
 
       private:
         NodeView *m_node;
@@ -404,8 +422,10 @@ class BufferView {
      * @param node_view the view to append, ownership of its lifetime is now this chain's job.
      */
     void push_back(NodeView *node_view) noexcept {
-        // Grab the chain's own reference and fold the slice's length into the running total.
-        node_view->acquire();
+        // Do NOT acquire here — the fresh NodeView already holds the chain's one BufferNode ref
+        // via its ctor (view.cppm:21), released by ~NodeView on unlink/release(). Bumping again
+        // would pin the BufferNode forever after the view is torn down (same bug fixed on the
+        // BufferReader side — see reader.cppm push_back(NodeReader*)). Just fold in the length.
         m_size += node_view->get_length();
 
         // Link onto the existing tail, or become the head/tail both if this is the first slice.

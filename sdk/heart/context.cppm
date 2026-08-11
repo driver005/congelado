@@ -10,6 +10,7 @@ import core_logger;
 import core_events;
 import core_otel;
 import serde;
+import connector;
 
 export namespace congelado::heart {
 
@@ -17,10 +18,26 @@ class AppContext {
   public:
     /**
      * @brief Spins up the app-wide context — router, contract group, and leverager all default
-     * to empty, and a single-thread contract thread pool gets emplaced against the contract
-     * group right away so there's motion the moment a plugin needs it.
+     * to empty, and a contract thread pool gets emplaced against the contract group right away
+     * so there's motion the moment a plugin needs it. The pool's worker-thread count comes from
+     * the top-level `threads` config key (see core::config::Config::get_threads); defaults to 1.
+     * @param thread_count number of worker threads to run in the contract thread pool.
      */
-    AppContext() { m_thread_pool.emplace(m_contract_group, 1); }
+    explicit AppContext(std::size_t thread_count = std::thread::hardware_concurrency()) {
+        m_thread_pool.emplace(m_contract_group, thread_count);
+        m_connector = std::make_unique<connector::Connector>();
+    }
+
+    /**
+     * @brief Stops and joins the contract thread pool's worker thread(s), ahead of (and
+     * separate from) this `AppContext`'s own destruction.
+     * @warning Call this before tearing down any plugin whose state a queued contract job might
+     * still touch (e.g. via `core::plugin::SharedLibrary::close_all()`) — a worker thread can be
+     * mid-job, reading plugin-owned objects (a protocol plugin's socket/`Endpoint`, say) at the
+     * exact moment `on_unload()` frees them, which is a real use-after-free, not a hypothetical
+     * one. No-op if already stopped.
+     */
+    void stop_thread_pool() noexcept { m_thread_pool.reset(); }
 
     /// @brief Gets the shared router context handed to every loading plugin. @return a pointer
     /// to the owned `RouterContext`, never null.
@@ -84,11 +101,32 @@ class AppContext {
         return m_log_record_registry;
     }
 
-  private:
-    core::contract::ContractGroup<> m_contract_group;
-    io::base::leverage::Leverager<io::base::leverage::Context> m_leverager;
-    std::optional<core::contract::ContractThreadPool<>> m_thread_pool;
+    /// @brief Gets the shared connector this app context owns and registers with the contract
+    /// group. @return a pointer to the owned `connector::Connector`, never null.
+    [[nodiscard]] connector::Connector *get_connector() noexcept { return m_connector.get(); }
 
+    /// @brief Access to the contract registry for registering/releasing heart-owned contracts.
+    [[nodiscard]] core::contract::ContractRegistry &get_contract_registry() noexcept {
+        return m_contract_registry;
+    }
+
+    /**
+     * @brief Clean shutdown order: release all registered contracts first, then stop and join the
+     * contract thread pool.
+     */
+    void stop() noexcept {
+        if (m_connector) {
+            m_connector->set_wake({});
+        }
+        m_contract_registry.release_all();
+        stop_thread_pool();
+    }
+
+  private:
+    // Declaration order is destruction order (reverse) — the registries below must outlive
+    // m_contract_group/m_leverager/m_thread_pool, since ~ContractThreadPool() logs while
+    // joining its worker threads. Keep every ambient-facade registry ahead of them here, or
+    // that log call reads through an already-destroyed registry.
     core::router::RouterContext<> m_router;
     core::logger::LoggerRegistry m_logger_registry;
     core::events::EventBusRegistry m_event_bus_registry;
@@ -96,6 +134,11 @@ class AppContext {
     core::otel::TracerRegistry m_tracer_registry;
     core::otel::MeterRegistry m_meter_registry;
     core::otel::LogRecordRegistry m_log_record_registry;
+    std::unique_ptr<connector::Connector> m_connector;
+    core::contract::ContractRegistry m_contract_registry;
+    core::contract::ContractGroup<> m_contract_group;
+    io::base::leverage::Leverager<io::base::leverage::Context> m_leverager;
+    std::optional<core::contract::ContractThreadPool<>> m_thread_pool;
 };
 
 } // namespace congelado::heart

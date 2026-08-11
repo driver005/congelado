@@ -7,6 +7,7 @@ import utils_buffering;
 import io_layer_shared;
 import core_events;
 import core_logger;
+import :extension;
 import :consts;
 import :settings;
 import :frame;
@@ -41,15 +42,18 @@ class Handshake {
      * other role. Same method name, mutually exclusive via the requires-clause, so only one
      * of the two ever actually exists for a given `IsServer` instantiation.
      * @param view the bytes received so far, checked against `HTTP2_CONNECTION_PREFACE`.
+     * @param extension_registry the process's one `HttpExtensionRegistry`, forwarded to
+     * `send_handshake()` to fold in any registered extension's local SETTINGS overrides.
      * @return `AWAITING_PREFACE` if not enough bytes yet, `COMPLETED` if the preface matched
      * (and got consumed off `view`), `PREFACE_ERROR` if what's there doesn't match.
      */
-    HandshakeState process(utils::buffering::BufferReader &view)
+    HandshakeState process(utils::buffering::BufferReader &view,
+                           HttpExtensionRegistry &extension_registry)
         requires IsServer
     {
         core::logger::debug("http2/handshake", "process size={}", view.size());
         // Fire our own SETTINGS frame first (no-op after the first call thanks to the guard).
-        send_handshake();
+        send_handshake(extension_registry);
 
         // Then check whatever bytes have come in against the expected preface.
         return is_valid_preface(view);
@@ -61,14 +65,16 @@ class Handshake {
      * see `send_handshake()`) and reports done immediately, no waiting-for-bytes state needed.
      * @note Only enabled `requires(!IsServer)` — mutually exclusive with the server overload
      * above via the requires-clause.
+     * @param extension_registry the process's one `HttpExtensionRegistry`, forwarded to
+     * `send_handshake()` to fold in any registered extension's local SETTINGS overrides.
      * @return always `COMPLETED` — there's nothing left to wait on from this side.
      */
-    HandshakeState process()
+    HandshakeState process(HttpExtensionRegistry &extension_registry)
         requires(!IsServer)
     {
         core::logger::debug("http2/handshake", "process");
         // Client's only job is to send its SETTINGS (with preface prepended) — no receive side.
-        send_handshake();
+        send_handshake(extension_registry);
 
         // Nothing to wait on from here — client handshake is done the moment bytes go out.
         return HandshakeState::COMPLETED;
@@ -117,7 +123,7 @@ class Handshake {
      * partial-preface retry on the server side would blast out a duplicate SETTINGS frame. It's
      * guarded correctly as written, just flagging why the guard has to exist.
      */
-    void send_handshake() {
+    void send_handshake(HttpExtensionRegistry &extension_registry) {
         // Guard clause — already sent once, and server-side this can get called again on every
         // partial-preface retry, so bail here or we'd double-send SETTINGS.
         if (m_sent_settings) {
@@ -127,6 +133,13 @@ class Handshake {
         }
 
         core::logger::debug("http2/handshake", "send settings");
+
+        // Give every extension a chance to mutate the outgoing local settings (e.g. add RFC
+        // 8441's SETTINGS_ENABLE_CONNECT_PROTOCOL via local.add_local_setting_override(...))
+        // before they're serialized. No-op if no extensions are registered. Runs once per
+        // connection thanks to the m_sent_settings guard above.
+        extension_registry.for_each(
+            [&](auto &extension) { extension->on_local_settings(m_local_settings.get()); });
 
         // Serialize the local settings into a SETTINGS frame payload first.
         auto payload = std::views::empty<std::byte> | WriteSettingsAdaptor{m_local_settings.get()} |

@@ -488,7 +488,12 @@ class BufferReader {
             if (next == nullptr) {
                 m_tail.store(nullptr, std::memory_order_release);
             }
-            head->release();
+            // Chain owns the NodeReader object — delete it. ~NodeReader drops the one BufferNode
+            // reference it took in its ctor, so DON'T also call release() here (that'd double-drop
+            // the BufferNode). Outstanding holders (a writer slot, an iterator) keep their own
+            // BufferNode refs, so the underlying bytes survive until they let go.
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+            delete head;
         }
     }
 
@@ -502,13 +507,12 @@ class BufferReader {
     /**
      * @brief Links `node` onto the tail of the chain and bumps `size()` by whatever it's already
      * got written. Standard lock-free tail-swap motion — `exchange()` first, link second.
-     * @param node the reader to append, ownership of its lifetime stays with the caller (this
-     * only manages the acquire()'d reference).
+     * @param node the reader to append. The chain takes ownership of the NodeReader OBJECT and
+     * `delete`s it on unlink (consume/dtor), exactly like `BufferView` owns its
+     * `NodeView`s. The one BufferNode reference the NodeReader ctor already took is that chain
+     * stake — no extra acquire here, or the BufferNode ends up over-referenced and leaks.
      */
     void push_back(NodeReader *node) noexcept {
-        // Grab the chain's own reference on the node before it's linked in anywhere.
-        node->acquire();
-
         // Swap ourselves in as the new tail first — whoever we displaced (if anyone) gets linked
         // to us second. Empty chain means we're the new head too.
         auto *old = m_tail.exchange(node, std::memory_order_acq_rel);
@@ -541,44 +545,31 @@ class BufferReader {
     }
 
     /**
-     * @brief Pulls up to `length` bytes off the front of the chain and copies references into
-     * `view` as `NodeView` slices, consuming them from this reader as it goes (same node-hopping
-     * logic as consume(), but building a view instead of just discarding).
-     * @param[out] view the buffer view to append the pulled slices onto.
-     * @param length how many bytes to move over into `view`.
+     * @brief Appends up to `length` bytes from the front of the chain into `view` as `NodeView`
+     * slices, each taking its own `BufferNode` ref. Pure read: it does NOT advance or shrink this
+     * reader. Callers must follow it with `consume(length)` to actually remove the bytes — the
+     * view's `NodeView` refs keep the underlying `BufferNode`s alive after that consume.
+     * @param[out] view the buffer view to append the sliced references onto.
+     * @param length how many bytes to reference into `view`.
      */
-    void expand_view(BufferView &view, std::size_t length) noexcept {
-        // Same node-hopping shape as consume(), except instead of just discarding bytes it slices
-        // each chunk off into `view` as it goes.
-        while (length > 0) {
-            auto *head = get_head();
-            if (head == nullptr) {
-                break;
-            }
+    void grow_view(BufferView &view, std::size_t length) const noexcept {
+        // Walk a LOCAL cursor over the chain — never touch m_head/m_offset/m_size. Each slice
+        // handed to `view` becomes a NodeView holding its own BufferNode ref.
+        auto *node = get_head();
+        std::size_t offset = m_offset.load(std::memory_order_relaxed);
 
-            std::size_t offset = m_offset.load(std::memory_order_relaxed);
-            std::size_t available = head->get_written() - offset;
+        while (length > 0 && node != nullptr) {
+            std::size_t available = node->get_written() - offset;
             std::size_t to_take = std::min(available, length);
 
-            // Slice out whatever's available (capped at what's left to pull) and hand it to the
-            // view.
-            view.push_back(head->get_node(), offset, to_take);
+            view.push_back(node->get_node(), offset, to_take);
+            length -= to_take;
 
             if (to_take < available) {
-                // Didn't need the whole node — just nudge the offset and we're done.
-                m_offset.store(offset + to_take, std::memory_order_relaxed);
-                length = 0;
+                offset += to_take;
             } else {
-                // Took the rest of this node — unlink it and move to the next, same tail-clearing
-                // logic as consume().
-                length -= to_take;
-                auto *next = head->get_next();
-                m_head.store(next, std::memory_order_release);
-                m_offset.store(0, std::memory_order_relaxed);
-                if (next == nullptr) {
-                    m_tail.store(nullptr, std::memory_order_release);
-                }
-                head->release();
+                node = node->get_next();
+                offset = 0;
             }
         }
     }
@@ -596,17 +587,18 @@ class BufferReader {
 
   private:
     /**
-     * @brief Walks the whole chain from head to tail, releasing every node. Called from the dtor
-     * to tear the chain down clean.
+     * @brief Walks the whole chain from head to tail, deleting every NodeReader the chain owns.
+     * Called from the dtor to tear the chain down clean — same ownership model as
+     * `BufferView::release()`.
      */
     void release() noexcept {
-        // Grab the next pointer before releasing — release() can free `current` outright once
-        // its refcount hits zero, so reading m_next off it after the fact would be a
-        // use-after-free.
+        // Grab the next pointer before deleting — the delete runs ~NodeReader and frees `current`
+        // outright, so reading m_next off it after the fact would be a use-after-free.
         auto *current = m_head.load(std::memory_order_acquire);
         while (current != nullptr) {
             auto *next = current->get_next();
-            current->release();
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+            delete current;
             current = next;
         }
     }

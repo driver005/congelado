@@ -15,7 +15,8 @@ class BufferWriter {
      * @param min_size the smallest chunk size this writer will ever predict/allocate.
      * @param max_size the largest chunk size this writer will ever predict/allocate.
      */
-    explicit BufferWriter(std::size_t min_size = 8ULL * 1024ULL, std::size_t max_size = 64ULL * 1024ULL)
+    explicit BufferWriter(std::size_t min_size = 8ULL * 1024ULL,
+                          std::size_t max_size = 64ULL * 1024ULL)
         : m_min_size{min_size}, m_max_size{max_size}, m_current_size{min_size} {}
 
     /**
@@ -62,12 +63,16 @@ class BufferWriter {
             // terminate on bad_alloc; this whole buffering subsystem has no error-return channel
             // (every push_back()/acquire() across reader/view/writter is noexcept, raw-pointer,
             // terminate-on-OOM by convention) — leaving as-is rather than inventing one locally.
-            auto *node = m_view.push_back(new BufferNode{m_current_size});  // NOLINT(cppcoreguidelines-owning-memory)
+            auto *node = m_view.push_back(
+                new BufferNode{m_current_size}); // NOLINT(cppcoreguidelines-owning-memory)
+            // Take a SECOND BufferNode ref for the slot handed back (on top of the chain's stake
+            // from the NodeReader ctor) — only on a fresh allocation. The reuse path below hands
+            // back the same tail without bumping again.
+            node->acquire();
             return node;
         }
 
-        // Otherwise the tail's still got room — just bump its ref and reuse it.
-        tail->acquire();
+        // Tail's still got room — hand it back as-is, no extra ref (only new allocations bump).
         return tail;
     }
 
@@ -83,7 +88,8 @@ class BufferWriter {
         // FIXME(clang-tidy): bugprone-unhandled-exception-at-new — noexcept push() would
         // terminate on bad_alloc; same no-error-channel reasoning as acquire() above — leaving
         // as-is rather than inventing one locally.
-        auto *owned_node = new BufferNode{std::move(node)};  // NOLINT(cppcoreguidelines-owning-memory)
+        auto *owned_node =
+            new BufferNode{std::move(node)}; // NOLINT(cppcoreguidelines-owning-memory)
         m_view.push_back(owned_node);
     }
 
@@ -120,6 +126,21 @@ class BufferWriter {
     }
 
     /**
+     * @brief Drops the reference acquire() handed out for a slot that ended up carrying no read
+     * (would-block, error). Unlike notify_read() it folds nothing into the chain and leaves the
+     * size predictor untouched — nothing was actually read, so the allocation sizing must not
+     * move.
+     * @note No-ops on a null node, same as notify_read().
+     * @param node the slot previously returned by acquire().
+     */
+    static void release(NodeReader *node) noexcept {
+        if (node == nullptr) {
+            return;
+        }
+        node->release();
+    }
+
+    /**
      * @brief Grabs the current size prediction for the next allocated chunk.
      * @return the predicted next chunk size, in bytes.
      */
@@ -129,6 +150,12 @@ class BufferWriter {
      * @return a mutable reference to the backing `BufferReader`.
      */
     [[nodiscard]] BufferReader &get_view() noexcept { return m_view; }
+
+    /**
+     * @brief Whether the backing chain has no unconsumed bytes left.
+     * @return true if nothing is queued.
+     */
+    [[nodiscard]] bool empty() noexcept { return m_view.empty(); }
 
   private:
     std::size_t m_min_size;

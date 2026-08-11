@@ -48,6 +48,20 @@ class PluginRef {
         m_data["path"] = std::move(file_path);
     }
 
+    /**
+     * @brief Releases the dlopen handle WITHOUT closing it — the process keeps the `.so` mapped
+     * for the rest of its lifetime, `dlclose()` never runs.
+     * @warning Only call this at true process-exit time, after every live plugin has already had
+     * its `on_unload()` run (flushed/torn down at the C++ object level) — this is a workaround
+     * for `dlclose()`-time global destructors inside a plugin's statically-linked dependencies
+     * (OpenTelemetry's C++ SDK plus its HTTP/protobuf stack, confirmed live) segfaulting during
+     * final process teardown. The OS reclaims the mapping on process exit regardless, so skipping
+     * the syscall here trades a harmless, standard "leak everything at exit" for a crash. Never
+     * call this on a plugin that might get closed and reopened later (hot-reload) — the handle is
+     * gone for good afterward, no way to dlclose or reopen it through this `PluginRef` again.
+     */
+    void leak_handle() noexcept { static_cast<void>(m_handle.release()); }
+
     // ── Symbol descriptor types ─────────────────────────────────────────
 
     enum class SymbolKind : std::uint8_t {
@@ -67,8 +81,9 @@ class PluginRef {
     static constexpr SymbolInfo SHARED_SYMBOLS[] = {
         {.m_name = "congelado_init", .m_kind = SymbolKind::FUNCTION},      // index 0
         {.m_name = "congelado_type", .m_kind = SymbolKind::STRING_FN},     // index 1
-        {.m_name = "congelado_on_unload", .m_kind = SymbolKind::FUNCTION}, // index 2
-        {.m_name = "congelado_on_ready", .m_kind = SymbolKind::FUNCTION},  // index 3
+        {.m_name = "congelado_on_unload", .m_kind = SymbolKind::FUNCTION},   // index 2
+        {.m_name = "congelado_on_ready", .m_kind = SymbolKind::FUNCTION},    // index 3
+        {.m_name = "congelado_on_shutdown", .m_kind = SymbolKind::FUNCTION}, // index 4
     };
 
     // helper to return the name for a given position in the SHARED_SYMBOLS array

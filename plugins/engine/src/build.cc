@@ -7,24 +7,24 @@ import core_plugin;
 import serde;
 import congelado_heart;
 import engine;
-import worker;
 import utils_openapi;
 
-// Build-time-only tool: registers both the engine's and the worker's routes into their own
-// throwaway RouterContexts (which, via ApiRoute/ApiRouter's constructors, populates
-// utils::openapi::Registry as a side effect — see engine::register_routes'/
-// worker::register_routes' own doc comments), then writes ONE combined OpenAPI document (both
-// route sets land in the same process-global Registry, so a single write_document() call
-// already covers both) and feeds it into the same IOpenApiGenerator's generate_client_sdk() to
-// produce a single typed client SDK. Never linked into congelado_lib, the engine plugin, or the
-// congelado_worker binary itself — xmake's generic build.cc feature runs this (no args — takes
-// none) before either of those targets' real sources compile.
+// Build-time-only tool: registers the engine's own routes into a throwaway RouterContext
+// (which, via ApiRoute/ApiRouter's constructors, populates utils::openapi::Registry as a side
+// effect — see engine::register_routes' own doc comments), then writes the engine's OpenAPI
+// document and feeds it into IOpenApiGenerator's generate_client_sdk() to produce the engine's
+// typed client SDK (congelado_api::*, consumed by engine_worker_lib so the worker can call into
+// the engine's HTTP API). The worker's own side of this split lives in
+// plugins/engine/worker/build.cc — see that file for the symmetric worker-only tool. Never
+// linked into congelado_lib, the engine plugin, or the congelado_worker binary itself — xmake's
+// generic build.cc feature runs this (no args — takes none) before engine_lib's real sources
+// compile.
 //
-// Output lands inside generated/ (this file's own directory, plugins/engine/src/ — this tool
-// runs as part of engine's own standalone xmake project, not the repo-root project), so that
-// congelado_worker (a separate project entirely) can add_files() the result directly. Paths are
-// relative to this file's own directory — wire_build_scripts() pins execv cwd there (see
-// xmake/buildscript.lua), not to the plugin's project root one level up.
+// Output lands inside generated/engine/ (plugins/engine/generated/engine/, a sibling of this
+// file's own src/ directory), so that engine_worker_lib can add_files() the result directly.
+// Paths are relative to this file's own directory (curdir is pinned there by
+// xmake/modules/build_tool.lua's os.execv(... {curdir = target:scriptdir() .. "/src"})), hence
+// "../generated/engine/".
 int main() {
     // Force-load the JSON format plugin before anything below calls serde::Ser::serialize —
     // the openapi_generator plugin's write_document() dispatches through Ser (runtime format
@@ -53,12 +53,14 @@ int main() {
     plugin_store.scan("../../../build/plugins");
     auto json_open_res = plugin_store.open("../../../build/plugins/libjson_plugin.so");
     if (!json_open_res) {
-        std::println(stderr, "build.cc: plugin load failed: {}", json_open_res.error().get_message());
+        std::println(stderr, "build.cc: plugin load failed: {}",
+                     json_open_res.error().get_message());
         return 1;
     }
     auto openapi_open_res = plugin_store.open("../../../build/plugins/libopenapi_generator.so");
     if (!openapi_open_res) {
-        std::println(stderr, "build.cc: plugin load failed: {}", openapi_open_res.error().get_message());
+        std::println(stderr, "build.cc: plugin load failed: {}",
+                     openapi_open_res.error().get_message());
         return 1;
     }
 
@@ -86,23 +88,21 @@ int main() {
         return 1;
     }
     if (!generator_registry.has_generator()) {
-        std::println(stderr, "build.cc: no OpenAPI generator plugin loaded — was openapi_generator built?");
+        std::println(stderr,
+                     "build.cc: no OpenAPI generator plugin loaded — was openapi_generator built?");
         return 1;
     }
     auto *doc_generator = generator_registry.get_generators().front().get();
-
-    std::filesystem::path openapi_path{"generated/openapi.json"};
-    std::filesystem::path client_dir{"generated/client"};
-    std::filesystem::create_directories(client_dir);
 
     core::router::RouterContext<> engine_router;
     engine::EngineContext ctx;
     engine::register_routes(engine_router, ctx);
 
-    core::router::RouterContext<> worker_router;
-    worker::register_routes(worker_router);
+    std::filesystem::path openapi_path{"../generated/engine/openapi.json"};
+    std::filesystem::path client_dir{"../generated/engine/client"};
+    std::filesystem::create_directories(client_dir);
 
-    if (auto write_res = doc_generator->write_document("Congelado API", "1.0.0", openapi_path);
+    if (auto write_res = doc_generator->write_document("Congelado Engine API", "1.0.0", openapi_path);
         !write_res) {
         std::println(stderr, "build.cc: failed to write '{}': {}", openapi_path.string(),
                      write_res.error());

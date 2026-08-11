@@ -43,6 +43,19 @@ class Contract {
      */
     void release() { m_group.get().release(m_local_id); }
 
+    /**
+     * @brief Whether this contract has been marked released.
+     * @return true if released.
+     */
+    [[nodiscard]] bool is_released() const noexcept { return m_group.get().is_released(m_local_id); }
+
+    /**
+     * @brief Whether this contract is fully idle — done running and released/erased (or never
+     * started). Owning code polls this to know when a self-releasing contract has finished.
+     * @return true if idle.
+     */
+    [[nodiscard]] bool is_idle() const noexcept { return m_group.get().is_idle(m_local_id); }
+
   private:
     std::reference_wrapper<ContractGroup<MaxCapacity>> m_group;
     std::uint32_t m_local_id;
@@ -98,10 +111,29 @@ class ContractGroup : shared::HandlerInterface {
         case ContractState::EXECUTING:
             // Not a valid state to hand in at creation time — log it instead of scheduling.
             core::logger::error("core/contract", "add_contract in EXECUTING state");
-            core::events::publish("contract.worker.invalid_state", {{"contract_id", std::to_string(CONTRACT_ID)}});
+            core::events::publish("contract.worker.invalid_state",
+                                  {{"contract_id", std::to_string(CONTRACT_ID)}});
         }
 
         return Contract<MaxCapacity>{*this, CONTRACT_ID};
+    }
+
+    /**
+     * @brief Whether the worker `id` has been marked released (on its way out for good).
+     * @param contract_id the worker id to query.
+     * @return true if released.
+     */
+    [[nodiscard]] bool is_released(std::uint32_t contract_id) const noexcept {
+        return m_workers[contract_id].is_released(); // NOLINT(cppcoreguidelines-pro-bounds-*)
+    }
+
+    /**
+     * @brief Whether the worker `id` is fully idle (released-and-erased, or never started).
+     * @param contract_id the worker id to query.
+     * @return true if idle.
+     */
+    [[nodiscard]] bool is_idle(std::uint32_t contract_id) const noexcept {
+        return m_workers[contract_id].is_idle(); // NOLINT(cppcoreguidelines-pro-bounds-*)
     }
 
     /**
@@ -112,11 +144,17 @@ class ContractGroup : shared::HandlerInterface {
      * @param contract_id the worker's id to schedule.
      */
     void schedule(std::uint32_t contract_id) override {
+        if (m_workers[contract_id].is_released()) { // FIXME(clang-tidy): unchecked operator[],
+                                                    // consider .at(); non-constant array index
+            return;
+        }
+
         // Guard clause — scheduling an already-scheduled worker's an L, a logic error upstream.
         if (m_workers[contract_id].is_scheduled()) { // FIXME(clang-tidy): unchecked operator[],
                                                      // consider .at(); non-constant array index
-            core::events::publish("contract.worker.fatal", {{"contract_id", std::to_string(contract_id)},
-                                                            {"reason", "already_scheduled"}});
+            core::events::publish(
+                "contract.worker.fatal",
+                {{"contract_id", std::to_string(contract_id)}, {"reason", "already_scheduled"}});
             core::logger::fatal("core/contract", "worker {} already scheduled", contract_id);
             return;
         }
@@ -137,6 +175,10 @@ class ContractGroup : shared::HandlerInterface {
      * @param contract_id the worker's id to deschedule.
      */
     void deschedule(std::uint32_t contract_id) override {
+        if (m_workers[contract_id].is_released()) { // FIXME(clang-tidy): unchecked operator[],
+                                                    // consider .at(); non-constant array index
+            return;
+        }
         // Happy path — actually scheduled, so pull it off the tree and mark it IDLE.
         if (m_workers[contract_id].is_scheduled()) { // FIXME(clang-tidy): unchecked operator[],
                                                      // consider .at(); non-constant array index
@@ -148,8 +190,9 @@ class ContractGroup : shared::HandlerInterface {
         }
 
         // Not scheduled to begin with — nothing to pull off, log loud instead of no-op'ing.
-        core::events::publish("contract.worker.fatal", {{"contract_id", std::to_string(contract_id)},
-                                                        {"reason", "not_found_on_deschedule"}});
+        core::events::publish(
+            "contract.worker.fatal",
+            {{"contract_id", std::to_string(contract_id)}, {"reason", "not_found_on_deschedule"}});
         core::logger::fatal("core/contract", "worker {} not found on deschedule", contract_id);
     }
 
@@ -218,9 +261,9 @@ class ContractGroup : shared::HandlerInterface {
                     }
                 } catch (...) {
                     core::logger::warning("core/contract", "released worker {} error", *ready_id);
-                    core::events::publish("contract.worker.execution_failed",
-                                          {{"contract_id", std::to_string(*ready_id)},
-                                           {"phase", "released"}});
+                    core::events::publish(
+                        "contract.worker.execution_failed",
+                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "released"}});
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -237,9 +280,9 @@ class ContractGroup : shared::HandlerInterface {
                     worker();
                 } catch (...) {
                     core::logger::warning("core/contract", "scheduled worker {} error", *ready_id);
-                    core::events::publish("contract.worker.execution_failed",
-                                          {{"contract_id", std::to_string(*ready_id)},
-                                           {"phase", "executing"}});
+                    core::events::publish(
+                        "contract.worker.execution_failed",
+                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "executing"}});
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -338,7 +381,8 @@ class ContractGroup : shared::HandlerInterface {
                 }
             } catch (...) {
                 // Never let an exception escape a destructor — log it loud instead.
-                core::events::publish("contract.autoclear.fatal", {{"contract_id", std::to_string(m_id)}});
+                core::events::publish("contract.autoclear.fatal",
+                                      {{"contract_id", std::to_string(m_id)}});
                 core::logger::fatal("core/contract", "exception in ~AutoClearExecuteFlag");
             }
         }
@@ -369,7 +413,8 @@ class ContractThreadPool {
                                 std::size_t thread_count = std::thread::hardware_concurrency())
         : m_group{group}, m_running{true} {
         core::logger::important("core/thread_pool", "starting {} threads", thread_count);
-        core::events::publish("contract.thread_pool.started", {{"thread_count", std::to_string(thread_count)}});
+        core::events::publish("contract.thread_pool.started",
+                              {{"thread_count", std::to_string(thread_count)}});
         // Spin up each worker thread, all running the same loop against the shared group.
         for (std::size_t i = 0; i < thread_count; ++i) {
             m_workers.emplace_back(&ContractThreadPool::worker_loop, this);
@@ -424,4 +469,36 @@ class ContractThreadPool {
     std::vector<std::thread> m_workers;
     std::atomic<bool> m_running;
 };
+
+/**
+ * @brief Registry for every `Contract<>` a controller creates. Keeps handles in one place so
+ * teardown can release them in bulk before the contract thread pool stops.
+ */
+class ContractRegistry {
+  public:
+    /**
+     * @brief Stores a contract handle. The deque is chosen so handles stay stable while the
+     * registry grows; releasing is done explicitly via `release_all()`.
+     * @param contract the handle to keep alive.
+     */
+    void add(Contract<> contract) { m_contracts.push_back(std::move(contract)); }
+
+    /// @brief Releases every stored contract and clears the registry. Idempotent.
+    void release_all() noexcept {
+        for (auto &contract : m_contracts) {
+            contract.release();
+        }
+        m_contracts.clear();
+    }
+
+    /// @brief Number of currently stored contracts.
+    [[nodiscard]] std::size_t size() const noexcept { return m_contracts.size(); }
+
+    /// @brief True if no contracts are currently stored.
+    [[nodiscard]] bool empty() const noexcept { return m_contracts.empty(); }
+
+  private:
+    std::deque<Contract<>> m_contracts;
+};
+
 } // namespace core::contract

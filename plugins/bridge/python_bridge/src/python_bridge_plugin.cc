@@ -95,6 +95,21 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
         }
     }
 
+    /**
+     * @brief Releases the resolved module reference, then finalizes the interpreter — the mirror
+     * image of on_load()'s Py_Initialize(), so the interpreter's entire internal allocator pool
+     * (obmalloc arenas, every object it ever created) doesn't just get leaked on every shutdown.
+     * @note m_module — the only PyObject reference this plugin holds outside short-lived locals —
+     * is released first; Py_FinalizeEx() itself runs every registered atexit hook and tears down
+     * whatever the interpreter spun up internally.
+     */
+    void on_unload() noexcept override {
+        m_module.reset();
+        if (Py_IsInitialized() != 0) {
+            Py_FinalizeEx();
+        }
+    }
+
     [[nodiscard]] CongeladoAny from_native(void *native_obj) override {
         return from_py(static_cast<PyObject *>(native_obj));
     }
