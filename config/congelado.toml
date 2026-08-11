@@ -5,18 +5,25 @@
 # docker/Dockerfile.server COPYs that one into the image at the same hardcoded path. The two
 # files exist separately because the endpoints below differ: "localhost" here vs. docker-compose
 # service names there — a bare-metal process isn't on that bridge network and can't resolve
-# hostnames like "postgres"/"tempo"/"loki". Point these at wherever you actually run each backend
-# locally (a native install, or `docker compose -f docker/docker-compose.yml up postgres` etc. —
-# check that compose file for which services actually publish a host port before assuming
-# "localhost" reaches them). Every plugin below degrades gracefully on a failed connection (logs
-# a warning, falls back to local-only/in-memory mode) if nothing is listening, so an unmodified
-# copy of this file is still a safe default with nothing else running.
+# hostnames like "postgres"/"rabbitmq"/"tempo"/"loki". This file is meant to be paired with `make
+# compose-env-up` (docker/docker-compose.environment.yml) — that stack publishes every backend
+# below to a host port with nothing gated behind a profile, so an unmodified copy of this file
+# connects to all of it as soon as that stack is up. Metrics/traces/logs still point at
+# docker-compose.yml's separate observability stack instead (docker-compose.environment.yml has
+# no otel services of its own) — see that section below for what to run for those. Every plugin
+# below degrades gracefully on a failed connection (logs a warning, falls back to
+# local-only/in-memory mode) if nothing is listening, so an unmodified copy of this file is still
+# a safe default with nothing else running.
+
+threads = 4
+
+# Global, host-owned — scanned once after every plugin has loaded, not tied to any one plugin.
+migrations_dir = "migrations"
 
 [plugins.http2]
 type = "protocol"
 host = "0.0.0.0"
 port = 8080
-threads = 4
 cert = "server.crt"
 key = "server.key"
 
@@ -31,9 +38,9 @@ type = "custom"
 
 # Section key matches the plugin's stripped .so stem ("libpostgres_plugin.so" -> "postgres_plugin",
 # see core/manager/shared_lib.cppm's scan()), not the plugin's own get_name() ("postgres"). Points
-# at a locally-reachable postgres — docker-compose.yml's own postgres service does NOT publish a
-# host port today, so this only connects if you run postgres natively or add a `ports:` mapping
-# to that service yourself; otherwise postgres_plugin just degrades gracefully (see file header).
+# at docker-compose.environment.yml's postgres service, which publishes :5432 to the host — up
+# with `make compose-env-up`. Otherwise postgres_plugin just degrades gracefully (see file
+# header).
 [plugins.postgres_plugin]
 type = "storage"
 host = "localhost"
@@ -51,16 +58,20 @@ dbname = "congelado"
 # no full stack needed. tempo's OTLP ports (4317/4318) are deliberately NOT published to the host
 # (see that compose file's own comment on tempo) — traces_endpoint below will just fail to
 # connect and degrade gracefully unless you add a `ports:` mapping for it too.
+# required = false: keep that graceful-degradation behavior. By default (required = true) the
+# plugin probes every endpoint below at load and fails process boot if any is unreachable; since
+# tempo's port isn't published to the host, this bare-metal config opts out so the server still
+# boots without the observability stack. Set required = true to enforce reachability.
 [plugins.otel_otlp_plugin]
 type = "custom"
 service_name = "congelado-server"
 metrics_endpoint = "http://localhost:9090/api/v1/otlp/v1/metrics"
 traces_endpoint = "http://localhost:4318/v1/traces"
 logs_endpoint = "http://localhost:3100/otlp/v1/logs"
+required = false
 
-# Alternative ISearchProvider backend to postgres_plugin's own. docker-compose.yml's
-# elasticsearch service does publish :9200 to the host, but only when the "search" profile is
-# opted into (`docker compose -f docker/docker-compose.yml --profile search up elasticsearch`);
+# Alternative ISearchProvider backend to postgres_plugin's own. docker-compose.environment.yml's
+# elasticsearch service publishes :9200 to the host unconditionally (`make compose-env-up`);
 # otherwise this just points at a host with nothing listening, which elasticsearch_plugin
 # degrades gracefully around (logs a warning, returns empty results).
 [plugins.elasticsearch_plugin]
@@ -70,17 +81,17 @@ index_prefix = "congelado_"
 
 # Event-bus backends (interfaces::IEventSink) — memory_events_plugin has no [plugins.*] section
 # of its own (nothing to configure beyond its `max_events` default). All three below match
-# docker-compose.yml's own host-published ports for these services, but only exist once the
-# "events" profile is opted into (`docker compose -f docker/docker-compose.yml --profile events
-# up`); otherwise each just points at a host with nothing listening, which every one of these
-# plugins degrades gracefully around (logs a warning, drops the publish).
+# docker-compose.environment.yml's own host-published ports for these services, unconditionally
+# up with `make compose-env-up`; otherwise each just points at a host with nothing listening,
+# which every one of these plugins degrades gracefully around (logs a warning, drops the
+# publish).
 [plugins.rabbitmq_events_plugin]
 type = "custom"
 host = "localhost"
 port = 5672
 vhost = "/"
-user = "guest"
-password = "guest"
+user = "admin"
+password = "admin"
 exchange = ""
 
 [plugins.kafka_events_plugin]

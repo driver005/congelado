@@ -46,6 +46,15 @@ class RouterContext {
     }
 
     /**
+     * @brief Registers a global middleware — one that runs on every request, ahead of the trie
+     * walk and any per-node middleware. `build()` carries these into the produced `RouteHandler`.
+     * @param middleware the global middleware to append.
+     */
+    constexpr void add_global_middleware(interfaces::MiddlewareFn middleware) {
+        m_global_middleware.add_middleware(std::move(middleware));
+    }
+
+    /**
      * @brief Grabs a mutable reference to the route stored at `index`.
      * @param index position into the internal route array.
      * @return reference to the route at that slot.
@@ -121,6 +130,12 @@ class RouterContext {
         }
 
         RouteHandler<> handler{};
+
+        // carry the global middleware into the built handler — the RouterContext is consumed by
+        // build(), so anything registered here has to be copied across or it's lost.
+        for (auto middleware : m_global_middleware) {
+            handler.add_global_middleware(middleware);
+        }
 
         // fold every stored route into the intermediate table, grouped by parent router —
         // insert_route() itself skips anything already flagged built
@@ -339,6 +354,7 @@ class RouterContext {
     }
 
     // Middleware<MaxMiddlewareSize> m_middlewares;
+    Middleware<MaxMiddlewareSize> m_global_middleware{};
     std::array<Route<MaxHandlerSize, MaxMiddlewareSize>, RouterSize> m_routes{};
     std::size_t m_router_size{2};
     // Shared across every RouterContext<RouterSize, MaxHandlerSize, MaxMiddlewareSize> instance

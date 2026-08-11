@@ -1,12 +1,11 @@
 -- Part of the merged plugins/ project — see plugins/xmake.lua.
 target("memory_events_plugin")
 set_kind("shared")
-apply_common_layer_settings({ plugin_includedir = true })
+apply_common_layer_settings({
+	layer = "memory_events_plugin",
+	plugin_includedir = true,
+	targetdir = shared_plugin_dir,
+})
 add_deps("congelado_sdk")
 add_files("src/**.cc")
-add_rpathdirs("$ORIGIN")
-set_targetdir(shared_plugin_dir)
-if is_plat("linux", "macosx") then
-	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-end
 target_end()

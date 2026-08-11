@@ -4,13 +4,15 @@ export import :io_header;
 export import :io_types;
 export import :io_request;
 export import :io_response;
+export import :io_dispatch;
 
 import std;
 import io_shared;
 
 export namespace interfaces::io {
 
-using ReceiveDispatchFn = std::function<void(IRequest &, IResponse &)>;
+using ReceiveDispatchFn =
+    std::function<void(IRequest &, IResponse &, std::function<void()> send)>;
 
 using SendDispatchFn = std::function<void(IRequest &)>;
 

@@ -115,9 +115,43 @@ class Config {
         return m_providers;
     }
 
+    /**
+     * @brief Sets the process-wide thread count — the optional top-level `threads` key. Drives
+     * the app context's contract thread pool size. Absent falls back to
+     * `std::thread::hardware_concurrency()` at read time (see App::run).
+     * @param threads the worker-thread count to run.
+     */
+    void set_threads(std::size_t threads) noexcept { m_threads = threads; }
+
+    /**
+     * @brief Grabs the configured process-wide thread count, if the top-level `threads` key was
+     * set — otherwise empty, in which case callers fall back to
+     * `std::thread::hardware_concurrency()`.
+     * @return the configured thread count, or `std::nullopt` if unset.
+     */
+    [[nodiscard]] const std::optional<std::size_t> &get_threads() const noexcept { return m_threads; }
+
+    /**
+     * @brief Sets the directory the host-owned global migration runner scans for
+     * `<timestamp>_description.sql` files — the optional top-level `migrations_dir` key.
+     * @param migrations_dir the directory path to scan, relative or absolute.
+     */
+    void set_migrations_dir(std::string migrations_dir) noexcept {
+        m_migrations_dir = std::move(migrations_dir);
+    }
+
+    /**
+     * @brief Grabs the configured migrations directory.
+     * @return the configured directory, or `"migrations"` if the top-level `migrations_dir` key
+     * was never set.
+     */
+    [[nodiscard]] const std::string &get_migrations_dir() const noexcept { return m_migrations_dir; }
+
   private:
     std::unordered_map<std::string, PluginConfig> m_plugins;
     std::unordered_map<std::string, std::vector<std::string>> m_providers;
+    std::optional<std::size_t> m_threads;
+    std::string m_migrations_dir{"migrations"};
 };
 
 } // namespace core::config

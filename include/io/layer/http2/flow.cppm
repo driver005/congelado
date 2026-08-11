@@ -6,6 +6,7 @@ import std;
 import shared;
 import core_events;
 import core_logger;
+import :extension;
 import :handshake;
 import :session;
 import :request;
@@ -20,15 +21,35 @@ class ServerFlow {
      * Handshake starts life not-completed, obviously, nothing's happened yet.
      * @param send callback the session uses to push bytes out to the transport.
      * @param close callback the session calls to tear the connection down.
+     * @param extension_registry the process's one `HttpExtensionRegistry`, forwarded straight
+     * into the `Session` ctor — see that ctor's own doc comment for why it's a required
+     * reference rather than something `Session` resolves ambiently.
      * @param dispatch request/response dispatch hook, forwarded into the `Session`.
      */
     ServerFlow(::shared::SendCallback send, ::shared::CloseCallback close,
+               HttpExtensionRegistry &extension_registry,
                interfaces::io::ReceiveDispatchFn dispatch = {})
-        : m_session{std::move(send), std::move(close), std::move(dispatch)},
-          m_handshake{m_session.get_local_settings(),
-                      [this](utils::buffering::BufferNode &&node) {
+        : m_session{std::move(send), std::move(close), extension_registry, std::move(dispatch)},
+          m_handshake{m_session.get_local_settings(), [this](utils::buffering::BufferNode &&node) {
                           m_session.send_node(std::move(node));
                       }} {}
+
+
+    /**
+     * @brief Tears this connection's session down — sends GOAWAY and, unless `graceful`, invokes
+     * the close callback the transport wired up at accept time (which is what actually closes the
+     * underlying socket). Graceful leaves the socket open so the sender can flush first.
+     * @param code the GOAWAY error code to report to the peer; defaults to a clean shutdown.
+     * @param graceful when true, skip the socket close so the transport stays open.
+     */
+    void close(error::http::Http2ErrorCode code = error::http::Http2ErrorCode::NO_ERROR_CODE,
+               bool graceful = false) {
+        if (m_closed) {
+            return;
+        }
+        m_closed = true;
+        m_session.close(code, 0, graceful);
+    }
 
     /**
      * @brief Builds the read callback the transport layer calls whenever bytes come in off the
@@ -48,7 +69,7 @@ class ServerFlow {
             // treating them as frame data.
             if (!m_handshake_completed) {
                 core::logger::debug("http2/server/flow", "handshake");
-                auto result = m_handshake.process(view);
+                auto result = m_handshake.process(view, m_session.get_extension_registry());
                 if (result == HandshakeState::COMPLETED) {
                     // Preface matched, flip the flag so future calls skip straight to framing.
                     core::logger::debug("http2/server/flow", "handshake ok");
@@ -57,7 +78,7 @@ class ServerFlow {
                     // Bad preface — L, kill the connection and don't touch whatever's left in view.
                     core::logger::error("http2/server/flow", "invalid preface");
                     core::events::publish("http2.flow.invalid_preface");
-                    m_session.close(error::http::Http2ErrorCode::PROTOCOL_ERROR);
+                    close(error::http::Http2ErrorCode::PROTOCOL_ERROR);
                     return;
                 } else {
                     // Still incomplete, just need more bytes — bail quietly and wait for next call.
@@ -73,10 +94,17 @@ class ServerFlow {
         };
     }
 
+    /**
+     * @brief Checks whether this connection has nothing left to send and no active streams.
+     * @return true if the connection is finished and can be closed.
+     */
+    [[nodiscard]] bool is_idle() noexcept { return m_session.is_idle(); }
+
   private:
     Session m_session;
     Handshake<true> m_handshake;
     bool m_handshake_completed{false};
+    bool m_closed{false};
 };
 
 class ClientFlow {
@@ -89,11 +117,14 @@ class ClientFlow {
      * `m_session.send_node()`.
      * @param on_send callback the session uses to push bytes out to the transport.
      * @param close callback the session calls to tear the connection down.
+     * @param extension_registry the process's one `HttpExtensionRegistry`, forwarded straight
+     * into the `Session` ctor.
      * @param dispatch request/response dispatch hook, forwarded into the `Session`.
      */
     ClientFlow(::shared::SendCallback on_send, ::shared::CloseCallback close,
+               HttpExtensionRegistry &extension_registry,
                interfaces::io::ReceiveDispatchFn dispatch = {})
-        : m_session{std::move(on_send), std::move(close), std::move(dispatch)},
+        : m_session{std::move(on_send), std::move(close), extension_registry, std::move(dispatch)},
           m_handshake{m_session.get_local_settings(), [this](utils::buffering::BufferNode &&node) {
                           m_session.send_node(std::move(node));
                       }} {}
@@ -112,7 +143,7 @@ class ClientFlow {
             core::logger::debug("http2/client/flow", "handshake");
 
             // Client sends the preface, no waiting on the peer to confirm — synchronous and done.
-            m_handshake.process();
+            m_handshake.process(m_session.get_extension_registry());
 
             core::logger::debug("http2/client/flow", "handshake ok");
 

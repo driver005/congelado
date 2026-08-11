@@ -85,6 +85,9 @@ services:
     container_name: congelado-rabbitmq
     profiles:
       - events
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
     ports:
       - "5672:5672"
       # Management UI, purely a local-dev convenience for inspecting queues/exchanges.
@@ -235,9 +238,8 @@ services:
     depends_on:
       server:
         condition: service_healthy
-    environment:
-      - ENGINE_HOST=server
-      - ENGINE_PORT=8080
+    # Target host is baked into the collection's `Docker` sub-environment
+    # (base_url -> https://server:8080); no ENGINE_HOST/ENGINE_PORT needed anymore.
     networks:
       - congelado
 

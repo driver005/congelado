@@ -22,8 +22,8 @@ class Receiver : public shared::HandlerBase {
      * @param worker the worker whose fd this receiver reads from.
      */
     Receiver(Worker &worker)
-        : m_worker{worker}, m_on_read{nullptr}, m_on_error{nullptr}, m_stalled{false}, m_closed{true} {
-    }
+        : m_worker{worker}, m_on_read{nullptr}, m_on_error{nullptr}, m_stalled{false},
+          m_closed{true} {}
 
     /**
      * @brief Builds a Receiver with just the error callback set, starts open (`m_closed = false`)
@@ -34,8 +34,7 @@ class Receiver : public shared::HandlerBase {
      */
     Receiver(Worker &worker, shared::ErrorCallback on_error)
         : m_worker{worker}, m_on_read{nullptr}, m_on_error{std::move(on_error)}, m_stalled{false},
-          m_closed{false} {
-    }
+          m_closed{false} {}
 
     /**
      * @brief Builds a Receiver fully wired up with both callbacks and validates them via build()
@@ -45,8 +44,8 @@ class Receiver : public shared::HandlerBase {
      * @param on_error invoked with `(fd, error value)` on a read failure.
      */
     Receiver(Worker &worker, shared::ReadCallback on_read, shared::ErrorCallback on_error)
-        : m_worker{worker}, m_on_read{std::move(on_read)}, m_on_error{std::move(on_error)}, m_stalled{false},
-          m_closed{false} {
+        : m_worker{worker}, m_on_read{std::move(on_read)}, m_on_error{std::move(on_error)},
+          m_stalled{false}, m_closed{false} {
         build();
     }
 
@@ -140,8 +139,7 @@ class Receiver : public shared::HandlerBase {
      * @return an empty no-op release callback.
      */
     shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept {
-        };
+        return [this]() noexcept {};
     }
 
     /**
@@ -160,21 +158,23 @@ class Receiver : public shared::HandlerBase {
             try {
                 std::rethrow_exception(eptr);
             } catch (const std::system_error &e) {
-                core::logger::warning("io/recv", "fd {} sys error: {} ({})", m_worker.get().get_fd(),
-                                      e.what(), e.code().value());
+                core::logger::warning("io/recv", "fd {} sys error: {} ({})",
+                                      m_worker.get().get_fd(), e.what(), e.code().value());
                 core::events::publish("io.recv.sys_error",
                                       {{"fd", std::to_string(m_worker.get().get_fd())},
                                        {"error", e.what()},
                                        {"code", std::to_string(e.code().value())}});
                 m_on_error(m_worker.get().get_fd(), e.code().value());
             } catch (const std::exception &e) {
-                core::logger::warning("io/recv", "fd {} exception: {}", m_worker.get().get_fd(), e.what());
-                core::events::publish("io.recv.exception",
-                                      {{"fd", std::to_string(m_worker.get().get_fd())},
-                                       {"error", e.what()}});
+                core::logger::warning("io/recv", "fd {} exception: {}", m_worker.get().get_fd(),
+                                      e.what());
+                core::events::publish(
+                    "io.recv.exception",
+                    {{"fd", std::to_string(m_worker.get().get_fd())}, {"error", e.what()}});
                 m_on_error(m_worker.get().get_fd(), -1);
             } catch (...) {
-                core::logger::warning("io/recv", "fd {} unknown exception", m_worker.get().get_fd());
+                core::logger::warning("io/recv", "fd {} unknown exception",
+                                      m_worker.get().get_fd());
                 core::events::publish("io.recv.unknown_exception",
                                       {{"fd", std::to_string(m_worker.get().get_fd())}});
                 m_on_error(m_worker.get().get_fd(), -1);
@@ -192,8 +192,9 @@ class Receiver : public shared::HandlerBase {
      * closed and nothing happened.
      */
     bool resume() {
-        // Closed is a hard no — don't even try.
-        if (m_closed) {
+        // Idle = fully torn down; only then do we stop rescheduling. A merely-closed receiver
+        // still gets one more arm_read() pass to release its armed slot ref before going idle.
+        if (m_idle) {
             return false;
         }
         // Only kick off a new read if one isn't already in flight (re-entrancy guard).
@@ -208,9 +209,7 @@ class Receiver : public shared::HandlerBase {
      * @brief Marks this receiver closed — resume() becomes a permanent no-op after this until
      * something flips `m_closed` back manually (nothing on this class does that, no cap).
      */
-    void set_closed() noexcept {
-        m_closed = true;
-    }
+    void set_closed() noexcept { m_closed = true; }
 
     /**
      * @brief Checks whether a read is currently in flight inside arm_read().
@@ -222,6 +221,12 @@ class Receiver : public shared::HandlerBase {
      * @return true if closed, false if still open.
      */
     [[nodiscard]] bool get_closed() const noexcept { return m_closed; }
+    /**
+     * @brief Whether this receiver has finished its final closed pass — armed slot released and
+     * done rescheduling. Owning code waits on this before tearing the socket down.
+     * @return true once fully idle.
+     */
+    [[nodiscard]] bool get_idle() const noexcept { return m_idle; }
 
   private:
     /**
@@ -235,19 +240,13 @@ class Receiver : public shared::HandlerBase {
      */
     void arm_read() {
         const auto FILE_DESCRIPTOR = m_worker.get().get_fd();
-        // Guard against reading on an already-closed receiver.
-        if (m_closed) {
-            core::logger::warning("io/recv", "fd {} read on closed", FILE_DESCRIPTOR);
-            core::events::publish("io.recv.read_on_closed", {{"fd", std::to_string(FILE_DESCRIPTOR)}});
-            m_stalled = false;
-            return;
-        }
 
-        // Grab a buffer slot and do the actual blocking-ish sync receive call.
+        // Grab a buffer slot and do the actual blocking-ish sync receive call. acquire() only
+        // took a fresh slot ref if it allocated a new node; a reused tail carries no extra ref.
         auto *slot = m_pool.acquire();
 
-        auto [result, status] =
-            m_worker.get().sync_receive(slot->get_data(), static_cast<unsigned>(slot->get_limit()), 0);
+        auto [result, status] = m_worker.get().sync_receive(
+            slot->get_data(), static_cast<unsigned>(slot->get_limit()), 0);
 
         // Dispatch on what actually happened: real data forwards to m_on_read, a would-block
         // just backs off quietly, and anything else (error/disconnect/timeout) closes the
@@ -258,27 +257,39 @@ class Receiver : public shared::HandlerBase {
 
             core::logger::debug("io/recv", "fd {} rx {} bytes", FILE_DESCRIPTOR, BYTES);
 
+            // notify_read() folds the bytes in and drops the slot ref taken on allocation.
             m_pool.notify_read(slot, BYTES);
             m_on_read(m_pool.get_view());
             m_stalled = false;
             return;
         }
-        case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED:
+        case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED: {
             core::logger::debug("io/recv", "fd {} would block", FILE_DESCRIPTOR);
+            // No bytes landed. Normally keep the slot armed for the next read; but if we're closing
+            // this is the final pass — release the armed slot ref and go idle so resume() stops.
+            if (m_closed) {
+                m_pool.release(slot);
+                m_idle = true;
+            }
             m_stalled = false;
             return;
+        }
         case socket::VALUES::ERRORED:
         case socket::VALUES::CLEANLY_DISCONNECTED:
         case socket::VALUES::TIMED_OUT: {
             core::logger::warning("io/recv", "fd {} read error: {} ({})", FILE_DESCRIPTOR,
                                   status.get_error_code(),
                                   utils::ErrnoTranslator::describe_errno(status.get_error_code()));
-            core::events::publish(
-                "io.recv.read_error",
-                {{"fd", std::to_string(FILE_DESCRIPTOR)},
-                 {"error_code", std::to_string(status.get_error_code())},
-                 {"error", std::string{utils::ErrnoTranslator::describe_errno(status.get_error_code())}}});
+            core::events::publish("io.recv.read_error",
+                                  {{"fd", std::to_string(FILE_DESCRIPTOR)},
+                                   {"error_code", std::to_string(status.get_error_code())},
+                                   {"error", std::string{utils::ErrnoTranslator::describe_errno(
+                                                 status.get_error_code())}}});
+            // Read failed — drop this slot ref and finish teardown in one shot (closed + idle),
+            // so resume() releases the contract without a second cleanup pass.
             m_closed = true;
+            m_idle = true;
+            m_pool.release(slot);
             m_on_error(FILE_DESCRIPTOR, status.get_error_code());
             return;
         }
@@ -291,8 +302,13 @@ class Receiver : public shared::HandlerBase {
     shared::ErrorCallback m_on_error;
     bool m_stalled;
     bool m_closed;
+    // Two-phase teardown: m_closed = "stop serving, do a final cleanup pass"; m_idle = "fully
+    // done, stop rescheduling". resume() keeps running arm_read() until m_idle, so the armed slot
+    // ref gets released on that final closed pass instead of leaking (see DEBUG.md hunt).
+    bool m_idle = false;
 };
 
-static_assert(interfaces::io::SyncReceivable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus, std::byte *>);
+static_assert(interfaces::io::SyncReceivable<socket::Socket<socket::Protocol::TCP>,
+                                             socket::SocketStatus, std::byte *>);
 
 } // namespace io::base::flow::sync

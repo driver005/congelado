@@ -23,10 +23,6 @@ ARG BUILD_MODE=release
 
 # Container runs as root with no USER directive; xmake refuses to run as root otherwise.
 ENV XMAKE_ROOT=y
-# Cap parallel compile jobs — 12 host cores against limited container RAM has been
-# spiking swap hard enough to trigger silent kills during the openssl/cpython/bison
-# Conan builds; capping keeps peak memory bounded.
-ENV MAKEFLAGS=-j4
 
 RUN pacman -Syu --noconfirm \
     && pacman -S --noconfirm --needed \
@@ -91,7 +87,10 @@ COPY . .
 # fingerprint-guarded restore/save around `make build` below rather than a plain mount here (see
 # that RUN's own comment for why, and for the safety net guarding the real stale-incremental-BMI
 # -cache Clang crash a naive reuse of this state caused once this session).
-RUN --mount=type=cache,target=/root/.conan2 --mount=type=cache,target=/root/.xmake make install MODE="$BUILD_MODE"
+# MAKEFLAGS exported inline (not a Dockerfile ENV) so `$(nproc)` actually expands — plain `make`
+# defaults to serial without it, and any Conan-internal make-based recipe build (openssl/cpython/
+# bison) run as a child of this shell inherits it too.
+RUN --mount=type=cache,target=/root/.conan2 --mount=type=cache,target=/root/.xmake export MAKEFLAGS=-j$(nproc) && make install MODE="$BUILD_MODE"
 
 # Build everything, in one pass. engine (plugins/engine/) is its own standalone xmake project
 # now — its build.cc runs and writes the generated OpenAPI client SDK as part of that project's
@@ -123,6 +122,16 @@ RUN --mount=type=cache,target=/root/.conan2 --mount=type=cache,target=/root/.xma
 # every build (Arch is rolling-release), an upstream clang/xmake bump alone — with zero source
 # changes — will also flip this fingerprint and force one full rebuild; that's intended, not a bug.
 #
+# The xmake component is reduced to its bare semantic version (grep'd out of `xmake --version`),
+# not the raw command output: xmake's own release binaries report a build-date suffix
+# (e.g. "v3.0.9+20260519", stamped by xmake's release CI, not anything local) that's constant for
+# a given release but differs release-to-release — and the xmake install step below always grabs
+# whatever tag is currently latest (deliberately unpinned, same "stay current" tradeoff as
+# pacman -Syu above), so that date rode along into the hash too. Two builds landing on the exact
+# same xmake release still fingerprinted as different purely because of that stamp, discarding a
+# perfectly reusable build/ tree. Hashing just "v3.0.9" keeps the real intent above (a genuine
+# xmake version change still invalidates the cache) without also invalidating on nothing.
+#
 # sharing=locked serializes access to this cache mount so two builds that overlap can't write to
 # it concurrently and corrupt it — a second, independent way to end up with a "stale/corrupt
 # cache" class of failure. Requires buildah >=1.40 / podman >=5.5 for the `sharing=` option on
@@ -134,10 +143,11 @@ RUN --mount=type=cache,target=/root/.conan2 \
     --mount=type=cache,target=/root/.xmake \
     --mount=type=cache,id=congelado-buildcache,target=/root/.cache/congelado-buildcache,sharing=locked \
     sh -c '\
+    export MAKEFLAGS=-j$(nproc) && \
     CACHE=/root/.cache/congelado-buildcache && \
     STAMP="$CACHE/build/.docker-buildcache-fingerprint" && \
     mkdir -p "$CACHE/build" && \
-    fingerprint=$( { clang --version; xmake --version; find /app -name xmake.lua | sort | xargs cat; } | sha256sum | cut -d" " -f1 ) && \
+    fingerprint=$( { clang --version; xmake --version | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+" | head -1; find /app -name xmake.lua | sort | xargs cat; } | sha256sum | cut -d" " -f1 ) && \
     if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$fingerprint" ]; then \
         echo "builder: build/ cache fingerprint matches - reusing cached build/ tree" && \
         rsync -a --exclude=.docker-buildcache-fingerprint "$CACHE/build/" /app/build/ ; \

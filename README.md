@@ -156,13 +156,51 @@ make debug
 # Regenerate compile_commands.json for your editor
 make editor
 
-# Run the test suite
+# Run the C++ test suite
 make test
+
+# Run the Insomnia-scripted API suite against a running server (needs the modern `inso`
+# CLI, >= 10; see below). Start a server first (e.g. `make compose-release-up`).
+make inso-test
+
+# Schema-fuzz the live OpenAPI surface
+make api-test
 ```
 
 See the `makefile` itself for the full target list — `windows`/`linux` for platform
 reconfiguration, `clean`/`clean-all` for teardown, `info-outdated` for Conan dependency
 drift.
+
+### API testing (Insomnia scripts)
+
+HTTP-level API tests live in the checked-in Insomnia collection
+`insomia/Congelado API 1.0.0-*.yaml`. Every request carries an **after-response** script
+(`insomnia.test` / `insomnia.expect`, chai-style) asserting status code + response shape,
+and the create→start→exec / enqueue→poll→result flows chain via
+`insomnia.environment.set('exec_id'|'task_id', …)`. The collection defines two
+sub-environments: `Local` (`https://localhost:8080`) and `Docker` (`https://server:8080`).
+
+The collection is **generated** — don't hand-edit it. `make gen-inso-tests` rebuilds it from
+the OpenAPI spec (`plugins/engine/generated/engine/openapi.json`, itself regenerated at
+build) via `scripts/gen_inso_collection.py`. Status + shape assertions come from the spec;
+request bodies, run order, and the id-chaining live in that script's scenario overlay. Add a
+route → regenerate → it appears asserted automatically (soft `< 500` if the spec declares no
+response); give it an overlay entry only if it needs a body, an order slot, or a chained id.
+Runs under `uv run` (auto-installs its `pyyaml` dep) or any `python3` with `pyyaml`.
+
+- **GUI:** open the collection in Insomnia and use the Collection Runner.
+- **CLI/CI:** `make inso-test` (or the compose `test` service). The server is HTTP/2-only
+  over TLS with a self-signed cert, so runs pass `--disableCertValidation`. The runner needs
+  `inso` **>= 10** — download the `core@` release binary from
+  <https://github.com/Kong/insomnia/releases> (asset `inso-linux-x64-<ver>.tar.xz`); the npm
+  `insomnia-inso` package is stuck at 3.x and lacks `run collection`.
+- **Containerized:** `podman compose -f docker/docker-compose.yml up --build test` runs the
+  suite (via `docker/Dockerfile.test`, which installs `inso`) against the `server` service
+  after its healthcheck — this replaces the former `docker/test/run.sh` curl harness.
+
+> Note: the suite is meant to run against the compose **release** stack (with Postgres and
+> the other backends wired). The local debug + AddressSanitizer `make run` server is too slow
+> under HTTP/2 load for the full suite.
 
 ## UI
 

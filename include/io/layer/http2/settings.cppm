@@ -77,9 +77,10 @@ class Settings {
      * @brief Applies one decoded SETTINGS id/value pair to the matching member, with
      * per-setting validation where the spec demands it (ENABLE_PUSH must be 0/1,
      * INITIAL_WINDOW_SIZE capped at 2^31-1, MAX_FRAME_SIZE bounded to [16384, 2^24-1]).
-     * @note Unknown setting ids (anything not 0x1–0x6) are silently ignored — RFC 9113 §6.5.2
-     * says unrecognized settings MUST be ignored, not rejected, so that's a straight W, spec-
-     * correct behavior, not a gap.
+     * @note Unknown setting ids (anything not 0x1–0x6) are RFC 9113 §6.5.2 spec-legal — they
+     * MUST be ignored for negotiation purposes, not rejected — but are recorded into
+     * `m_vendor_settings` so an `IHttpExtension` can still react to a vendor id (e.g.
+     * RFC 8441's `SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x8`) instead of it vanishing outright.
      * @param setting_id the setting id (0x1 through 0x6 are recognized).
      * @param value the setting value to apply.
      * @throws error::http::ConnectionError if ENABLE_PUSH isn't 0 or 1, INITIAL_WINDOW_SIZE
@@ -87,8 +88,9 @@ class Settings {
      * MAX_FRAME_SIZE]`.
      */
     void apply(std::uint16_t setting_id, std::uint32_t value) {
-        // Only ids 0x1-0x6 are recognized; anything else falls through to the default no-op
-        // per RFC 9113 §6.5.2 — unknown settings get ignored, not rejected.
+        // Only ids 0x1-0x6 are recognized; anything else falls through to the default arm
+        // per RFC 9113 §6.5.2 — unknown settings get ignored for negotiation, not rejected,
+        // but are still recorded for extension hooks to observe.
         switch (setting_id) {
         case 0x1: {
             core::logger::debug("http2/settings", "HEADER_TABLE_SIZE={}", value);
@@ -136,8 +138,60 @@ class Settings {
             return;
         }
         default:
+            core::logger::debug("http2/settings", "unrecognized setting id={} value={}", setting_id,
+                                value);
+            m_vendor_settings.emplace_back(setting_id, value);
             return;
         }
+    }
+
+    /**
+     * @brief Copies the six negotiable SETTINGS fields (header table size, enable push, max
+     * concurrent streams, initial window size, max frame size, max header list size) from
+     * `other` onto `*this`. Deliberately leaves `m_state`, `m_last_stream_id`, `m_ping_tracker`,
+     * and `m_delta_window_on_settings` untouched — those track connection lifecycle, not
+     * wire-negotiated values, and must survive across repeated SETTINGS exchanges.
+     * @param other the decoded settings to copy the six negotiable fields from.
+     */
+    void apply_all(const Settings &other) {
+        core::logger::debug("http2/settings", "apply_all from decoded settings");
+
+        m_header_table_size = other.m_header_table_size;
+        m_enable_push = other.m_enable_push;
+        m_max_concurrent_streams = other.m_max_concurrent_streams;
+        m_initial_window_size = other.m_initial_window_size;
+        m_max_frame_size = other.m_max_frame_size;
+        m_max_header_list_size = other.m_max_header_list_size;
+        // Carry the decoded vendor ids across too, so an `on_remote_settings` observer can read
+        // them back off this instance via get_vendor_settings().
+        m_vendor_settings = other.m_vendor_settings;
+    }
+
+    /**
+     * @brief Registers one vendor/extension setting id/value pair on this settings instance.
+     * On the outgoing (local) instance an extension calls this from `on_local_settings()` to
+     * advertise a vendor id (e.g. RFC 8441's `SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x8`);
+     * `WriteSettingsAdaptor` emits it after the six spec fields.
+     * @param setting_id the vendor/extension setting id.
+     * @param value the value for it.
+     */
+    void add_local_setting_override(std::uint16_t setting_id, std::uint32_t value) {
+        core::logger::debug("http2/settings", "vendor setting id={} value={}", setting_id, value);
+
+        m_vendor_settings.emplace_back(setting_id, value);
+    }
+
+    /**
+     * @brief Grabs every vendor/extension setting id/value pair attached to this instance —
+     * one list serving both directions since no single `Settings` instance is ever both: on a
+     * decoded remote instance it holds the ids `apply()` didn't recognize (ids outside 0x1-0x6),
+     * on the local instance it holds `add_local_setting_override()` entries. `on_remote_settings`
+     * reads it on the remote side; `WriteSettingsAdaptor` reads it on the local side.
+     * @return the vendor id/value pairs on this instance.
+     */
+    [[nodiscard]] std::span<const std::pair<std::uint16_t, std::uint32_t>>
+    get_vendor_settings() const noexcept {
+        return m_vendor_settings;
     }
 
     /**
@@ -301,6 +355,12 @@ class Settings {
     shared_layer::ping::PingTracker m_ping_tracker;
 
     std::int32_t m_delta_window_on_settings{0};
+
+    // Vendor/extension setting id/value pairs attached to this instance. On a decoded remote
+    // instance: the ids apply() didn't recognize (read by on_remote_settings dispatch). On the
+    // local instance: add_local_setting_override() entries (emitted by WriteSettingsAdaptor).
+    // No instance is ever both, so one vector serves both directions.
+    std::vector<std::pair<std::uint16_t, std::uint32_t>> m_vendor_settings;
 };
 
 
@@ -397,6 +457,13 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
 
         if (m_settings.get().get_max_header_list_size() != std::numeric_limits<std::uint32_t>::max()) {
             emit(0x6, m_settings.get().get_max_header_list_size());
+        }
+
+        // Vendor/extension overrides registered via add_local_setting_override() go out after
+        // the six spec fields — this is how an extension's on_local_settings() mutation (e.g.
+        // RFC 8441's SETTINGS_ENABLE_CONNECT_PROTOCOL) actually reaches the wire.
+        for (const auto &[setting_id, value] : m_settings.get().get_vendor_settings()) {
+            emit(setting_id, value);
         }
 
         return std::views::concat(std::forward<R>(range), std::move(settings_bytes));

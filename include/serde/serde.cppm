@@ -235,4 +235,56 @@ class Ser {
     }
 };
 
+/**
+ * @brief Global content-negotiation middleware — validates a request's content types against the
+ * registered serde formats before it ever reaches a handler, so a request the server can't
+ * actually parse or represent is rejected up front with the right status instead of being run
+ * and then handed a success status carrying a `{"error":...}` body it couldn't serialize.
+ *
+ * Two checks, exact-match against `SerdeFormatRegistry` (no wildcard/fallback — the server only
+ * speaks the formats a plugin registered):
+ *   - inbound: if the request carries a body, its `Content-Type` must name a registered format,
+ *     else `415 Unsupported Media Type`;
+ *   - outbound: the `Accept` header must name a registered format, else `406 Not Acceptable`
+ *     (an absent/empty Accept, and the wildcard `* / *`, both fail — there is no default).
+ * On a miss it replies + calls `send` and does NOT call `next`, which (via the router's global
+ * `execute_wrapping`) skips the handler entirely. On a clean match it calls `next` to continue.
+ *
+ * Must be a plain free function: `interfaces::MiddlewareFn` is a function pointer, so this can't
+ * capture — it reads the process-global `SerdeFormatRegistry::get_active()` instead.
+ * @param req the inbound request; its `content-type`/`accept` headers and body are read.
+ * @param res the response — set to 415/406 with an error body on a rejection.
+ * @param next the continuation into the rest of dispatch; called only on the accept path.
+ * @param send the response-completion callback; called only on a rejection here.
+ */
+inline void content_negotiation_middleware(interfaces::io::IRequest &req,
+                                           interfaces::io::IResponse &res, interfaces::NextFn &&next,
+                                           std::function<void()> send) {
+    auto *registry = SerdeFormatRegistry::get_active();
+
+    // inbound body format — only meaningful when there actually is a body to parse
+    auto content_type = req.find_header("content-type");
+    if (!req.get_body().empty() &&
+        (registry == nullptr || registry->find(content_type) == nullptr)) {
+        res.set_body(Ser::serialize_error(
+            content_type,
+            std::format("no serde format registered for Content-Type '{}'", content_type)));
+        res.set_status(interfaces::io::types::Status::UNSUPPORTED_MEDIA_TYPE);
+        send();
+        return;
+    }
+
+    // outbound response format
+    auto accept = req.find_header("accept");
+    if (registry == nullptr || registry->find(accept) == nullptr) {
+        res.set_body(Ser::serialize_error(
+            accept, std::format("no serde format registered for Accept '{}'", accept)));
+        res.set_status(interfaces::io::types::Status::NOT_ACCEPTABLE);
+        send();
+        return;
+    }
+
+    next(req, res, std::move(send));
+}
+
 } // namespace serde

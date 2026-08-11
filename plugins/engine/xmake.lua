@@ -1,73 +1,117 @@
--- Part of the merged plugins/ project — see plugins/xmake.lua. Sharing this project with the
--- other 8 plugins is safe despite engine's build.cc codegen step: the hard constraint that forced
--- engine into its own process originally was specifically "congelado_worker (root project) must
--- not scan for an `import` of engine's generated client SDK before build.cc has actually written
--- it" — none of the other 8 plugins here import anything engine generates, so their scan doesn't
--- care. The root project stays fully separate and still builds last (after this whole merged
--- project, including engine, finishes), so that original ordering constraint still holds.
---
--- Two things stop being automatically true once engine shares a process (and therefore build.cc's
--- inherited execv cwd) with sibling folders that aren't plugins/engine/, both fixed here:
--- 1. build.cc itself uses paths relative to its OWN folder ("generated/openapi.json",
---    "../../build/plugins/libjson_plugin.so") — xmake/buildscript.lua's wire_build_scripts() now
---    pins its execv curdir explicitly to that folder, not whatever cwd the invoking project has.
--- 2. os.projectdir() no longer equals this folder (it now returns the merged project's own root,
---    plugins/) — os.scriptdir() (this file's own directory) is used below wherever engine's
---    original code relied on os.projectdir() meaning "this folder".
-includes(path.join(core_root, "xmake/buildscript.lua"))
+includes(path.join(core_root, "xmake/build.lua"))
 
--- engine's own module interface files (core/, model/, worker/) + engine.cc's dlopen entry point
--- — one target, same as how congelado_lib used to hold the .cppm files while the separate
--- "engine" dlopen target held just engine.cc; there's no other target in this project that
--- would need them split apart.
-target("engine")
-set_kind("shared")
-set_languages("c++26")
-set_policy("build.c++.modules", true)
--- engine_build (wire_build_scripts, below) depends on this target and needs its BMI/build fully
--- finished before compiling build.cc's `import engine;` — matches congelado_include/congelado_sdk's
--- own pattern (xmake/core_layers.lua): the fence belongs on the target *others wait on*, not
--- (only) on the dependent tool itself.
-set_policy("build.fence", true)
-apply_common_layer_settings({ plugin_includedir = true })
+target("engine_model")
+set_kind("moduleonly")
 add_deps("congelado_sdk")
--- "lua" needed for src/core/expr/lua_eval.cppm's direct lua_State* manipulation (condition
--- evaluation for SWITCH/DO_WHILE/EventHandler) — same package lua_bridge itself links against.
-add_packages("sqlgen", "reflectcpp", "lua")
-add_files("src/**.cppm", { public = true })
-add_files("src/**.cc")
-remove_files("src/generated/**.cppm")
--- build.cc is its own separate tool target (wire_build_scripts, below) — never part of
--- this shared-lib target. worker/internal/**.cc are the CONGELADO_TASK worker bundles,
--- each its own plain-shared-lib target (the loop further below) with different include
--- dirs (sdk/worker/include, not congelado_sdk) — including them here would double-compile
--- them under the wrong module/include settings.
-remove_files("src/build.cc")
-remove_files("src/worker/internal/**.cc")
-add_rpathdirs("$ORIGIN")
-set_targetdir(shared_plugin_dir)
-if is_plat("linux", "macosx") then
-	add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-end
+add_files("model/**.cppm", { public = true })
 target_end()
 
--- build.cc: same wire_build_scripts mechanism as before, depending on this project's own local
--- "engine" target. json_plugin is now a SIBLING target in this same merged project (not a
--- separate process the orchestrator sequenced before this one), so it's add_deps()'d here too,
--- purely for build ordering — build.cc dlopens libjson_plugin.so at its own runtime and needs
--- that file to already exist on disk before it runs, same as it always has, just enforced via
--- xmake's own target graph now instead of the orchestrator's process ordering.
-wire_build_scripts("engine", os.scriptdir(), { "engine", "json_plugin" })
+-- moduleonly, same reasoning as engine_model above: worker_api and engine_worker_lib both need
+-- the "worker" module compiled, and independently add_files()'ing the identical worker/**.cppm
+-- glob in two sibling targets (no dependency edge between them) silently dropped one side's
+-- objects — xmake's module BMI cache credited the second target's compile as already satisfied
+-- by the first's, without actually producing the second target's own object files (confirmed:
+-- every compiled worker/*.cppm.o landed only under build/.objs/worker_api/, never under
+-- build/.objs/engine_worker_lib/, causing "undefined symbol: worker::..." at engine_worker's link
+-- time). moduleonly is xmake's actual supported mechanism for sharing module compilation across
+-- independent consumers — engine_model already proves it works correctly for model/**.cppm.
+target("worker_module")
+set_kind("moduleonly")
+add_deps("congelado_sdk", "engine_model")
+add_files("worker/**.cppm", { public = true })
+target_end()
 
--- CONGELADO_TASK worker bundles: engine's own worker subsystem (physically nested under
--- worker/internal/ in this same directory tree) — built here, not by the root project and not as
--- their own standalone projects. Plain shared libs, no module imports, no tie to
--- congelado_include/congelado_sdk at all (congelado/worker.h is a header-only C ABI macro) — so
--- unlike "engine" above, they don't need set_policy("build.c++.modules") or add_deps(congelado_sdk).
--- A new bundle folder (even with multiple .cc files, grouped by folder same as before) just needs
--- to exist — no xmake.lua of its own, no orchestrator edit.
+-- default(false): only ever built via engine_lib's/engine_worker's real add_deps (below), never
+-- as part of a bare `xmake build`'s default set — keeps a bare full build from being one more
+-- place that could independently schedule these.
+target("engine_api")
+set_kind("binary")
+set_default(false)
+add_files("src/build.cc")
+add_files("src/**.cppm", { public = true })
+apply_common_layer_settings({ layer = "engine_api", fence = true })
+add_deps("congelado_include", "congelado_sdk", "json_plugin", "openapi_generator", "engine_model")
+add_rpathdirs("$ORIGIN")
+target_end()
+
+target("worker_api")
+set_kind("binary")
+set_default(false)
+add_files("worker/build.cc")
+apply_common_layer_settings({ layer = "worker_api", fence = true })
+add_deps("congelado_include", "congelado_sdk", "json_plugin", "openapi_generator", "engine_model", "worker_module")
+add_rpathdirs("$ORIGIN")
+target_end()
+
+target("engine_lib")
+-- static, not shared: only "engine" below ever add_deps()'s this, so there's no reason for it to
+-- be its own .so. As a separate shared lib it caused two real problems: heart's
+-- SharedLibrary::scan() (non-recursive directory_iterator over shared_plugin_dir) dlopen()'d
+-- libengine_lib.so as its own independent plugin — RTLD_LOCAL kept that separate handle's symbols
+-- invisible to libengine.so's own load, leaving libengine.so's reference to it unresolved even
+-- though a copy was loaded in-process; and moving its targetdir off shared_plugin_dir to dodge
+-- that just broke libengine.so's rpath resolution instead ("cannot open shared object file").
+-- static sidesteps both: it gets absorbed into libengine.so at link time, so there's no separate
+-- file to scan or fail to find, and the vague-linkage vtable issue that caused the very first
+-- version of this bug (LocalPayloadStorage's dtor) also goes away, since everything's back to one
+-- link unit instead of split across a DSO boundary.
+set_kind("static")
+apply_common_layer_settings({
+	layer = "engine",
+	core_packages = { "lua" },
+	fence = true,
+})
+-- No add_deps("engine_api", ...) here anymore: engine_api now add_deps()'s engine_lib (to reuse
+-- its compiled objects instead of recompiling src/**.cppm itself), so the reverse edge would be a
+-- cycle. The engine_api/worker_api before_build orchestration moved to engine_worker_lib, the
+-- actual consumer of their generated/ output — see that target's own comment.
+add_deps("congelado_sdk", "engine_model")
+add_files("src/**.cppm", { public = true })
+target_end()
+
+target("engine")
+set_kind("shared")
+apply_common_layer_settings({ layer = "engine", targetdir = shared_plugin_dir })
+add_files("src/engine.cc")
+add_deps("engine_lib")
+target_end()
+
+target("engine_worker_lib")
+-- static, not shared — same reasoning as engine_lib above: only "engine_worker" below ever
+-- add_deps()'s this, so there's no reason for it to be its own .so (and the same
+-- scan()/RTLD_LOCAL/rpath problems that hit libengine_lib.so as a shared lib would hit this too).
+set_kind("static")
+apply_common_layer_settings({ layer = "engine_worker_lib", fence = true })
+-- engine_api/worker_api are real add_deps() here (not just built imperatively from before_build
+-- below) so xmake's own scheduler builds each exactly once, in order, before this target's
+-- before_build runs — running the SAME binary target twice concurrently (once via the top-level
+-- scheduler building it as an ordinary default target, once via build_tool()'s nested `xmake
+-- build` subprocess) raced two clang processes against the same partition .pcm output paths and
+-- reliably corrupted the BMI (clang-22 ICEs: "malformed or corrupted precompiled file", "double
+-- free or corruption", non-deterministic file each run). Lives here (not on engine_lib, where it
+-- used to) because this target is the actual consumer of engine_api's generated/engine/client
+-- output below — engine_lib itself never reads it.
+add_deps("congelado_sdk", "engine_model", "worker_module", "engine_api", "worker_api")
+add_files("generated/engine/client/**.cppm", { public = true })
+before_build(function(target)
+	import("build_tool")
+	build_tool(target, "engine_api")
+	build_tool(target, "worker_api", "worker")
+end)
+target_end()
+
+target("engine_worker")
+set_kind("binary")
+set_policy("build.sanitizer.address", true)
+add_files(path.join(core_root, "src/worker_main.cc"))
+add_deps("engine_worker_lib", "engine_api")
+add_packages("backward")
+add_rpathdirs("$ORIGIN")
+target_end()
+--
+-- CONGELADO_TASK worker bundles, one plain shared lib per worker/internal/ subfolder.
 local worker_groups = {}
-for _, f in ipairs(os.files(path.join(os.scriptdir(), "src/worker/internal/**/*.cc"))) do
+for _, f in ipairs(os.files(path.join(os.scriptdir(), "worker/internal/**/*.cc"))) do
 	local name = path.basename(path.directory(f))
 	worker_groups[name] = worker_groups[name] or {}
 	table.insert(worker_groups[name], f)
@@ -75,14 +119,8 @@ end
 for name, files in pairs(worker_groups) do
 	target(name)
 	set_kind("shared")
-	set_languages("c++26")
-	add_cxflags("-fPIC")
+	apply_common_layer_settings({ layer = name, targetdir = path.join(core_root, "build", "workers") })
 	add_includedirs(path.join(core_root, "sdk/worker/include"), path.join(core_root, "include"))
 	add_files(table.unpack(files))
-	add_rpathdirs("$ORIGIN")
-	set_targetdir(path.join(core_root, "build", "workers"))
-	if is_plat("linux", "macosx") then
-		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
-	end
 	target_end()
 end

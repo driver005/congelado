@@ -47,6 +47,21 @@ class WorkerConfig {
     /// @brief Sets how many tasks this worker runs concurrently. @param concurrency the
     /// concurrency limit.
     void setConcurrency(std::uint32_t concurrency) { m_concurrency = concurrency; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the worker's contract thread-pool size — the optional `threads` key. This is
+    /// the process-wide worker-thread count, distinct from `concurrency` (how many tasks run at
+    /// once). Absent falls back to `std::thread::hardware_concurrency()` at read time.
+    /// @param threads the thread-pool size, or `std::nullopt` to leave it unset.
+    void setThreads(std::optional<std::uint32_t> threads) { m_threads = threads; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the delay between failed engine-connect attempts — the optional
+    /// `connect_retry_delay_ms` key. Absent falls back to 1000ms at read time.
+    /// @param delayMs the retry delay in milliseconds, or `std::nullopt` to leave it unset.
+    void setConnectRetryDelayMs(std::optional<std::uint32_t> delayMs) { m_connect_retry_delay_ms = delayMs; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the overall deadline for connecting to the engine — the optional
+    /// `connect_timeout_ms` key. The worker retries until it connects or this elapses. A value of
+    /// 0 means retry forever, never give up. Absent falls back to 0 (forever) at read time.
+    /// @param timeoutMs the overall connect timeout in milliseconds (0 = forever), or
+    /// `std::nullopt` to leave it unset.
+    void setConnectTimeoutMs(std::optional<std::uint32_t> timeoutMs) { m_connect_timeout_ms = timeoutMs; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the engine host to connect to. @param host the engine's hostname.
     void setEngineHost(std::string host) { m_engine_host = std::move(host); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the engine port to connect to. @param port the engine's port number.
@@ -76,6 +91,18 @@ class WorkerConfig {
     [[nodiscard]] const std::string &getWorkerId() const noexcept { return m_worker_id; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the configured concurrency limit. @return how many tasks run at once.
     [[nodiscard]] std::uint32_t getConcurrency() const noexcept { return m_concurrency; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the configured thread-pool size, if the `threads` key was set — otherwise
+    /// empty, in which case callers fall back to `std::thread::hardware_concurrency()`.
+    /// @return the configured thread count, or `std::nullopt` if unset.
+    [[nodiscard]] const std::optional<std::uint32_t> &getThreads() const noexcept { return m_threads; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the configured delay between failed engine-connect attempts, if set — otherwise
+    /// empty, in which case callers fall back to 1000ms. @return the retry delay in ms, or
+    /// `std::nullopt` if unset.
+    [[nodiscard]] const std::optional<std::uint32_t> &getConnectRetryDelayMs() const noexcept { return m_connect_retry_delay_ms; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the configured overall engine-connect deadline, if set — otherwise empty, in
+    /// which case callers fall back to 0 (retry forever). A value of 0 means retry forever.
+    /// @return the connect timeout in ms (0 = forever), or `std::nullopt` if unset.
+    [[nodiscard]] const std::optional<std::uint32_t> &getConnectTimeoutMs() const noexcept { return m_connect_timeout_ms; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the engine host. @return the engine's hostname.
     [[nodiscard]] const std::string &getEngineHost() const noexcept { return m_engine_host; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the engine port. @return the engine's port number.
@@ -110,6 +137,9 @@ class WorkerConfig {
     std::optional<std::string> m_engine_url;
     std::string m_worker_id;
     std::uint32_t m_concurrency{0};
+    std::optional<std::uint32_t> m_threads;
+    std::optional<std::uint32_t> m_connect_retry_delay_ms;
+    std::optional<std::uint32_t> m_connect_timeout_ms;
     std::string m_engine_host;
     std::uint32_t m_engine_port{0};
     std::string m_bind_host;
@@ -141,6 +171,11 @@ struct serde::Serializable<congelado::worker::WorkerConfig> {
             serde::FieldDesc<"worker_id", &WorkerConfig::getWorkerId, &WorkerConfig::setWorkerId>{},
             serde::FieldDesc<"concurrency", &WorkerConfig::getConcurrency,
                              &WorkerConfig::setConcurrency>{},
+            serde::FieldDesc<"threads", &WorkerConfig::getThreads, &WorkerConfig::setThreads>{},
+            serde::FieldDesc<"connect_retry_delay_ms", &WorkerConfig::getConnectRetryDelayMs,
+                             &WorkerConfig::setConnectRetryDelayMs>{},
+            serde::FieldDesc<"connect_timeout_ms", &WorkerConfig::getConnectTimeoutMs,
+                             &WorkerConfig::setConnectTimeoutMs>{},
             serde::FieldDesc<"engine_host", &WorkerConfig::getEngineHost,
                              &WorkerConfig::setEngineHost>{},
             serde::FieldDesc<"engine_port", &WorkerConfig::getEnginePort,

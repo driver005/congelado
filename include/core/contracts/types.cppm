@@ -282,6 +282,13 @@ class Worker {
      * @return true if this worker has been marked for release.
      */
     [[nodiscard]] bool is_released() const noexcept { return has_any(ContractState::RELEASED); }
+    /**
+     * @brief Checks whether no flags are set at all — the IDLE state, i.e. not scheduled, not
+     * executing, not released. A worker that has run and then been released/erased lands back
+     * here; a still-running one never does (it stays SCHEDULED/EXECUTING).
+     * @return true if the worker is fully idle.
+     */
+    [[nodiscard]] bool is_idle() const noexcept { return std::to_underlying(load()) == 0; }
 
   private:
     shared::WorkerFunction m_worker;

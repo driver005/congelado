@@ -1,0 +1,51 @@
+# Congelado Worker Configuration — the docker-deployment worker config. docker/Dockerfile.worker
+# COPYs this file into the image as ./worker.toml and runs it explicitly (so it does NOT rely on
+# src/worker_main.cc's default path, which points at the local config/worker.toml). Endpoints below
+# use docker-compose service names ("server"/"tempo"/"loki"/"prometheus"), which only resolve
+# inside the compose bridge network — they will NOT resolve for a bare-metal run. For local runs
+# see config/worker.toml instead. Mirrors config/docker/congelado.toml vs config/congelado.toml.
+
+engine_host = "server"
+engine_port = 8080
+bind_host = "0.0.0.0"
+bind_port = 8081
+worker_id = "docker-worker-1"
+concurrency = 2
+threads = 4
+
+# Engine-connect retry: retries the initial engine connection on a fixed delay until it lands or
+# the overall timeout elapses. Both optional — default connect_retry_delay_ms = 1000 and
+# connect_timeout_ms = 0 (retry forever), so a worker started before the engine waits it out.
+# connect_retry_delay_ms = 1000
+# connect_timeout_ms = 0
+
+# TLS — empty strings disable TLS verification for the docker internal network.
+engine_cert = ""
+engine_key = ""
+
+[[tasks]]
+name = "echo_task"
+worker_type = "echo"
+
+[[tasks]]
+name = "transform_task"
+worker_type = "transform"
+
+# file_logger — distinct filename from config/docker/congelado.toml's, both containers share the
+# same /app working directory convention.
+[plugins.file_logger]
+type = "logger"
+file = "worker.log"
+level = "debug"
+stdout_level = "debug"
+
+# otel_otlp_plugin — docker service-name endpoints, which resolve inside the compose network. No
+# `required` override, so it keeps the default (required = true): the plugin probes each endpoint at
+# load and fails worker boot if any is unreachable, surfacing broken observability wiring loudly
+# rather than silently dropping telemetry. Set required = false to opt out.
+[plugins.otel_otlp_plugin]
+type = "custom"
+service_name = "congelado-worker"
+metrics_endpoint = "http://prometheus:9090/api/v1/otlp/v1/metrics"
+traces_endpoint = "http://tempo:4318/v1/traces"
+logs_endpoint = "http://loki:3100/otlp/v1/logs"

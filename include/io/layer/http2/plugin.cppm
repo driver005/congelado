@@ -12,6 +12,7 @@ import io_shared;
 import io_base_socket;
 import io_base_leverage;
 import io_flow_socket;
+import :extension;
 import :flow;
 import :request;
 
@@ -25,8 +26,18 @@ class Client final : public interfaces::IClient {
      * @param dispatch the dispatch fn forwarded into `ClientFlow` on connect, hands received
      * request/response pairs off to whoever's listening.
      */
-    Client(interfaces::io::ReceiveDispatchFn &&dispatch)
+    explicit Client(interfaces::io::ReceiveDispatchFn &&dispatch)
         : m_flow{nullptr}, m_dispatch{std::move(dispatch)} {}
+
+    /**
+     * @brief Registers an HTTP/2 extension into this client's own registry. Register before
+     * `on_connect()` builds the flow so the extension sees the connection's hooks.
+     * @note No-op on null (see `HttpExtensionRegistry::add_extension`).
+     * @param extension the extension to register.
+     */
+    void register_extension(std::shared_ptr<IHttpExtension> extension) {
+        m_extension_registry.add_extension(std::move(extension));
+    }
 
     /**
      * @brief Defaulted override, nothing extra to tear down here — `m_flow`'s a `unique_ptr`,
@@ -66,7 +77,8 @@ class Client final : public interfaces::IClient {
     [[nodiscard]] ::shared::ReadCallback on_connect(::shared::SendCallback send,
                                                     ::shared::CloseCallback close) override {
         // Flow only gets built once we actually have send/close callbacks to wire it up with.
-        m_flow = std::make_unique<ClientFlow>(std::move(send), std::move(close), m_dispatch);
+        m_flow = std::make_unique<ClientFlow>(std::move(send), std::move(close),
+                                              m_extension_registry, m_dispatch);
 
         // on_connect() hands back a callback that itself runs the handshake and returns the
         // steady-state read callback — invoke it right away, no lazy deferral here.
@@ -136,45 +148,76 @@ class Client final : public interfaces::IClient {
      * calls `send()` concurrently (e.g. a poll loop on another thread) must wait for this
      * callback rather than assuming `connect()` returning means the connection is ready — the
      * connect/handshake sequence is async, `connect()` only kicks it off.
-     * @throws std::runtime_error if the underlying connect fails (propagated from
-     * `ClientFlowSocket::build()`).
+     * @return success, or an error if a flow is already up (call retry() instead), or if the
+     * underlying connect fails (propagated from `ClientFlowSocket::build()`).
      */
-    void connect(io::base::socket::Endpoint endpoint,
-                io::base::leverage::Leverager<io::base::leverage::Context> &leverager,
-                core::contract::ContractGroup<> &contract_group, bool verify_peer = true,
-                std::function<void()> on_connected = {}) {
+    [[nodiscard]] std::expected<void, std::string>
+    connect(io::base::socket::Endpoint endpoint,
+            io::base::leverage::Leverager<io::base::leverage::Context> &leverager,
+            core::contract::ContractGroup<> &contract_group, bool verify_peer = true,
+            std::function<void()> on_connected = {}) {
+        if (m_socket_flow.has_value()) {
+            return std::unexpected("client already running");
+        }
         m_socket_flow.emplace(std::move(endpoint), leverager, contract_group, verify_peer);
-        m_socket_flow->add_on_accept(
-            [this, on_connected = std::move(on_connected)](
-                ::shared::SendCallback send, ::shared::CloseCallback close) -> ::shared::ReadCallback {
-                auto read_callback = on_connect(std::move(send), std::move(close));
-                if (on_connected) {
-                    on_connected();
-                }
-                return read_callback;
-            });
-        m_socket_flow->build();
+        m_socket_flow->add_on_accept([this, on_connected = std::move(on_connected)](
+                                         ::shared::SendCallback send,
+                                         ::shared::CloseCallback close) -> ::shared::ReadCallback {
+            auto read_callback = on_connect(std::move(send), std::move(close));
+            if (on_connected) {
+                on_connected();
+            }
+            return read_callback;
+        });
+        return m_socket_flow->build();
+    }
+
+    /**
+     * @brief Retries the connect/handshake sequence on the flow built by connect() — see
+     * `ClientFlowSocket::retry()` for the actual act-now-or-defer logic.
+     * @return success, or an error if connect() hasn't been called yet, if already connected, or
+     * if the synchronous portion of a fresh attempt fails.
+     */
+    std::expected<void, std::string> retry() {
+        if (!m_socket_flow.has_value()) {
+            return std::unexpected("client not connecting");
+        }
+        return m_socket_flow->retry();
     }
 
   private:
     std::unique_ptr<ClientFlow> m_flow;
     interfaces::io::ReceiveDispatchFn m_dispatch;
+    HttpExtensionRegistry m_extension_registry;
     std::optional<io::base::flow::sync::ClientFlowSocket<core::contract::ContractGroup<>,
-                                                          io::base::socket::Protocol::TLS>>
+                                                         io::base::socket::Protocol::TLS>>
         m_socket_flow;
 };
 
 class Server {
   public:
     /**
-     * @brief Defaulted ctor — server starts with no route table and no flows yet, both get
-     * wired in later via build().
+     * @brief Builds an empty server — no route table, no flows, and an empty extension
+     * registry. Route table gets wired in via build(); flows spin up per-connection in
+     * on_connect(); extensions register via register_extension() before serving starts.
      */
     Server() = default;
     /**
      * @brief Defaulted dtor — `m_flows` are all `unique_ptr`s, clean up on their own.
      */
     ~Server() = default;
+
+    /**
+     * @brief Registers an HTTP/2 extension into this server's own registry — the seam separate
+     * extension plugins call (via the published `Server*`, see `Http2Plugin`) during their
+     * `on_load`, before this server starts accepting connections in the protocol plugin's
+     * `on_ready`.
+     * @note No-op on null (see `HttpExtensionRegistry::add_extension`).
+     * @param extension the extension to register.
+     */
+    void register_extension(std::shared_ptr<IHttpExtension> extension) {
+        m_extension_registry.add_extension(std::move(extension));
+    }
 
     /**
      * @brief Deleted — copying a server would duplicate every live connection's flow state,
@@ -207,28 +250,35 @@ class Server {
      * verify that from in here.
      */
     void build(void *router_ctx) {
-        // Untyped void* recovered back to the real router context type — no runtime check possible.
         auto *router = static_cast<core::router::RouterContext<> *>(router_ctx);
-        // Build the actual route table from the router context, once, up front.
         m_server.emplace(core::router::RouteBuilder{}.build(std::move(*router)));
-        // Every ServerFlow spun up later shares this same dispatch closure.
-        m_dispatch = [this](interfaces::io::IRequest &req, interfaces::io::IResponse &res) {
-            // Guard — no route table means nothing to match against, just no-op.
-            if (!m_server) {
+        m_executor.emplace(&*m_server);
+        m_dispatch = [this](interfaces::io::IRequest &req, interfaces::io::IResponse &res,
+                            std::function<void()> send) {
+            // Guard — no executor (never built) means nothing to dispatch to, return a 503.
+            if (!m_executor) {
+                constexpr std::string_view BODY = R"({"error":"Service Unavailable"})";
+                std::vector<std::byte> body;
+                body.reserve(BODY.size());
+                for (char ch : BODY) {
+                    body.push_back(static_cast<std::byte>(ch));
+                }
+                res.set_status(interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+                res.add_header(interfaces::io::types::Token::CONTENT_TYPE, "application/json");
+                res.set_body(std::move(body));
+                send();
                 return;
             }
-
-            auto method = interfaces::io::types::parse_method(req.get_method());
-
-            // Try to match the request against the route table; an unmatched route surfaces as
-            // a runtime_error, which we translate into a plain 404 instead of letting it escape.
-            try {
-                m_server->match(method, req.get_path(), req, res);
-            } catch (const std::runtime_error &) {
-                res.set_status(interfaces::io::types::Status::NOT_FOUND);
-            }
+            m_executor->enqueue(req, res, std::move(send));
         };
     }
+
+    /**
+     * @brief Access to the async request executor bound to this server's route table — the http2
+     * plugin registers it as a contract worker (wake + contract handle) after build().
+     * @return reference to the executor; only valid after build() has run.
+     */
+    [[nodiscard]] core::router::RouterExecutor &executor() noexcept { return *m_executor; }
 
     /**
      * @brief Spins up a fresh `ServerFlow` for a newly-accepted connection, stores it so it
@@ -244,15 +294,80 @@ class Server {
     [[nodiscard]] ::shared::ReadCallback on_connect(::shared::SendCallback send,
                                                     ::shared::CloseCallback close) {
         return m_flows
-            .emplace_back(
-                std::make_unique<ServerFlow>(std::move(send), std::move(close), m_dispatch))
+            .emplace_back(std::make_unique<ServerFlow>(std::move(send), std::move(close),
+                                                       m_extension_registry, m_dispatch))
             ->on_read();
     }
 
+    /**
+     * @brief Gracefully closes every in-progress session — sends each one a GOAWAY (clean
+     * shutdown code) and lets its close callback tear down the underlying socket — then blocks
+     * until every connection has finished flushing and the executor has no pending work.
+     * @note Doesn't clear `m_flows` — the now-closed `ServerFlow`s stay put and get destroyed
+     * normally whenever this `Server` itself does.
+     */
+    void close() noexcept {
+        core::logger::info("http2/server", "closing server");
+        core::events::publish("http2.server.close");
+
+        mark_closed();
+
+        // No timeout — block until the server is naturally drained.
+        while (!is_idle()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        core::logger::info("http2/server", "server drained");
+        core::events::publish("http2.server.drained");
+    }
+
+    /**
+     * @brief Sends a graceful GOAWAY on every in-progress session, leaving the transports open so
+     * their senders can still flush. Best effort — one bad session never stops the rest.
+     */
+    void mark_closed() noexcept {
+        core::logger::info("http2/server", "marking {} session(s) closed", m_flows.size());
+        core::events::publish("http2.server.mark_closed");
+
+        for (auto &flow : m_flows) {
+            try {
+                flow->close(error::http::Http2ErrorCode::NO_ERROR_CODE, true);
+            } catch (...) { // NOLINT(bugprone-empty-catch) — one bad session's teardown must
+                            // not stop the rest from closing, or crash the shutdown path.
+                core::logger::error("http2/server", "session close failed during shutdown");
+                core::events::publish("http2.server.session_close_failed");
+            }
+        }
+    }
+
+    /**
+     * @brief Checks whether every connection has finished flushing and has no active streams.
+     * @return true if all flows are finished.
+     */
+    [[nodiscard]] bool is_idle() noexcept {
+        if (m_executor.has_value() && !m_executor->is_idle()) {
+            core::logger::debug("http2/server", "not idle: executor still busy");
+            core::events::publish("http2.server.not_idle");
+            return false;
+        }
+        for (auto &flow : m_flows) {
+            if (!flow->is_idle()) {
+                core::logger::debug("http2/server", "not idle: session still has active streams");
+                core::events::publish("http2.server.not_idle");
+                return false;
+            }
+        }
+        core::logger::debug("http2/server", "idle: all sessions drained");
+        core::events::publish("http2.server.idle");
+        return true;
+    }
+
   private:
+    HttpExtensionRegistry m_extension_registry;
     std::vector<std::unique_ptr<ServerFlow>> m_flows;
     interfaces::io::ReceiveDispatchFn m_dispatch;
     std::optional<core::router::RouteHandler<>> m_server;
+    std::optional<core::router::RouterExecutor> m_executor;
 };
 
 // HTTP/2 protocol implementation.
@@ -261,15 +376,15 @@ class Server {
 class Http2Protocol final : public interfaces::IProtocol<Server> {
   public:
     /**
-     * @brief Pulls host/cert/key/port/threads straight out of `cfg`'s field map — every one of
+     * @brief Pulls host/cert/key/port straight out of `cfg`'s field map — every one of
      * them is mandatory, this bails the moment any single field's missing.
      * @warning No default fallback for any field despite `cfg` itself defaulting to `nullptr`
      * in the signature — pass `nullptr` (or a config missing even one field) and this throws
      * immediately. That optional-looking default parameter is a bit of a trap, don't read it as
      * "config's optional."
-     * @param cfg the plugin config to read `host`/`cert`/`key`/`port`/`threads` from.
+     * @param cfg the plugin config to read `host`/`cert`/`key`/`port` from.
      * @throws std::runtime_error if `cfg` is `nullptr`, or if any required field
-     * (host/cert/key/port/threads) is missing/empty.
+     * (host/cert/key/port) is missing/empty.
      */
     explicit Http2Protocol(const core::config::PluginConfig *cfg = nullptr) {
         // Guard — the "optional-looking" default param is a trap, nullptr always throws.
@@ -302,17 +417,12 @@ class Http2Protocol final : public interfaces::IProtocol<Server> {
         if (port.empty()) {
             throw std::runtime_error("port is required");
         }
-        auto threads = field("threads");
-        if (threads.empty()) {
-            throw std::runtime_error("threads is required");
-        }
 
         // All fields validated non-empty — safe to store/parse into the real member types now.
         m_host = std::string{host};
         m_cert = std::string{cert};
         m_key = std::string{key};
         std::from_chars(port.data(), port.data() + port.size(), m_port);
-        std::from_chars(threads.data(), threads.data() + threads.size(), m_threads);
     }
 
     /**
@@ -330,11 +440,6 @@ class Http2Protocol final : public interfaces::IProtocol<Server> {
      * @return the bind port, parsed from config in the ctor.
      */
     [[nodiscard]] std::uint16_t get_bind_port() const noexcept override { return m_port; }
-    /**
-     * @brief Grabs the configured connection-handling thread count.
-     * @return the thread count, parsed from config in the ctor.
-     */
-    [[nodiscard]] std::uint32_t get_bind_threads() const noexcept override { return m_threads; }
     /**
      * @brief Grabs the configured TLS cert path.
      * @return the TLS cert path, read from config in the ctor.
@@ -371,7 +476,6 @@ class Http2Protocol final : public interfaces::IProtocol<Server> {
   private:
     std::string m_host = "localhost";
     std::uint16_t m_port = 8080;
-    std::uint32_t m_threads = 1;
     std::string m_cert = "server.crt";
     std::string m_key = "server.key";
 };

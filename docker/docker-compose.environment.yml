@@ -1,9 +1,11 @@
 version: "3.8"
 
 # Infra-only twin of docker-compose.yml — starts congelado's external dependencies (postgres,
-# redis, rabbitmq, kafka, elasticsearch) with none of congelado's own binaries (no builder,
-# server, worker, test, ui). Use this when running the engine/worker locally on the host
-# (outside a container) against a real backing stack instead of in-process/mocked plugins.
+# redis, rabbitmq, kafka, elasticsearch, plus the observability stack: prometheus/loki/tempo/
+# grafana) with none of congelado's own binaries (no builder, server, worker, test, ui). Use
+# this when running the engine/worker locally on the host (outside a container) against a real
+# backing stack instead of in-process/mocked plugins — pairs with config/congelado.toml, which
+# points every endpoint below at these same host-published ports.
 services:
   # ── Postgres ──────────────────────────────────────────────────────────────
   # Backs postgres_plugin's IDatabase (see config/docker/congelado.toml's
@@ -27,16 +29,14 @@ services:
       timeout: 3s
       retries: 10
 
-  # ── Elasticsearch (opt-in) ────────────────────────────────────────────────
+  # ── Elasticsearch ─────────────────────────────────────────────────────────
   # Backs elasticsearch_plugin's ISearchProvider — alternative to postgres_plugin's own
-  # ISearchProvider (pick one, see include/interfaces/search.cppm). Gated behind the "search"
-  # profile, same as docker-compose.yml — opt in with `docker compose -f
-  # docker-compose.environment.yml --profile search up`.
+  # ISearchProvider (pick one, see include/interfaces/search.cppm). Always on here (this is a
+  # testing environment) — docker-compose.yml still gates the equivalent service behind the
+  # "search" profile.
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
     container_name: congelado-elasticsearch
-    profiles:
-      - search
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -54,15 +54,15 @@ services:
       retries: 10
       start_period: 20s
 
-  # ── RabbitMQ (opt-in) ─────────────────────────────────────────────────────
-  # Backs rabbitmq_events_plugin's IEventSink. Gated behind the "events" profile, same as
-  # docker-compose.yml — opt in with `docker compose -f docker-compose.environment.yml
-  # --profile events up`.
+  # ── RabbitMQ ──────────────────────────────────────────────────────────────
+  # Backs rabbitmq_events_plugin's IEventSink. Always on here (this is a testing environment) —
+  # docker-compose.yml still gates the equivalent service behind the "events" profile.
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: congelado-rabbitmq
-    profiles:
-      - events
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -75,14 +75,12 @@ services:
       retries: 10
       start_period: 20s
 
-  # ── Kafka (opt-in) ────────────────────────────────────────────────────────
-  # Backs kafka_events_plugin's IEventSink. Same "events" profile as rabbitmq above. KRaft
-  # mode (no separate Zookeeper service) keeps this to one container instead of two.
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  # Backs kafka_events_plugin's IEventSink. Always on here, same as rabbitmq above. KRaft mode
+  # (no separate Zookeeper service) keeps this to one container instead of two.
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: congelado-kafka
-    profiles:
-      - events
     environment:
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
@@ -105,15 +103,13 @@ services:
       retries: 10
       start_period: 20s
 
-  # ── Redis (opt-in) ────────────────────────────────────────────────────────
-  # Backs redis_events_plugin's IEventSink. Same "events" profile as rabbitmq/kafka above.
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  # Backs redis_events_plugin's IEventSink. Always on here, same as rabbitmq/kafka above.
   # Pub/Sub only, no persistence configured — matches this backend's own documented
   # "fire-and-forget, no delivery guarantee" trade-off.
   redis:
     image: redis:7-alpine
     container_name: congelado-redis
-    profiles:
-      - events
     ports:
       - "6379:6379"
     networks:
@@ -125,6 +121,94 @@ services:
       retries: 10
       start_period: 10s
 
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  # Backs otel_otlp_plugin's metrics_endpoint (config/congelado.toml points at
+  # http://localhost:9090/api/v1/otlp/v1/metrics — Prometheus's own native OTLP receiver, no
+  # separate Collector needed). Also self-scrapes (see prometheus.yml) so there's always some
+  # data visible even before congelado pushes anything.
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: congelado-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - congelado-env
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ── Loki ──────────────────────────────────────────────────────────────────
+  # Backs otel_otlp_plugin's logs_endpoint (config/congelado.toml points at
+  # http://localhost:3100/otlp/v1/logs — Loki's own native OTLP ingestion, Loki 3.x+).
+  loki:
+    image: grafana/loki:latest
+    container_name: congelado-loki
+    command:
+      - --config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - congelado-env
+
+  # ── Tempo ─────────────────────────────────────────────────────────────────
+  # Backs otel_otlp_plugin's traces_endpoint. Unlike docker-compose.yml's tempo (where congelado
+  # runs inside the same bridge network and reaches it as "tempo:4318"), a bare-metal host
+  # process needs 4317/4318 actually published — docker-compose.yml deliberately leaves those
+  # off the host for that containerized case; this file needs them on since congelado.toml
+  # points at "localhost:4318" directly.
+  # No healthcheck (grafana/tempo's distroless image has no shell/curl/wget to run one with —
+  # see docker-compose.yml's own note on this). No dependency gating on tempo/loki readiness for
+  # congelado — early spans/logs exported before they're up are just dropped, accepted gap.
+  tempo:
+    image: grafana/tempo:latest
+    container_name: congelado-tempo
+    command:
+      - -config.file=/etc/tempo.yaml
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - congelado-env
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  # Prometheus/Loki/Tempo datasources + starter dashboard auto-provisioned
+  # (docker/grafana/provisioning/) — log in at http://localhost:3000 (admin/admin).
+  grafana:
+    image: grafana/grafana:latest
+    container_name: congelado-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - congelado-env
+
 networks:
   congelado-env:
     driver: bridge
@@ -135,3 +219,7 @@ volumes:
   postgres_data:
     name: congelado_postgres_data
   elasticsearch_data:
+  prometheus_data:
+  loki_data:
+  tempo_data:
+  grafana_data:

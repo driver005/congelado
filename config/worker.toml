@@ -1,14 +1,28 @@
-# Congelado Worker Configuration
-# Used by the worker Docker container to connect to the engine server
+# Congelado Worker Configuration — the local/bare-metal worker config, loaded directly by a no-arg
+# `xmake run engine_worker` (src/worker_main.cc's default path is
+# "~/cc/congelado/config/worker.toml"). Endpoints below are "localhost", the host-published ports
+# of the docker-compose observability stack (`make compose-env-up` / docker/docker-compose.yml) —
+# a bare-metal worker isn't on the compose bridge network and can't resolve service names like
+# "server"/"tempo"/"loki". For the docker-deployment worker, see config/docker/worker.toml instead
+# (docker/Dockerfile.worker COPYs that one into the image). Mirrors the same local-vs-docker split
+# as config/congelado.toml vs config/docker/congelado.toml.
 
-engine_host = "server"
+engine_host = "localhost"
 engine_port = 8080
 bind_host = "0.0.0.0"
 bind_port = 8081
-worker_id = "docker-worker-1"
+worker_id = "worker-1"
 concurrency = 2
+threads = 4
 
-# TLS — empty strings disable TLS verification for Docker internal network
+# Engine-connect retry: the worker retries the initial engine connection on a fixed delay until it
+# lands or the overall timeout elapses. Both optional — omitted here, so they default to
+# connect_retry_delay_ms = 1000 and connect_timeout_ms = 0 (retry forever). Set to override.
+# connect_timeout_ms = 0 means retry forever, never give up; a positive value is a give-up deadline.
+# connect_retry_delay_ms = 1000
+# connect_timeout_ms = 0
+
+# TLS — empty strings disable TLS verification (dev/self-signed engine cert).
 engine_cert = ""
 engine_key = ""
 
@@ -20,21 +34,22 @@ worker_type = "echo"
 name = "transform_task"
 worker_type = "transform"
 
-# file_logger — a distinct filename from config/congelado.toml's ("worker.log" vs
-# "congelado.log") since both containers share the same /app working directory convention.
+# file_logger — a distinct filename from config/congelado.toml's ("worker.log" vs "congelado.log")
+# so a co-located server and worker never fight over the same file.
 [plugins.file_logger]
 type = "logger"
 file = "worker.log"
 level = "debug"
 stdout_level = "debug"
 
-# Points otel_otlp_plugin at the same Tempo/Loki/Prometheus services config/congelado.toml
-# does — see src/worker_main.cc's plugin_configs wiring (core::config::load() reads this section
-# before any plugin loads, no chicken-and-egg with the pluggable TOML serde format needed here).
-# service_name distinguishes this process from congelado-server in Grafana/Loki/Tempo.
+# otel_otlp_plugin — points at the docker-compose observability stack's HOST-published ports (same
+# as config/congelado.toml). required = false: on bare metal those backends may not be up, so the
+# plugin probes each endpoint at load and skips just the unreachable signals (no export spam)
+# instead of failing worker boot. Set required = true to make an unreachable endpoint fatal.
 [plugins.otel_otlp_plugin]
 type = "custom"
 service_name = "congelado-worker"
-metrics_endpoint = "http://prometheus:9090/api/v1/otlp/v1/metrics"
-traces_endpoint = "http://tempo:4318/v1/traces"
-logs_endpoint = "http://loki:3100/otlp/v1/logs"
+required = false
+metrics_endpoint = "http://localhost:9090/api/v1/otlp/v1/metrics"
+traces_endpoint = "http://localhost:4318/v1/traces"
+logs_endpoint = "http://localhost:3100/otlp/v1/logs"

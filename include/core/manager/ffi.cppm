@@ -368,6 +368,31 @@ class FfiRuntime {
         }
     }
 
+    /**
+     * @brief Calls the attached plugin's optional `congelado_on_shutdown` lifecycle hook, if
+     * present.
+     * @note No-op if no plugin is attached or the symbol was never resolved — like on_ready()/
+     * on_unload(), this hook is optional per the plugin ABI.
+     */
+    void on_shutdown() noexcept {
+        // No plugin attached — nothing to signal.
+        if (!m_plugin) {
+            return;
+        }
+        // Optional hook — only call through if the plugin actually exported it. Wrapped in
+        // try/catch for the same reason as on_ready()/on_unload() above: this crosses the ABI
+        // into arbitrary plugin code, and a plugin-side throw shouldn't terminate the process.
+        try {
+            auto symbol_name = std::string{
+                types::PluginRef::shared_symbol_name(4)}; // index 4 == congelado_on_shutdown
+            if (auto it = m_plugin->m_data.find(symbol_name); it != m_plugin->m_data.end()) {
+                reinterpret_cast<types::PluginShutdownFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+            }
+        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+            core::events::publish("ffi.plugin.on_shutdown_failed");
+        }
+    }
+
     // ── Function dispatch ───────────────────────────────────────────────────
 
     /**

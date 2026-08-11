@@ -285,13 +285,16 @@ class SharedLibrary {
     }
 
     /**
-     * @brief Drops a plugin that was opened but never `build()`-ed — dlcloses its handle and
-     * forgets it, without calling `congelado_on_unload`. Unlike `close_all()`, this is for a
-     * plugin that never got as far as `congelado_init`, so there's no live plugin state for
-     * `congelado_on_unload` to safely tear down; the dlclose alone (via `PluginRef`'s handle
-     * going out of scope once the last `shared_ptr<FfiRuntime>` reference here drops) is the
-     * whole story. Meant for provider-filtering: a capability plugin resolved right after
-     * open() but rejected by `[providers]` should never reach `build()`'s `congelado_init`
+     * @brief Drops a plugin that was opened but never `build()`-ed — runs `congelado_on_unload`
+     * (to free the plugin's `s_plugin` singleton) then dlcloses its handle and forgets it. Unlike
+     * `close_all()`, this is for a plugin that never reached `congelado_init`, so its user-side
+     * `on_unload()` runs over only default-constructed state — but the singleton itself was still
+     * allocated back in `open()` (the `congelado_type` STRING_FN lazily `new T{}`s it before init
+     * ever runs), so on_unload is exactly what reclaims it; skip it and that object leaks, since
+     * `close_all()` only walks `m_order` which this erase removes from. The subsequent dlclose (via
+     * `PluginRef`'s handle going out of scope once the last `shared_ptr<FfiRuntime>` reference here
+     * drops) unmaps the `.so`. Meant for provider-filtering: a capability plugin resolved right
+     * after open() but rejected by `[providers]` should never reach `build()`'s `congelado_init`
      * at all, not just get silently un-registered after already having connected/spun up.
      * @param name the resolved plugin name (as recorded by open(), not necessarily the file
      * stem) — a miss is a no-op.
@@ -301,6 +304,15 @@ class SharedLibrary {
         if (it == m_runtimes.end()) {
             return;
         }
+        // The plugin's s_plugin singleton was already allocated by the STRING_FN calls in
+        // load_symbols() during open() (congelado_type resolves+invokes it, index 1), even though
+        // congelado_init never ran. congelado_on_unload is the macro's only delete path for that
+        // instance — call it here so a provider-filtered plugin doesn't leak its object. This
+        // crosses into a plugin that never inited: its user on_unload() sees only default-
+        // constructed state, and FfiRuntime::on_unload() is optional-symbol-guarded + try/catch-
+        // wrapped, so teardown can't crash. close_all() only walks m_order, which this erase
+        // removes from, so on_unload has to happen here or never at all.
+        it->second->on_unload();
         m_runtimes.erase(it);
         std::erase(m_order, std::string{name});
     }
@@ -309,6 +321,12 @@ class SharedLibrary {
      * @brief Unloads every opened plugin, calling `congelado_on_unload` in reverse load order.
      * @note Reverse order matters here — dependencies were opened before their dependents, so
      * unloading in reverse keeps a dependent from calling back into an already-torn-down dep.
+     * @note This is process-exit teardown, not hot-reload — so after `on_unload()` runs, every
+     * plugin's dlopen handle gets leaked (never `dlclose()`'d) rather than actually closed. Some
+     * plugins statically link dependencies with their own `dlclose()`-time global destructors
+     * (OpenTelemetry's C++ SDK, confirmed live) that segfault when actually unloaded this way;
+     * skipping the syscall trades a harmless "the OS reclaims it on exit anyway" leak for a
+     * guaranteed-clean shutdown. See `PluginRef::leak_handle()`.
      */
     void close_all() noexcept {
         // Reverse load order: dependencies opened first get unloaded last, so a
@@ -316,10 +334,31 @@ class SharedLibrary {
         for (const auto &name : m_order | std::views::reverse) {
             if (auto runtime_iter = m_runtimes.find(name); runtime_iter != m_runtimes.end()) {
                 runtime_iter->second->on_unload();
+                if (auto plugin_ref = runtime_iter->second->get_plugin()) {
+                    plugin_ref->leak_handle();
+                }
             }
         }
         m_runtimes.clear();
         m_order.clear();
+    }
+
+    /**
+     * @brief Signals every opened plugin to stop serving/close out whatever it's holding, via
+     * `congelado_on_shutdown` — any plugin may implement `on_shutdown_requested()`, not just
+     * protocol ones (the default's a no-op, so a plugin that doesn't care just does nothing).
+     * @note Load order, not reversed — this isn't teardown, just a "wind down" nudge; every
+     * plugin is left loaded and running so it can still handle whatever another plugin's close
+     * callbacks trigger on the way out. Full teardown still happens later via `close_all()`.
+     */
+    void shutdown_plugins() noexcept {
+        for (const auto &name : m_order) {
+            auto runtime_iter = m_runtimes.find(name);
+            if (runtime_iter == m_runtimes.end()) {
+                continue;
+            }
+            runtime_iter->second->on_shutdown();
+        }
     }
 
     // ── Iteration (insertion order via m_order) ─────────────────────────

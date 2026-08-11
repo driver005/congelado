@@ -89,6 +89,11 @@ typedef struct CongeladoHostCallbacks {
     congelado_sched_fn schedule;
     void *router_ctx;
     void *controller_ctx;
+    void *registry_ctx; /* core::contract::ContractRegistry*, host-owned — a plugin registers a
+                          * Contract<> it creates via controller_ctx into this so it gets
+                          * released automatically at host shutdown (AppContext::stop()) instead
+                          * of the plugin managing its own release. Same lifetime the host's own
+                          * connector_ctx contract already gets. */
     void *leverager_ctx;
     void *database_ctx; /* resolved interfaces::IDatabase*, if a storage-capable plugin was
                           * already opened by the time this gets set — populated before build()
@@ -108,10 +113,13 @@ typedef struct CongeladoHostCallbacks {
                         * plugin's on_load can wire it into EngineContext for its
                         * terminal-transition projector. NULL if none resolved. */
     void *cache_ctx; /* resolved interfaces::ICache*, if a cache-capable plugin was already
-                       * opened by the time this gets set — same "resolve before build()"
-                       * reasoning as database_ctx/search_ctx, so the engine plugin's on_load can
-                       * wire it into its own Connector via set_cache(). NULL if none resolved
-                       * (Connector's own in-process LocalCache fallback still applies). */
+                        * opened by the time this gets set — same "resolve before build()"
+                        * reasoning as database_ctx/search_ctx, so the engine plugin's on_load can
+                        * wire it into its own Connector via set_cache(). NULL if none resolved
+                        * (Connector's own in-process LocalCache fallback still applies). */
+    void *connector_ctx; /* connector::Connector* registered with the host's ContractGroup,
+                           * populated before build() so the engine plugin can use the shared
+                           * connector instead of creating its own. NULL if not set up. */
 } CongeladoHostCallbacks;
 
 typedef struct CongeladoConfigView {

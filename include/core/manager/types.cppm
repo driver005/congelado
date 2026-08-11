@@ -158,6 +158,7 @@ class GenerationConfig {
 using InitFn = int (*)(const CongeladoHostCallbacks *host, const CongeladoConfigView *cfg);
 using PluginUnloadFn = void (*)();
 using PluginReadyFn = void (*)();
+using PluginShutdownFn = void (*)();
 using PluginStringFn = const char *(*)();
 using PluginUint32Fn = std::uint32_t (*)();
 using PluginArrayFn = const char *const *(*)();
@@ -174,6 +175,18 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T *controller_ctx(const CongeladoHostCallbacks &host) noexcept {
     return static_cast<T *>(host.controller_ctx);
+}
+/**
+ * @brief Gets the host's contract registry, if the host populated it — a plugin registers a
+ * `Contract<>` it creates (via `controller_ctx`'s `ContractGroup`) into this so it gets released
+ * automatically at host shutdown instead of the plugin managing its own release.
+ * @tparam T the concrete type to cast to (almost always `core::contract::ContractRegistry`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if the host didn't populate it.
+ */
+template <typename T>
+[[nodiscard]] T *registry_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.registry_ctx);
 }
 template <typename T>
 [[nodiscard]] T *leverager_ctx(const CongeladoHostCallbacks &host) noexcept {

@@ -4,7 +4,7 @@
 # container builds (default "release" there — see docker-compose.yml vs docker-compose.debug.yml).
 MODE ?= debug
 
-.PHONY: all download build clean info-outdated update editor dev test compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test
+.PHONY: all download build clean info-outdated update editor dev test gen-inso-tests inso-test compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test
 
 all: dev
 
@@ -15,28 +15,31 @@ dependency:
 install:
 	xmake f -c -v -y -m $(MODE)
 
+reinstall: 
+	xmake require --force
+
 dev: build editor
 
 config-debug:
 	xmake f -m debug --debugger=gdb
 
-debug: config-debug 
+debug: config-debug
 	xmake run -D -d congelado
 
 run:
 	xmake run
 
 run-worker:
-	xmake run congelado_worker worker.toml ./build/workers
+	xmake run congelado_worker config/worker.toml ./build/workers
 
 run-worker-docker:
-	xmake run congelado_worker worker.toml ./build/workers
+	xmake run congelado_worker config/docker/worker.toml ./build/workers
 
 build:
-	xmake build-all --mode=$(MODE)
+	xmake f -c -y -m $(MODE)
+	xmake build
 
 rebuild:
-	xmake require --force
 	xmake -r
 
 #Configuration
@@ -60,6 +63,42 @@ ui-build-web:
 
 test:
 	xmake test -v
+
+# Insomnia-scripted API test suite (after-response assertions on every request in the
+# insomia/ collection). Requires the modern `inso` CLI (>= 10, the `core@` release binary
+# from github.com/Kong/insomnia/releases — the npm `insomnia-inso` package is stuck at 3.x
+# and lacks `run collection`). Runs against a server the caller already started (e.g. the
+# docker-compose `test` stack, or `make compose-release-up`); it does NOT manage lifecycle.
+# --disableCertValidation: server is TLS with a self-signed cert. No --bail: creates return
+# 201/202/204, which --bail (abort-on-non-200) would wrongly treat as failure. --requestTimeout
+# bounds the queue long-poll endpoints so an empty queue can't hang the run.
+INSO_COLLECTION := insomia/Congelado API 1.0.0-wrk_e999e591aaef4a51b27267d843c09433.yaml
+INSO_ENV ?= Local
+
+# Regenerate the Insomnia test collection ($(INSO_COLLECTION)) from the OpenAPI spec
+# (plugins/engine/generated/engine/openapi.json, itself regenerated at build). Run this after
+# adding/removing/renaming routes: new routes appear asserted automatically (status + shape
+# from the spec); only bodies/order/chaining live in the generator's scenario overlay.
+# Prefers `uv run` (auto-installs the pyyaml dep via the script's PEP 723 header, no venv
+# needed); falls back to a python3 that already has pyyaml — same resolution style as api-test.
+gen-inso-tests:
+	@if command -v uv >/dev/null 2>&1; then \
+		uv run scripts/gen_inso_collection.py; \
+	elif python3 -c 'import yaml' >/dev/null 2>&1; then \
+		python3 scripts/gen_inso_collection.py; \
+	else \
+		echo "need 'uv' (https://docs.astral.sh/uv) or python3 with pyyaml (pip install pyyaml)"; exit 1; \
+	fi
+
+inso-test:
+	@command -v inso >/dev/null 2>&1 || { echo "inso not found — install inso >= 10 from https://github.com/Kong/insomnia/releases (asset inso-linux-x64-<ver>.tar.xz); npm 'insomnia-inso' is too old"; exit 1; }
+	inso run collection "Congelado API 1.0.0" \
+		--workingDir "$(INSO_COLLECTION)" \
+		--env "$(INSO_ENV)" \
+		--disableCertValidation \
+		--requestTimeout 15000 \
+		--reporter spec \
+		--ci
 
 info-outdated:
 	conan graph outdated . --out-file ./build/graph.txt

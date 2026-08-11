@@ -1,4 +1,5 @@
 #include "backward.hpp"
+
 #include <congelado/abi.h>
 #include <csignal>
 
@@ -99,7 +100,7 @@ void poll_cycle(worker::WorkerContext &ctx) {
         // meaningful parent to inherit here anyway. Nested call_engine() calls below pick this
         // up automatically as their parent via the ambient stack.
         auto cycle_span = core::otel::start_span(std::format("poll_cycle {}", type),
-                                                  interfaces::SpanKind::CONSUMER);
+                                                 interfaces::SpanKind::CONSUMER);
 
         worker::WorkerContext::EngineResponse engine_res;
         try {
@@ -120,14 +121,15 @@ void poll_cycle(worker::WorkerContext &ctx) {
         if (engine_res.m_status != 200) {
             core::logger::error("worker/poll-thread", "poll failed type={} status={}", type,
                                 engine_res.m_status);
-            core::events::publish("worker.poll_thread.poll_failed",
-                                  {{"type", std::string{type}},
-                                   {"status", std::to_string(engine_res.m_status)}});
+            core::events::publish(
+                "worker.poll_thread.poll_failed",
+                {{"type", std::string{type}}, {"status", std::to_string(engine_res.m_status)}});
             cycle_span.set_status(interfaces::SpanStatus::ERROR, "");
             continue;
         }
 
-        auto parsed = serde::Ser::deserialize<model::TaskInstance>("application/json", engine_res.m_body);
+        auto parsed =
+            serde::Ser::deserialize<model::TaskInstance>("application/json", engine_res.m_body);
         if (!parsed.has_value()) {
             core::logger::error("worker/poll-thread", "parse failed: {}", parsed.error());
             core::events::publish("worker.poll_thread.parse_failed", {{"error", parsed.error()}});
@@ -139,9 +141,9 @@ void poll_cycle(worker::WorkerContext &ctx) {
         worker::TaskInput input{instance.get_input_data()};
         auto exec_start = std::chrono::steady_clock::now();
         auto output_opt = ctx.run_task(instance.get_def_name(), input);
-        auto exec_ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - exec_start)
-                          .count();
+        auto exec_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - exec_start)
+                .count();
 
         auto result =
             output_opt.has_value() ? model::TaskResult::SUCCESS : model::TaskResult::FAILURE;
@@ -151,8 +153,8 @@ void poll_cycle(worker::WorkerContext &ctx) {
         std::array<interfaces::Attribute, 2> metric_attrs{
             interfaces::Attribute{"task.type", type},
             interfaces::Attribute{"task.result", result == model::TaskResult::SUCCESS
-                                                      ? std::string_view{"success"}
-                                                      : std::string_view{"failure"}},
+                                                     ? std::string_view{"success"}
+                                                     : std::string_view{"failure"}},
         };
         core::otel::counter_add("task.completed", 1.0, metric_attrs);
         core::otel::histogram_record("task.duration_ms", exec_ms, metric_attrs);
@@ -166,9 +168,9 @@ void poll_cycle(worker::WorkerContext &ctx) {
             if (submit_res.m_status != 200) {
                 core::logger::error("worker/poll-thread", "submit {} failed status={}", task_id,
                                     submit_res.m_status);
-                core::events::publish("worker.poll_thread.submit_failed",
-                                      {{"task_id", task_id},
-                                       {"status", std::to_string(submit_res.m_status)}});
+                core::events::publish(
+                    "worker.poll_thread.submit_failed",
+                    {{"task_id", task_id}, {"status", std::to_string(submit_res.m_status)}});
                 cycle_span.set_status(interfaces::SpanStatus::ERROR, "");
             } else {
                 cycle_span.set_status(interfaces::SpanStatus::OK, "");
@@ -200,10 +202,12 @@ int run_worker(int argc, char *argv[]) {
     // try/catch around the send already handles a failed write via the thrown exception path.
     std::signal(SIGPIPE, SIG_IGN);
 
-    auto config_path = argc > 1 ? std::string{argv[1]} : "worker.toml";
+    // Default config for a no-arg `xmake run engine_worker`. The docker worker passes its own
+    // config path explicitly (Dockerfile.worker copies config/worker.toml -> ./worker.toml and
+    // runs it), so it never relies on this default.
+    auto config_path = argc > 1 ? std::string{argv[1]} : "~/cc/congelado/config/worker.toml";
     auto internal_workers_dir = argc > 2 ? std::string{argv[2]} : "./workers";
-    auto external_workers_dir =
-        argc > 3 ? std::optional<std::string>{argv[3]} : std::nullopt;
+    auto external_workers_dir = argc > 3 ? std::optional<std::string>{argv[3]} : std::nullopt;
 
     // ── 0. Force-load plugins before config parsing ────────────────────
     // WorkerConfig::from_file (step 1 below) decodes worker.toml via serde::Ser, which
@@ -286,8 +290,9 @@ int run_worker(int argc, char *argv[]) {
     // own global init state (io_uring rings, embedded interpreter state, etc.) that this process
     // never tears down before exit, which is what LeakSanitizer was actually reporting — nothing
     // to do with this process's own logic.
-    for (const char *plugin_name : { "libtoml_plugin.so", "libotel_otlp_plugin.so",
-                                     "libfile_logger.so", "libopenapi_generator.so" }) {
+    for (const char *plugin_name : {"libtoml_plugin.so", "libotel_otlp_plugin.so",
+                                    "libfile_logger.so", "libopenapi_generator.so",
+                                    "libjson_plugin.so"}) {
         if (auto open_res = plugin_store.open(plugins_dir / plugin_name); !open_res) {
             std::println(stderr, "[worker] plugin '{}' load failed: {}", plugin_name,
                          open_res.error().get_message());
@@ -318,8 +323,9 @@ int run_worker(int argc, char *argv[]) {
                         meter, [](interfaces::IMeterProvider *) {}));
                 }
                 if (auto *log_provider = otel_provider->get_log_provider()) {
-                    log_record_registry.add_provider(std::shared_ptr<interfaces::ILogRecordProvider>(
-                        log_provider, [](interfaces::ILogRecordProvider *) {}));
+                    log_record_registry.add_provider(
+                        std::shared_ptr<interfaces::ILogRecordProvider>(
+                            log_provider, [](interfaces::ILogRecordProvider *) {}));
                 }
             }
             if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
@@ -346,9 +352,8 @@ int run_worker(int argc, char *argv[]) {
     }
     auto &cfg = *cfg_result;
 
-    std::println("[worker] loaded config: id='{}' engine={}:{} concurrency={}",
-                 cfg.getWorkerId(), cfg.getEngineHost(), cfg.getEnginePort(),
-                 cfg.getConcurrency());
+    std::println("[worker] loaded config: id='{}' engine={}:{} concurrency={}", cfg.getWorkerId(),
+                 cfg.getEngineHost(), cfg.getEnginePort(), cfg.getConcurrency());
 
     // ── 2. Create worker context ───────────────────────────────────────
     worker::WorkerContext ctx(cfg.getWorkerId());
@@ -357,9 +362,9 @@ int run_worker(int argc, char *argv[]) {
     try {
         ctx.load_workers(external_workers_dir, internal_workers_dir);
     } catch (const std::exception &e) {
-        throw std::runtime_error(std::format(
-            "failed to load workers from '{}' (internal) / '{}' (external): {}",
-            internal_workers_dir, external_workers_dir.value_or("<none>"), e.what()));
+        throw std::runtime_error(
+            std::format("failed to load workers from '{}' (internal) / '{}' (external): {}",
+                        internal_workers_dir, external_workers_dir.value_or("<none>"), e.what()));
     }
 
     auto task_types = ctx.get_task_types();
@@ -382,10 +387,12 @@ int run_worker(int argc, char *argv[]) {
     // what lets the block actually get serviced.
     // On top of that baseline, every poll-cycle contract (registered in step 7 below) also
     // blocks its pool thread for the duration of its call_engine() round-trips plus its
-    // 100ms pacing sleep — so the pool needs `getConcurrency()` more threads on top of the
-    // connection-pumping baseline, or poll contracts and inbound dispatch pumping end up
-    // starving each other for the same 4 threads.
-    core::contract::ContractThreadPool<> thread_pool(contract_group, 4 + cfg.getConcurrency());
+    // 100ms pacing sleep — so the pool needs headroom beyond the connection-pumping baseline,
+    // or poll contracts and inbound dispatch pumping end up starving each other. That total is
+    // the top-level `threads` config key now (see WorkerConfig::getThreads), sized to cover the
+    // connection-pumping baseline plus one thread per concurrent poll-cycle — must stay > 1.
+    core::contract::ContractThreadPool<> thread_pool(
+        contract_group, cfg.getThreads().value_or(std::thread::hardware_concurrency()));
 
     // Http2Protocol requires non-empty cert/key even for an outbound client connection
     // (which never reads them) — fall back to the repo-root dev certs when the config
@@ -395,8 +402,9 @@ int run_worker(int argc, char *argv[]) {
     http2_cfg.add_field("port", std::to_string(cfg.getEnginePort()));
     http2_cfg.add_field("cert", cfg.getEngineCert().empty() ? "server.crt" : cfg.getEngineCert());
     http2_cfg.add_field("key", cfg.getEngineKey().empty() ? "server.key" : cfg.getEngineKey());
-    http2_cfg.add_field("threads", "1");
 
+    // This worker never registers extensions — the Server's own empty registry makes every
+    // extension seam a no-op, same as if the mechanism didn't exist.
     auto protocol = io::layer::http2::Http2Protocol{&http2_cfg};
 
     // Create dispatch callback that routes engine responses to pending promises
@@ -426,37 +434,74 @@ int run_worker(int argc, char *argv[]) {
     // hazard — the read that would resolve the promise may never get serviced by that same
     // thread. Blocking the main thread instead is safe: it isn't part of the contract group's
     // thread pool that services the connection.
-    std::promise<void> connected_promise;
-    auto connected_future = connected_promise.get_future();
-    try {
-        // Only wire the engine pointer into ctx once the connect/handshake actually lands —
-        // connect() kicks the async sequence off and returns immediately, well before that.
-        // Registering it any earlier would let a poll thread call send() while m_flow is still
-        // null (straight segfault, not a clean "no engine set" error).
-        http2_client->connect(engine_endpoint, leverager, contract_group, verify_peer,
-                              [&ctx, &connected_promise, http2_client] {
-                                  ctx.set_engine(*http2_client);
-                                  // Point the generated typed client (congelado_api::*) at the
-                                  // same transport call_engine() already uses — both share one
-                                  // connection, correlated by stream id via WorkerContext::
-                                  // make_dispatch() feeding both pending maps (see its own
-                                  // doc comment).
-                                  congelado::client::ClientRuntime::setClient(*http2_client);
-                                  congelado::client::ClientRuntime::setRequestFactory(
-                                      [http2_client](std::uint32_t stream_id) {
-                                          return http2_client->create_request(stream_id);
-                                      });
-                                  connected_promise.set_value();
-                              });
-    } catch (const std::exception &e) {
-        std::println(stderr, "[worker] failed to connect to engine at {}:{}: {}",
-                     cfg.getEngineHost(), cfg.getEnginePort(), e.what());
+    // The engine may not be reachable the instant this worker boots — DNS not yet resolvable, the
+    // engine still coming up, a transient network blip. Rather than failing on the first attempt,
+    // retry on a fixed delay until the connect lands or an overall deadline elapses. Both knobs
+    // come from config (connect_retry_delay_ms / connect_timeout_ms), defaulted here.
+    const auto retry_delay = std::chrono::milliseconds{
+        cfg.getConnectRetryDelayMs().value_or(congelado::worker::consts::connect_retry_delay_ms)};
+    // Sentinel: connect_timeout_ms == 0 means "retry forever, never give up" — for a worker that
+    // must wait out an engine that comes up arbitrarily late. This is the default when the key is
+    // absent, so a worker waits for its engine indefinitely unless a finite deadline is set.
+    const auto connect_timeout_ms =
+        cfg.getConnectTimeoutMs().value_or(congelado::worker::consts::connect_timeout_ms);
+    const bool retry_forever = connect_timeout_ms == 0;
+    const auto connect_deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds{connect_timeout_ms};
+
+    // One promise for the whole connect/retry sequence, not one per attempt: connect() wires
+    // add_on_accept() a single time, and every subsequent retry()/on_released()-driven attempt
+    // reuses that same callback — whichever attempt eventually succeeds resolves this promise.
+    auto connected_promise = std::make_shared<std::promise<void>>();
+    auto connected_future = connected_promise->get_future();
+
+    // Only wire the engine pointer into ctx once the connect/handshake actually lands —
+    // connect() kicks the async sequence off and returns immediately, well before that.
+    // Registering it any earlier would let a poll thread call send() while m_flow is still
+    // null (straight segfault, not a clean "no engine set" error).
+    auto connect_result = http2_client->connect(
+        engine_endpoint, leverager, contract_group, verify_peer,
+        [&ctx, connected_promise, http2_client] {
+            ctx.set_engine(*http2_client);
+            // Point the generated typed client (congelado_api::*) at the same transport
+            // call_engine() already uses — both share one connection, correlated by stream id
+            // via WorkerContext::make_dispatch() feeding both pending maps (see its own doc
+            // comment).
+            congelado::client::ClientRuntime::setClient(*http2_client);
+            congelado::client::ClientRuntime::setRequestFactory(
+                [http2_client](std::uint32_t stream_id) {
+                    return http2_client->create_request(stream_id);
+                });
+            connected_promise->set_value();
+        });
+    if (!connect_result) {
+        std::println(stderr, "[worker] {}", connect_result.error());
         return 1;
     }
 
-    connected_future.wait();
-    std::println("[worker] connected to engine at {}:{}", cfg.getEngineHost(),
-                 cfg.getEnginePort());
+    bool connected = false;
+    while (!connected) {
+        // connect()/retry() only kick off the async handshake — bound the wait so a stalled
+        // attempt that never fires the callback still counts as a failed attempt.
+        if (connected_future.wait_for(retry_delay) == std::future_status::ready) {
+            connected = true;
+            break;
+        }
+
+        if (!retry_forever && std::chrono::steady_clock::now() >= connect_deadline) {
+            std::println(stderr, "[worker] gave up connecting to engine at {}:{} after {}ms",
+                         cfg.getEngineHost(), cfg.getEnginePort(), connect_timeout_ms);
+            return 1;
+        }
+        std::println("[worker] engine connect attempt failed, retrying in {}ms",
+                     retry_delay.count());
+        auto retry_result = http2_client->retry();
+        if (!retry_result) {
+            std::println(stderr, "[worker] {}", retry_result.error());
+            return 1;
+        }
+    }
+    std::println("[worker] connected to engine at {}:{}", cfg.getEngineHost(), cfg.getEnginePort());
 
     // ── 4.5. Self-register configured tasks ────────────────────────────
     // worker.toml's [[tasks]] entries — register each as a TaskDef on the engine so its
@@ -512,7 +557,6 @@ int run_worker(int argc, char *argv[]) {
     server_cfg.add_field("port", std::to_string(cfg.getBindPort()));
     server_cfg.add_field("cert", cfg.getEngineCert().empty() ? "server.crt" : cfg.getEngineCert());
     server_cfg.add_field("key", cfg.getEngineKey().empty() ? "server.key" : cfg.getEngineKey());
-    server_cfg.add_field("threads", "1");
 
     auto server_protocol = io::layer::http2::Http2Protocol{&server_cfg};
     auto server = server_protocol.get_server();
@@ -531,8 +575,8 @@ int run_worker(int argc, char *argv[]) {
     try {
         server_flow.build();
     } catch (const std::exception &e) {
-        std::println(stderr, "[worker] failed to bind own server at {}:{}: {}",
-                     cfg.getBindHost(), cfg.getBindPort(), e.what());
+        std::println(stderr, "[worker] failed to bind own server at {}:{}: {}", cfg.getBindHost(),
+                     cfg.getBindPort(), e.what());
         return 1;
     }
 
@@ -542,7 +586,8 @@ int run_worker(int argc, char *argv[]) {
         if (auto write_res =
                 openapi_generator->write_document("Congelado Worker API", "1.0.0", "openapi.json");
             !write_res) {
-            std::println(stderr, "[worker] failed to write openapi document: {}", write_res.error());
+            std::println(stderr, "[worker] failed to write openapi document: {}",
+                         write_res.error());
         } else {
             std::println("[worker] generated openapi document");
         }

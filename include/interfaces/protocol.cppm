@@ -18,6 +18,9 @@ concept ServerConcept = requires(T server, shared::SendCallback &&send,
                                  shared::CloseCallback &&close, void *router_ctx) {
     { server.on_connect(std::move(send), std::move(close)) } -> std::same_as<shared::ReadCallback>;
     { server.build(router_ctx) } -> std::same_as<void>;
+    { server.close() } -> std::same_as<void>;
+    { server.mark_closed() } -> std::same_as<void>;
+    { server.is_idle() } -> std::same_as<bool>;
 };
 
 template <typename T>
@@ -64,12 +67,6 @@ class IProtocol {
      */
     [[nodiscard]] virtual std::uint16_t get_bind_port() const noexcept = 0;
     /**
-     * @brief How many threads this protocol wants for handling connections — more threads,
-     * more motion, up to whatever the implementer's actually configured for.
-     * @return the thread count to bind with.
-     */
-    [[nodiscard]] virtual std::uint32_t get_bind_threads() const noexcept = 0;
-    /**
      * @brief Path to the TLS cert this protocol should serve with, if it's doing TLS at all.
      * @return the TLS cert path/content — implementer decides which flavor.
      */
@@ -106,7 +103,10 @@ class IProtocol {
     // FIXME(clang-tidy): cppcoreguidelines-rvalue-reference-param-not-moved — default impl
     // throws and never touches `dispatch_fn`; every override's signature must match this one
     // exactly for dispatch, so the param can't be dropped or changed.
-    [[nodiscard]] virtual std::unique_ptr<IClient> get_client(io::ReceiveDispatchFn &&dispatch_fn) {  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) — signature must match every override for virtual dispatch
+    [[nodiscard]] virtual std::unique_ptr<IClient>
+    get_client(io::ReceiveDispatchFn
+                   &&dispatch_fn) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) —
+                                    // signature must match every override for virtual dispatch
         throw std::runtime_error("IClient not implemented for this protocol");
     };
 
@@ -121,14 +121,18 @@ class IProtocol {
      */
     // FIXME(clang-tidy): cppcoreguidelines-rvalue-reference-param-not-moved — intentional
     // default no-op; every override's signature must match this one exactly for dispatch.
-    virtual void set_dispatch(io::ReceiveDispatchFn &&dispatch_fn) {}  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) — signature must match every override for virtual dispatch
+    virtual void set_dispatch(io::ReceiveDispatchFn &&dispatch_fn) {
+    } // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) — signature must match every
+      // override for virtual dispatch
 };
 
 
-using HandlerFn = std::function<void(io::IRequest &, io::IResponse &)>;
+using HandlerFn = std::function<void(io::IRequest &, io::IResponse &, std::function<void()> send)>;
 
-using NextFn = std::move_only_function<void(io::IRequest &, io::IResponse &) noexcept>;
+using NextFn = std::move_only_function<void(io::IRequest &, io::IResponse &,
+                                                     std::function<void()> send) noexcept>;
 
-using MiddlewareFn = void (*)(io::IRequest &, io::IResponse &, NextFn &&);
+using MiddlewareFn =
+    void (*)(io::IRequest &, io::IResponse &, NextFn &&, std::function<void()> send);
 
 } // namespace interfaces

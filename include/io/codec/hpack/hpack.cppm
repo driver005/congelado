@@ -785,6 +785,26 @@ class Hpack {
     }
 
     /**
+     * @brief Decodes a full HPACK byte block into an arbitrary caller-supplied request instead
+     * of `m_request` — same shared decoding table (so dynamic-table state stays in sync with
+     * the peer regardless of which request object the fields land in), just a different write
+     * target. The seam a claimed HTTP/2 stream's trailers block decodes through, since
+     * `m_request` is already the stream's primary (already-dispatched) request by the time
+     * trailers arrive.
+     * @tparam R a viewable range whose elements are std::byte.
+     * @param target the request to decode the header fields into.
+     * @param data the encoded HPACK bytes to decode.
+     * @return the total number of bytes consumed.
+     * @throws error::http::DecodeError if a representation byte doesn't match any known type.
+     */
+    template <std::ranges::viewable_range R>
+        requires std::same_as<std::ranges::range_value_t<R>, std::byte>
+    [[nodiscard]] std::size_t decode_into(interfaces::io::IRequest &target, R &&data) {
+        return std::views::all(std::forward<R>(data)) |
+               HpackDecoderAdapter<UInt, Width>{m_decoding_table, target};
+    }
+
+    /**
      * @brief Resizes the encoding table and produces the matching Dynamic Table Size Update
      * wire bytes so the peer's decoder stays in sync.
      * @param size the new dynamic table max size in bytes.

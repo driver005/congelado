@@ -13,7 +13,9 @@ import io_codec_hpack;
 import utils_codec;
 import core_events;
 import core_logger;
+import interfaces;
 import utils_buffering;
+import :extension;
 import :settings;
 import :frame;
 import :helper;
@@ -131,6 +133,40 @@ class StreamLevelHelper {
         return m_header_block.value();
     }
     /**
+     * @brief The trailers-aware counterpart to `get_header_block()`. The first HEADERS block
+     * (before `m_primary_headers_done`) routes straight through to `get_header_block()` (same
+     * single-collection guard). Once the primary headers are done, a further HEADERS block is
+     * trailers, which accumulate into a separate lazily-created buffer — a legitimate second
+     * collection, not a protocol error.
+     * @return the live buffer HEADERS/CONTINUATION payload bytes should accumulate into.
+     * @throws error::http::ConnectionError only via `get_header_block()` if the primary block
+     * was already cleared but `m_primary_headers_done` wasn't set (the empty-primary edge case).
+     */
+    utils::buffering::BufferView &get_header_block_for_write() {
+        if (m_primary_headers_done) {
+            if (!m_trailer_block.has_value()) {
+                m_trailer_block = std::make_optional<utils::buffering::BufferView>();
+            }
+            return m_trailer_block.value();
+        }
+        return get_header_block();
+    }
+    /**
+     * @brief Drops the trailer block buffer, marking it consumed — mirrors
+     * `clear_header_block()`'s role but for the trailers path.
+     */
+    void clear_trailer_block() noexcept { m_trailer_block.reset(); }
+    /**
+     * @brief Marks the primary (request/response) HEADERS block as decoded, so any further
+     * HEADERS block on this stream is treated as trailers.
+     */
+    void mark_primary_headers_done() noexcept { m_primary_headers_done = true; }
+    /**
+     * @brief Whether the primary HEADERS block has already been decoded on this stream.
+     * @return true once `mark_primary_headers_done()` has run.
+     */
+    [[nodiscard]] bool primary_headers_done() const noexcept { return m_primary_headers_done; }
+    /**
      * @brief Grabs the shared connection-level stream this stream's window accounting bubbles
      * up through. Lowkey the glue between per-stream and connection-wide flow control.
      * @return a reference wrapper to the connection-level stream.
@@ -172,8 +208,10 @@ class StreamLevelHelper {
     HttpResponse m_response;
     codec::hpack::Hpack<> m_hpack;
     std::optional<utils::buffering::BufferView> m_header_block;
+    std::optional<utils::buffering::BufferView> m_trailer_block;
     bool m_expecting_continuation{false};
     bool m_remote_done{false};
+    bool m_primary_headers_done{false};
 };
 
 
@@ -283,7 +321,8 @@ class Stream {
     template <shared_layer::FrameRole Role>
         requires(!IsStreamBased)
     std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>>
-    receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader) {
+    receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader,
+            HttpExtensionRegistry &extension_registry) {
 
         const auto &type = header.get_type();
         std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>> response = std::nullopt;
@@ -300,6 +339,8 @@ class Stream {
             core::logger::debug("http2/conn", "WINDOW_UPDATE increment={}", increment);
 
             update_send_window(increment);
+
+            extension_registry.for_each([&](auto &extension) { extension->on_window_update(0, increment); });
             break;
         }
         case shared_layer::FrameType::GOAWAY: {
@@ -353,15 +394,15 @@ class Stream {
                                .build();
             }
 
+            extension_registry.for_each(
+                [&](auto &extension) { extension->on_ping((flags & shared_layer::Flags::ACK) != 0); });
             break;
         }
 
         case shared_layer::FrameType::SETTINGS: {
             // Delegate the whole SETTINGS dance (ACK short-circuit, decode, window delta,
             // reply ACK) to the dedicated helper.
-            core::logger::debug("http2/conn", "SETTINGS len={}", header.get_length());
-
-            response = handle_settings(header, reader);
+            response = handle_settings(header, reader, extension_registry);
             break;
         }
         case shared_layer::FrameType::PRIORITY: {
@@ -384,11 +425,27 @@ class Stream {
                 error::http::Http2ErrorCode::PROTOCOL_ERROR,
                 std::format("Type `{}` is not valid on connection-level stream", type));
         }
-        default:
+        default: {
+            // Not one of the 10 RFC 9113 types — per §4.1, unknown frame types MUST be ignored.
+            // Before discarding, hand the raw frame to every extension's on_frame_complete().
+            if (extension_registry.has_extensions()) {
+                utils::buffering::BufferView view;
+                if (header.get_length() > 0) {
+                    reader.grow_view(view, header.get_length());
+                }
+                auto payload = view | std::ranges::to<std::vector<std::byte>>();
+                bool end_stream = (header.get_flags() & shared_layer::Flags::END_STREAM) != 0;
+                extension_registry.for_each([&](auto &extension) {
+                    extension->on_frame_complete(get_stream_id(), std::to_underlying(type),
+                                                header.get_flags(), payload, end_stream);
+                });
+            }
             break;
         }
+        }
 
-        // Whatever branch ran, the frame's payload bytes get consumed off the reader here.
+        // grow_view() (if any branch used it) only referenced the payload; this is the single
+        // point that actually removes it from the reader.
         reader.consume(header.get_length());
 
         return response;
@@ -424,7 +481,8 @@ class Stream {
      */
     template <shared_layer::FrameRole Role>
         requires IsStreamBased
-    void receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader) {
+    void receive(const FrameHeader<Role> &header, utils::buffering::BufferReader &reader,
+                HttpExtensionRegistry &extension_registry) {
 
         const auto &type = header.get_type();
 
@@ -446,29 +504,36 @@ class Stream {
 
         switch (type) {
         case shared_layer::FrameType::DATA: {
-            // Debit both flow-control windows and read the bytes straight into the request body.
+            // Debit both flow-control windows, then read the payload into the request body — the
+            // normal accumulation path, unchanged.
             auto &view = m_stream_helper.get_request().get_body();
+            std::size_t size_before = view.size();
             if (header.get_length() > 0) {
                 consume_window(header.get_length(), false);
 
-                reader.expand_view(view, header.get_length());
-                if (view.size() != header.get_length()) {
+                reader.grow_view(view, header.get_length());
+                if (view.size() != size_before + header.get_length()) {
                     throw error::http::ConnectionError(
                         error::http::Http2ErrorCode::INTERNAL_ERROR,
                         std::format("Failed to read DATA payload expected `{}`, got `{}` bytes",
-                                    header.get_length(), view.size()),
+                                    header.get_length(), view.size() - size_before),
                         get_stream_id());
                 }
             }
 
-
             const auto &flags = header.get_flags();
-            if (flags & shared_layer::Flags::END_STREAM) {
-                core::logger::debug("http2/stream", "stream {} data {} bytes", get_stream_id(),
-                                    view.size());
-            } else {
-                core::logger::debug("http2/stream", "stream {} data {} bytes (partial)",
-                                    get_stream_id(), view.size());
+            bool end_stream = (flags & shared_layer::Flags::END_STREAM) != 0;
+
+            // Hand this DATA frame's bytes to every extension. `size_before` isolates just this
+            // frame's tail from the accumulated body.
+            if (extension_registry.has_extensions()) {
+                auto payload = view | std::views::drop(size_before) |
+                               std::ranges::to<std::vector<std::byte>>();
+                extension_registry.for_each([&](auto &extension) {
+                    extension->on_frame_complete(get_stream_id(),
+                                                std::to_underlying(shared_layer::FrameType::DATA),
+                                                header.get_flags(), payload, end_stream);
+                });
             }
 
             break;
@@ -477,10 +542,12 @@ class Stream {
         case shared_layer::FrameType::HEADERS:
         case shared_layer::FrameType::PUSH_PROMISE:
         case shared_layer::FrameType::CONTINUATION: {
-            // All three feed the same accumulating header block buffer.
-            auto &view = m_stream_helper.get_header_block();
+            // All three feed the same accumulating header block buffer — trailers-aware, so a
+            // second HEADERS block (trailers) lands in a separate buffer instead of hitting the
+            // ordinary single-collection guard.
+            auto &view = m_stream_helper.get_header_block_for_write();
             if (header.get_length() > 0) {
-                reader.expand_view(view, header.get_length());
+                reader.grow_view(view, header.get_length());
                 if (view.size() != header.get_length()) {
                     throw error::http::ConnectionError(
                         error::http::Http2ErrorCode::INTERNAL_ERROR,
@@ -495,7 +562,7 @@ class Stream {
             const auto &flags = header.get_flags();
             if (flags & shared_layer::Flags::END_HEADERS) {
                 m_stream_helper.set_expecting_continuation(false);
-                handle_header(view);
+                handle_header(view, extension_registry);
 
                 core::logger::debug("http2/stream", "stream {} {} {} bytes", get_stream_id(), type,
                                     view.size());
@@ -518,6 +585,8 @@ class Stream {
 
             update_send_window(increment);
 
+            extension_registry.for_each(
+                [&](auto &extension) { extension->on_window_update(get_stream_id(), increment); });
             break;
         }
 
@@ -526,6 +595,9 @@ class Stream {
             // as a StreamError so the session can respond with a targeted teardown instead of a
             // full GOAWAY.
             auto error_code = reader | std::views::take(4) | utils::codec::ReadBigEndianAdaptor<>{};
+
+            extension_registry.for_each(
+                [&](auto &extension) { extension->on_stream_reset(get_stream_id(), error_code); });
 
             cleanup_resources();
 
@@ -558,11 +630,27 @@ class Stream {
                 std::format("Type `{}` is not valid on stream-level stream", type));
         }
 
-        default:
+        default: {
+            // Not one of the 10 RFC 9113 types — per §4.1, unknown frame types MUST be ignored.
+            // Before discarding, hand the raw frame to every extension's on_frame_complete().
+            if (extension_registry.has_extensions()) {
+                utils::buffering::BufferView view;
+                if (header.get_length() > 0) {
+                    reader.grow_view(view, header.get_length());
+                }
+                auto payload = view | std::ranges::to<std::vector<std::byte>>();
+                bool end_stream = (header.get_flags() & shared_layer::Flags::END_STREAM) != 0;
+                extension_registry.for_each([&](auto &extension) {
+                    extension->on_frame_complete(get_stream_id(), std::to_underlying(type),
+                                                header.get_flags(), payload, end_stream);
+                });
+            }
             break;
         }
+        }
 
-        // Consume the frame's payload bytes off the reader regardless of which branch ran.
+        // grow_view() (if any branch used it) only referenced the payload; this is the single
+        // point that actually removes it from the reader.
         reader.consume(header.get_length());
 
         // Remote side just half-closed — flag it so Session::receive() knows to fire the
@@ -589,13 +677,81 @@ class Stream {
      * illegal second HEADERS collection on this stream would slip right past
      * `get_header_block()`'s "already consumed" check instead of getting rejected. Edge case,
      * but a real gap in the double-collection guard.
+     * @note A second HEADERS block on the same stream (after `mark_primary_headers_done()`) is
+     * treated as trailers: decoded into a throwaway request via the shared HPACK decoding table
+     * (so dynamic-table state stays in sync regardless of which object the fields land in) and
+     * handed to `IHttpExtension::on_trailers()`. The primary block decodes into `m_request` and
+     * fires `on_request_incoming()`. Both paths fire `on_header_added()` per decoded field.
      * @param view the accumulated header block bytes to decode.
+     * @param extension_registry the registry whose extensions get the per-field / request /
+     * trailers hooks.
      * @throws error::http::StreamError if HPACK decoding doesn't consume the entire payload, or
      * if decoding itself fails (compression error or a bad dynamic-table index).
      */
-    void handle_header(utils::buffering::BufferView &view) {
-        // Only decode if there's actually something buffered (see the class-level warning about
-        // the empty-view edge case leaving the header block un-cleared).
+    void handle_header(utils::buffering::BufferView &view,
+                       HttpExtensionRegistry &extension_registry) {
+        // Fire on_header_added() for every decoded field of `req` — visits the static/dynamic
+        // HeaderEntry variant, resolving a static field's Token name back to its string.
+        auto fire_headers = [&](interfaces::io::IRequest &req) {
+            if (!extension_registry.has_extensions()) {
+                return;
+            }
+            for (const auto &entry : req.get_headers()) {
+                std::string_view header_name;
+                std::string_view header_value;
+                std::visit(
+                    [&](const auto &field) {
+                        using NameType = std::decay_t<decltype(field->get_name())>;
+                        if constexpr (std::is_same_v<NameType, interfaces::io::types::Token>) {
+                            header_name = interfaces::io::types::token_to_string(field->get_name());
+                        } else {
+                            header_name = field->get_name();
+                        }
+                        header_value = field->get_value();
+                    },
+                    entry);
+                extension_registry.for_each([&](auto &extension) {
+                    extension->on_header_added(get_stream_id(), header_name, header_value);
+                });
+            }
+        };
+
+        if (m_stream_helper.primary_headers_done()) {
+            // Trailers — decode into a throwaway request instead of m_request, reusing the same
+            // shared decoding table so HPACK dynamic-table state stays in sync with the peer.
+            if (!view.empty()) {
+                HttpRequest trailers{get_stream_id()};
+                try {
+                    if (auto consumed = m_stream_helper.get_hpack().decode_into(trailers, view);
+                        consumed < view.size()) {
+                        throw error::http::StreamError(
+                            get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
+                            std::format("HPACK decoding did not consume entire trailers payload: "
+                                        "consumed `{}` bytes but payload size is `{}` bytes",
+                                        consumed, view.size()));
+                    }
+                } catch (error::http::Http2Exception &e) {
+                    m_stream_helper.clear_trailer_block();
+                    throw error::http::StreamError(
+                        get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
+                        std::format("HPACK decoding error `{}`", e.what()));
+                } catch (std::out_of_range &e) {
+                    m_stream_helper.clear_trailer_block();
+                    throw error::http::StreamError(
+                        get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
+                        std::format("HPACK table index out of range: `{}`", e.what()));
+                }
+                m_stream_helper.clear_trailer_block();
+
+                fire_headers(trailers);
+                extension_registry.for_each(
+                    [&](auto &extension) { extension->on_trailers(get_stream_id(), trailers); });
+            }
+            return;
+        }
+
+        // Primary HEADERS block. Only decode if there's actually something buffered (see the
+        // class-level warning about the empty-view edge case leaving the header block uncleared).
         if (!view.empty()) {
             try {
                 // Full payload must decode in one go — a partial consume means the compressed
@@ -622,9 +778,16 @@ class Stream {
                     get_stream_id(), error::http::Http2ErrorCode::COMPRESSION_ERROR,
                     std::format("HPACK table index out of range: `{}`", e.what()));
             }
-            // Clean decode — release the header block so a genuine second HEADERS collection
-            // gets rejected by get_header_block()'s guard.
+            // Clean decode — release the header block, and mark the primary block done so any
+            // further HEADERS block routes to the trailers path above.
             m_stream_helper.clear_header_block();
+            m_stream_helper.mark_primary_headers_done();
+
+            // Fire per-field, then the assembled-request hook.
+            fire_headers(m_stream_helper.get_request());
+            extension_registry.for_each([&](auto &extension) {
+                extension->on_request_incoming(get_stream_id(), m_stream_helper.get_request());
+            });
         }
     }
 
@@ -662,16 +825,10 @@ class Stream {
                     get_stream_id(), error::http::Http2ErrorCode::INTERNAL_ERROR,
                     "Attempted to send DATA exceeding flow control window");
             }
-            core::logger::debug("http2/stream", "stream {} send_window -{} ={}", get_stream_id(),
-                                size, m_send_window - size);
-
             m_send_window -= size;
         } else {
             // Receiver path — debit first, then check for underflow after the fact.
             m_recv_window -= size;
-            core::logger::debug("http2/stream", "stream {} recv_window -{} ={}", get_stream_id(),
-                                size, m_recv_window);
-
             if (m_recv_window < 0) {
                 throw error::http::StreamError(get_stream_id(),
                                                error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
@@ -693,8 +850,6 @@ class Stream {
     void consume_window(std::int32_t size, bool is_sender)
         requires(!IsStreamBased)
     {
-        core::logger::debug("http2/conn", "consume window size={} sender={}", size, is_sender);
-
         // Same sender-vs-receiver split as the stream-level overload, just with nothing
         // further to bubble up to since this IS the top of the chain.
         if (is_sender) {
@@ -704,13 +859,9 @@ class Stream {
                     "Attempted to send DATA exceeding flow control window");
             }
 
-            core::logger::debug("http2/conn", "send_window -{} ={}", size, m_send_window - size);
-
             m_send_window -= size;
         } else {
             m_recv_window -= size;
-
-            core::logger::debug("http2/conn", "recv_window -{} ={}", size, m_recv_window);
 
             if (m_recv_window < 0) {
                 throw error::http::StreamError(get_stream_id(),
@@ -775,7 +926,7 @@ class Stream {
      * @note `m_recv_buffer` here is separate from the request body view populated in the DATA
      * case of the stream-level `receive()` above (`m_stream_helper.get_request().get_body()`)
      * — the actual DATA-frame handling path reads straight into the request body via
-     * `reader.expand_view()`, it never calls this method. Grep confirms zero call sites for
+     * `reader.grow_view()`, it never calls this method. Grep confirms zero call sites for
      * this method anywhere in the codebase — `m_recv_buffer` looks like a secondary/legacy
      * accumulation path that isn't wired into the live receive flow at all.
      * @param data the bytes to append.
@@ -848,11 +999,12 @@ class Stream {
      * @throws error::http::ConnectionError or error::http::StreamError per
      * `StreamStateMachine::advance()`'s usual rules.
      */
-    void advance_send(const shared_layer::FrameType &type, const std::uint8_t &flags)
+    void advance_send(const shared_layer::FrameType &type, const std::uint8_t &flags,
+                      bool is_local = false)
         requires IsStreamBased
     {
         // Drive the state machine forward for this outgoing frame...
-        m_state_machine.advance(type, flags, false);
+        m_state_machine.advance(type, flags, is_local);
         // ...and release transient state immediately if that lands the stream in CLOSED.
         if (m_state_machine.is_closed()) {
             cleanup_resources();
@@ -919,27 +1071,16 @@ class Stream {
     /**
      * @brief Handles an incoming SETTINGS frame at the connection level — ACKs get their own
      * short-circuit path (marks local settings as acknowledged, nothing else to do), non-ACKs
-     * get decoded, diffed for an INITIAL_WINDOW_SIZE change (which needs to ripple through to
-     * every open stream's send window via `update_send_window()`), then get a SETTINGS ACK
-     * built to send back.
-     * @warning No cap, straight-up bug here: `reader | ReadSettingsAdaptor{}` decodes the
-     * peer's SETTINGS values into a brand-new local `Settings settings` object — and that
-     * object is never assigned back onto `m_remote_settings`, never read from again after the
-     * one line that creates it. `old_window`/`new_window` are both read from
-     * `m_remote_settings` before AND after that decode, and since nothing ever writes the
-     * decoded values into `m_remote_settings`, `old_window == new_window` unconditionally. The
-     * whole `if (old_window != new_window)` window-delta-propagation block is dead code that
-     * can never fire, and — bigger picture — the peer's actual SETTINGS values (header table
-     * size, max frame size, max concurrent streams, all of it) never make it into
-     * `m_remote_settings` at all. Only `m_remote_settings`'s *state* flag gets updated to
-     * ACKNOWLEDGED; every numeric field stays at whatever it was (spec defaults, since it's
-     * never mutated elsewhere either). This is a real functional gap, not a style nit — the
-     * remote's advertised settings are effectively ignored connection-wide.
+     * get decoded, written back onto `m_remote_settings` via `Settings::apply_all()`, diffed
+     * for an INITIAL_WINDOW_SIZE change (which needs to ripple through to every open stream's
+     * send window via `update_send_window()`), then get a SETTINGS ACK built to send back.
      * @note Only enabled `requires(!IsStreamBased)` — SETTINGS is connection-scoped, never
      * valid on a real stream (see the stream-level `receive()` override which rejects it
      * outright).
      * @param header the SETTINGS frame's header.
      * @param reader the reader positioned at the SETTINGS payload.
+     * @param extension_registry the registry whose extensions get `on_settings_ack()` /
+     * `on_remote_settings()`.
      * @return a SETTINGS ACK to send back, or `std::nullopt` if the incoming frame was itself
      * already an ACK (nothing to reply to).
      * @throws error::http::ConnectionError if a non-ACK SETTINGS arrives after the initial
@@ -947,7 +1088,8 @@ class Stream {
      */
     std::optional<FrameBuilder<shared_layer::FrameRole::SENDER>>
     handle_settings(const FrameHeader<shared_layer::FrameRole::RECEIVER> &header,
-                    utils::buffering::BufferReader &reader)
+                    utils::buffering::BufferReader &reader,
+                    HttpExtensionRegistry &extension_registry)
         requires(!IsStreamBased)
     {
         // ACK short-circuit — nothing to decode, just mark our own settings acknowledged.
@@ -955,6 +1097,8 @@ class Stream {
             core::logger::debug("http2/conn", "SETTINGS ACK");
 
             m_local_settings.get().set_state(SettingsState::ACKNOWLEDGED);
+
+            extension_registry.for_each([](auto &extension) { extension->on_settings_ack(); });
             return std::nullopt;
         }
 
@@ -967,9 +1111,16 @@ class Stream {
 
         std::uint32_t old_window = m_remote_settings.get().get_initial_window_size();
 
-        // Decode the peer's SETTINGS payload (see class-level warning — the decoded values
-        // never actually get written back onto m_remote_settings as written today).
+        // Decode the peer's SETTINGS payload and write the six negotiable fields back onto
+        // m_remote_settings — apply_all() leaves lifecycle state (m_state, m_last_stream_id,
+        // ping tracker, pending delta) untouched.
         auto settings = reader | ReadSettingsAdaptor{};
+        m_remote_settings.get().apply_all(settings);
+
+        // Let every extension observe the peer's applied settings — apply_all() carried the
+        // vendor ids across too, so remote.get_vendor_settings() is populated.
+        extension_registry.for_each(
+            [&](auto &extension) { extension->on_remote_settings(m_remote_settings.get()); });
 
         std::uint32_t new_window = m_remote_settings.get().get_initial_window_size();
 
