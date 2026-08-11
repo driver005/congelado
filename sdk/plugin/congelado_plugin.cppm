@@ -260,6 +260,17 @@ void *cache_get(T *plugin) noexcept {
 }
 
 template <typename T>
+concept has_cron_get = requires(T *plugin) { plugin->cron_get(); };
+
+template <typename T>
+void *cron_get(T *plugin) noexcept {
+    if constexpr (has_cron_get<T>) {
+        return plugin->cron_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
 concept has_bridge_native_handle = requires(T *plugin) { plugin->bridge_native_handle(); };
 
 template <typename T>
@@ -304,6 +315,8 @@ CongeladoAny call(T *plugin, CongeladoRunType type, CongeladoRunAction action,
         return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = event_get(plugin)};
     case CONGELADO_RUN_CACHE:
         return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = cache_get(plugin)};
+    case CONGELADO_RUN_CRON:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = cron_get(plugin)};
     case CONGELADO_RUN_BRIDGE:
         if (action == CONGELADO_ACTION_GET_NATIVE_HANDLE) {
             return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
@@ -326,6 +339,7 @@ using core::plugin::types::database_ctx;
 using core::plugin::types::lua_bridge_ctx;
 using core::plugin::types::search_ctx;
 using core::plugin::types::cache_ctx;
+using core::plugin::types::cron_ctx;
 using core::plugin::types::config_get;
 using core::plugin::types::config_for_each;
 using core::plugin::types::ConfigViewBuilder;

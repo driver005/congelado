@@ -171,28 +171,30 @@ class Http2Plugin final : public congelado::Plugin {
             if (m_contract_group != nullptr && m_contract_registry != nullptr) {
                 auto executor_contract = m_server->executor().create(
                     *m_contract_group, core::contract::ContractState::IDLE);
-                m_server->executor().set_wake(
-                    [c = executor_contract]() mutable { c.schedule(); });
+                m_server->executor().set_wake([c = executor_contract]() mutable { c.schedule(); });
                 m_contract_registry->add(std::move(executor_contract));
             }
 
             core::logger::important("http2", "listening on {}:{}", m_bind_host, m_bind_port);
-            core::events::publish("http2.server.listening",
-                                 {{"host", m_bind_host}, {"port", std::format("{}", m_bind_port)}});
+            core::events::publish(
+                "http2.server.listening",
+                {{"host", m_bind_host}, {"port", std::format("{}", m_bind_port)}});
 
             // Stand up the actual listening socket flow, routing accepted connections through
             // the built server's on_connect.
             m_socket_flow.emplace(io::base::socket::Endpoint{m_bind_host, m_bind_port},
                                   *m_leverager, *m_contract_group);
             m_socket_flow->add_on_accept(
-                [this](shared::SendCallback send, shared::CloseCallback close) -> shared::ReadCallback {
+                [this](shared::SendCallback send,
+                       shared::CloseCallback close) -> shared::ReadCallback {
                     return m_server->on_connect(std::move(send), std::move(close));
                 });
             m_socket_flow->build();
         } catch (...) {
             core::logger::error("http2", "failed to start socket flow");
-            core::events::publish("http2.server.start_failed",
-                                 {{"host", m_bind_host}, {"port", std::format("{}", m_bind_port)}});
+            core::events::publish(
+                "http2.server.start_failed",
+                {{"host", m_bind_host}, {"port", std::format("{}", m_bind_port)}});
         }
     }
 
@@ -218,7 +220,7 @@ class Http2Plugin final : public congelado::Plugin {
         m_server->close();
 
         // Wait until the outbound send queues are empty, then close each worker.
-        m_socket_flow->drain_senders();
+        m_socket_flow->close();
 
         // Tear down the socket flow.
         m_socket_flow.reset();

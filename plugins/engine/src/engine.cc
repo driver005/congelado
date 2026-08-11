@@ -102,6 +102,19 @@ class EnginePlugin final : public congelado::Plugin {
             m_engine_ctx.set_search(search);
         }
 
+        // Cron timing lives in a cron plugin (interfaces::ICron) now, not in the engine. Resolved
+        // before build() like search/cache. Require-plugin policy: with no cron backend, schedules
+        // simply never fire — log it loudly rather than degrade silently.
+        if (host.cron_ctx == nullptr) {
+            core::logger::error("engine", "no cron backend — schedules will not fire");
+            core::events::publish("engine.no_cron_backend");
+        } else {
+            engine::set_cron(m_engine_ctx, host.cron_ctx);
+            // Install the fire callback (fired job name → started workflow) and seed the backend
+            // with every currently active schedule, since the cron plugin starts empty.
+            engine::install_cron_scheduling(m_engine_ctx, m_orchestrator);
+        }
+
         // Plain local-disk default, not a resolved plugin capability — see
         // LocalPayloadStorage's own docs on why this one doesn't need the database_ctx/
         // search_ctx-style capability resolution machinery. Directory's relative to wherever

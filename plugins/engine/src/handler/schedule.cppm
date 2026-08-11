@@ -8,7 +8,6 @@ import serde;
 import core_logger;
 import core_events;
 import :context;
-import :cron;
 
 export namespace engine {
 
@@ -87,7 +86,14 @@ class ScheduleHandler {
             send();
             return;
         }
-        if (!CronExpression::parse(parsed->get_cron_expression())) {
+        auto *cron = m_ctx.get().get_cron();
+        if (cron == nullptr) {
+            reply(res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                  interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+            send();
+            return;
+        }
+        if (!cron->validate(parsed->get_cron_expression())) {
             reply(res, serde::Ser::serialize_error(accept, "cron_expression does not parse"),
                   interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
             send();
@@ -95,12 +101,15 @@ class ScheduleHandler {
         }
         model::WorkflowSchedule schedule = *parsed;
         m_ctx.get().get_connector().upsert<model::WorkflowSchedule>(
-            schedule, [&res, accept, schedule, send = std::move(send)](bool oke) {
+            schedule, [&res, accept, schedule, cron, send = std::move(send)](bool oke) {
                 if (!oke) {
                     reply(res, serde::Ser::serialize_error(accept, "upsert failed"),
                           interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
                     send();
                     return;
+                }
+                if (schedule.get_enabled() && !schedule.get_paused()) {
+                    cron->upsert_job(schedule.get_name(), schedule.get_cron_expression());
                 }
                 core::logger::info("engine", "schedule created: '{}'", schedule.get_name());
                 core::events::publish("engine.schedule.created", {{"name", schedule.get_name()}});
@@ -128,14 +137,34 @@ class ScheduleHandler {
             send();
             return;
         }
+        auto *cron = m_ctx.get().get_cron();
+        if (cron == nullptr) {
+            reply(res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                  interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+            send();
+            return;
+        }
+        if (!cron->validate(parsed->get_cron_expression())) {
+            reply(res, serde::Ser::serialize_error(accept, "cron_expression does not parse"),
+                  interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
+            send();
+            return;
+        }
         model::WorkflowSchedule schedule = *parsed;
         m_ctx.get().get_connector().update<model::WorkflowSchedule>(
-            schedule, [&res, accept, schedule, send = std::move(send)](bool oke) {
+            schedule, [&res, accept, schedule, cron, send = std::move(send)](bool oke) {
                 if (!oke) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
                           interfaces::io::types::Status::NOT_FOUND);
                     send();
                     return;
+                }
+                // Keep the cron backend in sync with the schedule's new state — a now-disabled or
+                // paused schedule drops out of the backend, an active one is (re)registered.
+                if (schedule.get_enabled() && !schedule.get_paused()) {
+                    cron->upsert_job(schedule.get_name(), schedule.get_cron_expression());
+                } else {
+                    cron->remove_job(schedule.get_name());
                 }
                 reply(res, serde::Ser::serialize(accept, schedule));
                 send();
@@ -146,13 +175,17 @@ class ScheduleHandler {
                          std::function<void()> send) noexcept {
         auto accept = req.find_header("accept");
         auto name = last_segment(req);
+        auto *cron = m_ctx.get().get_cron();
         m_ctx.get().get_connector().remove<model::WorkflowSchedule>(
-            name, [&res, accept, send = std::move(send)](bool oke) {
+            name, [&res, accept, name, cron, send = std::move(send)](bool oke) {
                 if (!oke) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
                           interfaces::io::types::Status::NOT_FOUND);
                     send();
                     return;
+                }
+                if (cron != nullptr) {
+                    cron->remove_job(name);
                 }
                 res.set_status(interfaces::io::types::Status::NO_CONTENT);
                 send();
@@ -189,8 +222,15 @@ class ScheduleHandler {
         auto before = target.rfind('/', last > 0 ? last - 1 : 0);
         auto name = std::string{target.substr(before + 1, last - before - 1)};
 
+        auto *cron = m_ctx.get().get_cron();
+        if (cron == nullptr) {
+            reply(res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                  interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+            send();
+            return;
+        }
         m_ctx.get().get_connector().find<model::WorkflowSchedule>(
-            name, [&res, accept,
+            name, [&res, accept, cron,
                    send = std::move(send)](std::optional<model::WorkflowSchedule> schedule) {
                 if (!schedule) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
@@ -198,8 +238,7 @@ class ScheduleHandler {
                     send();
                     return;
                 }
-                auto cron = CronExpression::parse(schedule->get_cron_expression());
-                if (!cron) {
+                if (!cron->validate(schedule->get_cron_expression())) {
                     reply(res,
                           serde::Ser::serialize_error(accept, "cron_expression does not parse"),
                           interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
@@ -209,7 +248,7 @@ class ScheduleHandler {
                 std::vector<ScheduleNextRun> runs;
                 auto cursor = std::chrono::system_clock::now();
                 for (int i = 0; i < 5; ++i) {
-                    auto next = cron->next_after(cursor);
+                    auto next = cron->next_after(schedule->get_cron_expression(), cursor);
                     if (!next) {
                         break;
                     }
@@ -228,8 +267,9 @@ class ScheduleHandler {
                     std::function<void()> send, bool paused) {
         auto accept = req.find_header("accept");
         auto name = second_to_last_segment(req);
+        auto *cron = m_ctx.get().get_cron();
         m_ctx.get().get_connector().find<model::WorkflowSchedule>(
-            name, [this, &res, accept, paused,
+            name, [this, &res, accept, paused, cron,
                    send = std::move(send)](std::optional<model::WorkflowSchedule> schedule) {
                 if (!schedule) {
                     reply(res, serde::Ser::serialize_error(accept, "not found"),
@@ -238,13 +278,22 @@ class ScheduleHandler {
                     return;
                 }
                 schedule->set_paused(paused);
+                model::WorkflowSchedule updated = *schedule;
                 m_ctx.get().get_connector().update<model::WorkflowSchedule>(
-                    *schedule, [&res, accept, send = std::move(send)](bool oke) {
+                    updated, [&res, accept, updated, cron, send = std::move(send)](bool oke) {
                         if (!oke) {
                             reply(res, serde::Ser::serialize_error(accept, "not found"),
                                   interfaces::io::types::Status::NOT_FOUND);
                             send();
                             return;
+                        }
+                        if (cron != nullptr) {
+                            if (updated.get_enabled() && !updated.get_paused()) {
+                                cron->upsert_job(updated.get_name(),
+                                                 updated.get_cron_expression());
+                            } else {
+                                cron->remove_job(updated.get_name());
+                            }
                         }
                         res.set_status(interfaces::io::types::Status::OK);
                         send();

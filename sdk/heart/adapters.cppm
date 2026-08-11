@@ -205,6 +205,26 @@ class LoggerAdapter final : public interfaces::ILogger,
 }
 
 /**
+ * @brief Resolves a loaded plugin's CRON-capability interface pointer via
+ * `congelado_call(CRON, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::ICron>` (same lifetime idiom as
+ * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the CRON capability.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::ICron> resolve_cron_provider(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 2048U); // CONGELADO_CAP_CRON
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_CRON, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *cron = static_cast<interfaces::ICron *>(result.v_ptr);
+    return std::shared_ptr<interfaces::ICron>(cron, [](interfaces::ICron *) {});
+}
+
+/**
  * @brief Resolves a loaded plugin's EVENTS-capability interface pointer via
  * `congelado_call(EVENTS, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.

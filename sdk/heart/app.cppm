@@ -225,6 +225,7 @@ class ServerRunner {
         cb.lua_bridge_ctx = resolve_lua_bridge_capability();
         cb.search_ctx = resolve_search_capability(cfg);
         cb.cache_ctx = resolve_cache_capability(cfg);
+        cb.cron_ctx = resolve_cron_capability(cfg);
 
         wire_shared_connector(ctx, cb);
 
@@ -576,6 +577,42 @@ class ServerRunner {
             }
         });
         return resolved_cache != nullptr ? resolved_cache : fallback_cache;
+    }
+
+    /**
+     * @brief Same "resolve before build()" reasoning, for a cron-capable plugin's
+     * interfaces::ICron* — the engine plugin's on_load installs its fire callback and seeds its
+     * existing WorkflowSchedules into the backend. `[providers] cron = "..."` picks a specific one
+     * by stem, same pattern as resolve_search_capability()/resolve_cache_capability() above; with
+     * none set, first one found wins. No cron-capable plugin found at all leaves cron_ctx null, so
+     * the engine logs the misconfiguration and schedules never fire.
+     * @param cfg the loaded config, supplying the `[providers] cron` preference.
+     * @return the resolved (or first-found fallback) `ICron*`, or `nullptr` if none found.
+     */
+    [[nodiscard]] void *resolve_cron_capability(const core::config::Config &cfg) {
+        auto preferred_cron = preferred_provider(cfg, "cron");
+        void *resolved_cron = nullptr;
+        void *fallback_cron = nullptr;
+        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+            if (resolved_cron != nullptr) {
+                return;
+            }
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            auto cron = congelado::heart::resolve_cron_provider(*plugin);
+            if (!cron) {
+                return;
+            }
+            if (fallback_cron == nullptr) {
+                fallback_cron = cron.get();
+            }
+            if (preferred_cron && plugin_stem(*plugin) == *preferred_cron) {
+                resolved_cron = cron.get();
+            }
+        });
+        return resolved_cron != nullptr ? resolved_cron : fallback_cron;
     }
 
     /**

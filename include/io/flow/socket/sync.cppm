@@ -802,30 +802,6 @@ class ServerFlowSocket {
     }
 
     /**
-     * @brief Stops arming reads on every live worker immediately. Existing outbound sends still
-     * flush, but no more inbound data is read.
-     */
-    void stop_receiving() {
-        // for (auto &[fd, worker] : m_workers) {
-        //     worker->get_receiver().set_closed();
-        // }
-    }
-
-    /**
-     * @brief Returns how many live worker connections are still held.
-     */
-    [[nodiscard]] std::size_t active_connections() const noexcept { return m_workers.size(); }
-
-    /**
-     * @brief Force-closes every live worker. Used as a drain-timeout fallback.
-     */
-    void close_all_workers() {
-        for (auto &[fd, worker] : m_workers) {
-            worker->mark_close();
-        }
-    }
-
-    /**
      * @brief Closes every live worker (flags both halves closed; the sender flushes on close),
      * waits until each worker's contracts have gone idle — meaning the receiver ran its final
      * closed arm_read() pass and released its armed buffer slot — then drops the workers.
@@ -833,36 +809,27 @@ class ServerFlowSocket {
      * passes actually execute. Sockets are closed later in ~WorkerSocket(). Call after GOAWAY and
      * session drain.
      */
-    void drain_senders() noexcept {
-        std::vector<std::shared_ptr<WorkerSocket<Protocol>>> workers;
-        workers.reserve(m_workers.size());
-        for (auto &[fd, worker] : m_workers) {
-            workers.push_back(worker);
-        }
-
-        // Flag every worker closed — kicks off the self-releasing final pass on both contracts.
-        for (auto &worker : workers) {
-            worker->mark_close();
-        }
-
+    void close() noexcept {
         // Block until every worker's contracts have released/idled.
         bool all_idle = false;
+        bool is_marked = false;
         while (!all_idle) {
             all_idle = true;
-            for (const auto &worker : workers) {
-                if (!worker->contracts_idle()) {
+            for (auto &[fd, worker] : m_workers) {
+                if (!is_marked) {
+                    worker->mark_close();
+                    is_marked = true;
+                }
+                if (worker->contracts_idle()) {
+                    core::logger::info("io/flow", "fd {} closing", fd);
+                    m_workers.erase(fd);
+                } else {
                     all_idle = false;
-                    break;
                 }
             }
             if (!all_idle) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
-        }
-
-        // Drop from the map — ~WorkerSocket() closes each fd once its last ref is gone.
-        for (auto &worker : workers) {
-            m_workers.erase(worker->get_fd());
         }
     }
 
