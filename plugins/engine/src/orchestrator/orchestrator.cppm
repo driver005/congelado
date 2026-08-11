@@ -7,7 +7,6 @@ import core_logger;
 import :context;
 import :expr;
 import :system_task;
-import :cron;
 import :search_projector;
 import :schema;
 import core_events;
@@ -54,8 +53,8 @@ class Orchestrator : public shared::HandlerBase {
      * @brief The periodic background sweep, run as a `core::contract` handler instead of a raw
      * thread — catches everything the synchronous task-completion path structurally can't (a
      * worker that polled a task and never called back, an armed retry whose backoff has elapsed,
-     * a node that couldn't spawn earlier because its TaskDef's RateLimitPolicy was at capacity),
-     * plus firing due cron schedules.
+     * a node that couldn't spawn earlier because its TaskDef's RateLimitPolicy was at capacity).
+     * Cron schedule firing lives in the cron plugin now (interfaces::ICron), not here.
      * @note Waits on `migration::Status::is_ready()` before its first real sweep — the host's one
      * global migration pass runs after every plugin has loaded, so this contract may get
      * scheduled before its own tables are guaranteed to exist. No wall-clock delay primitive
@@ -75,7 +74,6 @@ class Orchestrator : public shared::HandlerBase {
             sweep_timeouts();
             sweep_retries();
             sweep_advance();
-            sweep_schedules();
             std::this_thread::sleep_for(std::chrono::seconds{5});
             shared::this_handler::shedule();
         };
@@ -293,50 +291,6 @@ class Orchestrator : public shared::HandlerBase {
                     instance.set_output_data({});
                     m_ctx.get().get_connector().update<model::TaskInstance>(
                         instance, log_on_failure("sweep_retries update"));
-                }
-            });
-    }
-
-    /**
-     * @brief Fires every enabled, unpaused WorkflowSchedule whose cron_expression's next
-     * occurrence (after its last_fired_at, or one minute ago for a schedule that's never fired)
-     * has passed — auto-starts that schedule's workflow_name and stamps last_fired_at to now.
-     * @warning Catch-up semantics are deliberately simple: a schedule that missed several
-     * occurrences (e.g. the sweep thread was down) fires exactly once on the next tick, not once
-     * per missed occurrence — stamping last_fired_at to "now" rather than to the missed
-     * occurrence's own time skips the gap instead of bursting through it.
-     */
-    void sweep_schedules() {
-        auto now = std::chrono::system_clock::now();
-        m_ctx.get().get_connector().find_all<model::WorkflowSchedule>(
-            [this, now](std::vector<model::WorkflowSchedule> schedules) {
-                for (auto &schedule : schedules) {
-                    if (!schedule.get_enabled() || schedule.get_paused()) {
-                        continue;
-                    }
-                    auto parsed = CronExpression::parse(schedule.get_cron_expression());
-                    if (!parsed) {
-                        core::logger::warning(
-                            "engine", "schedule '{}' has an unparseable cron_expression '{}'",
-                            schedule.get_name(), schedule.get_cron_expression());
-                        continue;
-                    }
-                    auto base =
-                        schedule.get_last_fired_at().value_or(now - std::chrono::minutes{1});
-                    auto next = parsed->next_after(base);
-                    if (!next || *next > now) {
-                        continue;
-                    }
-                    schedule.set_last_fired_at(now);
-                    m_ctx.get().get_connector().update<model::WorkflowSchedule>(
-                        schedule, log_on_failure("sweep_schedules update"));
-                    core::logger::info("engine", "schedule '{}' firing workflow '{}'",
-                                       schedule.get_name(), schedule.get_workflow_name());
-                    core::events::publish("engine.schedule.fired",
-                                          {{"schedule_name", schedule.get_name()},
-                                           {"workflow_name", schedule.get_workflow_name()}});
-                    start(schedule.get_workflow_name(), schedule.get_seed_variables(), std::nullopt,
-                          [](std::optional<model::WorkflowExecution>) {});
                 }
             });
     }

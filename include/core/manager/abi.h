@@ -65,6 +65,11 @@ typedef enum {
                                * ICache*. Same "resolve before build()" story as STORAGE/SEARCH
                                * (see cache_ctx below) since Connector::set_cache() needs to be
                                * called during a plugin's own on_load. */
+    CONGELADO_RUN_CRON = 10,  /* Pluggable scheduling engine (interfaces::ICron) — same GET-a-
+                               * native-interface-pointer shape as STORAGE/SEARCH/CACHE, one ICron*.
+                               * Same "resolve before build()" story (see cron_ctx below) since the
+                               * engine plugin's on_load installs its fire callback and seeds its
+                               * existing schedules into the backend during its own on_load. */
 } CongeladoRunType;
 
 typedef enum {
@@ -120,6 +125,11 @@ typedef struct CongeladoHostCallbacks {
     void *connector_ctx; /* connector::Connector* registered with the host's ContractGroup,
                            * populated before build() so the engine plugin can use the shared
                            * connector instead of creating its own. NULL if not set up. */
+    void *cron_ctx; /* resolved interfaces::ICron*, if a cron-capable plugin was already opened by
+                      * the time this gets set — same "resolve before build()" reasoning as
+                      * search_ctx/cache_ctx, so the engine plugin's on_load can install its fire
+                      * callback and seed existing WorkflowSchedules into the backend. NULL if none
+                      * resolved (schedules then never fire). */
 } CongeladoHostCallbacks;
 
 typedef struct CongeladoConfigView {

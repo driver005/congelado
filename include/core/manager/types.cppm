@@ -245,6 +245,20 @@ template <typename T>
 [[nodiscard]] T *cache_ctx(const CongeladoHostCallbacks &host) noexcept {
     return static_cast<T *>(host.cache_ctx);
 }
+/**
+ * @brief Gets the resolved cron-capable plugin's interfaces::ICron*, if one was found before this
+ * host callback table got built — same "resolve before build()" reasoning (and same shape) as
+ * search_ctx()/cache_ctx() above, for the engine plugin's on_load to install its fire callback and
+ * seed existing schedules into the backend.
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::ICron`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no cron-capable plugin was found (schedules then
+ * never fire).
+ */
+template <typename T>
+[[nodiscard]] T *cron_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.cron_ctx);
+}
 
 inline std::optional<std::string> config_get(const CongeladoConfigView &cfg,
                                              const std::string &key) noexcept {

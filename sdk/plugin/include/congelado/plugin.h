@@ -20,6 +20,7 @@
 #define CONGELADO_CAP_SEARCH   256u
 #define CONGELADO_CAP_EVENTS   512u
 #define CONGELADO_CAP_CACHE    1024u
+#define CONGELADO_CAP_CRON     2048u
 
 // ── CONGELADO_PLUGIN(T) ───────────────────────────────────────────────────────
 // Generates all C dlsym symbols from a congelado::Plugin subclass.

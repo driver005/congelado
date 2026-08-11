@@ -9,6 +9,7 @@ export import :protocol;
 export import :status;
 export import :database;
 export import :search;
+export import :cron;
 export import :payload_storage;
 export import :events;
 export import :serde;

@@ -88,6 +88,22 @@ class EngineContext {
     [[nodiscard]] interfaces::ISearchProvider *get_search() noexcept { return m_search; }
 
     /**
+     * @brief Wires in the resolved cron backend, if one was found — the ScheduleHandler validates
+     * and previews cron expressions through it, and EnginePlugin::on_load installs a fire callback
+     * plus seeds existing schedules into it. No backend configured means schedules never fire (a
+     * logged misconfiguration, not a silent degrade).
+     * @param cron the resolved ICron*, or nullptr if none was found.
+     */
+    void set_cron(interfaces::ICron *cron) noexcept { m_cron = cron; }
+
+    /**
+     * @brief Gets the currently wired-in cron backend.
+     * @return the cron pointer, or nullptr if none was resolved — check before dereferencing, no
+     * safety net here.
+     */
+    [[nodiscard]] interfaces::ICron *get_cron() noexcept { return m_cron; }
+
+    /**
      * @brief Wires in the external payload storage backend — unlike db/lua_bridge/search, this
      * isn't a resolved plugin capability, just a plain object EnginePlugin::on_load constructs
      * directly (see LocalPayloadStorage's own docs on why no capability-plugin resolution is
@@ -121,6 +137,7 @@ class EngineContext {
     connector::Connector *m_connector;
     interfaces::IBridge *m_lua_bridge{nullptr};
     interfaces::ISearchProvider *m_search{nullptr};
+    interfaces::ICron *m_cron{nullptr};
     interfaces::IExternalPayloadStorage *m_payload_storage{nullptr};
 };
 

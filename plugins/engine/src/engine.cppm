@@ -3,7 +3,6 @@ export module engine;
 export import :context;
 export import :expr;
 export import :system_task;
-export import :cron;
 export import :schema;
 export import :search_projector;
 export import :local_payload_storage;
@@ -24,6 +23,7 @@ import connector;
 import model;
 import migration;
 import core_logger;
+import core_events;
 
 export namespace engine {
 
@@ -36,6 +36,61 @@ export namespace engine {
  */
 inline void set_shared_connector(EngineContext &ctx, void *connector_ctx) {
     ctx.set_connector(static_cast<connector::Connector *>(connector_ctx));
+}
+
+/**
+ * @brief Wires the resolved cron backend pointer into the engine context.
+ *
+ * Defined here (rather than in engine.cc) for the same reason as set_shared_connector — keeps the
+ * connector/model imports out of the plugin implementation unit.
+ */
+inline void set_cron(EngineContext &ctx, void *cron_ctx) {
+    ctx.set_cron(static_cast<interfaces::ICron *>(cron_ctx));
+}
+
+/**
+ * @brief Installs the engine's cron fire callback and seeds the backend with existing schedules.
+ *
+ * The cron backend owns timing now; the engine still owns the WorkflowSchedule DB. This callback
+ * is what turns a fired job name back into a started workflow — the exact body the old
+ * Orchestrator::sweep_schedules ran per due schedule, keyed by one name. Seeding replaces the
+ * DB scan the engine no longer does: the cron plugin starts empty, so every currently active
+ * schedule is registered here on load. No-op if no cron backend was resolved.
+ */
+inline void install_cron_scheduling(EngineContext &ctx, Orchestrator &orchestrator) {
+    auto *cron = ctx.get_cron();
+    if (cron == nullptr) {
+        return;
+    }
+    cron->set_fire_callback([&ctx, &orchestrator](std::string_view job_name) {
+        auto now = std::chrono::system_clock::now();
+        ctx.get_connector().find<model::WorkflowSchedule>(
+            std::string{job_name},
+            [&ctx, &orchestrator, now](std::optional<model::WorkflowSchedule> schedule) {
+                if (!schedule || !schedule->get_enabled() || schedule->get_paused()) {
+                    return;
+                }
+                schedule->set_last_fired_at(now);
+                ctx.get_connector().update<model::WorkflowSchedule>(*schedule,
+                                                                    [](bool) {});
+                core::logger::info("engine", "schedule '{}' firing workflow '{}'",
+                                   schedule->get_name(), schedule->get_workflow_name());
+                core::events::publish("engine.schedule.fired",
+                                      {{"schedule_name", schedule->get_name()},
+                                       {"workflow_name", schedule->get_workflow_name()}});
+                orchestrator.start(schedule->get_workflow_name(), schedule->get_seed_variables(),
+                                   std::nullopt, [](std::optional<model::WorkflowExecution>) {});
+            });
+    });
+    ctx.get_connector().find_all<model::WorkflowSchedule>(
+        [cron](std::vector<model::WorkflowSchedule> schedules) {
+            for (auto &schedule : schedules) {
+                if (!schedule.get_enabled() || schedule.get_paused()) {
+                    continue;
+                }
+                cron->upsert_job(schedule.get_name(), schedule.get_cron_expression());
+            }
+        });
 }
 
 namespace detail {

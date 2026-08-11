@@ -317,8 +317,8 @@ class Server {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        core::logger::info("http2/server", "server drained");
-        core::events::publish("http2.server.drained");
+        core::logger::info("http2/server", "server idle");
+        core::events::publish("http2.server.idle");
     }
 
     /**
@@ -357,8 +357,8 @@ class Server {
                 return false;
             }
         }
-        core::logger::debug("http2/server", "idle: all sessions drained");
-        core::events::publish("http2.server.idle");
+        core::logger::debug("http2/server", "idle: all sessions idle");
+        core::events::publish("http2.session.idle");
         return true;
     }
 
