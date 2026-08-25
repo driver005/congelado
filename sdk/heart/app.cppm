@@ -226,6 +226,10 @@ class ServerRunner {
         cb.search_ctx = resolve_search_capability(cfg);
         cb.cache_ctx = resolve_cache_capability(cfg);
         cb.cron_ctx = resolve_cron_capability(cfg);
+        cb.worker_manager_ctx = resolve_worker_manager_capability(cfg);
+        cb.worker_orchestrator_ctx = resolve_worker_orchestrator_capability(cfg);
+        cb.workflow_orchestrator_ctx = resolve_workflow_orchestrator_capability(cfg);
+        cb.payload_storage_ctx = resolve_payload_storage_capability(cfg);
 
         wire_shared_connector(ctx, cb);
 
@@ -380,17 +384,38 @@ class ServerRunner {
     }
 
     /**
-     * @brief Provider-gated capabilities (events, logger) get filtered here, right after
-     * open(), before build() ever calls congelado_init on them — resolve_event_sink()/
-     * LoggerAdapter::register_from() work off open()-populated symbols alone, same established
-     * precedent as resolve_storage()/resolve_bridge() being called pre-build() in the resolve_*
-     * helpers below. A plugin like kafka_events_plugin sitting in the plugins directory but
-     * absent from `[providers] events = [...]` must never actually connect to a broker —
-     * discarding it here (before congelado_init) is the difference between "never loaded" and
-     * "loaded, just not registered", which a post-build-only check couldn't give.
+     * @brief Provider-gated capabilities get filtered here, right after open(), before build()
+     * ever calls congelado_init on them — every resolve_*() call below works off
+     * open()-populated symbols alone, same established precedent as resolve_storage()/
+     * resolve_bridge() being called pre-build() in the resolve_* helpers further down. A plugin
+     * like kafka_events_plugin or elasticsearch_plugin sitting in the plugins directory but not
+     * actually selected must never connect to its parent server — discarding it here (before
+     * congelado_init) is the difference between "never loaded" and "loaded, just not
+     * registered", which a post-build-only check couldn't give.
+     * @note Two capability shapes, two rules:
+     * - Fan-out (events, logger): more than one provider can be simultaneously active, so a
+     *   plugin wins by being *listed* in `[providers] <name> = [...]`; with no `[providers]`
+     *   entry at all, every plugin's in by default (see is_provider_listed()).
+     * - Single-pick (database/search/cache/cron/worker_manager/worker_orchestrator/
+     *   workflow_orchestrator/payload_storage): `[providers] <name> = "stem"` picks exactly one;
+     *   with no preference set, every plugin exporting that capability stays eligible —
+     *   resolve_*_capability()'s own "first one found wins" fallback decides among them, same as
+     *   before this function existed. A plugin only loses a single-pick gate when a preference
+     *   IS set and it isn't the one named — this must stay conservative: rejecting on an unset
+     *   preference would make discard order-dependent on plugin scan order, exactly the
+     *   "first-found wins" coin flip resolve_*_capability() is explicitly designed to allow, not
+     *   remove.
+     * A plugin is only discarded if it exports at least one of these capabilities AND loses
+     * every one it exports — a plugin like postgres_plugin (database AND search) must not be
+     * discarded over losing just one of the two if it's still the pick for the other.
      * @param cfg the loaded config, supplying the `[providers]` table.
      */
     void discard_unlisted_provider_gated_plugins(const core::config::Config &cfg) {
+        auto loses_pick = [&](std::string_view capability, std::string_view stem) {
+            auto preferred = preferred_provider(cfg, capability);
+            return preferred.has_value() && *preferred != stem;
+        };
+
         std::vector<std::string> to_discard;
         m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
             auto plugin = runtime->get_plugin();
@@ -398,11 +423,39 @@ class ServerRunner {
                 return;
             }
             auto stem = plugin_stem(*plugin);
-            bool reject = (congelado::heart::resolve_event_sink(*plugin) &&
-                          !is_provider_listed(cfg, "events", stem)) ||
-                         (congelado::heart::LoggerAdapter::register_from(*plugin) &&
-                          !is_provider_listed(cfg, "logger", stem));
-            if (reject) {
+
+            bool participates = false;
+            bool wins = false;
+            auto check = [&](bool exports_capability, bool wins_this_one) {
+                if (!exports_capability) {
+                    return;
+                }
+                participates = true;
+                wins = wins || wins_this_one;
+            };
+
+            check(static_cast<bool>(congelado::heart::resolve_event_sink(*plugin)),
+                 is_provider_listed(cfg, "events", stem));
+            check(static_cast<bool>(congelado::heart::LoggerAdapter::register_from(*plugin)),
+                 is_provider_listed(cfg, "logger", stem));
+            check(static_cast<bool>(congelado::heart::resolve_storage(*plugin)),
+                 !loses_pick("database", stem));
+            check(static_cast<bool>(congelado::heart::resolve_search_provider(*plugin)),
+                 !loses_pick("search", stem));
+            check(static_cast<bool>(congelado::heart::resolve_cache(*plugin)),
+                 !loses_pick("cache", stem));
+            check(static_cast<bool>(congelado::heart::resolve_cron_provider(*plugin)),
+                 !loses_pick("cron", stem));
+            check(static_cast<bool>(congelado::heart::resolve_worker_manager(*plugin)),
+                 !loses_pick("worker_manager", stem));
+            check(static_cast<bool>(congelado::heart::resolve_worker_orchestrator(*plugin)),
+                 !loses_pick("worker_orchestrator", stem));
+            check(static_cast<bool>(congelado::heart::resolve_workflow_orchestrator(*plugin)),
+                 !loses_pick("workflow_orchestrator", stem));
+            check(static_cast<bool>(congelado::heart::resolve_payload_storage(*plugin)),
+                 !loses_pick("payload_storage", stem));
+
+            if (participates && !wins) {
                 to_discard.push_back(std::any_cast<const std::string &>(plugin->m_data.at("name")));
             }
         });
@@ -616,28 +669,168 @@ class ServerRunner {
     }
 
     /**
+     * @brief Same "resolve before build()" reasoning, for a worker-manager-capable plugin's
+     * interfaces::IWorkerManager* — exposes the worker-supervision control surface (lifecycle +
+     * health) to the engine and any other component that wants to list/stop/restart workers at
+     * runtime. `[providers] worker_manager = "..."` picks a specific one by stem, same pattern as
+     * resolve_cron_capability() above; with none set, first one found wins. No worker-manager plugin
+     * found at all leaves worker_manager_ctx null, so workers simply aren't auto-supervised.
+     * @param cfg the loaded config, supplying the `[providers] worker_manager` preference.
+     * @return the resolved (or first-found fallback) `IWorkerManager*`, or `nullptr` if none found.
+     */
+    [[nodiscard]] void *resolve_worker_manager_capability(const core::config::Config &cfg) {
+        auto preferred_manager = preferred_provider(cfg, "worker_manager");
+        void *resolved_manager = nullptr;
+        void *fallback_manager = nullptr;
+        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+            if (resolved_manager != nullptr) {
+                return;
+            }
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            auto manager = congelado::heart::resolve_worker_manager(*plugin);
+            if (!manager) {
+                return;
+            }
+            if (fallback_manager == nullptr) {
+                fallback_manager = manager.get();
+            }
+            if (preferred_manager && plugin_stem(*plugin) == *preferred_manager) {
+                resolved_manager = manager.get();
+            }
+        });
+        return resolved_manager != nullptr ? resolved_manager : fallback_manager;
+    }
+
+    /**
+     * @brief Same "resolve before build()" reasoning, for a worker-orchestrator-capable plugin's
+     * interfaces::IWorkerOrchestrator* — the engine-side dispatch/orchestration backend. `[providers]
+     * worker_orchestrator = "..."` picks a specific one by stem, same pattern as
+     * resolve_worker_manager_capability() above; with none set, first one found wins. No
+     * worker-orchestrator plugin found at all leaves worker_orchestrator_ctx null, so the engine
+     * keeps its built-in Orchestrator.
+     * @param cfg the loaded config, supplying the `[providers] worker_orchestrator` preference.
+     * @return the resolved (or first-found fallback) `IWorkerOrchestrator*`, or `nullptr` if none.
+     */
+    [[nodiscard]] void *resolve_worker_orchestrator_capability(const core::config::Config &cfg) {
+        auto preferred_orchestrator = preferred_provider(cfg, "worker_orchestrator");
+        void *resolved_orchestrator = nullptr;
+        void *fallback_orchestrator = nullptr;
+        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+            if (resolved_orchestrator != nullptr) {
+                return;
+            }
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            auto orchestrator = congelado::heart::resolve_worker_orchestrator(*plugin);
+            if (!orchestrator) {
+                return;
+            }
+            if (fallback_orchestrator == nullptr) {
+                fallback_orchestrator = orchestrator.get();
+            }
+            if (preferred_orchestrator && plugin_stem(*plugin) == *preferred_orchestrator) {
+                resolved_orchestrator = orchestrator.get();
+            }
+        });
+        return resolved_orchestrator != nullptr ? resolved_orchestrator : fallback_orchestrator;
+    }
+
+    /**
+     * @brief Same "resolve before build()" reasoning, for a workflow-orchestrator-capable plugin's
+     * interfaces::IWorkflowOrchestrator* — the engine-side workflow-lifecycle backend. `[providers]
+     * workflow_orchestrator = "..."` picks a specific one by stem, same pattern as
+     * resolve_worker_orchestrator_capability() above; with none set, first one found wins. No plugin
+     * found leaves workflow_orchestrator_ctx null.
+     * @param cfg the loaded config, supplying the `[providers] workflow_orchestrator` preference.
+     * @return the resolved (or first-found fallback) `IWorkflowOrchestrator*`, or `nullptr` if none.
+     */
+    [[nodiscard]] void *resolve_workflow_orchestrator_capability(const core::config::Config &cfg) {
+        auto preferred_workflow = preferred_provider(cfg, "workflow_orchestrator");
+        void *resolved_workflow = nullptr;
+        void *fallback_workflow = nullptr;
+        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+            if (resolved_workflow != nullptr) {
+                return;
+            }
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            auto workflow = congelado::heart::resolve_workflow_orchestrator(*plugin);
+            if (!workflow) {
+                return;
+            }
+            if (fallback_workflow == nullptr) {
+                fallback_workflow = workflow.get();
+            }
+            if (preferred_workflow && plugin_stem(*plugin) == *preferred_workflow) {
+                resolved_workflow = workflow.get();
+            }
+        });
+        return resolved_workflow != nullptr ? resolved_workflow : fallback_workflow;
+    }
+
+    /**
+     * @brief Same "resolve before build()" reasoning, for a payload-storage-capable plugin's
+     * interfaces::IExternalPayloadStorage* — the engine plugin's on_load wires it into EngineContext
+     * for externalized payload blobs. `[providers] payload_storage = "..."` picks a specific one by
+     * stem, same pattern as resolve_database_capability() above; with none set, first one found wins.
+     * @param cfg the loaded config, supplying the `[providers] payload_storage` preference.
+     * @return the resolved (or first-found fallback) `IExternalPayloadStorage*`, or `nullptr`.
+     */
+    [[nodiscard]] void *resolve_payload_storage_capability(const core::config::Config &cfg) {
+        auto preferred_payload = preferred_provider(cfg, "payload_storage");
+        void *resolved_payload = nullptr;
+        void *fallback_payload = nullptr;
+        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
+            if (resolved_payload != nullptr) {
+                return;
+            }
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            auto payload = congelado::heart::resolve_payload_storage(*plugin);
+            if (!payload) {
+                return;
+            }
+            if (fallback_payload == nullptr) {
+                fallback_payload = payload.get();
+            }
+            if (preferred_payload && plugin_stem(*plugin) == *preferred_payload) {
+                resolved_payload = payload.get();
+            }
+        });
+        return resolved_payload != nullptr ? resolved_payload : fallback_payload;
+    }
+
+    /**
      * @brief Wires the resolved DB/cache backends (already populated on `cb` by the caller)
-     * into the shared SDK connector (owned by `ctx`), registers that connector as a contract
-     * worker with a wake callback so queued DB operations schedule it when idle, and stashes
-     * the pointer into `cb.connector_ctx` for plugins that need it.
-     * @note Starts the contract IDLE, not SCHEDULED — the contract is only scheduled when
-     * enqueue() transitions the pending queue from empty to non-empty; starting SCHEDULED would
-     * make the very first enqueue() try to schedule an already-scheduled contract and abort.
-     * The contract handle is stored in the registry so `stop()` can release it before the
-     * thread pool joins.
-     * @param ctx the app context owning the shared connector/contract group/contract registry.
-     * @param cb the host callback table; `database_ctx`/`cache_ctx` must already be populated,
-     * `connector_ctx` gets written here.
+     * into the shared SDK connector (owned by `ctx`), and stashes the pointer into
+     * `cb.connector_ctx` for plugins that need it.
+     * @note The connector no longer registers its own Contract here — see plugins/README.md.
+     * Each backend plugin that actually drains a connector queue (currently `database/postgres`
+     * for the DB queue) registers its own Contract against the connector in its own `on_load`,
+     * once `cb.connector_ctx` is set below. `database_ctx`/`cache_ctx` may legitimately be null
+     * (backend plugin failed to load) — only wire what's actually present; `Connector::
+     * active_cache()`/`active_database()` fail loud on first use if a caller reaches them unset.
+     * @param ctx the app context owning the shared connector.
+     * @param cb the host callback table; `database_ctx`/`cache_ctx` must already be populated
+     * (possibly null), `connector_ctx` gets written here.
      */
     void wire_shared_connector(AppContext &ctx, CongeladoHostCallbacks &cb) {
         auto *shared_connector = ctx.get_connector();
-        shared_connector->set_database(static_cast<interfaces::IDatabase *>(cb.database_ctx));
-        shared_connector->set_cache(static_cast<interfaces::ICache *>(cb.cache_ctx));
-
-        auto connector_contract =
-            shared_connector->create(ctx.get_contract_group(), core::contract::ContractState::IDLE);
-        shared_connector->set_wake([c = connector_contract]() mutable { c.schedule(); });
-        ctx.get_contract_registry().add(std::move(connector_contract));
+        if (cb.database_ctx != nullptr) {
+            shared_connector->set_database(static_cast<interfaces::IDatabase *>(cb.database_ctx));
+        }
+        if (cb.cache_ctx != nullptr) {
+            shared_connector->set_cache(static_cast<interfaces::ICache *>(cb.cache_ctx));
+        }
 
         cb.connector_ctx = shared_connector;
     }
@@ -771,3 +964,33 @@ class ServerRunner {
 };
 
 } // namespace congelado::heart
+
+#ifdef CONGELADO_TEST
+namespace congelado::heart::app_tests {
+
+// ServerRunner::scan_and_open_plugins() (~line 373) has no cap on how many shared libraries it'll
+// scan/open out of the plugin directory (or directories) — an unbounded directory walk followed
+// by an unconditional open_all() over everything found. No test is added for this here, for real
+// reasons (traced, not assumed):
+//
+// - scan_and_open_plugins() is `private`, and ServerRunner's *only* other public member besides
+//   its constructor is run() — the whole boot entrypoint. run() loads config (aborting the
+//   process via std::abort() on failure), installs SIGINT/SIGTERM handlers, points every ambient
+//   core::logger::*/core::events::*/core::otel::* registry at a freshly-constructed AppContext,
+//   requires at least one logger plugin to actually load (aborting otherwise), and then blocks in
+//   an infinite poll loop until a real signal arrives. There is no seam that reaches
+//   scan_and_open_plugins() without going through all of that.
+// - Even setting the abort/blocking paths aside, run()'s registry-mutating side effects
+//   (LoggerRegistry::set_active(), EventBusRegistry::set_active(), etc.) are genuinely global,
+//   process-wide statics shared with every other suite in this same test binary — flipping them
+//   mid-run would be cross-suite contamination, not an isolated unit test.
+// - The underlying scan step itself (core::plugin::SharedLibrary::scan(), see
+//   include/core/manager/shared_lib.cppm) is a harmless, cap-free directory walk on its own — but
+//   proving scan_and_open_plugins() specifically has no count cap means exercising it through
+//   ServerRunner, and there is no test-only accessor for that private method, nor should one be
+//   added just for this (a real API-surface change, out of scope for a test-only pass).
+//
+// Documented here rather than faked with a production-facing seam that doesn't exist today.
+
+} // namespace congelado::heart::app_tests
+#endif

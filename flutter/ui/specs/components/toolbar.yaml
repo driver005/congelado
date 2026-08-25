@@ -1,0 +1,32 @@
+component: toolbar
+flutter_name: HeroToolbar
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/toolbar.css"
+  files: [tool/sources/heroui-toolbar.css]
+  docs: https://heroui.com/en/docs/react/components/toolbar
+
+anatomy:
+  - (none)
+
+kinds:
+  color: none (attached -> surface bg)
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - grid-flow-col gap-2; --attached rounded-3xl p-1 shadow-overlay; --vertical column
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

@@ -4,6 +4,9 @@ export module atomic_list;
 import std;
 import node;
 import consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 
 export class AtomicList {
@@ -120,3 +123,54 @@ export class AtomicList {
 
     std::atomic<Node *> m_head{nullptr};
 };
+
+#ifdef CONGELADO_TEST
+namespace {
+using namespace boost::ut;
+
+suite<"AtomicList"> atomic_list_suite = [] {
+    "starts empty"_test = [] {
+        AtomicList list;
+        expect(list.get_head() == nullptr);
+        expect(list.try_get() == nullptr);
+    };
+    "add then try_get round-trips a single node"_test = [] {
+        AtomicList list;
+        Node node;
+
+        list.add(&node);
+        expect(list.get_head() == &node);
+
+        auto *got = list.try_get();
+        expect(got == &node);
+        expect(list.get_head() == nullptr);
+    };
+    "add is LIFO — try_get drains most-recently-added first"_test = [] {
+        AtomicList list;
+        Node first;
+        Node second;
+
+        list.add(&first);
+        list.add(&second);
+        expect(list.get_head() == &second);
+
+        expect(list.try_get() == &second);
+        expect(list.try_get() == &first);
+        expect(list.try_get() == nullptr);
+    };
+    "a node can be returned to the list after being taken off"_test = [] {
+        AtomicList list;
+        Node node;
+
+        list.add(&node);
+        auto *got = list.try_get();
+        expect(got == &node);
+
+        list.add(got);
+        expect(list.get_head() == &node);
+        expect(list.try_get() == &node);
+    };
+};
+
+} // namespace
+#endif

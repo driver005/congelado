@@ -1,0 +1,51 @@
+component: date-field
+flutter_name: HeroDateField
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/date-field.css"
+  files: [tool/sources/heroui-date-field.css]
+  docs: https://heroui.com/en/docs/react/components/date-field
+
+anatomy:
+  - .date-field: flex flex-col gap-1 (4); the layout wrapper for label + segments + description
+  - [data-slot="label"]: w-fit (label sized to content)
+  - [data-slot="description"]: hidden while invalid
+  - .date-field--full-width: w-full
+  - segment row (shared with date-input-group.css .date-input-group__segment): inline-block rounded-md (6) px-0.5 (2) text-end; literal separators ("/") p-0 text-muted; placeholders text-field-placeholder; focused bg-accent-soft text-accent-soft-foreground; invalid text-danger (focused -> bg-danger-soft text-danger-soft-foreground); disabled opacity-50
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states:
+  - rest
+  - focused segment: bg-accent-soft text-accent-soft-foreground
+  - invalid: text-danger on segments; focused invalid segment bg-danger-soft text-danger-soft-foreground; description hidden
+  - disabled: opacity-50 (status-disabled)
+  - hover: field-hover box tint
+
+tokens:
+  role: [colorSegment, colorSegmentForeground, colorAccentSoft, colorAccentSoftForeground, colorDanger, colorDangerSoft, colorDangerSoftForeground, colorMuted, colorFieldPlaceholder, colorFieldBorder, colorFieldHover, colorForeground, doubleBorderWidth, doubleDisabledOpacity, radiusMd, typeSm, typeXs, weightMedium]
+  component: [space1=4 (gap-1), radiusMd=6 (segment rounded-md), typeSm=14 (segment text), typeXs=12 (description), weightMedium=500]
+
+non_token_measurements:
+  - segment box height 32
+  - segment horizontal padding 8 (px-2)
+  - separator horizontal padding 2 (literal is p-0; visual gap)
+  - border width 1 (doubleBorderWidth; --field-border-width is 0 in source, kept for theme overrides)
+
+behavior:
+  - renders a date as day / month / year segment boxes with "/" separators
+  - null value renders placeholder segments (-- / -- / ----) in field-placeholder color
+  - tapping a segment focuses it (accent-soft highlight)
+  - label above the segments (text-sm font-medium); description below (text-xs muted), hidden when error
+  - fullWidth modifier stretches the row
+
+approximations:
+  - the standalone date-field.css defines only the column wrapper; segment box styling reuses the date-input-group segment rules with bg-segment + field border + rounded-md box treatment
+  - segments are read-only: tap-to-focus only; keyboard digit-entry not implemented (onChanged reserved)
+  - hover tint approximates the input-group hover affordance

@@ -1,0 +1,33 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/time-field.css"
+  files: [tool/sources/heroui-time-field.css]
+  docs: https://heroui.com/en/docs/react/components/time-field
+anatomy:
+  - container (flex-col gap-1: label + field + helper/error slots)
+  - field (date-input-group anatomy: h-9 inline-flex rounded-field border bg-field shadow-field; hover bg-field-hover; focus-within status-focused-field)
+  - segments (inline-block rounded-md px-0.5 text-end; focused bg-accent-soft text-accent-soft-foreground; placeholder text-field-placeholder)
+  - separators (p-0 text-muted)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (hour cycle 12 with AM/PM, or 24)
+default: -
+
+states: rest | hover (bg-field-hover) | focus-within (status-focused-field) | segment focused (bg-accent-soft) | invalid (segments text-danger; focused bg-danger-soft) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.dangerSoft, color.dangerSoftForeground, color.accentSoft, color.accentSoftForeground, color.default, color.defaultHover, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), radius.md (6 segments), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.semibold, weight.medium, shadow.field, space.05 (segment px-0.5)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - segment padding px-0.5 (2) and the ':' separator are literals
+
+behavior: TimeOfDay value/onChanged; tap a segment to focus it (accent-soft highlight); digits type into hour/minute, backspace clears, arrows adjust, tab/arrows move segments, AM/PM toggles.
+
+approximations:
+  - hour cycle / locale formatting is fixed (12h default with AM/PM, or 24h)
+  - keyboard editing is a manual state machine (React Aria date segments are not available)
+  - segment entry animations simplified

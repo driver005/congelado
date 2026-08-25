@@ -1,0 +1,23 @@
+name: congelado_plugin_clock
+description: >-
+  Example code plugin for the congelado plugin system: a live clock
+  contribution. Demonstrates the FlutterPlugin interface — arbitrary widget
+  code, registered at startup.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.38.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  congelado_plugin_sdk:
+    path: ../plugin_sdk
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

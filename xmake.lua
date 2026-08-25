@@ -30,6 +30,7 @@ core_packages = {
 	"sqlgen",
 	"cpython",
 	"lua",
+	"llvm",
 }
 
 -- core_packages / apply_common_layer_settings() (shared by the three layered shared libs below,
@@ -79,6 +80,11 @@ add_requires("conan::simdjson/4.2.4", { alias = "simdjson", configs = conan })
 add_requires("conan::protobuf/6.33.5", { alias = "protobuf", configs = conan })
 -- add_requires("conan::grpc/1.78.1", { alias = "grpc", configs = conan })
 add_requires("conan::catch2/3.7.1", { alias = "catch2", configs = conan })
+-- boost::ut (boost-ext/ut) — imported as a real C++20 module (`import boost.ut;`), not the
+-- `#include <boost/ut.hpp>` header form. {modules = true} just stops the package defining
+-- BOOST_UT_DISABLE_MODULE; the package itself never add_files()'s its own ut.cppm for
+-- consumers (headeronly kind), so boost_ut_module below vendors that one file in ourselves.
+add_requires("boost_ut", { configs = { modules = true } })
 add_requires("conan::cli11/2.4.2", { alias = "cli11", configs = conan })
 add_requires("conan::backward-cpp/1.6", { alias = "backward", configs = conan })
 add_requires("conan::libffi/3.4.4", { alias = "libffi", configs = conan })
@@ -114,6 +120,97 @@ add_requires("conan::sqlgen/0.4.0", { alias = "sqlgen", configs = conan })
 add_requires("microsoft-gsl", { configs = conan })
 add_requires("range-v3", { configs = conan })
 
+-- libsolv: real, self-built C library (openSUSE's SAT-based dependency resolver) — not on
+-- ConanCenter (checked: no recipe), so built from source via CMake inside on_install, same
+-- shallow-git-clone approach used elsewhere in this file. All of libsolv's distro
+-- package-format backends (RPM/DEB/Conda/Arch/APK/AppStream/etc, all default OFF upstream) are
+-- left disabled — only the general-purpose SAT solver (pool/repo/queue/solver/transaction) is
+-- needed, matching how plugify's own libsolv_dependency_resolver.* uses it. zlib is libsolv's
+-- one unconditional dependency, pulled via xmake's own bundled "zlib" package (not conan — no
+-- add_requires needed for it, add_deps below resolves it automatically).
+package("libsolv")
+	set_kind("library")
+	set_homepage("https://github.com/openSUSE/libsolv")
+	set_description("Self-built libsolv (SAT dependency resolver), core solver only")
+	add_versions("main", "")
+	add_deps("zlib")
+
+	on_install(function(package)
+		local clone_dir = path.join(os.tmpdir(), "libsolv_checkout_" .. os.time())
+		os.tryrm(clone_dir)
+		os.vrunv("git", {
+			"clone",
+			"--depth", "1",
+			"https://github.com/openSUSE/libsolv.git",
+			clone_dir,
+		})
+		os.cd(clone_dir)
+		import("package.tools.cmake").install(package, {
+			"-DENABLE_STATIC=ON",
+			"-DDISABLE_SHARED=ON",
+			"-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+		})
+	end)
+
+	on_test(function(package)
+		assert(package:has_cxxfuncs("pool_create", { includes = "solv/pool.h" }))
+	end)
+package_end()
+
+add_requires("libsolv")
+add_requires("conan::glaze/8.0.0", { alias = "glaze", configs = conan })
+add_requires("conan::valijson/1.1.0", { alias = "valijson", configs = conan })
+
+-- plugify_plg: a self-fetched copy of plugify's own include/plg/ (untrustedmodders/plugify) —
+-- not committed to this repo. Fetched via a shallow, sparse `git clone` (only include/plg —
+-- not the rest of that repo) inside on_install, resolved like any other xmake dependency.
+-- Pulled in whole, as-is: every file already lives under namespace plg (not std), so there's
+-- no ODR-collision concern the way vendoring libc++'s own std::string/vector directly would
+-- have had, and every file is a plain header — no out-of-line .cpp translation units, so no
+-- linkage step at all (unlike llvm::SmallString/SmallVector's ADT, which needed a separately-
+-- linked Support library closure; that path and a raw libc++ vendor were both tried and
+-- dropped for this reason). No CMake-generated headers involved either — plugify's own headers
+-- are hand-written, not templated by a build system, so nothing here needs a stand-in file.
+package("plugify_plg")
+	set_kind("library", { headeronly = true })
+	set_homepage("https://github.com/untrustedmodders/plugify")
+	set_description("Self-fetched copy of plugify's include/plg/ (plg::string, plg::vector, plg::any, ...)")
+	add_versions("main", "")
+
+	on_install(function(package)
+		local clone_dir = path.join(os.tmpdir(), "plugify_plg_checkout_" .. os.time())
+		os.tryrm(clone_dir)
+		os.vrunv("git", {
+			"clone",
+			"--depth", "1",
+			"--filter=blob:none",
+			"--sparse",
+			"https://github.com/untrustedmodders/plugify.git",
+			clone_dir,
+		})
+		os.vrunv("git", { "-C", clone_dir, "sparse-checkout", "set", "include/plg" })
+
+		local dest = path.join(package:installdir("include"), "plg")
+		os.mkdir(dest)
+		os.cp(path.join(clone_dir, "include", "plg", "*"), dest)
+		os.tryrm(clone_dir)
+	end)
+
+	on_test(function(package)
+		assert(package:has_cxxincludes("plg/string.hpp", { configs = { languages = "c++20" } }))
+	end)
+package_end()
+
+add_requires("plugify_plg")
+
+-- Resolves the plugify_plg package's installdir and adds it as a public includedir to
+-- whichever target needs `#include <plg/string.hpp>` etc. Same on_load-resolution technique
+-- as boost_ut_module above.
+function apply_plugify_plg_includedir(target)
+	local pkg = target:pkg("plugify_plg")
+	target:add("includedirs", pkg:installdir("include"), { public = true })
+end
+
 set_languages("c++26", "c11")
 -- TODO: please add again
 -- set_warnings("all", "extra", "error")
@@ -144,6 +241,23 @@ if is_arch("x86_64") then
 	add_cxflags("-mbmi2")
 end
 
+-- boost_ut's package (headeronly kind) never exposes its ut.cppm as a buildable module unit
+-- to consumers, even with {modules = true} set above — that config only stops the header
+-- itself from disabling `export module boost.ut;`. So this vendors that one file directly:
+-- a moduleonly target whose sole source is the installed package's ut.cppm, resolved at
+-- on_load() from the package's own installdir. Every CONGELADO_TEST sibling target below
+-- (and every plugin's, per apply_test_target in xmake/common.lua) add_deps() this instead of
+-- re-deriving the path itself.
+target("boost_ut_module")
+set_kind("moduleonly")
+set_languages("c++26")
+add_packages("boost_ut")
+on_load(function(target)
+	local pkg = target:pkg("boost_ut")
+	target:add("files", path.join(pkg:installdir(), "include", "boost", "ut.cppm"))
+end)
+target_end()
+
 -- congelado_include: include/** only (interfaces, io layer, utils, model, shared) — the
 -- bottommost layer. Nothing here imports anything from sdk/ or plugins/.
 target("congelado_include")
@@ -154,7 +268,7 @@ set_kind("shared")
 -- "module file not found" (see docker/Dockerfile.server's build-one-target-at-a-time
 -- workaround for the same root cause). build.fence forces every dependent target to wait.
 apply_common_layer_settings({
-	core_packages = core_packages,
+	core_packages = table.join(core_packages, { "plugify_plg" }),
 	layer = "include",
 	fence = true,
 })
@@ -171,7 +285,22 @@ else
 	remove_files("include/**/win32.cppm")
 	remove_files("include/modules/winsock2.cppm")
 end
+on_load(apply_plugify_plg_includedir)
 target_end()
+
+-- congelado_include_test: recompiles include/**.cppm with CONGELADO_TEST defined, so every
+-- file's inline `#ifdef CONGELADO_TEST` boost::ut suite gets built and run. See
+-- apply_test_target in xmake/common.lua.
+apply_test_target({
+	name = "congelado_include",
+	layer = "include",
+	core_packages = table.join(core_packages, { "plugify_plg" }),
+	includedirs = { path.join(core_root, "include") },
+	files = { "include/**.cppm" },
+	remove = is_plat("windows", "mingw") and table.join({ "include/**/posix.cppm" }, posix_module_files)
+		or { "include/**/win32.cppm", "include/modules/winsock2.cppm" },
+	on_load = apply_plugify_plg_includedir,
+})
 
 -- congelado_sdk: sdk/** (plugin ABI, client SDK codegen, heart, worker) — built on top of
 -- congelado_include rather than merged with it; every sdk/** file imports include/**'s
@@ -194,6 +323,17 @@ add_files("sdk/**.cppm", { public = true })
 add_includedirs("sdk/plugin/include", { public = true })
 target_end()
 
+-- congelado_sdk_test: recompiles sdk/**.cppm with CONGELADO_TEST defined. See
+-- congelado_include_test above / apply_test_target in xmake/common.lua.
+apply_test_target({
+	name = "congelado_sdk",
+	layer = "sdk",
+	core_packages = core_packages,
+	deps = { "congelado_include" },
+	includedirs = { "sdk/plugin/include" },
+	files = { "sdk/**.cppm" },
+})
+
 -- No congelado_lib layer: that was a pre-plugin-split leftover from the a5e3e23-era layout
 -- (plugins/**.cppm + src/**.cc merged into one shared lib). Once every plugin became its own
 -- runtime-loadable target (plugins/*/xmake.lua), the only thing actually left in "plugins/**.cppm"
@@ -213,8 +353,22 @@ set_kind("binary")
 set_policy("build.sanitizer.address", true)
 add_files("src/cli_main.cc")
 add_deps("congelado_sdk")
-add_deps("engine_model")
+add_deps("shared_model")
 add_packages("cli11")
+add_rpathdirs("$ORIGIN")
+target_end()
+
+-- The worker executable: an SDK-level binary (sources under sdk/worker/) that loads the defined
+-- plugins + task-worker .so's, polls the engine over the OpenAPI-generated congelado_api client, and
+-- dispatches each claimed task through interfaces::IWorker on a contract thread pool. Same deps the
+-- old engine_worker target used (engine_worker_lib for the worker module, engine_api for the
+-- generated client) — those targets live in plugins/engine and resolve across the global graph.
+target("worker")
+set_kind("binary")
+set_policy("build.sanitizer.address", true)
+add_files("sdk/worker/worker_main.cc")
+add_deps("engine_worker_lib", "engine_api")
+add_packages("backward")
 add_rpathdirs("$ORIGIN")
 target_end()
 

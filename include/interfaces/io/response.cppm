@@ -1,6 +1,10 @@
 export module interfaces:io_response;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
+import utils_buffering;
 import :io_header;
 import :io_types;
 
@@ -535,11 +539,19 @@ class IResponse {
      */
     [[nodiscard]] virtual types::Status get_status() const noexcept { std::abort(); }
     /**
-     * @brief Grabs a read-only view over the response body.
+     * @brief Grabs a mutable view over the response body, so callers can actually poke at it.
      * @warning Base impl aborts — mandatory override.
-     * @return a span over the body bytes.
+     * @return a mutable `BufferView` over the body bytes.
      */
-    [[nodiscard]] virtual std::span<const std::byte> get_body() const noexcept { std::abort(); }
+    [[nodiscard]] virtual utils::buffering::BufferView &get_body() noexcept { std::abort(); }
+    /**
+     * @brief Const overload — grabs a read-only view over the response body, look but don't touch.
+     * @warning Base impl aborts — mandatory override.
+     * @return a read-only `BufferView` over the body bytes.
+     */
+    [[nodiscard]] virtual const utils::buffering::BufferView &get_body() const noexcept {
+        std::abort();
+    }
     /**
      * @brief Grabs every header currently set on this response, the whole collection.
      * @warning Base impl aborts — mandatory override.
@@ -654,3 +666,35 @@ class IResponse {
 };
 
 } // namespace interfaces::io
+
+#ifdef CONGELADO_TEST
+namespace interfaces::io::tests {
+using namespace boost::ut;
+
+// Only the stream-id plumbing has real behavior on the base class itself — every header/status/
+// body accessor is a mandatory-override hook that aborts by default (see the class warnings
+// above), so exercising those here would require a fake subclass, not a test of this file's own
+// logic.
+suite<"IResponse"> response_suite = [] {
+    "ctor stores the given stream id"_test = [] {
+        IResponse response{7};
+
+        expect(response.get_stream_id() == 7);
+    };
+
+    "default ctor starts at stream id 0"_test = [] {
+        IResponse response;
+
+        expect(response.get_stream_id() == 0);
+    };
+
+    "set_stream_id overwrites the stored id"_test = [] {
+        IResponse response{1};
+        response.set_stream_id(42);
+
+        expect(response.get_stream_id() == 42);
+    };
+};
+
+} // namespace interfaces::io::tests
+#endif

@@ -4,6 +4,9 @@ import std;
 import io_codec_shared;
 import interfaces;
 import :consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::codec::hpack {
 
@@ -350,3 +353,148 @@ class HPackTable {
 };
 
 } // namespace io::codec::hpack
+
+#ifdef CONGELADO_TEST
+namespace io::codec::hpack::tests {
+using namespace boost::ut;
+
+suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
+    "index 0 is always invalid"_test = [] {
+        HPackTable table;
+
+        expect(not table[0].has_value());
+    };
+
+    "index 1 resolves the first static entry (:authority)"_test = [] {
+        HPackTable table;
+        auto entry = table[1];
+
+        expect(entry.has_value());
+        auto field = std::get<std::shared_ptr<interfaces::io::HeaderField<true>>>(*entry);
+        expect(field->get_name() == interfaces::io::types::Token::AUTHORITY);
+        expect(field->get_value() == "");
+    };
+
+    "index 2 resolves :method GET"_test = [] {
+        HPackTable table;
+        auto entry = table[2];
+
+        expect(entry.has_value());
+        auto field = std::get<std::shared_ptr<interfaces::io::HeaderField<true>>>(*entry);
+        expect(field->get_name() == interfaces::io::types::Token::METHOD);
+        expect(field->get_value() == "GET");
+    };
+
+    "index past the static table misses on an empty dynamic table"_test = [] {
+        HPackTable table;
+
+        expect(not table[HPackStatic::STATIC_SIZE + 1].has_value());
+    };
+
+    "at() mirrors operator[] for a valid index"_test = [] {
+        HPackTable table;
+
+        expect(std::get<std::shared_ptr<interfaces::io::HeaderField<true>>>(table.at(2))
+                   ->get_value() == "GET");
+    };
+
+    "at() throws for an invalid index"_test = [] {
+        HPackTable table;
+
+        expect(throws<std::out_of_range>([&] { std::ignore = table.at(0); }));
+        expect(throws<std::out_of_range>([&] { std::ignore = table.at(HPackStatic::STATIC_SIZE + 1); }));
+    };
+
+    "search finds a static full match"_test = [] {
+        HPackTable table;
+        auto result = table.search("content-type", "");
+
+        expect(result.found());
+        expect(result.is_static());
+        expect(result.is_full_match());
+        expect(result.index() == 31);
+    };
+
+    "search falls back to a static name-only match"_test = [] {
+        HPackTable table;
+        auto result = table.search("content-type", "text/html");
+
+        expect(result.found());
+        expect(result.is_static());
+        expect(not result.is_full_match());
+        expect(result.index() == 31);
+    };
+
+    "search misses entirely for an unknown header"_test = [] {
+        HPackTable table;
+        auto result = table.search("x-does-not-exist", "value");
+
+        expect(not result.found());
+    };
+};
+
+suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
+    "insert grows the dynamic table and is resolvable at its unified index"_test = [] {
+        HPackTable table;
+        std::size_t position = table.insert("x-custom", "value1");
+
+        expect(position == 0U);
+        expect(table.dynamic_count() == 1U);
+        expect(table.current_size() == 8U + 6U + 32U);
+        expect(table.total_entries() == HPackStatic::STATIC_SIZE + 1);
+
+        auto entry = table[HPackStatic::STATIC_SIZE + 1 + position];
+        expect(entry.has_value());
+        auto field = std::get<std::shared_ptr<interfaces::io::HeaderField<false>>>(*entry);
+        expect(field->get_name() == "x-custom");
+        expect(field->get_value() == "value1");
+    };
+
+    "insert accepts a well-known Token name"_test = [] {
+        HPackTable table;
+        std::size_t position = table.insert(interfaces::io::types::Token::HOST, "example.com");
+
+        auto entry = table[HPackStatic::STATIC_SIZE + 1 + position];
+        auto field = std::get<std::shared_ptr<interfaces::io::HeaderField<true>>>(*entry);
+        expect(field->get_name() == interfaces::io::types::Token::HOST);
+        expect(field->get_value() == "example.com");
+    };
+
+    "search finds a dynamic full match at its unified index"_test = [] {
+        HPackTable table;
+        table.insert("x-custom", "value1");
+        auto result = table.search("x-custom", "value1");
+
+        expect(result.found());
+        expect(not result.is_static());
+        expect(result.is_full_match());
+        expect(result.index() == HPackStatic::STATIC_SIZE + 1);
+    };
+
+    "inserting past the byte budget evicts the oldest entry"_test = [] {
+        HPackTable table{50};
+        table.insert("k1", "v1"); // size 36, fits alone
+        table.insert("k2", "v2"); // size 36, forces eviction of k1 (36+36 > 50)
+
+        expect(table.dynamic_count() == 1U);
+        expect(table.current_size() == 36U);
+        expect(not table.search("k1", "v1").found());
+        expect(table.search("k2", "v2").found());
+    };
+
+    "set_max_size shrinks the table, evicting down to fit"_test = [] {
+        HPackTable table{100};
+        table.insert("k1", "v1");
+        table.insert("k2", "v2");
+        expect(table.dynamic_count() == 2U);
+
+        table.set_max_size(0);
+
+        expect(table.max_size() == 0U);
+        expect(table.dynamic_count() == 0U);
+        expect(table.current_size() == 0U);
+    };
+};
+
+} // namespace io::codec::hpack::tests
+#endif

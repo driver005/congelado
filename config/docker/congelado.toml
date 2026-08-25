@@ -63,23 +63,26 @@ metrics_endpoint = "http://prometheus:9090/api/v1/otlp/v1/metrics"
 traces_endpoint = "http://tempo:4318/v1/traces"
 logs_endpoint = "http://loki:3100/otlp/v1/logs"
 
-# Alternative ISearchProvider backend to postgres_plugin's own — only meaningfully active if the
-# docker-compose "search" profile is opted into (see docker-compose.yml's elasticsearch service);
-# otherwise this just points at a host with nothing listening, which elasticsearch_plugin
-# degrades gracefully around (logs a warning, returns empty results), same as postgres_plugin's
-# own "no live connection" story. Left present (not commented out) so opting in is a
-# docker-compose profile flag away, not a config edit too.
+# Alternative ISearchProvider backend to postgres_plugin's own — config kept below so switching
+# to it is a `[providers] search = "elasticsearch_plugin"` flip, not a config edit too. While
+# postgres_plugin is the pick (default), this section is never even probed: discard_unlisted_
+# provider_gated_plugins() (sdk/heart/app.cppm) discards a non-selected search-capable plugin
+# before its on_load ever runs. If you DO select it, bring up the docker-compose "search"
+# profile first (see docker-compose.yml's elasticsearch service) — reaching it becomes a hard
+# boot requirement, same "don't run without it" contract postgres_plugin already has.
 [plugins.elasticsearch_plugin]
 type = "search"
 hosts = "http://elasticsearch:9200"
 index_prefix = "congelado_"
 
 # Event-bus backends (interfaces::IEventSink) — memory_events_plugin has no [plugins.*] section
-# of its own (nothing to configure beyond its `max_events` default). All three below only do
-# anything if the "events" compose profile is opted into (`docker compose --profile events up`);
-# otherwise each just points at a host with nothing listening, which every one of these plugins
-# degrades gracefully around (logs a warning, drops the publish), same story as
-# elasticsearch_plugin's own "no live connection" posture.
+# of its own (nothing to configure beyond its `max_events` default). Config kept below so adding
+# any of these to `[providers] events = [...]` is a one-line flip, not a config edit too — while
+# unlisted there (default), none of them are even probed: discard_unlisted_provider_gated_
+# plugins() discards a plugin not listed under its capability's provider entry before its
+# on_load ever runs. Once listed, bring up the docker-compose "events" profile too (`docker
+# compose --profile events up`) — reaching each broker becomes a hard boot requirement, connect
+# failure now throws instead of degrading (same contract postgres_plugin already has).
 [plugins.rabbitmq_events_plugin]
 type = "custom"
 host = "rabbitmq"
@@ -113,9 +116,12 @@ key_prefix = "congelado:cache:"
 [providers]
 database = "postgres_plugin"
 # Swap to elasticsearch instead of postgres_plugin's own ISearchProvider — also bring up the
-# "search" compose profile (`docker compose --profile search up`), otherwise this just points
-# at a host with nothing listening (elasticsearch_plugin degrades gracefully around that: logs
-# a warning, returns empty results).
+# "search" compose profile (`docker compose --profile search up`) first: reaching elasticsearch
+# is now a hard boot requirement when it's the selected search provider (elasticsearch_plugin's
+# on_load probes it and throws if unreachable, same contract postgres_plugin already has). While
+# postgres_plugin is the pick (default), elasticsearch_plugin is discarded before its on_load
+# ever runs (sdk/heart/app.cppm's discard_unlisted_provider_gated_plugins()), so it's never
+# actually probed unless you switch to it below.
 search = "postgres_plugin"
 # search = "elasticsearch_plugin"
 logger = ["file_logger"]
@@ -125,8 +131,13 @@ logger = ["file_logger"]
 # shape as logger, not a single-active-backend pick).
 events = ["memory_events_plugin"]
 # events = ["memory_events_plugin", "rabbitmq_events_plugin", "kafka_events_plugin", "redis_events_plugin"]
-# No entry by default — Connector falls back to its own in-process LocalCache, same
-# graceful-degradation story as database/search with nothing configured. Uncomment to route
-# Connector's cache reads/writes through Redis instead — also bring up the "events" compose
-# profile (redis_events_plugin, and the redis service itself, are both gated behind it).
+# Explicit, not left unset: cache is the one capability with two real candidate plugins
+# (local_cache_plugin, redis_events_plugin) both always present in the scanned plugins
+# directory regardless of this file's [plugins.*] sections — leaving this unset would let
+# discard_unlisted_provider_gated_plugins() keep both eligible and hand plugin-scan order the
+# tie-break, which could silently pick redis and, since redis is now a hard boot requirement
+# when selected, fail startup on an untouched default. Pin it. Swap to redis_events_plugin —
+# also bring up the "events" compose profile (redis_events_plugin, and the redis service
+# itself, are both gated behind it) — once it's up.
+cache = "local_cache_plugin"
 # cache = "redis_events_plugin"

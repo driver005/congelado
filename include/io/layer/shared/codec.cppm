@@ -2,6 +2,9 @@ export module io_layer_shared:codec;
 
 import std;
 import shared;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::shared_layer {
 
@@ -215,3 +218,86 @@ class Atom {
 };
 
 } // namespace io::shared_layer
+
+#ifdef CONGELADO_TEST
+namespace io::shared_layer::tests {
+using namespace boost::ut;
+
+suite<"Atom-big-endian"> atom_big_endian_suite = [] {
+    "write/read round trip for a 32-bit value"_test = [] {
+        std::array<std::byte, 4> buffer{};
+        Atom<std::uint32_t>::write_big_endian(buffer, 0x01020304U);
+
+        expect(buffer[0] == std::byte{0x01});
+        expect(buffer[1] == std::byte{0x02});
+        expect(buffer[2] == std::byte{0x03});
+        expect(buffer[3] == std::byte{0x04});
+
+        expect(Atom<std::uint32_t>::read_big_endian(buffer) == 0x01020304U);
+    };
+
+    "write/read round trip for a 16-bit value"_test = [] {
+        std::array<std::byte, 2> buffer{};
+        Atom<std::uint16_t>::write_big_endian(buffer, 0xBEEFU);
+
+        expect(Atom<std::uint16_t>::read_big_endian(buffer) == 0xBEEFU);
+    };
+
+    "read tolerates fewer bytes than sizeof(UInt), missing bytes don't contribute"_test = [] {
+        std::array<std::byte, 2> buffer{std::byte{0x00}, std::byte{0x2A}};
+        expect(Atom<std::uint32_t>::read_big_endian(buffer) == 0x2AU);
+    };
+
+    "read throws when given more bytes than sizeof(UInt)"_test = [] {
+        std::array<std::byte, 5> buffer{};
+        expect(throws([&] { std::ignore = Atom<std::uint32_t>::read_big_endian(buffer); }));
+    };
+};
+
+suite<"Atom-varint"> atom_varint_suite = [] {
+    "1-byte bucket round trip for a value under 64"_test = [] {
+        std::array<std::byte, 8> buffer{};
+        Atom<std::uint32_t>::write_varint(buffer, 42U);
+
+        auto [value, length] = Atom<std::uint32_t>::read_varint(buffer);
+        expect(value == 42U);
+        expect(length == 1);
+    };
+
+    "2-byte bucket round trip for a value under 16384"_test = [] {
+        std::array<std::byte, 8> buffer{};
+        Atom<std::uint32_t>::write_varint(buffer, 1000U);
+
+        auto [value, length] = Atom<std::uint32_t>::read_varint(buffer);
+        expect(value == 1000U);
+        expect(length == 2);
+    };
+
+    "4-byte bucket round trip for a value under 2^30"_test = [] {
+        std::array<std::byte, 8> buffer{};
+        Atom<std::uint32_t>::write_varint(buffer, 100000U);
+
+        auto [value, length] = Atom<std::uint32_t>::read_varint(buffer);
+        expect(value == 100000U);
+        expect(length == 4);
+    };
+
+    "8-byte bucket round trip for a value at or above 2^30"_test = [] {
+        std::array<std::byte, 8> buffer{};
+        Atom<std::uint64_t>::write_varint(buffer, 5000000000ULL);
+
+        auto [value, length] = Atom<std::uint64_t>::read_varint(buffer);
+        expect(value == 5000000000ULL);
+        expect(length == 8);
+    };
+
+    "reading an empty range bails out with {0, 0}"_test = [] {
+        std::array<std::byte, 0> buffer{};
+        auto [value, length] = Atom<std::uint32_t>::read_varint(buffer);
+        expect(value == 0U);
+        expect(length == 0);
+    };
+};
+
+} // namespace io::shared_layer::tests
+#endif

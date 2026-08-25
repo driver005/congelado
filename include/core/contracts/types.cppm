@@ -7,6 +7,9 @@ export module core_contract:types;
 
 import std;
 import shared;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::contract {
 
@@ -296,3 +299,117 @@ class Worker {
 };
 
 } // namespace core::contract
+
+#ifdef CONGELADO_TEST
+namespace core::contract::tests {
+using namespace boost::ut;
+
+suite<"ContractState_operators"> contract_state_operators_suite = [] {
+    "operator| combines flag bits"_test = [] {
+        auto combined = ContractState::SCHEDULED | ContractState::EXECUTING;
+
+        expect(std::to_underlying(combined) ==
+              (std::to_underlying(ContractState::SCHEDULED) | std::to_underlying(ContractState::EXECUTING)));
+    };
+
+    "operator& isolates shared flag bits"_test = [] {
+        auto combined = ContractState::SCHEDULED | ContractState::EXECUTING;
+
+        expect((combined & ContractState::SCHEDULED) == ContractState::SCHEDULED);
+        expect((combined & ContractState::RELEASED) == ContractState::IDLE);
+    };
+
+    "operator~ inverts the underlying bits"_test = [] {
+        auto inverted = ~ContractState::IDLE;
+
+        expect(std::to_underlying(inverted) == static_cast<std::uint8_t>(~std::uint8_t{0}));
+    };
+};
+
+suite<"ContractState_formatter"> contract_state_formatter_suite = [] {
+    "IDLE formats as the literal string"_test = [] {
+        expect(std::format("{}", ContractState::IDLE) == "IDLE");
+    };
+
+    "single flag formats as its own name"_test = [] {
+        expect(std::format("{}", ContractState::SCHEDULED) == "SCHEDULED");
+    };
+
+    "combined flags format pipe-joined in flag order"_test = [] {
+        auto combined = ContractState::SCHEDULED | ContractState::RELEASED;
+
+        expect(std::format("{}", combined) == "SCHEDULED|RELEASED");
+    };
+};
+
+suite<"Worker"> worker_suite = [] {
+    "default-constructed worker is idle and running it is a no-op"_test = [] {
+        Worker worker;
+
+        expect(worker.is_idle());
+        expect(not worker.is_scheduled());
+        expect(not worker.is_released());
+        worker();
+    };
+
+    "constructing with SCHEDULED sets the flag and invoking runs the callable"_test = [] {
+        int calls = 0;
+        Worker worker{[&calls] { ++calls; }, ContractState::SCHEDULED};
+
+        expect(worker.is_scheduled());
+        worker();
+        expect(calls == 1);
+    };
+
+    "add_flags/remove_flags toggle bits individually"_test = [] {
+        Worker worker{[] {}, ContractState::IDLE};
+
+        worker.add_flags(ContractState::SCHEDULED);
+        expect(worker.is_scheduled());
+
+        worker.remove_flags(ContractState::SCHEDULED);
+        expect(not worker.is_scheduled());
+    };
+
+    "schedule() reports whether the call actually changed anything"_test = [] {
+        Worker worker{[] {}, ContractState::IDLE};
+
+        expect(worker.schedule());
+        expect(not worker.schedule());
+    };
+
+    "try_claim_execution swaps SCHEDULED for EXECUTING exactly once"_test = [] {
+        Worker worker{[] {}, ContractState::SCHEDULED};
+
+        expect(worker.try_claim_execution());
+        expect(not worker.is_scheduled());
+        expect(worker.has_any(ContractState::EXECUTING));
+
+        expect(not worker.try_claim_execution());
+    };
+
+    "complete_execution clears EXECUTING and returns to idle"_test = [] {
+        Worker worker{[] {}, ContractState::SCHEDULED};
+        worker.try_claim_execution();
+
+        worker.complete_execution();
+
+        expect(not worker.has_any(ContractState::EXECUTING));
+        expect(worker.is_idle());
+    };
+
+    "compare_exchange swaps on match and refreshes expected on mismatch"_test = [] {
+        Worker worker{[] {}, ContractState::IDLE};
+
+        auto expected = ContractState::IDLE;
+        expect(worker.compare_exchange(expected, ContractState::SCHEDULED));
+        expect(worker.is_scheduled());
+
+        auto stale_expected = ContractState::IDLE;
+        expect(not worker.compare_exchange(stale_expected, ContractState::EXECUTING));
+        expect(stale_expected == ContractState::SCHEDULED);
+    };
+};
+
+} // namespace core::contract::tests
+#endif

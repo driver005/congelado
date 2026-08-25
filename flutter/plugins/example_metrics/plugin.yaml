@@ -1,0 +1,24 @@
+id: example_metrics
+name: Metrics Widget
+version: 0.1.0
+author: Congelado Team
+description: Engine metrics snapshot for the sidebar slot, declared as a spec plugin.
+tags: [metrics, sidebar, demo]
+slot: sidebar
+widgets:
+  type: card
+  props:
+    title: Engine metrics
+  children:
+    - type: text
+      props:
+        text: 'Requests: 1,284'
+    - type: text
+      props:
+        text: 'Latency p95: 42ms'
+        color: green
+    - type: divider
+    - type: text
+      props:
+        text: Runtime spec — drop another plugin.yaml next to this one and hit reload.
+        style: bodyLarge

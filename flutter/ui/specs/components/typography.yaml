@@ -1,0 +1,32 @@
+component: typography
+flutter_name: HeroTypography
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/typography.css"
+  files: [tool/sources/heroui-typography.css]
+  docs: https://heroui.com/en/docs/react/components/typography
+
+anatomy:
+  - (none)
+
+kinds:
+  color: default (foreground) | muted
+  default: -
+
+sizes: h1-h6, body, body-sm, body-xs, code
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - headings font-semibold tracking-tight; code bg-default rounded-md px-1.5 py-0.5 font-mono
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

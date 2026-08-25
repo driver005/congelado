@@ -1,6 +1,9 @@
 export module core_generator:statement;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::generator {
 
@@ -228,3 +231,89 @@ class Stmt {
 };
 
 } // namespace core::generator
+
+#ifdef CONGELADO_TEST
+namespace core::generator::tests {
+using namespace boost::ut;
+
+suite<"Param"> param_suite = [] {
+    "renders type and name without a default value"_test = [] {
+        Param param{"int", "count"};
+
+        expect(param.get_type() == "int");
+        expect(param.get_name() == "count");
+        expect(not param.get_default_value().has_value());
+        expect(param.render() == "int count");
+    };
+
+    "renders a default value appended after ' = '"_test = [] {
+        Param param{"bool", "flag"};
+        param.set_default_value("true");
+
+        expect(param.get_default_value().value() == "true");
+        expect(param.render() == "bool flag = true");
+    };
+
+    "skips the extra space for a reference type"_test = [] {
+        Param param{"const std::string &", "name"};
+
+        expect(param.render() == "const std::string &name");
+    };
+
+    "skips the extra space for a pointer type"_test = [] {
+        Param param{"int *", "value"};
+
+        expect(param.render() == "int *value");
+    };
+};
+
+suite<"Stmt"> stmt_suite = [] {
+    "raw ignores indent and returns the text unchanged"_test = [] {
+        auto stmt = Stmt::raw("// verbatim\n");
+
+        expect(stmt.render(8) == "// verbatim\n");
+    };
+
+    "expr renders a padded, semicolon-terminated line"_test = [] {
+        auto stmt = Stmt::expr("m_callback()");
+
+        expect(stmt.render(4) == "    m_callback();\n");
+    };
+
+    "var_decl renders an auto declaration"_test = [] {
+        auto stmt = Stmt::var_decl("value", "compute()");
+
+        expect(stmt.render(0) == "auto value = compute();\n");
+    };
+
+    "return_stmt with no expression renders a bare return"_test = [] {
+        auto stmt = Stmt::return_stmt();
+
+        expect(stmt.render(0) == "return;\n");
+    };
+
+    "return_stmt with an expression renders it"_test = [] {
+        auto stmt = Stmt::return_stmt("42");
+
+        expect(stmt.render(0) == "return 42;\n");
+    };
+
+    "if_stmt nests its body one indent level deeper"_test = [] {
+        std::vector<Stmt> body;
+        body.push_back(Stmt::return_stmt("1"));
+        auto stmt = Stmt::if_stmt("x > 0", std::move(body));
+
+        expect(stmt.render(0) == "if (x > 0) {\n    return 1;\n}\n");
+    };
+
+    "for_stmt renders the three-clause header and nested body"_test = [] {
+        std::vector<Stmt> body;
+        body.push_back(Stmt::expr("total += i"));
+        auto stmt = Stmt::for_stmt("int i = 0", "i < 10", "++i", std::move(body));
+
+        expect(stmt.render(0) == "for (int i = 0; i < 10; ++i) {\n    total += i;\n}\n");
+    };
+};
+
+} // namespace core::generator::tests
+#endif

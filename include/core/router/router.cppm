@@ -8,6 +8,9 @@ import :utils;
 import :handler;
 import :consts;
 import :middleware;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::router {
 
@@ -438,3 +441,190 @@ class RouteHandler {
 };
 
 } // namespace core::router
+
+// RouteHandler::match() needs a live interfaces::io::IRequest/IResponse pair (the only concrete
+// implementation lives in io::layer::http2, which needs a real socket/session) — only RouterNode's
+// own segment-matching logic and RouteHandler's non-dispatch bookkeeping are covered below.
+#ifdef CONGELADO_TEST
+namespace core::router::tests {
+using namespace boost::ut;
+
+// static: internal linkage so this doesn't collide with the same-named test helper other
+// core_router partition files (handler.cppm, builder.cppm) define in this same tests namespace.
+static interfaces::MiddlewareFn noop_middleware() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, interfaces::NextFn &&,
+              std::function<void()>) noexcept {};
+}
+
+// static: mirrors handler.cppm's own noop_handler() helper — internal linkage keeps the two from
+// colliding even though they share a name in this same tests namespace.
+static interfaces::HandlerFn noop_handler() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {};
+}
+
+// Base IRequest::find_header() aborts unless overridden (see interfaces/io/request.cppm) —
+// match()'s successful-dispatch branch calls it to look for an inbound traceparent header. The
+// wraparound test below expects to hit the *unsuccessful* "Wrong method for route" branch instead
+// (which never reaches find_header at all), but this override is here as a defensive backstop in
+// case that expectation is ever wrong — better a stub value than an abort() taking down the whole
+// shared test binary.
+class SafeFakeRequest : public interfaces::io::IRequest {
+  public:
+    explicit SafeFakeRequest(std::uint32_t stream_id) : interfaces::io::IRequest(stream_id) {}
+
+    [[nodiscard]] std::string_view find_header(
+        std::variant<std::string_view, interfaces::io::types::Token>) const noexcept override {
+        return {};
+    }
+};
+
+suite<"RouterNode"> router_node_suite = [] {
+    "default-constructed node has no children and Path kind"_test = [] {
+        RouterNode node;
+        expect(node.get_kind() == EdgeKind::PATH);
+        expect(node.get_children_length() == 0);
+    };
+
+    "populated constructor stores every field"_test = [] {
+        RouterNode node{EdgeKind::PARAM, "id", 3, 2, 1, 4, 5, 0xFF};
+        expect(node.get_kind() == EdgeKind::PARAM);
+        expect(node.get_literal() == "id");
+        expect(node.get_data_offset() == 3);
+        expect(node.get_children_length() == 2);
+        expect(node.get_middleware_offset() == 1);
+        expect(node.get_middleware_length() == 4);
+        expect(node.get_handler_offset() == 5);
+        expect(node.get_handler_mask() == 0xFF);
+    };
+
+    "find_child returns nullopt when the node has no children"_test = [] {
+        RouterNode node{EdgeKind::PATH, "root", 0, 0, 0, 0, 0, HANDLER_MASK};
+        std::array<RouterNode, 1> table{};
+        std::uint8_t index = 0;
+        expect(node.find_child("anything", table, index) == std::nullopt);
+    };
+
+    "find_child (single child): exact literal match succeeds, mismatch fails"_test = [] {
+        std::array<RouterNode, 1> table{
+            RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK}};
+        RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
+
+        std::uint8_t index = 0;
+        auto matched = parent.find_child("users", table, index);
+        expect(matched.has_value());
+        expect(matched->get_literal() == "users");
+
+        index = 0;
+        expect(parent.find_child("other", table, index) == std::nullopt);
+    };
+
+    "find_child (single child): a param child matches any segment"_test = [] {
+        std::array<RouterNode, 1> table{RouterNode{EdgeKind::PARAM, "", 0, 0, 0, 0, 0, HANDLER_MASK}};
+        RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
+
+        std::uint8_t index = 0;
+        auto matched = parent.find_child("42", table, index);
+        expect(matched.has_value());
+        expect(matched->get_kind() == EdgeKind::PARAM);
+    };
+
+    "find_child (single child): a wildcard child matches as a fallback"_test = [] {
+        std::array<RouterNode, 1> table{RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK}};
+        RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
+
+        std::uint8_t index = 0;
+        auto matched = parent.find_child("whatever", table, index);
+        expect(matched.has_value());
+        expect(matched->get_kind() == EdgeKind::WILD);
+    };
+
+    "find_child (multiple children): exact literal wins over a sibling wildcard"_test = [] {
+        std::array<RouterNode, 2> table{
+            RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK},
+            RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK},
+        };
+        RouterNode parent{EdgeKind::PATH, "root", 0, 2, 0, 0, 0, HANDLER_MASK};
+
+        std::uint8_t index = 0;
+        auto matched = parent.find_child("users", table, index);
+        expect(matched.has_value());
+        expect(matched->get_kind() == EdgeKind::PATH);
+        expect(matched->get_literal() == "users");
+    };
+
+    "find_child (multiple children): no literal match falls back to the wildcard sibling"_test = [] {
+        std::array<RouterNode, 2> table{
+            RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK},
+            RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK},
+        };
+        RouterNode parent{EdgeKind::PATH, "root", 0, 2, 0, 0, 0, HANDLER_MASK};
+
+        std::uint8_t index = 0;
+        auto matched = parent.find_child("nope", table, index);
+        expect(matched.has_value());
+        expect(matched->get_kind() == EdgeKind::WILD);
+    };
+};
+
+suite<"RouteHandler"> route_handler_suite = [] {
+    "add_route stores a node without throwing, for an empty handler/middleware set"_test = [] {
+        RouteHandler<> handler{};
+        expect(not throws<std::runtime_error>([&] {
+            handler.add_route(EdgeKind::PATH, "foo", 0, Handler<8>{}, Middleware<10>{}, 0);
+        }));
+    };
+
+    "add_global_middleware doesn't throw"_test = [] {
+        RouteHandler<> handler{};
+        expect(not throws<std::runtime_error>(
+            [&] { handler.add_global_middleware(noop_middleware()); }));
+    };
+
+    // add_route()'s m_table_index is a plain uint8_t counter with no capacity check anywhere —
+    // it just wraps like any other uint8_t past 255. RouterSize defaults to 256 (see m_table's
+    // declaration), i.e. exactly uint8_t's full range, so every write below stays perfectly
+    // in-bounds (indices 0-255 in a 256-element std::array) — this is NOT a memory-safety bug,
+    // just silent semantic corruption: the 257th add_route() call wraps the counter back to 0 and
+    // overwrites whatever was already stored at index 0, same as writing over any other live slot.
+    "add_route silently overwrites route 0 once more than 256 routes are registered"_test = [] {
+        RouteHandler<> table{};
+
+        // Route 0 gets a real GET-only handler — this becomes the node sitting at m_table[0],
+        // which is exactly the slot the 257th call below is going to land back on top of.
+        Handler<8> get_only;
+        get_only.add_handler(interfaces::io::types::Method::GET, noop_handler());
+
+        // Route 256 (the 257th distinct route registered) gets a POST-only handler instead, so
+        // its arrival at index 0 is unmistakable from route 0's original GET-only registration.
+        Handler<8> post_only;
+        post_only.add_handler(interfaces::io::types::Method::POST, noop_handler());
+
+        for (std::uint32_t i = 0; i < 257; ++i) {
+            const auto PATH = std::format("/route{}", i);
+            if (i == 0) {
+                table.add_route(EdgeKind::PATH, PATH, 0, get_only, Middleware<10>{}, 0);
+            } else if (i == 256) {
+                // m_table_index has now wrapped from 255 -> 0 (256 prior calls incremented it
+                // clean off the top of uint8_t's range) — this write silently clobbers route 0's
+                // node instead of landing in a fresh slot.
+                table.add_route(EdgeKind::PATH, PATH, 0, post_only, Middleware<10>{}, 0);
+            } else {
+                table.add_route(EdgeKind::PATH, PATH, 0, Handler<8>{}, Middleware<10>{}, 0);
+            }
+        }
+
+        // An empty path splits into zero segments, so match() never calls find_child() at all —
+        // `current` stays exactly m_table[0], untouched by the trie walk. Had m_table_index not
+        // wrapped, index 0 would still be route 0's GET-only node and this lookup would resolve
+        // straight to its handler. Instead index 0 now holds route 256's POST-only node, so
+        // looking up GET on it lands on the "node exists but no handler for this method" branch —
+        // observable proof that route 0's original registration was silently replaced.
+        SafeFakeRequest req{0};
+        interfaces::io::IResponse res{0};
+        expect(throws<std::runtime_error>(
+            [&] { table.match(interfaces::io::types::Method::GET, "", req, res, [] {}); }));
+    };
+};
+
+} // namespace core::router::tests
+#endif

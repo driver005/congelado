@@ -3,6 +3,9 @@ export module core_otel:span;
 import std;
 import interfaces;
 import :registry;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace core::otel {
 
@@ -329,7 +332,7 @@ start_span(std::string_view name, interfaces::SpanKind kind = interfaces::SpanKi
  * stack — for spans whose lifetime spans a genuine async gap (started on one thread, ended when
  * a callback fires later on a possibly different thread), where "ambient nesting" doesn't make
  * sense in the first place since nothing runs "inside" it on any one thread. Used by
- * `ClientRuntime::send()`/`dispatch()` for the typed-client async round-trip: the span is moved
+ * `core::client::Register::send()`/`dispatch()` for the typed-client async round-trip: the span is moved
  * into the pending-callback closure at send time and ended from inside `dispatch()` once the
  * response arrives, on whatever thread that turns out to be.
  */
@@ -416,3 +419,103 @@ start_detached_span(std::string_view name, interfaces::SpanKind kind,
 }
 
 } // namespace core::otel
+
+#ifdef CONGELADO_TEST
+namespace core::otel::tests {
+using namespace boost::ut;
+
+suite<"otel::ScopedSpan"> scoped_span_suite = [] {
+    "start_span pushes onto the ambient stack; end() pops it back off"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+        auto before = current_context();
+
+        auto span = start_span("test.span");
+        expect(current_context().has_value());
+        expect(std::ranges::equal(current_context()->span_id, span.context().span_id));
+
+        span.end();
+        expect(current_context().has_value() == before.has_value());
+
+        TracerRegistry::set_active(previous_registry);
+    };
+
+    "a span with no parent starts a fresh sampled trace root"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+
+        auto span = start_span("root", interfaces::SpanKind::SERVER);
+        expect(span.context().sampled);
+        // Plain `==` on two std::array<std::byte, N> forces boost::ut's failure-diagnostic
+        // printer to instantiate operator<<(ostream&, std::byte), which doesn't exist —
+        // std::ranges::equal() keeps the comparison a plain bool instead.
+        expect(std::ranges::equal(span.context().parent_span_id, std::array<std::byte, 8>{}));
+
+        span.end();
+        TracerRegistry::set_active(previous_registry);
+    };
+
+    "nested spans inherit the trace id and parent from the ambient context"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+
+        auto outer = start_span("outer");
+        auto inner = start_span("inner");
+
+        expect(std::ranges::equal(inner.context().trace_id, outer.context().trace_id));
+        expect(std::ranges::equal(inner.context().parent_span_id, outer.context().span_id));
+
+        inner.end();
+        outer.end();
+        TracerRegistry::set_active(previous_registry);
+    };
+
+    "end() is idempotent — a second call does not double-pop the stack"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+        auto before = current_context();
+
+        auto span = start_span("idempotent");
+        span.end();
+        expect(nothrow([&] { span.end(); }));
+        expect(current_context().has_value() == before.has_value());
+
+        TracerRegistry::set_active(previous_registry);
+    };
+
+    "move construction disarms the source, so its destructor is a no-op"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+        auto before = current_context();
+
+        auto original = start_span("movable");
+        auto original_span_id = original.context().span_id;
+        ScopedSpan moved{std::move(original)};
+
+        expect(current_context().has_value());
+        expect(std::ranges::equal(current_context()->span_id, original_span_id));
+
+        moved.end();
+        expect(current_context().has_value() == before.has_value());
+        TracerRegistry::set_active(previous_registry);
+    };
+};
+
+suite<"otel::DetachedSpan"> detached_span_suite = [] {
+    "never touches the ambient stack"_test = [] {
+        auto *previous_registry = TracerRegistry::get_active();
+        TracerRegistry::set_active(nullptr);
+        auto before = current_context();
+
+        auto span = start_detached_span("detached", interfaces::SpanKind::CLIENT, std::nullopt);
+        expect(current_context().has_value() == before.has_value());
+
+        span.end();
+        expect(nothrow([&] { span.end(); }));
+
+        TracerRegistry::set_active(previous_registry);
+    };
+};
+
+} // namespace core::otel::tests
+#endif

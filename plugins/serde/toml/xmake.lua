@@ -8,6 +8,17 @@ apply_common_layer_settings({
 	core_packages = { "reflectcpp" },
 })
 add_deps("congelado_sdk")
-add_files("src/**.cc")
+add_files("bin/**.cc")
 remove_files("src/build.cc")
 target_end()
+
+-- toml_plugin_test: recompiles bin/**.cc with CONGELADO_TEST defined. See apply_test_target in
+-- xmake/common.lua.
+apply_test_target({
+	name = "toml_plugin",
+	layer = "toml_plugin",
+	core_packages = { "reflectcpp" },
+	deps = { "congelado_sdk" },
+	files = { "bin/**.cc" },
+	remove = { "src/build.cc" },
+})

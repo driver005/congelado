@@ -4,6 +4,9 @@ module;
 export module core_plugin:types;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::plugin::types {
 
@@ -259,6 +262,18 @@ template <typename T>
 [[nodiscard]] T *cron_ctx(const CongeladoHostCallbacks &host) noexcept {
     return static_cast<T *>(host.cron_ctx);
 }
+/**
+ * @brief Gets the resolved worker-manager-capable plugin's interfaces::IWorkerManager*, if one was
+ * found before this host callback table got built — same "resolve before build()" reasoning (and
+ * same shape) as cron_ctx() above, for the host to drive worker lifecycle after plugins go ready.
+ * @tparam T the concrete interface type to cast to (almost always `interfaces::IWorkerManager`).
+ * @param host the host callback table handed to `on_load`.
+ * @return the resolved pointer, or `nullptr` if no worker-manager-capable plugin was found.
+ */
+template <typename T>
+[[nodiscard]] T *worker_manager_ctx(const CongeladoHostCallbacks &host) noexcept {
+    return static_cast<T *>(host.worker_manager_ctx);
+}
 
 inline std::optional<std::string> config_get(const CongeladoConfigView &cfg,
                                              const std::string &key) noexcept {
@@ -322,3 +337,146 @@ class ConfigViewBuilder {
 };
 
 } // namespace core::plugin::types
+
+#ifdef CONGELADO_TEST
+namespace core::plugin::types::tests {
+using namespace boost::ut;
+
+suite<"PluginError"> plugin_error_suite = [] {
+    "not_found factory sets kind and message"_test = [] {
+        auto err = PluginError::not_found("missing plugin");
+        expect(err.get_kind() == Kind::NOT_FOUND);
+        expect(err.get_message() == "missing plugin");
+    };
+    "dlopen_failed factory sets kind and message"_test = [] {
+        auto err = PluginError::dlopen_failed("dlopen: boom");
+        expect(err.get_kind() == Kind::DLOPEN_FAILED);
+        expect(err.get_message() == "dlopen: boom");
+    };
+    "already_loaded factory sets kind and message"_test = [] {
+        auto err = PluginError::already_loaded("postgres already loaded");
+        expect(err.get_kind() == Kind::ALREADY_LOADED);
+        expect(err.get_message() == "postgres already loaded");
+    };
+};
+
+suite<"PythonConfig"> python_config_suite = [] {
+    "defaults the module name to congelado"_test = [] {
+        PythonConfig cfg;
+        expect(cfg.get_module_name() == "congelado");
+    };
+    "set_module_name overwrites the default"_test = [] {
+        PythonConfig cfg;
+        cfg.set_module_name("myapp");
+        expect(cfg.get_module_name() == "myapp");
+    };
+};
+
+suite<"LuaConfig"> lua_config_suite = [] {
+    "defaults the table name to congelado and safe mode on"_test = [] {
+        LuaConfig cfg;
+        expect(cfg.get_table_name() == "congelado");
+        expect(cfg.get_safe_mode());
+    };
+    "setters overwrite both defaults"_test = [] {
+        LuaConfig cfg;
+        cfg.set_table_name("myapp");
+        cfg.set_safe_mode(false);
+        expect(cfg.get_table_name() == "myapp");
+        expect(not cfg.get_safe_mode());
+    };
+};
+
+suite<"GenerationConfig"> generation_config_suite = [] {
+    "starts with no wanted runtimes"_test = [] {
+        GenerationConfig cfg;
+        expect(cfg.get_wanted_runtimes().empty());
+        expect(not cfg.wants("python"));
+    };
+    "add_runtime is de-duplicated and queryable via wants()"_test = [] {
+        GenerationConfig cfg;
+        cfg.add_runtime("python");
+        cfg.add_runtime("lua");
+        cfg.add_runtime("python");
+
+        expect(cfg.get_wanted_runtimes().size() == 2);
+        expect(cfg.wants("python"));
+        expect(cfg.wants("lua"));
+        expect(not cfg.wants("ruby"));
+    };
+    "python/lua sub-configs round-trip through their setters"_test = [] {
+        GenerationConfig cfg;
+        PythonConfig python;
+        python.set_module_name("myapp");
+        cfg.set_python_config(python);
+
+        LuaConfig lua;
+        lua.set_table_name("myapp_lua");
+        cfg.set_lua_config(lua);
+
+        expect(cfg.get_python_config().get_module_name() == "myapp");
+        expect(cfg.get_lua_config().get_table_name() == "myapp_lua");
+    };
+    "extra config round-trips verbatim"_test = [] {
+        GenerationConfig cfg;
+        cfg.set_extra({{"key", "value"}});
+        expect(cfg.get_extra().at("key") == "value");
+    };
+};
+
+suite<"ConfigViewBuilder"> config_view_builder_suite = [] {
+    "add() accumulates pairs, view() exposes them as parallel C arrays"_test = [] {
+        ConfigViewBuilder builder;
+        builder.add("threads", "4");
+        builder.add("migrations_dir", "db/migrations");
+
+        auto view = builder.view();
+        expect(view.count == 2);
+        expect(std::string_view{view.keys[0]} == "threads");  // FIXME(clang-tidy): non-constant array index
+        expect(std::string_view{view.values[0]} == "4");  // FIXME(clang-tidy): non-constant array index
+        expect(std::string_view{view.keys[1]} == "migrations_dir");  // FIXME(clang-tidy): non-constant array index
+        expect(std::string_view{view.values[1]} == "db/migrations");  // FIXME(clang-tidy): non-constant array index
+    };
+};
+
+suite<"config_get / config_for_each"> config_helpers_suite = [] {
+    "config_get finds an existing key and misses a missing one"_test = [] {
+        const char *keys[] = {"threads", "name"};    // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char *values[] = {"4", "worker"};       // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        CongeladoConfigView view{.keys = keys, .values = values, .count = 2};
+
+        expect(config_get(view, "threads").value() == "4");
+        expect(config_get(view, "name").value() == "worker");
+        expect(not config_get(view, "missing").has_value());
+    };
+
+    "config_for_each visits every key/value pair in order"_test = [] {
+        const char *keys[] = {"a", "b", "c"};      // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char *values[] = {"1", "2", "3"};    // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        CongeladoConfigView view{.keys = keys, .values = values, .count = 3};
+
+        std::vector<std::pair<std::string, std::string>> collected;
+        config_for_each(view, [&](std::string_view key, std::string_view value) {
+            collected.emplace_back(std::string{key}, std::string{value});
+        });
+
+        expect(collected.size() == 3);
+        expect(collected[0].first == "a" && collected[0].second == "1");
+        expect(collected[2].first == "c" && collected[2].second == "3");
+    };
+};
+
+suite<"host callback ctx helpers"> ctx_helper_suite = [] {
+    "router_ctx/database_ctx cast the matching field back to T*"_test = [] {
+        int router_probe = 0;
+        double database_probe = 0.0;
+        CongeladoHostCallbacks host{.router_ctx = &router_probe, .database_ctx = &database_probe};
+
+        expect(router_ctx<int>(host) == &router_probe);
+        expect(database_ctx<double>(host) == &database_probe);
+        expect(cache_ctx<int>(host) == nullptr);
+    };
+};
+
+} // namespace core::plugin::types::tests
+#endif

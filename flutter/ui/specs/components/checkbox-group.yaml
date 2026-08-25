@@ -1,0 +1,29 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/checkbox-group.css"
+  files: [tool/sources/heroui-checkbox-group.css]
+  docs: https://heroui.com/en/docs/react/components/checkbox-group
+anatomy:
+  - group (flex flex-col)
+  - checkbox slot (mt-4 = 16 per item)
+
+kinds: none
+
+sizes: none
+default: -
+
+states: rest only (items carry their own states)
+
+tokens:
+  role: [color.muted (description/error via HeroDescription/HeroErrorMessage), color.danger]
+  component: [space.4 (16), type.xs, type.sm]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - none
+
+behavior: vertical stack of HeroCheckboxes with a 16px top margin per item; optional label/description/error slots.
+
+approximations:
+  - checkbox items are bare controls (HeroCheckbox has no label slot; storybook labels are rendered by the host)

@@ -50,8 +50,10 @@ class IClient {
     /**
      * @brief Ships `request` out over this client's connection. That's it, that's the motion.
      * @param request the request to send — implementer decides how it gets serialized/dispatched.
+     * @return the stream id the request was actually sent on — the transport assigns this, so it's
+     * the correct key for correlating the eventual response back to this call.
      */
-    virtual void send(io::IRequest &request) = 0;
+    virtual std::uint32_t send(io::IRequest &request) = 0;
 
     /**
      * @brief Builds a fresh request of whatever concrete type this client's protocol actually

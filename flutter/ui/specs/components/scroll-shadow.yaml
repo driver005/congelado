@@ -1,0 +1,32 @@
+component: scroll-shadow
+flutter_name: HeroScrollShadow
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/scroll-shadow.css"
+  files: [tool/sources/heroui-scroll-shadow.css]
+  docs: https://heroui.com/en/docs/react/components/scroll-shadow
+
+anatomy:
+  - (none)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - mask fade on scroll edges (40px); --hide-scrollbar; implemented as gradient overlays
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

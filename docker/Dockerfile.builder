@@ -15,7 +15,7 @@
 
 FROM archlinux:latest AS builder
 
-# Build mode for `make install`/`make build` below — "release" by default (matches
+# Build mode for `make install`/`make xmake-build` below — "release" by default (matches
 # docker-compose.yml; docker-compose.debug.yml overrides this to "debug" via --build-arg). Docker
 # auto-exports a declared ARG as an env var to every subsequent RUN in this stage, so $BUILD_MODE
 # is directly usable in the make invocations below with no extra ENV needed.
@@ -84,19 +84,19 @@ COPY . .
 # output. This is NOT the same thing as this project's own per-project `.xmake/` config dirs
 # (repo root's and plugins/'s), which stay uncached — nor is it the same as build/'s own
 # incremental BMI cache, which IS now reused across builds too, but through a separate
-# fingerprint-guarded restore/save around `make build` below rather than a plain mount here (see
+# fingerprint-guarded restore/save around `make xmake-build` below rather than a plain mount here (see
 # that RUN's own comment for why, and for the safety net guarding the real stale-incremental-BMI
 # -cache Clang crash a naive reuse of this state caused once this session).
 # MAKEFLAGS exported inline (not a Dockerfile ENV) so `$(nproc)` actually expands — plain `make`
 # defaults to serial without it, and any Conan-internal make-based recipe build (openssl/cpython/
 # bison) run as a child of this shell inherits it too.
-RUN --mount=type=cache,target=/root/.conan2 --mount=type=cache,target=/root/.xmake export MAKEFLAGS=-j$(nproc) && make install MODE="$BUILD_MODE"
+RUN --mount=type=cache,target=/root/.conan2 --mount=type=cache,target=/root/.xmake export MAKEFLAGS=-j$(nproc) && make xmake-install MODE="$BUILD_MODE"
 
 # Build everything, in one pass. engine (plugins/engine/) is its own standalone xmake project
 # now — its build.cc runs and writes the generated OpenAPI client SDK as part of that project's
 # own, separate invocation, which "xmake build-all" (xmake/tasks/build_all.lua) always runs
-# before the root project's own remaining targets (congelado_worker, the one consumer of that
-# generated SDK). This used to need two full "make build" passes by hand (a genuine, confirmed
+# before the root project's own remaining targets (the `worker` host binary, a consumer of that
+# generated SDK). This used to need two full "make xmake-build" passes by hand (a genuine, confirmed
 # xmake C++-modules limitation when codegen and consumer share one project/invocation — see
 # xmake/core_layers.lua's own comment) — splitting engine out into its own project sidesteps it
 # instead of working around it.
@@ -155,7 +155,7 @@ RUN --mount=type=cache,target=/root/.conan2 \
         echo "builder: build/ cache missing or stale (fingerprint mismatch) - starting from a clean build/" && \
         rm -rf "${CACHE:?}/build" && mkdir -p "$CACHE/build" ; \
     fi && \
-    make build MODE="$BUILD_MODE" && \
+    make xmake-build MODE="$BUILD_MODE" && \
     rsync -a --delete --exclude=.docker-buildcache-fingerprint /app/build/ "$CACHE/build/" && \
     echo "$fingerprint" > "$STAMP" \
     '

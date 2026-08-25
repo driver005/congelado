@@ -5,6 +5,9 @@ module;
 export module hashmap:swiss;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 constexpr std::size_t GROUP_WIDTH = 16;
 
@@ -727,6 +730,111 @@ class SwissHashMap {
 };
 
 } // namespace hashmap::swiss
+
+#ifdef CONGELADO_TEST
+namespace hashmap::swiss::tests {
+using namespace boost::ut;
+
+suite<"SwissHashMap"> swiss_hash_map_suite = [] {
+    "starts empty"_test = [] {
+        SwissHashMap<std::string, int> map;
+        expect(map.empty());
+        expect(map.size() == 0);
+        expect(not map.find("missing").has_value());
+    };
+    "insert then find round-trips a value"_test = [] {
+        SwissHashMap<std::string, int> map;
+        map.insert("a", 1);
+
+        expect(not map.empty());
+        expect(map.size() == 1);
+        expect(map.find("a") == 1);
+    };
+    "upsert inserts new keys and updates existing ones"_test = [] {
+        SwissHashMap<std::string, int> map;
+
+        auto inserted = map.upsert("a", 1);
+        expect(inserted.value());
+        expect(map.find("a") == 1);
+
+        auto updated = map.upsert("a", 2);
+        expect(not updated.value());
+        expect(map.find("a") == 2);
+        expect(map.size() == 1);
+    };
+    "erase removes an entry"_test = [] {
+        SwissHashMap<std::string, int> map;
+        map.insert("a", 1);
+        map.erase("a");
+
+        expect(map.empty());
+        expect(not map.find("a").has_value());
+    };
+    "clear empties the table but keeps it usable"_test = [] {
+        SwissHashMap<std::string, int> map;
+        map.insert("a", 1);
+        map.insert("b", 2);
+        map.clear();
+
+        expect(map.empty());
+        map.insert("c", 3);
+        expect(map.find("c") == 3);
+    };
+    "grows past the initial capacity via rehash and keeps every entry"_test = [] {
+        SwissHashMap<int, int> map;
+        for (int i = 0; i < 500; ++i) {
+            map.insert(i, i * 2);
+        }
+
+        expect(map.size() == 500);
+        expect(map.find(0) == 0);
+        expect(map.find(250) == 500);
+        expect(map.find(499) == 998);
+    };
+    // Structural proof that SwissHashMap has no seed/randomization parameter anywhere in its
+    // public API -- not a timing/collision attack. Hash{} (std::hash<K> by default) is
+    // default-constructed fresh inline on every probe (see find()/insert_impl()/upsert()/
+    // erase()) rather than stored as instance state, so there is no seed slot in the type at
+    // all: no constructor argument and no setter could plug a per-instance seed into it even if
+    // a caller wanted to.
+    "has no seed/randomization parameter anywhere in its public API"_test = [] {
+        using Map = SwissHashMap<std::string, int>;
+
+        static_assert(std::is_default_constructible_v<Map>);
+        static_assert(not std::is_constructible_v<Map, std::size_t>);
+        static_assert(not std::is_constructible_v<Map, unsigned>);
+        static_assert(not std::is_constructible_v<Map, std::hash<std::string>>);
+
+        // Runtime corroboration: two independently constructed instances place the identical
+        // key through the identical probe sequence and agree on its value -- if either instance
+        // seeded its hashing differently, this could diverge.
+        Map first;
+        Map second;
+        first.insert("determinism-key", 1);
+        second.insert("determinism-key", 1);
+
+        expect(first.find("determinism-key") == second.find("determinism-key"));
+    };
+    "iteration visits every live entry exactly once"_test = [] {
+        SwissHashMap<int, int> map;
+        map.insert(1, 10);
+        map.insert(2, 20);
+        map.insert(3, 30);
+
+        std::size_t count = 0;
+        int sum = 0;
+        for (auto &entry : map) {
+            ++count;
+            sum += entry.value();
+        }
+
+        expect(count == 3);
+        expect(sum == 60);
+    };
+};
+
+} // namespace hashmap::swiss::tests
+#endif
 
 namespace std {
 

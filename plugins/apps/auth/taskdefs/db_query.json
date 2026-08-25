@@ -1,0 +1,18 @@
+{
+  "name": "auth_db_query",
+  "type": "SIMPLE",
+  "worker_type": "db_query",
+  "input_keys": ["username", "password_hash"],
+  "output_keys": ["stored_username", "stored_hash", "db_status"],
+  "retry": {
+    "max_attempts": 3,
+    "backoff": "FIXED",
+    "interval_ms": 1000
+  },
+  "timeout": {
+    "timeout_ms": 30000,
+    "action": "FAIL_WORKFLOW"
+  },
+  "enforce_schema": false,
+  "masked_fields": []
+}

@@ -1,0 +1,32 @@
+component: error-message
+flutter_name: HeroErrorMessage
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/error-message.css"
+  files: [tool/sources/heroui-error-message.css]
+  docs: https://heroui.com/en/docs/react/components/error-message
+
+anatomy:
+  - (none)
+
+kinds:
+  color: danger
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - static caption, break-words
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

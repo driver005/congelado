@@ -6,6 +6,9 @@ export import :class_builder;
 export import :module_builder;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::generator {
 
@@ -120,3 +123,57 @@ class Generator {
 };
 
 } // namespace core::generator
+
+#ifdef CONGELADO_TEST
+namespace core::generator::tests {
+using namespace boost::ut;
+
+suite<"Generator"> generator_suite = [] {
+    "bare generator throws on addImport since it owns no module"_test = [] {
+        Generator generator;
+
+        expect(throws<std::bad_optional_access>([&] { generator.addImport("std"); }));
+    };
+
+    "named generator builds and renders a module"_test = [] {
+        Generator generator{"core_test_module"};
+        generator.addImport("std");
+        generator.addNamespace("core::test").addClass("Widget");
+
+        auto rendered = generator.render();
+
+        expect(rendered.starts_with("export module core_test_module;\n"));
+        expect(rendered.contains("import std;\n"));
+        expect(rendered.contains("class Widget"));
+    };
+
+    "write(path, content) writes the exact bytes given"_test = [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_generator_test_write.txt";
+        auto result = Generator::write(path, "hello generator\n");
+
+        expect(result.has_value());
+
+        std::ifstream in{path};
+        std::string content{std::istreambuf_iterator<char>{in}, std::istreambuf_iterator<char>{}};
+        expect(content == "hello generator\n");
+
+        std::filesystem::remove(path);
+    };
+
+    "write(path) renders the owned module and writes it to disk"_test = [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_generator_test_module.cppm";
+        Generator generator{"core_test_write_module"};
+
+        auto result = generator.write(path);
+        expect(result.has_value());
+
+        std::ifstream in{path};
+        std::string content{std::istreambuf_iterator<char>{in}, std::istreambuf_iterator<char>{}};
+        expect(content.starts_with("export module core_test_write_module;\n"));
+
+        std::filesystem::remove(path);
+    };
+};
+
+} // namespace core::generator::tests
+#endif

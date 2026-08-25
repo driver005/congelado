@@ -1,0 +1,51 @@
+component: popover
+flutter_name: HeroPopover + showHeroPopover
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/popover.css"
+  files: [tool/sources/heroui-popover.css]
+  docs: https://heroui.com/en/docs/react/components/popover
+
+anatomy:
+  - popover (.popover: bg-overlay shadow-overlay p-0 text-sm,
+    min(32px, --radius-3xl) = 24 radius; fade-in-0 zoom-in-90 150ms
+    --ease-smooth + 4px slide from the placement; exit zoom-out-95 fade-out
+    100ms)
+  - arrow (12x12 lucide chevron path M0 0 C5.48 8 6.5 8 12 0 Z, fill
+    var(--overlay); rotated 180/-90/90 per placement)
+  - dialog (.popover__dialog p-4 outline-none), heading (font-medium)
+
+kinds: none
+default: -
+
+sizes: none
+default: -
+
+states:
+  open/close (barrier dismissible); placements top/right/bottom/left with
+  automatic flip when the anchored edge has no room
+
+tokens:
+  role: [color.overlay, color.foreground, shadow.overlay (per-theme)]
+  component: [radius.3xl (24), space.4 (16 dialog padding),
+    type.sm (14 base font)]
+
+non_token_measurements:
+  - arrow 12x12, protrudes 6px beyond the popover edge
+  - 4px resting gap between anchor and popover (approximation)
+  - enter 150ms (exit 100ms per spec — single route controller, see below)
+
+behavior:
+  HeroPopover builds the trigger and measures its global rect, then
+  showHeroPopover opens a showGeneralDialog route positioned against the
+  rect (measure-then-align, clamped and flipped to stay on screen). Fade +
+  scale + slide driven by the route animation.
+
+approximations:
+  - showGeneralDialog uses one transitionDuration, so the exit runs at 150ms
+    instead of the spec's 100ms and the exit scale lands at 0.9 (not 0.95)
+  - popover width is content-sized (no origin-(--trigger-anchor-point)
+    transform anchor)
+  - default alignment is center on the anchor (RAC default); start/end
+    available via HeroPopoverAlignment

@@ -1,0 +1,53 @@
+component: meter
+flutter_name: HeroMeter
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/meter.css"
+  files: [tool/sources/heroui-meter.css]
+  docs: https://heroui.com/en/docs/react/components/meter
+
+anatomy:
+  - root (`.meter`) — grid `w-full gap-1` (4), areas `"label output" /
+    "track track"`, columns `1fr auto`
+  - label (`[data-slot="label"]`) — `w-fit text-sm font-medium`
+    (14 w500), grid-area label
+  - output (`[data-slot="output"]` / `.meter__output`) — `text-sm font-medium
+    tabular-nums` (14 w500), grid-area output
+  - track (`.meter__track`) — `relative overflow-hidden rounded-sm bg-default`
+    `h-2` (8) default; `--sm` `h-1` (4) `rounded-xs` (2); `--lg` `h-3` (12)
+    `rounded-md` (6)
+  - fill (`.meter__fill`) — `absolute start-0 top-0 h-full rounded-*`,
+    `background-color: var(--meter-fill)`, `width` = value,
+    `transition: width 300ms var(--ease-out)`
+
+kinds:
+  color: accent (default) | default (default-foreground) | success | warning
+         | danger (role fill)
+  default: accent
+
+sizes: sm | md (default) | lg
+default: md
+
+states: rest | disabled (`status-disabled` — 0.5 opacity everywhere except
+  the label, which stays at `opacity-100`)
+
+tokens:
+  role: [color.accent, color.defaultForeground, color.success,
+         color.warning, color.danger, color.default (track),
+         color.foreground (label/output text)]
+  component: [space.1, space.2, space.3, radius.xs, radius.sm, radius.md,
+              type.sm, weight.medium, double.disabledOpacity]
+
+non_token_measurements:
+  - fill width animation 300ms ease-out
+  - output uses tabular figures (CSS `tabular-nums`)
+
+behavior: `value` 0..1 (asserted); the fill width animates from 0 to
+  value*100% over 300ms `--ease-out` (motion-reduce aware). label/output are
+  optional; output defaults to the percentage.
+
+approximations:
+  - the grid areas are hand-composed as a label row + track (layout
+    equivalent, no actual CSS grid)
+  - output defaults to `NN%` when not supplied (HeroUI shows a valueLabel)

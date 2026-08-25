@@ -3,6 +3,9 @@ export module core_otel:http;
 import std;
 import interfaces;
 import :span;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace core::otel::detail {
 
@@ -126,3 +129,70 @@ inline std::optional<interfaces::SpanContext> parse_traceparent(std::string_view
 // http2 response layer itself, not by working around it here.
 
 } // namespace core::otel
+
+#ifdef CONGELADO_TEST
+namespace core::otel::tests {
+using namespace boost::ut;
+
+suite<"otel::traceparent"> traceparent_suite = [] {
+    "an all-zero unsampled context formats to the expected traceparent string"_test = [] {
+        interfaces::SpanContext ctx;
+        ctx.sampled = false;
+
+        auto header = format_traceparent(ctx);
+
+        expect(header == "00-00000000000000000000000000000000-0000000000000000-00");
+    };
+
+    "a sampled context sets the trailing flags byte to 01"_test = [] {
+        interfaces::SpanContext ctx;
+        ctx.sampled = true;
+
+        auto header = format_traceparent(ctx);
+
+        expect(header.ends_with("-01"));
+    };
+
+    "format then parse round-trips trace id, span id, and sampled flag"_test = [] {
+        interfaces::SpanContext ctx;
+        for (std::size_t i = 0; i < ctx.trace_id.size(); ++i) {
+            ctx.trace_id[i] = static_cast<std::byte>(i + 1);
+        }
+        for (std::size_t i = 0; i < ctx.span_id.size(); ++i) {
+            ctx.span_id[i] = static_cast<std::byte>(0xA0 + i);
+        }
+        ctx.sampled = true;
+
+        auto parsed = parse_traceparent(format_traceparent(ctx));
+
+        expect(parsed.has_value());
+        expect(std::ranges::equal(parsed->trace_id, ctx.trace_id));
+        expect(std::ranges::equal(parsed->span_id, ctx.span_id));
+        expect(parsed->sampled == ctx.sampled);
+    };
+
+    "parse rejects a header that's too short"_test = [] {
+        expect(not parse_traceparent("00-abcd").has_value());
+    };
+
+    "parse rejects an unsupported version prefix"_test = [] {
+        expect(not parse_traceparent(
+                       "01-00000000000000000000000000000000-0000000000000000-00")
+                       .has_value());
+    };
+
+    "parse rejects a header with misplaced separators"_test = [] {
+        expect(not parse_traceparent(
+                       "00x00000000000000000000000000000000-0000000000000000-00")
+                       .has_value());
+    };
+
+    "parse rejects invalid hex digits"_test = [] {
+        expect(not parse_traceparent(
+                       "00-zz000000000000000000000000000000-0000000000000000-00")
+                       .has_value());
+    };
+};
+
+} // namespace core::otel::tests
+#endif

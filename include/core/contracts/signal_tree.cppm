@@ -4,6 +4,9 @@ import std;
 import core_logger;
 import :consts;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::contract {
 
@@ -395,3 +398,91 @@ class SignalTree {
     std::atomic<std::uint32_t> m_next_id;
 };
 } // namespace core::contract
+
+#ifdef CONGELADO_TEST
+namespace core::contract::tests {
+using namespace boost::ut;
+
+suite<"Node_leaf"> node_leaf_suite = [] {
+    "starts with an empty value"_test = [] {
+        Node<false> leaf;
+
+        expect(leaf.get_value() == 0U);
+    };
+
+    "schedule sets the matching bit"_test = [] {
+        Node<false> leaf;
+        leaf.schedule(3);
+
+        expect(leaf.get_value() == (1ULL << 3));
+    };
+
+    "deschedule clears the matching bit"_test = [] {
+        Node<false> leaf;
+        leaf.schedule(3);
+        leaf.deschedule(3);
+
+        expect(leaf.get_value() == 0U);
+    };
+
+    "select_child_index finds the single scheduled bit"_test = [] {
+        Node<false> leaf;
+        leaf.schedule(7);
+
+        std::uint64_t bias = 0;
+        auto found = leaf.select_child_index(bias);
+
+        expect(found.has_value());
+        expect(*found == 7U);
+    };
+
+    "select_child_index returns nullopt when nothing is scheduled"_test = [] {
+        Node<false> leaf;
+
+        std::uint64_t bias = 0;
+        expect(not leaf.select_child_index(bias).has_value());
+    };
+};
+
+suite<"SignalTree"> signal_tree_suite = [] {
+    "free_contract_id hands out sequential ids"_test = [] {
+        SignalTree<512> tree;
+
+        expect(tree.free_contract_id() == 0U);
+        expect(tree.free_contract_id() == 1U);
+        expect(tree.free_contract_id() == 2U);
+    };
+
+    "free_contract_id throws once capacity is exhausted"_test = [] {
+        SignalTree<512> tree;
+        for (std::size_t i = 0; i < 512; ++i) {
+            [[maybe_unused]] auto id = tree.free_contract_id();
+        }
+
+        expect(throws<std::runtime_error>([&] { [[maybe_unused]] auto id = tree.free_contract_id(); }));
+    };
+
+    "schedule/deschedule past capacity throws out_of_range"_test = [] {
+        SignalTree<512> tree;
+
+        expect(throws<std::out_of_range>([&] { tree.schedule(512); }));
+        expect(throws<std::out_of_range>([&] { tree.deschedule(512); }));
+    };
+
+    "next finds a scheduled id and nullopt once nothing remains"_test = [] {
+        SignalTree<512> tree;
+        tree.schedule(42);
+
+        std::uint64_t bias = 0;
+        auto found = tree.next(bias);
+        expect(found.has_value());
+        expect(*found == 42U);
+
+        tree.deschedule(42);
+        std::uint64_t bias_again = 0;
+        expect(not tree.next(bias_again).has_value());
+    };
+};
+
+} // namespace core::contract::tests
+#endif

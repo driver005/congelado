@@ -7,6 +7,13 @@ import std;
 
 export namespace interfaces {
 
+// The dynamic JSON-like value type (string/bool/int/double/array/object) — reflect-cpp's
+// own `rfl::Generic`, canonical here so it can flow to IWorker's input and serde's wire
+// boundary without `interfaces` importing `serde` back (serde imports `interfaces`, so the
+// alias flows: `interfaces` owns it, `serde` re-exports it as `serde::Value` — never the
+// reverse, which would cycle).
+using Value = rfl::Generic;
+
 // A wire-format backend (JSON, TOML, ...) as a genuine plugin capability. The host converts
 // any FieldDesc-reflected T to/from rfl::Generic itself (via rfl::to_generic/rfl::from_generic
 // — that machinery stays compiled into the host, unaffected by which formats are loaded);

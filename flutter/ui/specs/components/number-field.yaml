@@ -1,0 +1,36 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/number-field.css"
+  files: [tool/sources/heroui-number-field.css]
+  docs: https://heroui.com/en/docs/react/components/number-field
+anatomy:
+  - container (flex-col gap-1: label + group + helper/error slots)
+  - group (h-9 grid 40px 1fr 40px rounded-field border bg-field shadow-field, hover bg-field-hover, focus-within status-focused-field)
+  - decrement button (w-10 h-full transparent, border-e field-placeholder/15)
+  - input (min-w-0 px-3 py-2 text-base tabular-nums bg-transparent)
+  - increment button (w-10 h-full transparent, border-s field-placeholder/15)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-base sm:text-sm)
+default: -
+
+states: rest | hover (bg-field-hover) | focus-within (status-focused-field) | pressed (bg-field-foreground/10 + scale 0.97) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.muted, color.foreground, color.transparent, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - stepper width 40px and grid-template-columns 40px 1fr 40px are literals
+  - field-placeholder/15 and field-foreground/10 are alpha applications of role tokens
+  - stepper icons are Material chevrons (add/remove)
+
+behavior: value/onChanged double; step buttons adjust by `step` clamped to min/max; direct numeric entry via TextField; the group ring shows while focused.
+
+approximations:
+  - border-width-field 0px -> 1px transparent border
+  - focus ring offset (see textarea)
+  - caret/selection semantics are the plain TextField's (no auto-advance)

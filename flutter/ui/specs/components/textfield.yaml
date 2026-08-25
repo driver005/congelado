@@ -1,0 +1,34 @@
+component: textfield
+flutter_name: HeroInput
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/textfield.css"
+  files: [tool/sources/heroui-textfield.css]
+  docs: https://heroui.com/en/docs/react/components/textfield
+
+anatomy:
+  - label + field (input.css anatomy: bg-field, border, radius, focus accent)
+    + helper/error slots
+
+kinds:
+  color: none (accent focus states)
+  default: -
+
+sizes: min-height 40 (input.css), px-3 py-2
+default: -
+
+states: rest | hover (bg-field-hover border-field-border-hover) | focus
+(accent ring + border-focus) | disabled (opacity) | invalid (danger)
+
+tokens:
+  role: [color.field*, color.focus, color.danger, color.foreground, color.muted]
+  component: [double.input.*, radius.input.radius]
+
+non_token_measurements:
+  - textfield.css mirrors input.css; implemented by HeroInput
+
+behavior: text entry, obscure, maxLines (textarea-like via HeroTextarea).
+
+approximations:
+  - same facade as HeroInput (input.css covers both)

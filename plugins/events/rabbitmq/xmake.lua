@@ -10,5 +10,15 @@ apply_common_layer_settings({
 	core_packages = { "rabbitmqc" },
 })
 add_deps("congelado_sdk")
-add_files("src/**.cc")
+add_files("bin/**.cc")
 target_end()
+
+-- rabbitmq_events_test: recompiles bin/**.cc with CONGELADO_TEST defined. See apply_test_target
+-- in xmake/common.lua.
+apply_test_target({
+	name = "rabbitmq_events",
+	layer = "rabbitmq_events_plugin",
+	core_packages = { "rabbitmqc" },
+	deps = { "congelado_sdk" },
+	files = { "bin/**.cc" },
+})

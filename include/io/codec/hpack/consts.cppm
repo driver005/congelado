@@ -1,6 +1,9 @@
 export module io_codec_hpack:consts;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::codec::hpack {
 

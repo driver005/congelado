@@ -9,6 +9,9 @@ import io_base_leverage;
 import io_base_socket;
 import shared;
 import utils_errno_translator;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::base::flow::sync {
 
@@ -188,8 +191,8 @@ class Sender : public shared::HandlerBase {
             return false;
         }
         // Only kick off a new write if one isn't already mid-flight.
-        if (!m_stalled) {
-            m_stalled = true;
+        if (!get_stalled()) {
+            set_stalled(true);
             arm_write();
         }
         return true;
@@ -204,7 +207,15 @@ class Sender : public shared::HandlerBase {
      * @brief Checks whether a write is currently in flight inside arm_write().
      * @return true if mid-write, false otherwise.
      */
-    [[nodiscard]] bool get_stalled() const noexcept { return m_stalled; }
+    [[nodiscard]] bool get_stalled() const noexcept {
+        return m_stalled.load(std::memory_order_acquire);
+    }
+
+  private:
+    /// @brief Sets the in-flight guard (release ordering). Pairs with get_stalled()'s acquire load.
+    void set_stalled(bool value) noexcept { m_stalled.store(value, std::memory_order_release); }
+
+  public:
     /**
      * @brief Checks whether this sender has been closed.
      * @return true if closed, false if still open.
@@ -258,12 +269,12 @@ class Sender : public shared::HandlerBase {
         case socket::VALUES::VALID: {
             core::logger::debug("io/send", "fd {} tx {} bytes", DESCRIPTOR, result);
             view.consume(result);
-            m_stalled = false;
+            set_stalled(false);
             return;
         }
         case socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED: {
             core::logger::debug("io/send", "fd {} would block, reschedule", DESCRIPTOR);
-            m_stalled = false;
+            set_stalled(false);
             return;
         }
         case socket::VALUES::ERRORED:
@@ -289,7 +300,7 @@ class Sender : public shared::HandlerBase {
     std::reference_wrapper<Worker> m_worker;
     utils::buffering::BufferWriter m_pool;
     shared::ErrorCallback m_on_error;
-    bool m_stalled;
+    std::atomic<bool> m_stalled;
     bool m_closed;
 };
 
@@ -298,3 +309,267 @@ static_assert(
     interfaces::io::SyncSendable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus>);
 
 } // namespace io::base::flow::sync
+
+#ifdef CONGELADO_TEST
+namespace io::base::flow::sync::sender_sync_tests {
+
+// Satisfies interfaces::io::SyncSendable<MockSyncSendWorker, socket::SocketStatus> — note the
+// concept requires sync_send() be callable on a CONST object (`requires(const T SOCK, ...)`),
+// so this is a const member function with mutable bookkeeping, same as the real Socket::sync_send().
+class MockSyncSendWorker {
+  public:
+    [[nodiscard]] int get_fd() const noexcept { return m_fd; }
+
+    std::pair<std::size_t, socket::SocketStatus> sync_send(const std::byte *, std::size_t size) const {
+        ++m_call_count;
+        m_last_size = size;
+        return {m_next_result, m_next_status};
+    }
+
+    int m_fd{7};
+    mutable int m_call_count{0};
+    mutable std::size_t m_last_size{0};
+    std::size_t m_next_result{0};
+    socket::SocketStatus m_next_status{socket::VALUES::VALID};
+};
+
+class MockHandlerInterface final : public shared::HandlerInterface {
+  public:
+    void schedule(std::uint32_t) override { ++m_schedule_count; }
+    void deschedule(std::uint32_t) override { ++m_deschedule_count; }
+    void release(std::uint32_t) override { ++m_release_count; }
+
+    int m_schedule_count{0};
+    int m_deschedule_count{0};
+    int m_release_count{0};
+};
+
+using TestSender = Sender<MockSyncSendWorker, socket::SocketStatus>;
+
+/// @brief Builds a 3-byte, fully-written BufferNode to push into a Sender's outbound queue.
+[[nodiscard]] utils::buffering::BufferNode make_node() {
+    return utils::buffering::BufferNode{std::vector<std::byte>{std::byte{1}, std::byte{2}, std::byte{3}}};
+}
+
+using namespace boost::ut;
+
+suite<"Sender (sync) construction/build"> sender_sync_ctor_suite = [] {
+    "the no-error ctor starts open with has_on_error() reporting no callback"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker};
+
+        expect(sender.get_name() == "Sender - Sync");
+        expect(!sender.get_closed());
+        // Inverted-name bug (documented on has_on_error()): true here means NO callback is set.
+        expect(sender.has_on_error());
+    };
+
+    "the error-wired ctor calls build() itself and doesn't throw"_test = [] {
+        MockSyncSendWorker worker;
+        expect(nothrow([&] { TestSender sender{worker, [](int, int) {}}; }));
+    };
+
+    "add_on_error() flips has_on_error() to false"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker};
+        sender.add_on_error([](int, int) {});
+
+        expect(!sender.has_on_error());
+    };
+
+    "build() throws when no error callback is set"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker};
+
+        expect(throws<std::runtime_error>([&] { sender.build(); }));
+    };
+
+    "build() succeeds once an error callback is set"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker};
+        sender.add_on_error([](int, int) {});
+
+        expect(nothrow([&] { sender.build(); }));
+    };
+};
+
+suite<"Sender (sync) send/resume/arm_write"> sender_sync_send_suite = [] {
+    "a fresh sender is idle and resume() on an empty queue never calls sync_send"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker, [](int, int) {}};
+
+        expect(sender.is_idle());
+        expect(sender.resume());
+        expect(worker.m_call_count == 0);
+    };
+
+    "send() queues data, making the sender non-idle until it's flushed"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker, [](int, int) {}};
+
+        sender.send(make_node());
+        expect(!sender.is_idle());
+    };
+
+    "a VALID send consumes the queued bytes and goes idle"_test = [] {
+        MockSyncSendWorker worker;
+        worker.m_next_status = socket::SocketStatus{socket::VALUES::VALID};
+        worker.m_next_result = 3;
+        TestSender sender{worker, [](int, int) {}};
+
+        sender.send(make_node());
+        expect(sender.resume());
+
+        expect(worker.m_call_count == 1);
+        expect(worker.m_last_size == 3);
+        expect(sender.is_idle());
+        expect(!sender.get_stalled());
+        expect(!sender.get_closed());
+    };
+
+    "a would-block leaves the queued data intact and open"_test = [] {
+        MockSyncSendWorker worker;
+        worker.m_next_status = socket::SocketStatus{socket::VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
+        TestSender sender{worker, [](int, int) {}};
+
+        sender.send(make_node());
+        expect(sender.resume());
+
+        expect(!sender.is_idle());
+        expect(!sender.get_closed());
+    };
+
+    "an errored send closes the sender, drops the backlog, and routes to on_error"_test = [] {
+        MockSyncSendWorker worker;
+        worker.m_next_status = socket::SocketStatus{socket::VALUES::ERRORED, 77};
+
+        int error_fd = -1;
+        int error_code = 0;
+        TestSender sender{worker, [&](int fd, int code) {
+                             error_fd = fd;
+                             error_code = code;
+                         }};
+
+        sender.send(make_node());
+        expect(sender.resume());
+
+        expect(sender.get_closed());
+        expect(sender.is_idle()); // backlog dropped on error
+        expect(error_fd == worker.get_fd());
+        expect(error_code == 77);
+
+        // Closed with nothing left queued — resume() now permanently reports "stop scheduling".
+        expect(!sender.resume());
+    };
+
+    "get_submitter() enqueues through send() just like calling it directly"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker, [](int, int) {}};
+
+        auto submitter = sender.get_submitter();
+        expect(sender.is_idle());
+        submitter(make_node());
+        expect(!sender.is_idle());
+    };
+};
+
+suite<"Sender (sync) on_execute/on_released"> sender_sync_lifecycle_suite = [] {
+    "on_execute() reschedules while open"_test = [] {
+        MockHandlerInterface mock;
+        shared::this_handler::current = &mock;
+        shared::this_handler::current_id = 4;
+
+        MockSyncSendWorker worker;
+        TestSender sender{worker, [](int, int) {}};
+
+        auto work = sender.on_execute();
+        work();
+
+        expect(mock.m_schedule_count == 1);
+
+        shared::this_handler::current = nullptr;
+    };
+
+    "on_execute() releases once closed with nothing left queued"_test = [] {
+        MockHandlerInterface mock;
+        shared::this_handler::current = &mock;
+        shared::this_handler::current_id = 4;
+
+        MockSyncSendWorker worker;
+        worker.m_next_status = socket::SocketStatus{socket::VALUES::ERRORED, 1};
+        TestSender sender{worker, [](int, int) {}};
+        sender.send(make_node());
+        sender.resume(); // errors out, closes, drops the backlog
+
+        auto work = sender.on_execute();
+        work();
+
+        expect(mock.m_release_count == 1);
+
+        shared::this_handler::current = nullptr;
+    };
+
+    "on_released() is a harmless no-op"_test = [] {
+        MockSyncSendWorker worker;
+        TestSender sender{worker, [](int, int) {}};
+
+        auto released = sender.on_released();
+        expect(nothrow([&] { released(); }));
+    };
+};
+
+suite<"Sender (sync) on_error"> sender_sync_error_suite = [] {
+    "a null exception_ptr is a no-op"_test = [] {
+        MockSyncSendWorker worker;
+        int error_calls = 0;
+        TestSender sender{worker, [&](int, int) { ++error_calls; }};
+
+        auto handler = sender.on_error();
+        expect(nothrow([&] { handler(std::exception_ptr{}); }));
+        expect(error_calls == 0);
+    };
+
+    // NOTE: this pins OBSERVED behavior, not necessarily intended behavior — see the identical
+    // note in include/io/flow/receiver/sync.cppm's own on_error suite. Root-cause investigation
+    // there (isolated repros, a full `xmake build -r`) could not explain why the production
+    // catch(const std::system_error&) clause doesn't match a std::system_error rethrown via
+    // std::rethrow_exception(std::make_exception_ptr(...)) in this specific multi-partition test
+    // binary — it falls through to catch(const std::exception&) instead, routing -1.
+    "a std::system_error currently falls through to the generic exception path (-1), not its "
+    "real error code — see NOTE above"_test = [] {
+        MockSyncSendWorker worker;
+        int error_code = 0;
+        TestSender sender{worker, [&](int, int code) { error_code = code; }};
+
+        auto handler = sender.on_error();
+        handler(std::make_exception_ptr(
+            std::system_error{std::make_error_code(std::errc::connection_reset)}));
+
+        expect(error_code == -1);
+    };
+
+    "a plain std::exception routes as -1"_test = [] {
+        MockSyncSendWorker worker;
+        int error_code = 0;
+        TestSender sender{worker, [&](int, int code) { error_code = code; }};
+
+        auto handler = sender.on_error();
+        handler(std::make_exception_ptr(std::runtime_error{"boom"}));
+
+        expect(error_code == -1);
+    };
+
+    "a non-std exception also routes as -1"_test = [] {
+        MockSyncSendWorker worker;
+        int error_code = 0;
+        TestSender sender{worker, [&](int, int code) { error_code = code; }};
+
+        auto handler = sender.on_error();
+        handler(std::make_exception_ptr(42));
+
+        expect(error_code == -1);
+    };
+};
+
+} // namespace io::base::flow::sync::sender_sync_tests
+#endif

@@ -1,0 +1,39 @@
+component: Skeleton
+flutter_name: HeroSkeleton
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/skeleton.css"
+  files: [tool/sources/heroui-skeleton.css]
+  docs: https://heroui.com/en/docs/react/components/skeleton
+
+anatomy:
+  - placeholder box (rounded-sm 4, bg-surface-tertiary at 70% opacity)
+  - optional shimmer sweep / pulse overlay
+
+kinds: none (single component)
+default: -
+
+sizes: none (caller sizes; no fixed height in skeleton.css)
+default: -
+
+states: n/a
+
+tokens:
+  role: [color.surfaceTertiary]
+  component: [radius.skeleton.radius (4), double.skeleton.opacity (0.7)]
+  type: []
+
+non_token_measurements:
+  - hand-written widget: Remix has no skeleton; the box + animation are built
+    directly from resolved tokens
+  - shimmer = white 50%-alpha gradient translating across the box, 2s linear
+    (--animate-skeleton); pulse = opacity 0.55..0.85
+
+behavior: pointer-events none; reduced-motion disables the animation
+  (HeroMotion.reducedMotionOf).
+
+approximations:
+  - the source's `mix-blend-mode: overlay` shimmer is approximated with a plain
+    translucent white sweep (no blend mode)
+  - the parent-synchronized shimmer (`&:has(.skeleton)`) is not implemented

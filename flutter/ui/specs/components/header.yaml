@@ -1,0 +1,32 @@
+component: header
+flutter_name: HeroHeader
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/header.css"
+  files: [tool/sources/heroui-header.css]
+  docs: https://heroui.com/en/docs/react/components/header
+
+anatomy:
+  - (none)
+
+kinds:
+  color: muted
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - w-full px-2 pb-1 pt-1.5
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

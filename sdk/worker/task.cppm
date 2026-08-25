@@ -7,6 +7,9 @@ export module congelado_worker:task;
 import std;
 import core_plugin;
 import core_ffi;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::worker {
 
@@ -477,3 +480,228 @@ struct core::ffi::Exported<congelado::worker::TaskRunner> {
         return runner;
     }
 };
+
+// TaskRunner keeps only non-owning ITaskWorker* pointers (addTaskWorker's contract, see its own
+// doc comment) and fires every still-registered worker's on_released() from its own destructor —
+// so every RecordingWorker fixture below is declared BEFORE the TaskRunner that registers it, in
+// each test's local scope, so the runner (constructed later, hence destroyed first) never
+// outlives a worker it might still call back into during its own teardown sweep.
+#ifdef CONGELADO_TEST
+namespace congelado::worker::tests {
+using namespace boost::ut;
+
+// Records what TaskRunner::execute() actually did to it, and can be told to throw on demand —
+// stands in for a real CONGELADO_TASK plugin without needing dlopen/FFI at all.
+class RecordingWorker final : public ITaskWorker {
+  public:
+    explicit RecordingWorker(std::string type) : m_type{std::move(type)} {}
+
+    [[nodiscard]] std::string_view get_task_type() const noexcept override { return m_type; }
+
+    [[nodiscard]] TaskOutput execute(TaskInput const &input) override {
+        m_executed = true;
+        TaskOutput output;
+        if (auto value = input.get<std::string>("echo")) {
+            output.set(std::string{"echo"}, *value);
+        }
+        if (m_should_throw) {
+            throw std::runtime_error("boom");
+        }
+        return output;
+    }
+
+    [[nodiscard]] std::function<void()> on_released() override {
+        return [this] { m_released = true; };
+    }
+
+    [[nodiscard]] std::function<void(std::exception_ptr)> on_error() override {
+        return [this](std::exception_ptr) { m_error_fired = true; };
+    }
+
+    void setShouldThrow(bool value) noexcept { m_should_throw = value; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix)
+
+    [[nodiscard]] bool getExecuted() const noexcept { return m_executed; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix)
+    [[nodiscard]] bool getReleased() const noexcept { return m_released; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix)
+    [[nodiscard]] bool getErrorFired() const noexcept { return m_error_fired; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix)
+
+  private:
+    std::string m_type;
+    bool m_should_throw{false};
+    bool m_executed{false};
+    bool m_released{false};
+    bool m_error_fired{false};
+};
+
+// Backing storage for a mock CONGELADO_TASK-ABI `congelado_worker_execute` symbol —
+// `detail::WorkerExecuteFn` is a plain C function pointer (`CongeladoConfigView(*)(const
+// CongeladoConfigView*)`), not a std::function, so a captureless free function is what's needed
+// to stand in for a dlopen'd plugin here without touching dlopen/FFI at all.
+constexpr const char *const OVERSIZED_KEYS[] = {"k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7"};
+constexpr const char *const OVERSIZED_VALUES[] = {"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"};
+
+// Stands in for a plugin whose `execute` symbol reports `count` = the full size of its backing
+// buffer, regardless of the real input — every slot is a real, valid, non-null C string, so this
+// is a safe OOB-*shaped* demonstration (no genuine out-of-bounds read happens), but it exercises
+// detail::FfiWorker::execute()'s `for (i < out.count) result.set(out.keys[i], out.values[i])`
+// loop (see that method's own doc) with a `count`/`keys`/`values` triple that's fully
+// plugin-controlled and never cross-checked against anything — no cap on `count`, no check that
+// it matches the real input size, nothing.
+CongeladoConfigView mock_exec_oversized_count(const CongeladoConfigView * /*in*/) {
+    return CongeladoConfigView{
+        .keys = OVERSIZED_KEYS, .values = OVERSIZED_VALUES, .count = std::size(OVERSIZED_KEYS)};
+}
+
+suite<"FfiWorker (detail) execute() ABI trust"> ffi_worker_suite = [] {
+    // Regression/design-gap marker, NOT a fix: proves detail::FfiWorker::execute() has no upper
+    // bound or sanity check on a plugin-reported `out.count` before walking `out.keys`/
+    // `out.values` — every one of the mock's 8 oversized-but-safely-backed entries lands in the
+    // result, with nothing in execute() questioning whether that count makes any sense for the
+    // (empty) input it was given.
+    "execute() walks every entry the plugin's out.count claims, with no validation against the "
+    "real input"_test = [] {
+        detail::FfiWorker worker{"oversized", &mock_exec_oversized_count};
+
+        std::unordered_map<std::string, std::string> data;
+        TaskInput input{data};
+        auto output = worker.execute(input);
+
+        expect(output.get_data().size() == std::size(OVERSIZED_KEYS));
+        for (std::size_t i = 0; i < std::size(OVERSIZED_KEYS); ++i) {
+            expect(output.get_data().at(OVERSIZED_KEYS[i]) == OVERSIZED_VALUES[i]);
+        }
+    };
+};
+
+suite<"TaskInput"> task_input_suite = [] {
+    "has() and get<std::string>() read from the backing map"_test = [] {
+        std::unordered_map<std::string, std::string> data{{"name", "congelado"}, {"count", "3"}};
+        TaskInput input{data};
+
+        expect(input.has("name"));
+        expect(not input.has("missing"));
+        expect(input.get<std::string>("name").value() == "congelado");
+        expect(not input.get<std::string>("missing").has_value());
+    };
+
+    "get<T>() parses numeric and bool values, nullopt on a bad parse"_test = [] {
+        std::unordered_map<std::string, std::string> data{
+            {"count", "42"}, {"ratio", "0.5"}, {"enabled", "true"}, {"disabled", "false"},
+            {"garbage", "not-a-number"}};
+        TaskInput input{data};
+
+        expect(input.get<int>("count").value() == 42);
+        expect(input.get<double>("ratio").value() == 0.5);
+        expect(input.get<bool>("enabled").value() == true);
+        expect(input.get<bool>("disabled").value() == false);
+        expect(not input.get<int>("garbage").has_value());
+    };
+
+    "get_data_map() exposes the whole backing map"_test = [] {
+        std::unordered_map<std::string, std::string> data{{"key", "value"}};
+        TaskInput input{data};
+
+        expect(input.get_data_map().size() == 1);
+        expect(input.get_data_map().at("key") == "value");
+    };
+};
+
+suite<"TaskOutput"> task_output_suite = [] {
+    "set() stringifies strings, bools, and everything else"_test = [] {
+        TaskOutput output;
+        output.set(std::string{"name"}, std::string{"congelado"});
+        output.set(std::string{"enabled"}, true);
+        output.set(std::string{"disabled"}, false);
+        output.set(std::string{"count"}, 7);
+
+        expect(output.get_data().at("name") == "congelado");
+        expect(output.get_data().at("enabled") == "true");
+        expect(output.get_data().at("disabled") == "false");
+        expect(output.get_data().at("count") == "7");
+    };
+
+    "set() overwrites an existing key rather than duplicating it"_test = [] {
+        TaskOutput output;
+        output.set(std::string{"key"}, std::string{"first"});
+        output.set(std::string{"key"}, std::string{"second"});
+
+        expect(output.get_data().size() == 1);
+        expect(output.get_data().at("key") == "second");
+    };
+};
+
+suite<"TaskRunner"> task_runner_suite = [] {
+    "worker id round-trips through the ctor and setWorkerId"_test = [] {
+        TaskRunner runner{"worker-a"};
+        expect(runner.getWorkerId() == "worker-a");
+
+        runner.setWorkerId("worker-b");
+        expect(runner.getWorkerId() == "worker-b");
+    };
+
+    "addTaskWorker registers a worker that getTaskTypes/has_task_type then reflect"_test = [] {
+        RecordingWorker worker{"echo"};
+        TaskRunner runner;
+        runner.addTaskWorker(&worker);
+
+        expect(runner.has_task_type("echo"));
+        expect(not runner.has_task_type("missing"));
+        expect(runner.getTaskTypes().size() == 1);
+        expect(runner.getTaskTypes()[0] == "echo");
+        expect(runner.getTaskWorker("echo") == &worker);
+        expect(runner.getTaskWorker("missing") == nullptr);
+    };
+
+    "addTaskWorker replaces an existing worker registered for the same task type"_test = [] {
+        RecordingWorker first{"echo"};
+        RecordingWorker second{"echo"};
+        TaskRunner runner;
+        runner.addTaskWorker(&first);
+        runner.addTaskWorker(&second);
+
+        expect(runner.getTaskTypes().size() == 1);
+        expect(runner.getTaskWorker("echo") == &second);
+    };
+
+    "execute dispatches to the matching worker and fires on_released"_test = [] {
+        RecordingWorker worker{"echo"};
+        TaskRunner runner;
+        runner.addTaskWorker(&worker);
+
+        std::unordered_map<std::string, std::string> data{{"echo", "hi"}};
+        TaskInput input{data};
+        auto result = runner.execute("echo", input);
+
+        expect(result.has_value());
+        expect(result->get_data().at("echo") == "hi");
+        expect(worker.getExecuted());
+        expect(worker.getReleased());
+        expect(not worker.getErrorFired());
+    };
+
+    "execute returns nullopt for an unregistered task type"_test = [] {
+        TaskRunner runner;
+        std::unordered_map<std::string, std::string> data;
+        TaskInput input{data};
+
+        auto result = runner.execute("missing", input);
+        expect(not result.has_value());
+    };
+
+    "execute catches a thrown exception: fires on_error and on_released, returns nullopt"_test = [] {
+        RecordingWorker worker{"boom"};
+        worker.setShouldThrow(true);
+        TaskRunner runner;
+        runner.addTaskWorker(&worker);
+
+        std::unordered_map<std::string, std::string> data;
+        TaskInput input{data};
+        auto result = runner.execute("boom", input);
+
+        expect(not result.has_value());
+        expect(worker.getErrorFired());
+        expect(worker.getReleased());
+    };
+};
+
+} // namespace congelado::worker::tests
+#endif

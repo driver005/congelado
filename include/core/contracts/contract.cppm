@@ -8,6 +8,9 @@ import core_events;
 import core_logger;
 import shared;
 import :consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 
 export namespace core::contract {

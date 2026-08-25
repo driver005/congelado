@@ -3,6 +3,9 @@ module;
 #include <congelado/abi.h>
 export module core_plugin:value;
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::plugin {
 
@@ -567,6 +570,19 @@ class HandleTable {
      */
     void map_set(int64_t handle, std::string_view key, const CongeladoAny &value) {
         auto map = get_as<std::shared_ptr<Map>>(handle);
+        // AnyConverter::from_any() only understands the raw-pointer CG_MAP/CG_ARRAY tags, not
+        // the handle-id CG_MAP_HANDLE/CG_ARRAY_HANDLE tags returned by map_create()/array_create()
+        // — routing those through from_any() fell into its unrecognized-tag fallback and silently
+        // stored a null void* instead of the nested container, discovered while testing a nested
+        // table round-trip. Resolve the handle id directly instead.
+        if (value.type_index == CG_MAP_HANDLE) {
+            map->set(std::string{key}, get_as<std::shared_ptr<Map>>(value.v_int64));
+            return;
+        }
+        if (value.type_index == CG_ARRAY_HANDLE) {
+            map->set(std::string{key}, get_as<std::shared_ptr<Array>>(value.v_int64));
+            return;
+        }
         map->set(std::string{key}, AnyConverter::from_any(value));
     }
 
@@ -581,12 +597,29 @@ class HandleTable {
      */
     [[nodiscard]] CongeladoAny map_get(int64_t handle, std::string_view key) {
         auto map = get_as<std::shared_ptr<Map>>(handle);
-        const auto RESULT = map->get(key);
+        // Borrow straight from the Map's own backing storage (get_entries()) rather than
+        // through Map::get()'s by-value std::optional<Value> — borrowing into that temporary's
+        // owned Value would dangle the instant this function returns.
+        const auto &entries = map->get_entries();
+        auto it = entries.find(std::string{key});
         // Missing key isn't an error here — just hand back a zeroed CongeladoAny.
-        if (!RESULT.has_value()) {
+        if (it == entries.end()) {
             return CongeladoAny{};
         }
-        return AnyConverter::to_any_borrow(*RESULT);
+        // to_any_borrow() tags a nested Map/Array as CG_MAP/CG_ARRAY (a raw, non-owning
+        // pointer) — but callers that came in through map_set()'s CG_MAP_HANDLE resolution
+        // (see above) only understand handle ids, not raw pointers, and have no HandleTable
+        // API to operate on one. Discovered via a lua_bridge round-trip test silently losing
+        // nested tables. Alias the same shared_ptr under a fresh handle id instead, matching
+        // get_map_keys()'s existing fresh-handle pattern; the caller is expected to
+        // handle_free() it once done, same as any other handle this table hands out.
+        if (auto *nested_map = std::get_if<std::shared_ptr<Map>>(&it->second)) {
+            return CongeladoAny{.type_index = CG_MAP_HANDLE, .v_int64 = insert(*nested_map)};
+        }
+        if (auto *nested_array = std::get_if<std::shared_ptr<Array>>(&it->second)) {
+            return CongeladoAny{.type_index = CG_ARRAY_HANDLE, .v_int64 = insert(*nested_array)};
+        }
+        return AnyConverter::to_any_borrow(it->second);
     }
 
     /**
@@ -648,6 +681,16 @@ class HandleTable {
      */
     void array_push(int64_t handle, const CongeladoAny &value) {
         auto arr = get_as<std::shared_ptr<Array>>(handle);
+        // Same handle-id-vs-raw-pointer tag mismatch as map_set() above — resolve
+        // CG_MAP_HANDLE/CG_ARRAY_HANDLE directly instead of routing through from_any().
+        if (value.type_index == CG_MAP_HANDLE) {
+            arr->push(get_as<std::shared_ptr<Map>>(value.v_int64));
+            return;
+        }
+        if (value.type_index == CG_ARRAY_HANDLE) {
+            arr->push(get_as<std::shared_ptr<Array>>(value.v_int64));
+            return;
+        }
         arr->push(AnyConverter::from_any(value));
     }
 
@@ -674,13 +717,24 @@ class HandleTable {
      */
     [[nodiscard]] CongeladoAny array_get(int64_t handle, int64_t index) {
         auto arr = get_as<std::shared_ptr<Array>>(handle);
-        const auto RESULT = arr->get(static_cast<std::size_t>(index));
+        // Borrow straight from the Array's own backing storage (get_items()) rather than
+        // through Array::get()'s by-value std::optional<Value> — same dangling-temporary
+        // reasoning as map_get() above.
+        auto items = arr->get_items();
         // Out-of-range index isn't an error here either — same zeroed fallback
         // pattern as map_get().
-        if (!RESULT.has_value()) {
+        if (index < 0 || static_cast<std::size_t>(index) >= items.size()) {
             return CongeladoAny{};
         }
-        return AnyConverter::to_any_borrow(*RESULT);
+        // Same handle-id-vs-raw-pointer fix as map_get() above.
+        auto &item = items[static_cast<std::size_t>(index)];
+        if (auto *nested_map = std::get_if<std::shared_ptr<Map>>(&item)) {
+            return CongeladoAny{.type_index = CG_MAP_HANDLE, .v_int64 = insert(*nested_map)};
+        }
+        if (auto *nested_array = std::get_if<std::shared_ptr<Array>>(&item)) {
+            return CongeladoAny{.type_index = CG_ARRAY_HANDLE, .v_int64 = insert(*nested_array)};
+        }
+        return AnyConverter::to_any_borrow(item);
     }
 
     // ── const char* key overloads ───────────────────────────────────────
@@ -818,4 +872,150 @@ class HandleTable {
 };
 
 } // namespace core::plugin
+
+#ifdef CONGELADO_TEST
+namespace core::plugin::tests {
+using namespace boost::ut;
+
+suite<"Map"> map_suite = [] {
+    "starts empty"_test = [] {
+        Map map;
+        expect(map.get_size() == 0);
+        expect(not map.get("missing").has_value());
+    };
+    "set then get round-trips a value, overwriting on repeat set"_test = [] {
+        Map map;
+        map.set("a", Int{1});
+        map.set("a", Int{2});
+
+        expect(map.get_size() == 1);
+        auto val = map.get("a");
+        expect(val.has_value());
+        expect(std::get<Int>(*val).m_value == 2);
+    };
+};
+
+suite<"Array"> array_suite = [] {
+    "starts empty"_test = [] {
+        Array arr;
+        expect(arr.get_size() == 0);
+        expect(not arr.get(0).has_value());
+    };
+    "push appends, get retrieves by index"_test = [] {
+        Array arr;
+        arr.push(Int{10});
+        arr.push(Str{"x"});
+
+        expect(arr.get_size() == 2);
+        expect(std::get<Int>(*arr.get(0)).m_value == 10);
+        expect(std::get<Str>(*arr.get(1)).m_value == "x");
+        expect(not arr.get(2).has_value());
+    };
+};
+
+suite<"ValueTraits<bool>"> value_traits_bool_suite = [] {
+    "to_value wraps as Bool"_test = [] {
+        auto val = ValueTraits<bool>::to_value(true);
+        expect(std::get<Bool>(val).m_value);
+    };
+    "from_value accepts Bool directly and Int as nonzero-coercion"_test = [] {
+        expect(ValueTraits<bool>::from_value(Bool{true}));
+        expect(not ValueTraits<bool>::from_value(Bool{false}));
+        expect(ValueTraits<bool>::from_value(Int{5}));
+        expect(not ValueTraits<bool>::from_value(Int{0}));
+    };
+    "from_value throws for anything else"_test = [] {
+        expect(throws<std::runtime_error>([] { ValueTraits<bool>::from_value(Str{"x"}); }));
+    };
+};
+
+suite<"ValueTraits<integral/floating> to_value"> value_traits_numeric_to_value_suite = [] {
+    // from_value on these two specializations is documented dead/broken code (missing `static`,
+    // wrong member name) that can't be called without a hard compile error — see the
+    // @warning on ValueTraits<T>::from_value in this file. to_value is unaffected and correct.
+    "integral to_value wraps as Int"_test = [] {
+        expect(std::get<Int>(ValueTraits<int>::to_value(42)).m_value == 42);
+    };
+    "floating-point to_value wraps as Float"_test = [] {
+        expect(std::get<Float>(ValueTraits<double>::to_value(1.5)).m_value == 1.5);
+    };
+};
+
+suite<"ValueTraits<std::string>"> value_traits_string_suite = [] {
+    "to_value/from_value round-trip"_test = [] {
+        auto val = ValueTraits<std::string>::to_value("hello");
+        expect(ValueTraits<std::string>::from_value(val) == "hello");
+    };
+    "from_value throws for a non-Str value"_test = [] {
+        expect(throws<std::runtime_error>([] { ValueTraits<std::string>::from_value(Int{1}); }));
+    };
+};
+
+suite<"AnyConverter"> any_converter_suite = [] {
+    "from_any maps every scalar tag to the matching Value alternative"_test = [] {
+        expect(std::holds_alternative<None>(AnyConverter::from_any(CongeladoAny{.type_index = CG_NONE})));
+        expect(std::get<Int>(AnyConverter::from_any(CongeladoAny{.type_index = CG_INT, .v_int64 = 7})).m_value ==
+               7);
+        expect(std::get<Float>(
+                   AnyConverter::from_any(CongeladoAny{.type_index = CG_FLOAT, .v_float64 = 2.5}))
+                   .m_value == 2.5);
+    };
+    "to_any round-trips an Int Value back to a CongeladoAny"_test = [] {
+        Value val = Int{99};
+        auto any = AnyConverter::to_any(val);
+        expect(any.type_index == CG_INT);
+        expect(any.v_int64 == 99);
+    };
+};
+
+// NOTE(findings): the CongeladoAny*-taking overloads of map_set/map_get/array_push/array_get/
+// handle_free (~line 731-823) dereference handler/key/value with zero null checks — a null
+// CongeladoAny* crashes the process immediately. Not exercised here per the "never trigger real
+// memory corruption/crash" safety constraint; comment-only.
+suite<"HandleTable"> handle_table_suite = [] {
+    "map_create/map_set/map_get/get_map_size round-trip"_test = [] {
+        HandleTable table;
+        auto handle = table.map_create();
+        expect(handle.type_index == CG_MAP_HANDLE);
+
+        table.map_set(handle.v_int64, "key", CongeladoAny{.type_index = CG_INT, .v_int64 = 42});
+        auto result = table.map_get(handle.v_int64, "key");
+        expect(result.type_index == CG_INT);
+        expect(result.v_int64 == 42);
+
+        auto size = table.get_map_size(handle.v_int64);
+        expect(size.v_int64 == 1);
+    };
+    "map_get on a missing key returns a zeroed CongeladoAny"_test = [] {
+        HandleTable table;
+        auto handle = table.map_create();
+        auto result = table.map_get(handle.v_int64, "missing");
+        expect(result.type_index == CG_NONE);
+    };
+    "array_create/array_push/array_get/get_array_size round-trip"_test = [] {
+        HandleTable table;
+        auto handle = table.array_create();
+        table.array_push(handle.v_int64, CongeladoAny{.type_index = CG_INT, .v_int64 = 1});
+        table.array_push(handle.v_int64, CongeladoAny{.type_index = CG_INT, .v_int64 = 2});
+
+        expect(table.get_array_size(handle.v_int64).v_int64 == 2);
+        expect(table.array_get(handle.v_int64, 0).v_int64 == 1);
+        expect(table.array_get(handle.v_int64, 1).v_int64 == 2);
+    };
+    "handle_free drops the handle, later access throws"_test = [] {
+        HandleTable table;
+        auto handle = table.map_create();
+        table.handle_free(handle.v_int64);
+        expect(throws<std::out_of_range>([&] { [[maybe_unused]] auto result = table.get_map_size(handle.v_int64); }));
+    };
+    "get_as throws bad_any_cast for a mismatched handle type"_test = [] {
+        HandleTable table;
+        auto map_handle = table.map_create();
+        expect(throws<std::bad_any_cast>(
+            [&] { [[maybe_unused]] auto result = table.get_array_size(map_handle.v_int64); }));
+    };
+};
+
+} // namespace core::plugin::tests
+#endif
 // NOLINTEND(cppcoreguidelines-pro-type-union-access)

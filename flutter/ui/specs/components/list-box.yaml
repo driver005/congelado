@@ -1,0 +1,29 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/list-box.css"
+  files: [tool/sources/heroui-list-box.css]
+  docs: https://heroui.com/en/docs/react/components/list-box
+anatomy:
+  - container (relative w-full overflow-clip p-1)
+  - children spacing (mt-1 between direct children)
+
+kinds: none
+
+sizes: none
+default: -
+
+states: rest only (items carry their own states)
+
+tokens:
+  role: [-]
+  component: [space.1 (p-1 / mt-1)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - popover override p-1.5 (6) exposed as a padding parameter
+
+behavior: vertical list container for HeroListBoxItem / HeroListBoxSection; clips overflow.
+
+approximations:
+  - `overflow-clip` approximated with ClipRect

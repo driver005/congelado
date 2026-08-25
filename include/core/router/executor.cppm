@@ -4,6 +4,9 @@ import std;
 import interfaces;
 import shared;
 import :router;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::router {
 
@@ -119,3 +122,34 @@ class RouterExecutor : public shared::HandlerBase {
 };
 
 } // namespace core::router
+
+// enqueue()/on_execute() need a real interfaces::io::IRequest/IResponse pair — the only concrete
+// implementation lives in io::layer::http2, which needs a real socket/session, so only the
+// executor's idle-state bookkeeping is covered below.
+#ifdef CONGELADO_TEST
+namespace core::router::tests {
+using namespace boost::ut;
+
+suite<"RouterExecutor"> router_executor_suite = [] {
+    "starts idle, with no pending or in-flight work"_test = [] {
+        RouteHandler<> route_handler{};
+        RouterExecutor executor{&route_handler};
+        expect(executor.is_idle());
+    };
+
+    "get_name identifies this handler"_test = [] {
+        RouteHandler<> route_handler{};
+        RouterExecutor executor{&route_handler};
+        expect(executor.get_name() == "router_executor");
+    };
+
+    "set_wake accepts a callback without disturbing idle state"_test = [] {
+        RouteHandler<> route_handler{};
+        RouterExecutor executor{&route_handler};
+        executor.set_wake([] {});
+        expect(executor.is_idle());
+    };
+};
+
+} // namespace core::router::tests
+#endif

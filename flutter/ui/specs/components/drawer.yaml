@@ -1,0 +1,57 @@
+component: drawer
+flutter_name: HeroDrawer + showHeroDrawer
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/drawer.css"
+  files: [tool/sources/heroui-drawer.css]
+  docs: https://heroui.com/en/docs/react/components/drawer
+
+anatomy:
+  - backdrop (.drawer__backdrop: fullscreen bg-backdrop; --transparent no
+    tint, --opaque bg-backdrop, --blur backdrop-blur-md; opacity transition
+    250ms enter / 200ms exit, cubic-bezier(0.32,0.72,0,1))
+  - content (.drawer__content: fullscreen flex positioning wrapper,
+    pointer-events-none)
+  - dialog (.drawer__dialog: bg-overlay shadow-overlay p-6 flex-col;
+    left/right w-80 max-w-[85vw] sm:w-96 h-full rounded-none; top/bottom
+    w-full max-h-[85vh] with --radius-2xl corners on the anchored edge;
+    translate 100%/0 slide, 250ms enter / 200ms exit on the same ease)
+  - header (.drawer__header gap-3), heading (text-base font-medium
+    text-foreground), body (text-sm leading-[1.43] text-muted scrollable),
+    footer (flex-row justify-end gap-2, mt-5), handle (w-9 h-1 bg-separator),
+    close-trigger (absolute end-4 top-4)
+
+kinds: none
+default: -
+
+sizes: none (fixed w-80/sm:w-96 sides; full-width top/bottom)
+default: -
+
+states:
+  open/close (barrier dismissible); backdrop variants; drag-to-dismiss is
+  NOT implemented (HeroUI uses pointer-drag with velocity thresholds)
+
+tokens:
+  role: [color.overlay, color.backdrop, color.separator, color.foreground,
+    color.muted, color.transparent, shadow.overlay (per-theme)]
+  component: [radius.2xl (16, top/bottom corners), space.6 (24 padding),
+    space.4 (16 close-trigger offset), double.disabledOpacity]
+
+non_token_measurements:
+  - w-80 = 320 / sm:w-96 = 384 (640px breakpoint), max-w 85vw
+  - blur radius 12 (backdrop-blur-md)
+  - enter/exit durations 250ms/200ms with --drawer-enter/exit-ease =
+    cubic-bezier(0.32,0.72,0,1) (= heroEaseOutFluid)
+
+behavior:
+  showHeroDrawer uses showGeneralDialog (transparent route barrier + painted
+  backdrop so the blur variant can BackdropFilter); the panel slides via
+  FractionalTranslation driven by the route animation; content wrapped in
+  the ambient MixScope (token scope carried into the route).
+
+approximations:
+  - showGeneralDialog uses one transitionDuration for enter and exit, so the
+    exit runs at 250ms instead of the spec's 200ms
+  - drag-to-dismiss gesture not implemented
+  - blur backdrop approximates backdrop-blur-md with sigma 12

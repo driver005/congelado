@@ -26,6 +26,9 @@ module;
 export module io_base_leverage:types;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import shared;
 
 export namespace io::base::leverage {
@@ -773,3 +776,41 @@ class Leverager : public shared::HandlerBase {
 };
 
 } // namespace io::base::leverage
+
+#ifdef CONGELADO_TEST
+namespace io::base::leverage::tests {
+using namespace boost::ut;
+
+// Leverager<SharedContext> itself needs a live io_uring ring (or IOCP on win32) to do anything
+// meaningful, so it's not unit-testable in isolation — skipped here. panic()/panic_on_err()/
+// verbose_enabled() are pure logic with no syscalls involved, so those are covered for real.
+
+suite<"leverage_panic"> panic_suite = [] {
+    "panic_on_err does not throw on a non-negative result"_test = [] {
+        expect(nothrow([] { panic_on_err("op", 0); }));
+        expect(nothrow([] { panic_on_err("op", 42); }));
+    };
+
+    "panic_on_err throws std::system_error on a negative result"_test = [] {
+        expect(throws<std::system_error>([] { panic_on_err("op", -1); }));
+    };
+
+    "panic_on_err swallows EAGAIN when ignore_eagain is set"_test = [] {
+        expect(nothrow([] { panic_on_err("op", -EAGAIN, true); }));
+    };
+
+    "panic_on_err still throws EAGAIN when ignore_eagain is not set"_test = [] {
+        expect(throws<std::system_error>([] { panic_on_err("op", -EAGAIN, false); }));
+    };
+
+    "panic() itself always throws std::system_error"_test = [] {
+        expect(throws<std::system_error>([] { panic("boom", EINVAL); }));
+    };
+};
+
+suite<"leverage_verbose"> verbose_suite = [] {
+    "verbose_enabled is compiled off by default"_test = [] { expect(not verbose_enabled()); };
+};
+
+} // namespace io::base::leverage::tests
+#endif

@@ -1,0 +1,37 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/select.css"
+  files: [tool/sources/heroui-select.css]
+  docs: https://heroui.com/en/docs/react/components/select
+anatomy:
+  - container (flex-col gap-1: label + trigger + helper/error slots)
+  - trigger (min-h-9 rounded-field border bg-field px-3 py-2 text-sm shadow-field, hover bg-field-hover, pe-7 with indicator)
+  - value (flex-1 text-base sm:text-sm; placeholder text-field-placeholder)
+  - indicator (absolute end-2 size-4 text-field-placeholder, rotate-180 when open)
+  - popover (bg-overlay radius min(32px, radius-3xl) shadow-overlay, min-w trigger width)
+  - popup list (list-box p-1.5, items px-2.5, checkmark on selected)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-sm base)
+default: -
+
+states: rest | hover (bg-field-hover + border-field-hover) | focus-visible (status-focused) | open (indicator rotated) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.overlay, color.defaultForeground, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), radius.3xl (24 popover), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field, shadow.overlay]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - popover list-box padding p-1.5 (6) and item px-2.5 (10) are CSS literals
+  - chevron indicator is a Material icon (keyboard_arrow_down)
+
+behavior: anchored overlay popup (HeroPopup helper): opens on trigger tap, closes on outside tap or selection; popup min-width = trigger width; selecting an item fires onChanged and closes.
+
+approximations:
+  - popover enter 150ms ease-smooth / exit 100ms via HeroPopup (fade + zoom 95%)
+  - focus ring offset (see textarea)
+  - border-width-field 0px -> 1px transparent border
+  - selected state paints only the checkmark (v3 list-box-item.css has no selected background)

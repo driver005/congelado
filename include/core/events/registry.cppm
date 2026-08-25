@@ -2,6 +2,9 @@ export module core_events:registry;
 
 import std;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::events {
 
@@ -62,3 +65,86 @@ class EventBusRegistry {
 };
 
 } // namespace core::events
+
+#ifdef CONGELADO_TEST
+namespace core::events::tests {
+using namespace boost::ut;
+
+class EventBusRegistryFakeSink : public interfaces::IEventSink {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "fake"; }
+    void publish(std::string_view, std::string_view) noexcept override {}
+};
+
+suite<"EventBusRegistry"> registry_suite = [] {
+    "starts empty"_test = [] {
+        EventBusRegistry registry;
+        expect(not registry.has_sink());
+        expect(registry.get_sinks().empty());
+    };
+
+    "add_sink registers a sink"_test = [] {
+        EventBusRegistry registry;
+        registry.add_sink(std::make_shared<EventBusRegistryFakeSink>());
+
+        expect(registry.has_sink());
+        expect(registry.get_sinks().size() == 1);
+    };
+
+    "add_sink ignores a null sink"_test = [] {
+        EventBusRegistry registry;
+        registry.add_sink(nullptr);
+
+        expect(not registry.has_sink());
+    };
+
+    "multiple sinks accumulate in registration order"_test = [] {
+        EventBusRegistry registry;
+        auto first = std::make_shared<EventBusRegistryFakeSink>();
+        auto second = std::make_shared<EventBusRegistryFakeSink>();
+        registry.add_sink(first);
+        registry.add_sink(second);
+
+        expect(registry.get_sinks().size() == 2);
+        expect(registry.get_sinks()[0] == first);
+        expect(registry.get_sinks()[1] == second);
+    };
+
+    "set_active/get_active round-trip"_test = [] {
+        auto *previous = EventBusRegistry::get_active();
+
+        EventBusRegistry registry;
+        EventBusRegistry::set_active(&registry);
+        expect(EventBusRegistry::get_active() == &registry);
+
+        EventBusRegistry::set_active(nullptr);
+        expect(EventBusRegistry::get_active() == nullptr);
+
+        EventBusRegistry::set_active(previous);
+    };
+
+    // Documents that nothing in EventBusRegistry's lifecycle clears s_active automatically:
+    // destroying the actively-registered instance leaves the ambient pointer dangling until a
+    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
+    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
+    // reads get_active() while the pointer is dangling.
+    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test = [] {
+        auto *previous = EventBusRegistry::get_active();
+
+        {
+            EventBusRegistry registry;
+            EventBusRegistry::set_active(&registry);
+            expect(EventBusRegistry::get_active() == &registry);
+        } // registry destroyed here -- s_active still points at the freed instance, nothing
+          // clears it automatically
+
+        // Explicit cleanup the class itself never performs on destruction.
+        EventBusRegistry::set_active(nullptr);
+        expect(EventBusRegistry::get_active() == nullptr);
+
+        EventBusRegistry::set_active(previous);
+    };
+};
+
+} // namespace core::events::tests
+#endif

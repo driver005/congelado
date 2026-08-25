@@ -1,0 +1,48 @@
+component: disclosure
+flutter_name: HeroDisclosure
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/disclosure.css"
+  files: [tool/sources/heroui-disclosure.css]
+  docs: https://heroui.com/en/docs/react/components/disclosure
+
+anatomy:
+  - root (.disclosure relative, no surface container)
+  - trigger (.disclosure__trigger: inline-block no-highlight; focus ring;
+    disabled opacity 0.5)
+  - indicator (.disclosure__indicator: ms-auto size-4 text-inherit chevron,
+    rotates -180deg on expand, 250ms)
+  - content (.disclosure__content: height 200ms --ease-out-quad + opacity
+    200ms --ease-out)
+  - body (.disclosure__body: p-2)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states:
+  expanded/collapsed (controlled isExpanded or internal), disabled
+
+tokens:
+  role: [color.foreground, color.focus (ring)]
+  component: [space.2 (body p-2), space.4 (indicator size),
+    double.disabledOpacity (0.5)]
+
+non_token_measurements:
+  - panel animation 200ms height (ease-out-quad) + 200ms opacity (--ease-out);
+    chevron 250ms; AnimatedCrossFade approximates the panel transition
+
+behavior:
+  hand-rolled trigger (Focus + MouseRegion + GestureDetector with
+  Enter/Space keyboard activation); toggle via controlled isExpanded or
+  internal state; inside a HeroDisclosureGroup the group's inherited scope
+  drives expansion.
+
+approximations:
+  - the indicator sits at the inline-end (ms-auto intent) rather than
+    immediately after the text (CSS's inline-block + ms-auto is ambiguous)
+  - trigger title uses the ambient text-sm foreground (spec sets no font)

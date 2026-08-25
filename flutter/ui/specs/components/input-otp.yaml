@@ -1,0 +1,35 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/input-otp.css"
+  files: [tool/sources/heroui-input-otp.css]
+  docs: https://heroui.com/en/docs/react/components/input-otp
+anatomy:
+  - container (relative flex w-full items-center gap-2, disabled opacity-50)
+  - slot (h-10 w-9.5 border rounded-field bg-field shadow-field text-sm font-semibold; hover bg-field-hover; active bg-field-focus + status-focused-field; filled bg-field-focus)
+  - slot value (text-lg leading-6 tracking-[-0.27px], slot-value-in 250ms animation)
+  - caret (h-4 w-[2px] rounded-sm bg-field-placeholder, blinking)
+  - separator (h-[2px] w-[6px] rounded-sm bg-separator)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (slot 40x38px)
+default: -
+
+states: rest | hover (bg-field-hover) | active (bg-field-focus + ring) | filled (bg-field-focus) | invalid (status-invalid-field) | disabled (opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.separator, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), radius.sm (4), type.lg (18), weight.semibold, shadow.field]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - slot geometry 40x38 (w-9.5), caret 16x2, separator 2x6 are CSS literals
+  - blinking caret via a repeating AnimationController (animate-caret-blink has no token)
+
+behavior: value as a digit string; a hidden digits-only TextField owns focus/keyboard; tapping a slot places the caret; typing inserts at the caret; onChanged fires with the digits.
+
+approximations:
+  - caret blink timing/keyframes not in CSS (1s ease-in-out approximation)
+  - border-width-field 0px -> 1px transparent border
+  - slot-value-in 250ms reproduced via AnimatedSwitcher

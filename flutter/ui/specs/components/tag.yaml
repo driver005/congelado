@@ -1,0 +1,32 @@
+component: tag
+flutter_name: HeroTag
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/tag.css"
+  files: [tool/sources/heroui-tag.css]
+  docs: https://heroui.com/en/docs/react/components/tag
+
+anatomy:
+  - (none)
+
+kinds:
+  color: default | surface; selected -> accent-soft
+  default: -
+
+sizes: sm | md | lg
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - rounded-xl; lg -> rounded-2xl; hover bg-*-hover; optional remove button 12px
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

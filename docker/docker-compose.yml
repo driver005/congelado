@@ -243,12 +243,11 @@ services:
     networks:
       - congelado
 
-  # ── UI (Flutter shell) ────────────────────────────────────────────────────
-  # Static web build of app/ (docker/Dockerfile.ui), served over nginx — deliberately
-  # decoupled from the builder/server/worker chain: no shared build_output volume, no
-  # depends_on. The running shell talks to the engine's API straight from the browser (see
-  # plugins/*/ui/lib/api_client.dart's base URL), not container-to-container, so it doesn't
-  # need `server` up to start successfully — only later, when actually used.
+  # ── UI (Flutter app) ──────────────────────────────────────────────────────
+  # Static web build of flutter/ui/ (docker/Dockerfile.ui), served over nginx
+  # — deliberately decoupled from the builder/server/worker chain: no shared
+  # build_output volume, no depends_on. flutter/ui's Widgetbook catalogue is
+  # pure Flutter — no engine needed to run it.
   ui:
     image: localhost/congelado-ui:local
     build:

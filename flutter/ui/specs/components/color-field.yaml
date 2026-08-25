@@ -1,0 +1,45 @@
+component: color-field
+flutter_name: HeroColorField
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-field.css"
+  files: [tool/sources/heroui-color-field.css]
+  docs: https://heroui.com/en/docs/react/components/color-field
+
+anatomy:
+  - .color-field: flex flex-col gap-1 (4); label w-fit; full-width modifier
+  - field uses the shared input anatomy (input.css): bg-field, rounded-field (12), border field-border, shadow-field, px-3 py-2, text-base sm:text-sm, hover bg-field-hover + field-border-hover, focus status-focused-field ring + bg-field-focus, invalid status-invalid-field
+  - optional leading color swatch (prefix slot)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states:
+  - rest
+  - hover (bg-field-hover + field-border-hover)
+  - focus (accent ring via HeroFocusRing + bg-field-focus)
+  - invalid (danger outline + bg-field-focus)
+  - disabled
+
+tokens:
+  role: [colorField, colorFieldHover, colorFieldFocus, colorFieldBorder, colorFieldBorderHover, colorFieldForeground, colorFieldPlaceholder, colorDanger, colorFocus, colorForeground, colorMuted, radiusField, shadowField, doubleInputMinHeight, doubleInputPaddingX, doubleInputPaddingY, doubleBorderWidth, doubleInputFontSize, typeSm, typeXs, weightMedium]
+  component: []
+
+non_token_measurements:
+  - gap 4 (gap-1)
+  - field height 36 (doubleInputMinHeight), padding 12/8, radius 12
+
+behavior:
+  - parses #RRGGBB / #RRGGBBAA / RRGGBB hex; invalid partial input is ignored while typing
+  - clearing the field reports null (onChanged: Color?)
+  - external value changes re-sync the field text unless the user is mid-edit
+  - label + helper sit outside the focus ring (field box only)
+
+approximations:
+  - input reuses heroInputStyle (input.css anatomy); sm:text-sm resolves to 14px
+  - hex parsing limited to 6/8-digit hex forms

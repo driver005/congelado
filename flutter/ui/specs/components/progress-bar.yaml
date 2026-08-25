@@ -1,0 +1,32 @@
+component: progress-bar
+flutter_name: HeroProgress
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/progress-bar.css"
+  files: [tool/sources/heroui-progress-bar.css]
+  docs: https://heroui.com/en/docs/react/components/progress
+
+anatomy:
+  - track (h-2 rounded-sm bg-default) + fill (width = value%, accent, rounded-sm)
+
+kinds:
+  color: accent | default | success | warning | danger (--progress-bar-fill)
+  default: accent
+
+sizes: track height 8 (h-2)
+default: -
+
+states: rest only; width transition 300ms ease-out
+
+tokens:
+  role: [color.accent, color.default, color.success, color.warning, color.danger]
+  component: [double.progress.trackHeight, radius.progress.radius]
+
+non_token_measurements:
+  - fill width animated via RemixProgress with 300ms ease-out
+
+behavior: determinate 0..1; indeterminate spin not exposed.
+
+approximations:
+  - none material

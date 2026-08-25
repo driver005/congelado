@@ -34,9 +34,13 @@ class IEventSink {
     [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
 
     /**
-     * @brief Publishes one event. Fire-and-forget from the caller's perspective — a sink that
-     * can't reach its backend (broker down, no connection) just drops the event and logs its own
-     * warning, same "optional infra degrades gracefully" story as `IDatabase`/`ISearchProvider`.
+     * @brief Publishes one event. Fire-and-forget from the caller's perspective.
+     * @note Reaching the backend at connect time is a hard requirement for network-backed sinks
+     * (redis/kafka/rabbitmq) — their `on_load()` throws and aborts host startup if it can't
+     * connect, same "don't run without it" contract `IDatabase`'s postgres backend already has.
+     * Once connected, though, a sink that later loses that connection mid-flight still degrades
+     * gracefully here in `publish()` — drops the event and logs its own warning, rather than
+     * crashing the app on every transient broker hiccup.
      * @param event_name the published event's name (this codebase's own convention is a dotted,
      * hierarchical string, e.g. `"engine.workflow.started"` — not enforced here, just a
      * convention callers follow).

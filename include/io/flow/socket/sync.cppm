@@ -13,6 +13,9 @@ import interfaces;
 import shared;
 import hashmap;
 import utils_errno_translator;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::base::flow::sync {
 
@@ -1257,3 +1260,166 @@ class ClientFlowSocket {
 };
 
 } // namespace io::base::flow::sync
+
+#ifdef CONGELADO_TEST
+namespace io::base::flow::sync::socket_sync_tests {
+
+using namespace boost::ut;
+
+// ServerBaseSocket, ClientBaseSocket, ServerFlowSocket, and ClientFlowSocket are all hardcoded
+// (not template-parameterized on a mockable leverager, unlike Receiver/Sender's Worker param) to
+// take a real `Leverager&` (= `leverage::Leverager<leverage::Context>&`) in their constructors,
+// and every one of them immediately opens a real socket / does real address resolution in that
+// constructor (e.g. ServerBaseSocket's ctor: `socket::Socket<Protocol, true>{std::move(end),
+// std::ref(leverager)}`). Constructing a `Leverager<Context>` requires a live io_uring ring — the
+// exact same "not unit-testable in isolation" situation `io_base_leverage`'s own test block
+// documents for `Leverager<Context>` itself, and the same reason `Flow` (io/flow/flow.cppm)
+// skips runtime construction. There is no injection point to route around this (no mock
+// leverager type accepted anywhere), so none of these four classes' constructors — and by
+// extension none of their methods — can be exercised here. This was genuinely attempted: every
+// constructor and method of all four was traced above before reaching this conclusion; it's not
+// a blanket skip.
+//
+// ConnectorSocket and WorkerSocket, by contrast, don't need a Leverager at all — they're built
+// directly from an already-obtained `socket::Socket<Protocol>` value, and `socket::Socket`'s
+// default constructor is a real, documented, no-syscall "empty/invalid socket" placeholder (see
+// its own doc comment: "so sync_accept()/async_accept() have something to hand back... without
+// needing std::optional<Socket>"). That makes both classes constructible and partially testable
+// below.
+//
+// This also rules out a UAF-design-gap test (same structural pattern as Connector's/the async
+// Receiver's) for `ServerFlowSocket::helper()`/`ClientFlowSocket::helper()`'s nested
+// accept→handshake→worker-construction `this`-captures (see helper()'s own @warning above): both
+// are private, only reachable through a real, un-constructible `ServerFlowSocket`/
+// `ClientFlowSocket`. There's no mock seam anywhere in this chain — `ServerBaseSocket`,
+// `ClientBaseSocket`, and the `Leverager<Context>` they wrap are all concrete, non-virtual, and
+// require a live io_uring ring — so this finding is documented here rather than faked with
+// something that wouldn't reach the real code path.
+
+suite<"ConnectorSocket (sync)"> connector_socket_suite = [] {
+    "get_name() returns the fixed display name"_test = [] {
+        ConnectorSocket<socket::Protocol::TCP> connector{
+            socket::Socket<socket::Protocol::TCP>{}, [](socket::Socket<socket::Protocol::TCP>) {}};
+
+        expect(connector.get_name() == "ConnectorSocket - Sync");
+    };
+
+    "get_fd() reflects the wrapped (default, invalid) socket's fd"_test = [] {
+        ConnectorSocket<socket::Protocol::TCP> connector{
+            socket::Socket<socket::Protocol::TCP>{}, [](socket::Socket<socket::Protocol::TCP>) {}};
+
+        expect(connector.get_fd() == socket::INVALID_SOCKET);
+    };
+
+    "set_on_released() wires the hook on_released() fires"_test = [] {
+        ConnectorSocket<socket::Protocol::TCP> connector{
+            socket::Socket<socket::Protocol::TCP>{}, [](socket::Socket<socket::Protocol::TCP>) {}};
+        int released_calls = 0;
+        connector.set_on_released([&] { ++released_calls; });
+
+        auto released = connector.on_released();
+        released();
+
+        expect(released_calls == 1);
+    };
+
+    "on_released() with no hook set is a harmless no-op"_test = [] {
+        ConnectorSocket<socket::Protocol::TCP> connector{
+            socket::Socket<socket::Protocol::TCP>{}, [](socket::Socket<socket::Protocol::TCP>) {}};
+
+        auto released = connector.on_released();
+        expect(nothrow([&] { released(); }));
+    };
+
+    // handshake()/on_execute() both drive `m_socket.sync_handshake()`, which operates on the
+    // socket's OpenSSL SSL* state — null on a default-constructed socket (only real
+    // sync_accept()/sync_connect() results carry a live SSL object). Calling either here would
+    // dereference a null SSL* inside OpenSSL — genuine undefined behavior, not a corner case —
+    // and this file has no way to hand ConnectorSocket a real, live, handshaking TLS socket
+    // without an actual OS connection. Left unexercised.
+};
+
+suite<"WorkerSocket (sync) construction/build"> worker_socket_ctor_suite = [] {
+    "the no-callback ctor leaves both halves unbuilt: build() throws"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{}};
+
+        expect(throws<std::runtime_error>([&] { worker.build(); }));
+    };
+
+    "the two-error-callback ctor still throws: the receiver still needs on_read"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{},
+                                                    [](int, int) {}, [](int, int) {}};
+
+        expect(throws<std::runtime_error>([&] { worker.build(); }));
+    };
+
+    "wiring the remaining read callback via add_on_read() lets build() succeed"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{},
+                                                    [](int, int) {}, [](int, int) {}};
+        worker.add_on_read([](utils::buffering::BufferReader &) {});
+
+        expect(nothrow([&] { worker.build(); }));
+    };
+
+    "the fully-wired ctor calls build() itself and doesn't throw"_test = [] {
+        expect(nothrow([&] {
+            WorkerSocket<socket::Protocol::TCP> worker{
+                socket::Socket<socket::Protocol::TCP>{}, [](utils::buffering::BufferReader &) {},
+                [](int, int) {}, [](int, int) {}};
+        }));
+    };
+
+    "add_on_send_error()/add_on_receive_error() forward to the sender/receiver"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{}};
+        worker.add_on_send_error([](int, int) {});
+        worker.add_on_receive_error([](int, int) {});
+        worker.add_on_read([](utils::buffering::BufferReader &) {});
+
+        expect(nothrow([&] { worker.build(); }));
+    };
+};
+
+suite<"WorkerSocket (sync) accessors/lifecycle"> worker_socket_lifecycle_suite = [] {
+    "get_fd() reflects the wrapped (default, invalid) socket's fd"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{}};
+
+        expect(worker.get_fd() == socket::INVALID_SOCKET);
+    };
+
+    "get_sender()/get_receiver() expose the underlying halves' state"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{},
+                                                    [](int, int) {}, [](int, int) {}};
+
+        // Sender's error-only ctor and Receiver's error-only ctor both start open.
+        expect(!worker.get_sender().get_closed());
+        expect(!worker.get_receiver().get_closed());
+    };
+
+    "mark_close() closes both the sender and the receiver"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{
+            socket::Socket<socket::Protocol::TCP>{}, [](utils::buffering::BufferReader &) {},
+            [](int, int) {}, [](int, int) {}};
+
+        worker.mark_close();
+
+        expect(worker.get_sender().get_closed());
+        expect(worker.get_receiver().get_closed());
+    };
+
+    "contracts_idle() is true before start() has ever registered a contract"_test = [] {
+        WorkerSocket<socket::Protocol::TCP> worker{socket::Socket<socket::Protocol::TCP>{}};
+
+        expect(worker.contracts_idle());
+    };
+
+    // start(Controller&) registers the sender/receiver against a controller by
+    // `m_sender_contract.emplace(m_sender.template create<Controller>(controller))` — the target
+    // is the concrete `core::contract::Contract<>` type, not whatever the Controller's create()
+    // happens to return, so a lightweight mock controller (the kind used in
+    // shared/handler.cppm's own tests) doesn't type-check here: only a controller wired to a real
+    // contract pool produces a `Contract<>`. That's a real scheduling subsystem, not something
+    // this file's mocking can safely stand in for, so start() is left unexercised.
+};
+
+} // namespace io::base::flow::sync::socket_sync_tests
+#endif

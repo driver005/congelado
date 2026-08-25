@@ -1,0 +1,36 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/autocomplete.css"
+  files: [tool/sources/heroui-autocomplete.css]
+  docs: https://heroui.com/en/docs/react/components/autocomplete
+anatomy:
+  - container (flex-col gap-1: label + trigger + helper/error slots)
+  - trigger (min-h-9 rounded-field border bg-field px-3 py-2 text-sm shadow-field, hover bg-field-hover, pe-7 with indicator)
+  - value (flex-1 text-base sm:text-sm; placeholder text-field-placeholder)
+  - indicator (absolute end-2 size-4 text-field-placeholder, rotate-180 when open)
+  - clear button (size-5 rounded-xl bg-transparent text-muted, hover bg-default-hover, icon size-3.5, hidden when empty)
+  - popover (bg-overlay radius 24 shadow-overlay pt-2, w = trigger width; list-box max-h-[320px] p-1.5, items px-2.5)
+  - empty state (text-center text-sm text-overlay-foreground/60)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-sm base)
+default: -
+
+states: rest | hover (bg-field-hover) | focus (status-focused-field) | open (indicator rotated) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.overlay, color.overlayForeground, color.defaultForeground, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), radius.3xl (24 popover), radius.xl (12 clear button), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field, shadow.overlay]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - popover max-height 320px and list-box/item paddings (6/10) are literals
+  - icons are Material icons (search/close/chevron)
+
+behavior: typing filters the suggestion list (label contains, case-insensitive); focus/tap opens the popup; selecting a suggestion fills the field, fires onSelected and closes; the clear button empties the field.
+
+approximations:
+  - enter 250ms ease-out-fluid / exit 100ms via HeroPopup (CSS exit uses ease-out-quad)
+  - empty state is a literal string ('No results found.')

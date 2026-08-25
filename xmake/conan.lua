@@ -12,6 +12,10 @@ function build_conan_settings()
 		},
 		options = {
 			"openssl/*:enable_quic=True",
+			-- Only the LLVMSupport component (SmallVector/SmallString/StringRef's
+			-- out-of-line malloc-based growth helpers live here) — the full "all" default
+			-- builds every LLVM tool/target backend, which nothing in this repo needs.
+			"llvm-core/*:components=Support",
 		},
 		build = "missing",
 	}

@@ -6,6 +6,9 @@ export module utils_openapi:schema;
 import std;
 import serde;
 import :model;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace utils::openapi::detail {
 
@@ -131,6 +134,10 @@ template <typename T>
         schema.set_items(build_schema<typename Decayed::value_type>());
     } else if constexpr (detail::IS_STRING_MAP_V<Decayed>) {
         schema.set_type("object");
+    } else if constexpr (std::same_as<Decayed, serde::Value>) {
+        // Dynamic value objects — a jsonb-typed task input — can't be reflected into fixed
+        // properties, so they map to a bare `{"type":"object"}` with no property list.
+        schema.set_type("object");
     } else if constexpr (std::same_as<Decayed, bool>) {
         schema.set_type("boolean");
     } else if constexpr (std::floating_point<Decayed>) {
@@ -147,3 +154,48 @@ template <typename T>
 }
 
 } // namespace utils::openapi
+
+// build_schema<T>()'s ISerializable branch (named $ref schemas via reflect-cpp) needs a real
+// serde::Serializable<T> specialization and touches the process-wide SchemaRegistry singleton —
+// covered indirectly wherever a real serde-reflectable type gets schema'd elsewhere in the
+// codebase. What's tested here is the primitive/optional/vector/map branches, which are pure
+// compile-time dispatch with no reflection or shared state involved.
+#ifdef CONGELADO_TEST
+namespace utils::openapi::tests {
+using namespace boost::ut;
+
+suite<"build_schema primitives"> build_schema_primitives_suite = [] {
+    "bool maps to boolean"_test = [] { expect(build_schema<bool>().get_type() == "boolean"); };
+    "integral types map to integer"_test = [] {
+        expect(build_schema<int>().get_type() == "integer");
+        expect(build_schema<std::uint64_t>().get_type() == "integer");
+    };
+    "floating-point types map to number"_test = [] {
+        expect(build_schema<double>().get_type() == "number");
+        expect(build_schema<float>().get_type() == "number");
+    };
+    "string falls back to the string type"_test = [] {
+        expect(build_schema<std::string>().get_type() == "string");
+    };
+};
+
+suite<"build_schema optional/vector/map"> build_schema_containers_suite = [] {
+    "optional<T> derives T's schema and marks it nullable"_test = [] {
+        auto schema = build_schema<std::optional<int>>();
+        expect(schema.get_type() == "integer");
+        expect(schema.get_nullable());
+    };
+    "vector<T> becomes an array with T's schema as items"_test = [] {
+        auto schema = build_schema<std::vector<std::string>>();
+        expect(schema.get_type() == "array");
+        expect(schema.get_items() != nullptr);
+        expect(schema.get_items()->get_type() == "string");
+    };
+    "string-keyed maps become a bare object"_test = [] {
+        expect(build_schema<std::unordered_map<std::string, int>>().get_type() == "object");
+        expect(build_schema<std::map<std::string, int>>().get_type() == "object");
+    };
+};
+
+} // namespace utils::openapi::tests
+#endif

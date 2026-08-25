@@ -1,6 +1,9 @@
 export module interfaces:io_dispatch;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import :io_request;
 import :io_response;
 
@@ -187,3 +190,81 @@ class DispatchFunction {
 };
 
 } // namespace interfaces::io
+
+#ifdef CONGELADO_TEST
+namespace interfaces::io::tests {
+using namespace boost::ut;
+
+suite<"DispatchResult"> dispatch_result_suite = [] {
+    "default-constructed and ready() are both immediately ready"_test = [] {
+        DispatchResult default_result;
+        auto ready_result = DispatchResult::ready();
+
+        expect(default_result.is_ready());
+        expect(ready_result.is_ready());
+    };
+
+    "pending() is not ready until subscribed"_test = [] {
+        auto result = DispatchResult::pending([](ResponseCompleter) {});
+
+        expect(not result.is_ready());
+    };
+
+    "subscribe() on a pending result invokes on_ready synchronously with the completer"_test = [] {
+        bool on_ready_called = false;
+        auto result = DispatchResult::pending([&on_ready_called](ResponseCompleter completer) {
+            on_ready_called = true;
+            expect(static_cast<bool>(completer));
+        });
+
+        std::move(result).subscribe([](ResponseWriter) {});
+
+        expect(on_ready_called);
+    };
+
+    "subscribe() on an already-ready result is a no-op"_test = [] {
+        bool completer_called = false;
+        auto result = DispatchResult::ready();
+
+        std::move(result).subscribe([&completer_called](ResponseWriter) { completer_called = true; });
+
+        expect(not completer_called);
+    };
+};
+
+suite<"DispatchFunction"> dispatch_function_suite = [] {
+    "default-constructed and nullptr-constructed are both empty"_test = [] {
+        DispatchFunction default_fn;
+        DispatchFunction null_fn{nullptr};
+
+        expect(not static_cast<bool>(default_fn));
+        expect(not static_cast<bool>(null_fn));
+    };
+
+    "wrapping a void handler always reports ready()"_test = [] {
+        bool called = false;
+        DispatchFunction dispatch{[&called](IRequest &, IResponse &) { called = true; }};
+        IRequest req;
+        IResponse res;
+
+        expect(static_cast<bool>(dispatch));
+        auto result = dispatch(req, res);
+
+        expect(called);
+        expect(result.is_ready());
+    };
+
+    "wrapping a DispatchResult-returning handler passes the result through"_test = [] {
+        DispatchFunction dispatch{
+            [](IRequest &, IResponse &) { return DispatchResult::pending([](ResponseCompleter) {}); }};
+        IRequest req;
+        IResponse res;
+
+        auto result = dispatch(req, res);
+
+        expect(not result.is_ready());
+    };
+};
+
+} // namespace interfaces::io::tests
+#endif

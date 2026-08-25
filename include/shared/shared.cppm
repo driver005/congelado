@@ -1,6 +1,7 @@
 export module shared;
 
 export import :handler;
+export import :task_queue;
 export import :transport;
 export import :types;
 export import :flow;

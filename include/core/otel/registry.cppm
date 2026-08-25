@@ -2,6 +2,9 @@ export module core_otel:registry;
 
 import std;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::otel {
 
@@ -170,3 +173,195 @@ class LogRecordRegistry {
 };
 
 } // namespace core::otel
+
+#ifdef CONGELADO_TEST
+namespace core::otel::tests {
+using namespace boost::ut;
+
+class RegistryFakeTracerProvider : public interfaces::ITracerProvider {
+  public:
+    [[nodiscard]] std::shared_ptr<interfaces::ISpan>
+    start_span(std::string_view, interfaces::SpanKind, const interfaces::SpanContext &,
+              std::span<const interfaces::Attribute>) override {
+        return nullptr;
+    }
+};
+
+class RegistryFakeMeterProvider : public interfaces::IMeterProvider {
+  public:
+    [[nodiscard]] std::shared_ptr<interfaces::ICounter>
+    create_counter(std::string_view, std::string_view, std::string_view) override {
+        return nullptr;
+    }
+    [[nodiscard]] std::shared_ptr<interfaces::IHistogram>
+    create_histogram(std::string_view, std::string_view, std::string_view) override {
+        return nullptr;
+    }
+};
+
+class RegistryFakeLogRecordProvider : public interfaces::ILogRecordProvider {
+  public:
+    void emit(const interfaces::LogRecord &) noexcept override {}
+};
+
+suite<"TracerRegistry"> tracer_registry_suite = [] {
+    "starts empty"_test = [] {
+        TracerRegistry registry;
+        expect(not registry.has_provider());
+        expect(registry.get_providers().empty());
+    };
+
+    "add_provider registers a provider, add_provider(nullptr) is a no-op"_test = [] {
+        TracerRegistry registry;
+        registry.add_provider(nullptr);
+        expect(not registry.has_provider());
+
+        registry.add_provider(std::make_shared<RegistryFakeTracerProvider>());
+        expect(registry.has_provider());
+        expect(registry.get_providers().size() == 1);
+    };
+
+    "set_active/get_active round-trip"_test = [] {
+        auto *previous = TracerRegistry::get_active();
+
+        TracerRegistry registry;
+        TracerRegistry::set_active(&registry);
+        expect(TracerRegistry::get_active() == &registry);
+
+        TracerRegistry::set_active(previous);
+    };
+
+    // Documents that nothing in TracerRegistry's lifecycle clears s_active automatically:
+    // destroying the actively-registered instance leaves the ambient pointer dangling until a
+    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
+    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
+    // reads get_active() while the pointer is dangling.
+    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test = [] {
+        auto *previous = TracerRegistry::get_active();
+
+        {
+            TracerRegistry registry;
+            TracerRegistry::set_active(&registry);
+            expect(TracerRegistry::get_active() == &registry);
+        } // registry destroyed here -- s_active still points at the freed instance, nothing
+          // clears it automatically
+
+        // Explicit cleanup the class itself never performs on destruction.
+        TracerRegistry::set_active(nullptr);
+        expect(TracerRegistry::get_active() == nullptr);
+
+        TracerRegistry::set_active(previous);
+    };
+};
+
+suite<"MeterRegistry"> meter_registry_suite = [] {
+    "starts empty"_test = [] {
+        MeterRegistry registry;
+        expect(not registry.has_provider());
+        expect(registry.get_providers().empty());
+    };
+
+    "add_provider registers a provider, add_provider(nullptr) is a no-op"_test = [] {
+        MeterRegistry registry;
+        registry.add_provider(nullptr);
+        expect(not registry.has_provider());
+
+        registry.add_provider(std::make_shared<RegistryFakeMeterProvider>());
+        expect(registry.has_provider());
+        expect(registry.get_providers().size() == 1);
+    };
+
+    "set_active/get_active round-trip"_test = [] {
+        auto *previous = MeterRegistry::get_active();
+
+        MeterRegistry registry;
+        MeterRegistry::set_active(&registry);
+        expect(MeterRegistry::get_active() == &registry);
+
+        MeterRegistry::set_active(previous);
+    };
+
+    // Documents that nothing in MeterRegistry's lifecycle clears s_active automatically:
+    // destroying the actively-registered instance leaves the ambient pointer dangling until a
+    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
+    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
+    // reads get_active() while the pointer is dangling.
+    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test = [] {
+        auto *previous = MeterRegistry::get_active();
+
+        {
+            MeterRegistry registry;
+            MeterRegistry::set_active(&registry);
+            expect(MeterRegistry::get_active() == &registry);
+        } // registry destroyed here -- s_active still points at the freed instance, nothing
+          // clears it automatically
+
+        // Explicit cleanup the class itself never performs on destruction.
+        MeterRegistry::set_active(nullptr);
+        expect(MeterRegistry::get_active() == nullptr);
+
+        MeterRegistry::set_active(previous);
+    };
+};
+
+suite<"LogRecordRegistry"> log_record_registry_suite = [] {
+    "starts empty"_test = [] {
+        LogRecordRegistry registry;
+        expect(not registry.has_provider());
+    };
+
+    "add_provider registers a provider, add_provider(nullptr) is a no-op"_test = [] {
+        LogRecordRegistry registry;
+        registry.add_provider(nullptr);
+        expect(not registry.has_provider());
+
+        registry.add_provider(std::make_shared<RegistryFakeLogRecordProvider>());
+        expect(registry.has_provider());
+        expect(registry.get_providers().size() == 1);
+    };
+
+    "clear drops every registered provider"_test = [] {
+        LogRecordRegistry registry;
+        registry.add_provider(std::make_shared<RegistryFakeLogRecordProvider>());
+        expect(registry.has_provider());
+
+        registry.clear();
+
+        expect(not registry.has_provider());
+    };
+
+    "set_active/get_active round-trip"_test = [] {
+        auto *previous = LogRecordRegistry::get_active();
+
+        LogRecordRegistry registry;
+        LogRecordRegistry::set_active(&registry);
+        expect(LogRecordRegistry::get_active() == &registry);
+
+        LogRecordRegistry::set_active(previous);
+    };
+
+    // Documents that nothing in LogRecordRegistry's lifecycle clears s_active automatically:
+    // destroying the actively-registered instance leaves the ambient pointer dangling until a
+    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
+    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
+    // reads get_active() while the pointer is dangling.
+    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test = [] {
+        auto *previous = LogRecordRegistry::get_active();
+
+        {
+            LogRecordRegistry registry;
+            LogRecordRegistry::set_active(&registry);
+            expect(LogRecordRegistry::get_active() == &registry);
+        } // registry destroyed here -- s_active still points at the freed instance, nothing
+          // clears it automatically
+
+        // Explicit cleanup the class itself never performs on destruction.
+        LogRecordRegistry::set_active(nullptr);
+        expect(LogRecordRegistry::get_active() == nullptr);
+
+        LogRecordRegistry::set_active(previous);
+    };
+};
+
+} // namespace core::otel::tests
+#endif

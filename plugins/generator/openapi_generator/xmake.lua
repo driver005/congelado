@@ -11,6 +11,16 @@ apply_common_layer_settings({
 	targetdir = shared_plugin_dir,
 })
 add_deps("congelado_sdk")
-add_files("src/**.cc", "src/**.cppm")
+add_files("bin/**.cc", "src/**.cppm")
 remove_files("src/build.cc")
 target_end()
+
+-- openapi_generator_test: recompiles bin/**.cc + src/**.cppm with CONGELADO_TEST defined. See
+-- apply_test_target in xmake/common.lua.
+apply_test_target({
+	name = "openapi_generator",
+	layer = "openapi_generator",
+	deps = { "congelado_sdk" },
+	files = { "bin/**.cc", "src/**.cppm" },
+	remove = { "src/build.cc" },
+})

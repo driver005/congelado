@@ -1,0 +1,29 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/switch-group.css"
+  files: [tool/sources/heroui-switch-group.css]
+  docs: https://heroui.com/en/docs/react/components/switch-group
+anatomy:
+  - group (flex flex-col gap-6 = 24)
+  - items (flex gap-4 = 16; flex-row / flex-col per orientation)
+
+kinds: none
+
+sizes: none
+default: -
+
+states: rest only (items carry their own states)
+
+tokens:
+  role: [color.muted (description/error), color.danger]
+  component: [space.6 (24), space.4 (16), type.xs, type.sm]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - none
+
+behavior: column (default) or row of HeroSwitches with a 16px gap; optional label/description/error slots.
+
+approximations:
+  - switch items are bare controls (no label slot on HeroSwitch)

@@ -1,0 +1,53 @@
+component: calendar-year-picker
+flutter_name: HeroCalendarYearPicker
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/calendar-year-picker.css"
+  files: [tool/sources/heroui-calendar-year-picker.css]
+  docs: https://heroui.com/en/docs/react/components/calendar-year-picker
+
+anatomy:
+  - .calendar-year-picker__trigger: flex flex-1 items-center justify-start gap-1 (4) rounded-lg (8); focus status-focused (the calendar header toggle)
+  - .calendar-year-picker__trigger-heading: text-sm (14) font-medium; color transitions to accent-soft-foreground when open
+  - .calendar-year-picker__trigger-indicator: text-xs (12) text-accent-soft-foreground chevron; rotates 90deg when open (150ms ease-out)
+  - .calendar-year-picker__year-grid: absolute, 3-column grid (grid-template-columns: repeat(3, 1fr)), gap-1 (4), p-1 (4), scrollable, 20 visible years, overlay over the day grid
+  - .calendar-year-picker__year-cell: h-8 (32) px-2.5 (10) rounded-3xl (24) text-sm (14) font-medium
+
+kinds:
+  color: color:outline
+  default: -
+
+sizes: none
+default: -
+
+states:
+  - rest
+  - hover (hover + fine pointer only, not selected): bg-default text-default-foreground
+  - selected: bg-accent text-accent-foreground; hover -> bg-accent-hover
+  - focus-visible: status-focused (2px focus ring)
+  - disabled: status-disabled
+
+tokens:
+  role: [colorAccent, colorAccentForeground, colorAccentHover, colorDefault, colorDefaultForeground, colorForeground, colorFocus, colorAccentSoftForeground, doubleDisabledOpacity, radiusLg, space1, typeSm, typeXs, weightMedium]
+  component: [space1=4 (gap-1/p-1), radiusLg=8 (trigger rounded-lg), typeSm=14 (heading/cell), typeXs=12 (indicator), weightMedium=500]
+
+non_token_measurements:
+  - year grid 3 columns, gap 4, padding 4
+  - year cell height 32 (h-8), horizontal padding 10 (px-2.5), radius 24 (rounded-3xl)
+  - 20 visible years (react-aria default visibleYears)
+  - grid height 220 default (6 rows of 32 + gaps + padding — matches the day-grid area it overlays)
+  - color/scale transitions 100ms --ease-smooth (same as .tag)
+
+behavior:
+  - standalone (non-overlay) 3-column year grid centered on the focused year
+  - tapping a year calls onYearSelected(year)
+  - selected year gets the accent fill; hover (unselected) bg-default
+  - scrollable within a fixed-height container (source overlays the day grid)
+  - disabled: 50% opacity, not interactive
+  - the source's trigger (heading + rotating chevron) is omitted from the standalone widget — it belongs to the calendar header composition
+
+approximations:
+  - year page = 20 years centered on the focused year (react-aria pages around the focused date)
+  - trigger/heading/chevron slots not rendered standalone (they only make sense embedded in a calendar header)
+  - crossfade/blur between day grid and year grid (driven by CSS :has) not reproduced

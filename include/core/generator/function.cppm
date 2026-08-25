@@ -2,6 +2,9 @@ export module core_generator:function;
 
 import std;
 import :statement;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::generator {
 
@@ -195,3 +198,45 @@ class Function {
 };
 
 } // namespace core::generator
+
+#ifdef CONGELADO_TEST
+namespace core::generator::tests {
+using namespace boost::ut;
+
+suite<"Function"> function_suite = [] {
+    "block render includes the params, body, and trailing blank line"_test = [] {
+        Function func{"void", "doThing"};
+        func.add_param(Param{"int", "value"});
+        func.add_statement(Stmt::return_stmt());
+
+        expect(func.get_name() == "doThing");
+        expect(func.get_return_type() == "void");
+        expect(func.render(0) == "void doThing(int value) {\n    return;\n}\n\n");
+    };
+
+    "nodiscard/static/const/noexcept qualifiers render in order"_test = [] {
+        Function func{"int", "getCount"};
+        func.set_nodiscard().set_static().set_const().set_noexcept();
+
+        expect(func.is_const());
+        expect(func.render(0) == "[[nodiscard]] static int getCount() const noexcept {\n}\n\n");
+    };
+
+    "reference return type skips the extra space before the name"_test = [] {
+        Function func{"const std::string &", "getName"};
+
+        expect(func.render(0) == "const std::string &getName() {\n}\n\n");
+    };
+
+    "inline mode squashes statements onto a single line"_test = [] {
+        Function func{"void", "setX"};
+        func.set_inline();
+        func.add_param(Param{"int", "value"});
+        func.add_statement(Stmt::expr("m_x = value"));
+
+        expect(func.render(4) == "    void setX(int value) { m_x = value; }\n");
+    };
+};
+
+} // namespace core::generator::tests
+#endif

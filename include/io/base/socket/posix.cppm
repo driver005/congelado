@@ -10,6 +10,9 @@ module;
 export module io_base_socket:posix;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import io_error;
 import core_events;
 import core_logger;
@@ -63,3 +66,27 @@ inline void set_non_blocking_impl(SOCKET socket, bool non_blocking) {
 }
 
 } // namespace io::base::socket
+
+#ifdef CONGELADO_TEST
+namespace io::base::socket::tests {
+using namespace boost::ut;
+
+// closesocket()/ioctlsocket()/set_non_blocking_impl() all need a live socket fd to do anything
+// meaningful — not unit-testable in isolation, skipped here. get_error_code() just reads back
+// thread-local errno, no syscall involved, so that's covered for real.
+
+suite<"get_error_code"> get_error_code_suite = [] {
+    "reflects whatever errno currently holds"_test = [] {
+        errno = EINVAL;
+        expect(get_error_code() == EINVAL);
+
+        errno = EAGAIN;
+        expect(get_error_code() == EAGAIN);
+
+        errno = 0;
+        expect(get_error_code() == 0);
+    };
+};
+
+} // namespace io::base::socket::tests
+#endif

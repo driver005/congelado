@@ -1,0 +1,36 @@
+component: disclosure-group
+flutter_name: HeroDisclosureGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/disclosure-group.css"
+  files: [tool/sources/heroui-disclosure-group.css]
+  docs: https://heroui.com/en/docs/react/components/disclosure-group
+
+anatomy:
+  - container (.disclosure-group w-full, contain layout style) — thin
+    wrapper over HeroDisclosure children
+
+kinds: none
+default: -
+
+sizes: none
+default: -
+
+states:
+  expansion set shared across children; allowsMultipleExpanded (default
+  true) — single-open when false (react-aria DisclosureGroup)
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - none (spec is container-only)
+
+behavior:
+  stateful group exposing {index, expanded, onToggle} via an inherited
+  scope; each HeroDisclosure child binds automatically.
+
+approximations:
+  - no CSS-level group API; behavior mirrors react-aria DisclosureGroup

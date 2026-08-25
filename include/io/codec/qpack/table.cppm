@@ -4,6 +4,9 @@ import std;
 import io_codec_shared;
 import interfaces;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::codec::qpack {
 
@@ -577,3 +580,169 @@ class QPackTable {
 };
 
 } // namespace io::codec::qpack
+
+#ifdef CONGELADO_TEST
+namespace io::codec::qpack::tests {
+using namespace boost::ut;
+
+suite<"QPackTable defaults"> qpack_table_defaults_suite = [] {
+    "starts with zero capacity and no dynamic entries by default"_test = [] {
+        QPackTable table;
+
+        expect(table.dynamic_count() == 0);
+        expect(table.used() == 0);
+        expect(table.insert_count() == 0);
+        expect(table.max_size() == 0);
+    };
+};
+
+suite<"QPackTable static lookups"> qpack_table_static_suite = [] {
+    "operator[] resolves a static-table index"_test = [] {
+        QPackTable table;
+        auto field = table.operator[]<false, true>(17);
+
+        expect(field.has_value());
+        expect((*field)->get_name() == interfaces::io::types::Token::METHOD);
+        expect((*field)->get_value() == "GET");
+    };
+
+    "operator[] returns nullopt for a static index past the table"_test = [] {
+        QPackTable table;
+        auto field = table.operator[]<false, true>(9999);
+
+        expect(not field.has_value());
+    };
+
+    "at resolves a static-table index"_test = [] {
+        QPackTable table;
+        auto field = table.at<false, true>(17);
+
+        expect(field->get_value() == "GET");
+    };
+
+    "at throws for a static index past the table"_test = [] {
+        QPackTable table;
+        expect(throws<std::out_of_range>([&] { [[maybe_unused]] auto field = table.at<false, true>(9999); }));
+    };
+};
+
+suite<"QPackTable dynamic inserts"> qpack_table_insert_suite = [] {
+    "inserting a name/value pair grows the table and returns index 0 for the first entry"_test = [] {
+        QPackTable table{4096};
+
+        std::size_t idx = table.insert("x-custom", "value1");
+
+        expect(idx == 0);
+        expect(table.dynamic_count() == 1);
+        expect(table.insert_count() == 1);
+        expect(table.used() > 0);
+    };
+
+    "inserting a pre-built field works too"_test = [] {
+        QPackTable table{4096};
+        auto field = std::make_shared<interfaces::io::HeaderField<true>>(
+            interfaces::io::types::Token::HOST, "example.com");
+
+        std::size_t idx = table.insert(field);
+
+        expect(idx == 0);
+        expect(table.dynamic_count() == 1);
+    };
+
+    "an entry too big for the table's budget gets evicted immediately and reports SIZE_MAX"_test = [] {
+        QPackTable table{16};
+
+        std::size_t idx = table.insert("a", "b");
+
+        expect(idx == shared_codec::SIZE_MAX);
+        expect(table.dynamic_count() == 0);
+    };
+};
+
+suite<"QPackTable search"> qpack_table_search_suite = [] {
+    "search finds a static full match"_test = [] {
+        QPackTable table;
+        auto result = table.search("cache-control", "no-cache");
+
+        expect(result.found());
+        expect(result.is_static());
+        expect(result.is_full_match());
+    };
+
+    "search finds a dynamic full match after insert"_test = [] {
+        QPackTable table{4096};
+        table.insert("x-custom", "value1");
+
+        auto result = table.search("x-custom", "value1");
+
+        expect(result.found());
+        expect(not result.is_static());
+        expect(result.is_full_match());
+    };
+
+    "search falls back to name-only when only the name matches"_test = [] {
+        QPackTable table{4096};
+        table.insert("x-custom", "value1");
+
+        auto result = table.search("x-custom", "different-value");
+
+        expect(result.found());
+        expect(not result.is_full_match());
+    };
+
+    "search reports a total miss as not found"_test = [] {
+        QPackTable table;
+        auto result = table.search("x-totally-unknown-header", "whatever");
+
+        expect(not result.found());
+    };
+};
+
+suite<"QPackTable RIC encode/decode"> qpack_table_ric_suite = [] {
+    "zero RIC encodes and decodes to zero"_test = [] {
+        QPackTable table{4096};
+
+        expect(table.encode_ric(0) == 0);
+        expect(table.decode_ric(0) == 0);
+    };
+
+    "encode_ric then decode_ric round-trips a small insert count"_test = [] {
+        QPackTable table{4096};
+        table.insert("h1", "v1");
+        table.insert("h2", "v2");
+        table.insert("h3", "v3");
+
+        std::size_t ric = table.insert_count();
+        std::size_t encoded = table.encode_ric(ric);
+
+        expect(table.decode_ric(encoded) == ric);
+    };
+
+    "is_ready reflects whether the decoder has caught up to a RIC"_test = [] {
+        QPackTable table{4096};
+        table.insert("h1", "v1");
+
+        expect(table.is_ready(1));
+        expect(not table.is_ready(2));
+    };
+};
+
+suite<"QPackTable resizing"> qpack_table_resize_suite = [] {
+    "set_max_size evicts oldest entries until usage fits"_test = [] {
+        QPackTable table{4096};
+        table.insert("h1", "v1");
+        table.insert("h2", "v2");
+        table.insert("h3", "v3");
+
+        expect(table.dynamic_count() == 3);
+
+        table.set_max_size(0);
+
+        expect(table.dynamic_count() == 0);
+        expect(table.used() == 0);
+        expect(table.max_size() == 0);
+    };
+};
+
+} // namespace io::codec::qpack::tests
+#endif

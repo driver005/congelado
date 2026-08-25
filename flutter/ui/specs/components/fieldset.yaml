@@ -1,0 +1,32 @@
+component: fieldset
+flutter_name: HeroFieldset
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/fieldset.css"
+  files: [tool/sources/heroui-fieldset.css]
+  docs: https://heroui.com/en/docs/react/components/fieldset
+
+anatomy:
+  - (none)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - flex flex-col grow gap-6
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

@@ -10,5 +10,15 @@ apply_common_layer_settings({
 	core_packages = { "librdkafka" },
 })
 add_deps("congelado_sdk")
-add_files("src/**.cc")
+add_files("bin/**.cc")
 target_end()
+
+-- kafka_events_test: recompiles bin/**.cc with CONGELADO_TEST defined. See apply_test_target in
+-- xmake/common.lua.
+apply_test_target({
+	name = "kafka_events",
+	layer = "kafka_events_plugin",
+	core_packages = { "librdkafka" },
+	deps = { "congelado_sdk" },
+	files = { "bin/**.cc" },
+})

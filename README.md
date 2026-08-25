@@ -6,9 +6,9 @@
 fleet that executes tasks straight off the wire. No cap, no legacy header soup.**
 
 [![license](https://img.shields.io/badge/license-OCNAL%20v1.0-blue)](LICENSE)
-[![language](https://img.shields.io/badge/language-C%2B%2B26-00599C)](xmake.lua)
-[![build](https://img.shields.io/badge/build-xmake-orange)](https://xmake.io)
-[![modules](https://img.shields.io/badge/modules-native%20C%2B%2B%20modules-6f42c1)](xmake.lua)
+[![language](https://img.shields.io/badge/language-C%2B%2B26-00599C)](MODULE.bazel)
+[![build](https://img.shields.io/badge/build-Bazel-43A047)](https://bazel.build)
+[![modules](https://img.shields.io/badge/modules-native%20C%2B%2B%20modules-6f42c1)](bazel/)
 
 </div>
 
@@ -68,22 +68,30 @@ construction. If you're not on Arch, a container is the path of least resistance
 
 | Tool | Version |
 |---|---|
-| xmake | 3.0.9+ |
+| Bazel | 9.x+ (via `bazelisk` — resolves the pin in `.bazelversion`) |
+| xmake (legacy compatibility) | 3.0.9+ |
 | Conan | 2.21.0+ |
 | clang / clang++ | 22.1.8+ |
 | LLD | 22.1.7+ |
 
 **System packages** (`pacman -S --needed ...`), pulled straight from what the project's
 own Docker builder installs (`docker/Dockerfile.server`) plus the bare-metal `makefile`
-dependency target:
+dependency target. `bazelisk` is the authoritative build's toolchain; `ccache` is required
+by `.bazelrc`'s `CC`/`CXX` wiring (uncached compiles of the vendored LLVM/XLA dep graph are
+brutally slow) — `mold` is an optional faster alternative to `lld` (`bazel build
+--config=mold //...`):
 
 ```bash
 sudo pacman -S --needed \
+  bazelisk ccache mold \
   xmake conan curl wget git unzip base-devel readline cmake ninja pkgconf \
   liburing python python-pip clang lld libc++ libc++abi tk nasm \
   libfontenc libice libsm libxaw libxcomposite libxcursor libxdamage libxtst \
   libxinerama libxkbfile libxrandr libxres xcb-util-wm xcb-util-image \
   xcb-util-keysyms xcb-util-renderutil libxxf86vm libxv xcb-util xcb-util-cursor
+
+# ccache's default 5G cache is too small for this dep graph — bump it once:
+ccache --max-size=60G
 ```
 
 The X11/xcb chain isn't decorative — cpython's Tk support pulls it in transitively at
@@ -138,26 +146,30 @@ it. Not a footgun, just a one-liner you'll run again eventually.
 # 1. Install system + toolchain deps, detect the Conan profile
 make dependency
 
-# 2. Configure xmake (pulls every Conan package on first run)
-make install
+# 2. Build with the authoritative Bazel workflow (default: fast, unoptimized fastbuild)
+bazel build //...
 
-# 3. Build everything
-make build
+# ...or make build-debug / make build-prod for --config=debug (-g, gdb-ready)
+# / --config=prod (-O3, stripped)
 
-# 4. Run the engine
-make run
+# 3. Run the C++ test suite
+bazel test //...
 
-# ...or run a worker against it
-make run-worker
-
-# Debug build + gdb
-make debug
-
-# Regenerate compile_commands.json for your editor
+# Generate compile_commands.json for your editor
 make editor
 
+# The legacy xmake workflow remains available when needed:
+make xmake-install
+make xmake-build
+
+# Debug build + gdb
+make xmake-debug
+
+# Regenerate compile_commands.json for your editor
+make xmake-editor
+
 # Run the C++ test suite
-make test
+make xmake-test
 
 # Run the Insomnia-scripted API suite against a running server (needs the modern `inso`
 # CLI, >= 10; see below). Start a server first (e.g. `make compose-release-up`).
@@ -199,7 +211,7 @@ Runs under `uv run` (auto-installs its `pyyaml` dep) or any `python3` with `pyya
   after its healthcheck — this replaces the former `docker/test/run.sh` curl harness.
 
 > Note: the suite is meant to run against the compose **release** stack (with Postgres and
-> the other backends wired). The local debug + AddressSanitizer `make run` server is too slow
+> the other backends wired). The local debug + AddressSanitizer `make xmake-run` server is too slow
 > under HTTP/2 load for the full suite.
 
 ## UI
@@ -209,15 +221,17 @@ shell — as ordinary hand-written Flutter code, strictly independent of the C++
 plugin's C++ sources live under `plugins/<name>/src/`; a plugin that wants UI adds a sibling
 `plugins/<name>/ui/` Dart package (see `plugins/engine/ui/` as the reference example) that
 talks to that plugin's own REST endpoints with plain `package:http` — no code generation, no
-FFI, no engine involvement at all. `app/` is the one Flutter project (see `app/README.md`)
-that all of this compiles into, spanning web, desktop, and mobile from a single codebase.
+FFI, no engine involvement at all. `flutter/ui/` is the one Flutter app (see
+`flutter/ui/README.md`): the `congelado_hero_ui` design-system package, also runnable as an
+app — `lib/main.dart` launches its Widgetbook catalogue (web, desktop, mobile from a single
+codebase).
 
 ```bash
-# One-time: scaffold app/'s platform runner folders (needs the Flutter SDK)
-cd app && flutter create --platforms=web,linux,windows,macos,android,ios --project-name congelado_app . && cd ..
+# One-time: scaffold flutter/ui/'s platform runner folders (needs the Flutter SDK)
+cd flutter/ui && flutter create --platforms=web,linux,windows,macos,android,ios --project-name congelado_hero_ui . && cd ..
 
-# Run the shell against a live engine (start one with `make run` first)
-make ui-run
+# Run the Widgetbook catalogue (needs no engine — pure Flutter)
+make ui-catalogue
 
 # Build for web
 make ui-build-web

@@ -1,0 +1,50 @@
+component: color-input-group
+flutter_name: HeroColorInputGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-input-group.css"
+  files: [tool/sources/heroui-color-input-group.css]
+  docs: https://heroui.com/en/docs/react/components/color-input-group
+
+anatomy:
+  - .color-input-group: inline-flex h-9 (36) items-center overflow-hidden rounded-field (12) border bg-field text-sm text-field-foreground shadow-field outline-none; border-width var(--border-width-field) (1), border-color field-border
+  - transitions: background-color 150ms ease-smooth, border-color 150ms ease-smooth, box-shadow 150ms ease-out
+  - __input: flex h-full flex-1 transparent, px-3 py-2, text-base sm:text-sm, placeholder field-placeholder
+  - __prefix: shrink-0 ms-3 me-0 flex items-center text-field-placeholder (leading swatch button)
+  - __suffix: shrink-0 me-3 flex items-center text-field-placeholder
+  - --primary (default) / --secondary (shadow-none, bg default, focus bg default) / --full-width
+
+kinds:
+  color: color:bg, color:outline, color:text
+  default: -
+
+sizes: fontSize, overflow-hidden, shadow-field
+default: h-9 (36)
+
+states:
+  - rest
+  - hover (bg-field-hover + field-border-hover)
+  - focus-within (status-focused-field ring)
+  - invalid (status-invalid-field + bg-field-focus + field-border-invalid)
+  - disabled
+
+tokens:
+  role: [colorField, colorFieldHover, colorFieldFocus, colorFieldBorder, colorFieldBorderHover, colorFieldForeground, colorFieldPlaceholder, colorDefault, colorDefaultHover, colorDanger, colorFocus, radiusField, shadowField, doubleInputMinHeight, doubleInputPaddingX, doubleInputPaddingY, doubleBorderWidth, doubleInputFontSize]
+  component: []
+
+non_token_measurements:
+  - height 36 (h-9), radius 12 (rounded-field), border-width 1
+  - padding x 12 / y 8 (px-3 py-2); prefix input gap 8 (ps-2)
+  - transition durations 150ms
+
+behavior:
+  - hex typing identical to color-field (#RRGGBB / #RRGGBBAA / RRGGBB, clear -> null)
+  - leading swatch is a button when onPick is set (opens the picker)
+  - focus-within: the group ring shows when the field OR the swatch has focus
+  - secondary variant: shadow-none + default background, no focus background change
+
+approximations:
+  - focus-within ring approximated by per-element HeroFocusRing (swatch focus shows its own ring instead of the group's)
+  - sm:text-sm resolves to 14px
+  - prefix -> input gap rendered as 8px padding on the swatch (CSS ps-2)

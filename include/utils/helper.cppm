@@ -7,6 +7,9 @@ module;
 export module helper;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export template <typename T>
 struct AlignedManager {
@@ -87,3 +90,34 @@ struct AlignedManager {
      */
     static void operator delete([[maybe_unused]] void *pointer, [[maybe_unused]] void *address) noexcept {}
 };
+
+#ifdef CONGELADO_TEST
+namespace tests {
+using namespace boost::ut;
+
+struct alignas(64) OverAligned {
+    std::byte data[64];
+};
+
+suite<"AlignedManager"> aligned_manager_suite = [] {
+    "over-aligned type allocates memory aligned to its own requirement"_test = [] {
+        void *ptr = AlignedManager<OverAligned>::operator new(sizeof(OverAligned));
+        expect(ptr != nullptr);
+        expect((reinterpret_cast<std::uintptr_t>(ptr) % alignof(OverAligned)) == 0);
+        AlignedManager<OverAligned>::operator delete(ptr);
+    };
+    "default-aligned type still allocates usable memory"_test = [] {
+        void *ptr = AlignedManager<int>::operator new(sizeof(int));
+        expect(ptr != nullptr);
+        AlignedManager<int>::operator delete(ptr);
+    };
+    "placement new is a passthrough, placement delete is a no-op"_test = [] {
+        alignas(int) std::byte storage[sizeof(int)];
+        void *ptr = AlignedManager<int>::operator new(sizeof(int), static_cast<void *>(storage));
+        expect(ptr == static_cast<void *>(storage));
+        AlignedManager<int>::operator delete(ptr, static_cast<void *>(storage));
+    };
+};
+
+} // namespace tests
+#endif

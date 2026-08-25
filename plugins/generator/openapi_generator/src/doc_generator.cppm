@@ -6,6 +6,9 @@ import core_router;
 import core_generator;
 import serde;
 import utils_openapi;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::openapi {
 
@@ -253,3 +256,199 @@ class Generator {
 };
 
 } // namespace utils::openapi
+
+#ifdef CONGELADO_TEST
+// Test-only note: utils::openapi::Registry and utils::openapi::SchemaRegistry (both defined
+// in include/utils/openapi/{registry,schema}.cppm, outside this pass's 4-file scope) are
+// process-wide, append-only singletons shared across every test in this binary -- same
+// caveat those files' own tests already document: assertions here are relative
+// (before/after, or checking a specific distinctively-named/numbered entry we just added),
+// never assuming either registry starts empty. Router numbers and path/schema names below
+// are all namespaced with a "docgen_test_"/9100xx prefix to keep this suite's fixtures from
+// colliding with anything else registered in the same process.
+namespace openapi_gen_doc_generator_tests {
+using namespace boost::ut;
+using utils::openapi::Document;
+using utils::openapi::Generator;
+using utils::openapi::Operation;
+using utils::openapi::RouteMeta;
+using utils::openapi::SchemaObject;
+using utils::openapi::SchemaRegistry;
+
+suite<"utils::openapi::Generator"> doc_generator_suite = [] {
+    "generate(): a route with zero registered operations is skipped entirely"_test = [] {
+        RouteMeta meta;
+        meta.set_path("docgen_test_no_ops");
+        meta.set_router_number(910001);
+        meta.set_base_router(0);
+        utils::openapi::Registry::add_route(meta);
+
+        auto document = Generator{}.generate();
+
+        expect(not document.get_paths().contains("/docgen_test_no_ops"));
+    };
+
+    "generate(): a root route (no ancestors) resolves its own path, ':param' segments become "
+    "'{param}', and an embedded '/' inside one segment stays part of that segment"_test = [] {
+        RouteMeta meta;
+        meta.set_path(":taskId/enqueue");
+        meta.set_router_number(910002);
+        meta.set_base_router(0);
+        Operation operation;
+        operation.set_summary("docgen_test_enqueue");
+        meta.add_operation(static_cast<std::uint8_t>(interfaces::io::types::Method::GET),
+                           std::move(operation));
+        utils::openapi::Registry::add_route(meta);
+
+        auto document = Generator{}.generate();
+
+        expect(document.get_paths().contains("/{taskId}/enqueue")) << fatal;
+        expect(document.get_paths().at("/{taskId}/enqueue").contains("get")) << fatal;
+        expect(document.get_paths().at("/{taskId}/enqueue").at("get").get_summary() ==
+              "docgen_test_enqueue");
+    };
+
+    "generate(): walks the base_router parent chain, stitching ancestor segments root-to-child"_test =
+        [] {
+        RouteMeta root;
+        root.set_path("docgen_test_tasks");
+        root.set_router_number(910010);
+        root.set_base_router(0);
+        utils::openapi::Registry::add_route(root);
+
+        RouteMeta child;
+        child.set_path(":id");
+        child.set_router_number(910011);
+        child.set_base_router(910010);
+        utils::openapi::Registry::add_route(child);
+
+        RouteMeta leaf;
+        leaf.set_path("comments");
+        leaf.set_router_number(910012);
+        leaf.set_base_router(910011);
+        Operation operation;
+        operation.set_summary("docgen_test_comments");
+        leaf.add_operation(static_cast<std::uint8_t>(interfaces::io::types::Method::POST),
+                           std::move(operation));
+        utils::openapi::Registry::add_route(leaf);
+
+        auto document = Generator{}.generate();
+
+        auto path = "/docgen_test_tasks/{id}/comments";
+        expect(document.get_paths().contains(path)) << fatal;
+        expect(document.get_paths().at(path).contains("post")) << fatal;
+        expect(document.get_paths().at(path).at("post").get_summary() == "docgen_test_comments");
+    };
+
+    "generate(): a route resolving to no segments anywhere falls back to the bare '/' path"_test =
+        [] {
+        RouteMeta meta;
+        // No set_path() call -- own segment stays empty -- and no ancestors either.
+        meta.set_router_number(910020);
+        meta.set_base_router(0);
+        Operation operation;
+        operation.set_summary("docgen_test_root_fallback");
+        meta.add_operation(static_cast<std::uint8_t>(interfaces::io::types::Method::PATCH),
+                           std::move(operation));
+        utils::openapi::Registry::add_route(meta);
+
+        auto document = Generator{}.generate();
+
+        expect(document.get_paths().contains("/")) << fatal;
+        expect(document.get_paths().at("/").contains("patch")) << fatal;
+        expect(document.get_paths().at("/").at("patch").get_summary() ==
+              "docgen_test_root_fallback");
+    };
+
+    "generate(): every registered method on a route lowercases into its own paths[...][method] key"_test =
+        [] {
+        RouteMeta meta;
+        meta.set_path("docgen_test_multi");
+        meta.set_router_number(910030);
+        meta.set_base_router(0);
+        Operation list_op;
+        list_op.set_summary("docgen_test_list");
+        meta.add_operation(static_cast<std::uint8_t>(interfaces::io::types::Method::GET),
+                           std::move(list_op));
+        Operation create_op;
+        create_op.set_summary("docgen_test_create");
+        meta.add_operation(static_cast<std::uint8_t>(interfaces::io::types::Method::POST),
+                           std::move(create_op));
+        utils::openapi::Registry::add_route(meta);
+
+        auto document = Generator{}.generate();
+
+        auto path = "/docgen_test_multi";
+        expect(document.get_paths().contains(path)) << fatal;
+        expect(document.get_paths().at(path).at("get").get_summary() == "docgen_test_list");
+        expect(document.get_paths().at(path).at("post").get_summary() == "docgen_test_create");
+    };
+
+    "generate(): every schema registered in SchemaRegistry flows into components.schemas"_test =
+        [] {
+        SchemaObject schema;
+        schema.set_type("string");
+        SchemaRegistry::addSchema("DocGenTestSchema", schema);
+
+        auto document = Generator{}.generate();
+
+        expect(document.get_components().get_schemas().contains("DocGenTestSchema")) << fatal;
+        expect(document.get_components().get_schemas().at("DocGenTestSchema").get_type() ==
+              "string");
+    };
+
+    "generate(): title()/version() flow from the builder chain into the generated document's info"_test =
+        [] {
+        auto document = Generator{}.title("Docgen Test API").version("9.9.9").generate();
+
+        expect(document.get_info().get_title() == "Docgen Test API");
+        expect(document.get_info().get_version() == "9.9.9");
+    };
+
+    "write(): serializes the document and writes it out at output_path()"_test = [] {
+        auto path =
+            std::filesystem::temp_directory_path() / "congelado_doc_generator_test_write.json";
+        auto generator = Generator{}.output_path(path);
+
+        auto result = generator.write(Document{});
+
+        expect(result.has_value()) << fatal;
+        std::ifstream in{path};
+        std::string content{std::istreambuf_iterator<char>{in}, std::istreambuf_iterator<char>{}};
+        // No JSON format plugin is linked in this isolated test target (see document.cppm's
+        // own tests for the same property) -- serde::Ser::serialize() never fails outright
+        // though, it just falls back to this fixed error payload, which write() still
+        // faithfully writes to disk.
+        expect(content == R"({"error":"no format plugin loaded for 'application/json'"})");
+
+        std::filesystem::remove(path);
+    };
+
+    "write(): fails cleanly when output_path()'s directory doesn't exist"_test = [] {
+        auto generator =
+            Generator{}.output_path("/nonexistent_dir_xyz_doc_gen/out.json");
+
+        auto result = generator.write(Document{});
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to write"));
+    };
+
+    "serve(): builds a Route with a GET handler registered at the configured serve_path"_test =
+        [] {
+        auto route = Generator{}.serve_path("/docgen_test_serve").title("X").version("1").serve();
+
+        expect(route.get_path() == "docgen_test_serve");
+        expect(route.get_handlers().find(interfaces::io::types::Method::GET) != nullptr);
+        expect(route.get_handlers().find(interfaces::io::types::Method::POST) == nullptr);
+    };
+
+    "serve(): defaults to the '/openapi' serve path when serve_path() is never called"_test = [] {
+        auto route = Generator{}.serve();
+
+        expect(route.get_path() == "openapi");
+    };
+};
+
+} // namespace openapi_gen_doc_generator_tests
+#endif

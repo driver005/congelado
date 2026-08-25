@@ -1,0 +1,35 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/combo-box.css"
+  files: [tool/sources/heroui-combo-box.css]
+  docs: https://heroui.com/en/docs/react/components/combo-box
+anatomy:
+  - container (flex-col gap-1: label + input-group + helper/error slots)
+  - input-group (relative isolate inline-flex items-center)
+  - input (min-w-0 flex-1, input.css anatomy, pe-7 with trigger, focus status-focused-field)
+  - trigger (absolute end-0 pe-2 size-4 text-field-placeholder, hover text-field-foreground, rotate-180 when open)
+  - popover (bg-overlay radius 24 shadow-overlay, min-w trigger width; list-box p-1.5, items px-2.5 with checkmark)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-sm base)
+default: -
+
+states: rest | hover (bg-field-hover) | focus (status-focused-field) | open (trigger icon rotated) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.overlay, color.overlayForeground, color.defaultForeground, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), radius.3xl (24 popover), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field, shadow.overlay]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - popover list-box paddings (6/10) are literals
+  - trigger chevron is a Material icon
+
+behavior: editable field with a popup list; typing filters; selecting an option sets the value/text and fires onChanged; the chevron toggles the popup.
+
+approximations:
+  - enter 150ms ease-smooth / exit 100ms via HeroPopup (fade + zoom 95%)
+  - border-width-field 0px -> 1px transparent border
+  - empty state is a literal string

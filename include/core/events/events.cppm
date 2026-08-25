@@ -5,6 +5,9 @@ import interfaces;
 import core_logger;
 
 export import :registry;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace core::events {
 
@@ -94,3 +97,65 @@ inline void publish(std::string_view event_name,
 }
 
 } // namespace core::events
+
+#ifdef CONGELADO_TEST
+namespace core::events::tests {
+using namespace boost::ut;
+
+class EventsPublishFakeSink : public interfaces::IEventSink {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "fake"; }
+    void publish(std::string_view event_name, std::string_view payload_json) noexcept override {
+        m_last_event_name = std::string{event_name};
+        m_last_payload_json = std::string{payload_json};
+        ++m_publish_count;
+    }
+
+    std::string m_last_event_name;
+    std::string m_last_payload_json;
+    int m_publish_count{0};
+};
+
+suite<"events::publish"> publish_suite = [] {
+    "publish with no active registry does not throw"_test = [] {
+        auto *previous = EventBusRegistry::get_active();
+        EventBusRegistry::set_active(nullptr);
+
+        expect(nothrow([] { core::events::publish("test.event", {{"key", "value"}}); }));
+
+        EventBusRegistry::set_active(previous);
+    };
+
+    "publish fans out a JSON-encoded payload to every registered sink"_test = [] {
+        auto *previous = EventBusRegistry::get_active();
+        EventBusRegistry registry;
+        auto sink = std::make_shared<EventsPublishFakeSink>();
+        registry.add_sink(sink);
+        EventBusRegistry::set_active(&registry);
+
+        core::events::publish("engine.workflow.started", {{"id", "abc"}});
+
+        expect(sink->m_publish_count == 1);
+        expect(sink->m_last_event_name == "engine.workflow.started");
+        expect(sink->m_last_payload_json == R"({"id":"abc"})");
+
+        EventBusRegistry::set_active(previous);
+    };
+
+    "publish escapes quotes and backslashes in the JSON payload"_test = [] {
+        auto *previous = EventBusRegistry::get_active();
+        EventBusRegistry registry;
+        auto sink = std::make_shared<EventsPublishFakeSink>();
+        registry.add_sink(sink);
+        EventBusRegistry::set_active(&registry);
+
+        core::events::publish("test.event", {{"msg", "a \"quoted\" \\ value"}});
+
+        expect(sink->m_last_payload_json == R"({"msg":"a \"quoted\" \\ value"})");
+
+        EventBusRegistry::set_active(previous);
+    };
+};
+
+} // namespace core::events::tests
+#endif

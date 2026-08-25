@@ -1,0 +1,76 @@
+component: alert-dialog
+flutter_name: HeroAlertDialog
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/alert-dialog.css"
+  files: [tool/sources/heroui-alert-dialog.css]
+  docs: https://heroui.com/en/docs/react/components/alert-dialog
+
+anatomy:
+  - backdrop (`.alert-dialog__backdrop`) — fixed inset-0 z-50, flex centered;
+    modifiers `--transparent` (bg-transparent), `--opaque` (bg-backdrop,
+    default), `--blur` (bg-backdrop + backdrop-blur-md)
+  - container (`.alert-dialog__container`) — flex-col centered, `p-4` (16)
+    / `p-10` (40) at sm, pointer-events-none; entering animation
+    `animate-in 250ms ease-out-quad fade-in-0 zoom-in-105`
+  - dialog (`.alert-dialog__dialog`) — `bg-overlay shadow-overlay p-6` (24),
+    radius `min(32px, var(--radius-3xl))` = 24, `flex flex-col max-h-full
+    w-full`, pointer-events-auto
+  - sizes (`.alert-dialog__dialog--xs/sm/md/lg`) — `max-w-xs/sm/md/lg`
+    (320/384/448/512); `--cover` fills the viewport
+  - icon (`.alert-dialog__icon`) — `size-10` (40) `rounded-3xl` (24) with a
+    `size-5` (20) icon; tint per `.alert-dialog__icon--<color>`
+  - header/heading (`.alert-dialog__header` / `__heading`) — flex-col
+    `gap-3` (12); `text-base font-medium text-foreground` (16 w500)
+  - body (`.alert-dialog__body`) — `text-sm leading-[1.43] text-muted`,
+    scrollable; `header + body` → `mt-2` (8)
+  - footer (`.alert-dialog__footer`) — flex-row items-center justify-end
+    `gap-2` (8); `header/body + footer` → `mt-5` (20)
+  - close trigger (`.alert-dialog__close-trigger`) — `absolute end-4 top-4`
+    (16/16), rendered with the close-button recipe
+
+kinds:
+  color: icon chip only — default (bg-default text-foreground) | accent |
+         success | warning | danger (bg-*-soft text-*-soft-foreground)
+  default: default
+
+sizes: xs (320) | sm (384) | md (448) | lg (512) + cover (full screen)
+default: md
+
+states:
+  - backdrop enter 150ms ease-out fade-in, exit 100ms ease-out fade-out
+  - dialog enter 250ms ease-out-quad fade-in zoom-in-105 (slide-in per
+    placement), exit 100ms fade-out zoom-out-95
+  - motion-reduce disables all animations
+
+tokens:
+  role: [color.backdrop, color.transparent, color.overlay, color.foreground,
+         color.muted, color.default, color.accentSoft,
+         color.accentSoftForeground, color.successSoft,
+         color.successSoftForeground, color.warningSoft,
+         color.warningSoftForeground, color.dangerSoft,
+         color.dangerSoftForeground]
+  component: [space.6, space.5, space.4, space.3, space.2, radius.3xl,
+              shadow.overlay, type.base, type.sm, weight.medium]
+
+non_token_measurements:
+  - dialog max-widths are literal px (320/384/448/512, matching modal)
+  - icon box 40x40, icon 20x20 (CSS size-10/size-5; no tokens)
+  - body line-height 1.43 (leading-[1.43])
+
+behavior: `showHeroAlertDialog` pushes a non-opaque dialog route via Remix's
+  `showRemixDialog` (barrier color = `--backdrop` for opaque/blur,
+  transparent otherwise); returns a Future completing with the popped value.
+  Closing (close trigger, barrier tap, action pops) returns the value. The
+  close trigger pops the route with a DIALOG-bound context — the caller's
+  `onClose` callback runs first, so callers must NOT pop themselves (their
+  context can go stale after the host tree rebuilds).
+
+approximations:
+  - backdrop `--blur` renders the same dim tint as `--opaque`; Flutter's
+    dialog barrier cannot apply `backdrop-blur` — no visual blur
+  - the dialog body is not independently scrollable (`overflow-y-auto`); long
+    content uses the route's max-height constraints instead
+  - placement-specific slide-ins (`slide-in-from-*`) collapse into the
+    fade/zoom route transition

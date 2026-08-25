@@ -3,6 +3,9 @@ export module io_codec_shared:types;
 import std;
 import :consts;
 import io_error;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::shared_codec {
 
@@ -277,3 +280,128 @@ constexpr std::uint8_t operator&(PrefixHelper lhs, std::uint8_t rhs) { return st
 constexpr std::uint8_t operator&(std::uint8_t lhs, PrefixHelper rhs) { return lhs & static_cast<std::uint8_t>(rhs); }
 
 } // namespace io::shared_codec
+
+#ifdef CONGELADO_TEST
+namespace io::shared_codec::tests {
+using namespace boost::ut;
+
+suite<"SearchResult"> search_result_suite = [] {
+    "default ctor is not found"_test = [] {
+        SearchResult result;
+
+        expect(not result.found());
+        expect(not static_cast<bool>(result));
+    };
+
+    "none() is equivalent to the default ctor"_test = [] {
+        expect(not SearchResult::none().found());
+    };
+
+    "packs index, static, and full-match flags"_test = [] {
+        SearchResult result{5, true, true};
+
+        expect(result.found());
+        expect(result.is_static());
+        expect(result.is_full_match());
+        expect(result.index() == 5);
+    };
+
+    "dynamic name-only result has both flags clear"_test = [] {
+        SearchResult result{7};
+
+        expect(result.found());
+        expect(not result.is_static());
+        expect(not result.is_full_match());
+        expect(result.index() == 7);
+    };
+};
+
+suite<"DecodeIntResult"> decode_int_result_suite = [] {
+    "stores value and consumed byte count"_test = [] {
+        DecodeIntResult<std::uint32_t> result{42U, 0x00, 3};
+
+        expect(result.value() == 42U);
+        expect(result.consumed() == 3U);
+    };
+
+    "is_never_indexed reflects bit 0x02"_test = [] {
+        DecodeIntResult<std::uint32_t> flagged{1U, 0x02};
+        DecodeIntResult<std::uint32_t> clear{1U, 0x00};
+
+        expect(flagged.is_never_indexed());
+        expect(not clear.is_never_indexed());
+    };
+
+    "is_static reflects bit 0x01"_test = [] {
+        DecodeIntResult<std::uint32_t> flagged{1U, 0x01};
+        DecodeIntResult<std::uint32_t> clear{1U, 0x00};
+
+        expect(flagged.is_static());
+        expect(not clear.is_static());
+    };
+};
+
+suite<"detect_representation_hpack"> detect_representation_hpack_suite = [] {
+    "classifies each priority-ordered pattern"_test = [] {
+        expect(detect_representation_hpack(0x80) == PrefixHelper::HPACK_INDEXED_FIELD);
+        expect(detect_representation_hpack(0x40) == PrefixHelper::HPACK_LITERAL_WITH_INDEXING);
+        expect(detect_representation_hpack(0x20) == PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE);
+        expect(detect_representation_hpack(0x10) == PrefixHelper::HPACK_LITERAL_NEVER_INDEXED);
+        expect(detect_representation_hpack(0x00) == PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING);
+        expect(detect_representation_hpack(0x05) == PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING);
+    };
+};
+
+suite<"detect_representation_qpack_stream"> detect_representation_qpack_stream_suite = [] {
+    "classifies each unambiguous priority-ordered pattern"_test = [] {
+        expect(detect_representation_qpack_stream(0x80) == PrefixHelper::QPACK_INDEXED_FIELD);
+        expect(detect_representation_qpack_stream(0x40) == PrefixHelper::QPACK_INDEXED_NAME);
+        expect(detect_representation_qpack_stream(0x20) == PrefixHelper::QPACK_NEW_FIELD);
+        expect(detect_representation_qpack_stream(0x01) ==
+               PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD);
+    };
+
+    "throws on an unrecognized pattern"_test = [] {
+        expect(throws<error::http::DecodeError>(
+            [] { [[maybe_unused]] auto result = detect_representation_qpack_stream(0x00); }));
+    };
+};
+
+suite<"detect_representation_qpack_encoder"> detect_representation_qpack_encoder_suite = [] {
+    "classifies each unambiguous priority-ordered pattern"_test = [] {
+        expect(detect_representation_qpack_encoder(0x40) == PrefixHelper::QPACK_INSERT_LITERAL_NAME);
+        expect(detect_representation_qpack_encoder(0x20) ==
+               PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE);
+    };
+
+    "throws on an unrecognized pattern"_test = [] {
+        expect(throws<error::http::DecodeError>(
+            [] { [[maybe_unused]] auto result = detect_representation_qpack_encoder(0x00); }));
+    };
+};
+
+suite<"detect_representation_qpack_decoder"> detect_representation_qpack_decoder_suite = [] {
+    "classifies each unambiguous priority-ordered pattern"_test = [] {
+        expect(detect_representation_qpack_decoder(0x80) == PrefixHelper::QPACK_DEC_ACK);
+        expect(detect_representation_qpack_decoder(0x40) ==
+               PrefixHelper::QPACK_DEC_STREAM_CANCELLATION);
+    };
+
+    "throws on an unrecognized pattern"_test = [] {
+        expect(throws<error::http::DecodeError>(
+            [] { [[maybe_unused]] auto result = detect_representation_qpack_decoder(0x00); }));
+    };
+};
+
+suite<"PrefixHelper bitwise operators"> prefix_helper_operator_suite = [] {
+    "operator| combines a PrefixHelper with a raw byte"_test = [] {
+        expect((PrefixHelper::HPACK_LITERAL_NEVER_INDEXED | std::uint8_t{0x05}) == 0x15);
+    };
+
+    "operator& masks a raw byte against a PrefixHelper"_test = [] {
+        expect((std::uint8_t{0xFF} & PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE) == 0x20);
+    };
+};
+
+} // namespace io::shared_codec::tests
+#endif

@@ -4,6 +4,9 @@ import std;
 import node;
 import consts;
 import helper;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export template <typename T>
 class Page : Node, public AlignedManager<Page<T>> {
@@ -94,3 +97,49 @@ class Page : Node, public AlignedManager<Page<T>> {
     bool m_dynamicly_allocated{false};
     std::atomic<std::size_t> m_dequeued;
 };
+
+#ifdef CONGELADO_TEST
+namespace {
+using namespace boost::ut;
+
+suite<"Page"> page_suite = [] {
+    "starts with nothing dequeued"_test = [] {
+        Page<int> page;
+        expect(not page.is_empty());
+    };
+    "operator[] wraps the index modulo BLOCK_SIZE"_test = [] {
+        Page<int> page;
+        expect(page[0] == page[BLOCK_SIZE]);
+        expect(page[3] == page[BLOCK_SIZE + 3]);
+    };
+    "set_empty reports true exactly on the call that reaches BLOCK_SIZE"_test = [] {
+        Page<int> page;
+        for (std::size_t i = 0; i < BLOCK_SIZE - 1; ++i) {
+            expect(not page.set_empty());
+        }
+        expect(page.set_empty());
+        expect(page.is_empty());
+    };
+    "set_many_empty reports true only once the count reaches BLOCK_SIZE"_test = [] {
+        Page<int> page;
+        expect(not page.set_many_empty(BLOCK_SIZE - 1));
+        expect(page.set_many_empty(1));
+        expect(page.is_empty());
+    };
+    "set_full_empty marks the page fully dequeued in one shot"_test = [] {
+        Page<int> page;
+        page.set_full_empty();
+        expect(page.is_empty());
+    };
+    "reset_empty clears the counter back to not-empty"_test = [] {
+        Page<int> page;
+        page.set_full_empty();
+        expect(page.is_empty());
+
+        page.reset_empty();
+        expect(not page.is_empty());
+    };
+};
+
+} // namespace
+#endif

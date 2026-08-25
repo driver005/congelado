@@ -13,6 +13,9 @@ import core_logger;
 import shared;
 import utils_codec;
 import :consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -106,7 +109,7 @@ class FrameHeader {
      * @throws error::http::ConnectionError if a SENDER PUSH_PROMISE has an odd stream id, or if
      * the dispatched-to validator throws (see each `validate_*()` for its specific rules).
      */
-    void validate() {
+    void validate() const {
         core::logger::debug("FrameBuilder", "validate type={} stream={}", m_type, m_stream_id);
 
         // Cross-cutting check that lives outside the per-type switch below — server push over
@@ -587,6 +590,17 @@ class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFra
 
         // Reject up front if the peer's declaring a frame bigger than we're willing to accept.
         if (len > m_max_frame_size) {
+            // WIREDUMP (temporary): dump the 9 header bytes the parser choked on + the bad length.
+            {
+                std::string hex;
+                std::size_t n = 0;
+                for (auto b : range | std::views::take(16)) {
+                    hex += std::format("{:02x} ", static_cast<unsigned>(std::to_integer<std::uint8_t>(b)));
+                    ++n;
+                }
+                core::logger::warning("WIREDUMP", "read-throw len={} max={} bytes[{}]: {}", len,
+                                      m_max_frame_size, n, hex);
+            }
             throw error::http::ConnectionError(
                 error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
                 "FrameBuilder length exceeds SETTINGS_MAX_FRAME_SIZE");
@@ -989,3 +1003,422 @@ class WriteFrameBuilderAdaptor
 
 
 } // namespace io::layer::http2
+
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+using shared_layer::FrameRole;
+using shared_layer::FrameType;
+using shared_layer::Flags;
+
+suite<"FrameHeader"> frame_header_suite = [] {
+    "builder chain accumulates every field"_test = [] {
+        auto header = FrameHeader<FrameRole::SENDER>{}
+                          .add_length(42)
+                          .add_type(FrameType::HEADERS)
+                          .add_flags(Flags::END_HEADERS)
+                          .add_stream_id(3);
+
+        expect(header.get_length() == 42);
+        expect(header.get_type() == FrameType::HEADERS);
+        expect(header.get_flags() == Flags::END_HEADERS);
+        expect(header.get_stream_id() == 3);
+    };
+
+    "set_stream_id masks off the reserved high bit"_test = [] {
+        FrameHeader<FrameRole::SENDER> header;
+        header.set_stream_id(0x80000005U);
+
+        expect(header.get_stream_id() == 5U);
+    };
+
+    "get_size is header (9) plus payload length"_test = [] {
+        FrameHeader<FrameRole::SENDER> header{100, FrameType::DATA, 0, 1};
+
+        expect(header.get_header_length() == HEADER_SIZE);
+        expect(header.get_size() == HEADER_SIZE + 100);
+    };
+
+    "is_end_stream/is_padded read the matching flag bits"_test = [] {
+        FrameHeader<FrameRole::SENDER> header{0, FrameType::DATA,
+                                              Flags::END_STREAM | Flags::PADDED, 1};
+
+        expect(header.is_end_stream());
+        expect(header.is_padded());
+
+        FrameHeader<FrameRole::SENDER> plain{0, FrameType::DATA, 0, 1};
+        expect(not plain.is_end_stream());
+        expect(not plain.is_padded());
+    };
+
+    "validate_payload_size throws on a length mismatch, passes on a match"_test = [] {
+        FrameHeader<FrameRole::SENDER> header{5, FrameType::DATA, 0, 1};
+
+        expect(throws<error::http::ConnectionError>([&] { header.validate_payload_size(4); }));
+        expect(nothrow([&] { header.validate_payload_size(5); }));
+    };
+
+    "validate_padding throws when the pad length isn't strictly less than the frame length"_test =
+        [] {
+            FrameHeader<FrameRole::SENDER> header{5, FrameType::DATA, Flags::PADDED, 1};
+
+            expect(throws<error::http::ConnectionError>([&] { header.validate_padding(5); }));
+            expect(nothrow([&] { header.validate_padding(4); }));
+        };
+
+    "validate() rejects DATA on stream 0, bad flags, or short padded payload"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> stream_zero{5, FrameType::DATA, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { stream_zero.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_flags{5, FrameType::DATA, Flags::PRIORITY, 1};
+        expect(throws<error::http::ConnectionError>([&] { bad_flags.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> short_padded{0, FrameType::DATA, Flags::PADDED, 1};
+        expect(throws<error::http::ConnectionError>([&] { short_padded.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{5, FrameType::DATA, Flags::END_STREAM, 1};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() rejects HEADERS on stream 0 and enforces the flag-scaled minimum length"_test =
+        [] {
+            FrameHeader<FrameRole::RECEIVER> stream_zero{0, FrameType::HEADERS, 0, 0};
+            expect(throws<error::http::ConnectionError>([&] { stream_zero.validate(); }));
+
+            // PRIORITY flag demands 5 extra bytes; 2 is too short.
+            FrameHeader<FrameRole::RECEIVER> too_short{2, FrameType::HEADERS, Flags::PRIORITY, 1};
+            expect(throws<error::http::ConnectionError>([&] { too_short.validate(); }));
+
+            FrameHeader<FrameRole::RECEIVER> ok{5, FrameType::HEADERS, Flags::PRIORITY, 1};
+            expect(nothrow([&] { ok.validate(); }));
+        };
+
+    "validate() requires PRIORITY to be exactly 5 bytes, zero flags, off stream 0"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> stream_zero{5, FrameType::PRIORITY, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { stream_zero.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_length{4, FrameType::PRIORITY, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { bad_length.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{5, FrameType::PRIORITY, 0, 1};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() requires RST_STREAM to be exactly 4 bytes"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> bad_length{5, FrameType::RST_STREAM, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { bad_length.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{4, FrameType::RST_STREAM, 0, 1};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() enforces SETTINGS stream-0, ACK-empty, and multiple-of-6 rules"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> off_stream{0, FrameType::SETTINGS, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { off_stream.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ack_with_payload{6, FrameType::SETTINGS, Flags::ACK, 0};
+        expect(throws<error::http::ConnectionError>([&] { ack_with_payload.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_size{7, FrameType::SETTINGS, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { bad_size.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ack{0, FrameType::SETTINGS, Flags::ACK, 0};
+        expect(nothrow([&] { ack.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> twelve{12, FrameType::SETTINGS, 0, 0};
+        expect(nothrow([&] { twelve.validate(); }));
+    };
+
+    "validate() rejects PUSH_PROMISE received by a server unconditionally"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> received{5, FrameType::PUSH_PROMISE, 0, 2};
+        expect(throws<error::http::ConnectionError>([&] { received.validate(); }));
+    };
+
+    "validate() enforces PUSH_PROMISE sender rules (stream, flags)"_test = [] {
+        FrameHeader<FrameRole::SENDER> stream_zero{5, FrameType::PUSH_PROMISE, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { stream_zero.validate(); }));
+
+        FrameHeader<FrameRole::SENDER> bad_flags{5, FrameType::PUSH_PROMISE, Flags::PRIORITY, 2};
+        expect(throws<error::http::ConnectionError>([&] { bad_flags.validate(); }));
+
+        FrameHeader<FrameRole::SENDER> ok{5, FrameType::PUSH_PROMISE, Flags::END_HEADERS, 2};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() requires PING to be on stream 0 with an 8-byte payload"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> off_stream{8, FrameType::PING, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { off_stream.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_length{4, FrameType::PING, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { bad_length.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{8, FrameType::PING, Flags::ACK, 0};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() requires GOAWAY on stream 0, no flags, at least 8 bytes"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> off_stream{8, FrameType::GOAWAY, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { off_stream.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> too_short{7, FrameType::GOAWAY, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { too_short.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{8, FrameType::GOAWAY, 0, 0};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() requires WINDOW_UPDATE to be exactly 4 bytes, no flags, any stream"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> bad_flags{4, FrameType::WINDOW_UPDATE, Flags::ACK, 0};
+        expect(throws<error::http::ConnectionError>([&] { bad_flags.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_length{5, FrameType::WINDOW_UPDATE, 0, 1};
+        expect(throws<error::http::ConnectionError>([&] { bad_length.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> on_conn{4, FrameType::WINDOW_UPDATE, 0, 0};
+        expect(nothrow([&] { on_conn.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> on_stream{4, FrameType::WINDOW_UPDATE, 0, 3};
+        expect(nothrow([&] { on_stream.validate(); }));
+    };
+
+    "validate() rejects CONTINUATION on stream 0 or with flags other than END_HEADERS"_test = [] {
+        FrameHeader<FrameRole::RECEIVER> stream_zero{0, FrameType::CONTINUATION, 0, 0};
+        expect(throws<error::http::ConnectionError>([&] { stream_zero.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> bad_flags{0, FrameType::CONTINUATION, Flags::PADDED, 1};
+        expect(throws<error::http::ConnectionError>([&] { bad_flags.validate(); }));
+
+        FrameHeader<FrameRole::RECEIVER> ok{0, FrameType::CONTINUATION, Flags::END_HEADERS, 1};
+        expect(nothrow([&] { ok.validate(); }));
+    };
+
+    "validate() rejects a SENDER PUSH_PROMISE on an odd stream id"_test = [] {
+        FrameHeader<FrameRole::SENDER> odd{5, FrameType::PUSH_PROMISE, Flags::END_HEADERS, 3};
+        expect(throws<error::http::ConnectionError>([&] { odd.validate(); }));
+    };
+};
+
+suite<"ReadFrameHeaderAdaptor / FrameHeaderClosureAdaptor"> frame_header_codec_suite = [] {
+    "round-trips a header through write then read"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     FrameHeaderClosureAdaptor{100, FrameType::HEADERS, Flags::END_HEADERS, 5} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(bytes.size() == HEADER_SIZE);
+
+        auto header = bytes | ReadFrameHeaderAdaptor{MIN_FRAME_SIZE};
+
+        expect(header.get_length() == 100U);
+        expect(header.get_type() == FrameType::HEADERS);
+        expect(header.get_flags() == Flags::END_HEADERS);
+        expect(header.get_stream_id() == 5U);
+    };
+
+    "throws on a header shorter than HEADER_SIZE"_test = [] {
+        std::vector<std::byte> too_short(5);
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = (too_short | ReadFrameHeaderAdaptor{MIN_FRAME_SIZE}); }));
+    };
+
+    "throws when the declared length exceeds the local max frame size"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     FrameHeaderClosureAdaptor{100, FrameType::DATA, 0, 1} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = (bytes | ReadFrameHeaderAdaptor{10}); }));
+    };
+
+    "masks the reserved high bit off the stream id on read"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     FrameHeaderClosureAdaptor{0, FrameType::WINDOW_UPDATE, 0, 3} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        auto header = bytes | ReadFrameHeaderAdaptor{MIN_FRAME_SIZE};
+        expect(header.get_stream_id() == 3U);
+    };
+};
+
+suite<"WriteFrameClosureAdapter"> write_frame_closure_suite = [] {
+    "a payload under max_frame_size becomes one DATA frame with END_STREAM"_test = [] {
+        std::vector<std::byte> payload(10, std::byte{0xAB});
+
+        auto framed = payload | WriteFrameClosureAdapter{7, FrameType::DATA, 0, 1024} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(framed.size() == HEADER_SIZE + 10);
+
+        auto header = framed | ReadFrameHeaderAdaptor{1024};
+        expect(header.get_length() == 10U);
+        expect(header.get_type() == FrameType::DATA);
+        expect(header.get_flags() == Flags::END_STREAM);
+        expect(header.get_stream_id() == 7U);
+    };
+
+    "an empty payload still emits exactly one frame carrying END_STREAM"_test = [] {
+        std::vector<std::byte> empty_payload;
+
+        auto framed = empty_payload | WriteFrameClosureAdapter{3, FrameType::DATA, 0, 1024} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(framed.size() == HEADER_SIZE);
+
+        auto header = framed | ReadFrameHeaderAdaptor{1024};
+        expect(header.get_length() == 0U);
+        expect(header.get_flags() == Flags::END_STREAM);
+    };
+
+    "a payload larger than max_frame_size chunks with END_STREAM only on the last DATA frame"_test =
+        [] {
+            std::vector<std::byte> payload(10, std::byte{0x11});
+
+            auto framed = payload | WriteFrameClosureAdapter{1, FrameType::DATA, 0, 4} |
+                         std::ranges::to<std::vector<std::byte>>();
+
+            // 3 chunks of 4/4/2 bytes, each with its own 9-byte header.
+            expect(framed.size() == 3 * HEADER_SIZE + 10);
+
+            std::span<const std::byte> remaining{framed};
+            auto first = remaining | ReadFrameHeaderAdaptor{4};
+            expect(first.get_length() == 4U);
+            expect(first.get_flags() == 0U);
+            remaining = remaining.subspan(HEADER_SIZE + first.get_length());
+
+            auto second = remaining | ReadFrameHeaderAdaptor{4};
+            expect(second.get_length() == 4U);
+            expect(second.get_flags() == 0U);
+            remaining = remaining.subspan(HEADER_SIZE + second.get_length());
+
+            auto third = remaining | ReadFrameHeaderAdaptor{4};
+            expect(third.get_length() == 2U);
+            expect(third.get_flags() == Flags::END_STREAM);
+        };
+
+    "HEADERS chunks past the first flip to CONTINUATION, with END_HEADERS on the last"_test = [] {
+        std::vector<std::byte> payload(6, std::byte{0x22});
+
+        auto framed = payload | WriteFrameClosureAdapter{9, FrameType::HEADERS, 0, 4, false, true} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        std::span<const std::byte> remaining{framed};
+        auto first = remaining | ReadFrameHeaderAdaptor{4};
+        expect(first.get_type() == FrameType::HEADERS);
+        expect(first.get_flags() == 0U);
+        remaining = remaining.subspan(HEADER_SIZE + first.get_length());
+
+        auto second = remaining | ReadFrameHeaderAdaptor{4};
+        expect(second.get_type() == FrameType::CONTINUATION);
+        // no_data=true, so the last chunk also carries END_STREAM alongside END_HEADERS.
+        expect(second.get_flags() == (Flags::END_HEADERS | Flags::END_STREAM));
+    };
+};
+
+suite<"ReadWindowIncrementAdaptor"> read_window_increment_suite = [] {
+    "decodes a positive 4-byte big-endian increment"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     utils::codec::WriteBigEndianAdaptor<std::uint32_t>{1000} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        auto increment = bytes | ReadWindowIncrementAdaptor{};
+        expect(increment == 1000U);
+    };
+
+    "masks off the reserved high bit"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     utils::codec::WriteBigEndianAdaptor<std::uint32_t>{0x80000064U} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        auto increment = bytes | ReadWindowIncrementAdaptor{};
+        expect(increment == 100U);
+    };
+
+    "throws on a zero increment"_test = [] {
+        auto bytes = std::views::empty<std::byte> |
+                     utils::codec::WriteBigEndianAdaptor<std::uint32_t>{0U} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = (bytes | ReadWindowIncrementAdaptor{}); }));
+    };
+};
+
+suite<"FrameBuilder"> frame_builder_suite = [] {
+    "builder chain accumulates type/flags/stream id/payload"_test = [] {
+        std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}};
+
+        auto frame = FrameBuilder<FrameRole::SENDER>{}
+                         .add_type(FrameType::PING)
+                         .add_flags(Flags::ACK)
+                         .add_stream_id(0)
+                         .add_payload(payload)
+                         .build();
+
+        expect(frame.get_type() == FrameType::PING);
+        expect(frame.get_flags() == Flags::ACK);
+        expect(frame.get_stream_id() == 0U);
+        expect(frame.get_length() == 3U);
+        expect(frame.get_size() == HEADER_SIZE + 3);
+        expect(frame.get_payload().size() == 3U);
+    };
+
+    "add_stream_id masks off the reserved high bit"_test = [] {
+        auto frame = FrameBuilder<FrameRole::SENDER>{}.add_stream_id(0x80000005U);
+        expect(frame.get_stream_id() == 5U);
+    };
+
+    "add_payload appends across multiple calls instead of replacing"_test = [] {
+        auto frame = FrameBuilder<FrameRole::SENDER>{}
+                         .add_payload(std::vector<std::byte>{std::byte{1}})
+                         .add_payload(std::vector<std::byte>{std::byte{2}, std::byte{3}});
+
+        expect(frame.get_length() == 3U);
+    };
+
+    "expand_payload appends onto an lvalue builder in place"_test = [] {
+        FrameBuilder<FrameRole::SENDER> frame;
+        frame.expand_payload(std::vector<std::byte>{std::byte{9}});
+
+        expect(frame.get_length() == 1U);
+    };
+};
+
+suite<"WriteFrameBuilderAdaptor"> write_frame_builder_suite = [] {
+    "encodes a FrameBuilder into a header followed by its payload"_test = [] {
+        auto frame = FrameBuilder<FrameRole::SENDER>{}
+                         .add_type(FrameType::PING)
+                         .add_flags(Flags::ACK)
+                         .add_stream_id(0)
+                         .add_payload(std::vector<std::byte>(8, std::byte{0}))
+                         .build();
+
+        auto bytes = WriteFrameBuilderAdaptor{std::move(frame), MIN_FRAME_SIZE}() |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        expect(bytes.size() == HEADER_SIZE + 8);
+
+        auto header = bytes | ReadFrameHeaderAdaptor{MIN_FRAME_SIZE};
+        expect(header.get_type() == FrameType::PING);
+        expect(header.get_flags() == Flags::ACK);
+        expect(header.get_length() == 8U);
+    };
+
+    "appends onto an existing range instead of replacing it"_test = [] {
+        std::vector<std::byte> prefix{std::byte{0xFF}};
+
+        auto frame = FrameBuilder<FrameRole::SENDER>{}
+                         .add_type(FrameType::WINDOW_UPDATE)
+                         .add_stream_id(0)
+                         .build();
+
+        auto bytes =
+            (prefix | WriteFrameBuilderAdaptor{std::move(frame), MIN_FRAME_SIZE}) |
+            std::ranges::to<std::vector<std::byte>>();
+
+        expect(bytes.size() == 1 + HEADER_SIZE);
+        expect(bytes[0] == std::byte{0xFF});
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

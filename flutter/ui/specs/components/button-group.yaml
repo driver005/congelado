@@ -1,0 +1,47 @@
+component: button-group
+flutter_name: HeroButtonGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/button-group.css"
+  files: [tool/sources/heroui-button-group.css]
+  docs: https://heroui.com/en/docs/react/components/button-group
+
+anatomy:
+  - group (.button-group inline-flex h-auto items-center justify-center
+    gap-0; --horizontal flex-row / --vertical flex-col; --full-width w-full)
+  - buttons (.button rounded-none; first rounded-s-3xl / last rounded-e-3xl,
+    single rounded-3xl; pressed transform none; focus z-10)
+  - separator (.button-group__separator bg-current opacity-15 rounded-sm;
+    horizontal w-px h-1/2 at the boundary, vertical h-px w-1/2)
+
+kinds: none
+default: -
+
+sizes: none (children keep their own HeroButton size)
+default: -
+
+states:
+  joined hover/pressed per button; outline-variant adjacent-border
+  suppression (border-e-0/s-0/x-0) NOT applied
+
+tokens:
+  role: [color.defaultForeground (separator tint)]
+  component: [radius.3xl (24), radius.sm (2 separator)]
+
+non_token_measurements:
+  - separator 1px x 50% of the cross extent; opacity 15%
+
+behavior:
+  wraps HeroButton children; each button is clipped to its slot silhouette
+  (outer corners rounded-3xl, inner corners square); optional separators
+  between buttons; full-width centers the group.
+
+approximations:
+  - the group cannot reach into HeroButton's internal style, so the pressed
+    scale is not disabled (spec: transform none) and outline buttons keep
+    their full border (adjacent-border suppression not applied)
+  - focus z-10 raise approximated by paint order (ring may be partially
+    covered by a following sibling)
+  - group-level size/variant propagation (v3 ButtonGroup context) not
+    applied — children configure themselves

@@ -7,6 +7,9 @@ import :document;
 import :schema_model;
 import :dto_writer;
 import :route_writer;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::client {
 
@@ -239,3 +242,73 @@ class Generator {
 };
 
 } // namespace congelado::client
+
+#ifdef CONGELADO_TEST
+// Test-only note: Generator's only entry point is generate(const filesystem::path&, ...), and
+// its very first step is Document::load() -> Document::parse() -> serde::Ser::decode_generic(),
+// which (see document.cppm's own tests, same isolated test target) always fails here with "no
+// format plugin loaded for 'application/json'" -- no JSON format plugin is linked into this
+// target. Unlike schema_model.cppm/document.cppm, Generator has no way to hand it an
+// already-built serde::Value directly (its public API only takes a filesystem::path), so every
+// private helper below Document::load in the pipeline -- parse_components(),
+// parse_operation_response(), parse_operation(), parse_operations() -- is genuinely unreachable
+// from this test target; there's no seam to exercise them through. What's left testable here is
+// generate()'s two pre-parse failure branches (missing file / no format plugin) and that the
+// namespace_name()/shared_models() fluent builder chain doesn't misbehave (double-move, etc.).
+namespace openapi_gen_client_generator_tests {
+using namespace boost::ut;
+using congelado::client::Generator;
+
+suite<"Generator"> client_generator_suite = [] {
+    "generate(): a nonexistent openapi document path fails to open"_test = [] {
+        Generator generator;
+
+        auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to open"));
+    };
+
+    "generate(): an existing file still fails at the parse step (no format plugin loaded)"_test =
+        [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_client_generator_test.json";
+        {
+            std::ofstream out{path};
+            out << R"({"paths": {}})";
+        }
+        Generator generator;
+
+        auto result = generator.generate(path, std::filesystem::temp_directory_path());
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to parse"));
+        expect(result.error().contains("no format plugin loaded for 'application/json'"));
+
+        std::filesystem::remove(path);
+    };
+
+    "namespace_name()/shared_models() fluent chain builds without crashing or double-moving"_test =
+        [] {
+        auto generator = Generator{}.namespace_name("my_client").shared_models("shared_dto");
+
+        // Still fails the same way -- generate() bails at Document::load() before ever
+        // touching m_namespace/m_shared_models_module -- this just confirms the chained,
+        // moved-through Generator is otherwise usable (no crash, no UB from the moves).
+        auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to open"));
+    };
+
+    "namespace_name() alone (no shared_models) also builds and behaves the same way"_test = [] {
+        auto generator = Generator{}.namespace_name("solo_client");
+
+        auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to open"));
+    };
+};
+
+} // namespace openapi_gen_client_generator_tests
+#endif

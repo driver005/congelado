@@ -1,0 +1,45 @@
+component: breadcrumbs
+flutter_name: HeroBreadcrumbs
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/breadcrumbs.css"
+  files: [tool/sources/heroui-breadcrumbs.css]
+  docs: https://heroui.com/en/docs/react/components/breadcrumbs
+
+anatomy:
+  - row (.breadcrumbs flex items-center)
+  - item (.breadcrumbs__item flex shrink-0 items-center justify-center
+    gap-0.5 px-0.5)
+  - link (.breadcrumbs__link relative px-0.5 text-sm leading-5 font-medium
+    text-muted no-underline; hover underline; [data-current] text-link
+    opacity-100)
+  - separator (.breadcrumbs__separator size-3 text-muted chevron-right,
+    rtl rotate-180)
+
+kinds: none
+default: -
+
+sizes: none
+default: -
+
+states:
+  hover (underline) on interactive items; current item (last by default)
+  in link color
+
+tokens:
+  role: [color.muted, color.link]
+  component: [type.sm (14), weight.medium (500), space.3 (12 separator),
+    space.2 (4 icon), space.05 (2 gaps/padding)]
+
+non_token_measurements:
+  - separator 12x12 chevron; leading-5 = 20px line height
+
+behavior:
+  Row of links with separators between them; last item is the current page
+  (RAC Breadcrumb default), non-interactive unless onPressed given; hover
+  underline via MouseRegion.
+
+approximations:
+  - RTL rotation of the separator not implemented
+  - link icon slot is a simple leading IconData (startContent)

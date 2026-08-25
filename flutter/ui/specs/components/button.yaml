@@ -1,0 +1,62 @@
+component: Button
+flutter_name: HeroButton
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/button.css"
+  files: [tool/sources/heroui-button.css, tool/sources/heroui-utilities.css, tool/sources/heroui-variables.css]
+  docs: https://heroui.com/en/docs/react/components/button
+
+anatomy:
+  - container (flex row: label + optional leading/trailing icon + spinner)
+  - label (text-sm / text-base, font-medium)
+  - icon (size-4 / size-5)
+  - spinner (loading state)
+
+kinds:
+  primary | secondary | tertiary | ghost | outline | danger | dangerSoft
+  # v3 collapses v2's variant x color matrix into one axis of color classes:
+  # primary (solid accent), secondary (default fill + accent-soft fg),
+  # tertiary (default fill + default fg), ghost (transparent, default on
+  # hover), outline (transparent + 1px border), danger, danger-soft.
+
+sizes:
+  sm (h-8 = 32) | md (h-9 = 36) | lg (h-10 = 40)
+  default: md
+
+states:
+  rest | hover (kind hover fill) | pressed (hover fill + scale 0.98/0.97/0.96)
+  | focus (2px accent ring, ring-offset 2) | disabled (opacity 0.5)
+  | loading (kind colors kept, spinner shown — RemixButton folds loading into
+    the disabled widget state, so the recipe is parameterized on `loading`)
+
+tokens:
+  role: [color.accent, color.accentForeground, color.accentHover,
+         color.default, color.defaultHover, color.defaultForeground,
+         color.accentSoftForeground, color.outlineHover, color.danger,
+         color.dangerForeground, color.dangerHover, color.dangerSoft,
+         color.dangerSoftForeground, color.dangerSoftHover, color.border,
+         color.focus, double.disabledOpacity]
+  component: [double.button.height.{sm,md,lg}, double.button.paddingX.{sm,md,lg},
+              radius.button.radius (24), space.2 (gap), double.button.fontSize.{sm,md,lg},
+              weight.medium, double.button.iconSize.{sm,md,lg},
+              double.button.pressScale.{sm,md,lg} (const doubles),
+              double.focusRingWidth, double.borderWidth]
+  type: [type.sm, type.base]
+
+non_token_measurements:
+  - press scale uses generated const doubles (TransformStyleMixin builds a
+    Matrix4 eagerly; token refs would leak sentinel doubles)
+  - Colors.transparent for ghost/outline fills (structural, not a design token)
+  - focus ring painted via foregroundDecoration (2px ring on the edge, ring
+    offset not representable in Flutter — approximation)
+
+behavior: keyboard/focus via RemixButton (Naked UI); pointer-events disabled
+  via enabled flag; screen-reader semantics inherited from RemixButton.
+
+approximations:
+  - focus ring offset (ring-offset-2) approximated by painting the ring on the
+    edge instead of outside with a 2px gap
+  - transition timings: background-color 100ms ease-out reproduced via Mix
+    AnimationConfig; the 250ms transform transition is a snap (no config)
+  - disabled uses HeroUI's opacity-only treatment (facade Opacity 0.5)

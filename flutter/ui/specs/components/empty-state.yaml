@@ -1,0 +1,36 @@
+component: empty-state
+flutter_name: HeroEmptyState
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/empty-state.css"
+  files: [tool/sources/heroui-empty-state.css]
+  docs: https://heroui.com/en/docs/react/components/empty-state
+
+anatomy:
+  - root (`.empty-state`) — `p-2` (8) `text-sm` (14) `text-muted` container
+  - icon slot — optional icon above the message (React renders it; the CSS
+    only styles the container)
+
+kinds:
+  color: muted text (fixed — no variants in empty-state.css)
+  default: -
+
+sizes: none (fixed padding/text-size)
+default: -
+
+states: rest only
+
+tokens:
+  role: [color.muted]
+  component: [space.2, type.sm]
+
+non_token_measurements:
+  - none material
+
+behavior: static empty-content placeholder; optional icon above the message.
+
+approximations:
+  - icon size taken from the text line height (14px, muted); the CSS does
+    not size the icon
+  - content is centered by default (`alignment` param); the CSS just pads

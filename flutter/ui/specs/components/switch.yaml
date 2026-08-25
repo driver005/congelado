@@ -1,0 +1,42 @@
+component: Switch
+flutter_name: HeroSwitch
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/switch.css"
+  files: [tool/sources/heroui-switch.css]
+  docs: https://heroui.com/en/docs/react/components/switch
+
+anatomy:
+  - control / track (default bg, rounded-xl; checked bg-accent)
+  - thumb (bg-white; checked bg-accent-foreground)
+
+kinds: none (single variant)
+default: -
+
+sizes:
+  sm (32x16, radius 8) | md (40x20, radius 12) | lg (48x24, radius 12)
+  default: md
+
+states: rest | hover (control bg -> default-hover) | checked | disabled
+  (thumb fades to default-foreground/20)
+
+tokens:
+  role: [color.default, color.defaultHover, color.accent, color.accentForeground,
+         color.defaultForeground]
+  component: [double.switch.controlWidth.{sm,md,lg}, double.switch.controlHeight.{sm,md,lg},
+              radius.switch.controlRadius.{sm,md,lg}, double.switch.thumbWidth.{sm,md,lg},
+              double.switch.thumbHeight.{sm,md,lg}, radius.switch.thumbRadius.{sm,md,lg}]
+
+non_token_measurements:
+  - thumb checked position/margin animation (300ms ease-out-fluid) is handled by
+    RemixSwitch's own thumb layout; the source's margin-based transition is
+    approximated by the widget's built-in animation
+
+behavior: toggle semantics, keyboard (space), focus ring via RemixSwitch
+  (Naked UI).
+
+approximations:
+  - hover uses --default-hover instead of the exact
+    color-mix(var(--switch-control-bg), transparent 20%) value
+  - disabled thumb color approximates default-foreground/20 with withValues

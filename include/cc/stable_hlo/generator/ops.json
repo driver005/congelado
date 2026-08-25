@@ -1,0 +1,2604 @@
+[
+  {
+    "name": "abs",
+    "summary": "Abs operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "add",
+    "summary": "Add operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "after_all",
+    "summary": "AfterAll operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "all_gather",
+    "summary": "AllGather operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operands",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "all_gather_dim",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "use_global_device_ids",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "all_reduce",
+    "summary": "AllReduce operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operands",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "use_global_device_ids",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "all_to_all",
+    "summary": "AllToAll operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operands",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "split_dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "concat_dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "split_count",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "and",
+    "summary": "And operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "async_done",
+    "summary": "AsyncDone operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "async_start",
+    "summary": "AsyncStart operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operands",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "atan2",
+    "summary": "Atan2 operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "batch_norm_grad",
+    "summary": "BatchNormGrad operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "scale",
+        "variadic": false
+      },
+      {
+        "name": "mean",
+        "variadic": false
+      },
+      {
+        "name": "variance",
+        "variadic": false
+      },
+      {
+        "name": "grad_output",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "epsilon",
+        "cpp_type": "double",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "feature_index",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 3
+  },
+  {
+    "name": "batch_norm_inference",
+    "summary": "BatchNormInference operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "scale",
+        "variadic": false
+      },
+      {
+        "name": "offset",
+        "variadic": false
+      },
+      {
+        "name": "mean",
+        "variadic": false
+      },
+      {
+        "name": "variance",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "epsilon",
+        "cpp_type": "double",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "feature_index",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "batch_norm_training",
+    "summary": "BatchNormTraining operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "scale",
+        "variadic": false
+      },
+      {
+        "name": "offset",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "epsilon",
+        "cpp_type": "double",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "feature_index",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 3
+  },
+  {
+    "name": "bitcast_convert",
+    "summary": "BitcastConvert operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "broadcast",
+    "summary": "Broadcast operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "broadcast_sizes",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "broadcast_in_dim",
+    "summary": "BroadcastInDim operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "broadcast_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "case",
+    "summary": "Case operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "index",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": -1
+  },
+  {
+    "name": "cbrt",
+    "summary": "Cbrt operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "ceil",
+    "summary": "Ceil operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "cholesky",
+    "summary": "Cholesky operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "a",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "lower",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "clamp",
+    "summary": "Clamp operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "min",
+        "variadic": false
+      },
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "max",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "count_leading_zeros",
+    "summary": "Clz operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "collective_broadcast",
+    "summary": "CollectiveBroadcast operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "collective_permute",
+    "summary": "CollectivePermute operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "source_target_pairs",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "collective_reduce",
+    "summary": "CollectiveReduce operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operands",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "use_global_device_ids",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "has_dynamic_root",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "compare",
+    "summary": "Compare operation.",
+    "category": "comparison",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "comparison_direction",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "compare_type",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "complex",
+    "summary": "Complex operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "composite",
+    "summary": "Composite operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "name",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "composite_attributes",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "decomposition",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "version",
+        "cpp_type": "std::int32_t",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "concatenate",
+    "summary": "Concatenate operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "constant",
+    "summary": "Constant operation.",
+    "category": "explicit",
+    "inputs": [],
+    "attrs": [
+      {
+        "name": "value",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "convert",
+    "summary": "Convert operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "convolution",
+    "summary": "Convolution operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "window_strides",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "padding",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "lhs_dilation",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "rhs_dilation",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "window_reversal",
+        "cpp_type": "std::vector<bool>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "feature_group_count",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "batch_group_count",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "precision_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "cosine",
+    "summary": "Cosine operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "create_token",
+    "summary": "CreateToken operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "cross_replica_sum",
+    "summary": "CrossReplicaSum operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "custom_call",
+    "summary": "CustomCall operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "call_target_name",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "has_side_effect",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "backend_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "called_computations",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "operand_layouts",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "result_layouts",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "output_operand_aliases",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "result_tilings",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "divide",
+    "summary": "Div operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "dot",
+    "summary": "Dot operation.",
+    "category": "explicit",
+    "inputs": [],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "dot_general",
+    "summary": "DotGeneral operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dot_dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "precision_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "algorithm",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_broadcast_in_dim",
+    "summary": "DynamicBroadcastInDim operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "output_dimensions",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "broadcast_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "known_expanding_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "known_nonexpanding_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_conv",
+    "summary": "DynamicConv operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      },
+      {
+        "name": "padding",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "window_strides",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "lhs_dilation",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "rhs_dilation",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "window_reversal",
+        "cpp_type": "std::vector<bool>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "feature_group_count",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "batch_group_count",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "precision_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_gather",
+    "summary": "DynamicGather operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "start_indices",
+        "variadic": false
+      },
+      {
+        "name": "slice_sizes",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "indices_are_sorted",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_iota",
+    "summary": "DynamicIota operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "output_shape",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "iota_dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_pad",
+    "summary": "DynamicPad operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "padding_value",
+        "variadic": false
+      },
+      {
+        "name": "edge_padding_low",
+        "variadic": false
+      },
+      {
+        "name": "edge_padding_high",
+        "variadic": false
+      },
+      {
+        "name": "interior_padding",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_reshape",
+    "summary": "DynamicReshape operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "output_shape",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_slice",
+    "summary": "DynamicSlice operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "start_indices",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "slice_sizes",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "dynamic_update_slice",
+    "summary": "DynamicUpdateSlice operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "update",
+        "variadic": false
+      },
+      {
+        "name": "start_indices",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "einsum",
+    "summary": "Einsum operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "einsum_config",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "exponential",
+    "summary": "Exp operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "exponential_minus_one",
+    "summary": "Expm1 operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "fft",
+    "summary": "Fft operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "fft_type",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "fft_length",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "floor",
+    "summary": "Floor operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "gather",
+    "summary": "Gather operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "start_indices",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "slice_sizes",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "indices_are_sorted",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "get_dimension_size",
+    "summary": "GetDimensionSize operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "get_tuple_element",
+    "summary": "GetTupleElement operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "index",
+        "cpp_type": "std::int32_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "if",
+    "summary": "If operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "pred",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": -1
+  },
+  {
+    "name": "imag",
+    "summary": "Imag operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "infeed",
+    "summary": "Infeed operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "token",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "infeed_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "layout",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "iota",
+    "summary": "Iota operation.",
+    "category": "explicit",
+    "inputs": [],
+    "attrs": [
+      {
+        "name": "iota_dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "is_finite",
+    "summary": "IsFinite operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "log",
+    "summary": "Log operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "log_plus_one",
+    "summary": "Log1p operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "logistic",
+    "summary": "Logistic operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "map",
+    "summary": "Map operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "maximum",
+    "summary": "Max operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "minimum",
+    "summary": "Min operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "multiply",
+    "summary": "Mul operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "negate",
+    "summary": "Neg operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "not",
+    "summary": "Not operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "optimization_barrier",
+    "summary": "OptimizationBarrier operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": -1
+  },
+  {
+    "name": "or",
+    "summary": "Or operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "outfeed",
+    "summary": "Outfeed operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      },
+      {
+        "name": "token",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "outfeed_config",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "pad",
+    "summary": "Pad operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "padding_value",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "edge_padding_low",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "edge_padding_high",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "interior_padding",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "partition_id",
+    "summary": "PartitionId operation.",
+    "category": "explicit",
+    "inputs": [],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "popcnt",
+    "summary": "PopulationCount operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "power",
+    "summary": "Power operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "real",
+    "summary": "Real operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "real_dynamic_slice",
+    "summary": "RealDynamicSlice operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "start_indices",
+        "variadic": false
+      },
+      {
+        "name": "limit_indices",
+        "variadic": false
+      },
+      {
+        "name": "strides",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "recv",
+    "summary": "Recv operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "token",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "is_host_transfer",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "source_target_pairs",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "reduce",
+    "summary": "Reduce operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      },
+      {
+        "name": "init_values",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "reduce_precision",
+    "summary": "ReducePrecision operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "exponent_bits",
+        "cpp_type": "std::int32_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "mantissa_bits",
+        "cpp_type": "std::int32_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "reduce_scatter",
+    "summary": "ReduceScatter operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "scatter_dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "replica_groups",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "use_global_device_ids",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "reduce_window",
+    "summary": "ReduceWindow operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      },
+      {
+        "name": "init_values",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "window_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "window_strides",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "base_dilations",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "window_dilations",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "padding",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "remainder",
+    "summary": "Rem operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "replica_id",
+    "summary": "ReplicaId operation.",
+    "category": "explicit",
+    "inputs": [],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "reshape",
+    "summary": "Reshape operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "return",
+    "summary": "Return operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "results",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": 0
+  },
+  {
+    "name": "reverse",
+    "summary": "Reverse operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "rng",
+    "summary": "Rng operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "a",
+        "variadic": false
+      },
+      {
+        "name": "b",
+        "variadic": false
+      },
+      {
+        "name": "shape",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "rng_distribution",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "rng_bit_generator",
+    "summary": "RngBitGenerator operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "initial_state",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "rng_algorithm",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 2
+  },
+  {
+    "name": "round_nearest_afz",
+    "summary": "Round operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "round_nearest_even",
+    "summary": "RoundNearestEven operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "rsqrt",
+    "summary": "Rsqrt operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "scatter",
+    "summary": "Scatter operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      },
+      {
+        "name": "scatter_indices",
+        "variadic": false
+      },
+      {
+        "name": "updates",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "scatter_dimension_numbers",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "indices_are_sorted",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "unique_indices",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "select",
+    "summary": "Select operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "pred",
+        "variadic": false
+      },
+      {
+        "name": "on_true",
+        "variadic": false
+      },
+      {
+        "name": "on_false",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "select_and_scatter",
+    "summary": "SelectAndScatter operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "source",
+        "variadic": false
+      },
+      {
+        "name": "init_value",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "window_dimensions",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "window_strides",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      },
+      {
+        "name": "padding",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "send",
+    "summary": "Send operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      },
+      {
+        "name": "token",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "channel_handle",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "is_host_transfer",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "source_target_pairs",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": true,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "set_dimension_size",
+    "summary": "SetDimensionSize operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "size",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "shift_left",
+    "summary": "ShiftLeft operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "shift_right_arithmetic",
+    "summary": "ShiftRightArithmetic operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "shift_right_logical",
+    "summary": "ShiftRightLogical operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "sign",
+    "summary": "Sign operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "sine",
+    "summary": "Sine operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "slice",
+    "summary": "Slice operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "start_indices",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "limit_indices",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      },
+      {
+        "name": "strides",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "sort",
+    "summary": "Sort operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "inputs",
+        "variadic": true
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dimension",
+        "cpp_type": "std::int64_t",
+        "optional": true,
+        "list": false
+      },
+      {
+        "name": "is_stable",
+        "cpp_type": "bool",
+        "optional": true,
+        "list": false
+      }
+    ],
+    "output_count": -1
+  },
+  {
+    "name": "sqrt",
+    "summary": "Sqrt operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "subtract",
+    "summary": "Subtract operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "tan",
+    "summary": "Tan operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "tanh",
+    "summary": "Tanh operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "torch_index_select",
+    "summary": "TorchIndexSelect operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      },
+      {
+        "name": "index",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "dim",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "batch_dims",
+        "cpp_type": "std::int64_t",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "transpose",
+    "summary": "Transpose operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "permutation",
+        "cpp_type": "std::vector<std::int64_t>",
+        "optional": false,
+        "list": true
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "triangular_solve",
+    "summary": "TriangularSolve operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "a",
+        "variadic": false
+      },
+      {
+        "name": "b",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "left_side",
+        "cpp_type": "bool",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "lower",
+        "cpp_type": "bool",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "unit_diagonal",
+        "cpp_type": "bool",
+        "optional": false,
+        "list": false
+      },
+      {
+        "name": "transpose_a",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "tuple",
+    "summary": "Tuple operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "val",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "unary_einsum",
+    "summary": "UnaryEinsum operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [
+      {
+        "name": "einsum_config",
+        "cpp_type": "std::string",
+        "optional": false,
+        "list": false
+      }
+    ],
+    "output_count": 1
+  },
+  {
+    "name": "uniform_dequantize",
+    "summary": "UniformDequantize operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "uniform_quantize",
+    "summary": "UniformQuantize operation.",
+    "category": "unary",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  },
+  {
+    "name": "while",
+    "summary": "While operation.",
+    "category": "explicit",
+    "inputs": [
+      {
+        "name": "operand",
+        "variadic": true
+      }
+    ],
+    "attrs": [],
+    "output_count": -1
+  },
+  {
+    "name": "xor",
+    "summary": "Xor operation.",
+    "category": "binary",
+    "inputs": [
+      {
+        "name": "lhs",
+        "variadic": false
+      },
+      {
+        "name": "rhs",
+        "variadic": false
+      }
+    ],
+    "attrs": [],
+    "output_count": 1
+  }
+]

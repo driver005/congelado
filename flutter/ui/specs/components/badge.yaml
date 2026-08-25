@@ -1,0 +1,44 @@
+component: Badge
+flutter_name: HeroBadge
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/badge.css"
+  files: [tool/sources/heroui-badge.css]
+  docs: https://heroui.com/en/docs/react/components/badge
+
+anatomy:
+  - pill container (min-h-7 min-w-7, rounded-3xl, 1px border in the page
+    background color, background-clip: padding-box)
+  - label (text-xs, font-medium)
+
+kinds:
+  variant: solid (bg = color, fg = color-foreground) | secondary (bg default,
+  fg = color-soft-foreground) | soft (bg = color-soft, fg = color-soft-foreground)
+  color: accent | default | success | warning | danger
+  default: secondary / default
+
+sizes:
+  sm (min 16, rounded-xl 12, 10px) | md (min 28, rounded-3xl 24, 12px)
+  | lg (min 32, rounded-2xl 16, text-sm)
+  default: md
+
+states: rest only
+
+tokens:
+  role: [color.accent|default|success|warning|danger (+ soft/foreground pairs),
+         color.background (badge border ring)]
+  component: [double.badge.minSize.{sm,md,lg}, radius.badge.radius.{sm,md,lg},
+              double.badge.fontSize.{sm,md,lg}, double.badge.borderWidth,
+              weight.medium, space.0.5 (gap)]
+
+non_token_measurements:
+  - the 1px page-background border ring is only applied on the solid variant
+    (badge.css draws it on every variant; the ring is invisible against the
+    page when the badge bg is already the page color)
+
+behavior: static label pill (RemixBadge label slot).
+
+approximations:
+  - the badge-anchor placement modifiers (top-right etc.) are not exposed;
+    use a Stack in the caller

@@ -1,0 +1,29 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/list-box-section.css"
+  files: [tool/sources/heroui-list-box-section.css]
+  docs: https://heroui.com/en/docs/react/components/list-box-section
+anatomy:
+  - section (flex flex-col items-start gap-0)
+  - header (HeroHeader: w-full px-2 pt-1.5 pb-1 text-xs font-medium text-muted)
+
+kinds: none
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: [color.muted]
+  component: [type.xs, weight.medium, space.2 (px-2), space.15 (pt-1.5), space.1 (pb-1)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - none
+
+behavior: groups HeroListBoxItems under an optional caption.
+
+approximations:
+  - header is the shared HeroHeader component (header.css)

@@ -1,6 +1,9 @@
 export module core_config:types;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::config {
 
@@ -155,3 +158,71 @@ class Config {
 };
 
 } // namespace core::config
+
+#ifdef CONGELADO_TEST
+namespace core::config::tests {
+using namespace boost::ut;
+
+suite<"PluginConfig"> plugin_config_suite = [] {
+    "name and type round-trip"_test = [] {
+        PluginConfig plugin;
+        plugin.set_name("file_logger");
+        plugin.set_type("logger");
+
+        expect(plugin.get_name() == "file_logger");
+        expect(plugin.get_type() == "logger");
+    };
+
+    "fields accumulate by key, last write wins"_test = [] {
+        PluginConfig plugin;
+        plugin.add_field("path", "/var/log/app.log");
+        plugin.add_field("level", "info");
+        plugin.add_field("level", "debug");
+
+        expect(plugin.get_fields().size() == 2);
+        expect(plugin.get_fields().at("path") == "/var/log/app.log");
+        expect(plugin.get_fields().at("level") == "debug");
+    };
+};
+
+suite<"Config"> config_suite = [] {
+    "starts empty"_test = [] {
+        Config cfg;
+
+        expect(cfg.get_plugins().empty());
+        expect(cfg.get_providers().empty());
+        expect(not cfg.get_threads().has_value());
+        expect(cfg.get_migrations_dir() == "migrations");
+    };
+
+    "add_plugin keys by the plugin's own name"_test = [] {
+        Config cfg;
+        PluginConfig plugin;
+        plugin.set_name("postgres");
+        cfg.add_plugin(plugin);
+
+        expect(cfg.get_plugins().contains("postgres"));
+        expect(cfg.get_plugins().at("postgres").get_name() == "postgres");
+    };
+
+    "add_provider stores an ordered list under its capability"_test = [] {
+        Config cfg;
+        cfg.add_provider("logger", {"file_logger", "otel_otlp_plugin"});
+
+        expect(cfg.get_providers().at("logger").size() == 2);
+        expect(cfg.get_providers().at("logger")[0] == "file_logger");
+        expect(cfg.get_providers().at("logger")[1] == "otel_otlp_plugin");
+    };
+
+    "threads and migrations_dir setters"_test = [] {
+        Config cfg;
+        cfg.set_threads(4);
+        cfg.set_migrations_dir("db/migrations");
+
+        expect(cfg.get_threads().value() == 4);
+        expect(cfg.get_migrations_dir() == "db/migrations");
+    };
+};
+
+} // namespace core::config::tests
+#endif

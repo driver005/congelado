@@ -11,6 +11,10 @@ import connector;
 import core_logger;
 import core_events;
 import utils_hash;
+import shared;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace migration {
 
@@ -399,3 +403,82 @@ class Runner {
 };
 
 } // namespace migration
+
+#ifdef CONGELADO_TEST
+namespace migration::tests {
+
+// Resolved-but-not-connected IDatabase fixture — never actually touches a socket, just exists
+// to exercise Runner::run_all's "resolved but not connected" skip branch.
+class NotConnectedDatabase : public interfaces::IDatabase {
+  public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override { return "test_db"; }
+    [[nodiscard]] bool is_connected() const noexcept override { return false; }
+
+    void query(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void insert(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void update(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void remove(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+};
+
+using namespace boost::ut;
+
+suite<"Status"> status_suite = [] {
+    // Status::s_ready is a process-wide, write-once-in-practice flag with no reset — this only
+    // checks the "becomes ready" transition, not the (order-dependent) initial state.
+    "mark_ready flips is_ready to true"_test = [] {
+        Status::mark_ready();
+        expect(Status::is_ready());
+    };
+};
+
+suite<"Registry"> registry_suite = [] {
+    "add_baseline registers in call order; clear empties it"_test = [] {
+        auto &registry = Registry::instance();
+        registry.clear();
+
+        registry.add_baseline("first", [](interfaces::IDatabase &, connector::Connector &,
+                                          std::move_only_function<void(bool)> done) { done(true); });
+        registry.add_baseline("second", [](interfaces::IDatabase &, connector::Connector &,
+                                           std::move_only_function<void(bool)> done) { done(true); });
+
+        expect(registry.baselines().size() == 2);
+        expect(registry.baselines()[0].first == "first");
+        expect(registry.baselines()[1].first == "second");
+
+        registry.clear();
+        expect(registry.baselines().empty());
+    };
+};
+
+suite<"Runner"> runner_suite = [] {
+    "run_all skips migrations when no database is configured"_test = [] {
+        bool done_called = false;
+        bool ok_value = false;
+
+        Runner::run_all(nullptr, nullptr, "migrations",
+                        [&](bool ok) { done_called = true; ok_value = ok; });
+
+        expect(done_called);
+        expect(ok_value);
+    };
+
+    "run_all_blocking returns true when no database is configured"_test = [] {
+        expect(Runner::run_all_blocking(nullptr, nullptr, "migrations"));
+    };
+
+    "run_all skips migrations when the database is resolved but not connected"_test = [] {
+        NotConnectedDatabase db;
+        connector::Connector connector;
+        bool done_called = false;
+        bool ok_value = false;
+
+        Runner::run_all(&db, &connector, "migrations",
+                        [&](bool ok) { done_called = true; ok_value = ok; });
+
+        expect(done_called);
+        expect(ok_value);
+    };
+};
+
+} // namespace migration::tests
+#endif

@@ -1,6 +1,9 @@
 export module io_layer_shared:types;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::shared_layer {
 
@@ -176,3 +179,76 @@ struct std::formatter<io::shared_layer::FrameType> {
         return std::format_to(ctx.out(), "{}", name);
     }
 };
+
+#ifdef CONGELADO_TEST
+namespace io::shared_layer::tests {
+using namespace boost::ut;
+
+suite<"StreamState"> stream_state_suite = [] {
+    "formats every enumerator to its human-readable name"_test = [] {
+        using enum io::shared_layer::StreamState;
+
+        expect(std::format("{}", IDLE) == "Idle");
+        expect(std::format("{}", OPEN) == "Open");
+        expect(std::format("{}", HALF_CLOSED_LOCAL) == "HalfClosedLocal");
+        expect(std::format("{}", HALF_CLOSED_REMOTE) == "HalfClosedRemote");
+        expect(std::format("{}", CLOSED) == "Closed");
+        expect(std::format("{}", RESERVED_LOCAL) == "ReservedLocal");
+        expect(std::format("{}", RESERVED_REMOTE) == "ReservedRemote");
+    };
+
+    "unknown value falls back to UNKNOWN"_test = [] {
+        auto bogus = static_cast<io::shared_layer::StreamState>(255);
+        expect(std::format("{}", bogus) == "UNKNOWN");
+    };
+};
+
+suite<"FrameType"> frame_type_suite = [] {
+    "formats every enumerator to its wire-format name"_test = [] {
+        using enum io::shared_layer::FrameType;
+
+        expect(std::format("{}", DATA) == "DATA");
+        expect(std::format("{}", HEADERS) == "HEADERS");
+        expect(std::format("{}", PRIORITY) == "PRIORITY (DEPRECATED)");
+        expect(std::format("{}", RST_STREAM) == "RST_STREAM");
+        expect(std::format("{}", SETTINGS) == "SETTINGS");
+        expect(std::format("{}", PUSH_PROMISE) == "PUSH_PROMISE");
+        expect(std::format("{}", PING) == "PING");
+        expect(std::format("{}", GOAWAY) == "GOAWAY");
+        expect(std::format("{}", WINDOW_UPDATE) == "WINDOW_UPDATE");
+        expect(std::format("{}", CONTINUATION) == "CONTINUATION");
+    };
+
+    "unknown value falls back to UNKNOWN"_test = [] {
+        auto bogus = static_cast<io::shared_layer::FrameType>(255);
+        expect(std::format("{}", bogus) == "UNKNOWN");
+    };
+
+    "wire values match RFC 9113 §11.2 assigned numbers"_test = [] {
+        using enum io::shared_layer::FrameType;
+
+        expect(std::to_underlying(DATA) == 0x0);
+        expect(std::to_underlying(HEADERS) == 0x1);
+        expect(std::to_underlying(PRIORITY) == 0x2);
+        expect(std::to_underlying(RST_STREAM) == 0x3);
+        expect(std::to_underlying(SETTINGS) == 0x4);
+        expect(std::to_underlying(PUSH_PROMISE) == 0x5);
+        expect(std::to_underlying(PING) == 0x6);
+        expect(std::to_underlying(GOAWAY) == 0x7);
+        expect(std::to_underlying(WINDOW_UPDATE) == 0x8);
+        expect(std::to_underlying(CONTINUATION) == 0x9);
+    };
+};
+
+suite<"Flags"> flags_suite = [] {
+    "flag bit values match RFC 9113 wire layout"_test = [] {
+        expect(io::shared_layer::Flags::END_STREAM == 0x01);
+        expect(io::shared_layer::Flags::ACK == 0x01);
+        expect(io::shared_layer::Flags::END_HEADERS == 0x04);
+        expect(io::shared_layer::Flags::PADDED == 0x08);
+        expect(io::shared_layer::Flags::PRIORITY == 0x20);
+    };
+};
+
+} // namespace io::shared_layer::tests
+#endif

@@ -2,6 +2,9 @@ export module interfaces:database;
 
 import std;
 import shared;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace interfaces {
 
@@ -24,14 +27,6 @@ class IDatabase {
      * @return the backend's name.
      */
     [[nodiscard]] virtual std::string_view backend_name() const noexcept = 0;
-    /**
-     * @brief Says whether this db is load-bearing or just optional infra riding along.
-     * @note Defaults to `false` — flip to `true` if the app genuinely can't function without
-     * this backend being up, so failures here get treated as the fatal L they are instead of
-     * getting shrugged off like nothing happened.
-     * @return true if this db is a hard requirement, false if it's optional motion.
-     */
-    [[nodiscard]] virtual bool required() const noexcept { return false; }
     /**
      * @brief Says whether this backend actually has a live connection right now, as opposed to
      * merely being the resolved `IDatabase*` for a loaded storage plugin.
@@ -75,3 +70,29 @@ class IDatabase {
 };
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::database_tests {
+
+// Minimal IDatabase fixture — every pure virtual gets a trivial body so is_connected()'s
+// default implementation can be exercised in isolation.
+class MockDatabase final : public IDatabase {
+  public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override { return "mock-db"; }
+    void query(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void insert(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void update(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+    void remove(std::string_view, shared::QueryReadFn &&result) noexcept override { result(""); }
+};
+
+using namespace boost::ut;
+
+suite<"IDatabase"> database_suite = [] {
+    "is_connected() defaults to true when not overridden"_test = [] {
+        MockDatabase database;
+        expect(database.is_connected());
+    };
+};
+
+} // namespace interfaces::database_tests
+#endif

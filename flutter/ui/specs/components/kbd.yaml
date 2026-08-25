@@ -1,0 +1,32 @@
+component: kbd
+flutter_name: HeroKbd
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/kbd.css"
+  files: [tool/sources/heroui-kbd.css]
+  docs: https://heroui.com/en/docs/react/components/kbd
+
+anatomy:
+  - (none)
+
+kinds:
+  color: default bg, muted text
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - h-6 rounded-lg px-2 text-sm; --light transparent bg
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

@@ -2,6 +2,9 @@ export module utils_openapi:registry;
 
 import std;
 import :model;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::openapi {
 
@@ -122,3 +125,49 @@ class Registry {
 };
 
 } // namespace utils::openapi
+
+#ifdef CONGELADO_TEST
+namespace utils::openapi::tests {
+using namespace boost::ut;
+
+suite<"RouteMeta"> route_meta_suite = [] {
+    "setters round-trip"_test = [] {
+        RouteMeta meta;
+        meta.set_path("tasks");
+        meta.set_router_number(3);
+        meta.set_base_router(1);
+
+        expect(meta.get_path() == "tasks");
+        expect(meta.get_router_number() == 3);
+        expect(meta.get_base_router() == 1);
+    };
+    "add_operation registers by method, get_operation throws for an unregistered one"_test = [] {
+        RouteMeta meta;
+        meta.add_operation(0, Operation{});
+
+        expect(meta.get_operations().contains(0));
+        expect(throws<std::out_of_range>([&] { [[maybe_unused]] auto &op = meta.get_operation(99); }));
+    };
+};
+
+suite<"Registry"> registry_suite = [] {
+    // Registry is a process-wide, append-only singleton shared across every test in this
+    // binary — assertions here are relative (before/after), never assuming it starts empty.
+    "add_route appends and returns an index usable with at()"_test = [] {
+        auto before = Registry::get_routes().size();
+
+        RouteMeta meta;
+        meta.set_path("widgets");
+        auto index = Registry::add_route(meta);
+
+        expect(Registry::get_routes().size() == before + 1);
+        expect(Registry::at(index).get_path() == "widgets");
+    };
+    "at() throws for an out-of-range index"_test = [] {
+        auto way_out_of_range = Registry::get_routes().size() + 1000;
+        expect(throws<std::out_of_range>([&] { [[maybe_unused]] auto &route = Registry::at(way_out_of_range); }));
+    };
+};
+
+} // namespace utils::openapi::tests
+#endif

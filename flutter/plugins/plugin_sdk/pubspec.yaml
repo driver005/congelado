@@ -1,0 +1,27 @@
+name: congelado_plugin_sdk
+description: >-
+  Runtime plugin system for the congelado Flutter UI. A plugin is either a
+  declarative spec (plugin.yaml describing a widget tree, loaded from disk at
+  runtime) or a code contribution (a FlutterPlugin implementation registered
+  at startup). PluginHost renders active contributions into slots; the
+  controller rescans the plugins directory so new specs appear while the app
+  runs — no rebuild needed.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.38.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  yaml: ^3.1.2
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

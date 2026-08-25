@@ -10,6 +10,9 @@ import std;
 import :types;
 import :ffi;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::plugin {
 
@@ -696,3 +699,100 @@ class SharedLibrary {
 };
 
 } // namespace core::plugin
+
+// build()'s real init pass and open()'s successful path both need a genuine, loadable plugin
+// .so exporting the congelado ABI — not reproducible in a unit test. What's covered below is
+// the precondition checks (scan() gating), scan()'s own filesystem cataloging (no dlopen
+// involved), and every no-op-on-empty-state path — all real production behavior reachable
+// without a live plugin.
+#ifdef CONGELADO_TEST
+namespace core::plugin::tests {
+using namespace boost::ut;
+
+// Findings-oriented notes on two spots that turned out to have no viable test seam:
+//
+// load_symbols()'s ARRAY case (~line 606-624) trusts count_function()'s returned count with
+// zero cross-check against data_function()'s real backing array size. But load_symbols() and
+// its sym<F>() helper are both private with no friend/seam, and the only public path that
+// reaches them (open() -> load_pluginref()) requires a genuinely dlopen'able .so exporting the
+// congelado ABI, which isn't reproducible in a unit test (see the file-level comment above this
+// suite). Skipped rather than faked with a synthetic reproduction of the loop.
+//
+// open()'s/apply_load_before_ordering()'s unguarded std::any_cast<const std::string &> /
+// <const std::vector<std::string> &> calls (~line 152, 158, 477, 481) are similarly unreachable
+// from outside: plugin_ref->m_data is only ever populated by the private load_pluginref()/
+// load_symbols() pair, which always stores exactly the types those casts expect, and
+// SharedLibrary has no public constructor/setter that accepts a caller-built PluginRef/runtime
+// to inject a mismatched type into m_runtimes. No test seam — skipped.
+suite<"SharedLibrary"> shared_library_suite = [] {
+    "open()/build() before scan() fail with scan-not-called"_test = [] {
+        SharedLibrary lib;
+        auto open_result = lib.open("/nonexistent/path.so");
+        expect(not open_result.has_value());
+        expect(open_result.error().get_kind() == types::Kind::NOT_FOUND);
+
+        auto build_result = lib.build(CongeladoHostCallbacks{}, {});
+        expect(not build_result.has_value());
+    };
+    "scan() catalogs files, open() then reaches the real dlopen (and fails on a non-plugin file)"_test =
+        [] {
+        auto dir = std::filesystem::temp_directory_path() / "congelado_shared_lib_test";
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        { std::ofstream{dir / "libfoo.so"}; }
+
+        SharedLibrary lib;
+        lib.scan(dir);
+
+        // Past the "scan() not called" precondition now — the empty .so fails dlopen()
+        // itself, which is enough to prove scan() actually catalogued the file.
+        auto result = lib.open(dir / "libfoo.so");
+        expect(not result.has_value());
+        expect(result.error().get_kind() == types::Kind::DLOPEN_FAILED);
+
+        std::filesystem::remove_all(dir);
+    };
+    "scan() on a missing directory is a silent no-op"_test = [] {
+        SharedLibrary lib;
+        expect(nothrow([&] { lib.scan("/definitely/does/not/exist"); }));
+    };
+    "find() on an empty library returns nullptr"_test = [] {
+        SharedLibrary lib;
+        expect(lib.find("anything") == nullptr);
+    };
+    "discard()/close_all()/shutdown_plugins() are safe no-ops with nothing loaded"_test = [] {
+        SharedLibrary lib;
+        expect(nothrow([&] {
+            lib.discard("nothing");
+            lib.close_all();
+            lib.shutdown_plugins();
+        }));
+    };
+    "for_each visits nothing on an empty library"_test = [] {
+        SharedLibrary lib;
+        int count = 0;
+        lib.for_each([&](const std::shared_ptr<FfiRuntime> &) { ++count; });
+        expect(count == 0);
+    };
+    "broadcast_bridge is a no-op for a null bridge"_test = [] {
+        SharedLibrary lib;
+        expect(nothrow([&] { lib.broadcast_bridge(nullptr); }));
+    };
+    "open()'s already-opened guard only covers names in m_runtimes — never-opened mutual deps aren't caught"_test =
+        [] {
+        SharedLibrary lib;
+        // open()'s cycle-breaker (~line 132) is `if (m_runtimes.contains(library_name)) return
+        // {};` — per open()'s own @note, that's the ONLY thing standing between a dependency
+        // cycle and real unbounded recursion. We must never drive that recursion for real (the
+        // safety constraint on this suite), but find() performs the identical "is this name
+        // already opened" lookup against m_runtimes. For two plugins that would mutually
+        // require each other, NEITHER has been opened yet — proving the guard has nothing to
+        // catch here, and a genuine cycle among never-yet-loaded plugins would still recurse
+        // unchecked, exactly as the doc comment admits.
+        expect(lib.find("plugin_a") == nullptr);
+        expect(lib.find("plugin_b") == nullptr);
+    };
+};
+
+} // namespace core::plugin::tests
+#endif

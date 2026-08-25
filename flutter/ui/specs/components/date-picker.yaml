@@ -1,0 +1,54 @@
+component: date-picker
+flutter_name: HeroDatePicker
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/date-picker.css"
+  files: [tool/sources/heroui-date-picker.css]
+  docs: https://heroui.com/en/docs/react/components/date-picker
+
+anatomy:
+  - .date-picker: inline-flex flex-col gap-1 (4)
+  - .date-picker__trigger: inline-flex w-full items-center rounded-field p-1 (4) text-sm; focus status-focused; disabled status-disabled; box-shadow 150ms ease-out
+  - .date-picker__trigger-indicator: size-4 (16) text-field-placeholder
+  - .date-picker__popover: w-fit bg-overlay p-3 (12), radius min(32px, calc(var(--radius) * 2.5)) = 20, box-shadow var(--shadow-overlay), scrollable
+  - popover entering: animate-in 150ms ease-smooth fade-in-0 zoom-in-95 + slide-in-from-top-1 (bottom placement); exiting 100ms zoom-out-95 fade-out
+  - .date-picker__popover .calendar__nav-button-icon: rotate-0
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states:
+  - rest
+  - focus-visible (trigger): status-focused
+  - disabled: status-disabled
+  - open: popover fades/zooms in (150ms ease-smooth)
+
+tokens:
+  role: [colorOverlay, colorBackdrop, colorField, colorFieldHover, colorFieldFocus, colorFieldPlaceholder, colorFieldBorderHover, colorDanger, colorAccentSoft, colorAccentSoftForeground, colorMuted, shadowOverlay, doubleInputMinHeight, doubleInputPaddingX, doubleInputPaddingY, doubleInputFontSize, doubleBorderWidth, doubleDisabledOpacity, radiusField, space1, space3]
+  component: [space1=4 (gap-1/p-1 trigger), space3=12 (popover p-3), doubleInputMinHeight=36 (h-9), radiusField=12 (rounded-field)]
+
+non_token_measurements:
+  - popover radius 20 (min(32, radius*2.5) with --radius 8)
+  - popover padding 12 (p-3)
+  - entrance fade + zoom 95%->100% at 150ms --ease-smooth
+  - trigger indicator 16 (size-4)
+  - calendar width 252 inside the popover
+
+behavior:
+  - trigger (date-input-group look) opens the calendar overlay; tapping any day commits it
+  - showHeroDatePicker(context, initialDate:, value:, onSelected:) shows the overlay via the host navigator (showRemixDialog, same approach as showHeroModal) and resolves with the picked date
+  - overlay chrome mirrors .date-picker__popover: bg-overlay, p-3, radius 20, shadow-overlay
+  - label/helper/error/disabled/fullWidth surface on the trigger
+  - placeholder segments when value is null
+
+approximations:
+  - the popover is anchored below the trigger via showHeroAnchoredOverlay
+    (clamped on-screen, dismissed by outside tap) — matching the source; no
+    fade/zoom entrance (instant show)
+  - slide-in-from-top-1 offset not reproduced (fade+zoom only)
+  - exit transition uses the same 150ms duration as entrance (source: 100ms exit)

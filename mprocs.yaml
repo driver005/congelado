@@ -1,0 +1,38 @@
+# mprocs dev runner for congelado — run: `mprocs`
+#
+# Local testing only: engine + worker. Infra (docker compose) is NOT run here — start it
+# separately when needed.
+#
+# Layout:
+#   engine  — the server binary (target `congelado`, src/main.cc)
+#   worker  — the worker binary (target `worker`, sdk/worker/worker_main.cc)
+#
+# Keys: <up/down> switch proc · <enter> focus · r restart · s start · x stop · q quit
+#
+# stop: SIGINT is deliberate — the debug build links ASan+LSan and LeakSanitizer only
+# runs on a CLEAN exit (see DEBUG.md). SIGINT lets each binary tear down so the leak
+# report actually fires; a hard SIGKILL would skip it.
+#
+# engine/worker go through `xmake run`, which rebuilds the target if stale — so `r`
+# (restart) = rebuild + rerun. Restart the worker alone after an edit without touching
+# the engine.
+
+procs:
+  engine:
+    cmd: ["xmake", "run", "congelado"]
+    stop: SIGINT
+
+  worker:
+    # config/worker.toml is worker_main's argv[1]; resolved from the project root
+    # (xmake run's working dir).
+    #
+    # mprocs has no start-ordering / depends-on primitive, so the worker autostarts but
+    # first blocks until the engine's port (8080) is accepting connections — i.e. it
+    # effectively starts *after* the engine is listening, no manual `s` needed. Uses
+    # bash's /dev/tcp so there's no `nc` dependency. Change 8080 if the engine's
+    # bind port in config/congelado.toml differs.
+    cmd:
+      - bash
+      - -c
+      - 'until (exec 3<>/dev/tcp/localhost/8080) 2>/dev/null; do sleep 0.3; done; exec xmake run -w "$PWD" worker "$PWD/config/worker.toml"'
+    stop: SIGINT

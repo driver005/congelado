@@ -5,6 +5,7 @@ export import :frame;
 export import :handshake;
 export import :settings;
 export import :session;
+export import :executor;
 export import :consts;
 export import :stream;
 export import :flow;

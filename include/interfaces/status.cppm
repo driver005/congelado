@@ -1,6 +1,9 @@
 export module interfaces:status;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace interfaces {
 
@@ -61,3 +64,26 @@ enum class Status : std::uint16_t {
 }
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::tests {
+using namespace boost::ut;
+
+suite<"Status"> status_suite = [] {
+    "status_code unwraps the underlying numeric code"_test = [] {
+        expect(status_code(Status::OK) == 200);
+        expect(status_code(Status::CREATED) == 201);
+        expect(status_code(Status::NOT_FOUND) == 404);
+        expect(status_code(Status::INTERNAL_SERVER_ERROR) == 500);
+    };
+
+    "status_code round-trips through std::to_underlying for every declared status"_test = [] {
+        expect(status_code(Status::CONTINUE) == 100);
+        expect(status_code(Status::PERMANENT_REDIRECT) == 308);
+        expect(status_code(Status::TOO_MANY_REQUESTS) == 429);
+        expect(status_code(Status::HTTP_VERSION_NOT_SUPPORTED) == 505);
+    };
+};
+
+} // namespace interfaces::tests
+#endif

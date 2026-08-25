@@ -1,0 +1,31 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/toggle-button-group.css"
+  files: [tool/sources/heroui-toggle-button-group.css]
+  docs: https://heroui.com/en/docs/react/components/toggle-button-group
+anatomy:
+  - group (inline-flex h-auto w-fit items-center justify-center gap-0; horizontal/vertical; full-width flex-1 members)
+  - joined members (rounded-none; first/last rounded-s-3xl / rounded-e-3xl; single child rounded-3xl)
+  - separator (absolute 1px bg-current opacity-15; hidden when detached)
+
+kinds: attached (default, joined with separators) | detached (gap-1, members fully rounded)
+
+sizes: none
+default: -
+
+states: rest | hover | selected | focus-visible (inset ring, ring-offset 0) | pressed (transform none)
+
+tokens:
+  role: [color.foreground (separator currentColor @ 15%)]
+  component: [space.1 (detached gap 4), radius.3xl (24, member radius)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - separator geometry (1px x 50% height/width) and currentColor/15% alpha are literals
+
+behavior: lays out HeroToggleButtons, providing a group scope that adjusts member radius, removes the pressed scale, and hides separators in detached mode.
+
+approximations:
+  - separator rendered as a plain 1px line between members (CSS positions it absolutely at the boundary)
+  - inset focus ring approximated with the standard HeroFocusRing (ring-offset 2)

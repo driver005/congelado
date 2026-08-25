@@ -1,0 +1,34 @@
+component: separator
+flutter_name: HeroDivider
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/separator.css"
+  files: [tool/sources/heroui-separator.css]
+  docs: https://heroui.com/en/docs/react/components/divider
+
+anatomy:
+  - 1px line (h-px w-full, bg-separator, rounded-sm)
+
+kinds:
+  color: default (bg-separator) | secondary (bg-separator-secondary)
+  | tertiary (bg-separator-tertiary)
+  default: default
+
+sizes: none (h-px)
+default: -
+
+states: rest only
+
+tokens:
+  role: [color.separator, color.separatorSecondary, color.separatorTertiary]
+  component: [double.separator.thickness (1)]
+
+non_token_measurements:
+  - vertical orientation and the label slot (separator__container) not
+    exposed; RemixDivider provides horizontal/vertical via its own API
+
+behavior: static line.
+
+approximations:
+  - none material

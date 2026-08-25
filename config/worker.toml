@@ -43,13 +43,13 @@ level = "debug"
 stdout_level = "debug"
 
 # otel_otlp_plugin — points at the docker-compose observability stack's HOST-published ports (same
-# as config/congelado.toml). required = false: on bare metal those backends may not be up, so the
-# plugin probes each endpoint at load and skips just the unreachable signals (no export spam)
-# instead of failing worker boot. Set required = true to make an unreachable endpoint fatal.
+# as config/congelado.toml). Reaching every endpoint below is now an unconditional hard
+# requirement (no opt-out) — same tempo-port caveat as that file: publish tempo's OTLP port on
+# docker/docker-compose.yml before booting this config, or the worker will fail to start on the
+# unreachable traces_endpoint.
 [plugins.otel_otlp_plugin]
 type = "custom"
 service_name = "congelado-worker"
-required = false
 metrics_endpoint = "http://localhost:9090/api/v1/otlp/v1/metrics"
 traces_endpoint = "http://localhost:4318/v1/traces"
 logs_endpoint = "http://localhost:3100/otlp/v1/logs"

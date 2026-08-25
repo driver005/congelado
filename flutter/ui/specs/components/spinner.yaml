@@ -1,0 +1,36 @@
+component: Spinner
+flutter_name: HeroSpinner
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/spinner.css"
+  files: [tool/sources/heroui-spinner.css]
+  docs: https://heroui.com/en/docs/react/components/spinner
+
+anatomy:
+  - circular indicator (animate-spin-fast 0.75s, stroke 3)
+
+kinds:
+  color: current (inherits ambient) | accent | danger | success | warning
+  default: current
+
+sizes:
+  sm (16) | md (24) | lg (32) | xl (40)
+  default: md
+
+states: spinning (RemixSpinner handles the animation; reduced-motion users get
+  a static ring)
+
+tokens:
+  role: [color.accent, color.danger, color.success, color.warning]
+  component: [double.spinner.size.{sm,md,lg,xl}, double.spinner.strokeWidth]
+
+non_token_measurements:
+  - stroke width 3 is a fixed component metric from the CSS spinner design
+    (Tailwind border width on the ring)
+
+behavior: RemixSpinner (Naked UI) animation; pointer-events none.
+
+approximations:
+  - track color (RemixSpinnerSpec.trackColor) not set — matches the source's
+    borderless ring
