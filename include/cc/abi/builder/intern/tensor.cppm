@@ -15,8 +15,10 @@ class TensorBuilder {
     explicit TensorBuilder(TF_Tensor *tensor) : m_tensor{tensor} {}
 
     ~TensorBuilder() {
+
         if (m_tensor)
             TF_DeleteTensor(m_tensor);
+
     }
 
     TensorBuilder(const TensorBuilder &) = delete;
@@ -25,6 +27,7 @@ class TensorBuilder {
     TensorBuilder(TensorBuilder &&other) noexcept : m_tensor{other.m_tensor} { other.m_tensor = nullptr; }
 
     TensorBuilder &operator=(TensorBuilder &&other) noexcept {
+
         if (this != &other) {
             if (m_tensor)
                 TF_DeleteTensor(m_tensor);
@@ -32,6 +35,7 @@ class TensorBuilder {
             other.m_tensor = nullptr;
         }
         return *this;
+
     }
 
     bool is_valid() const { return m_tensor != nullptr; }
@@ -45,9 +49,11 @@ class TensorBuilder {
     void *get_data() const { return TF_TensorData(m_tensor); }
 
     TF_Tensor *release() {
+
         TF_Tensor *t = m_tensor;
         m_tensor = nullptr;
         return t;
+
     }
 
     // Underlying handle — pass directly to the C ABI

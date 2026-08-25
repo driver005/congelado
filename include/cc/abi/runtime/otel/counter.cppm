@@ -13,9 +13,11 @@ class CounterRuntime {
   explicit CounterRuntime(TP_Otel_Counter* handle) : m_handle{handle} {}
 
   void invoke_add(double value) const {
+
     if (m_handle && m_handle->add_cb) {
       m_handle->add_cb(m_handle->ext, value);
     }
+
   }
 
   // Underlying handle — pass directly to the C ABI

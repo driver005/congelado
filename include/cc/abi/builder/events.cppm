@@ -19,17 +19,21 @@ class EventsBuilder {
 
   EventsBuilder(EventsBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   EventsBuilder& operator=(EventsBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_EventsDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   EventsBuilder& set_publish(TP_Events_PublishFn callback) {
+
     TP_Events_SetPublishCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->name}; }

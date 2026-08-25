@@ -13,9 +13,11 @@ class HistogramRuntime {
   explicit HistogramRuntime(TP_Otel_Histogram* handle) : m_handle{handle} {}
 
   void invoke_record(double value) const {
+
     if (m_handle && m_handle->record_cb) {
       m_handle->record_cb(m_handle->ext, value);
     }
+
   }
 
   // Underlying handle — pass directly to the C ABI

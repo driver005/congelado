@@ -14,10 +14,14 @@ export namespace cc::stable_hlo {
 // cc_abi_builder_generator) instead of the ABI importing stable_hlo directly.
 struct StableHloGeneratorRegistrar {
     StableHloGeneratorRegistrar() {
+
         ice::GeneratorBuilderRegistry::default_registry().register_factory(
             "stablehlo", [](std::string_view output_dir, std::string_view source_dir) {
+
                 return StableHloBuilder::create(output_dir, source_dir);
+
             });
+
     }
 };
 inline StableHloGeneratorRegistrar stable_hlo_generator_registrar;

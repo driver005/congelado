@@ -41,12 +41,14 @@ class Status {
     void set_message(std::string message) { m_message = std::move(message); }
 
     static Status from_c(TF_Status *s) {
+
         if (!s)
             return Status{};
         TF_Code code = TF_GetCode(s);
         if (code == TF_OK)
             return Status{};
         return Status(static_cast<StatusCode>(code), TF_Message(s));
+
     }
 
   private:

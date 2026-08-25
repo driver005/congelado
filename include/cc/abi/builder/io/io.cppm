@@ -20,12 +20,14 @@ class IoBuilder {
 
   IoBuilder(IoBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   IoBuilder& operator=(IoBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_IODelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

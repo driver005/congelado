@@ -14,12 +14,16 @@ class LoggerRuntime {
   explicit LoggerRuntime(TP_Logger* handle) : m_handle{handle} {}
 
   void invoke_write(TF_Logger_LogLevel level, const TF_TString* message) const {
+
     if (m_handle && m_handle->write_cb) {
       m_handle->write_cb(m_handle->ext, level, message);
     }
+
   }
   TF_Bool invoke_required() const {
+
     return (m_handle && m_handle->required_cb) ? m_handle->required_cb(m_handle->ext) : 0;
+
   }
 
   StringRuntime get_name() const { return m_handle ? StringRuntime{&m_handle->name} : StringRuntime{}; }

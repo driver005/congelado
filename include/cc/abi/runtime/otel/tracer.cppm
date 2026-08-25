@@ -15,10 +15,12 @@ class TracerRuntime {
   explicit TracerRuntime(TP_Otel_Tracer* handle) : m_handle{handle} {}
 
   SpanRuntime invoke_start_span(const TF_TString* name, int kind, TF_Status* status) const {
+
     if (m_handle && m_handle->start_span_cb) {
       return SpanRuntime{m_handle->start_span_cb(m_handle->ext, name, kind, status)};
     }
     return SpanRuntime{};
+
   }
 
   // Underlying handle — pass directly to the C ABI

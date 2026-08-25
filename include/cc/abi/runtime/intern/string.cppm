@@ -21,12 +21,14 @@ class StringRuntime {
     size_t size() const { return m_str ? TF_StringGetSize(m_str) : 0; }
 
     std::string to_std_string() const {
+
         if (!m_str) {
             return std::string();
         }
         auto *data = TF_StringGetDataPointer(m_str);
         auto sz = TF_StringGetSize(m_str);
         return data ? std::string(data, sz) : std::string();
+
     }
 
     // Underlying handle — pass directly to the C ABI

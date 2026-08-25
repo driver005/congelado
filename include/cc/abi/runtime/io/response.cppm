@@ -20,11 +20,13 @@ class ResponseRuntime {
         other.m_handle = nullptr;
     }
     ResponseRuntime &operator=(ResponseRuntime &&other) noexcept {
+
         if (this != &other) {
             m_handle = other.m_handle;
             other.m_handle = nullptr;
         }
         return *this;
+
     }
 
     // Underlying handle — pass directly to the C ABI

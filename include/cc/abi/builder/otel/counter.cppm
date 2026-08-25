@@ -18,17 +18,21 @@ class CounterBuilder {
 
   CounterBuilder(CounterBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   CounterBuilder& operator=(CounterBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_OtelCounterDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   CounterBuilder& set_add(TP_Otel_Counter_AddFn callback) {
+
     TP_OtelCounter_SetAddCallback(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

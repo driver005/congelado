@@ -18,25 +18,33 @@ class ResponseBuilder {
 
   ResponseBuilder(ResponseBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   ResponseBuilder& operator=(ResponseBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_IOResponseDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   ResponseBuilder& set_status(TP_IO_Response_SetStatusFn callback) {
+
     TP_IOResponse_SetSetStatusCallback(m_handle, callback);
     return *this;
+
   }
   ResponseBuilder& set_header(TP_IO_Response_SetHeaderFn callback) {
+
     TP_IOResponse_SetSetHeaderCallback(m_handle, callback);
     return *this;
+
   }
   ResponseBuilder& set_body(TP_IO_Response_SetBodyFn callback) {
+
     TP_IOResponse_SetSetBodyCallback(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

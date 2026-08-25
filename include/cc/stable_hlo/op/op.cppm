@@ -30,23 +30,28 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
 
     [[nodiscard]] static std::expected<StableHloOp, StableHloError>
     create_unary(std::string opcode, const StableHloValue &operand, std::string result_id) {
+
         StableHloValue result{std::move(result_id), operand.get_shape()};
         return StableHloOp{std::move(opcode), "unary", {operand}, {}, {std::move(result)}};
+
     }
 
     [[nodiscard]] static std::expected<StableHloOp, StableHloError>
     create_binary(std::string opcode, const StableHloValue &lhs, const StableHloValue &rhs, std::string result_id) {
+
         if (!(lhs.get_shape() == rhs.get_shape())) {
             return std::unexpected{StableHloError{std::format("{}: operand shape mismatch ({} vs {})", opcode,
                                                                lhs.get_shape(), rhs.get_shape())}};
         }
         StableHloValue result{std::move(result_id), lhs.get_shape()};
         return StableHloOp{std::move(opcode), "binary", {lhs, rhs}, {}, {std::move(result)}};
+
     }
 
     [[nodiscard]] static std::expected<StableHloOp, StableHloError>
     create_comparison(const StableHloValue &lhs, const StableHloValue &rhs, std::string comparison_direction,
                       std::optional<std::string> compare_type, std::string result_id) {
+
         if (lhs.get_shape().get_dims() != rhs.get_shape().get_dims()) {
             return std::unexpected{StableHloError{
                 std::format("compare: operand shape mismatch ({} vs {})", lhs.get_shape(), rhs.get_shape())}};
@@ -58,12 +63,14 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
         std::vector<std::pair<std::string, std::string>> attrs{{"comparison_direction", std::move(direction_attr)}};
         StableHloValue result{std::move(result_id), std::move(result_shape)};
         return StableHloOp{"compare", "comparison", {lhs, rhs}, std::move(attrs), {std::move(result)}};
+
     }
 
     [[nodiscard]] static std::expected<StableHloOp, StableHloError>
     create_explicit(std::string opcode, std::span<const StableHloValue> operands,
                     std::vector<std::pair<std::string, std::string>> attrs,
                     std::vector<StableHloShape> result_shapes, const std::function<std::string()> &next_id) {
+
         if (result_shapes.empty()) {
             return std::unexpected{StableHloError{std::format("{}: at least one result shape is required", opcode)}};
         }
@@ -75,6 +82,7 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
         return StableHloOp{std::move(opcode), "explicit",
                            std::vector<StableHloValue>{operands.begin(), operands.end()}, std::move(attrs),
                            std::move(results)};
+
     }
 
     // --- ice::GeneratorDefinitionViewBase ---
@@ -83,18 +91,24 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
     ice::StringBuilder get_description() const override { return ice::StringBuilder{"category:" + m_category}; }
     std::size_t get_input_count() const override { return m_operands.size(); }
     std::unique_ptr<ice::GeneratorParameterViewBase> get_input(std::size_t index) const override {
+
         if (index >= m_operands.size()) return nullptr;
         return std::make_unique<StableHloValueParameterView>(m_operands[index], static_cast<int>(index), true);
+
     }
     std::size_t get_output_count() const override { return m_results.size(); }
     std::unique_ptr<ice::GeneratorParameterViewBase> get_output(std::size_t index) const override {
+
         if (index >= m_results.size()) return nullptr;
         return std::make_unique<StableHloValueParameterView>(m_results[index], static_cast<int>(index), false);
+
     }
     std::size_t get_attr_count() const override { return m_attrs.size(); }
     std::unique_ptr<ice::GeneratorAttributeViewBase> get_attr(std::size_t index) const override {
+
         if (index >= m_attrs.size()) return nullptr;
         return std::make_unique<StableHloOpAttributeView>(m_attrs[index]);
+
     }
 
     // --- StableHLO-specific ---
@@ -102,6 +116,7 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
     const StableHloValue &get_result(std::size_t index) const { return m_results.at(index); }
 
     void render_into(ice::GeneratorSourceCodeBase &sink) const {
+
         std::string result_ids;
         for (std::size_t i = 0; i < m_results.size(); ++i) {
             if (i > 0) result_ids += ", ";
@@ -149,6 +164,7 @@ class StableHloOp : public ice::GeneratorDefinitionViewBase {
         std::string result_type_text = m_results.size() == 1 ? result_types : std::format("({})", result_types);
         sink.add_line(std::format("{} = \"stablehlo.{}\"({}){} : ({}) -> {}", result_ids, m_opcode, operand_ids,
                                   attr_block, operand_types, result_type_text));
+
     }
 
   private:

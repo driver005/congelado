@@ -17,20 +17,26 @@ class CacheRuntime {
   explicit CacheRuntime(TP_Cache* handle) : m_handle{handle} {}
 
   void invoke_get(const TF_TString* key, TF_Cache_CompletionFn completion, void* cb_user_data) const {
+
     if (m_handle && m_handle->get_cb) {
       m_handle->get_cb(m_handle->ext, key, completion, cb_user_data);
     }
+
   }
   void invoke_set(const TF_TString* key, const TF_TString* value, TF_Cache_CompletionFn completion,
                   void* cb_user_data) const {
+
     if (m_handle && m_handle->set_cb) {
       m_handle->set_cb(m_handle->ext, key, value, completion, cb_user_data);
     }
+
   }
   void invoke_remove(const TF_TString* key, TF_Cache_CompletionFn completion, void* cb_user_data) const {
+
     if (m_handle && m_handle->remove_cb) {
       m_handle->remove_cb(m_handle->ext, key, completion, cb_user_data);
     }
+
   }
 
   StringRuntime get_name() const { return m_handle ? StringRuntime{&m_handle->backend_name} : StringRuntime{}; }

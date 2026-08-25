@@ -19,8 +19,10 @@ class ThreadViewRuntime {
 
   ThreadViewRuntime(ThreadViewRuntime&& other) noexcept : m_handle(other.m_handle) { other.m_handle = nullptr; }
   ThreadViewRuntime& operator=(ThreadViewRuntime&& other) noexcept {
+
     if (this != &other) { m_handle = other.m_handle; other.m_handle = nullptr; }
     return *this;
+
   }
 
   void join() { if (m_handle) TF_JoinThread(m_handle); }

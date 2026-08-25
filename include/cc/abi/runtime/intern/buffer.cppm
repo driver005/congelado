@@ -20,10 +20,12 @@ class BufferRuntime {
     size_t get_length() const { return m_buffer ? m_buffer->length : 0; }
 
     std::string to_string() const {
+
         if (!m_buffer) {
             return std::string();
         }
         return std::string(reinterpret_cast<const char *>(m_buffer->data), m_buffer->length);
+
     }
 
     // Underlying handle — pass directly to the C ABI

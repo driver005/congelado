@@ -21,10 +21,12 @@ class StringBuilder {
     StringBuilder() { TF_StringInit(&m_str); }
 
     StringBuilder(const char *data, size_t size) {
+
         TF_StringInit(&m_str);
         if (data && size > 0) {
             TF_StringCopy(&m_str, data, size);
         }
+
     }
 
     explicit StringBuilder(const std::string &s) : StringBuilder(s.data(), s.size()) {}
@@ -32,26 +34,31 @@ class StringBuilder {
     StringBuilder(const char *s) : StringBuilder(s, s ? std::strlen(s) : 0) {}
 
     explicit StringBuilder(const TF_TString *ts) {
+
         TF_StringInit(&m_str);
         auto *data = TF_StringGetDataPointer(ts);
         auto size = TF_StringGetSize(ts);
         if (data && size > 0) {
             TF_StringCopy(&m_str, data, size);
         }
+
     }
 
     ~StringBuilder() { TF_StringDealloc(&m_str); }
 
     StringBuilder(const StringBuilder &other) {
+
         TF_StringInit(&m_str);
         auto *view = TF_StringGetDataPointer(&other.m_str);
         auto size = TF_StringGetSize(&other.m_str);
         if (view && size > 0) {
             TF_StringCopy(&m_str, view, size);
         }
+
     }
 
     StringBuilder &operator=(const StringBuilder &other) {
+
         if (this != &other) {
             TF_StringDealloc(&m_str);
             TF_StringInit(&m_str);
@@ -62,20 +69,25 @@ class StringBuilder {
             }
         }
         return *this;
+
     }
 
     StringBuilder(StringBuilder &&other) noexcept {
+
         m_str = other.m_str;
         TF_StringInit(&other.m_str);
+
     }
 
     StringBuilder &operator=(StringBuilder &&other) noexcept {
+
         if (this != &other) {
             TF_StringDealloc(&m_str);
             m_str = other.m_str;
             TF_StringInit(&other.m_str);
         }
         return *this;
+
     }
 
     const char *c_str() const { return TF_StringGetDataPointer(&m_str); }
@@ -84,9 +96,11 @@ class StringBuilder {
     bool empty() const { return size() == 0; }
 
     std::string to_std_string() const {
+
         auto *data = TF_StringGetDataPointer(&m_str);
         auto sz = TF_StringGetSize(&m_str);
         return data ? std::string(data, sz) : std::string();
+
     }
 
     // Underlying handle — pass directly to the C ABI

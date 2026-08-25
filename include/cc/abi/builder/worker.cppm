@@ -19,33 +19,45 @@ class WorkerBuilder {
 
   WorkerBuilder(WorkerBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   WorkerBuilder& operator=(WorkerBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_WorkerDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   WorkerBuilder& set_get_task_type(TP_Worker_GetTaskTypeFn callback) {
+
     TP_Worker_SetGetTaskTypeCallback(m_handle, callback);
     return *this;
+
   }
   WorkerBuilder& set_execute(TP_Worker_ExecuteFn callback) {
+
     TP_Worker_SetExecuteCallback(m_handle, callback);
     return *this;
+
   }
   WorkerBuilder& set_execute_async(TP_Worker_ExecuteAsyncFn callback) {
+
     TP_Worker_SetExecuteAsyncCallback(m_handle, callback);
     return *this;
+
   }
   WorkerBuilder& set_on_error(TP_Worker_OnErrorFn callback) {
+
     TP_Worker_SetOnErrorCallback(m_handle, callback);
     return *this;
+
   }
   WorkerBuilder& set_on_released(TP_Worker_OnReleasedFn callback) {
+
     TP_Worker_SetOnReleasedCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->task_type}; }

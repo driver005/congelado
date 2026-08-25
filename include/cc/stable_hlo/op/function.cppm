@@ -20,8 +20,10 @@ class StableHloFunction : public ice::GeneratorDefinitionViewBase {
         : m_name{std::move(name)}, m_arguments{std::move(arguments)} {}
 
     StableHloFunction &add_op(StableHloOp op) {
+
         m_ops.push_back(std::move(op));
         return *this;
+
     }
     void set_returns(std::vector<StableHloValue> returns) { m_returns = std::move(returns); }
     [[nodiscard]] std::string next_id() { return "%" + std::to_string(m_next_value_id++); }
@@ -32,13 +34,17 @@ class StableHloFunction : public ice::GeneratorDefinitionViewBase {
     ice::StringBuilder get_description() const override { return ice::StringBuilder{}; }
     std::size_t get_input_count() const override { return m_arguments.size(); }
     std::unique_ptr<ice::GeneratorParameterViewBase> get_input(std::size_t index) const override {
+
         if (index >= m_arguments.size()) return nullptr;
         return std::make_unique<StableHloValueParameterView>(m_arguments[index], static_cast<int>(index), true);
+
     }
     std::size_t get_output_count() const override { return m_returns.size(); }
     std::unique_ptr<ice::GeneratorParameterViewBase> get_output(std::size_t index) const override {
+
         if (index >= m_returns.size()) return nullptr;
         return std::make_unique<StableHloValueParameterView>(m_returns[index], static_cast<int>(index), false);
+
     }
     std::size_t get_attr_count() const override { return 0; }
     std::unique_ptr<ice::GeneratorAttributeViewBase> get_attr(std::size_t) const override { return nullptr; }
@@ -50,6 +56,7 @@ class StableHloFunction : public ice::GeneratorDefinitionViewBase {
     const std::vector<StableHloValue> &get_returns() const { return m_returns; }
 
     void render_into(ice::GeneratorSourceCodeBase &sink) const {
+
         std::string params;
         for (std::size_t i = 0; i < m_arguments.size(); ++i) {
             if (i > 0) params += ", ";
@@ -81,6 +88,7 @@ class StableHloFunction : public ice::GeneratorDefinitionViewBase {
     std::vector<StableHloOp> m_ops;
     std::vector<StableHloValue> m_returns;
     std::size_t m_next_value_id{0};
+
 };
 
 } // namespace cc::stable_hlo

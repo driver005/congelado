@@ -20,8 +20,10 @@ class StableHloModule : public ice::GeneratorDefinitionViewBase {
     explicit StableHloModule(std::string name) : m_name{std::move(name)} {}
 
     StableHloFunction &add_function(std::string name, std::vector<StableHloValue> arguments) {
+
         m_functions.push_back(std::make_unique<StableHloFunction>(std::move(name), std::move(arguments)));
         return *m_functions.back();
+
     }
 
     // --- ice::GeneratorDefinitionViewBase ---
@@ -41,6 +43,7 @@ class StableHloModule : public ice::GeneratorDefinitionViewBase {
     bool empty() const { return m_functions.empty(); }
 
     void render_into(ice::GeneratorSourceCodeBase &sink) const {
+
         sink.add_line(std::format("module @{} {{", m_name));
         sink.increase_indent();
         for (const auto &function : m_functions) {
@@ -53,6 +56,7 @@ class StableHloModule : public ice::GeneratorDefinitionViewBase {
   private:
     std::string m_name;
     std::vector<std::unique_ptr<StableHloFunction>> m_functions;
+
 };
 
 } // namespace cc::stable_hlo

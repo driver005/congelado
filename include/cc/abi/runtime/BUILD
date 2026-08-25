@@ -89,26 +89,8 @@ congelado_module_library(
 )
 
 congelado_module_library(
-    name = "protocol",
-    primary_interface = "protocol.cppm",
-    deps = [
-        "//include/c:tf_c_headers",
-        "//include/cc/abi/runtime/intern:cc_abi_runtime_intern",
-    ],
-)
-
-congelado_module_library(
     name = "python",
     primary_interface = "python.cppm",
-    deps = [
-        "//include/c:tf_c_headers",
-        "//include/cc/abi/runtime/intern:cc_abi_runtime_intern",
-    ],
-)
-
-congelado_module_library(
-    name = "search",
-    primary_interface = "search.cppm",
     deps = [
         "//include/c:tf_c_headers",
         "//include/cc/abi/runtime/intern:cc_abi_runtime_intern",
@@ -148,9 +130,11 @@ congelado_module_library(
         "orchestrator.cppm",
         "payload.cppm",
         "profiler.cppm",
-        "protocol.cppm",
+        "protocol/protocol_server_runtime.cppm",
+        "protocol/protocol_runtime.cppm",
         "python.cppm",
-        "search.cppm",
+        "search/search_query_runtime.cppm",
+        "search/search_runtime.cppm",
         "serde.cppm",
         "worker.cppm",
     ],

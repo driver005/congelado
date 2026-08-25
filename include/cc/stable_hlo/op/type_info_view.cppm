@@ -16,10 +16,14 @@ export namespace cc::stable_hlo {
 class StableHloTypeInfoView : public ice::GeneratorTypeInfoViewBase {
   public:
     static StableHloTypeInfoView from_shape(const StableHloShape &shape, bool is_read_only) {
+
         return StableHloTypeInfoView{static_cast<int>(shape.get_dtype().get_kind()), false, is_read_only};
+
     }
     static StableHloTypeInfoView from_schema(bool is_list) {
+
         return StableHloTypeInfoView{-1, is_list, true};
+
     }
 
     int get_data_type() const override { return m_data_type; }

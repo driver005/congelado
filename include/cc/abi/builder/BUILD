@@ -56,16 +56,6 @@ congelado_module_library(
 )
 
 congelado_module_library(
-    name = "ops",
-    primary_interface = "ops.cppm",
-    deps = [
-        "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
-        "//include/cc/abi/value:cc_abi_value",
-    ],
-)
-
-congelado_module_library(
     name = "orchestrator",
     primary_interface = "orchestrator.cppm",
     deps = [
@@ -148,7 +138,10 @@ congelado_module_library(
         "events.cppm",
         "logger.cppm",
         "manager.cppm",
-        "ops.cppm",
+        "ops/ops_builder.cppm",
+        "ops/shape_handle.cppm",
+        "ops/dimension_handle.cppm",
+        "ops/shape_inference_context_view.cppm",
         "orchestrator.cppm",
         "payload.cppm",
         "profiler.cppm",

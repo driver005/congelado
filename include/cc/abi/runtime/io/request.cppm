@@ -21,11 +21,13 @@ class RequestRuntime {
         other.m_handle = nullptr;
     }
     RequestRuntime &operator=(RequestRuntime &&other) noexcept {
+
         if (this != &other) {
             m_handle = other.m_handle;
             other.m_handle = nullptr;
         }
         return *this;
+
     }
 
     // Underlying handle — pass directly to the C ABI

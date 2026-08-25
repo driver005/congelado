@@ -18,27 +18,35 @@ class SpanBuilder {
 
   SpanBuilder(SpanBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   SpanBuilder& operator=(SpanBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_OtelSpanDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   SpanBuilder& set_attribute(TP_Otel_Span_SetAttributeFn callback) {
+
     TP_OtelSpan_SetSetAttributeCallback(m_handle, callback);
     return *this;
+
   }
 
   SpanBuilder& set_status(TP_Otel_Span_SetStatusFn callback) {
+
     TP_OtelSpan_SetSetStatusCallback(m_handle, callback);
     return *this;
+
   }
 
   SpanBuilder& set_end(TP_Otel_Span_EndFn callback) {
+
     TP_OtelSpan_SetEndCallback(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

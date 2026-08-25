@@ -11,9 +11,11 @@ export import :ops;
 export import :worker_orchestrator;
 export import :payload;
 export import :profiler;
-export import :protocol;
+export import :protocol_server_runtime;
+export import :protocol_runtime;
 export import :python;
-export import :search;
+export import :search_query_runtime;
+export import :search_runtime;
 export import :serde;
 export import :worker;
 

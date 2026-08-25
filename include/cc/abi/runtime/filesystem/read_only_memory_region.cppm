@@ -14,15 +14,21 @@ class ReadOnlyMemoryRegionOpsRuntime {
     explicit ReadOnlyMemoryRegionOpsRuntime(TF_ReadOnlyMemoryRegionOps *handle) : m_handle{handle} {}
 
     void invoke_cleanup(TF_ReadOnlyMemoryRegion *region) const {
+
         if (m_handle && m_handle->cleanup) {
             m_handle->cleanup(region);
         }
+
     }
     const void *invoke_data(const TF_ReadOnlyMemoryRegion *region) const {
+
         return (m_handle && m_handle->data) ? m_handle->data(region) : nullptr;
+
     }
     uint64_t invoke_length(const TF_ReadOnlyMemoryRegion *region) const {
+
         return (m_handle && m_handle->length) ? m_handle->length(region) : 0;
+
     }
 
     // Underlying handle — pass directly to the C ABI

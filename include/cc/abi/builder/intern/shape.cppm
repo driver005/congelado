@@ -16,8 +16,10 @@ class ShapeBuilder {
         : m_shape{TF_NewShape(dims.data(), static_cast<int>(dims.size()))} {}
 
     ~ShapeBuilder() {
+
         if (m_shape)
             TF_DeleteShape(m_shape);
+
     }
 
     ShapeBuilder(const ShapeBuilder &) = delete;
@@ -26,6 +28,7 @@ class ShapeBuilder {
     ShapeBuilder(ShapeBuilder &&other) noexcept : m_shape{other.m_shape} { other.m_shape = nullptr; }
 
     ShapeBuilder &operator=(ShapeBuilder &&other) noexcept {
+
         if (this != &other) {
             if (m_shape)
                 TF_DeleteShape(m_shape);
@@ -33,6 +36,7 @@ class ShapeBuilder {
             other.m_shape = nullptr;
         }
         return *this;
+
     }
 
     bool is_valid() const { return m_shape != nullptr; }
@@ -40,11 +44,13 @@ class ShapeBuilder {
     int64_t get_dim(int index) const { return TF_ShapeDim(m_shape, index); }
 
     std::vector<int64_t> to_vector() const {
+
         int n = get_num_dims();
         std::vector<int64_t> dims(n);
         for (int i = 0; i < n; ++i)
             dims[i] = get_dim(i);
         return dims;
+
     }
 
     // Underlying handle — pass directly to the C ABI

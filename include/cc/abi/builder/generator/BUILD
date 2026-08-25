@@ -8,7 +8,8 @@ congelado_module_library(
     primary_interface = "generator.cppm",
     partitions = [
         "base_attribute.cppm",
-        "base_controller.cppm",
+        "base_controller/generator_builder_base.cppm",
+        "base_controller/generator_builder_view_base.cppm",
         "base_definition.cppm",
         "base_parameter.cppm",
         "base_sourcecode.cppm",
