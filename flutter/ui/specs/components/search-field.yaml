@@ -1,0 +1,35 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/search-field.css"
+  files: [tool/sources/heroui-search-field.css]
+  docs: https://heroui.com/en/docs/react/components/search-field
+anatomy:
+  - container (flex-col gap-1: label + group + helper/error slots)
+  - group (h-9 inline-flex rounded-field border bg-field shadow-field, hover bg-field-hover, focus-within status-focused-field)
+  - search icon (ms-3 me-0 size-4 text-field-placeholder, pointer-events-none)
+  - input (flex-1 px-3 py-2 text-base bg-transparent)
+  - clear button (me-2 size-5 close button, icon size-3, opacity-0 when empty)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-base sm:text-sm)
+default: -
+
+states: rest | hover (bg-field-hover) | focus-within (status-focused-field ring) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), double.input.minHeight (36), double.input.paddingX (12), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - icon sizes (16 search / 20 clear / 12 clear icon) are CSS literals
+  - clear button = close-button geometry resized to size-5
+
+behavior: text entry via plain TextField; clear button visible while text is non-empty (fades 150ms) and clears the field; the group shows the focus ring while the field is focused.
+
+approximations:
+  - border-width-field 0px -> 1px transparent border
+  - focus ring offset (see textarea)
+  - h-9 group height uses double.input.minHeight (36)

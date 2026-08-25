@@ -1,0 +1,33 @@
+name: congelado_engine_ui
+description: >-
+  Flutter UI contributed by the engine plugin — a Tasks list and detail/edit
+  page, talking to the engine's own REST endpoints via plain package:http.
+  Independent of plugins/engine/src/ (the C++ backend); openapi.json is
+  consulted only as documentation of the field names below, not as codegen
+  input.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # shadcn/ui-inspired components (forui.dev) — every page in this package is styled with these
+  # instead of raw Material widgets, per the shared theme in congelado_ui_sdk's theme/ module.
+  forui: ^0.25.0
+  congelado_ui_sdk:
+    path: ../../../../sdk/ui_dart
+  http: ^1.2.0
+  # Used transitively via congelado_ui_sdk's CWorkflowGraph, but declared explicitly here too —
+  # matches how this package already declares forui explicitly rather than relying on transitive
+  # resolution through congelado_ui_sdk.
+  graphview: ^1.5.1
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

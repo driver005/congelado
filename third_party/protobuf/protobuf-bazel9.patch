@@ -1,0 +1,61 @@
+diff --git a/src/google/protobuf/compiler/kotlin/BUILD.bazel b/src/google/protobuf/compiler/kotlin/BUILD.bazel
+--- a/src/google/protobuf/compiler/kotlin/BUILD.bazel
++++ b/src/google/protobuf/compiler/kotlin/BUILD.bazel
+@@ -1,4 +1,5 @@
+ load("//build_defs:cpp_opts.bzl", "COPTS")
++load("@rules_cc//cc:defs.bzl", "cc_library")
+ 
+ cc_library(
+     name = "generator_headers",
+diff --git a/src/google/protobuf/compiler/java/full/BUILD.bazel b/src/google/protobuf/compiler/java/full/BUILD.bazel
+--- a/src/google/protobuf/compiler/java/full/BUILD.bazel
++++ b/src/google/protobuf/compiler/java/full/BUILD.bazel
+@@ -2,6 +2,7 @@
+ #     https://github.com/bazelbuild/bazel/issues/18683
+ 
+ load("//build_defs:cpp_opts.bzl", "COPTS")
++load("@rules_cc//cc:defs.bzl", "cc_library")
+ 
+ cc_library(
+     name = "fg",
+diff --git a/src/google/protobuf/compiler/java/lite/BUILD.bazel b/src/google/protobuf/compiler/java/lite/BUILD.bazel
+--- a/src/google/protobuf/compiler/java/lite/BUILD.bazel
++++ b/src/google/protobuf/compiler/java/lite/BUILD.bazel
+@@ -1,4 +1,5 @@
+ load("//build_defs:cpp_opts.bzl", "COPTS")
++load("@rules_cc//cc:defs.bzl", "cc_library")
+ 
+ cc_library(
+     name = "field_generators",
+diff --git a/lua/BUILD.bazel b/lua/BUILD.bazel
+--- a/lua/BUILD.bazel
++++ b/lua/BUILD.bazel
+@@ -15,6 +15,7 @@
+     "UPB_DEFAULT_COPTS",
+     "UPB_DEFAULT_CPPOPTS",
+ )
++load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+ 
+ licenses(["notice"])
+ 
+diff --git a/pkg/test/BUILD.bazel b/pkg/test/BUILD.bazel
+--- a/pkg/test/BUILD.bazel
++++ b/pkg/test/BUILD.bazel
+@@ -3,6 +3,7 @@
+ load("@rules_shell//shell:sh_test.bzl", "sh_test")
+ load("//pkg:build_systems.bzl", "gen_file_lists")
+ load("//pkg:cc_dist_library.bzl", "cc_dist_library")
++load("@rules_cc//cc:defs.bzl", "cc_library")
+ 
+ cc_library(
+     name = "test_lib",
+diff --git a/ruby/ext/google/protobuf_c/BUILD.bazel b/ruby/ext/google/protobuf_c/BUILD.bazel
+--- a/ruby/ext/google/protobuf_c/BUILD.bazel
++++ b/ruby/ext/google/protobuf_c/BUILD.bazel
+@@ -1,6 +1,7 @@
+ load("@build_bazel_rules_apple//apple:apple_binary.bzl", "apple_binary")
+ load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
+ load("//upb/cmake:build_defs.bzl", "staleness_test")
++load("@rules_cc//cc:defs.bzl", "cc_library")
+ 
+ package(default_visibility = ["//ruby:__subpackages__"])

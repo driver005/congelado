@@ -1,0 +1,32 @@
+component: tag-group
+flutter_name: HeroTagGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/tag-group.css"
+  files: [tool/sources/heroui-tag-group.css]
+  docs: https://heroui.com/en/docs/react/components/tag-group
+
+anatomy:
+  - (none)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - column gap-1; list wrap gap-1.5; description/error p-1
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

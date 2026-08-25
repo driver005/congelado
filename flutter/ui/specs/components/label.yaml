@@ -1,0 +1,32 @@
+component: label
+flutter_name: HeroLabel
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/label.css"
+  files: [tool/sources/heroui-label.css]
+  docs: https://heroui.com/en/docs/react/components/label
+
+anatomy:
+  - (none)
+
+kinds:
+  color: foreground (default), danger (invalid/required asterisk)
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - required/invalid/disabled flags; asterisk after text
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

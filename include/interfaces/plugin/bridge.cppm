@@ -3,6 +3,9 @@ module;
 export module interfaces:plugin_bridge;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export struct FnContext {
     std::any m_invoke;  // std::function<Value(std::span<const Value>)>
@@ -89,3 +92,35 @@ class IBridge {
 };
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::plugin_bridge_tests {
+
+// Minimal IBridge fixture — every pure virtual gets a trivial body so native_handle()'s
+// default implementation can be exercised in isolation.
+class MockBridge final : public interfaces::IBridge {
+  public:
+    [[nodiscard]] CongeladoAny from_native(void *native_obj) override {
+        CongeladoAny any{};
+        any.type_index = CG_PTR;
+        any.v_ptr = native_obj;
+        return any;
+    }
+    void *to_native(const CongeladoAny &value) override { return value.v_ptr; }
+    void install_method(std::unique_ptr<FnContext>, const std::string &) override {}
+    [[nodiscard]] std::string_view runtime_name() const noexcept override { return "mock"; }
+    [[nodiscard]] std::string_view script_extension() const noexcept override { return ".mock"; }
+    [[nodiscard]] int run_script(std::string_view) override { return 0; }
+};
+
+using namespace boost::ut;
+
+suite<"IBridge"> bridge_suite = [] {
+    "native_handle() defaults to nullptr when not overridden"_test = [] {
+        MockBridge bridge;
+        expect(bridge.native_handle() == nullptr);
+    };
+};
+
+} // namespace interfaces::plugin_bridge_tests
+#endif

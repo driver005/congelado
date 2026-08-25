@@ -1,0 +1,136 @@
+module(
+    name = "congelado",
+    version = "0.1.0",
+)
+
+# Rules
+bazel_dep(name = "rules_cc", version = "0.2.22")
+
+# rules_cc's modern declarative cc_toolchain API statically scopes the C++20-modules build
+# variables (source_file/output_file/user_compile_flags/legacy_compile_flags/
+# unfiltered_compile_flags/dependency_file) to only
+# @rules_cc//cc/toolchains/actions:compile_actions ({cpp,c,assembly,objc}_compile_actions)
+# — the three actual module actions (cpp_module_deps_scanning/cpp20_module_compile/
+# cpp20_module_codegen) are excluded from that set entirely, so any cc_args referencing
+# these variables for a module action fails analysis with "The variable ... is
+# inaccessible from the action ...". This isn't something a consuming toolchain's own
+# BUILD file can widen (the scoping is baked into rules_cc's own vendored cc_variable()
+# declarations) — legacy toolchains (unix_cc_toolchain_config.bzl, using the older
+# cc_common.create_cc_toolchain_config_info API) don't hit this because they don't go
+# through the same static per-action variable accessibility check. Patches the 6 affected
+# cc_variable() declarations in cc/toolchains/variables/BUILD to add the three module
+# actions to their `actions` list — verified by hand against the exact fetched source
+# before adding here.
+#
+# Second patch_cmds entry: 0.2.22's cc/private/compile/compile.bzl already COMPUTES and
+# injects "cpp_module_modmap_file"/"cpp_module_output_file" as raw build-variable values
+# for cpp20_module_compile (see its `additional_build_variables = {...}` dict — confirmed
+# by reading the exact fetched source) — it's only the modern cc_variable() BUILD-target
+# declaration (needed so cc_args' `format=` can reference it by label at all) that's
+# missing; a later rules_cc release adds exactly this declaration (confirmed against
+# github.com/bazelbuild/rules_cc's current main, cc/toolchains/variables/BUILD). Appending
+# the same declaration here is additive only — doesn't touch compile.bzl's own value
+# computation, just exposes the label.
+single_version_override(
+    module_name = "rules_cc",
+    version = "0.2.22",
+    patch_cmds = [
+        "for v in source_file output_file user_compile_flags legacy_compile_flags unfiltered_compile_flags dependency_file; do " +
+        "sed -i \"/name = \\\"$v\\\",/{n;s|actions = \\[|actions = [\\\"//cc/toolchains/actions:cpp_module_deps_scanning\\\", \\\"//cc/toolchains/actions:cpp20_module_compile\\\", \\\"//cc/toolchains/actions:cpp20_module_codegen\\\", |}\" " +
+        "cc/toolchains/variables/BUILD; done",
+        """cat >> cc/toolchains/variables/BUILD << 'EOF'
+
+cc_variable(
+    name = "cpp_module_modmap_file",
+    actions = [
+        "//cc/toolchains/actions:cpp_compile",
+        "//cc/toolchains/actions:cpp20_module_compile",
+        "//cc/toolchains/actions:cpp20_module_codegen",
+    ],
+    type = types.option(types.file),
+)
+
+cc_variable(
+    name = "cpp_module_output_file",
+    actions = [
+        "//cc/toolchains/actions:cpp20_module_compile",
+        "//cc/toolchains/actions:cpp20_module_codegen",
+    ],
+    type = types.option(types.file),
+)
+EOF
+""",
+        # The two new cc_variable() targets above are standalone until they're also added
+        # to cc_builtin_variables(name = "variables", srcs = [...]) later in the same file
+        # — that explicit enumeration (not a glob) is what variables.bzl's get_type() reads
+        # its "known variables" list from, so a target existing in the package isn't enough
+        # on its own; confirmed by the exact "does not exist, did you mean..." list omitting
+        # both new names even after the cc_variable() targets above were already present.
+        # "srcs = [" appears exactly once in this file (verified), inside this one
+        # cc_builtin_variables() call, so a plain global substitute is unambiguous.
+        "sed -i 's/srcs = \\[/srcs = [\\n        \":cpp_module_modmap_file\",\\n        \":cpp_module_output_file\",/' cc/toolchains/variables/BUILD",
+    ],
+)
+
+bazel_dep(name = "rules_python", version = "2.2.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+
+# Third-party deps confirmed in Bazel Central Registry
+bazel_dep(name = "simdjson", version = "4.2.4")  # matches Conan's pin
+bazel_dep(name = "tomlplusplus", version = "3.4.0")  # matches Conan's pin
+
+bazel_dep(name = "xla", version = "0.0.0")
+archive_override(
+    module_name = "xla",
+    urls = ["https://github.com/openxla/xla/archive/e5d008bb03d9b133b0881daf3d108adea8e6625b.tar.gz"],
+    sha256 = "c25a0c11ee8c593fb0b25903735e2b006d5d3e9fbeb2c36344cd0b0dcf97d768",
+    strip_prefix = "xla-e5d008bb03d9b133b0881daf3d108adea8e6625b",
+    patch_cmds = [
+        # Only keep functional code fixes, no load() injections needed
+        "find xla/tsl -name '*.bzl' -o -name 'BUILD*' | xargs sed -i '/plugin_flags =/d'",
+        # third_party/tsl/BUILD.bazel is legacy TF-vendored and lacks a cc_library
+        # load(); it's symlinked verbatim into the @tsl repo by tf_vendored()
+        # (third_party/repo.bzl), so it must be patched here, not separately.
+        "sed -i '/^cc_library(/i load(\"@rules_cc//cc:cc_library.bzl\", \"cc_library\")' third_party/tsl/BUILD.bazel",
+        # rocm/BUILD.tpl (renders @local_config_rocm//rocm:BUILD) loads
+        # bzl_library/string_flag/etc. but never cc_library/cc_import, which it
+        # also defines.
+        "sed -i '/^load(\"@local_config_rocm/a load(\"@rules_cc//cc:cc_library.bzl\", \"cc_library\")\\nload(\"@rules_cc//cc:cc_import.bzl\", \"cc_import\")' third_party/gpus/rocm/BUILD.tpl",
+    ],
+)
+
+# 2. Other non-BCR third-party dependencies via your extension
+third_party_deps = use_extension("//third_party:extension.bzl", "third_party_deps")
+use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_brotli", "system_cc")
+
+# rules_cc's own auto-detected default toolchain (local_config_cc, registered
+# unconditionally by rules_cc's own MODULE.bazel) is broken under Bazel 9.2.0:
+# its cc_toolchain_suite.bzl wrapper calls the now-fully-removed native
+# cc_toolchain_suite with no Starlark fallback anywhere in rules_cc — hence
+# hand-rolling one via rules_cc's modern declarative API (bazel/toolchain).
+# Root-module registrations win toolchain resolution over any transitive
+# module's (rules_cc's broken default included), so this must live here.
+register_toolchains("//bazel/toolchain/system_cc:system_clang_toolchain")
+
+# rules_ml_toolchain
+bazel_dep(name = "rules_ml_toolchain")
+archive_override(
+    module_name = "rules_ml_toolchain",
+    integrity = "sha256-dcy3xNxpk0PwLQLwtbqm2sCcAT1GuStg8YVjRI6lnnc=",
+    strip_prefix = "rules_ml_toolchain-73cb731fed3ccf7551beac710bf1c5dbeb8be298",
+    urls = ["https://github.com/google-ml-infra/rules_ml_toolchain/archive/73cb731fed3ccf7551beac710bf1c5dbeb8be298.tar.gz"],
+)
+
+# org_brotli's upstream BUILD.bazel (fetched by xla's own third_party_ext
+# extension) predates Bazel 9 autoload and uses cc_binary, which is not
+# autoload-eligible (unlike cc_library/cc_test) — must be patched directly.
+# Refetch it ourselves with the load() fix and swap it in for xla's copy.
+xla_third_party_ext = use_extension("@xla//third_party/extensions:third_party.bzl", "third_party_ext")
+override_repo(xla_third_party_ext, org_brotli = "org_brotli")
+
+# Exposes the real openxla/stablehlo source (already fetched transitively by xla's own
+# third_party_ext, just not reachable as a top-level label before this) as @stablehlo, for
+# reference while writing include/cc/stable_hlo — that library takes no build-time dep on
+# it (pure string/struct implementation, zero MLIR linkage).
+use_repo(xla_third_party_ext, "stablehlo")

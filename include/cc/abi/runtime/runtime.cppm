@@ -1,0 +1,26 @@
+export module cc_abi_runtime;
+
+// Root-level standalone partitions (same package)
+export import :cache;
+export import :cron;
+export import :database;
+export import :events;
+export import :logger;
+export import :worker_manager;
+export import :ops;
+export import :worker_orchestrator;
+export import :payload;
+export import :profiler;
+export import :protocol;
+export import :python;
+export import :search;
+export import :serde;
+export import :worker;
+
+// Subdirectory parent modules are separate modules, imported normally
+import cc_abi_runtime_intern;
+import cc_abi_runtime_otel;
+import cc_abi_runtime_io;
+import cc_abi_runtime_filesystem;
+import cc_abi_runtime_env;
+import cc_abi_runtime_generator;

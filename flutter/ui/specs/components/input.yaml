@@ -1,0 +1,53 @@
+component: Input
+flutter_name: HeroInput
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/input.css"
+  files: [tool/sources/heroui-input.css, tool/sources/heroui-utilities.css]
+  docs: https://heroui.com/en/docs/react/components/input
+
+anatomy:
+  - field container (rounded-field 12, px-3 py-2, min-height ~36, bg-field)
+  - editable text (text-sm 14)
+  - hint / label / helper text slots
+  - leading / trailing adornments
+  - focus ring (2px accent) and invalid ring (danger) painted via
+    foregroundDecoration
+
+kinds:
+  primary (field on page background + field shadow) | secondary (flat on
+  default background, no shadow)
+  default: primary
+
+sizes: none in input.css (single height; full-width is the caller's layout)
+default: -
+
+states:
+  rest | hover (bg-field-hover + field-border-hover) | focus (bg-field-focus
+  + 2px accent ring + field-border-focus) | invalid (1px danger outline +
+  danger ring on focus) | disabled (opacity 0.5 — handled by RemixTextField)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground,
+         color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover,
+         color.fieldBorderFocus, color.focus, color.danger, color.default,
+         shadow.field (per-theme)]
+  component: [radius.input.radius (12), double.input.paddingX, double.input.paddingY,
+              double.input.minHeight, double.input.fontSize, double.borderWidth,
+              double.focusRingWidth]
+  type: [type.sm, type.base]
+
+non_token_measurements:
+  - min-height 36 derived from px-3 py-2 + text-sm line-height (no fixed h-* in
+    input.css)
+
+behavior: keyboard/focus/IME semantics via RemixTextField (Naked UI).
+
+approximations:
+  - error state is parameterized into the recipe (`heroInputStyle(error: true)`)
+    via an explicit WidgetState.error variant rather than a public onError()
+    accessor (mix's WidgetStateVariantMixin has no onError)
+  - the field shadow is per-theme; the HeroInput facade resolves it and merges
+    it onto the primary variant
+  - secondary hover uses --input-bg-hover (default-hover) directly

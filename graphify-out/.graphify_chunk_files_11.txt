@@ -1,7 +1,0 @@
-/home/default/cc/congelado/src/congelado/io/service.cppm
-/home/default/cc/congelado/PULL_REQUEST_TEMPLATE.md
-/home/default/cc/congelado/README.md
-/home/default/cc/congelado/docker/docker-compose.yml
-/home/default/cc/congelado/docs/superpowers/plans/2026-07-07-openapi-client-sdk.md
-/home/default/cc/congelado/docs/superpowers/specs/2026-07-07-openapi-client-sdk-design.md
-/home/default/cc/congelado/include/io/base/socket/README.md

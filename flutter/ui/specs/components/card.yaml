@@ -1,0 +1,47 @@
+component: Card
+flutter_name: HeroCard (+ HeroCardTitle, HeroCardDescription)
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/card.css"
+  files: [tool/sources/heroui-card.css]
+  docs: https://heroui.com/en/docs/react/components/card
+
+anatomy:
+  - container (flex-col, p-4, gap-3, radius 24, shadow-surface)
+  - title (text-sm leading-6 font-medium, foreground)
+  - description (text-sm leading-5, muted)
+  - content / footer (caller-provided)
+
+kinds:
+  surface (bg-surface) | secondary (bg-surface-secondary) | tertiary
+  (bg-surface-tertiary) | transparent (no bg/shadow)
+  default: surface
+
+sizes: none (single size; no size variants in card.css)
+default: -
+
+states: rest only
+
+tokens:
+  role: [color.surface, color.surfaceSecondary, color.surfaceTertiary,
+         color.foreground, color.muted, shadow.surface (per-theme)]
+  component: [space.4 (padding), radius.card.radius (24),
+              double.card.titleFontSize, double.card.titleLineHeight,
+              double.card.descriptionFontSize, double.card.descriptionLineHeight,
+              weight.medium]
+  type: [type.sm]
+
+non_token_measurements:
+  - the compound header/footer slots are exposed as separate widgets
+    (HeroCardTitle/HeroCardDescription) instead of Card.Header/.Body/.Footer
+    compound children
+
+behavior: plain container; children compose vertically by the caller.
+
+approximations:
+  - gap-3 between title/description/content is not applied by the card itself
+    (RemixCard container is a BoxSpec without flex gap); callers use Column
+    + spacing
+  - the per-theme surface shadow is resolved by the HeroCard facade and merged
+    onto the base recipe (recipe itself is theme-agnostic)

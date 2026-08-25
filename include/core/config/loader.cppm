@@ -8,6 +8,9 @@ export module core_config:loader;
 import std;
 import core_events;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace core::config {
 
@@ -233,3 +236,97 @@ export namespace core::config {
 }
 
 } // namespace core::config
+
+#ifdef CONGELADO_TEST
+namespace core::config::tests {
+using namespace boost::ut;
+
+suite<"load"> load_suite = [] {
+    "empty path yields an empty default config"_test = [] {
+        auto result = load("");
+
+        expect(result.has_value());
+        expect(result->get_plugins().empty());
+        expect(result->get_migrations_dir() == "migrations");
+    };
+
+    "unknown extension returns an error"_test = [] {
+        auto result = load(std::filesystem::path{"config.xyz"});
+
+        expect(not result.has_value());
+        expect(result.error().contains("unknown config extension"));
+    };
+
+    "valid toml parses threads, plugins, and providers"_test = [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_loader_test.toml";
+        {
+            std::ofstream out{path};
+            out << "threads = 4\n"
+                   "migrations_dir = \"db/migrations\"\n"
+                   "[plugins.file_logger]\n"
+                   "type = \"logger\"\n"
+                   "path = \"/var/log/app.log\"\n"
+                   "[providers]\n"
+                   "database = \"postgres\"\n"
+                   "logger = [\"file_logger\", \"otel_otlp_plugin\"]\n";
+        }
+
+        auto result = load(path);
+        std::filesystem::remove(path);
+
+        expect(result.has_value());
+        expect(result->get_threads().value() == 4);
+        expect(result->get_migrations_dir() == "db/migrations");
+        expect(result->get_plugins().contains("file_logger"));
+        expect(result->get_plugins().at("file_logger").get_type() == "logger");
+        expect(result->get_plugins().at("file_logger").get_fields().at("path") == "/var/log/app.log");
+        expect(result->get_providers().at("database").size() == 1);
+        expect(result->get_providers().at("database")[0] == "postgres");
+        expect(result->get_providers().at("logger").size() == 2);
+    };
+
+    "malformed toml returns a parse error"_test = [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_loader_test_bad.toml";
+        {
+            std::ofstream out{path};
+            out << "this is not [ valid toml\n";
+        }
+
+        auto result = load(path);
+        std::filesystem::remove(path);
+
+        expect(not result.has_value());
+        expect(result.error().contains("TOML parse error"));
+    };
+
+    "valid json parses threads, plugins, and providers"_test = [] {
+        auto path = std::filesystem::temp_directory_path() / "congelado_loader_test.json";
+        {
+            std::ofstream out{path};
+            out << R"({
+                "threads": 2,
+                "migrations_dir": "custom_migrations",
+                "plugins": {
+                    "postgres": {"type": "database", "host": "localhost"}
+                },
+                "providers": {
+                    "database": "postgres",
+                    "logger": ["file_logger", "otel_otlp_plugin"]
+                }
+            })";
+        }
+
+        auto result = load(path);
+        std::filesystem::remove(path);
+
+        expect(result.has_value());
+        expect(result->get_threads().value() == 2);
+        expect(result->get_migrations_dir() == "custom_migrations");
+        expect(result->get_plugins().contains("postgres"));
+        expect(result->get_plugins().at("postgres").get_type() == "database");
+        expect(result->get_providers().at("logger").size() == 2);
+    };
+};
+
+} // namespace core::config::tests
+#endif

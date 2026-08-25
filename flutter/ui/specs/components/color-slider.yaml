@@ -1,0 +1,51 @@
+component: color-slider
+flutter_name: HeroColorSlider
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-slider.css"
+  files: [tool/sources/heroui-color-slider.css]
+  docs: https://heroui.com/en/docs/react/components/color-slider
+
+anatomy:
+  - .color-slider: grid w-full gap-1, areas "label output / track track" (1fr auto / auto auto); collapses to a single track row when label/output absent
+  - [data-slot="label"]: w-fit text-sm (14) font-medium
+  - .color-slider__output: text-sm font-medium tabular-nums
+  - .color-slider__track: relative rounded-2xl; horizontal: h-5 (20), width calc(100% - 1.25rem), inset 0 1px 0 -1px black@10%; edge caps 0.625rem (10): ::before start cap (checkerboard + --track-start-color, rounded-ss/es-2xl), ::after end cap (--track-end-color, rounded-se/ee-2xl)
+  - .color-slider__thumb: absolute flex size-4 (16) rounded-2xl (12) border-3 white shadow-overlay z-1; transform 250ms ease-out + box-shadow 150ms ease-out; dragging cursor-grabbing; focus-visible z-10 status-focused; disabled cursor-default bg-default
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: horizontal, w-full
+
+states:
+  - rest
+  - dragging (thumb snaps to pointer; programmatic changes ease 250ms ease-out)
+  - focus-visible (z-10 + status-focused ring)
+  - disabled (opacity via status-disabled)
+
+tokens:
+  role: [colorFocus, colorForeground, weightMedium, shadowOverlay, doubleDisabledOpacity]
+  component: []
+
+non_token_measurements:
+  - track height 20 (h-5), width - 20px (1.25rem)
+  - edge caps 10px (0.625rem), cap corner radius 12
+  - thumb 16, thumb border 3px, thumb radius 12
+  - gap 4 (gap-1); vertical gap 8 (gap-2)
+  - track gradient + checkerboard are per-channel data (hue/saturation/lightness/alpha)
+
+behavior:
+  - channel-driven gradient track: hue = full wheel, saturation = white -> hue, lightness = black -> hue -> white, alpha = transparent -> hue over checkerboard
+  - value is a 0..1 channel fraction; horizontal + vertical orientations
+  - pan down/update sets the value from the pointer; keyboard arrows adjust (shift = 10x step)
+  - label row left, output row right (tabular figures)
+  - alpha channel paints the checkerboard under the track gradient
+
+approximations:
+  - checkerboard painted as 8px squares (CSS repeating-conic-gradient approximated)
+  - vertical track uses a 160px default height (CSS h-full; wrap in a taller SizedBox to extend)
+  - cap hairline shadows simplified to one 1px ring around the track

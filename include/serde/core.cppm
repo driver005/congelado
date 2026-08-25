@@ -6,6 +6,9 @@ module;
 export module serde:core;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace serde {
 
@@ -324,3 +327,134 @@ concept ISqlBuilder =
     };
 
 } // namespace serde
+
+#ifdef CONGELADO_TEST
+namespace serde::tests {
+
+// Minimal IConnectable fixture for pk_column_name<T>() — one field, flagged as the PK.
+class CoreTestRecord {
+  public:
+    CoreTestRecord() = default;
+
+    void set_id(std::string id) { m_id = std::move(id); }
+    [[nodiscard]] const std::string &get_id() const noexcept { return m_id; }
+
+  private:
+    std::string m_id;
+};
+
+} // namespace serde::tests
+
+template <>
+struct serde::Serializable<serde::tests::CoreTestRecord> {
+    static constexpr auto fields() {
+        return std::tuple{
+            serde::FieldDesc<"id", &serde::tests::CoreTestRecord::get_id,
+                             &serde::tests::CoreTestRecord::set_id,
+                             serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+        };
+    }
+    static constexpr std::string_view table_name() { return "core_test_records"; }
+};
+
+namespace serde::tests {
+using namespace boost::ut;
+
+suite<"StringLiteral"> string_literal_suite = [] {
+    "string_view excludes the trailing NUL"_test = [] {
+        constexpr StringLiteral literal{"hello"};
+
+        expect(literal.string_view() == "hello");
+        expect(literal.string_view().size() == 5);
+    };
+
+    "equal literals of the same length compare equal"_test = [] {
+        constexpr StringLiteral first{"abc"};
+        constexpr StringLiteral second{"abc"};
+
+        expect(first == second);
+    };
+
+    "same-length literals with different content compare unequal"_test = [] {
+        constexpr StringLiteral first{"abc"};
+        constexpr StringLiteral second{"abd"};
+
+        expect(not (first == second));
+    };
+
+    "different-length literals compare unequal"_test = [] {
+        constexpr StringLiteral first{"abc"};
+        constexpr StringLiteral second{"abcd"};
+
+        expect(not (first == second));
+    };
+};
+
+suite<"FieldOptionsDb"> field_options_db_suite = [] {
+    "init defaults to nullable, no PK, no unique, no skip flags"_test = [] {
+        constexpr auto options = FieldOptionsDb::init();
+
+        expect(not options.m_primary_key);
+        expect(not options.m_unique);
+        expect(options.m_nullable);
+        expect(not options.m_skip_insert);
+        expect(not options.m_skip_update);
+    };
+
+    "pk/not_null/no_insert/no_update chain without mutating the original"_test = [] {
+        constexpr auto base = FieldOptionsDb::init();
+        constexpr auto derived = base.pk().not_null().no_insert().no_update();
+
+        expect(derived.m_primary_key);
+        expect(not derived.m_nullable);
+        expect(derived.m_skip_insert);
+        expect(derived.m_skip_update);
+        // Original stays untouched — every mutator on FieldOptionsDb returns a modified copy.
+        expect(not base.m_primary_key);
+        expect(base.m_nullable);
+    };
+
+    "references stores the referenced table/column pointers"_test = [] {
+        constexpr auto derived = FieldOptionsDb::init().references("users", "id");
+
+        expect(std::string_view{derived.m_ref_table} == "users");
+        expect(std::string_view{derived.m_ref_column} == "id");
+    };
+};
+
+suite<"FieldOptions"> field_options_suite = [] {
+    "with_db attaches the db options block without mutating the original"_test = [] {
+        constexpr auto db_options = FieldOptionsDb::init().pk();
+        constexpr auto options = FieldOptions::init().with_db(db_options);
+
+        expect(options.m_db.m_primary_key);
+    };
+};
+
+suite<"value_kind_of"> value_kind_of_suite = [] {
+    "classifies every known C++ type into its ValueKind tag"_test = [] {
+        expect(value_kind_of<std::string>() == ValueKind::STRING);
+        expect(value_kind_of<bool>() == ValueKind::BOOLEAN);
+        expect(value_kind_of<std::int64_t>() == ValueKind::INT64);
+        expect(value_kind_of<std::uint64_t>() == ValueKind::UINT64);
+        expect(value_kind_of<std::int32_t>() == ValueKind::INT32);
+        expect(value_kind_of<std::uint32_t>() == ValueKind::UINT32);
+        expect(value_kind_of<double>() == ValueKind::DOUBLE);
+        expect(value_kind_of<float>() == ValueKind::FLOAT);
+        expect(value_kind_of<uuids::uuid>() == ValueKind::UUID);
+        expect(value_kind_of<std::chrono::system_clock::time_point>() == ValueKind::TIMESTAMP);
+    };
+
+    "an unrecognized type falls back to OTHER"_test = [] {
+        expect(value_kind_of<std::vector<int>>() == ValueKind::OTHER);
+    };
+};
+
+suite<"pk_column_name"> pk_column_name_suite = [] {
+    "finds the field flagged primary_key in FieldOptionsDb"_test = [] {
+        expect(pk_column_name<CoreTestRecord>() == "id");
+    };
+};
+
+} // namespace serde::tests
+#endif

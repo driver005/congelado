@@ -39,7 +39,7 @@ WORKDIR /app
 # documented behavior — replicate what it expects rather than patch main.cc. Copies from
 # config/docker/congelado.toml, NOT config/congelado.toml — the two have diverged on purpose
 # (docker-compose service-name hostnames here vs. localhost endpoints in the local one bare-metal
-# `make run` loads straight from that same repo-relative path) — see either file's own header
+# `make xmake-run` loads straight from that same repo-relative path) — see either file's own header
 # comment for why one canonical copy didn't work.
 RUN mkdir -p /root/cc/congelado/config
 COPY config/docker/congelado.toml /root/cc/congelado/config/congelado.toml

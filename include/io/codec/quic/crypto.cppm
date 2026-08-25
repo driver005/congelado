@@ -6,6 +6,9 @@ export module io_quic:crypto;
 
 import std;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // quic:crypto is now minimal — OpenSSL 3.6 QUIC handles all key derivation,
 // HKDF, AEAD, and header protection internally via OSSL_QUIC_server_method().
@@ -65,3 +68,42 @@ export ConnectionId generate_cid(std::size_t len) {
 }
 
 } // namespace quic::crypto
+
+// TlsContext/TlsSession/Connection all need real cert files or a live SSL* from an accepted
+// QUIC connection to do anything meaningful — not reproducible here. random_bytes()/
+// generate_cid() are pure CSPRNG calls with no live network/handshake involved, so they're
+// tested directly. CryptoError needs a genuinely-queued OpenSSL error to construct
+// meaningfully; skipped as low-value to fake.
+#ifdef CONGELADO_TEST
+namespace quic::crypto::tests {
+using namespace boost::ut;
+
+suite<"random_bytes"> random_bytes_suite = [] {
+    "fills the whole buffer and differs between calls"_test = [] {
+        std::array<std::byte, 16> first{};
+        std::array<std::byte, 16> second{};
+        random_bytes(first);
+        random_bytes(second);
+
+        expect(not std::ranges::equal(first, second));
+    };
+};
+
+suite<"generate_cid"> generate_cid_suite = [] {
+    "template overload produces the requested length"_test = [] {
+        auto cid = generate_cid<12>();
+        expect(cid.len == 12);
+    };
+    "runtime-length overload produces the requested length"_test = [] {
+        auto cid = generate_cid(6);
+        expect(cid.len == 6);
+    };
+    "two generated CIDs differ"_test = [] {
+        auto first = generate_cid<CID_DEFAULT_LEN>();
+        auto second = generate_cid<CID_DEFAULT_LEN>();
+        expect(not(first == second));
+    };
+};
+
+} // namespace quic::crypto::tests
+#endif

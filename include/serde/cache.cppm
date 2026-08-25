@@ -6,6 +6,9 @@ export module serde:cache;
 import :core;
 import :converter;
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace serde {
 
@@ -100,3 +103,35 @@ class Cache {
 };
 
 } // namespace serde
+
+#ifdef CONGELADO_TEST
+namespace serde::tests {
+using namespace boost::ut;
+
+suite<"Cache"> cache_suite = [] {
+    "pk_string extracts the stringified primary-key field"_test = [] {
+        CoreTestRecord record;
+        record.set_id("abc123");
+        expect(Cache::pk_string(record) == "abc123");
+    };
+
+    "cache_key(instance) joins table_name and pk_string with a colon"_test = [] {
+        CoreTestRecord record;
+        record.set_id("abc123");
+        expect(Cache::cache_key(record) == "core_test_records:abc123");
+    };
+
+    "cache_key(pk_value) joins table_name and the raw pk with a colon"_test = [] {
+        expect(Cache::cache_key<CoreTestRecord>("xyz789") == "core_test_records:xyz789");
+    };
+
+    "cache_value JSON-encodes the instance"_test = [] {
+        CoreTestRecord record;
+        record.set_id("abc123");
+        const std::string JSON = Cache::cache_value(record);
+        expect(JSON.contains("abc123"));
+    };
+};
+
+} // namespace serde::tests
+#endif

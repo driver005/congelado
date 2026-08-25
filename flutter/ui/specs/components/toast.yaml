@@ -1,0 +1,72 @@
+component: toast
+flutter_name: HeroToast
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/toast.css"
+  files: [tool/sources/heroui-toast.css]
+  docs: https://heroui.com/en/docs/react/components/toast
+
+anatomy:
+  - region (`.toast-region`) — pointer-events-none fixed z-50;
+    `w-[calc(100vw-2rem)]`, sm `w-auto min-w-(--toast-width)`;
+    placements `.toast-region--top/-top-start/-top-end/-bottom/-bottom-start/
+    -bottom-end` at 16 from the matching edges (top/bottom-start/end use the
+    logical start/end, centered placements use left-1/2 -translate-x-1/2)
+  - toast (`.toast`) — flex row items-start `gap-1.5` (6), `px-4` (16)
+    `py-3` (12), `bg-surface`, `shadow-overlay`, radius
+    `min(32px, var(--radius-3xl))` = 24, pointer-events-auto
+  - indicator (`.toast__indicator`) — `p-1` (4) with a `size-4` (16) icon or
+    spinner slot; base `text-overlay-foreground`, tinted
+    `text-*-soft-foreground` for success/warning/danger (NOT accent)
+  - content (`.toast__content`) — flex-col items-start, self-center
+  - title (`.toast__title`) — `text-sm leading-5 font-medium`
+    (14/20 w500); base `text-overlay-foreground`, tinted
+    `text-*-soft-foreground` per `.toast--<color>`
+  - description (`.toast__description`) — `text-sm text-muted`
+  - close button (`.toast__close-button`) — `absolute -end-1 -top-1 size-5`
+    (20) `border-border bg-default`, hover `bg-default`, close icon
+    `size-3.5` (14); opacity-0 until the frontmost toast is hovered
+  - action (`.toast__action`) — `mt-2` (8), `mt-0` at sm
+
+kinds:
+  color: default (overlay-foreground) | accent (title soft-foreground,
+         indicator overlay-foreground) | success | warning | danger (both
+         soft-foreground)
+  default: default
+
+sizes: none (fixed padding/radius; `--toast-width` min 384 at sm)
+default: -
+
+states:
+  - enter/exit slide+fade (toast-slide-top/bottom-in/out 350ms keyframes)
+  - auto-dismiss after 4000ms (HeroUI default), close button, or onClose
+  - motion-reduce disables the animations
+
+tokens:
+  role: [color.surface, color.overlayForeground, color.muted, color.default,
+         color.defaultHover, color.border, color.accentSoftForeground,
+         color.successSoftForeground, color.warningSoftForeground,
+         color.dangerSoftForeground]
+  component: [space.4, space.3, space.15, space.2, space.1, radius.3xl,
+              shadow.overlay, type.sm, weight.medium, double.borderWidth]
+
+non_token_measurements:
+  - `--toast-width` = 384 (HeroUI ToastRegion default; not in the CSS)
+  - close button 20x20 with 14px icon (CSS size-5/size-3.5; no tokens)
+  - title line-height 20 (leading-5) expressed as height 20/14
+  - view-transition animations run at 350ms
+
+behavior: `showHeroToast` inserts a non-modal overlay entry (tokens captured
+  from the caller's MixScope) at the chosen placement; the page behind stays
+  interactive. The returned Future completes when the toast dismisses.
+
+approximations:
+  - the close button is always visible instead of appearing only on hover of
+    the frontmost toast (CSS hover reveal); it sits in the row flow rather
+    than `absolute -end-1 -top-1`
+  - multi-toast stacking (`--front-height` collapsed siblings) is not
+    implemented — one toast at a time
+  - the sm `w-auto` behavior collapses to `min(max(content, 384), vw-32)`
+  - close button radius approximated to 10 (fully round; CSS inherits the
+    close-button rounded-xl but sizes are overridden)

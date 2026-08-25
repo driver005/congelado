@@ -1,6 +1,9 @@
 export module interfaces:logger;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace interfaces {
 
@@ -83,3 +86,26 @@ class ILogger {
 };
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::tests {
+using namespace boost::ut;
+
+suite<"LogLevel"> log_level_suite = [] {
+    "to_string maps every level to its own name"_test = [] {
+        expect(to_string(LogLevel::DEBUG) == "DEBUG");
+        expect(to_string(LogLevel::INFO) == "INFO");
+        expect(to_string(LogLevel::IMPORTANT) == "IMPORTANT");
+        expect(to_string(LogLevel::WARNING) == "WARNING");
+        expect(to_string(LogLevel::ERROR) == "ERROR");
+        expect(to_string(LogLevel::FATAL) == "FATAL");
+    };
+
+    "to_string falls back to UNKNOWN for an out-of-range level"_test = [] {
+        auto bogus = static_cast<LogLevel>(255);
+        expect(to_string(bogus) == "UNKNOWN");
+    };
+};
+
+} // namespace interfaces::tests
+#endif

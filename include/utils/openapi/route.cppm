@@ -6,6 +6,9 @@ import core_router;
 import :model;
 import :schema;
 import :registry;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::openapi {
 
@@ -482,3 +485,281 @@ class ApiRouter {
 };
 
 } // namespace utils::openapi
+
+#ifdef CONGELADO_TEST
+namespace utils::openapi::route_tests {
+using namespace boost::ut;
+
+// static: internal linkage so this doesn't collide with the same-named test helpers other
+// modules' test blocks define in their own tests namespaces.
+static interfaces::HandlerFn noop_handler() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {};
+}
+
+using Method = interfaces::io::types::Method;
+
+suite<"ApiRoute verb builders"> api_route_verb_suite = [] {
+    "get() installs a GET handler and starts tracking GET metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.get(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::GET) != nullptr);
+        expect(route.get_handlers().find(Method::POST) == nullptr);
+        expect(operations.contains(std::to_underlying(Method::GET)));
+    };
+
+    "post() installs a POST handler and starts tracking POST metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.post(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::POST) != nullptr);
+        expect(route.get_handlers().find(Method::GET) == nullptr);
+        expect(operations.contains(std::to_underlying(Method::POST)));
+    };
+
+    "put() installs a PUT handler and starts tracking PUT metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.put(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::PUT) != nullptr);
+        expect(operations.contains(std::to_underlying(Method::PUT)));
+    };
+
+    "patch() installs a PATCH handler and starts tracking PATCH metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.patch(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::PATCH) != nullptr);
+        expect(operations.contains(std::to_underlying(Method::PATCH)));
+    };
+
+    "delt() installs a DELETE handler and starts tracking DELETE metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.delt(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::DELETE) != nullptr);
+        expect(operations.contains(std::to_underlying(Method::DELETE)));
+    };
+
+    "head() installs a HEAD handler and starts tracking HEAD metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.head(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::HEAD) != nullptr);
+        expect(operations.contains(std::to_underlying(Method::HEAD)));
+    };
+
+    "options() installs an OPTIONS handler and starts tracking OPTIONS metadata"_test = [] {
+        auto [route, operations] = ApiRoute{"/x"}.options(noop_handler()).into_parts();
+        expect(route.get_handlers().find(Method::OPTIONS) != nullptr);
+        expect(operations.contains(std::to_underlying(Method::OPTIONS)));
+    };
+};
+
+suite<"ApiRoute metadata builders"> api_route_metadata_suite = [] {
+    "summary/description/tags land on the current method's operation"_test = [] {
+        auto operations = ApiRoute{"/x"}
+                               .get(noop_handler())
+                               .summary("List things")
+                               .description("Returns every thing")
+                               .tags({"a", "b"})
+                               .into_operations();
+        auto &op = operations.at(std::to_underlying(Method::GET));
+
+        expect(op.get_summary() == "List things");
+        expect(op.get_description() == "Returns every thing");
+        expect(op.get_tags().size() == 2U);
+        expect(op.get_tags()[0] == "a");
+        expect(op.get_tags()[1] == "b");
+    };
+
+    "switching methods mid-chain starts a fresh operation per method"_test = [] {
+        auto operations = ApiRoute{"/x"}
+                               .get(noop_handler())
+                               .summary("Get summary")
+                               .post(noop_handler())
+                               .summary("Post summary")
+                               .into_operations();
+
+        expect(operations.at(std::to_underlying(Method::GET)).get_summary() == "Get summary");
+        expect(operations.at(std::to_underlying(Method::POST)).get_summary() == "Post summary");
+    };
+
+    "body<T>() attaches a required application/json request body derived from T"_test = [] {
+        auto operations = ApiRoute{"/x"}.post(noop_handler()).body<int>().into_operations();
+        auto &op = operations.at(std::to_underlying(Method::POST));
+
+        expect(op.get_request_body() != nullptr) << fatal;
+        expect(op.get_request_body()->get_required());
+        expect(op.get_request_body()->get_content().contains("application/json"));
+        expect(op.get_request_body()->get_content().at("application/json").get_schema().get_type() ==
+               "integer");
+    };
+
+    "response<T>() defaults to status 200 / description OK"_test = [] {
+        auto operations = ApiRoute{"/x"}.get(noop_handler()).response<int>().into_operations();
+        auto &op = operations.at(std::to_underlying(Method::GET));
+
+        expect(op.get_responses().contains("200"));
+        expect(op.get_responses().at("200").get_description() == "OK");
+        expect(op.get_responses().at("200").get_content().at("application/json").get_schema().get_type() ==
+               "integer");
+    };
+
+    "response<T>() honors an explicit status and description"_test = [] {
+        auto operations =
+            ApiRoute{"/x"}.get(noop_handler()).response<int>(404, "Not Found").into_operations();
+        auto &op = operations.at(std::to_underlying(Method::GET));
+
+        expect(op.get_responses().contains("404"));
+        expect(op.get_responses().at("404").get_description() == "Not Found");
+    };
+};
+
+suite<"ApiRoute path and terminal moves"> api_route_terminal_suite = [] {
+    "getPath strips exactly one leading slash, mirroring core::router::Route"_test = [] {
+        ApiRoute route{"/tasks"};
+        expect(route.getPath() == "tasks");
+    };
+
+    "into_route hands off the wrapped core::router::Route, stripped of metadata"_test = [] {
+        core::router::Route<> plain_route = ApiRoute{"/tasks"}.get(noop_handler()).into_route();
+        expect(plain_route.get_path() == "tasks");
+        expect(plain_route.get_handlers().find(Method::GET) != nullptr);
+    };
+
+    "into_operations hands off the accumulated per-method operation metadata"_test = [] {
+        auto operations =
+            ApiRoute{"/tasks"}.get(noop_handler()).summary("List").into_operations();
+        expect(operations.size() == 1U);
+        expect(operations.at(std::to_underlying(Method::GET)).get_summary() == "List");
+    };
+
+    "into_parts hands off both the route and the operations in a single move"_test = [] {
+        auto [plain_route, operations] =
+            ApiRoute{"/tasks"}.get(noop_handler()).summary("List").into_parts();
+        expect(plain_route.get_path() == "tasks");
+        expect(operations.at(std::to_underlying(Method::GET)).get_summary() == "List");
+    };
+};
+
+suite<"ApiRouter verb builders"> api_router_verb_suite = [] {
+    "get() registers a handler for GET on the router's own route"_test = [] {
+        core::router::RouterContext<> ctx;
+        core::router::Router<> plain_router =
+            std::move(ApiRouter{ctx, "/r-get"}.get(noop_handler())).into_router();
+        expect(ctx[plain_router.get_router_index()].get_handlers().find(Method::GET) != nullptr);
+    };
+
+    "post() registers a handler for POST on the router's own route"_test = [] {
+        core::router::RouterContext<> ctx;
+        core::router::Router<> plain_router =
+            std::move(ApiRouter{ctx, "/r-post"}.post(noop_handler())).into_router();
+        expect(ctx[plain_router.get_router_index()].get_handlers().find(Method::POST) != nullptr);
+    };
+
+    "put() registers a handler for PUT on the router's own route"_test = [] {
+        core::router::RouterContext<> ctx;
+        core::router::Router<> plain_router =
+            std::move(ApiRouter{ctx, "/r-put"}.put(noop_handler())).into_router();
+        expect(ctx[plain_router.get_router_index()].get_handlers().find(Method::PUT) != nullptr);
+    };
+
+    "patch() registers a handler for PATCH on the router's own route"_test = [] {
+        core::router::RouterContext<> ctx;
+        core::router::Router<> plain_router =
+            std::move(ApiRouter{ctx, "/r-patch"}.patch(noop_handler())).into_router();
+        expect(ctx[plain_router.get_router_index()].get_handlers().find(Method::PATCH) != nullptr);
+    };
+
+    "delt() registers a handler for DELETE on the router's own route"_test = [] {
+        core::router::RouterContext<> ctx;
+        core::router::Router<> plain_router =
+            std::move(ApiRouter{ctx, "/r-delt"}.delt(noop_handler())).into_router();
+        expect(ctx[plain_router.get_router_index()].get_handlers().find(Method::DELETE) != nullptr);
+    };
+};
+
+suite<"ApiRouter metadata builders"> api_router_metadata_suite = [] {
+    "summary/description/tags land in the Registry entry for the current method"_test = [] {
+        core::router::RouterContext<> ctx;
+        auto index_before = Registry::get_routes().size();
+
+        ApiRouter router = ApiRouter{ctx, "/r-meta"}
+                               .get(noop_handler())
+                               .summary("List")
+                               .description("desc")
+                               .tags({"a", "b"});
+
+        auto &meta = Registry::at(index_before);
+        expect(meta.get_path() == "r-meta");
+        auto &op = meta.get_operation(std::to_underlying(Method::GET));
+        expect(op.get_summary() == "List");
+        expect(op.get_description() == "desc");
+        expect(op.get_tags().size() == 2U);
+        // getRouterNumber() reflects the freshly registered router's own number.
+        expect(router.getRouterNumber() == meta.get_router_number());
+    };
+
+    "body<T>() attaches a required application/json request body in the Registry entry"_test = [] {
+        core::router::RouterContext<> ctx;
+        auto index_before = Registry::get_routes().size();
+
+        ApiRouter router = ApiRouter{ctx, "/r-body"}.post(noop_handler()).body<int>();
+
+        auto &meta = Registry::at(index_before);
+        auto &op = meta.get_operation(std::to_underlying(Method::POST));
+        expect(op.get_request_body() != nullptr) << fatal;
+        expect(op.get_request_body()->get_required());
+        expect(op.get_request_body()->get_content().contains("application/json"));
+    };
+
+    "response<T>() registers a response entry in the Registry entry"_test = [] {
+        core::router::RouterContext<> ctx;
+        auto index_before = Registry::get_routes().size();
+
+        ApiRouter router = ApiRouter{ctx, "/r-resp"}.get(noop_handler()).response<int>(404, "Not Found");
+
+        auto &meta = Registry::at(index_before);
+        auto &op = meta.get_operation(std::to_underlying(Method::GET));
+        expect(op.get_responses().contains("404"));
+        expect(op.get_responses().at("404").get_description() == "Not Found");
+    };
+};
+
+suite<"ApiRouter nesting and terminal moves"> api_router_nesting_suite = [] {
+    "getRouterNumber returns the router's own claimed number"_test = [] {
+        core::router::RouterContext<> ctx;
+        ApiRouter router{ctx, "/r-num"};
+        expect(router.getRouterNumber() > 0U);
+    };
+
+    "into_router hands off the wrapped core::router::Router"_test = [] {
+        core::router::RouterContext<> ctx;
+        ApiRouter router{ctx, "/r-into"};
+        auto router_number = router.getRouterNumber();
+
+        core::router::Router<> plain_router = std::move(router).into_router();
+        expect(plain_router.get_router_number() == router_number);
+    };
+
+    "add_router nests a child router and patches its Registry base_router"_test = [] {
+        core::router::RouterContext<> ctx;
+        auto parent_index = Registry::get_routes().size();
+        ApiRouter parent{ctx, "/r-parent"};
+        auto child_index = Registry::get_routes().size();
+        ApiRouter child{ctx, "/r-child"};
+
+        ApiRouter combined = std::move(parent).add_router(std::move(child));
+
+        expect(Registry::at(child_index).get_base_router() == combined.getRouterNumber());
+        expect(Registry::at(parent_index).get_router_number() == combined.getRouterNumber());
+    };
+
+    "add_route mounts a child ApiRoute, registering its own RouteMeta parented at this router"_test =
+        [] {
+            core::router::RouterContext<> ctx;
+            ApiRouter parent{ctx, "/r-parent2"};
+            auto route_index = Registry::get_routes().size();
+
+            ApiRoute child_route = ApiRoute{"/items"}.get(noop_handler()).summary("List items");
+            ApiRouter combined = std::move(parent).add_route(std::move(child_route));
+
+            auto &meta = Registry::at(route_index);
+            expect(meta.get_path() == "items");
+            expect(meta.get_base_router() == combined.getRouterNumber());
+            expect(meta.get_operation(std::to_underlying(Method::GET)).get_summary() ==
+                   "List items");
+        };
+};
+
+} // namespace utils::openapi::route_tests
+#endif

@@ -1,6 +1,9 @@
 export module utils_codec:atom;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::codec {
 
@@ -295,14 +298,11 @@ class VariantEndianView : public std::ranges::view_interface<VariantEndianView<I
      */
     constexpr Iterator begin() const { return Iterator{m_val, m_length, m_prefix, 0}; }
     /**
-     * @brief End of the encoded byte sequence.
-     * @warning Passes `sizeof(UInt)` as the sentinel iterator's position, not `m_length` — happens
-     * to still compare correctly since Iterator's equality only checks `m_pos == other.m_pos` and
-     * this end iterator is only ever compared for equality, never dereferenced. Still a little
-     * sus that it doesn't just reuse `m_length` here like begin() does with position 0.
+     * @brief End of the encoded byte sequence, positioned at `m_length` — the actual resolved
+     * byte count for this value's size class, not `sizeof(UInt)`.
      * @return the sentinel-equivalent iterator, positioned past the last encoded byte.
      */
-    constexpr Iterator end() const { return Iterator{m_val, m_length, m_prefix, sizeof(UInt)}; }
+    constexpr Iterator end() const { return Iterator{m_val, m_length, m_prefix, m_length}; }
 
   private:
     /**
@@ -405,3 +405,82 @@ struct ReadVariantEndianAdaptor : std::ranges::range_adaptor_closure<ReadVariant
 };
 
 } // namespace utils::codec
+
+#ifdef CONGELADO_TEST
+namespace utils::codec::tests {
+using namespace boost::ut;
+
+suite<"BigEndianView"> big_endian_view_suite = [] {
+    "writes a 32-bit value as 4 big-endian bytes"_test = [] {
+        BigEndianView<std::ranges::empty_view<std::byte>, std::uint32_t> view{0x01020304U};
+        std::vector<std::byte> bytes(view.begin(), view.end());
+
+        expect(bytes.size() == 4);
+        expect(bytes[0] == std::byte{0x01});
+        expect(bytes[1] == std::byte{0x02});
+        expect(bytes[2] == std::byte{0x03});
+        expect(bytes[3] == std::byte{0x04});
+    };
+};
+
+suite<"BigEndian read/write adaptors"> big_endian_adaptor_suite = [] {
+    "round-trips a value through write then read"_test = [] {
+        std::uint32_t original = 0xDEADBEEFU;
+        auto encoded = WriteBigEndianAdaptor<std::uint32_t>{original}();
+        std::vector<std::byte> bytes(encoded.begin(), encoded.end());
+
+        expect(bytes.size() == 4);
+        expect(ReadBigEndianAdaptor<std::uint32_t>{}(bytes) == original);
+    };
+    "reading an empty range yields 0"_test = [] {
+        std::vector<std::byte> empty_bytes;
+        expect(ReadBigEndianAdaptor<std::uint32_t>{}(empty_bytes) == 0U);
+    };
+    "reading more bytes than UInt can hold throws"_test = [] {
+        std::vector<std::byte> too_many(5, std::byte{0});
+        expect(throws<std::runtime_error>([&] { ReadBigEndianAdaptor<std::uint32_t>{}(too_many); }));
+    };
+};
+
+suite<"VariantEndian read/write adaptors"> variant_endian_adaptor_suite = [] {
+    "small values encode to 1 byte and round-trip"_test = [] {
+        std::uint32_t original = 10U; // < 2^6, fits the 1-byte class
+        auto encoded = WriteVariantEndianAdaptor<std::uint32_t>{original}();
+        std::vector<std::byte> bytes(encoded.begin(), encoded.end());
+
+        expect(bytes.size() == 1);
+        expect(ReadVariantEndianAdaptor<std::uint32_t>{}(bytes) == original);
+    };
+    "mid-range values encode to 2 bytes and round-trip"_test = [] {
+        std::uint32_t original = 1000U; // >= 2^6, < 2^14 -> 2-byte class
+        auto encoded = WriteVariantEndianAdaptor<std::uint32_t>{original}();
+        std::vector<std::byte> bytes(encoded.begin(), encoded.end());
+
+        expect(bytes.size() == 2);
+        expect(ReadVariantEndianAdaptor<std::uint32_t>{}(bytes) == original);
+    };
+    "large values encode to 4 bytes and round-trip"_test = [] {
+        std::uint32_t original = 100000U; // >= 2^14, < 2^30 -> 4-byte class
+        auto encoded = WriteVariantEndianAdaptor<std::uint32_t>{original}();
+        std::vector<std::byte> bytes(encoded.begin(), encoded.end());
+
+        expect(bytes.size() == 4);
+        expect(ReadVariantEndianAdaptor<std::uint32_t>{}(bytes) == original);
+    };
+    // Boundary test for ReadVariantEndianAdaptor::operator(): the range handed in has EXACTLY
+    // the number of bytes the 2-bit prefix declares (8, for the huge-value class), which is the
+    // only shape this adaptor's own doc comment guarantees is safe. A range with FEWER bytes
+    // than the declared length is UB (the adaptor reads past the end with no bounds check) and
+    // is deliberately not constructed here.
+    "huge values encode to 8 bytes and round-trip with exactly the declared length available"_test = [] {
+        std::uint64_t original = 5000000000ULL; // >= 2^30 -> 8-byte class
+        auto encoded = WriteVariantEndianAdaptor<std::uint64_t>{original}();
+        std::vector<std::byte> bytes(encoded.begin(), encoded.end());
+
+        expect(bytes.size() == 8);
+        expect(ReadVariantEndianAdaptor<std::uint64_t>{}(bytes) == original);
+    };
+};
+
+} // namespace utils::codec::tests
+#endif

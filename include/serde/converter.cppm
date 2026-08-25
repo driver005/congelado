@@ -10,6 +10,9 @@ export module serde:converter;
 
 import :core;
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // ─── Forward declaration of TomlParser::from_toml_impl ───────────────────────
 

@@ -1,0 +1,37 @@
+component: Progress (ProgressBar)
+flutter_name: HeroProgress
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/progress-bar.css"
+  files: [tool/sources/heroui-progress-bar.css]
+  docs: https://heroui.com/en/docs/react/components/progress
+
+anatomy:
+  - track (h-2 8, rounded-sm 4, bg-default)
+  - fill (color, rounded-sm 4, width = value, transition 300ms ease-out)
+  - label / output slots (text-sm font-medium tabular-nums) — not exposed
+    (caller composes around the bar)
+
+kinds:
+  color: accent | default | success | warning | danger
+  default: accent
+
+sizes: none (h-2 fixed)
+default: -
+
+states: rest | indeterminate (not implemented — HeroProgress is determinate only)
+
+tokens:
+  role: [color.accent|default|success|warning|danger, color.default (track)]
+  component: [double.progress.trackHeight, radius.progress.radius]
+  type: [type.sm]
+
+non_token_measurements:
+  - label/output are caller-composed; the bar itself renders track + fill
+
+behavior: value clamped 0..1 (assert in constructor and RemixProgress).
+
+approximations:
+  - the indeterminate (no aria-valuenow) animation is not implemented
+  - label/output text slots are not part of the widget

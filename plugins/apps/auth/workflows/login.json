@@ -1,0 +1,36 @@
+{
+  "name": "auth_login",
+  "version": 1,
+  "nodes": [
+    {
+      "task_def_name": "auth_pw_hash",
+      "ref_name": "hash",
+      "edges": [
+        {
+          "from": "hash",
+          "to": "issue",
+          "mappings": [
+            { "source": "password_hash", "target": "sub" }
+          ]
+        }
+      ],
+      "join_on": [],
+      "join_type": "ALL",
+      "loop_body": []
+    },
+    {
+      "task_def_name": "auth_jwt_sign",
+      "ref_name": "issue",
+      "edges": [],
+      "join_on": [],
+      "join_type": "ALL",
+      "loop_body": []
+    }
+  ],
+  "input_params": ["username", "password"],
+  "output_mappings": [
+    { "source": "token", "target": "token" }
+  ],
+  "restartable": true,
+  "workflow_status_listener_enabled": false
+}

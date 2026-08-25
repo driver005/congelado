@@ -5,6 +5,9 @@ module;
 export module io_quic:types;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // quic:types retains only what quic:connection, quic:tls, quic:qpack,
 // and server.http3 actually use. All packet, frame, recovery, and stream
@@ -370,3 +373,187 @@ struct std::hash<quic::ConnectionId> {
         return digest;
     }
 };
+
+#ifdef CONGELADO_TEST
+namespace quic::tests {
+using namespace boost::ut;
+
+suite<"varint_len/varint_encode/varint_decode"> varint_suite = [] {
+    "round-trips every length-class boundary"_test = [] {
+        for (VarInt value : {VarInt{0}, VarInt{63}, VarInt{64}, VarInt{16383}, VarInt{16384},
+                             VarInt{1073741823}, VarInt{1073741824}, VARINT_MAX}) {
+            std::array<std::byte, 8> buf{};
+            auto len = varint_encode(buf.data(), value);
+            expect(len == varint_len(value));
+
+            auto [decoded, consumed] = varint_decode(buf.data(), buf.size());
+            expect(consumed == len);
+            expect(decoded == value);
+        }
+    };
+    "varint_len picks the smallest width for each RFC 9000 bucket"_test = [] {
+        expect(varint_len(0) == 1);
+        expect(varint_len(63) == 1);
+        expect(varint_len(64) == 2);
+        expect(varint_len(16383) == 2);
+        expect(varint_len(16384) == 4);
+        expect(varint_len(1073741823) == 4);
+        expect(varint_len(1073741824) == 8);
+    };
+    "varint_decode on an empty buffer returns the {0,0} invalid sentinel"_test = [] {
+        auto [value, consumed] = varint_decode(nullptr, 0);
+        expect(value == 0);
+        expect(consumed == 0);
+    };
+    "varint_decode on a truncated buffer returns the {0,0} invalid sentinel"_test = [] {
+        std::array<std::byte, 8> buf{};
+        varint_encode(buf.data(), VarInt{16384}); // needs 4 bytes
+        auto [value, consumed] = varint_decode(buf.data(), 2);
+        expect(value == 0);
+        expect(consumed == 0);
+    };
+};
+
+suite<"stream_is_uni/stream_is_bidi"> stream_direction_suite = [] {
+    "bit 0x2 distinguishes unidirectional from bidirectional streams"_test = [] {
+        expect(stream_is_bidi(0));
+        expect(not stream_is_uni(0));
+        expect(stream_is_uni(2));
+        expect(not stream_is_bidi(2));
+    };
+};
+
+suite<"ConnectionId"> connection_id_suite = [] {
+    "default-constructed CID has zero length"_test = [] {
+        ConnectionId cid;
+        expect(cid.len == 0);
+        expect(cid.view().empty());
+    };
+    "constructing from bytes copies them in and sets the length"_test = [] {
+        std::array<std::uint8_t, 4> raw{0x01, 0x02, 0x03, 0x04};
+        ConnectionId cid{raw};
+
+        expect(cid.len == 4);
+        expect(std::ranges::equal(cid.view(), raw));
+    };
+    "equality compares length and bytes"_test = [] {
+        std::array<std::uint8_t, 3> raw{0xAA, 0xBB, 0xCC};
+        ConnectionId first{raw};
+        ConnectionId second{raw};
+        ConnectionId empty;
+
+        expect(first == second);
+        expect(not(first == empty));
+    };
+    "hex() renders lowercase two-digit-per-byte encoding"_test = [] {
+        std::array<std::uint8_t, 2> raw{0xDE, 0xAD};
+        ConnectionId cid{raw};
+        expect(cid.hex() == "dead");
+    };
+    "std::hash specialization is usable in an unordered_set"_test = [] {
+        std::array<std::uint8_t, 2> raw{0x01, 0x02};
+        ConnectionId cid{raw};
+
+        std::unordered_set<ConnectionId, std::hash<ConnectionId>> set;
+        set.insert(cid);
+        expect(set.contains(cid));
+    };
+    // The constructor's `bytes.size() <= CID_MAX_LEN` bound check is assert-only — compiled out
+    // under NDEBUG/release, leaving an unchecked std::memcpy into the fixed 20-byte `data` array.
+    // A span exactly CID_MAX_LEN long is the largest input that's safe to exercise here; anything
+    // past it would either trip the assert (aborting the whole shared test binary) or, with
+    // asserts disabled, perform a real OOB memcpy, so that case is deliberately not exercised.
+    "constructing from exactly CID_MAX_LEN bytes succeeds at the boundary"_test = [] {
+        std::array<std::uint8_t, CID_MAX_LEN> raw{
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+            0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
+        ConnectionId cid{raw};
+
+        expect(cid.len == CID_MAX_LEN);
+        expect(std::ranges::equal(cid.view(), raw));
+    };
+};
+
+suite<"ByteReader"> byte_reader_suite = [] {
+    "reads bytes and varints sequentially, advancing the cursor"_test = [] {
+        std::array<std::byte, 8> buf{};
+        ByteWriter writer{buf};
+        expect(writer.write_u8(0x7A));
+        expect(writer.write_varint(300));
+
+        ByteReader reader{writer.written_span()};
+        expect(reader.pos() == 0);
+
+        std::uint8_t peeked = 0;
+        expect(reader.peek_u8(peeked));
+        expect(peeked == 0x7A);
+        expect(reader.pos() == 0); // peek doesn't consume
+
+        std::uint8_t byte_value = 0;
+        expect(reader.read_u8(byte_value));
+        expect(byte_value == 0x7A);
+
+        VarInt decoded = 0;
+        expect(reader.read_varint(decoded));
+        expect(decoded == 300);
+        expect(reader.empty());
+    };
+    "read_u8/read_varint fail cleanly on an empty buffer"_test = [] {
+        std::array<std::byte, 0> empty_buf{};
+        ByteReader reader{empty_buf};
+
+        std::uint8_t byte_value = 0;
+        expect(not reader.read_u8(byte_value));
+
+        VarInt decoded = 0;
+        expect(not reader.read_varint(decoded));
+    };
+    "read_bytes/skip/rest behave around the cursor"_test = [] {
+        std::array<std::byte, 4> buf{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
+        ByteReader reader{buf};
+
+        auto first_two = reader.read_bytes(2);
+        expect(first_two.size() == 2);
+        expect(reader.remaining() == 2);
+
+        expect(reader.skip(1));
+        expect(reader.rest().size() == 1);
+
+        // Asking for more than remains fails without moving the cursor.
+        expect(reader.read_bytes(5).empty());
+        expect(not reader.skip(5));
+    };
+};
+
+suite<"ByteWriter"> byte_writer_suite = [] {
+    "write_u8/write_bytes/reserve fail cleanly when out of room"_test = [] {
+        std::array<std::byte, 2> buf{};
+        ByteWriter writer{buf};
+
+        expect(writer.write_u8(1));
+        expect(writer.write_u8(2));
+        expect(not writer.write_u8(3)); // full
+        expect(writer.written() == 2);
+        expect(writer.remaining() == 0);
+    };
+    "write_bytes is all-or-nothing"_test = [] {
+        std::array<std::byte, 2> buf{};
+        ByteWriter writer{buf};
+
+        std::array<std::byte, 3> too_big{};
+        expect(not writer.write_bytes(too_big));
+        expect(writer.written() == 0); // nothing partially written
+    };
+    "reserve carves out writable space and advances the cursor"_test = [] {
+        std::array<std::byte, 4> buf{};
+        ByteWriter writer{buf};
+
+        auto slot = writer.reserve(2);
+        expect(slot.size() == 2);
+        expect(writer.written() == 2);
+        expect(writer.reserve(10).empty());
+    };
+};
+
+} // namespace quic::tests
+#endif

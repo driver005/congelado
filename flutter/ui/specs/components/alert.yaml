@@ -1,0 +1,50 @@
+component: alert
+flutter_name: HeroAlert
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/alert.css"
+  files: [tool/sources/heroui-alert.css]
+  docs: https://heroui.com/en/docs/react/components/alert
+
+anatomy:
+  - container (`.alert`) — flex row items-start, `gap-4` (16), `px-4` (16)
+    `py-3` (12), `bg-surface`, `shadow-surface`, radius
+    `min(32px, var(--radius-3xl))` = 24
+  - indicator (`.alert__indicator`) — `p-1` (4) with a `size-4` (16) icon
+    slot, tinted per variant
+  - content (`.alert__content`) — flex column items-start (title above
+    description; no gap rule in the CSS)
+  - title (`.alert__title`) — `text-sm leading-6 font-medium` (14/24 w500)
+  - description (`.alert__description`) — `text-sm text-muted` (14)
+
+kinds:
+  color: default (foreground title/indicator) | accent | success | warning |
+         danger (soft-foreground title/indicator)
+  default: default
+
+sizes: none (fixed padding/radius)
+default: -
+
+states: rest only (no hover/press/focus/disabled in alert.css)
+
+tokens:
+  role: [color.surface, color.foreground, color.muted,
+         color.accentSoftForeground, color.successSoftForeground,
+         color.warningSoftForeground, color.dangerSoftForeground]
+  component: [space.4, space.3, space.1, radius.3xl, shadow.surface, type.sm,
+              weight.medium]
+
+non_token_measurements:
+  - icon slot is a fixed 16x16 box (CSS `size-4`; no token)
+  - title line-height 24 (leading-6) expressed as height 24/14
+
+behavior: static banner; no interaction states in alert.css.
+
+approximations:
+  - v3 has no `.alert--soft` variant — the "soft" look is rendered as the
+    soft-foreground tint of the non-default colors, exactly per alert.css
+  - no default icon: the React component picks per-variant default icons, but
+    the CSS only styles the slot, so the caller supplies `icon` (matches the
+    storybook "with icon" story)
+  - title/description spacing follows the CSS exactly (no gap defined)

@@ -2,6 +2,9 @@ export module core_generator:class_builder;
 
 import std;
 import :function;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::generator {
 
@@ -133,3 +136,61 @@ class Class {
 };
 
 } // namespace core::generator
+
+#ifdef CONGELADO_TEST
+namespace core::generator::tests {
+using namespace boost::ut;
+
+suite<"Field"> field_suite = [] {
+    "renders without a default value"_test = [] {
+        Field field{"int", "m_count"};
+
+        expect(field.render() == "int m_count;\n");
+    };
+
+    "renders a brace-init default value"_test = [] {
+        Field field{"int", "m_count"};
+        field.setDefaultValue("0");
+
+        expect(field.render() == "int m_count{0};\n");
+    };
+};
+
+suite<"Class"> class_suite = [] {
+    "getName returns the class's own name"_test = [] {
+        Class cls{"Widget"};
+
+        expect(cls.getName() == "Widget");
+    };
+
+    "render emits header, ctor, non-const methods before const, then fields"_test = [] {
+        Class cls{"Widget"};
+        cls.addMethod("void", "setX");
+        cls.addMethod("int", "getX").set_const();
+        cls.addField("int", "m_x").setDefaultValue("0");
+
+        auto rendered = cls.render();
+
+        expect(rendered.contains("class Widget {\n"));
+        expect(rendered.contains("Widget() = default;"));
+        expect(rendered.contains("private:\n    int m_x{0};\n"));
+
+        auto setter_pos = rendered.find("setX");
+        auto getter_pos = rendered.find("getX");
+        expect(setter_pos != std::string::npos);
+        expect(getter_pos != std::string::npos);
+        expect(setter_pos < getter_pos);
+    };
+
+    "addField/addMethod return references usable for chaining"_test = [] {
+        Class cls{"Widget"};
+        cls.addField("int", "m_value").setDefaultValue("7");
+        cls.addMethod("void", "run").set_static();
+
+        expect(cls.render().contains("m_value{7}"));
+        expect(cls.render().contains("static void run"));
+    };
+};
+
+} // namespace core::generator::tests
+#endif

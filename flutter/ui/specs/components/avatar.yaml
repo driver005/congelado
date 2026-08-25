@@ -1,0 +1,41 @@
+component: Avatar
+flutter_name: HeroAvatar
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/avatar.css"
+  files: [tool/sources/heroui-avatar.css]
+  docs: https://heroui.com/en/docs/react/components/avatar
+
+anatomy:
+  - circular box (size-10 40, rounded-3xl 24, bg-default, overflow-hidden)
+  - image slot (`.avatar__image`)
+  - fallback (`.avatar__fallback` — bg-default, text-sm font-medium, colored by
+    the chosen color's soft foreground)
+
+kinds:
+  color: accent | default | success | warning | danger (fallback text color)
+  default: default
+
+sizes:
+  sm (32, rounded-2xl 16) | md (40, rounded-3xl 24) | lg (48, rounded-3xl 24,
+  fallback text-base)
+  default: md
+
+states: rest only (image load error falls back)
+
+tokens:
+  role: [color.default, color.accentSoftForeground, color.defaultSoftForeground,
+         color.successSoftForeground, color.warningSoftForeground,
+         color.dangerSoftForeground]
+  component: [double.avatar.size.{sm,md,lg}, radius.avatar.radius.{sm,md,lg},
+              double.avatar.fallbackFontSize.{sm,md,lg}]
+
+non_token_measurements:
+  - RemixAvatar's own label/icon/child slots map onto `.avatar__fallback` /
+    custom content
+
+behavior: image loading with error fallback via RemixAvatar (Naked UI).
+
+approximations:
+  - none material

@@ -5,6 +5,9 @@ module;
 export module utils_errno_translator;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils {
 
@@ -102,3 +105,24 @@ class ErrnoTranslator {
 };
 
 } // namespace utils
+
+#ifdef CONGELADO_TEST
+namespace utils::tests {
+using namespace boost::ut;
+
+suite<"ErrnoTranslator"> errno_translator_suite = [] {
+    "known codes map to their specific description"_test = [] {
+        expect(ErrnoTranslator::describe_errno(EPIPE).starts_with("Broken pipe"));
+        expect(ErrnoTranslator::describe_errno(ECONNRESET).starts_with("Connection reset"));
+        expect(ErrnoTranslator::describe_errno(ETIMEDOUT).starts_with("Connection timed out"));
+    };
+    "0 is treated as the SSL_ERROR_SYSCALL special case, not success"_test = [] {
+        expect(ErrnoTranslator::describe_errno(0).starts_with("No errno set"));
+    };
+    "unmapped codes fall back to Unknown error"_test = [] {
+        expect(ErrnoTranslator::describe_errno(-999999) == "Unknown error");
+    };
+};
+
+} // namespace utils::tests
+#endif

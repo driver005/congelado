@@ -2,6 +2,9 @@ export module core_router:middleware;
 
 import std;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::router {
 
@@ -142,3 +145,41 @@ class Middleware {
 };
 
 } // namespace core::router
+
+// execute()/run_step() need a real interfaces::io::IRequest/IResponse pair to invoke a stored
+// middleware against — those are abstract interfaces with no lightweight concrete stub available
+// here, so only the chain's own accumulation bookkeeping (add_middleware/get_size/iteration/
+// overflow) is covered below.
+#ifdef CONGELADO_TEST
+namespace core::router::tests {
+using namespace boost::ut;
+
+suite<"Middleware"> middleware_suite = [] {
+    "starts with zero middlewares"_test = [] {
+        Middleware<4> chain;
+        expect(chain.get_size() == 0);
+        expect(chain.begin() == chain.end());
+    };
+    "add_middleware appends in registration order"_test = [] {
+        Middleware<4> chain;
+        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest &, interfaces::io::IResponse &,
+                                           interfaces::NextFn &&, std::function<void()>) noexcept {};
+
+        chain.add_middleware(noop);
+        chain.add_middleware(noop);
+
+        expect(chain.get_size() == 2);
+        expect(std::distance(chain.begin(), chain.end()) == 2);
+    };
+    "add_middleware throws once the chain is full"_test = [] {
+        Middleware<1> chain;
+        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest &, interfaces::io::IResponse &,
+                                           interfaces::NextFn &&, std::function<void()>) noexcept {};
+
+        chain.add_middleware(noop);
+        expect(throws<std::runtime_error>([&] { chain.add_middleware(noop); }));
+    };
+};
+
+} // namespace core::router::tests
+#endif

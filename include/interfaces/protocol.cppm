@@ -7,6 +7,10 @@ import shared;
 import io_shared;
 import :client;
 import :io;
+#ifdef CONGELADO_TEST
+import boost.ut;
+import utils_buffering;
+#endif
 
 export namespace interfaces {
 
@@ -136,3 +140,53 @@ using MiddlewareFn =
     void (*)(io::IRequest &, io::IResponse &, NextFn &&, std::function<void()> send);
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::protocol_tests {
+
+// Satisfies ServerConcept — no real transport, just the shape IProtocol<Server> requires.
+class MockServer {
+  public:
+    shared::ReadCallback on_connect(shared::SendCallback &&, shared::CloseCallback &&) {
+        return [](utils::buffering::BufferReader &) {};
+    }
+    void build(void *) {}
+    void close() {}
+    void mark_closed() {}
+    [[nodiscard]] bool is_idle() { return true; }
+};
+
+// Minimal IProtocol fixture — leaves get_server()/get_client()/set_dispatch() at their
+// defaults so those default implementations can be exercised in isolation.
+class MockProtocol final : public IProtocol<MockServer> {
+  public:
+    [[nodiscard]] std::string_view get_protocol_name() const noexcept override { return "mock"; }
+    [[nodiscard]] std::string_view get_bind_host() const noexcept override { return "127.0.0.1"; }
+    [[nodiscard]] std::uint16_t get_bind_port() const noexcept override { return 0; }
+    [[nodiscard]] std::string_view get_tls_cert() const noexcept override { return ""; }
+    [[nodiscard]] std::string_view get_tls_key() const noexcept override { return ""; }
+};
+
+using namespace boost::ut;
+
+suite<"IProtocol defaults"> protocol_suite = [] {
+    "get_server() throws when not overridden"_test = [] {
+        MockProtocol protocol;
+        expect(throws<std::runtime_error>([&] { std::ignore = protocol.get_server(); }));
+    };
+
+    "get_client() throws when not overridden"_test = [] {
+        MockProtocol protocol;
+        expect(throws<std::runtime_error>(
+            [&] { std::ignore = protocol.get_client(io::ReceiveDispatchFn{}); }));
+    };
+
+    "set_dispatch() defaults to a no-op"_test = [] {
+        MockProtocol protocol;
+        protocol.set_dispatch(io::ReceiveDispatchFn{});
+        expect(true) << "reaching here means set_dispatch() didn't throw or crash";
+    };
+};
+
+} // namespace interfaces::protocol_tests
+#endif

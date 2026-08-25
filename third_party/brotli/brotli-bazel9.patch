@@ -1,0 +1,43 @@
+--- a/BUILD.bazel	2026-08-23 19:18:42.062389902 +0200
++++ b/BUILD.bazel	2026-08-23 19:18:42.203537637 +0200
+@@ -2,6 +2,8 @@
+ #   Brotli is a generic-purpose lossless compression algorithm.
+ 
+ load(":compiler_config_setting.bzl", "create_msvc_config")
++load("@rules_cc//cc:cc_library.bzl", "cc_library")
++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+ 
+ package(
+     default_visibility = ["//visibility:public"],
+@@ -110,6 +112,7 @@
+     name = "brotli_inc",
+     hdrs = [":public_headers"],
+     copts = STRICT_C_OPTIONS,
++    features = ["-layering_check"],
+     strip_include_prefix = "c/include",
+ )
+ 
+@@ -118,6 +121,7 @@
+     srcs = [":common_sources"],
+     hdrs = [":common_headers"],
+     copts = STRICT_C_OPTIONS,
++    features = ["-layering_check"],
+     deps = [":brotli_inc"],
+ )
+ 
+@@ -126,6 +130,7 @@
+     srcs = [":dec_sources"],
+     hdrs = [":dec_headers"],
+     copts = STRICT_C_OPTIONS,
++    features = ["-layering_check"],
+     deps = [":brotlicommon"],
+ )
+ 
+@@ -134,6 +139,7 @@
+     srcs = [":enc_sources"],
+     hdrs = [":enc_headers"],
+     copts = STRICT_C_OPTIONS,
++    features = ["-layering_check"],
+     linkopts = select({
+         ":clang-cl": [],
+         ":msvc": [],

@@ -1,0 +1,36 @@
+component: Radio
+flutter_name: HeroRadio + HeroRadioGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/radio.css"
+  files: [tool/sources/heroui-radio.css]
+  docs: https://heroui.com/en/docs/react/components/radio
+
+anatomy:
+  - control (size-4 16, rounded-lg 8, bg-field, shadow-field)
+  - indicator dot (accent, circular)
+
+kinds: none
+default: -
+
+sizes: none (size-4 fixed)
+default: -
+
+states: rest | selected (accent dot) | focus (2px accent ring) | disabled
+
+tokens:
+  role: [color.field, color.accent, color.focus, shadow.field (per-theme)]
+  component: [double.radio.size, radius.radio.radius, double.radio.indicatorSize,
+              double.focusRingWidth]
+
+non_token_measurements:
+  - label slot is caller-composed around HeroRadio (the source's
+    `.radio__content` row with gap-3)
+
+behavior: single-selection group semantics, arrow-key navigation, focus via
+  RemixRadioGroup/RemixRadio (Naked UI).
+
+approximations:
+  - the field shadow is resolved by the HeroRadio facade (per-theme)
+  - label text (text-sm font-medium foreground) is not built into the widget

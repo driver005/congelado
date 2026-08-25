@@ -1,0 +1,48 @@
+component: Tabs
+flutter_name: HeroTabs (+ HeroTab)
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/tabs.css"
+  files: [tool/sources/heroui-tabs.css]
+  docs: https://heroui.com/en/docs/react/components/tabs
+
+anatomy:
+  - list container (bg-default, radius calc(var(--radius) * 2.5) = 20, p-1)
+  - tab (h-8 32, rounded-3xl 24, px-4, text-sm font-medium, text-muted)
+  - selected state (segment pill + segment-foreground; secondary: foreground
+    text + 2px accent underline)
+  - panel (p-2, mt-4 horizontal)
+
+kinds:
+  primary (pill/segment container) | secondary (flat + underline)
+  default: primary
+
+sizes: none in tabs.css (h-8 fixed)
+default: -
+
+states: rest | hover (opacity 0.7) | selected (accent family everywhere:
+  primary = accent-soft pill + accent text; secondary = accent text + 2px
+  accent underline — product deviation from HeroUI's neutral segment/
+  foreground, for global accent consistency) | disabled | focus
+
+tokens:
+  role: [color.default, color.segment, color.segmentForeground, color.muted,
+         color.foreground, color.accent, color.border]
+  component: [radius.tabs.containerRadius (20), radius.tabs.tabRadius (24),
+              double.tabs.tabHeight, double.tabs.tabPaddingX, double.tabs.fontSize,
+              double.tabs.indicatorHeight, double.tabs.panelGap, double.tabs.panelPadding,
+              weight.medium, space.1 (list padding)]
+  type: [type.sm]
+
+non_token_measurements:
+  - Remix 0.2.0 has no tab-indicator slot: the sliding `.tabs__indicator` is
+    approximated by styling the selected tab itself (segment pill)
+
+behavior: keyboard arrow navigation, focus management, and ARIA semantics via
+  RemixTabs (Naked UI); onChanged/selectedTabId lifted-state model.
+
+approximations:
+  - no sliding indicator animation (selected tab is styled directly)
+  - hover uses text opacity instead of whole-tab opacity
+  - tabs are intrinsic-width (`.tabs__tab` is w-full; the tab list grows)

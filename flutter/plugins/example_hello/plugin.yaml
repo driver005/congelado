@@ -1,0 +1,28 @@
+id: example_hello
+name: Hello Plugin
+version: 0.1.0
+author: Congelado Team
+description: A greeting card loaded from plugin.yaml at runtime — the minimal spec plugin.
+tags: [demo, greeting, main]
+slot: main
+widgets:
+  type: card
+  props:
+    title: Hello from a runtime plugin
+  children:
+    - type: text
+      props:
+        text: This UI was declared in plugin.yaml and loaded while the app runs.
+        style: bodyLarge
+    - type: row
+      props:
+        spacing: 8
+      children:
+        - type: button
+          props:
+            label: Say hi
+            action: hello.greet
+        - type: badge
+          props:
+            label: spec
+            color: green

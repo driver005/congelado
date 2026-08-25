@@ -1,6 +1,9 @@
 export module node;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export struct Node {
     std::atomic<Node *> m_next;
@@ -33,3 +36,18 @@ export struct Node {
      */
     ~Node() = default;
 };
+
+#ifdef CONGELADO_TEST
+namespace {
+using namespace boost::ut;
+
+suite<"Node"> node_suite = [] {
+    "default-constructed node has no next link and a zeroed refcount"_test = [] {
+        Node node;
+        expect(node.m_next.load() == nullptr);
+        expect(node.m_refs.load() == 0);
+    };
+};
+
+} // namespace
+#endif

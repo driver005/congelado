@@ -9,3 +9,10 @@ build/
 __pycache__/
 
 
+
+# Local reference material (downloaded pub/npm archives, gitignored)
+.reference/
+
+# Local bazel state (output user root lives in the workspace: the sandbox tmpfs is wiped)
+.bzluser/
+.bzlrepo/

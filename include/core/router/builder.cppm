@@ -5,6 +5,9 @@ export module core_router:builder;
 import std;
 import :utils;
 import :router;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::router {
 
@@ -350,7 +353,7 @@ class RouterContext {
             router_number,
         });
 
-        route.is_build();  // FIXME(clang-tidy): clang-diagnostic-unused-result — likely meant to call the mutating set_build(), but route is a const reference here, so fixing it properly needs a signature change; not guessing
+        (void)route.is_build();  // FIXME(clang-tidy): clang-diagnostic-unused-result — likely meant to call the mutating set_build(), but route is a const reference here, so fixing it properly needs a signature change; not guessing
     }
 
     // Middleware<MaxMiddlewareSize> m_middlewares;
@@ -921,3 +924,195 @@ class RouteBuilder {
     Route<> m_fallback_route;
 };
 } // namespace core::router
+
+// Every handler/middleware stored below is a noop stand-in that's registered but never invoked —
+// none of the bookkeeping exercised here (route/router registration, offsets, the sentinel-parent
+// build path) needs a live interfaces::io::IRequest/IResponse pair.
+#ifdef CONGELADO_TEST
+namespace core::router::tests {
+using namespace boost::ut;
+
+// static: internal linkage so these don't collide with the same-named test helpers other
+// core_router partition files (handler.cppm, router.cppm) define in this same tests namespace.
+static interfaces::HandlerFn noop_handler() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {};
+}
+
+static interfaces::MiddlewareFn noop_middleware() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, interfaces::NextFn &&,
+              std::function<void()>) noexcept {};
+}
+
+suite<"Route"> route_suite = [] {
+    "default-constructed route is empty and unbuilt"_test = [] {
+        Route<> route;
+        expect(route.get_path().empty());
+        expect(route.is_build() == false);
+        expect(route.get_child_routes() == 0);
+    };
+
+    "constructing from a path strips exactly one leading slash"_test = [] {
+        Route<> route{"/users"};
+        expect(route.get_path() == "users");
+    };
+
+    "an internal slash with no leading slash is kept as-is"_test = [] {
+        Route<> route{"a/b"};
+        expect(route.get_path() == "a/b");
+    };
+
+    "wildcard path is accepted without a slash"_test = [] {
+        Route<> route{"*"};
+        expect(route.get_path() == "*");
+    };
+
+    "a path with no slash anywhere throws"_test = [] {
+        expect(throws<std::runtime_error>([] { Route<> route{"nowhere"}; }));
+    };
+
+    "variadic constructor registers each middleware in order"_test = [] {
+        Route<> route{"/x", noop_middleware(), noop_middleware()};
+        expect(route.get_middlewares().get_size() == 2);
+    };
+
+    "use() appends a middleware, rvalue-chained"_test = [] {
+        Route<> route = Route<>{"/x"}.use(noop_middleware());
+        expect(route.get_middlewares().get_size() == 1);
+    };
+
+    "get() registers a handler for GET only"_test = [] {
+        Route<> route = Route<>{"/x"}.get(noop_handler());
+        expect(route.get_handlers().find(interfaces::io::types::Method::GET) != nullptr);
+        expect(route.get_handlers().find(interfaces::io::types::Method::POST) == nullptr);
+    };
+
+    "add_handler_in_place throws on a duplicate method"_test = [] {
+        Route<> route{"/x"};
+        route.add_handler_in_place(interfaces::io::types::Method::GET, noop_handler());
+        expect(throws<std::runtime_error>([&] {
+            route.add_handler_in_place(interfaces::io::types::Method::GET, noop_handler());
+        }));
+    };
+
+    "set_base_router / set_router_number are rvalue-chainable"_test = [] {
+        Route<> route = Route<>{"/x"}.set_base_router(3).set_router_number(7);
+        expect(route.get_base_router() == 3);
+        expect(route.get_router_number() == 7);
+    };
+
+    "update_*/set_build/increment_child_routes mutate in place"_test = [] {
+        Route<> route{"/x"};
+        route.update_base_router(5);
+        route.update_child_routes(2);
+        route.update_router_number(9);
+        route.increment_child_routes();
+        route.set_build();
+
+        expect(route.get_base_router() == 5);
+        expect(route.get_child_routes() == 3);
+        expect(route.get_router_number() == 9);
+        expect(route.is_build() == true);
+    };
+};
+
+suite<"RouterContext"> router_context_suite = [] {
+    "starts with the two reserved root/fallback slots"_test = [] {
+        RouterContext<> ctx;
+        expect(ctx.get_router_size() == 2);
+        expect(ctx.get_base_router_children() == 0);
+    };
+
+    "add_route appends and counts base-router children for routes parented at 0"_test = [] {
+        RouterContext<> ctx;
+        std::size_t index = ctx.add_route(Route<>{"/x"});
+        expect(index == 2);
+        expect(ctx.get_router_size() == 3);
+        expect(ctx.get_base_router_children() == 1);
+    };
+
+    "operator[] throws std::out_of_range past the live range"_test = [] {
+        RouterContext<> ctx;
+        expect(throws<std::out_of_range>([&] { ctx[100]; }));
+    };
+
+    "decrement_base_router_children never underflows past zero"_test = [] {
+        RouterContext<> ctx;
+        ctx.decrement_base_router_children();
+        expect(ctx.get_base_router_children() == 0);
+    };
+
+    "get_highest_router_number hands out strictly increasing numbers"_test = [] {
+        RouterContext<> ctx;
+        auto first = ctx.get_highest_router_number();
+        auto second = ctx.get_highest_router_number();
+        expect(second > first);
+    };
+
+    "build() throws when the reserved root/fallback slots are still unset"_test = [] {
+        RouterContext<> ctx;
+        expect(throws<std::runtime_error>([&] { ctx.build(); }));
+    };
+};
+
+suite<"Router"> router_suite = [] {
+    "constructing a router registers a root-level route and claims a router number"_test = [] {
+        RouterContext<> ctx;
+        auto before = ctx.get_router_size();
+        Router<> router{ctx, "/api"};
+        expect(ctx.get_router_size() == before + 1);
+        expect(ctx.get_base_router_children() == 1);
+        expect(router.get_router_index() == before);
+    };
+
+    "variadic constructor attaches middlewares up front"_test = [] {
+        RouterContext<> ctx;
+        Router<> router{ctx, "/api", noop_middleware()};
+        expect(ctx[router.get_router_index()].get_middlewares().get_size() == 1);
+    };
+
+    "use()/get() build against the router's own route"_test = [] {
+        RouterContext<> ctx;
+        Router<> router = Router<>{ctx, "/api"}.use(noop_middleware()).get(noop_handler());
+        expect(ctx[router.get_router_index()].get_middlewares().get_size() == 1);
+        expect(ctx[router.get_router_index()].get_handlers().find(
+                   interfaces::io::types::Method::GET) != nullptr);
+    };
+
+    "add_route nests a standalone route under this router and bumps its child count"_test = [] {
+        RouterContext<> ctx;
+        Router<> router{ctx, "/api"};
+        router = std::move(router).add_route(Route<>{"/users"});
+        expect(ctx[router.get_router_index()].get_child_routes() == 1);
+    };
+
+    "add_router nests a sub-router and re-parents it, syncing child bookkeeping"_test = [] {
+        RouterContext<> ctx;
+        Router<> parent{ctx, "/api"};
+        Router<> child{ctx, "/users"};
+        const std::size_t CHILD_INDEX = child.get_router_index();
+        const std::size_t CHILDREN_BEFORE = ctx.get_base_router_children();
+
+        parent = std::move(parent).add_router(std::move(child));
+
+        expect(ctx[CHILD_INDEX].get_base_router() == parent.get_router_number());
+        expect(ctx[parent.get_router_index()].get_child_routes() == 1);
+        expect(ctx.get_base_router_children() == CHILDREN_BEFORE - 1);
+    };
+};
+
+suite<"RouteBuilder"> route_builder_suite = [] {
+    "address()/port()/name() chain into build(), producing a RouteHandler without throwing"_test =
+        [] {
+            RouterContext<> ctx;
+            ctx.add_route(Route<>{"/health"}.get(noop_handler()));
+
+            expect(not throws<std::runtime_error>([&] {
+                RouteHandler<> handler =
+                    RouteBuilder{}.address("0.0.0.0").port(80).name("api").build(ctx);
+                (void)handler;
+            }));
+        };
+};
+
+} // namespace core::router::tests
+#endif

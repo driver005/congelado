@@ -1,0 +1,45 @@
+component: color-swatch
+flutter_name: HeroColorSwatch
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-swatch.css"
+  files: [tool/sources/heroui-color-swatch.css]
+  docs: https://heroui.com/en/docs/react/components/color-swatch
+
+anatomy:
+  - .color-swatch: relative box-border size-8 (32) shrink-0; background linear-gradient(current, current) over repeating-conic-gradient(#efefef 0% 25%, #f7f7f7 0% 50%) 50% / 16px 16px; box-shadow inset 0 0 0 1px rgba(0,0,0,0.1)
+  - .color-swatch--circle (default): rounded-2xl (16)
+  - .color-swatch--square: rounded-md (6)
+  - sizes: --xs size-4 (16, circle rounded-lg 8), --sm size-6 (24, rounded-xl 12), --md size-8 (32, rounded-2xl 16), --lg size-9 (36, circle rounded-3xl 24), --xl size-10 (40, circle rounded-3xl 24)
+
+kinds:
+  color: none
+  default: -
+
+sizes: xs, sm, md, lg, xl
+default: md (32), circle
+
+states:
+  - rest
+  - selected (facade extension: 2px border in the swatch color + field shadow, mirrors the picker item)
+  - pressed/focused only when onTap is set (HeroFocusRing)
+
+tokens:
+  role: [colorForeground, shadowField, colorFocus]
+  component: []
+
+non_token_measurements:
+  - sides 32 (16 / 24 / 36 / 40)
+  - radii 6 (square), 8 / 12 / 16 / 24 / 24 (circle per size)
+  - checkerboard 8px cells (payload #efefef / #f7f7f7)
+  - inset 1px ring rgba(0,0,0,0.1)
+
+behavior:
+  - displays the color over the transparency checkerboard (alpha blends through)
+  - null color shows the bare checkerboard
+  - optional tap handling turns the tile into a button (HeroFocusRing, keyboard activation)
+
+approximations:
+  - checkerboard painted as 8px squares (repeating-conic-gradient approximated)
+  - selected ring (2px border + field shadow) is a facade addition inspired by the swatch-picker item

@@ -3,6 +3,9 @@ export module utils_buffering:writter;
 import std;
 import :node;
 import :reader;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 
 export namespace utils::buffering {
@@ -166,3 +169,58 @@ class BufferWriter {
 
 
 } // namespace utils::buffering
+
+#ifdef CONGELADO_TEST
+namespace utils::buffering::tests {
+using namespace boost::ut;
+
+suite<"BufferWriter"> buffer_writer_suite = [] {
+    "starts empty with the requested min-size prediction"_test = [] {
+        BufferWriter writer{4, 16};
+        expect(writer.empty());
+        expect(writer.get_predicted_size() == 4);
+    };
+    "acquire allocates a fresh node sized at the current prediction"_test = [] {
+        BufferWriter writer{4, 16};
+        auto *slot = writer.acquire();
+
+        expect(slot != nullptr);
+        expect(slot->get_limit() == 4);
+    };
+    "a full read doubles the next prediction, clamped to max_size"_test = [] {
+        BufferWriter writer{4, 16};
+        auto *slot = writer.acquire();
+        writer.notify_read(slot, 4);
+
+        expect(writer.get_predicted_size() == 8);
+        expect(not writer.empty());
+        expect(writer.get_view().size() == 4);
+    };
+    "a short read shrinks the next prediction toward what was actually read"_test = [] {
+        BufferWriter writer{4, 16};
+        writer.notify_read(writer.acquire(), 4); // fill once to grow the prediction to 8 first
+        expect(writer.get_predicted_size() == 8);
+
+        writer.notify_read(writer.acquire(), 6); // partial relative to the now-8-byte slot
+        expect(writer.get_predicted_size() == 6);
+    };
+    "a short read below min_size still clamps up to min_size"_test = [] {
+        BufferWriter writer{4, 16};
+        writer.notify_read(writer.acquire(), 2);
+
+        expect(writer.get_predicted_size() == 4);
+    };
+    "release drops the slot's reference without touching size or the predictor"_test = [] {
+        BufferWriter writer{4, 16};
+        auto *slot = writer.acquire();
+        auto predicted_before = writer.get_predicted_size();
+
+        BufferWriter::release(slot);
+
+        expect(writer.get_predicted_size() == predicted_before);
+        expect(writer.empty());
+    };
+};
+
+} // namespace utils::buffering::tests
+#endif

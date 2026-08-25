@@ -1,0 +1,32 @@
+component: radio-group
+flutter_name: HeroRadioGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/radio-group.css"
+  files: [tool/sources/heroui-radio-group.css]
+  docs: https://heroui.com/en/docs/react/components/radio-group
+
+anatomy:
+  - vertical column of HeroRadio options; label + description/error slots
+
+kinds:
+  color: none (control uses accent indicator)
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: [color.accent, color.field, color.foreground, color.muted]
+  component: [double.radio.*, radius.radio.*]
+
+non_token_measurements:
+  - group gap and label/description spacing per radio-group.css
+
+behavior: managed selection (single value), disabled propagation.
+
+approximations:
+  - implemented inside hero_radio.dart as HeroRadioGroup

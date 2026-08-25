@@ -12,6 +12,9 @@ import utils_buffering;
 import utils_encode;
 import interfaces;
 import :frame;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -156,21 +159,26 @@ class HttpRequest : public interfaces::io::IRequest {
                     }
 
                     // Unknown name — goes straight into the dynamic hashmap instead of the
-                    // fixed static-header array (see the class-level warning re: empty value here).
+                    // fixed static-header array. Root-cause fix (previously: a non-empty value
+                    // on a name never seen before hit an unconditional `return` before ever
+                    // reaching the insert below, silently dropping it; an empty value on an
+                    // unknown name fell through to `token_opt.value()` with no value present,
+                    // an unconditional std::bad_optional_access). Handling the not-found case
+                    // explicitly and always returning afterward fixes both at once.
                     auto token_opt = interfaces::io::types::tokenize(name);
                     if (!token_opt.has_value()) {
-                        if (!value.empty()) {
-                            if (auto existing_opt = m_headers.find(name);
-                                existing_opt.has_value()) {
+                        if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
+                            if (!value.empty()) {
                                 const auto &existing = *existing_opt;
                                 existing->set_value(existing->get_value() +
                                                     interfaces::consts::VALUE_SEPARATOR +
                                                     std::string(value));
                             }
-                            return;
+                        } else {
+                            m_headers.insert(
+                                name, std::make_shared<interfaces::io::HeaderField<false>>(name, value));
                         }
-                        m_headers.insert(name, std::make_shared<interfaces::io::HeaderField<false>>(
-                                                   name, value));
+                        return;
                     }
 
                     auto token = token_opt.value();
@@ -631,3 +639,98 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
 };
 
 } // namespace io::layer::http2
+
+// WriteHttpRequestAdaptor needs a real HPackTable and encodes through HpackEncoder — that path
+// already has known-broken suites elsewhere in this codebase right now (see HpackEncoder,
+// Atom::encode_string/decode_string), so it's skipped here rather than adding more noise on top
+// of an already-failing area. HttpRequest's own header/body bookkeeping is pure, in-memory, and
+// fully testable without any live socket.
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+
+suite<"HttpRequest"> http_request_suite = [] {
+    "starts with no headers and an empty body"_test = [] {
+        HttpRequest req{5};
+        expect(req.get_headers().empty());
+        expect(req.get_body().empty());
+    };
+    "set_header/find_header round-trip via the Token overload"_test = [] {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::METHOD, "GET");
+        req.set_header(interfaces::io::types::Token::PATH, "/tasks");
+
+        expect(req.get_method() == "GET");
+        expect(req.get_path() == "/tasks");
+    };
+    "set_header/find_header round-trip via a string name that tokenizes"_test = [] {
+        HttpRequest req{1};
+        req.set_header(std::string_view{":method"}, "POST");
+        expect(req.get_method() == "POST");
+    };
+    "an unrecognized name with a non-empty value lands in the dynamic map"_test = [] {
+        HttpRequest req{1};
+        req.set_header(std::string_view{"x-custom"}, "value1");
+        expect(req.find_header(std::string_view{"x-custom"}) == "value1");
+    };
+    "an empty header name throws invalid_argument"_test = [] {
+        HttpRequest req{1};
+        expect(throws<std::invalid_argument>([&] { req.set_header(std::string_view{}, "v"); }));
+    };
+    "Token::NONE throws invalid_argument"_test = [] {
+        HttpRequest req{1};
+        expect(throws<std::invalid_argument>(
+            [&] { req.set_header(interfaces::io::types::Token::NONE, "v"); }));
+    };
+    "COOKIE set via the direct Token overload always overwrites (no name to tokenize with)"_test =
+        [] {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::COOKIE, "a=1");
+        req.set_header(interfaces::io::types::Token::COOKIE, "b=2");
+        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
+    };
+    "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test =
+        [] {
+        HttpRequest req{1};
+        req.set_header(std::string_view{"cookie"}, "a=1");
+        req.set_header(std::string_view{"cookie"}, "b=2");
+        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
+    };
+    "remove_header clears a known token slot"_test = [] {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::METHOD, "GET");
+        req.remove_header(interfaces::io::types::Token::METHOD);
+        expect(req.get_method().empty());
+    };
+    "remove_header clears a dynamic (unrecognized-name) entry"_test = [] {
+        HttpRequest req{1};
+        req.set_header(std::string_view{"x-custom"}, "value1");
+        req.remove_header(std::string_view{"x-custom"});
+        expect(req.find_header(std::string_view{"x-custom"}).empty());
+    };
+    "set_body/get_body round-trip a non-empty body"_test = [] {
+        HttpRequest req{1};
+        std::vector<std::byte> body{std::byte{1}, std::byte{2}, std::byte{3}};
+        req.set_body(std::move(body));
+        expect(req.get_body().size() == 3);
+    };
+    "set_body with an empty vector leaves the body untouched"_test = [] {
+        HttpRequest req{1};
+        req.set_body({});
+        expect(req.get_body().empty());
+    };
+    "get_size accounts for at least the mandatory empty-body DATA frame"_test = [] {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::METHOD, "GET");
+        expect(req.get_size(16384) > 0);
+    };
+    "get_headers collects both static and dynamic entries"_test = [] {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::METHOD, "GET");
+        req.set_header(std::string_view{"x-custom"}, "value1");
+        expect(req.get_headers().size() == 2);
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

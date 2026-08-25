@@ -2,6 +2,9 @@ export module congelado_worker:config;
 
 import std;
 import serde;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::worker {
 
@@ -76,6 +79,15 @@ class WorkerConfig {
     void setEngineCert(std::string cert) { m_engine_cert = std::move(cert); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Sets the TLS key used for the engine connection. @param key the key contents.
     void setEngineKey(std::string key) { m_engine_key = std::move(key); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Sets the downstream client host the `client`/`client_pool` workers send to — optional;
+    /// empty means no downstream connection is stood up. @param host the downstream host, or nullopt.
+    void setClientHost(std::optional<std::string> host) { m_client_host = std::move(host); }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Sets the downstream client port. @param port the downstream port, or nullopt.
+    void setClientPort(std::optional<std::uint32_t> port) { m_client_port = port; }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Sets the TLS cert for the downstream client connection. @param cert the cert, or nullopt.
+    void setClientCert(std::optional<std::string> cert) { m_client_cert = std::move(cert); }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Sets the TLS key for the downstream client connection. @param key the key, or nullopt.
+    void setClientKey(std::optional<std::string> key) { m_client_key = std::move(key); }  // NOLINT(readability-identifier-naming) — accessor naming convention
     /// @brief Appends one task config to the list — no cap, this is additive, existing entries
     /// stay put. @param task the task config to add.
     void addTask(TaskConfig task) { m_tasks.push_back(std::move(task)); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
@@ -117,6 +129,14 @@ class WorkerConfig {
     [[nodiscard]] const std::string &getEngineCert() const noexcept { return m_engine_cert; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
     /// @brief Gets the TLS key for the engine connection. @return the key contents.
     [[nodiscard]] const std::string &getEngineKey() const noexcept { return m_engine_key; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    /// @brief Gets the downstream client host, if configured. @return the host, or nullopt.
+    [[nodiscard]] const std::optional<std::string> &getClientHost() const noexcept { return m_client_host; }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Gets the downstream client port, if configured. @return the port, or nullopt.
+    [[nodiscard]] const std::optional<std::uint32_t> &getClientPort() const noexcept { return m_client_port; }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Gets the downstream client TLS cert, if configured. @return the cert, or nullopt.
+    [[nodiscard]] const std::optional<std::string> &getClientCert() const noexcept { return m_client_cert; }  // NOLINT(readability-identifier-naming) — accessor naming convention
+    /// @brief Gets the downstream client TLS key, if configured. @return the key, or nullopt.
+    [[nodiscard]] const std::optional<std::string> &getClientKey() const noexcept { return m_client_key; }  // NOLINT(readability-identifier-naming) — accessor naming convention
     /// @brief Gets the configured task list. @return the task configs, in file order.
     [[nodiscard]] const std::vector<TaskConfig> &getTasks() const noexcept { return m_tasks; }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
 
@@ -146,6 +166,10 @@ class WorkerConfig {
     std::uint32_t m_bind_port{0};
     std::string m_engine_cert;
     std::string m_engine_key;
+    std::optional<std::string> m_client_host;
+    std::optional<std::uint32_t> m_client_port;
+    std::optional<std::string> m_client_cert;
+    std::optional<std::string> m_client_key;
     std::vector<TaskConfig> m_tasks;
 };
 
@@ -186,6 +210,14 @@ struct serde::Serializable<congelado::worker::WorkerConfig> {
                              &WorkerConfig::setEngineCert>{},
             serde::FieldDesc<"engine_key", &WorkerConfig::getEngineKey,
                              &WorkerConfig::setEngineKey>{},
+            serde::FieldDesc<"client_host", &WorkerConfig::getClientHost,
+                             &WorkerConfig::setClientHost>{},
+            serde::FieldDesc<"client_port", &WorkerConfig::getClientPort,
+                             &WorkerConfig::setClientPort>{},
+            serde::FieldDesc<"client_cert", &WorkerConfig::getClientCert,
+                             &WorkerConfig::setClientCert>{},
+            serde::FieldDesc<"client_key", &WorkerConfig::getClientKey,
+                             &WorkerConfig::setClientKey>{},
             serde::FieldDesc<"tasks", &WorkerConfig::getTasks, &WorkerConfig::setTasks>{},
         };
     }
@@ -204,3 +236,122 @@ congelado::worker::WorkerConfig::from_file(const std::filesystem::path &path) {
     std::string contents{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
     return serde::Ser::deserialize<WorkerConfig>("application/toml", contents);
 }
+
+// from_file() dispatches through serde::Ser to a dynamically-loaded TOML format plugin — no
+// live plugin registry in a plain unit-test binary, so it's not covered here. Everything else
+// on TaskConfig/WorkerConfig is a pure setter/getter round-trip, tested below.
+#ifdef CONGELADO_TEST
+namespace congelado::worker::tests {
+using namespace boost::ut;
+
+suite<"TaskConfig"> task_config_suite = [] {
+    "name and worker_type round-trip"_test = [] {
+        TaskConfig task;
+        task.setName("nightly-sync");
+        task.setWorkerType("sync");
+
+        expect(task.getName() == "nightly-sync");
+        expect(task.getWorkerType() == "sync");
+    };
+
+    "starts empty"_test = [] {
+        TaskConfig task;
+
+        expect(task.getName().empty());
+        expect(task.getWorkerType().empty());
+    };
+};
+
+suite<"WorkerConfig"> worker_config_suite = [] {
+    "starts with documented defaults"_test = [] {
+        WorkerConfig cfg;
+
+        expect(not cfg.getEngineUrl().has_value());
+        expect(cfg.getWorkerId().empty());
+        expect(cfg.getConcurrency() == 0);
+        expect(not cfg.getThreads().has_value());
+        expect(not cfg.getConnectRetryDelayMs().has_value());
+        expect(not cfg.getConnectTimeoutMs().has_value());
+        expect(cfg.getEngineHost().empty());
+        expect(cfg.getEnginePort() == 0);
+        expect(cfg.getBindHost().empty());
+        expect(cfg.getBindPort() == 0);
+        expect(not cfg.getClientHost().has_value());
+        expect(not cfg.getClientPort().has_value());
+        expect(not cfg.getClientCert().has_value());
+        expect(not cfg.getClientKey().has_value());
+        expect(cfg.getTasks().empty());
+    };
+
+    "required-field setters round-trip"_test = [] {
+        WorkerConfig cfg;
+        cfg.setWorkerId("worker-1");
+        cfg.setConcurrency(8);
+        cfg.setEngineHost("engine.internal");
+        cfg.setEnginePort(9443);
+        cfg.setBindHost("0.0.0.0");
+        cfg.setBindPort(8080);
+        cfg.setEngineCert("cert-contents");
+        cfg.setEngineKey("key-contents");
+
+        expect(cfg.getWorkerId() == "worker-1");
+        expect(cfg.getConcurrency() == 8);
+        expect(cfg.getEngineHost() == "engine.internal");
+        expect(cfg.getEnginePort() == 9443);
+        expect(cfg.getBindHost() == "0.0.0.0");
+        expect(cfg.getBindPort() == 8080);
+        expect(cfg.getEngineCert() == "cert-contents");
+        expect(cfg.getEngineKey() == "key-contents");
+    };
+
+    "optional-field setters round-trip through std::optional"_test = [] {
+        WorkerConfig cfg;
+        cfg.setEngineUrl(std::optional<std::string>{"https://engine.example"});
+        cfg.setThreads(std::optional<std::uint32_t>{4});
+        cfg.setConnectRetryDelayMs(std::optional<std::uint32_t>{500});
+        cfg.setConnectTimeoutMs(std::optional<std::uint32_t>{30000});
+        cfg.setClientHost(std::optional<std::string>{"client.internal"});
+        cfg.setClientPort(std::optional<std::uint32_t>{6379});
+        cfg.setClientCert(std::optional<std::string>{"client-cert"});
+        cfg.setClientKey(std::optional<std::string>{"client-key"});
+
+        expect(cfg.getEngineUrl().value() == "https://engine.example");
+        expect(cfg.getThreads().value() == 4);
+        expect(cfg.getConnectRetryDelayMs().value() == 500);
+        expect(cfg.getConnectTimeoutMs().value() == 30000);
+        expect(cfg.getClientHost().value() == "client.internal");
+        expect(cfg.getClientPort().value() == 6379);
+        expect(cfg.getClientCert().value() == "client-cert");
+        expect(cfg.getClientKey().value() == "client-key");
+    };
+
+    "addTask appends, setTasks replaces the whole list"_test = [] {
+        WorkerConfig cfg;
+        TaskConfig first;
+        first.setName("first");
+        TaskConfig second;
+        second.setName("second");
+
+        cfg.addTask(first);
+        cfg.addTask(second);
+        expect(cfg.getTasks().size() == 2);
+        expect(cfg.getTasks()[0].getName() == "first");
+        expect(cfg.getTasks()[1].getName() == "second");
+
+        TaskConfig replacement;
+        replacement.setName("only");
+        cfg.setTasks({replacement});
+
+        expect(cfg.getTasks().size() == 1);
+        expect(cfg.getTasks()[0].getName() == "only");
+    };
+
+    "from_file reports a readable error for a missing file"_test = [] {
+        auto result = WorkerConfig::from_file("/nonexistent/path/does-not-exist.toml");
+
+        expect(not result.has_value());
+    };
+};
+
+} // namespace congelado::worker::tests
+#endif

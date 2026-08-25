@@ -21,6 +21,9 @@ import :frame;
 import :helper;
 import :request;
 import :response;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 template <typename T, typename... Args>
 static constexpr T make_conditional(Args &&...args) {
@@ -65,8 +68,36 @@ class ConnectionLevelHelper {
         return m_connection_error_code;
     }
 
+    /**
+     * @brief Records that a GOAWAY was received off the wire, along with the peer's Last-Stream-ID
+     * and error code parsed from its payload. The session reads this after receive() to run the
+     * connection-level teardown (RFC 9113 §6.8).
+     * @param last_stream_id the peer's highest possibly-processed stream id.
+     * @param error_code the GOAWAY error code.
+     */
+    void set_goaway_received(std::uint32_t last_stream_id,
+                             error::http::Http2ErrorCode error_code) noexcept {
+        m_goaway_received = true;
+        m_goaway_last_stream_id = last_stream_id;
+        m_goaway_error_code = error_code;
+    }
+
+    /// @brief Whether a GOAWAY has been received on this connection.
+    [[nodiscard]] bool got_goaway() const noexcept { return m_goaway_received; }
+    /// @brief The Last-Stream-ID from the received GOAWAY's payload.
+    [[nodiscard]] std::uint32_t goaway_last_stream_id() const noexcept {
+        return m_goaway_last_stream_id;
+    }
+    /// @brief The error code from the received GOAWAY's payload.
+    [[nodiscard]] error::http::Http2ErrorCode goaway_error_code() const noexcept {
+        return m_goaway_error_code;
+    }
+
   private:
     error::http::Http2ErrorCode m_connection_error_code;
+    bool m_goaway_received{false};
+    std::uint32_t m_goaway_last_stream_id{0};
+    error::http::Http2ErrorCode m_goaway_error_code{error::http::Http2ErrorCode::NO_ERROR_CODE};
 };
 
 class StreamLevelHelper {
@@ -81,13 +112,16 @@ class StreamLevelHelper {
      * DATA/window-update accounting can bubble up to it.
      * @param decoding_table the shared HPACK dynamic table for decoding incoming headers.
      * @param encoding_table the shared HPACK dynamic table for encoding outgoing headers.
+     * @param is_server true on a server session (inbound decodes into the request), false on a
+     * client session (inbound decodes into the response).
      */
     StreamLevelHelper(const std::uint32_t STREAM_ID, Stream<false> &connection_stream,
                       std::reference_wrapper<codec::hpack::HPackTable> decoding_table,
-                      std::reference_wrapper<codec::hpack::HPackTable> encoding_table)
+                      std::reference_wrapper<codec::hpack::HPackTable> encoding_table, bool is_server)
         : m_connection_stream{connection_stream}, m_request{STREAM_ID}, m_response{STREAM_ID},
-          m_hpack{decoding_table, encoding_table, m_request, m_response},
-          m_header_block{std::make_optional<utils::buffering::BufferView>()} {}
+          m_hpack{decoding_table, encoding_table, m_request, m_response, is_server},
+          m_header_block{std::make_optional<utils::buffering::BufferView>()}, m_is_server{is_server} {
+    }
 
     /**
      * @brief Flags whether this stream is mid-way through a HEADERS/PUSH_PROMISE block still
@@ -212,6 +246,14 @@ class StreamLevelHelper {
     bool m_expecting_continuation{false};
     bool m_remote_done{false};
     bool m_primary_headers_done{false};
+    bool m_is_server;
+
+  public:
+    /**
+     * @brief Whether this stream's session is server-side (drives inbound decode/body targets).
+     * @return true on a server session, false on a client session.
+     */
+    [[nodiscard]] bool is_server() const noexcept { return m_is_server; }
 };
 
 
@@ -259,6 +301,8 @@ class Stream {
      * initial flow-control windows.
      * @param is_client_initiated true if `STREAM_ID` should be validated as client-initiated
      * (odd), false to validate as server-initiated (even). Defaults to true.
+     * @param is_server true on a server session (inbound decodes into the request), false on a
+     * client session (inbound decodes into the response). Defaults to true.
      * @throws error::http::ConnectionError if `STREAM_ID`'s parity doesn't match
      * `is_client_initiated`.
      */
@@ -266,14 +310,15 @@ class Stream {
            std::reference_wrapper<codec::hpack::HPackTable> decoding_table,
            std::reference_wrapper<codec::hpack::HPackTable> encoding_table,
            std::reference_wrapper<Settings> local_settings,
-           std::reference_wrapper<Settings> remote_settings, bool is_client_initiated = true)
+           std::reference_wrapper<Settings> remote_settings, bool is_client_initiated = true,
+           bool is_server = true)
         requires IsStreamBased
         : m_state_machine{StreamStateMachine{STREAM_ID}},
           m_send_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
           m_recv_window{static_cast<std::int32_t>(remote_settings.get().get_initial_window_size())},
           m_local_settings{local_settings}, m_remote_settings{remote_settings},
-          m_stream_helper{
-              StreamLevelHelper{STREAM_ID, connection_stream, decoding_table, encoding_table}} {
+          m_stream_helper{StreamLevelHelper{STREAM_ID, connection_stream, decoding_table,
+                                            encoding_table, is_server}} {
         if (is_client_initiated) {
             // As a server, frames we receive from a client MUST be odd if non-zero
             if (STREAM_ID > 0 && (STREAM_ID % 2 == 0)) {
@@ -344,26 +389,30 @@ class Stream {
             break;
         }
         case shared_layer::FrameType::GOAWAY: {
-            // Peer's telling us to wind down — record their last-stream threshold and echo
-            // our own GOAWAY back with whatever error code we're currently tracking.
-            core::logger::debug("http2/conn", "GOAWAY last_stream={} code={}",
-                                header.get_stream_id(),
-                                m_stream_helper.get_connection_error_code());
+            // Validate before trusting the payload (stream 0, flags 0, length >= 8). A malformed
+            // GOAWAY throws FRAME_SIZE_ERROR here → the session's catch closes the connection.
+            header.validate();
 
-            m_remote_settings.get().set_last_stream_id(header.get_stream_id());
+            // Parse the payload: 4-byte Last-Stream-ID (reserved top bit masked off) + 4-byte
+            // error code. Read 8 bytes out without consuming — the consume at the end of receive()
+            // drops the whole payload (incl. any optional debug data).
+            auto bytes = reader | std::views::take(8) | std::ranges::to<std::vector<std::byte>>();
+            const std::uint32_t LAST_ID =
+                (bytes | std::views::take(4) |
+                 utils::codec::ReadBigEndianAdaptor<std::uint32_t>{}) &
+                0x7FFFFFFFU;
+            const auto CODE = static_cast<error::http::Http2ErrorCode>(
+                bytes | std::views::drop(4) | std::views::take(4) |
+                utils::codec::ReadBigEndianAdaptor<std::uint32_t>{});
 
-            auto payload =
-                std::views::empty<std::byte> |
-                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{header.get_stream_id()} |
-                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{
-                    std::to_underlying(m_stream_helper.get_connection_error_code())};
+            core::logger::debug("http2/conn", "GOAWAY last_stream={} code={}", LAST_ID,
+                                std::to_underlying(CODE));
 
-            response = FrameBuilder<shared_layer::FrameRole::SENDER>{}
-                           .add_type(shared_layer::FrameType::GOAWAY)
-                           .add_flags(0)
-                           .add_stream_id(0)
-                           .add_payload(payload)
-                           .build();
+            // Record only — GOAWAY is one-way (RFC 9113 §6.8), so NO echo. The session reads this
+            // after receive() to run the connection teardown (no new streams, prune streams past
+            // LAST_ID, close once the survivors finish).
+            m_remote_settings.get().set_last_stream_id(LAST_ID);
+            m_stream_helper.set_goaway_received(LAST_ID, CODE);
             break;
         }
 
@@ -451,6 +500,26 @@ class Stream {
         return response;
     }
 
+    /// @brief Whether a GOAWAY has been received on this connection (connection-level stream only).
+    /// The session polls this after receive() to run RFC 9113 §6.8 teardown.
+    [[nodiscard]] bool got_goaway() const noexcept
+        requires(!IsStreamBased)
+    {
+        return m_stream_helper.got_goaway();
+    }
+    /// @brief The Last-Stream-ID from the received GOAWAY's payload.
+    [[nodiscard]] std::uint32_t goaway_last_stream_id() const noexcept
+        requires(!IsStreamBased)
+    {
+        return m_stream_helper.goaway_last_stream_id();
+    }
+    /// @brief The error code from the received GOAWAY's payload.
+    [[nodiscard]] error::http::Http2ErrorCode goaway_error_code() const noexcept
+        requires(!IsStreamBased)
+    {
+        return m_stream_helper.goaway_error_code();
+    }
+
 
     /**
      * @brief Stream-level frame receiver — the workhorse for per-request frame handling: runs
@@ -504,9 +573,10 @@ class Stream {
 
         switch (type) {
         case shared_layer::FrameType::DATA: {
-            // Debit both flow-control windows, then read the payload into the request body — the
-            // normal accumulation path, unchanged.
-            auto &view = m_stream_helper.get_request().get_body();
+            // Debit both flow-control windows, then read the payload into the role-appropriate
+            // body — request on a server, response on a client.
+            auto &view = m_stream_helper.is_server() ? m_stream_helper.get_request().get_body()
+                                                     : m_stream_helper.get_response().get_body();
             std::size_t size_before = view.size();
             if (header.get_length() > 0) {
                 consume_window(header.get_length(), false);
@@ -653,9 +723,12 @@ class Stream {
         // point that actually removes it from the reader.
         reader.consume(header.get_length());
 
-        // Remote side just half-closed — flag it so Session::receive() knows to fire the
-        // response dispatch.
-        if (m_state_machine.get_state() == shared_layer::StreamState::HALF_CLOSED_REMOTE) {
+        // Remote side just finished sending — flag it so Session::receive() fires the response
+        // dispatch. Covers both HALF_CLOSED_REMOTE and CLOSED: a client that already half-closed
+        // its local side (sent its request with END_STREAM) jumps straight to CLOSED on the
+        // response's END_STREAM, never passing through HALF_CLOSED_REMOTE.
+        if (m_state_machine.get_state() == shared_layer::StreamState::HALF_CLOSED_REMOTE ||
+            m_state_machine.is_closed()) {
             m_stream_helper.set_remote_done(true);
         }
 
@@ -783,11 +856,15 @@ class Stream {
             m_stream_helper.clear_header_block();
             m_stream_helper.mark_primary_headers_done();
 
-            // Fire per-field, then the assembled-request hook.
-            fire_headers(m_stream_helper.get_request());
-            extension_registry.for_each([&](auto &extension) {
-                extension->on_request_incoming(get_stream_id(), m_stream_helper.get_request());
-            });
+            // Request-side hooks only fire on a server — a client decoded the block into its
+            // response, so there's no incoming request to announce.
+            if (m_stream_helper.is_server()) {
+                // Fire per-field, then the assembled-request hook.
+                fire_headers(m_stream_helper.get_request());
+                extension_registry.for_each([&](auto &extension) {
+                    extension->on_request_incoming(get_stream_id(), m_stream_helper.get_request());
+                });
+            }
         }
     }
 
@@ -1173,3 +1250,877 @@ class Stream {
 };
 
 } // namespace io::layer::http2
+
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::stream_tests {
+using namespace boost::ut;
+using shared_layer::FrameRole;
+using shared_layer::FrameType;
+using shared_layer::Flags;
+using shared_layer::StreamState;
+using RxHeader = FrameHeader<FrameRole::RECEIVER>;
+
+/// @brief Builds a BufferReader wrapping exactly `bytes` — the payload-only reader `receive()`
+/// expects (it's positioned at the frame's payload, the 9-byte header is parsed elsewhere).
+static utils::buffering::BufferReader make_reader(const std::vector<std::byte> &bytes) {
+    auto *node = new utils::buffering::BufferNode(bytes.size());
+    for (auto b : bytes) {
+        node->push_back(b);
+    }
+    utils::buffering::BufferReader reader;
+    reader.push_back(node);
+    return reader;
+}
+
+/// @brief Big-endian-encodes a single uint32 into its own 4-byte payload — WINDOW_UPDATE/GOAWAY
+/// shape.
+static std::vector<std::byte> be32(std::uint32_t value) {
+    return std::views::empty<std::byte> | utils::codec::WriteBigEndianAdaptor<std::uint32_t>{value} |
+           std::ranges::to<std::vector<std::byte>>();
+}
+
+suite<"ConnectionLevelHelper"> connection_level_helper_suite = [] {
+    "default ctor starts at NO_ERROR_CODE"_test = [] {
+        ConnectionLevelHelper helper;
+        expect(helper.get_connection_error_code() == error::http::Http2ErrorCode::NO_ERROR_CODE);
+    };
+    "explicit ctor stores the given error code"_test = [] {
+        ConnectionLevelHelper helper{error::http::Http2ErrorCode::INTERNAL_ERROR};
+        expect(helper.get_connection_error_code() == error::http::Http2ErrorCode::INTERNAL_ERROR);
+    };
+    "set_connection_error_code/get_connection_error_code round-trip"_test = [] {
+        ConnectionLevelHelper helper;
+        helper.set_connection_error_code(error::http::Http2ErrorCode::FLOW_CONTROL_ERROR);
+        expect(helper.get_connection_error_code() == error::http::Http2ErrorCode::FLOW_CONTROL_ERROR);
+    };
+    "got_goaway starts false"_test = [] {
+        ConnectionLevelHelper helper;
+        expect(not helper.got_goaway());
+    };
+    "set_goaway_received populates last-stream-id/error-code and flips got_goaway"_test = [] {
+        ConnectionLevelHelper helper;
+        helper.set_goaway_received(7, error::http::Http2ErrorCode::CANCEL);
+
+        expect(helper.got_goaway());
+        expect(helper.goaway_last_stream_id() == 7U);
+        expect(helper.goaway_error_code() == error::http::Http2ErrorCode::CANCEL);
+    };
+};
+
+suite<"StreamLevelHelper"> stream_level_helper_suite = [] {
+    "ctor wires the request/response to STREAM_ID and starts with every flag clear"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        StreamLevelHelper helper{9, conn, decoding, encoding, true};
+
+        expect(helper.get_request().get_stream_id() == 9U);
+        expect(helper.get_response().get_stream_id() == 9U);
+        expect(helper.is_server());
+        expect(not helper.get_expecting_continuation());
+        expect(not helper.get_is_remote_done());
+        expect(not helper.primary_headers_done());
+    };
+    "set_expecting_continuation/get_expecting_continuation round-trip"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        helper.set_expecting_continuation(true);
+        expect(helper.get_expecting_continuation());
+    };
+    "set_remote_done/get_is_remote_done round-trip"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        helper.set_remote_done(true);
+        expect(helper.get_is_remote_done());
+    };
+    "get_header_block is usable until clear_header_block, then throws on the next access"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        expect(nothrow([&] { std::ignore = helper.get_header_block(); }));
+        helper.clear_header_block();
+        expect(throws<error::http::ConnectionError>([&] { std::ignore = helper.get_header_block(); }));
+    };
+    "get_header_block_for_write routes to the primary block until marked done, then a fresh trailer block"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        auto &primary = helper.get_header_block_for_write();
+        expect(primary.empty());
+
+        helper.mark_primary_headers_done();
+        expect(helper.primary_headers_done());
+
+        auto &trailer = helper.get_header_block_for_write();
+        expect(trailer.empty());
+
+        helper.clear_trailer_block();
+        auto &fresh_trailer = helper.get_header_block_for_write();
+        expect(fresh_trailer.empty());
+    };
+    "get_connection_stream returns a reference to the same connection-level stream"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        expect(&helper.get_connection_stream().get() == &conn);
+    };
+    "get_request/get_response give mutable access reflected on the same object"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        helper.get_request().set_header(interfaces::io::types::Token::METHOD, "POST");
+        expect(helper.get_request().get_method() == "POST");
+    };
+    "get_hpack returns a usable codec bound to this stream's request/response"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper helper{1, conn, decoding, encoding, true};
+
+        std::vector<std::byte> empty_block;
+        expect(helper.get_hpack().decode(empty_block) == 0U);
+    };
+    "is_server reflects the constructor argument"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        StreamLevelHelper client_side{1, conn, decoding, encoding, false};
+
+        expect(not client_side.is_server());
+    };
+};
+
+suite<"Stream<false> (connection-level)"> connection_stream_suite = [] {
+    "ctor pins stream id 0, starts IDLE, windows seeded from remote's initial window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        expect(conn.get_stream_id() == 0U);
+        expect(conn.get_state() == StreamState::IDLE);
+        expect(conn.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE));
+        expect(conn.recv_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE));
+    };
+    "receive() WINDOW_UPDATE bumps the send window and replies with nothing"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        auto reader = make_reader(be32(1000));
+        RxHeader header{4, FrameType::WINDOW_UPDATE, 0, 0};
+        auto response = conn.receive(header, reader, registry);
+
+        expect(not response.has_value());
+        expect(conn.send_window() ==
+               static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1000);
+    };
+    "receive() GOAWAY records last-stream-id/error-code and never echoes a reply"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        std::vector<std::byte> payload = be32(5);
+        auto code_bytes = be32(static_cast<std::uint32_t>(std::to_underlying(
+            error::http::Http2ErrorCode::NO_ERROR_CODE)));
+        payload.insert(payload.end(), code_bytes.begin(), code_bytes.end());
+
+        auto reader = make_reader(payload);
+        RxHeader header{8, FrameType::GOAWAY, 0, 0};
+        auto response = conn.receive(header, reader, registry);
+
+        expect(not response.has_value());
+        expect(conn.got_goaway());
+        expect(conn.goaway_last_stream_id() == 5U);
+        expect(conn.goaway_error_code() == error::http::Http2ErrorCode::NO_ERROR_CODE);
+    };
+    "receive() non-ACK PING replies with an ACK carrying the same payload"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        std::vector<std::byte> payload(8, std::byte{0xAB});
+        auto reader = make_reader(payload);
+        RxHeader header{8, FrameType::PING, 0, 0};
+        auto response = conn.receive(header, reader, registry);
+
+        expect(response.has_value()) << fatal;
+        expect(response->get_type() == FrameType::PING);
+        expect((response->get_flags() & Flags::ACK) != 0);
+    };
+    "receive() an unsolicited PING ACK does not throw and replies with nothing"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        std::vector<std::byte> payload(8, std::byte{0x00});
+        auto reader = make_reader(payload);
+        RxHeader header{8, FrameType::PING, Flags::ACK, 0};
+
+        std::optional<FrameBuilder<FrameRole::SENDER>> response;
+        expect(nothrow([&] { response = conn.receive(header, reader, registry); }));
+        expect(not response.has_value());
+    };
+    "receive() non-ACK SETTINGS applies them and replies with a SETTINGS ACK"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        Settings incoming;
+        incoming.apply(0x4, 100000); // INITIAL_WINDOW_SIZE
+        auto payload =
+            std::views::empty<std::byte> | WriteSettingsAdaptor{incoming} |
+            std::ranges::to<std::vector<std::byte>>();
+
+        auto reader = make_reader(payload);
+        RxHeader header{static_cast<std::uint32_t>(payload.size()), FrameType::SETTINGS, 0, 0};
+        auto response = conn.receive(header, reader, registry);
+
+        expect(response.has_value()) << fatal;
+        expect(response->get_type() == FrameType::SETTINGS);
+        expect((response->get_flags() & Flags::ACK) != 0);
+    };
+    "receive() a SETTINGS ACK replies with nothing"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, FrameType::SETTINGS, Flags::ACK, 0};
+        auto response = conn.receive(header, reader, registry);
+
+        expect(not response.has_value());
+    };
+    "receive() PRIORITY at connection level throws (unsupported, deprecated in RFC 9113)"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, FrameType::PRIORITY, 0, 0};
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = conn.receive(header, reader, registry); }));
+    };
+    "receive() a stream-scoped frame type (DATA) at connection level throws"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, FrameType::DATA, 0, 0};
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = conn.receive(header, reader, registry); }));
+    };
+    "receive() an unrecognized frame type is ignored per RFC 9113 §4.1"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, static_cast<FrameType>(0xFF), 0, 0};
+
+        std::optional<FrameBuilder<FrameRole::SENDER>> response;
+        expect(nothrow([&] { response = conn.receive(header, reader, registry); }));
+        expect(not response.has_value());
+    };
+    "can_send_data_of_size is always false — the connection-level state machine never leaves IDLE"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        expect(not conn.can_send_data_of_size(0));
+    };
+    "update_send_window adds the increment; zero increment throws; overflow throws"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        conn.update_send_window(500);
+        expect(conn.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 500);
+
+        expect(throws<error::http::ConnectionError>([&] { conn.update_send_window(0); }));
+        expect(throws<error::http::StreamError>(
+            [&] { conn.update_send_window(MAX_INITIAL_WINDOW_SIZE); }));
+    };
+    "append_received_data always throws on the connection-level stream — advance() never touches it"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        std::array<std::byte, 2> data{std::byte{1}, std::byte{2}};
+        expect(throws<error::http::StreamError>([&] { conn.append_received_data(data); }));
+    };
+    "needs_recv_window_update/recv_window_increment reflect the current recv window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        expect(not conn.needs_recv_window_update());
+        expect(conn.recv_window_increment() == 0U);
+
+        conn.consume_window(static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE / 2) + 2, false);
+        expect(conn.needs_recv_window_update());
+        expect(conn.recv_window_increment() == DEFAULT_INITIAL_WINDOW_SIZE / 2 + 2);
+    };
+    "take_received_data moves the (always-empty) recv buffer out"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        auto data = conn.take_received_data();
+        expect(data.empty());
+    };
+};
+
+suite<"Stream<> ctor — parity validation"> stream_ctor_suite = [] {
+    "a client-initiated odd stream id constructs fine"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        expect(stream.get_stream_id() == 3U);
+        expect(stream.get_state() == StreamState::IDLE);
+        expect(stream.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE));
+        expect(stream.recv_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE));
+    };
+    "a client-initiated even (nonzero) stream id throws PROTOCOL_ERROR"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        expect(throws<error::http::ConnectionError>([&] {
+            Stream<> stream{4, conn, decoding, encoding, local, remote};
+        }));
+    };
+    "stream id 0 with is_client_initiated=true is exempt from the parity check"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        expect(nothrow([&] {
+            Stream<> stream{0, conn, decoding, encoding, local, remote};
+        }));
+    };
+    "a server-initiated (pushed) odd stream id throws INTERNAL_ERROR"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        expect(throws<error::http::ConnectionError>([&] {
+            Stream<> stream{5, conn, decoding, encoding, local, remote, false};
+        }));
+    };
+    "a server-initiated (pushed) even stream id constructs fine"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+
+        expect(nothrow([&] {
+            Stream<> stream{6, conn, decoding, encoding, local, remote, false};
+        }));
+    };
+};
+
+suite<"Stream<> receive() — HEADERS/DATA/state transitions"> stream_receive_suite = [] {
+    "HEADERS with END_HEADERS (no END_STREAM) decodes the request and opens the stream"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto reader = make_reader({std::byte{0x82}}); // Indexed static entry 2: :method GET
+        RxHeader header{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(header, reader, registry);
+
+        expect(stream.get_state() == StreamState::OPEN);
+        expect(not stream.is_remote_done());
+        expect(stream.get_request().get_method() == "GET");
+    };
+    "HEADERS with END_HEADERS+END_STREAM half-closes remote and marks the stream remote-done"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto reader = make_reader({std::byte{0x82}});
+        RxHeader header{1, FrameType::HEADERS, Flags::END_HEADERS | Flags::END_STREAM, 3};
+        stream.receive(header, reader, registry);
+
+        expect(stream.get_state() == StreamState::HALF_CLOSED_REMOTE);
+        expect(stream.is_remote_done());
+    };
+    "DATA on an OPEN stream appends to the request body and debits the recv window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto headers_reader = make_reader({std::byte{0x82}});
+        RxHeader headers{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(headers, headers_reader, registry);
+
+        auto data_reader = make_reader({std::byte{'A'}, std::byte{'B'}, std::byte{'C'}});
+        RxHeader data_header{3, FrameType::DATA, 0, 3};
+        stream.receive(data_header, data_reader, registry);
+
+        expect(stream.get_request().get_body().size() == 3U);
+        expect(stream.recv_window() ==
+               static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) - 3);
+        expect(stream.get_state() == StreamState::OPEN);
+    };
+    "RST_STREAM on a still-IDLE stream is a ConnectionError, not a StreamError"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto reader = make_reader(be32(0));
+        RxHeader header{4, FrameType::RST_STREAM, 0, 3};
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { stream.receive(header, reader, registry); }));
+    };
+    "RST_STREAM on an OPEN stream throws StreamError and closes it"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto headers_reader = make_reader({std::byte{0x82}});
+        RxHeader headers{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(headers, headers_reader, registry);
+
+        auto reader = make_reader(be32(8)); // CANCEL
+        RxHeader header{4, FrameType::RST_STREAM, 0, 3};
+
+        expect(throws<error::http::StreamError>([&] { stream.receive(header, reader, registry); }));
+        expect(stream.get_state() == StreamState::CLOSED);
+    };
+    "WINDOW_UPDATE bumps this stream's AND the connection stream's send window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        // WINDOW_UPDATE is only valid on a stream already past IDLE (RFC 9113 §5.1) — open it
+        // via HEADERS first, same as every other non-HEADERS-frame test in this suite.
+        auto open_reader = make_reader({std::byte{0x82}});
+        RxHeader open_header{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(open_header, open_reader, registry);
+
+        auto reader = make_reader(be32(1000));
+        RxHeader header{4, FrameType::WINDOW_UPDATE, 0, 3};
+        stream.receive(header, reader, registry);
+
+        expect(stream.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1000);
+        expect(conn.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1000);
+    };
+    "PRIORITY/SETTINGS/PING/GOAWAY are all rejected at stream level"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        HttpExtensionRegistry registry;
+
+        for (auto type : {FrameType::PRIORITY, FrameType::SETTINGS, FrameType::PING, FrameType::GOAWAY}) {
+            Stream<> stream{3, conn, decoding, encoding, local, remote};
+            utils::buffering::BufferReader reader;
+            RxHeader header{0, type, 0, 3};
+
+            expect(throws<error::http::ConnectionError>(
+                [&] { stream.receive(header, reader, registry); }));
+        }
+    };
+    "an unrecognized frame type at stream level is ignored, not rejected"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        // An unrecognized frame type is only "ignored" once past IDLE — handle_idle() (RFC 9113
+        // §5.1) rejects everything but HEADERS/PUSH_PROMISE regardless of recognition, same
+        // reasoning as the WINDOW_UPDATE test above.
+        auto open_reader = make_reader({std::byte{0x82}});
+        RxHeader open_header{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(open_header, open_reader, registry);
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, static_cast<FrameType>(0xFF), 0, 3};
+
+        expect(nothrow([&] { stream.receive(header, reader, registry); }));
+    };
+    "a non-CONTINUATION frame while expecting CONTINUATION is a ConnectionError"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader partial_reader;
+        RxHeader partial{0, FrameType::HEADERS, 0, 3}; // no END_HEADERS
+        stream.receive(partial, partial_reader, registry);
+
+        utils::buffering::BufferReader reader = make_reader(be32(1));
+        RxHeader header{4, FrameType::WINDOW_UPDATE, 0, 3};
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { stream.receive(header, reader, registry); }));
+    };
+    "a HEADERS block split across CONTINUATION frames decodes once END_HEADERS lands"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        utils::buffering::BufferReader partial_reader;
+        RxHeader partial{0, FrameType::HEADERS, 0, 3}; // no END_HEADERS, empty block so far
+        stream.receive(partial, partial_reader, registry);
+
+        auto continuation_reader = make_reader({std::byte{0x82}});
+        RxHeader continuation{1, FrameType::CONTINUATION, Flags::END_HEADERS, 3};
+        stream.receive(continuation, continuation_reader, registry);
+
+        expect(stream.get_request().get_method() == "GET");
+        expect(stream.get_state() == StreamState::OPEN);
+    };
+};
+
+suite<"Stream<> flow control"> stream_flow_control_suite = [] {
+    "can_send_data_of_size requires both an OPEN-ish state and enough send window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        // Still IDLE — the state machine forbids sending regardless of window size.
+        expect(not stream.can_send_data_of_size(0));
+
+        stream.advance_send(FrameType::HEADERS, 0, true); // -> OPEN
+        expect(stream.can_send_data_of_size(100));
+        expect(not stream.can_send_data_of_size(
+            static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1));
+    };
+    "update_send_window propagates the increment down to the connection stream too"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        stream.update_send_window(250);
+
+        expect(stream.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 250);
+        expect(conn.send_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 250);
+    };
+    "update_send_window rejects a zero increment and an overflowing one"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        expect(throws<error::http::ConnectionError>([&] { stream.update_send_window(0); }));
+        expect(throws<error::http::StreamError>(
+            [&] { stream.update_send_window(MAX_INITIAL_WINDOW_SIZE); }));
+    };
+    "consume_window(sender) throws with the stream's own id once ITS window (not the connection's) is exceeded"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        // Give the connection far more headroom than the stream's own send window, so it's the
+        // stream-level check — not the connection-level one, which runs first — that actually
+        // trips here.
+        conn.update_send_window(1'000'000);
+
+        try {
+            stream.consume_window(static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1, true);
+            expect(false) << "expected a StreamError";
+        } catch (const error::http::StreamError &e) {
+            expect(e.get_stream_id() == 3U);
+            expect(e.get_code() == error::http::Http2ErrorCode::INTERNAL_ERROR);
+        }
+    };
+    "consume_window(receiver) debits both this stream's and the connection's recv window in lockstep, and throws on underflow"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        stream.consume_window(100, false);
+        expect(stream.recv_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) - 100);
+        expect(conn.recv_window() == static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) - 100);
+
+        // The connection-level debit always runs first (see the class docs' "call order matters"
+        // warning), so once the shared window underflows it's the connection-level check that
+        // trips — same FLOW_CONTROL_ERROR shape the security suite's connection-level pin covers
+        // below, just reached this time via the stream-level entry point.
+        expect(throws<error::http::StreamError>([&] {
+            stream.consume_window(static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE), false);
+        }));
+    };
+    "needs_recv_window_update/recv_window_increment reflect the current recv window"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        expect(not stream.needs_recv_window_update());
+
+        stream.consume_window(static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE / 2) + 2, false);
+        expect(stream.needs_recv_window_update());
+        expect(stream.recv_window_increment() == DEFAULT_INITIAL_WINDOW_SIZE / 2 + 2);
+    };
+};
+
+suite<"Stream<> received-data buffer + cleanup"> stream_recv_buffer_suite = [] {
+    "append_received_data throws while IDLE, succeeds once OPEN, and take_received_data drains it"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        std::array<std::byte, 2> data{std::byte{1}, std::byte{2}};
+        expect(throws<error::http::StreamError>([&] { stream.append_received_data(data); }));
+
+        stream.advance_send(FrameType::HEADERS, 0, true); // -> OPEN
+        expect(nothrow([&] { stream.append_received_data(data); }));
+
+        auto drained = stream.take_received_data();
+        expect(drained.size() == 2U);
+        expect(stream.take_received_data().empty());
+    };
+    "closing the stream via receive() runs cleanup_resources(), clearing any buffered recv data"_test =
+        [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        stream.advance_send(FrameType::HEADERS, 0, true); // -> OPEN
+        std::array<std::byte, 2> data{std::byte{9}, std::byte{8}};
+        stream.append_received_data(data);
+
+        stream.advance_send(FrameType::DATA, Flags::END_STREAM, true); // -> HALF_CLOSED_LOCAL
+
+        utils::buffering::BufferReader reader;
+        RxHeader header{0, FrameType::DATA, Flags::END_STREAM, 3};
+        stream.receive(header, reader, registry); // peer ends too -> CLOSED, cleanup runs
+
+        expect(stream.get_state() == StreamState::CLOSED);
+        expect(stream.take_received_data().empty());
+    };
+};
+
+suite<"Stream<> advance_send"> stream_advance_send_suite = [] {
+    "advance_send(is_local=true) with END_STREAM from IDLE half-closes LOCAL"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        stream.advance_send(FrameType::HEADERS, Flags::END_STREAM, true);
+        expect(stream.get_state() == StreamState::HALF_CLOSED_LOCAL);
+    };
+    "advance_send with its default is_local=false and END_STREAM half-closes REMOTE"_test = [] {
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+
+        stream.advance_send(FrameType::HEADERS, Flags::END_STREAM);
+        expect(stream.get_state() == StreamState::HALF_CLOSED_REMOTE);
+    };
+};
+
+suite<"Stream<> security/regression pins — document current (not-yet-fixed) behavior"> stream_security_suite =
+    [] {
+    "1) a malformed HPACK header block throws DecodeError straight out of receive(), uncaught"_test =
+        [] {
+        // stream.cppm's own catches (see handle_header()) only trap error::http::Http2Exception
+        // and std::out_of_range — DecodeError is a SIBLING hierarchy (both derive std::runtime_error
+        // independently), so it is never caught here and propagates all the way out of receive().
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        // 0x80 = Indexed Header Field representation with index 0 — always invalid (RFC 7541
+        // §6.1), decoded via push_helper() which throws InvalidIndexError<std::uint32_t>.
+        auto reader = make_reader({std::byte{0x80}});
+        RxHeader header{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+
+        expect(throws<error::http::InvalidIndexError<std::uint32_t>>(
+            [&] { stream.receive(header, reader, registry); }));
+        // Also true via the shared base — same exception, checked through its DecodeError base.
+        auto reader2 = make_reader({std::byte{0x80}});
+        Stream<> stream2{5, conn, decoding, encoding, local, remote};
+        expect(throws<error::http::DecodeError>(
+            [&] { stream2.receive(header, reader2, registry); }));
+    };
+    "2) PADDED-flag DATA is never unpadded — validate_padding() is dead code, pad byte + padding "
+    "leak straight into the body"_test = [] {
+        // Confirmed by grep: FrameHeader::validate_padding() has exactly one call site in the whole
+        // codebase (its own unit test in frame.cppm) — receive()'s DATA case below never calls it.
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+        codec::hpack::HPackTable decoding;
+        codec::hpack::HPackTable encoding;
+        Stream<> stream{3, conn, decoding, encoding, local, remote};
+        HttpExtensionRegistry registry;
+
+        auto headers_reader = make_reader({std::byte{0x82}});
+        RxHeader headers{1, FrameType::HEADERS, Flags::END_HEADERS, 3};
+        stream.receive(headers, headers_reader, registry);
+
+        // PADDED DATA shape (frame.cppm's validate_padding()): [pad-length][payload...][padding...].
+        // pad-length=2, payload="AB", 2 zero padding bytes -> 5 total declared bytes.
+        auto reader = make_reader(
+            {std::byte{0x02}, std::byte{'A'}, std::byte{'B'}, std::byte{0x00}, std::byte{0x00}});
+        RxHeader data_header{5, FrameType::DATA, Flags::PADDED, 3};
+        stream.receive(data_header, reader, registry);
+
+        auto &body = stream.get_request().get_body();
+        // Current (buggy) behavior: all 5 bytes, pad-length prefix and padding included, land
+        // straight in the body — nothing strips them.
+        expect(body.size() == 5U) << fatal;
+        auto it = body.begin();
+        expect(*it == std::byte{0x02}); // the pad-length byte itself, unstripped
+    };
+    "3) a connection-level recv-window violation throws StreamError{stream_id=0}, not ConnectionError "
+    "(RFC 9113 §6.9.1 gap)"_test = [] {
+        // consume_window()'s !IsStreamBased overload (the connection-level top of the chain) reuses
+        // the exact same StreamError-raising logic as the per-stream overload — even though a
+        // connection-level flow-control violation is conceptually connection-wide and RFC 9113
+        // §6.9.1 says it SHOULD be reported as a ConnectionError instead.
+        Settings local;
+        Settings remote;
+        Stream<false> conn{local, remote};
+
+        try {
+            conn.consume_window(static_cast<std::int32_t>(DEFAULT_INITIAL_WINDOW_SIZE) + 1, false);
+            expect(false) << "expected a StreamError (documenting the current, non-conformant type)";
+        } catch (const error::http::StreamError &e) {
+            expect(e.get_stream_id() == 0U);
+            expect(e.get_code() == error::http::Http2ErrorCode::FLOW_CONTROL_ERROR);
+        } catch (...) {
+            expect(false) << "threw something other than StreamError";
+        }
+    };
+};
+
+} // namespace io::layer::http2::stream_tests
+#endif

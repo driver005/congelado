@@ -1,0 +1,32 @@
+component: surface
+flutter_name: HeroSurface
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/surface.css"
+  files: [tool/sources/heroui-surface.css]
+  docs: https://heroui.com/en/docs/react/components/surface
+
+anatomy:
+  - (none)
+
+kinds:
+  color: surface | surface-secondary | surface-tertiary | transparent
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - bg + matching foreground text
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

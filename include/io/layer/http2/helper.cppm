@@ -3,6 +3,9 @@ export module io_layer_http2:helper;
 import std;
 import io_layer_shared;
 import :frame;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -334,3 +337,237 @@ class StreamStateMachine {
 };
 
 } // namespace io::layer::http2
+
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+using shared_layer::FrameType;
+using shared_layer::Flags;
+using shared_layer::StreamState;
+
+suite<"StreamStateMachine basics"> stream_state_machine_basics_suite = [] {
+    "starts IDLE and remembers its stream id"_test = [] {
+        StreamStateMachine machine{5};
+
+        expect(machine.id() == 5U);
+        expect(machine.get_state() == StreamState::IDLE);
+        expect(not machine.is_open());
+        expect(not machine.is_closed());
+    };
+};
+
+suite<"StreamStateMachine IDLE transitions"> stream_state_machine_idle_suite = [] {
+    "HEADERS without END_STREAM opens the stream"_test = [] {
+        StreamStateMachine machine{1};
+        auto state = machine.advance(FrameType::HEADERS, 0, false);
+
+        expect(state == StreamState::OPEN);
+        expect(machine.is_open());
+    };
+
+    "HEADERS with END_STREAM half-closes local or remote depending on who sent it"_test = [] {
+        StreamStateMachine local_sender{1};
+        auto local_state = local_sender.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+        expect(local_state == StreamState::HALF_CLOSED_LOCAL);
+
+        StreamStateMachine remote_sender{3};
+        auto remote_state = remote_sender.advance(FrameType::HEADERS, Flags::END_STREAM, false);
+        expect(remote_state == StreamState::HALF_CLOSED_REMOTE);
+    };
+
+    "PUSH_PROMISE reserves the stream, direction depending on who sent it"_test = [] {
+        StreamStateMachine local_push{2};
+        expect(local_push.advance(FrameType::PUSH_PROMISE, 0, true) == StreamState::RESERVED_LOCAL);
+
+        StreamStateMachine remote_push{4};
+        expect(remote_push.advance(FrameType::PUSH_PROMISE, 0, false) ==
+               StreamState::RESERVED_REMOTE);
+    };
+
+    "anything else on an idle stream is a protocol error"_test = [] {
+        StreamStateMachine machine{1};
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = machine.advance(FrameType::DATA, 0, false); }));
+    };
+};
+
+suite<"StreamStateMachine OPEN transitions"> stream_state_machine_open_suite = [] {
+    "stays open without END_STREAM"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, 0, false);
+
+        auto state = machine.advance(FrameType::DATA, 0, false);
+        expect(state == StreamState::OPEN);
+    };
+
+    "END_STREAM half-closes local when we sent it, remote when the peer did"_test = [] {
+        StreamStateMachine sender{1};
+        sender.advance(FrameType::HEADERS, 0, false);
+        expect(sender.advance(FrameType::DATA, Flags::END_STREAM, true) ==
+               StreamState::HALF_CLOSED_LOCAL);
+
+        StreamStateMachine receiver{3};
+        receiver.advance(FrameType::HEADERS, 0, false);
+        expect(receiver.advance(FrameType::DATA, Flags::END_STREAM, false) ==
+               StreamState::HALF_CLOSED_REMOTE);
+    };
+};
+
+suite<"StreamStateMachine HALF_CLOSED_LOCAL transitions"> stream_state_machine_hcl_suite = [] {
+    "sending DATA/HEADERS while half-closed-local is a stream error"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+        expect(machine.get_state() == StreamState::HALF_CLOSED_LOCAL);
+
+        expect(throws<error::http::StreamError>(
+            [&] { std::ignore = machine.advance(FrameType::DATA, 0, true); }));
+    };
+
+    "receiving END_STREAM closes the stream"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+
+        auto state = machine.advance(FrameType::DATA, Flags::END_STREAM, false);
+        expect(state == StreamState::CLOSED);
+        expect(machine.is_closed());
+    };
+
+    "receiving without END_STREAM stays half-closed-local"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+
+        auto state = machine.advance(FrameType::WINDOW_UPDATE, 0, false);
+        expect(state == StreamState::HALF_CLOSED_LOCAL);
+    };
+};
+
+suite<"StreamStateMachine HALF_CLOSED_REMOTE transitions"> stream_state_machine_hcr_suite = [] {
+    "receiving DATA/HEADERS while half-closed-remote is a stream error"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, false);
+        expect(machine.get_state() == StreamState::HALF_CLOSED_REMOTE);
+
+        expect(throws<error::http::StreamError>(
+            [&] { std::ignore = machine.advance(FrameType::HEADERS, 0, false); }));
+    };
+
+    "sending END_STREAM closes the stream"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, false);
+
+        auto state = machine.advance(FrameType::DATA, Flags::END_STREAM, true);
+        expect(state == StreamState::CLOSED);
+    };
+};
+
+suite<"StreamStateMachine RESERVED transitions"> stream_state_machine_reserved_suite = [] {
+    "reserved-local: our follow-up HEADERS moves to half-closed-remote"_test = [] {
+        StreamStateMachine machine{2};
+        machine.advance(FrameType::PUSH_PROMISE, 0, true);
+
+        auto state = machine.advance(FrameType::HEADERS, 0, true);
+        expect(state == StreamState::HALF_CLOSED_REMOTE);
+    };
+
+    "reserved-local: peer WINDOW_UPDATE/RST_STREAM tolerated, anything else errors"_test = [] {
+        StreamStateMachine machine{2};
+        machine.advance(FrameType::PUSH_PROMISE, 0, true);
+
+        auto state = machine.advance(FrameType::WINDOW_UPDATE, 0, false);
+        expect(state == StreamState::RESERVED_LOCAL);
+
+        StreamStateMachine other{4};
+        other.advance(FrameType::PUSH_PROMISE, 0, true);
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = other.advance(FrameType::DATA, 0, false); }));
+    };
+
+    "reserved-remote: peer's follow-up HEADERS moves to half-closed-local"_test = [] {
+        StreamStateMachine machine{2};
+        machine.advance(FrameType::PUSH_PROMISE, 0, false);
+
+        auto state = machine.advance(FrameType::HEADERS, 0, false);
+        expect(state == StreamState::HALF_CLOSED_LOCAL);
+    };
+
+    "reserved-remote: our WINDOW_UPDATE/RST_STREAM tolerated, anything else errors"_test = [] {
+        StreamStateMachine machine{2};
+        machine.advance(FrameType::PUSH_PROMISE, 0, false);
+
+        auto state = machine.advance(FrameType::WINDOW_UPDATE, 0, true);
+        expect(state == StreamState::RESERVED_REMOTE);
+
+        StreamStateMachine other{4};
+        other.advance(FrameType::PUSH_PROMISE, 0, false);
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = other.advance(FrameType::DATA, 0, true); }));
+    };
+};
+
+suite<"StreamStateMachine CLOSED transitions"> stream_state_machine_closed_suite = [] {
+    "post-close WINDOW_UPDATE/RST_STREAM from the peer are tolerated"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+        machine.advance(FrameType::DATA, Flags::END_STREAM, false);
+        expect(machine.is_closed());
+
+        auto state = machine.advance(FrameType::WINDOW_UPDATE, 0, false);
+        expect(state == StreamState::CLOSED);
+    };
+
+    "DATA/HEADERS from the peer on a closed stream is a connection error"_test = [] {
+        StreamStateMachine machine{1};
+        machine.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+        machine.advance(FrameType::DATA, Flags::END_STREAM, false);
+
+        expect(throws<error::http::ConnectionError>(
+            [&] { std::ignore = machine.advance(FrameType::DATA, 0, false); }));
+    };
+};
+
+suite<"StreamStateMachine PRIORITY / RST_STREAM special-casing"> stream_state_machine_special_suite =
+    [] {
+        "PRIORITY never drives a transition, in any state"_test = [] {
+            StreamStateMachine machine{1};
+            expect(machine.advance(FrameType::PRIORITY, 0, false) == StreamState::IDLE);
+
+            machine.advance(FrameType::HEADERS, 0, false);
+            expect(machine.advance(FrameType::PRIORITY, 0, false) == StreamState::OPEN);
+        };
+
+        "RST_STREAM always slams straight to CLOSED once the stream isn't idle"_test = [] {
+            StreamStateMachine machine{1};
+            machine.advance(FrameType::HEADERS, 0, false);
+
+            auto state = machine.advance(FrameType::RST_STREAM, 0, false);
+            expect(state == StreamState::CLOSED);
+        };
+
+        "RST_STREAM against a never-opened (idle) stream is a protocol violation"_test = [] {
+            StreamStateMachine machine{1};
+            expect(throws<error::http::ConnectionError>(
+                [&] { std::ignore = machine.advance(FrameType::RST_STREAM, 0, false); }));
+        };
+    };
+
+suite<"StreamStateMachine capability checks"> stream_state_machine_capability_suite = [] {
+    "can_send_data/can_receive_data reflect OPEN and the matching half-closed state"_test = [] {
+        StreamStateMachine open_machine{1};
+        open_machine.advance(FrameType::HEADERS, 0, false);
+        expect(open_machine.can_send_data());
+        expect(open_machine.can_receive_data());
+
+        StreamStateMachine half_closed_local{3};
+        half_closed_local.advance(FrameType::HEADERS, Flags::END_STREAM, true);
+        expect(not half_closed_local.can_send_data());
+        expect(half_closed_local.can_receive_data());
+
+        StreamStateMachine half_closed_remote{5};
+        half_closed_remote.advance(FrameType::HEADERS, Flags::END_STREAM, false);
+        expect(half_closed_remote.can_send_data());
+        expect(not half_closed_remote.can_receive_data());
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

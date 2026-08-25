@@ -1,0 +1,39 @@
+component: Modal (Dialog)
+flutter_name: HeroModal + showHeroModal
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/modal.css"
+  files: [tool/sources/heroui-modal.css]
+  docs: https://heroui.com/en/docs/react/components/modal
+
+anatomy:
+  - backdrop (bg-backdrop: rgba(0,0,0,0.5) light / 0.6 dark)
+  - dialog (bg-overlay, shadow-overlay, p-6, radius min(32px, --radius-3xl) = 24)
+  - title / description / actions slots (RemixDialog)
+
+kinds: none
+default: -
+
+sizes:
+  xs (320) | sm (384) | md (448) | lg (512)  # max-w-* from modal.css
+  default: md
+
+states: open/close (barrier dismissible)
+
+tokens:
+  role: [color.overlay, color.backdrop, shadow.overlay (per-theme)]
+  component: [radius.modal.radius (24), space.6 (padding),
+              modal.maxWidth.{xs,sm,md,lg} (double tokens)]
+
+non_token_measurements:
+  - transition duration 200ms (source uses ~200ms animations; showRemixDialog
+    defaults to 400ms, so showHeroModal passes 200ms)
+
+behavior: navigator-based show (showRemixDialog requires a caller-owned
+  Navigator and MixScope — HeroScope provides the latter); barrier dismiss,
+  focus trap, ESC handling via NakedDialog.
+
+approximations:
+  - bottom-sheet/cover/full placements are not exposed (only centered dialog)
+  - blur backdrop variant not implemented

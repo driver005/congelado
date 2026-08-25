@@ -3,6 +3,9 @@ export module core_generator:module_builder;
 import std;
 import :function;
 import :class_builder;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::generator {
 
@@ -161,3 +164,61 @@ class Module {
 };
 
 } // namespace core::generator
+
+#ifdef CONGELADO_TEST
+namespace core::generator::tests {
+using namespace boost::ut;
+
+suite<"Namespace"> namespace_suite = [] {
+    "getName returns the namespace's own name"_test = [] {
+        Namespace ns{"my_ns"};
+
+        expect(ns.getName() == "my_ns");
+    };
+
+    "render opens/closes the namespace and emits classes before functions"_test = [] {
+        Namespace ns{"my_ns"};
+        ns.addClass("Widget");
+        ns.addFunction("void", "helper");
+
+        auto rendered = ns.render();
+
+        expect(rendered.contains("export namespace my_ns {"));
+        expect(rendered.contains("} // namespace my_ns"));
+
+        auto class_pos = rendered.find("class Widget");
+        auto function_pos = rendered.find("helper");
+        expect(class_pos != std::string::npos);
+        expect(function_pos != std::string::npos);
+        expect(class_pos < function_pos);
+    };
+};
+
+suite<"Module"> module_suite = [] {
+    "getName returns the module's own name"_test = [] {
+        Module mod{"my_module"};
+
+        expect(mod.getName() == "my_module");
+    };
+
+    "render emits module decl, imports, namespaces, then raw blocks in order"_test = [] {
+        Module mod{"my_module"};
+        mod.addImport("std");
+        mod.addNamespace("my_ns").addClass("Widget");
+        mod.addRawBlock("// trailing raw content\n");
+
+        auto rendered = mod.render();
+
+        expect(rendered.starts_with("export module my_module;\n"));
+        expect(rendered.contains("import std;\n"));
+
+        auto namespace_pos = rendered.find("namespace my_ns");
+        auto raw_pos = rendered.find("trailing raw content");
+        expect(namespace_pos != std::string::npos);
+        expect(raw_pos != std::string::npos);
+        expect(namespace_pos < raw_pos);
+    };
+};
+
+} // namespace core::generator::tests
+#endif

@@ -11,6 +11,9 @@ import core_events;
 import core_otel;
 import serde;
 import connector;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::heart {
 
@@ -142,3 +145,24 @@ class AppContext {
 };
 
 } // namespace congelado::heart
+
+#ifdef CONGELADO_TEST
+namespace congelado::heart::tests {
+using namespace boost::ut;
+
+suite<"AppContext"> app_context_suite = [] {
+    "construction wires up a live router, contract group, and connector, then stops cleanly"_test =
+        [] {
+        AppContext context{1};
+
+        expect(context.get_router() != nullptr);
+        expect(context.get_connector() != nullptr);
+        // Fresh registries/groups start empty — no plugin has registered anything yet.
+        expect(context.get_event_bus_registry().get_sinks().empty());
+
+        context.stop();
+    };
+};
+
+} // namespace congelado::heart::tests
+#endif

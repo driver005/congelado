@@ -1,0 +1,71 @@
+component: Tooltip
+flutter_name: HeroTooltip
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/tooltip.css"
+  files: [tool/sources/heroui-tooltip.css]
+  docs: https://heroui.com/en/docs/react/components/tooltip
+
+anatomy:
+  - overlay box (max-w-xs 320, bg-overlay, p-2, text-xs, radius
+    min(32px, var(--radius-xl)) = 12, shadow-overlay)
+  - optional arrow (`[data-slot="overlay-arrow"]`: 12x12 HeroUI chevron,
+    fill overlay, stroke border/40, rotated per placement: top 0, bottom 180,
+    left -90, right 90)
+  - trigger (inline-block)
+
+kinds:
+  placement: top (default) | right | bottom | left | start | end
+    (start/end fold against the writing direction, react-aria Tooltip
+    placement)
+  default: top
+
+sizes: none (max-w-xs)
+default: -
+
+states:
+  - shown after 300ms while the trigger is hovered (or focused); hidden as
+    soon as the pointer leaves (closeDelay default 0; `--tooltip-close-delay`
+    500ms via the `closeDelay` param)
+  - show/hide are INSTANT (previous design — the source's fade/zoom
+    enter/exit animations are not reproduced)
+
+tokens:
+  role: [color.overlay, color.overlayForeground, color.border (arrow stroke
+         at /40), shadow.overlay (per-theme)]
+  component: [radius.tooltip.radius (12), space.2 (padding),
+              double.tooltip.maxWidth, double.tooltip.fontSize,
+              duration.tooltip.delay (1500ms, opt-in),
+              duration.tooltip.closeDelay (500ms, opt-in)]
+  type: [type.xs]
+
+non_token_measurements:
+  - offset: HeroUI source `showArrow ? 7 : 3` (react-aria offset; overridable)
+  - arrow protrudes 6px past the box toward the trigger (bridges the gap)
+
+behavior: hover/focus (FocusNode on the trigger wrapper) opens the overlay in
+  the nearest Overlay after the open delay; the entry uses a
+  CustomSingleChildLayout driven by the trigger's rect measured in the
+  OVERLAY's coordinate space (a nested Overlay — e.g. widgetbook's
+  DeviceFrameAddon wraps use cases in their own Navigator — has a different
+  origin/scale than global coordinates), clamped into the visible bounds so
+  the tooltip is always fully on screen; timers cancel on re-enter; the
+  tooltip hides when the pointer leaves. Colors are resolved at the trigger's
+  build (the HeroScope that themes the trigger), then passed into the entry
+  as concrete values — the navigator Overlay can sit above the use case's
+  HeroScope (e.g. a theme addon), which would otherwise resolve the wrong
+  colors.
+
+approximations:
+  - no flip/clamp when the chosen side has no room (react-aria flips); the
+    tooltip may overflow the screen edge
+  - arrow stroke is a 1px outline of the same chevron path (CSS
+    stroke-border/40 on the svg)
+  - enter/exit animations from the source CSS are not reproduced (instant,
+    matching the previous design)
+  - the panel is placed from the trigger's rect measured at open; if the
+    trigger moves (e.g. scroll) while the tooltip is visible it does not
+    follow (tooltip closes on pointer leave anyway)
+  - no flip/clamp when the chosen side has no room (react-aria flips); the
+    tooltip may overflow the screen edge

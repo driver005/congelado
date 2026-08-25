@@ -56,35 +56,38 @@ dbname = "congelado"
 # ports (docker/docker-compose.yml) — prometheus:9090 and loki:3100 are published there, so these
 # two work as soon as `docker compose -f docker/docker-compose.yml up prometheus loki` is running,
 # no full stack needed. tempo's OTLP ports (4317/4318) are deliberately NOT published to the host
-# (see that compose file's own comment on tempo) — traces_endpoint below will just fail to
-# connect and degrade gracefully unless you add a `ports:` mapping for it too.
-# required = false: keep that graceful-degradation behavior. By default (required = true) the
-# plugin probes every endpoint below at load and fails process boot if any is unreachable; since
-# tempo's port isn't published to the host, this bare-metal config opts out so the server still
-# boots without the observability stack. Set required = true to enforce reachability.
+# by default (see that compose file's own comment on tempo) — reaching every endpoint below is now
+# an unconditional hard requirement (no opt-out), so add a `ports:` mapping for tempo there too
+# before booting against this config, or the server will fail to start on the unreachable
+# traces_endpoint.
 [plugins.otel_otlp_plugin]
 type = "custom"
 service_name = "congelado-server"
 metrics_endpoint = "http://localhost:9090/api/v1/otlp/v1/metrics"
 traces_endpoint = "http://localhost:4318/v1/traces"
 logs_endpoint = "http://localhost:3100/otlp/v1/logs"
-required = false
 
-# Alternative ISearchProvider backend to postgres_plugin's own. docker-compose.environment.yml's
-# elasticsearch service publishes :9200 to the host unconditionally (`make compose-env-up`);
-# otherwise this just points at a host with nothing listening, which elasticsearch_plugin
-# degrades gracefully around (logs a warning, returns empty results).
+# Alternative ISearchProvider backend to postgres_plugin's own — config kept below so switching
+# to it is a `[providers] search = "elasticsearch_plugin"` flip, not a config edit too. While
+# postgres_plugin is the pick (default), this section is never even probed: discard_unlisted_
+# provider_gated_plugins() (sdk/heart/app.cppm) discards a non-selected search-capable plugin
+# before its on_load ever runs. If you DO select it, reaching docker-compose.environment.yml's
+# elasticsearch service (`make compose-env-up`) becomes a hard boot requirement — elasticsearch_
+# plugin's on_load probes it and throws if unreachable, same contract postgres_plugin has for
+# its own connection.
 [plugins.elasticsearch_plugin]
 type = "search"
 hosts = "http://localhost:9200"
 index_prefix = "congelado_"
 
 # Event-bus backends (interfaces::IEventSink) — memory_events_plugin has no [plugins.*] section
-# of its own (nothing to configure beyond its `max_events` default). All three below match
-# docker-compose.environment.yml's own host-published ports for these services, unconditionally
-# up with `make compose-env-up`; otherwise each just points at a host with nothing listening,
-# which every one of these plugins degrades gracefully around (logs a warning, drops the
-# publish).
+# of its own (nothing to configure beyond its `max_events` default). Config kept below so adding
+# any of these to `[providers] events = [...]` is a one-line flip, not a config edit too — while
+# unlisted there (default), none of them are even probed: discard_unlisted_provider_gated_
+# plugins() discards a plugin not listed under its capability's provider entry before its
+# on_load ever runs. Once listed, each points at docker-compose.environment.yml's matching
+# service (`make compose-env-up`) and reaching it becomes a hard boot requirement — connect
+# failure now throws instead of degrading (same contract postgres_plugin already has).
 [plugins.rabbitmq_events_plugin]
 type = "custom"
 host = "localhost"
@@ -126,7 +129,12 @@ logger = ["file_logger"]
 # a single-active-backend pick).
 events = ["memory_events_plugin"]
 # events = ["memory_events_plugin", "rabbitmq_events_plugin", "kafka_events_plugin", "redis_events_plugin"]
-# No entry by default — Connector falls back to its own in-process LocalCache, same
-# graceful-degradation story as database/search with nothing configured. Uncomment to route
-# Connector's cache reads/writes through Redis instead, once it's up locally.
+# Explicit, not left unset: cache is the one capability with two real candidate plugins
+# (local_cache_plugin, redis_events_plugin) both always present in the scanned plugins
+# directory regardless of this file's [plugins.*] sections — leaving this unset would let
+# discard_unlisted_provider_gated_plugins() keep both eligible and hand plugin-scan order the
+# tie-break (sdk/heart/app.cppm), which could silently pick redis and, since redis is now a
+# hard boot requirement when selected, fail startup on an untouched default. Pin it. Swap to
+# redis_events_plugin once it's up locally.
+cache = "local_cache_plugin"
 # cache = "redis_events_plugin"

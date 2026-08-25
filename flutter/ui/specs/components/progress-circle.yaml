@@ -1,0 +1,53 @@
+component: progress-circle
+flutter_name: HeroProgressCircle
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/progress-circle.css"
+  files: [tool/sources/heroui-progress-circle.css]
+  docs: https://heroui.com/en/docs/react/components/progress-circle
+
+anatomy:
+  - root (`.progress-circle`) — inline-flex centered
+  - track (`.progress-circle__track`) — `size-5` (20) / `size-7` (28) /
+    `size-9` (36) for `--sm` / default (md) / `--lg`
+  - track circle (`.progress-circle__track-circle`) — full ring,
+    `--progress-circle-track-stroke: var(--default)`
+  - fill circle (`.progress-circle__fill-circle`) — value arc,
+    `--progress-circle-stroke`, `stroke-dashoffset 300ms var(--ease-out)`
+  - indeterminate (`.progress-circle:not([aria-valuenow])`) — the track
+    spins via `progress-circle-spin 1s linear infinite`
+  - label slot — rendered below the circle (React `label`/`valueLabel`
+    slots; not in the CSS)
+
+kinds:
+  color: accent (default) | default (default-foreground) | success | warning
+         | danger (role fill)
+  default: accent
+
+sizes: sm (20) | md (28) | lg (36)
+default: md
+
+states: rest | indeterminate (value null) | disabled (status-disabled, not
+  exposed — the widget is not interactive)
+
+tokens:
+  role: [color.accent, color.defaultForeground, color.success,
+         color.warning, color.danger, color.default (track)]
+  component: [space.5 (sm diameter), type.sm, weight.medium]
+
+non_token_measurements:
+  - md/lg diameters 28/36 (CSS size-7/size-9; no 28/36 tokens)
+  - stroke width 6 (HeroUI ProgressCircle default; not in the CSS)
+  - fill transition 300ms ease-out
+
+behavior: determinate circular progress (value 0..1, asserted); value null
+  renders the spinning indeterminate track. The value arc animates with
+  `300ms --ease-out`, motion-reduce aware.
+
+approximations:
+  - rendered with Flutter `CircularProgressIndicator` (value + track color);
+    stroke cap rounded (HeroUI's SVG uses round caps) — not in the CSS
+  - label/valueLabel are caller text under the circle, styled text-sm
+    font-medium (foreground / muted); sizes are not specified in the CSS
+  - disabled state not exposed (no interactive surface to disable)

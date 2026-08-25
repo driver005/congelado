@@ -6,6 +6,9 @@ import std;
 import :node;
 import :deleter;
 import :view;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::buffering {
 
@@ -17,7 +20,9 @@ class NodeReader {
      * @param node the buffer node to wrap and acquire a reference to.
      * @param next the next reader in the chain, defaults to none.
      */
-    explicit NodeReader(BufferNode *node, NodeReader *next = nullptr) : m_node{node}, m_next{next} { node->acquire(); }
+    explicit NodeReader(BufferNode *node, NodeReader *next = nullptr) : m_node{node}, m_next{next} {
+        node->acquire();
+    }
 
     /**
      * @brief Releases the wrapped node's reference. Standard RAII payoff for the acquire() up in
@@ -71,7 +76,9 @@ class NodeReader {
      * @param index the byte offset to grab.
      * @return a mutable reference to the byte at `index`.
      */
-    [[nodiscard]] std::byte &operator[](std::size_t index) noexcept { return (*m_node)[index]; }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    [[nodiscard]] std::byte &operator[](std::size_t index) noexcept {
+        return (*m_node)[index];
+    } // FIXME(clang-tidy): unchecked operator[], consider .at()
 
     /**
      * @brief Links this reader to the next one in the chain, released with acquire-ordering by
@@ -105,7 +112,9 @@ class NodeReader {
      * @brief Grabs the next reader in the chain.
      * @return the next `NodeReader`, or nullptr if this is the tail.
      */
-    [[nodiscard]] NodeReader *get_next() const noexcept { return m_next.load(std::memory_order_acquire); }
+    [[nodiscard]] NodeReader *get_next() const noexcept {
+        return m_next.load(std::memory_order_acquire);
+    }
     /**
      * @brief Grabs the wrapped node.
      * @return the underlying `BufferNode` pointer.
@@ -235,12 +244,16 @@ class BufferReader {
          * @brief Dereferences the byte at the current position. Bog standard iterator motion.
          * @return the byte under the iterator, read-only.
          */
-        reference operator*() const noexcept { return (*m_node)[m_offset]; }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        reference operator*() const noexcept {
+            return (*m_node)[m_offset];
+        } // FIXME(clang-tidy): unchecked operator[], consider .at()
         /**
          * @brief Arrow overload, mirrors operator*().
          * @return a pointer to the byte under the iterator.
          */
-        pointer operator->() const noexcept { return &((*m_node)[m_offset]); }  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        pointer operator->() const noexcept {
+            return &((*m_node)[m_offset]);
+        } // FIXME(clang-tidy): unchecked operator[], consider .at()
 
         /**
          * @brief Advances one byte, hopping to the next node in the chain (acquiring it, releasing
@@ -376,13 +389,39 @@ class BufferReader {
      */
     BufferReader &operator=(const BufferReader &) = delete;
     /**
-     * @brief Deleted — not movable either, the chain stays put once constructed.
+     * @brief Move ctor — steals `other`'s whole chain (head/tail/offset/size) and leaves it empty,
+     * exactly like `splice()`'s detach step: the moved-from reader owns nothing afterward, so its
+     * dtor frees nothing this one now holds. No refcount changes — the `NodeReader`s (and their
+     * `BufferNode` stakes) transfer as-is.
+     * @param other the reader to move from; emptied.
      */
-    BufferReader(BufferReader &&) = delete;
+    BufferReader(BufferReader &&other) noexcept
+        : m_head{other.m_head.exchange(nullptr, std::memory_order_acq_rel)},
+          m_tail{other.m_tail.exchange(nullptr, std::memory_order_acq_rel)},
+          m_offset{other.m_offset.exchange(0, std::memory_order_relaxed)},
+          m_size{other.m_size.exchange(0, std::memory_order_acq_rel)} {}
+
     /**
-     * @brief Deleted, same reasoning as the move ctor.
+     * @brief Move assignment — releases this reader's own chain first, then steals `other`'s the
+     * same way the move ctor does. Self-move is a guarded no-op.
+     * @param other the reader to move from; emptied.
+     * @return `*this`.
      */
-    BufferReader &operator=(BufferReader &&) = delete;
+    BufferReader &operator=(BufferReader &&other) noexcept {
+        if (this != &other) {
+            // Drop whatever this reader already owned before overwriting the handles.
+            release();
+            m_head.store(other.m_head.exchange(nullptr, std::memory_order_acq_rel),
+                         std::memory_order_release);
+            m_tail.store(other.m_tail.exchange(nullptr, std::memory_order_acq_rel),
+                         std::memory_order_release);
+            m_offset.store(other.m_offset.exchange(0, std::memory_order_relaxed),
+                           std::memory_order_relaxed);
+            m_size.store(other.m_size.exchange(0, std::memory_order_acq_rel),
+                         std::memory_order_release);
+        }
+        return *this;
+    }
 
     /**
      * @brief Builds an iterator starting at the current head and read offset.
@@ -400,13 +439,17 @@ class BufferReader {
      * @brief Grabs how many unconsumed bytes are sitting in the chain.
      * @return the total unread byte count.
      */
-    [[nodiscard]] std::size_t size() const noexcept { return m_size.load(std::memory_order_relaxed); }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return m_size.load(std::memory_order_relaxed);
+    }
     /**
      * @brief Checks whether there's anything left to read. Quick vibe check before you bother
      * calling front() or begin().
      * @return true if size() is zero.
      */
-    [[nodiscard]] bool empty() const noexcept { return m_size.load(std::memory_order_acquire) == 0; }
+    [[nodiscard]] bool empty() const noexcept {
+        return m_size.load(std::memory_order_acquire) == 0;
+    }
 
     /**
      * @brief Grabs the head reader without consuming anything, bumping its ref count so it
@@ -511,8 +554,11 @@ class BufferReader {
      * `delete`s it on unlink (consume/dtor), exactly like `BufferView` owns its
      * `NodeView`s. The one BufferNode reference the NodeReader ctor already took is that chain
      * stake — no extra acquire here, or the BufferNode ends up over-referenced and leaks.
+     * @param count_size when true (default) `size()` grows by `node`'s written bytes; pass false to
+     * link only — used by `splice()`, which pushes a chain's head node and then folds the whole
+     * chain's size in with a single `expand()`.
      */
-    void push_back(NodeReader *node) noexcept {
+    void push_back(NodeReader *node, bool count_size = true) noexcept {
         // Swap ourselves in as the new tail first — whoever we displaced (if anyone) gets linked
         // to us second. Empty chain means we're the new head too.
         auto *old = m_tail.exchange(node, std::memory_order_acq_rel);
@@ -522,8 +568,11 @@ class BufferReader {
             m_head.store(node, std::memory_order_release);
         }
 
-        // Fold in whatever this node already had written, so size() reflects it immediately.
-        expand(node->get_written());
+        // Fold in whatever this node already had written, so size() reflects it immediately —
+        // unless the caller is accounting the size itself (see @param count_size).
+        if (count_size) {
+            expand(node->get_written());
+        }
     }
 
     /**
@@ -539,9 +588,67 @@ class BufferReader {
         // terminate on bad_alloc; this whole buffering subsystem has no error-return channel
         // (every push_back()/acquire() across reader/view/writter is noexcept, raw-pointer,
         // terminate-on-OOM by convention) — leaving as-is rather than inventing one locally.
-        auto *reader = new NodeReader{node};  // NOLINT(cppcoreguidelines-owning-memory)
+        auto *reader = new NodeReader{node}; // NOLINT(cppcoreguidelines-owning-memory)
         push_back(reader);
         return reader;
+    }
+
+    /**
+     * @brief Moves every node from `src` onto the tail of this chain — zero-copy: relinks the
+     * existing `NodeReader` objects (and the single `BufferNode` ref each already holds) rather
+     * than copying bytes or allocating new nodes, then leaves `src` empty. O(1) — just a head/tail
+     * splice, no per-node walk.
+     * @warning `src`'s read offset (bytes already consumed off its head, e.g. a preface the
+     * handshake consumed) only travels with the chain when `this` is **empty** — offset applies to
+     * a chain's head only, so it can't ride a node relinked onto a non-empty tail. Callers that
+     * splice a partially-consumed `src` must do so into an empty destination (the executor's
+     * handoff is empty on the first post-handshake feed, which is the only time `src` carries an
+     * offset). `src`'s nodes are transferred, not deleted, so no ref is dropped — the moved
+     * `NodeReader`s keep their `BufferNode` stakes and this chain frees them on its own
+     * `consume()`/dtor.
+     * @param src the reader to drain into this one; emptied on return.
+     */
+    void splice(BufferReader &src) noexcept {
+        // Nothing to move.
+        if (src.empty()) {
+            return;
+        }
+
+        // Empty destination — take `src` over wholesale via move-assignment, which transfers
+        // head/tail/size AND the read offset (so a partially-consumed src, e.g. the
+        // handshake-consumed preface, stays consumed instead of resurfacing).
+        if (empty()) {
+            *this = std::move(src);
+            return;
+        }
+
+        // Non-empty destination — one-shot relink: push src's head onto our tail (link only, no
+        // per-node size count), fix our tail to src's real tail, fold in the whole src size, then
+        // clear src so its consume()/dtor frees nothing (ownership moved to us). `src` carries no
+        // read offset here — only the first, into-empty feed does (handled by the move path above).
+        auto *src_head = src.get_head();
+        auto *src_tail = src.get_tail();
+
+        push_back(src_head, false);
+        m_tail.store(src_tail, std::memory_order_release);
+
+        const auto SRC_SIZE = src.size();
+        expand(SRC_SIZE);
+
+        src.clear();
+    }
+
+    /**
+     * @brief Resets this reader to empty — drops the head/tail/size/offset handles **without**
+     * releasing any node. Only safe once ownership of the chain has already been transferred
+     * elsewhere (e.g. `splice()` relinked the nodes into another reader first); calling it on a
+     * reader that still owns live nodes leaks them.
+     */
+    void clear() noexcept {
+        m_head.store(nullptr, std::memory_order_release);
+        m_tail.store(nullptr, std::memory_order_release);
+        m_offset.store(0, std::memory_order_relaxed);
+        m_size.store(0, std::memory_order_release);
     }
 
     /**
@@ -578,12 +685,16 @@ class BufferReader {
      * @brief Grabs the current head of the chain.
      * @return the head `NodeReader`, or nullptr if the chain's empty.
      */
-    [[nodiscard]] NodeReader *get_head() const noexcept { return m_head.load(std::memory_order_acquire); }
+    [[nodiscard]] NodeReader *get_head() const noexcept {
+        return m_head.load(std::memory_order_acquire);
+    }
     /**
      * @brief Grabs the current tail of the chain.
      * @return the tail `NodeReader`, or nullptr if the chain's empty.
      */
-    [[nodiscard]] NodeReader *get_tail() const noexcept { return m_tail.load(std::memory_order_acquire); }
+    [[nodiscard]] NodeReader *get_tail() const noexcept {
+        return m_tail.load(std::memory_order_acquire);
+    }
 
   private:
     /**
@@ -615,7 +726,8 @@ struct AdvanceReaderAdaptor : std::ranges::range_adaptor_closure<AdvanceReaderAd
      * @param view the reader to consume() from.
      * @param count how many bytes to consume.
      */
-    explicit constexpr AdvanceReaderAdaptor(BufferReader &view, std::size_t count) : m_view{view}, m_count{count} {}
+    explicit constexpr AdvanceReaderAdaptor(BufferReader &view, std::size_t count)
+        : m_view{view}, m_count{count} {}
 
     /**
      * @brief Invocation hook the range-adaptor machinery calls — consumes `m_count` bytes off the
@@ -636,3 +748,131 @@ struct AdvanceReaderAdaptor : std::ranges::range_adaptor_closure<AdvanceReaderAd
 };
 
 }; // namespace utils::buffering
+
+#ifdef CONGELADO_TEST
+namespace utils::buffering::tests {
+using namespace boost::ut;
+
+suite<"NodeReader"> node_reader_suite = [] {
+    "wraps a node and forwards its written/limit/remaining"_test = [] {
+        auto *node = new BufferNode(4);
+        node->push_back(std::byte{42});
+
+        auto *reader = new NodeReader{node};
+        expect(reader->get_written() == 1);
+        expect(reader->get_limit() == 4);
+        expect(reader->get_remaining() == 3);
+        expect((*reader)[0] == std::byte{42});
+        expect(reader->get_next() == nullptr);
+
+        delete reader; // releases the one BufferNode ref taken in the ctor, node self-deletes
+    };
+};
+
+suite<"BufferReader"> buffer_reader_suite = [] {
+    "empty reader has no head/tail and size 0"_test = [] {
+        BufferReader reader;
+        expect(reader.empty());
+        expect(reader.size() == 0);
+        expect(reader.get_head() == nullptr);
+    };
+    "push_back(BufferNode*) wraps it in a NodeReader and sizes by written bytes"_test = [] {
+        auto *node = new BufferNode(4);
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+
+        BufferReader reader;
+        auto *wrapped = reader.push_back(node);
+
+        expect(wrapped != nullptr);
+        expect(not reader.empty());
+        expect(reader.size() == 2);
+        expect(reader.get_head() == wrapped);
+        expect(reader.get_tail() == wrapped);
+    };
+    "consume walks bytes and unlinks fully-consumed nodes"_test = [] {
+        auto *node = new BufferNode(2);
+        node->push_back(std::byte{5});
+        node->push_back(std::byte{6});
+
+        BufferReader reader;
+        reader.push_back(node);
+        expect(reader.size() == 2);
+
+        reader.consume(1);
+        expect(reader.size() == 1);
+        expect(not reader.empty());
+
+        reader.consume(1);
+        expect(reader.empty());
+        expect(reader.get_head() == nullptr);
+    };
+    "begin/end iterate the written bytes in order"_test = [] {
+        auto *node = new BufferNode(3);
+        node->push_back(std::byte{10});
+        node->push_back(std::byte{20});
+        node->push_back(std::byte{30});
+
+        BufferReader reader;
+        reader.push_back(node);
+
+        std::vector<std::byte> collected;
+        for (auto it = reader.begin(); it != reader.end(); ++it) {
+            collected.push_back(*it);
+        }
+
+        expect(collected.size() == 3);
+        expect(collected[0] == std::byte{10});
+        expect(collected[2] == std::byte{30});
+    };
+    "front reports the head chunk's pointer and remaining length"_test = [] {
+        auto *node = new BufferNode(2);
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+
+        BufferReader reader;
+        reader.push_back(node);
+
+        auto [ptr, length] = reader.front();
+        expect(ptr != nullptr);
+        expect(length == 2);
+    };
+    "front on an empty reader reports null/zero"_test = [] {
+        BufferReader reader;
+        auto [ptr, length] = reader.front();
+        expect(ptr == nullptr);
+        expect(length == 0);
+    };
+    "splice into an empty destination moves the whole chain over"_test = [] {
+        auto *node = new BufferNode(2);
+        node->push_back(std::byte{7});
+        node->push_back(std::byte{8});
+
+        BufferReader src;
+        src.push_back(node);
+
+        BufferReader dest;
+        dest.splice(src);
+
+        expect(src.empty());
+        expect(dest.size() == 2);
+    };
+    "grow_view slices the front bytes into a BufferView without consuming"_test = [] {
+        auto *node = new BufferNode(3);
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+        node->push_back(std::byte{3});
+
+        BufferReader reader;
+        reader.push_back(node);
+
+        BufferView view;
+        reader.grow_view(view, 2);
+
+        expect(view.size() == 2);
+        expect(reader.size() == 3); // grow_view is a pure read, doesn't shrink the reader
+    };
+};
+
+} // namespace utils::buffering::tests
+#endif

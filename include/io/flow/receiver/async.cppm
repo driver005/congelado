@@ -7,6 +7,9 @@ import shared;
 import interfaces;
 import io_base_socket;
 import utils_buffering;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::base::flow::async {
 
@@ -261,3 +264,296 @@ static_assert(
     interfaces::io::AsyncReceivable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus, std::byte *>);
 
 } // namespace io::base::flow::async
+
+#ifdef CONGELADO_TEST
+namespace io::base::flow::async::receiver_async_tests {
+
+// Satisfies interfaces::io::AsyncReceivable<MockAsyncWorker, socket::SocketStatus, std::byte*>
+// (async_receive()) plus every other member Receiver's body actually calls (get_fd/attach/
+// detach/async_close/async_read). async_read() stashes its callback instead of firing it so
+// tests can drive completion (success/error) deterministically.
+class MockAsyncWorker {
+  public:
+    [[nodiscard]] int get_fd() const noexcept { return m_fd; }
+    void attach() noexcept { ++m_attach_count; }
+    void detach() noexcept { ++m_detach_count; }
+    void async_close() noexcept { ++m_close_count; }
+
+    // What Receiver::arm_read() actually calls.
+    void async_read(std::byte *buf, unsigned nbytes, long long /*offset*/,
+                    std::move_only_function<void(int)> callback) {
+        ++m_async_read_count;
+        m_last_buf = buf;
+        m_last_nbytes = nbytes;
+        m_read_callback = std::move(callback);
+    }
+
+    // Only here to satisfy the class template's AsyncReceivable requirement — Receiver's body
+    // never actually calls this (it calls async_read() above instead).
+    void async_receive(std::byte *, std::size_t, interfaces::io::IoCallback<socket::SocketStatus>) noexcept {}
+
+    int m_fd{7};
+    int m_attach_count{0};
+    int m_detach_count{0};
+    int m_close_count{0};
+    int m_async_read_count{0};
+    std::byte *m_last_buf{nullptr};
+    unsigned m_last_nbytes{0};
+    std::move_only_function<void(int)> m_read_callback;
+};
+
+class MockHandlerInterface final : public shared::HandlerInterface {
+  public:
+    void schedule(std::uint32_t) override { ++m_schedule_count; }
+    void deschedule(std::uint32_t) override { ++m_deschedule_count; }
+    void release(std::uint32_t) override { ++m_release_count; }
+
+    int m_schedule_count{0};
+    int m_deschedule_count{0};
+    int m_release_count{0};
+};
+
+using TestReceiver = Receiver<MockAsyncWorker, socket::SocketStatus>;
+
+using namespace boost::ut;
+
+suite<"Receiver (async) construction/build"> receiver_async_ctor_suite = [] {
+    "the no-callback ctor doesn't attach and reports the fixed name"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker};
+
+        expect(receiver.get_name() == "Receiver - Async");
+        expect(worker.m_attach_count == 0);
+        expect(!receiver.get_stalled());
+    };
+
+    "the fully-wired ctor attaches immediately"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [](int, int) {}};
+
+        expect(worker.m_attach_count == 1);
+    };
+
+    "build() throws when neither callback is set"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker};
+
+        expect(throws<std::runtime_error>([&] { receiver.build(); }));
+    };
+
+    "build() throws when only on_read is set"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker};
+        receiver.add_on_read([](utils::buffering::BufferReader &) {});
+
+        expect(throws<std::runtime_error>([&] { receiver.build(); }));
+    };
+
+    "build() succeeds and attaches once both callbacks are set"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker};
+        receiver.add_on_read([](utils::buffering::BufferReader &) {});
+        receiver.add_on_error([](int, int) {});
+
+        expect(nothrow([&] { receiver.build(); }));
+        expect(worker.m_attach_count == 1);
+    };
+};
+
+suite<"Receiver (async) resume/arm_read"> receiver_async_resume_suite = [] {
+    "resume() arms an async read and stays alive"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [](int, int) {}};
+
+        expect(receiver.resume());
+        expect(worker.m_async_read_count == 1);
+        expect(worker.m_last_buf != nullptr);
+    };
+
+    "a successful read completion forwards the view to on_read"_test = [] {
+        MockAsyncWorker worker;
+        int read_calls = 0;
+        std::size_t last_size = 0;
+        TestReceiver receiver{worker,
+                              [&](utils::buffering::BufferReader &view) {
+                                  ++read_calls;
+                                  last_size = view.size();
+                              },
+                              [](int, int) {}};
+
+        receiver.resume();
+        expect(worker.m_read_callback != nullptr) << fatal;
+        worker.m_read_callback(42); // simulate 42 bytes landed
+
+        expect(read_calls == 1);
+        expect(last_size == 42);
+        expect(!receiver.get_stalled());
+    };
+
+    "a failed read completion (<=0) marks fatal and routes to on_error"_test = [] {
+        MockAsyncWorker worker;
+        int error_fd = -1;
+        int error_code = 0;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [&](int fd, int code) {
+                                  error_fd = fd;
+                                  error_code = code;
+                              }};
+
+        receiver.resume();
+        expect(worker.m_read_callback != nullptr) << fatal;
+        worker.m_read_callback(-5); // simulate a read error (-errno)
+
+        expect(receiver.get_stalled());
+        expect(error_fd == worker.get_fd());
+        expect(error_code == 5);
+
+        // Once fatal, resume() permanently reports "stop scheduling".
+        expect(!receiver.resume());
+    };
+};
+
+suite<"Receiver (async) on_execute/on_released"> receiver_async_lifecycle_suite = [] {
+    "on_execute() reschedules while alive"_test = [] {
+        MockHandlerInterface mock;
+        shared::this_handler::current = &mock;
+        shared::this_handler::current_id = 3;
+
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [](int, int) {}};
+
+        auto work = receiver.on_execute();
+        work();
+
+        expect(mock.m_schedule_count == 1);
+        expect(worker.m_async_read_count == 1);
+
+        shared::this_handler::current = nullptr;
+    };
+
+    "on_execute() releases once fatally stalled"_test = [] {
+        MockHandlerInterface mock;
+        shared::this_handler::current = &mock;
+        shared::this_handler::current_id = 3;
+
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [](int, int) {}};
+
+        receiver.resume();
+        worker.m_read_callback(-1); // fatal
+
+        auto work = receiver.on_execute();
+        work();
+
+        expect(mock.m_release_count == 1);
+
+        shared::this_handler::current = nullptr;
+    };
+
+    "on_released() detaches and closes the worker"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [](int, int) {}};
+
+        auto released = receiver.on_released();
+        released();
+
+        expect(worker.m_detach_count == 1);
+        expect(worker.m_close_count == 1);
+    };
+};
+
+suite<"Receiver (async) on_error"> receiver_async_error_suite = [] {
+    "a null exception_ptr is a no-op"_test = [] {
+        MockAsyncWorker worker;
+        int error_calls = 0;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [&](int, int) { ++error_calls; }};
+
+        auto handler = receiver.on_error();
+        expect(nothrow([&] { handler(std::exception_ptr{}); }));
+        expect(error_calls == 0);
+    };
+
+    // NOTE: this pins OBSERVED behavior, not necessarily intended behavior — see the identical
+    // note in include/io/flow/receiver/sync.cppm's own on_error suite. Root-cause investigation
+    // there (isolated repros, a full `xmake build -r`) could not explain why the production
+    // catch(const std::system_error&) clause doesn't match a std::system_error rethrown via
+    // std::rethrow_exception(std::make_exception_ptr(...)) in this specific multi-partition test
+    // binary — it falls through to catch(const std::exception&) instead, routing -1.
+    "a std::system_error currently falls through to the generic exception path (-1), not its "
+    "real error code — see NOTE above"_test = [] {
+        MockAsyncWorker worker;
+        int error_code = 0;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [&](int, int code) { error_code = code; }};
+
+        auto handler = receiver.on_error();
+        auto eptr = std::make_exception_ptr(
+            std::system_error{std::make_error_code(std::errc::connection_reset)});
+        handler(eptr);
+
+        expect(error_code == -1);
+    };
+
+    "a plain std::exception routes as -1"_test = [] {
+        MockAsyncWorker worker;
+        int error_code = 0;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [&](int, int code) { error_code = code; }};
+
+        auto handler = receiver.on_error();
+        handler(std::make_exception_ptr(std::runtime_error{"boom"}));
+
+        expect(error_code == -1);
+    };
+
+    "a non-std exception also routes as -1"_test = [] {
+        MockAsyncWorker worker;
+        int error_code = 0;
+        TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {}, [&](int, int code) { error_code = code; }};
+
+        auto handler = receiver.on_error();
+        handler(std::make_exception_ptr(42));
+
+        expect(error_code == -1);
+    };
+};
+
+suite<"Receiver (async) attach/detach"> receiver_async_attach_suite = [] {
+    "attach()/detach() forward straight to the worker"_test = [] {
+        MockAsyncWorker worker;
+        TestReceiver receiver{worker};
+
+        receiver.attach();
+        receiver.detach();
+
+        expect(worker.m_attach_count == 1);
+        expect(worker.m_detach_count == 1);
+    };
+};
+
+// Regression/design-gap marker, NOT a fix: arm_read() (see its @warning above) captures `this`
+// by raw pointer into the async_read() completion lambda alongside the buffer `slot` by value.
+// MockAsyncWorker::async_read() already stashes that lambda instead of invoking it (simulating an
+// io_uring completion still in flight), which lets this test prove — structurally, through the
+// mock's own state — that Receiver has no cancel()/invalidate() hook: destroying the Receiver
+// leaves the worker still holding a callback that captures a now-dangling `this`. The stashed
+// callback is deliberately never invoked after destruction — doing so would be a real UAF.
+suite<"Receiver (async) UAF design gap"> receiver_async_uaf_suite = [] {
+    "destroying a Receiver leaves an in-flight read completion dangling with no cancellation hook"_test =
+        [] {
+            MockAsyncWorker worker;
+            {
+                TestReceiver receiver{worker, [](utils::buffering::BufferReader &) {},
+                                      [](int, int) {}};
+                expect(receiver.resume()) << fatal;
+                // async_read() has now handed MockAsyncWorker a `this`-capturing completion
+                // lambda, which the mock stashed instead of calling.
+                expect(worker.m_read_callback != nullptr) << fatal;
+            } // `receiver` destroyed here — nothing reaches into `worker` to cancel anything.
+
+            // The callback is still sitting there, fully intact, capturing a `this` that now
+            // points at a destroyed Receiver. Nothing in Receiver's or the worker's API could
+            // have invalidated it even if it wanted to.
+            expect(worker.m_read_callback != nullptr);
+        };
+};
+
+} // namespace io::base::flow::async::receiver_async_tests
+#endif

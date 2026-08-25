@@ -1,0 +1,32 @@
+component: link
+flutter_name: HeroLink
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/link.css"
+  files: [tool/sources/heroui-link.css]
+  docs: https://heroui.com/en/docs/react/components/link
+
+anatomy:
+  - (none)
+
+kinds:
+  color: link (text)
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - underline muted/50 on hover, muted on press; focus ring; disabled fade
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

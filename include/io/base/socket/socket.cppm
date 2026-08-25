@@ -31,6 +31,9 @@ module;
 export module io_base_socket;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import io_error;
 import core_events;
 import core_logger;
@@ -3667,3 +3670,219 @@ class Socket {
 };
 
 } // namespace io::base::socket
+
+#ifdef CONGELADO_TEST
+namespace io::base::socket::tests {
+using namespace boost::ut;
+
+// SSLAutoInitializer is a static-initializer-only class with no meaningfully-callable public
+// API in isolation. Socket<Protocol, RootSocket> genuinely needs a live OS socket/fd (and often
+// a live TLS/QUIC handshake) to do anything meaningful — neither is unit-testable without real
+// I/O, skipped here. AddressInfo, Endpoint, SocketStatus, and the plain enums below are pure
+// value types / parsing logic with no I/O involved, so those are covered for real. Endpoint's
+// error paths (unparsable "host:port" strings, null/unsupported-family sockaddr) all route
+// through core::logger::fatal, which aborts the process per this codebase's logger convention —
+// those paths are intentionally not exercised here.
+//
+// Four more Socket findings, all documented-and-skipped rather than tested, per the constraints
+// above (no live-socket/live-ring syscalls, no faked std::system()/UB calls):
+//
+// - sync_receive()'s offset overload: `const auto MAX_LENGTH = LENGTH - START_OFFSET;` is
+//   unsigned, guarded by `if (MAX_LENGTH < 0)` — a no-op comparison for an unsigned type (see the
+//   function's own @warning). MAX_LENGTH is computed inline and immediately fed straight into
+//   `::recv`/`SSL_read_ex`/`::recvfrom` in the same expression-statement block with no
+//   intervening return or extraction point — there's no private helper isolating the arithmetic,
+//   so the only way to observe the wraparound is to let a real, live m_socket reach one of those
+//   syscalls with a bogus (huge) length argument. That risks a real oversized recv() against
+//   whatever `m_socket` happens to hold (INVALID_SOCKET by default), so it's skipped rather than
+//   risked.
+//
+// - async_accept()'s raw-`this`-capture (same UAF-shape as the async Receiver/Sender's arm_read()
+//   /arm_write()): the completion lambda is handed to `m_leverager->get().accept(...)`, but
+//   `m_leverager` is `std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>>`
+//   — a concrete, non-virtual class (include/io/base/leverage/types.cppm), not an interface Socket
+//   depends on abstractly. There's no seam to substitute a mock that stashes the completion
+//   instead of firing it the way MockAsyncWorker does for the flow Receiver/Sender — exercising
+//   this for real means standing up a live `leverage::Context` (a real io_uring ring on posix),
+//   which is exactly the "live OS reactor" this file's tests already opt out of above. Documented
+//   here, not tested.
+//
+// - get_status() (see its own @warning): declared `[[nodiscard]] SocketStatus` but has no return
+//   statement at all — falling off the end of a value-returning function is UB. There is no
+//   correct expected value to assert against, and calling it at all means reading whatever
+//   garbage happens to be sitting in the return slot. Not called here, not testable.
+//
+// - generate_certificate(): builds a `std::system()` shell command with `cert_path`/`key_path`
+//   interpolated unescaped (see its own @warning — a real command-injection footgun for
+//   attacker-influenced paths). The string-building isn't separated into its own helper — it's
+//   one `std::format(...)` immediately followed by the `std::system(command.c_str())` call in the
+//   same function body, with no seam to test the format step in isolation. Actually invoking this
+//   would shell out to the real `openssl` CLI (or run an injected command), so it's skipped
+//   rather than exercised.
+
+suite<"AddressInfo"> address_info_suite = [] {
+    "starts zero-sized"_test = [] {
+        AddressInfo info;
+        expect(info.get_size() == 0);
+    };
+
+    "set() stores both the address bytes and the size"_test = [] {
+        AddressInfo info;
+        sockaddr_storage storage{};
+        storage.ss_family = AF_INET;
+        socklen_t size = sizeof(sockaddr_in);
+
+        info.set(storage, size);
+
+        expect(info.get_size() == sizeof(sockaddr_in));
+        expect(info.get_data().ss_family == AF_INET);
+    };
+
+    "set_data() and set_size() update independently"_test = [] {
+        AddressInfo info;
+        sockaddr_storage storage{};
+        storage.ss_family = AF_INET6;
+
+        info.set_data(storage);
+        expect(info.get_data().ss_family == AF_INET6);
+        expect(info.get_size() == 0);
+
+        info.set_size(128);
+        expect(info.get_size() == 128);
+        expect(info.get_data().ss_family == AF_INET6);
+    };
+};
+
+suite<"Endpoint"> endpoint_suite = [] {
+    "address+port ctor stores both verbatim"_test = [] {
+        Endpoint endpoint{"example.com", 8080};
+
+        expect(endpoint.get_address() == "example.com");
+        expect(endpoint.get_port() == 8080);
+    };
+
+    "default ctor is empty address, port 0"_test = [] {
+        Endpoint endpoint;
+
+        expect(endpoint.get_address().empty());
+        expect(endpoint.get_port() == 0);
+    };
+
+    "\"host:port\" string ctor splits on the last colon"_test = [] {
+        Endpoint endpoint{"example.com:443"};
+
+        expect(endpoint.get_address() == "example.com");
+        expect(endpoint.get_port() == 443);
+    };
+
+    "to_string() re-joins address and port"_test = [] {
+        Endpoint endpoint{"127.0.0.1", 9000};
+
+        expect(endpoint.to_string() == "127.0.0.1:9000");
+    };
+
+    "sockaddr_in ctor decodes an IPv4 address and port"_test = [] {
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(4242);
+        addr.sin_addr.s_addr = htonl(0x7F000001); // 127.0.0.1
+
+        Endpoint endpoint{reinterpret_cast<const sockaddr *>(&addr)};
+
+        expect(endpoint.get_address() == "127.0.0.1");
+        expect(endpoint.get_port() == 4242);
+    };
+
+    "sockaddr_in6 ctor decodes an IPv6 address and port"_test = [] {
+        sockaddr_in6 addr{};
+        addr.sin6_family = AF_INET6;
+        addr.sin6_port = htons(9999);
+        addr.sin6_addr.s6_addr[15] = 1; // ::1
+
+        Endpoint endpoint{reinterpret_cast<const sockaddr *>(&addr)};
+
+        expect(endpoint.get_address() == "::1");
+        expect(endpoint.get_port() == 9999);
+    };
+};
+
+suite<"SocketStatus"> socket_status_suite = [] {
+    "default is pessimistic (ERRORED, falsy)"_test = [] {
+        SocketStatus status;
+
+        expect(status.is_errored());
+        expect(not status);
+        expect(status.get_error_code() == 0);
+    };
+
+    "bool ctor maps true/false to VALID/ERRORED"_test = [] {
+        SocketStatus valid{true};
+        SocketStatus errored{false};
+
+        expect(valid.is_valid());
+        expect(bool(valid));
+        expect(errored.is_errored());
+        expect(not errored);
+    };
+
+    "VALUES ctor wraps the exact status"_test = [] {
+        SocketStatus timed_out{VALUES::TIMED_OUT};
+
+        expect(timed_out.is_timed_out());
+        expect(timed_out == VALUES::TIMED_OUT);
+        expect(timed_out.get_value() == std::to_underlying(VALUES::TIMED_OUT));
+    };
+
+    "VALUES+error_code ctor carries the real error code"_test = [] {
+        SocketStatus errored{VALUES::ERRORED, 42};
+
+        expect(errored.is_errored());
+        expect(errored.get_error_code() == 42);
+    };
+
+    "would_have_blocked() only fires for its own state"_test = [] {
+        SocketStatus would_block{VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
+
+        expect(would_block.would_have_blocked());
+        expect(not would_block.is_timed_out());
+        expect(not would_block.is_cleanly_disconnected());
+    };
+
+    "is_cleanly_disconnected() only fires for its own state"_test = [] {
+        SocketStatus disconnected{VALUES::CLEANLY_DISCONNECTED};
+
+        expect(disconnected.is_cleanly_disconnected());
+        expect(not disconnected.is_valid());
+    };
+
+    "get_status() returns the wrapped VALUES tag"_test = [] {
+        SocketStatus status{VALUES::VALID};
+
+        expect(status.get_status() == VALUES::VALID);
+    };
+};
+
+suite<"WaitMode"> wait_mode_suite = [] {
+    "is_waiting() is true only for WAIT_FOR_WHOLE_MESSAGE"_test = [] {
+        expect(is_waiting(WaitMode::WAIT_FOR_WHOLE_MESSAGE));
+        expect(not is_waiting(WaitMode::AS_SOON_AS_ARRIVED));
+    };
+};
+
+suite<"socket_enums"> socket_enums_suite = [] {
+    "Protocol values are stable"_test = [] {
+        expect(std::to_underlying(Protocol::TCP) == 0);
+        expect(std::to_underlying(Protocol::UDP) == 1);
+        expect(std::to_underlying(Protocol::TLS) == 2);
+        expect(std::to_underlying(Protocol::QUIC) == 3);
+    };
+
+    "Event flags are distinct single bits"_test = [] {
+        expect(std::to_underlying(Event::READ) == 0x1);
+        expect(std::to_underlying(Event::WRITE) == 0x2);
+        expect(std::to_underlying(Event::EXCEPT) == 0x4);
+    };
+};
+
+} // namespace io::base::socket::tests
+#endif

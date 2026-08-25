@@ -1,0 +1,58 @@
+component: accordion
+flutter_name: HeroAccordion
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/accordion.css"
+  files: [tool/sources/heroui-accordion.css]
+  docs: https://heroui.com/en/docs/react/components/accordion
+
+anatomy:
+  - container (.accordion w-full; --surface adds bg-surface +
+    min(32px, --radius-3xl) = 24 radius + clip)
+  - item (.accordion__item relative; ::after 1px separator, removed on last /
+    hideSeparator; surface variant insets it to start-[3%] w-[94%]
+    surface-foreground/6)
+  - trigger (.accordion__trigger: px-4 py-4 text-sm font-medium text-start;
+    hover bg = foreground @ 3% (surface: bg-default); focus ring; disabled
+    opacity 0.5; surface variant rounds the first/last trigger corners)
+  - indicator (.accordion__indicator: size-4 text-muted chevron, rotates
+    -180deg on expand, 250ms)
+  - panel (.accordion__panel: height 200ms --ease-out-quad + opacity 200ms
+    --ease-out; body-inner px-4 pt-0 pb-4 text-muted)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none (fixed px-4 py-4 trigger)
+default: -
+
+states:
+  expanded/collapsed (multiple or single-open via allowsMultipleExpanded)
+  hover (not expanded), focus-visible (ring), disabled (opacity 0.5)
+
+tokens:
+  role: [color.surface, color.default, color.foreground, color.muted,
+    color.separator, color.surfaceForeground, color.transparent,
+    color.focus (ring)]
+  component: [radius.3xl (24), space.4 (16 px/py), space.1 (separator),
+    double.disabledOpacity (0.5)]
+
+non_token_measurements:
+  - separator 1px line; surface separator alpha 0.06 on surface-foreground
+  - hover tint = foreground alpha 0.03
+  - panel animation 200ms height (ease-out-quad cubic-bezier(0.25,0.46,0.45,0.94))
+    + 200ms opacity (--ease-out); chevron 250ms
+  - AnimatedCrossFade approximates height+opacity panel transition
+
+behavior:
+  hand-rolled trigger rows (Focus + MouseRegion + GestureDetector with
+  Enter/Space keyboard activation) since RemixAccordion's style API has no
+  hover/surface-separator/rounding slots; expansion tracked by item keys
+  (controlled expandedKeys or internal state), onExpandedChange callback.
+
+approximations:
+  - pressed trigger has no visible effect (spec's pressed rule is empty)
+  - separator is a sibling between items rather than an absolutely-positioned
+    ::after on each item (same visual result)

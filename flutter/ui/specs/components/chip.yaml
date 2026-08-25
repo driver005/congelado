@@ -1,0 +1,45 @@
+component: Chip
+flutter_name: HeroChip
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/chip.css"
+  files: [tool/sources/heroui-chip.css]
+  docs: https://heroui.com/en/docs/react/components/chip
+
+anatomy:
+  - pill container (rounded-2xl 16, gap 2, px-2 py-0.5)
+  - optional avatar / leading icon
+  - label (text-xs / text-sm, font-medium, leading-5)
+  - optional close button
+
+kinds:
+  variant: solid (bg = color, fg = color-foreground) | soft (bg = color-soft,
+  fg = color-soft-foreground) | tertiary (transparent, fg = color-soft-foreground)
+  color: accent | default | success | warning | danger
+  default: soft / accent
+
+sizes:
+  sm (px-1 py-0) | md (px-2 py-0.5) | lg (px-3 py-1, text-sm)
+  default: md
+
+states: rest | (close button hover)
+
+tokens:
+  role: [color.accent|default|success|warning|danger (+ soft/foreground pairs)]
+  component: [radius.chip.radius (16), double.chip.paddingX.{sm,md,lg},
+              double.chip.paddingY.{sm,md,lg}, double.chip.fontSize.{sm,md,lg},
+              weight.medium, space.0.5 (gap)]
+
+non_token_measurements:
+  - hand-written facade: chip content (avatar/icon/label/close) is a custom
+    Row, so the label is styled at build time from resolved tokens rather than
+    through the badge's label slot
+  - close button is an InkWell with a circular custom border
+
+behavior: close button exposes onClose; the pill itself is non-interactive
+  (HeroUI chips are static unless a close/action slot is used).
+
+approximations:
+  - the `gap-0.5` between content items is a fixed 2px SizedBox, not a token
+  - label color resolves the kind's foreground token at build time

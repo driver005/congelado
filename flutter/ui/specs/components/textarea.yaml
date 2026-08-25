@@ -1,0 +1,32 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/textarea.css"
+  files: [tool/sources/heroui-textarea.css]
+  docs: https://heroui.com/en/docs/react/components/textarea
+anatomy:
+  - container (field: label + textarea + helper/error slots)
+  - field (min-height 38px, px-3 py-2, text-base sm:text-sm, rounded-field, bg-field, shadow-field, 1px transparent border)
+  - placeholder (text-field-placeholder)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (text-base sm:text-sm)
+default: -
+
+states: rest | hover (bg-field-hover + border-field-hover) | focus (status-focused-field ring + bg-field-focus) | invalid (status-invalid-field + bg-field-focus) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.fieldBorderFocus, color.focus, color.danger, color.default, color.defaultHover, color.muted, color.foreground, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), double.input.paddingX (12), double.input.paddingY (8), double.input.fontSize (14), double.input.transitionMs (150), weight.medium, shadow.field]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - min-height 38px (CSS literal; no token)
+  - border-width-field 0px approximated as a 1px transparent border so hover/error borders can paint
+
+behavior: multiline text entry via RemixTextField (minLines/maxLines); keyboard/focus from RemixTextField (Naked UI); pointer-events disabled via enabled flag.
+
+approximations:
+  - focus ring offset (CSS status-focused-field has ring-offset 0; HeroFocusRing draws 2px offset to match the shared field pattern)
+  - placeholder/sm breakpoint collapsed to the sm value

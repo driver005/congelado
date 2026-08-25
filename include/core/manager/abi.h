@@ -70,6 +70,46 @@ typedef enum {
                                * Same "resolve before build()" story (see cron_ctx below) since the
                                * engine plugin's on_load installs its fire callback and seeds its
                                * existing schedules into the backend during its own on_load. */
+    CONGELADO_RUN_WORKER_MANAGER = 11, /* Pluggable worker supervisor (interfaces::IWorkerManager) —
+                                        * same GET-a-native-interface-pointer shape as CRON, one
+                                        * IWorkerManager*. Resolved before build() (see
+                                        * worker_manager_ctx below) so the host can drive worker
+                                        * lifecycle (spawn/start on ready, shutdown_all on stop).
+                                        * Task dispatch stays engine-side — this only supervises. */
+    CONGELADO_RUN_WORKER = 12, /* A single task worker (interfaces::IWorker) — same GET-a-native-
+                                * interface-pointer shape as WORKER_MANAGER, one IWorker*. Unlike the
+                                * single-active capabilities, a deployment loads MANY worker plugins;
+                                * the worker host collects every one and keys them by
+                                * get_task_type(). Resolved by the host that owns the worker manager,
+                                * not into a host-callback field. */
+    CONGELADO_RUN_APP_DEFS = 13, /* An app's code-built defs (interfaces::IAppDefs) — GET returns an
+                                  * IAppDefs* whose get_task_defs()/get_workflow_defs() hand back
+                                  * serialized (JSON) defs the worker host registers with the engine
+                                  * on load, the C++-builder counterpart to the def-file path. Many
+                                  * app plugins may export this; the host collects every one, same
+                                  * multi-plugin shape as WORKER. */
+    CONGELADO_RUN_WORKER_ORCHESTRATOR = 14, /* Pluggable engine-side dispatch/orchestration backend
+                                             * (interfaces::IWorkerOrchestrator) — same GET-a-native-
+                                             * interface-pointer shape as WORKER_MANAGER, one
+                                             * IWorkerOrchestrator*. Resolved before build() (see
+                                             * worker_orchestrator_ctx below) so the engine plugin's
+                                             * on_load can wire it in. The engine-side counterpart to
+                                             * WORKER_MANAGER: it owns task dispatch, not worker
+                                             * lifecycle. */
+    CONGELADO_RUN_WORKFLOW_ORCHESTRATOR = 15, /* Pluggable workflow-lifecycle backend
+                                               * (interfaces::IWorkflowOrchestrator) — same GET-a-
+                                               * native-interface-pointer shape as
+                                               * WORKER_ORCHESTRATOR, one IWorkflowOrchestrator*.
+                                               * Resolved before build() (see
+                                               * workflow_orchestrator_ctx below). Owns the workflow
+                                               * DAG lifecycle (start/pause/resume/advance), the
+                                               * counterpart to WORKER_ORCHESTRATOR's task dispatch. */
+    CONGELADO_RUN_PAYLOAD_STORAGE = 16, /* Pluggable externalized payload storage
+                                         * (interfaces::IExternalPayloadStorage) — same GET-a-native-
+                                         * interface-pointer shape as STORAGE/CACHE, one
+                                         * IExternalPayloadStorage*. Resolved before build() (see
+                                         * payload_storage_ctx below) so the engine plugin's on_load
+                                         * wires the resolved backend (local-disk, S3, …) in. */
 } CongeladoRunType;
 
 typedef enum {
@@ -130,6 +170,41 @@ typedef struct CongeladoHostCallbacks {
                       * search_ctx/cache_ctx, so the engine plugin's on_load can install its fire
                       * callback and seed existing WorkflowSchedules into the backend. NULL if none
                       * resolved (schedules then never fire). */
+    void *worker_manager_ctx; /* resolved interfaces::IWorkerManager*, if a worker-manager-capable
+                                * plugin was already opened by the time this gets set — same "resolve
+                                * before build()" reasoning as cron_ctx, so the host (ServerRunner)
+                                * can drive worker lifecycle after plugins go ready and tear workers
+                                * down at shutdown. NULL if no worker-manager plugin was found. */
+    void *worker_orchestrator_ctx; /* resolved interfaces::IWorkerOrchestrator*, if a
+                                     * worker-orchestrator-capable plugin was already opened by the
+                                     * time this gets set — same "resolve before build()" reasoning as
+                                     * worker_manager_ctx, so the engine plugin's on_load can route
+                                     * dispatch/orchestration through it. NULL if none found, in which
+                                     * case the engine keeps its built-in Orchestrator. */
+    void *workflow_orchestrator_ctx; /* resolved interfaces::IWorkflowOrchestrator*, if a
+                                       * workflow-orchestrator-capable plugin was already opened by
+                                       * the time this gets set — same "resolve before build()"
+                                       * reasoning as worker_orchestrator_ctx, so the engine plugin's
+                                       * on_load can wire the workflow-lifecycle backend in. NULL if
+                                       * none found. */
+    void *payload_storage_ctx; /* resolved interfaces::IExternalPayloadStorage*, if a
+                                 * payload-storage-capable plugin was already opened by the time this
+                                 * gets set — same "resolve before build()" reasoning as
+                                 * database_ctx, so the engine plugin's on_load can wire the backend
+                                 * into EngineContext. NULL if none found. */
+    void *curl_multi_ctx; /* io::base::curl::MultiDriver*, host-owned, process-wide — drives
+                           * libcurl's multi interface off the shared io_uring leverager
+                           * (CURLMOPT_SOCKETFUNCTION/TIMERFUNCTION -> Leverager::poll()/timeout()),
+                           * so workers with no async transport of their own (email/llm, libcurl's
+                           * easy interface) can submit a CURL* easy handle and get a callback on
+                           * completion without ever blocking a thread. NULL if the host didn't
+                           * stand one up. */
+    void *client_protocol_ctx; /* interfaces::IProtocol<io::layer::http2::Server>*, host-owned,
+                                 * outlives the workers. The `client`/`client_pool` workers call
+                                 * get_client(register.make_dispatch()) on it themselves to own their
+                                 * own outbound HTTP/2 client + response correlation (core::client::
+                                 * Register), rather than receiving a pre-connected client from the
+                                 * host. NULL if no downstream endpoint is configured. */
 } CongeladoHostCallbacks;
 
 typedef struct CongeladoConfigView {

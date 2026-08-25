@@ -1,0 +1,58 @@
+component: dropdown
+flutter_name: HeroDropdown + showHeroDropdown
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/dropdown.css"
+  files: [tool/sources/heroui-dropdown.css]
+  docs: https://heroui.com/en/docs/react/components/dropdown
+
+anatomy:
+  - root (.dropdown flex flex-col gap-1 — trigger + menu)
+  - trigger (.dropdown__trigger inline-block outline-none; pressed scale
+    0.97; focus ring; disabled/pending states)
+  - popover (.dropdown__popover: bg-overlay shadow-overlay p-0 text-sm,
+    min(32px, --radius-3xl) = 24 radius, max-w-[48svw] md:min-w-55 (220),
+    fade+zoom+slide entry like popover)
+  - menu ([data-slot=dropdown-menu] p-1.5 outline-none; .dropdown__menu
+    gap-0.5)
+  - item (menu-item.css: min-h-9 w-full gap-3 rounded-2xl px-2.5 py-1.5;
+    hover bg-default; pressed scale 0.98; focus ring; disabled opacity 0.5;
+    danger label/indicator text-danger; selected check indicator at start
+    with ps-7)
+  - separator ([data-slot=separator] ms-[3%] w-[94%])
+
+kinds: none
+default: -
+
+sizes: none
+default: -
+
+states:
+  hover, pressed, focus-visible, disabled, danger, selected (check
+  indicator); open/close on outside tap / item select
+
+tokens:
+  role: [color.overlay, color.default, color.defaultForeground,
+    color.danger, color.muted, color.separator, color.transparent,
+    color.focus (ring), shadow.overlay (per-theme)]
+  component: [radius.3xl (24 popover), radius.2xl (16 item),
+    type.sm (14), space.3 (12 gap), double.disabledOpacity (0.5)]
+
+non_token_measurements:
+  - item min-height 36, px 10 / py 6, selected indicator size 10 (size-2.5)
+    at start-2 with ps-7
+  - popover min-width 220 at >= 768px, max-width 48vw
+  - entry 150ms --ease-smooth fade+zoom-in-90 + 4px slide
+
+behavior:
+  HeroDropdown builds its trigger via a builder callback (the caller wires
+  its press handler to the provided open callback, avoiding double-firing
+  with the trigger's own tap handling); showHeroDropdown measures the
+  trigger rect and opens the shared popover route (see popover) with the
+  menu content and no arrow.
+
+approximations:
+  - menu item keyboard arrow navigation not implemented (Enter/Space
+    activation only)
+  - no submenu support (DropdownSubmenuTrigger not exposed)

@@ -1,0 +1,64 @@
+component: calendar
+flutter_name: HeroCalendar
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/calendar.css"
+  files: [tool/sources/heroui-calendar.css]
+  docs: https://heroui.com/en/docs/react/components/calendar
+
+anatomy:
+  - .calendar: w-63 max-w-63 (252) inline-size container; no padding/radius/bg of its own (chrome lives in the picker popover)
+  - .calendar__header: flex items-center justify-between px-0.5 (2) pb-4 (16)
+  - .calendar__heading: flex-1 text-sm (14) font-medium month-year label
+  - .calendar__nav-button: size-6 (24) rounded-2xl (16) text-accent-soft-foreground; hover bg-default; active scale(0.95); focus status-focused; disabled status-disabled
+  - .calendar__nav-button-icon: size-4 (16)
+  - .calendar__grid: display grid, 7 columns, w-full
+  - .calendar__header-cell: text-xs (12) font-medium text-muted, pb-2 (8), centered
+  - .calendar__grid-body tr:first-child td: mt-1 (4)
+  - .calendar__cell: aspect-square size-full (36x36) rounded-3xl (24) text-center text-sm (14) font-medium
+  - .calendar__cell-indicator: bottom-1 (4) size-[3px] rounded-xs (2) bg-muted; bg-accent-foreground when selected
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states:
+  - rest
+  - hover (hover media only): bg-default on non-selected cells, bg-accent-soft-hover on today
+  - pressed: bg-default scale(0.95); selected -> bg-accent-hover
+  - focus-visible: status-focused (2px focus ring)
+  - selected: bg-accent text-accent-foreground
+  - today: bg-accent-soft text-accent-soft-foreground
+  - outside-month: text-muted opacity-50; selected+outside -> bg-default
+  - unavailable/disabled: status-disabled + line-through
+
+tokens:
+  role: [colorAccent, colorAccentForeground, colorAccentHover, colorAccentSoft, colorAccentSoftForeground, colorAccentSoftHover, colorDefault, colorMuted, colorForeground, colorFocus, doubleDisabledOpacity, radius3xl, space05, space2, space4, space6, typeSm, typeXs, weightMedium]
+  component: [space05=2 (px-0.5), space2=8 (header-cell pb-2), space4=16 (header pb-4), space6=24 (nav button size-6), radius3xl=24 (cell rounded-3xl), typeSm=14 (heading/cell), typeXs=12 (weekday), weightMedium=500]
+
+non_token_measurements:
+  - calendar width 252 (w-63 -> heroCalendarWidth)
+  - day cell 36x36 = 252 / 7 columns
+  - nav button 24x24, icon 16
+  - nav button radius 16 (rounded-2xl)
+  - weekday label font 12 (text-xs), weight 500, pb-2 (8)
+  - grid body first-row top spacing 4 (mt-1)
+  - cell press scale 0.95 at 250ms --ease-out; bg 100ms --ease-out
+  - nav press scale 0.95 at 250ms; bg 100ms
+
+behavior:
+  - embedded (non-overlay) single-date month grid
+  - header: prev/next ghost buttons navigate months; heading formats "July 2025"
+  - 6-week grid of 42 days; leading/trailing days are outside-month (muted at 50%)
+  - tapping a day calls onChanged(day); tapping an outside-month day also navigates to its month
+  - locale-aware weekday labels and first day of week (MaterialLocalizations)
+  - disabled: whole calendar at 50% opacity (status-disabled), cells struck through
+
+approximations:
+  - weekday labels/first-day-of-week come from MaterialLocalizations instead of react-aria's Intl locale data
+  - cell focus ring drawn as an inline 2px accent border (status-focused is ring-offset-0)
+  - cell background-color transition uses 100ms ease-out (source lists only transform 250ms + box-shadow 100ms)

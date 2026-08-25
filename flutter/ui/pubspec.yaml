@@ -1,0 +1,51 @@
+name: congelado_hero_ui
+description: >-
+  HeroUI v3 (heroui.com) design-system mirror for Flutter, built on Remix
+  (headless UI behavior + Mix styling). Tokens are generated from the pinned
+  @heroui/styles@3.2.4 npm package via tool/ (extract -> normalize -> generate
+  -> verify); the public surface is Hero* widgets, HeroTokens, and HeroScope.
+  This package is also runnable as an app: `lib/main.dart` launches the
+  Widgetbook catalogue for every Hero* component.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  # Matches the published remix 0.2.0 consumer floor (remix requires
+  # sdk >=3.11.0, flutter >=3.38.1). The repo's own app/ already pins
+  # flutter >=3.44.0.
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.38.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Component machinery: headless behavior (Naked UI) + styling engine (Mix).
+  # Remix re-exports both, but we import package:mix/mix.dart directly in the
+  # generated token file, so mix is declared as a direct dependency too.
+  remix: ^0.2.0
+  mix: ^2.0.1
+  # Widgetbook catalogue — app entrypoint (lib/main.dart) and the use cases in
+  # lib/src/widgetbook/ depend on it.
+  widgetbook: ^3.25.0
+  # Runtime plugin system (flutter/plugins/): host + spec loader + factory.
+  congelado_plugin_sdk:
+    path: ../plugins/plugin_sdk
+  # Example code plugin shown in the catalogue's Plugins folder.
+  congelado_plugin_clock:
+    path: ../plugins/example_clock
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600

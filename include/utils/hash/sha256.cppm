@@ -5,6 +5,9 @@ module;
 export module utils_hash;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils {
 
@@ -44,3 +47,29 @@ class Sha256 {
 };
 
 } // namespace utils
+
+#ifdef CONGELADO_TEST
+namespace utils::tests {
+using namespace boost::ut;
+
+suite<"Sha256"> sha256_suite = [] {
+    "matches the well-known digest of an empty input"_test = [] {
+        expect(Sha256::hash_hex("") ==
+               "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    };
+    "matches the well-known digest of \"abc\""_test = [] {
+        expect(Sha256::hash_hex("abc") ==
+               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    };
+    "digest is deterministic and 64 lowercase hex characters"_test = [] {
+        auto digest = Sha256::hash_hex("congelado");
+        expect(digest.size() == 64);
+        expect(digest == Sha256::hash_hex("congelado"));
+        expect(std::ranges::all_of(digest, [](char character) {
+            return (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f');
+        }));
+    };
+};
+
+} // namespace utils::tests
+#endif

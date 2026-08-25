@@ -7,6 +7,10 @@ export module congelado_plugin;
 import std;
 import interfaces;
 export import core_plugin;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
+
 export namespace congelado {
 
 class Plugin : public interfaces::ILogger {
@@ -271,6 +275,73 @@ void *cron_get(T *plugin) noexcept {
 }
 
 template <typename T>
+concept has_worker_manager_get = requires(T *plugin) { plugin->worker_manager_get(); };
+
+template <typename T>
+void *worker_manager_get(T *plugin) noexcept {
+    if constexpr (has_worker_manager_get<T>) {
+        return plugin->worker_manager_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_worker_orchestrator_get = requires(T *plugin) { plugin->worker_orchestrator_get(); };
+
+template <typename T>
+void *worker_orchestrator_get(T *plugin) noexcept {
+    if constexpr (has_worker_orchestrator_get<T>) {
+        return plugin->worker_orchestrator_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_workflow_orchestrator_get =
+    requires(T *plugin) { plugin->workflow_orchestrator_get(); };
+
+template <typename T>
+void *workflow_orchestrator_get(T *plugin) noexcept {
+    if constexpr (has_workflow_orchestrator_get<T>) {
+        return plugin->workflow_orchestrator_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_payload_storage_get = requires(T *plugin) { plugin->payload_storage_get(); };
+
+template <typename T>
+void *payload_storage_get(T *plugin) noexcept {
+    if constexpr (has_payload_storage_get<T>) {
+        return plugin->payload_storage_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_worker_get = requires(T *plugin) { plugin->worker_get(); };
+
+template <typename T>
+void *worker_get(T *plugin) noexcept {
+    if constexpr (has_worker_get<T>) {
+        return plugin->worker_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
+concept has_app_defs_get = requires(T *plugin) { plugin->app_defs_get(); };
+
+template <typename T>
+void *app_defs_get(T *plugin) noexcept {
+    if constexpr (has_app_defs_get<T>) {
+        return plugin->app_defs_get();
+    }
+    return nullptr;
+}
+
+template <typename T>
 concept has_bridge_native_handle = requires(T *plugin) { plugin->bridge_native_handle(); };
 
 template <typename T>
@@ -317,6 +388,22 @@ CongeladoAny call(T *plugin, CongeladoRunType type, CongeladoRunAction action,
         return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = cache_get(plugin)};
     case CONGELADO_RUN_CRON:
         return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = cron_get(plugin)};
+    case CONGELADO_RUN_WORKER_MANAGER:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
+                            .v_ptr = worker_manager_get(plugin)};
+    case CONGELADO_RUN_WORKER_ORCHESTRATOR:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
+                            .v_ptr = worker_orchestrator_get(plugin)};
+    case CONGELADO_RUN_WORKFLOW_ORCHESTRATOR:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
+                            .v_ptr = workflow_orchestrator_get(plugin)};
+    case CONGELADO_RUN_PAYLOAD_STORAGE:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
+                            .v_ptr = payload_storage_get(plugin)};
+    case CONGELADO_RUN_WORKER:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = worker_get(plugin)};
+    case CONGELADO_RUN_APP_DEFS:
+        return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0, .v_ptr = app_defs_get(plugin)};
     case CONGELADO_RUN_BRIDGE:
         if (action == CONGELADO_ACTION_GET_NATIVE_HANDLE) {
             return CongeladoAny{.type_index = CG_PTR, .zero_padding = 0,
@@ -340,6 +427,7 @@ using core::plugin::types::lua_bridge_ctx;
 using core::plugin::types::search_ctx;
 using core::plugin::types::cache_ctx;
 using core::plugin::types::cron_ctx;
+using core::plugin::types::worker_manager_ctx;
 using core::plugin::types::config_get;
 using core::plugin::types::config_for_each;
 using core::plugin::types::ConfigViewBuilder;
@@ -362,3 +450,108 @@ template <typename T>
 using ValueTraits = core::plugin::ValueTraits<T>;
 
 } // namespace congelado
+
+#ifdef CONGELADO_TEST
+namespace congelado::tests {
+using namespace boost::ut;
+
+// Minimal concrete subclass — only the two pure virtuals get overridden, everything else stays
+// on the base class's default so the defaults themselves are what's under test. logger_write()
+// is also overridden, but only to record what write()/error() forward to it, not to change any
+// default behavior.
+class TestPlugin final : public Plugin {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "test_plugin"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+
+    void logger_write(int level, std::string_view msg) noexcept override {
+        m_last_level = level;
+        m_last_message = std::string{msg};
+    }
+
+    [[nodiscard]] int get_last_level() const noexcept { return m_last_level; }
+    [[nodiscard]] const std::string &get_last_message() const noexcept { return m_last_message; }
+
+  private:
+    int m_last_level{-1};
+    std::string m_last_message;
+};
+
+// Doesn't override logger_write() — exists solely to exercise the BASE class's own default
+// (TestPlugin above overrides it, so it can't observe the base default).
+class BareTestPlugin final : public Plugin {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "bare_test_plugin"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+};
+
+suite<"Plugin"> plugin_suite = [] {
+    "unoverridden hooks report safe, inert defaults"_test = [] {
+        TestPlugin plugin;
+
+        expect(plugin.capabilities() == 0);
+        expect(plugin.get_unique_type().empty());
+        expect(plugin.get_type() == "plugin");
+        expect(plugin.get_requires().empty());
+        expect(plugin.get_load_before_types().empty());
+        expect(plugin.get_worker_type().empty());
+        expect(plugin.on_reload_requested() == true);
+    };
+
+    "execute_worker default returns an empty config view"_test = [] {
+        TestPlugin plugin;
+        auto result = plugin.execute_worker(nullptr);
+
+        expect(result.count == 0);
+        expect(result.keys == nullptr);
+        expect(result.values == nullptr);
+    };
+
+    "write() forwards to logger_write() with the level and message intact"_test = [] {
+        TestPlugin plugin;
+        plugin.write(interfaces::LogLevel::WARNING, "careful");
+
+        expect(plugin.get_last_level() == static_cast<int>(interfaces::LogLevel::WARNING));
+        expect(plugin.get_last_message() == "careful");
+    };
+
+    "error() forwards to logger_write() at the hardcoded level 4"_test = [] {
+        TestPlugin plugin;
+        plugin.error("boom");
+
+        expect(plugin.get_last_level() == 4);
+        expect(plugin.get_last_message() == "boom");
+    };
+
+    "on_load default is a no-op, safe to call with empty host/config views"_test = [] {
+        TestPlugin plugin;
+        expect(nothrow([&] {
+            plugin.on_load(CongeladoHostCallbacks{}, CongeladoConfigView{});
+        }));
+    };
+
+    "on_unload default is a no-op"_test = [] {
+        TestPlugin plugin;
+        expect(nothrow([&] { plugin.on_unload(); }));
+    };
+
+    "on_shutdown_requested default is a no-op"_test = [] {
+        TestPlugin plugin;
+        expect(nothrow([&] { plugin.on_shutdown_requested(); }));
+    };
+
+    "on_ready default is a no-op"_test = [] {
+        TestPlugin plugin;
+        expect(nothrow([&] { plugin.on_ready(); }));
+    };
+
+    "logger_write's base default is a no-op — write()/error() don't crash without an override"_test =
+        [] {
+        BareTestPlugin plugin;
+        expect(nothrow([&] { plugin.write(interfaces::LogLevel::WARNING, "careful"); }));
+        expect(nothrow([&] { plugin.error("boom"); }));
+    };
+};
+
+} // namespace congelado::tests
+#endif

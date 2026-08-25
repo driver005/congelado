@@ -1,6 +1,9 @@
 export module utils_buffering:deleter;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::buffering {
 
@@ -137,3 +140,49 @@ class Deleter {
 };
 
 } // namespace utils::buffering
+
+#ifdef CONGELADO_TEST
+namespace utils::buffering::tests {
+using namespace boost::ut;
+
+suite<"Deleter"> deleter_suite = [] {
+    "default-constructed deleter is empty"_test = [] {
+        Deleter deleter;
+        expect(deleter.empty());
+        expect(deleter.use_count() == 0);
+    };
+    "wrapping an action starts at ref count 1 and fires exactly once on final release"_test = [] {
+        int fire_count = 0;
+        {
+            Deleter deleter([&fire_count] { ++fire_count; });
+            expect(not deleter.empty());
+            expect(deleter.use_count() == 1);
+            expect(fire_count == 0);
+        }
+        expect(fire_count == 1);
+    };
+    "copying shares one action and bumps the ref count"_test = [] {
+        int fire_count = 0;
+        Deleter first([&fire_count] { ++fire_count; });
+        {
+            Deleter second = first;
+            expect(first.use_count() == 2);
+            expect(second.use_count() == 2);
+        }
+        expect(fire_count == 0); // second's destruction only dropped the count, didn't fire
+        expect(first.use_count() == 1);
+    };
+    "move steals ownership without firing the action"_test = [] {
+        int fire_count = 0;
+        Deleter first([&fire_count] { ++fire_count; });
+        Deleter second = std::move(first);
+
+        expect(first.empty());
+        expect(not second.empty());
+        expect(second.use_count() == 1);
+        expect(fire_count == 0);
+    };
+};
+
+} // namespace utils::buffering::tests
+#endif

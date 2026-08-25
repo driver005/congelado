@@ -1,6 +1,9 @@
 export module io_error:http;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::error::http {
 
@@ -370,3 +373,155 @@ struct std::formatter<io::error::http::Http2ErrorCode> {
         return std::format_to(ctx.out(), "{}", name);
     }
 };
+
+#ifdef CONGELADO_TEST
+namespace io::error::http::tests {
+using namespace boost::ut;
+
+suite<"get_http2_error_code"> get_http2_error_code_suite = [] {
+    "round-trips every known RFC 9113 code"_test = [] {
+        expect(get_http2_error_code(0x00) == Http2ErrorCode::NO_ERROR_CODE);
+        expect(get_http2_error_code(0x01) == Http2ErrorCode::PROTOCOL_ERROR);
+        expect(get_http2_error_code(0x02) == Http2ErrorCode::INTERNAL_ERROR);
+        expect(get_http2_error_code(0x03) == Http2ErrorCode::FLOW_CONTROL_ERROR);
+        expect(get_http2_error_code(0x04) == Http2ErrorCode::SETTINGS_TIMEOUT);
+        expect(get_http2_error_code(0x05) == Http2ErrorCode::STREAM_CLOSED);
+        expect(get_http2_error_code(0x06) == Http2ErrorCode::FRAME_SIZE_ERROR);
+        expect(get_http2_error_code(0x07) == Http2ErrorCode::REFUSED_STREAM);
+        expect(get_http2_error_code(0x08) == Http2ErrorCode::CANCEL);
+        expect(get_http2_error_code(0x09) == Http2ErrorCode::COMPRESSION_ERROR);
+        expect(get_http2_error_code(0x0a) == Http2ErrorCode::CONNECT_ERROR);
+        expect(get_http2_error_code(0x0b) == Http2ErrorCode::ENHANCE_YOUR_CALM);
+        expect(get_http2_error_code(0x0c) == Http2ErrorCode::INADEQUATE_SECURITY);
+        expect(get_http2_error_code(0x0d) == Http2ErrorCode::HTTP_1_1_REQUIRED);
+    };
+
+    "falls back to INTERNAL_ERROR for an unrecognized code"_test = [] {
+        expect(get_http2_error_code(0xffffffffU) == Http2ErrorCode::INTERNAL_ERROR);
+    };
+};
+
+suite<"Http2Exception"> http2_exception_suite = [] {
+    "carries the error code and message it was built with"_test = [] {
+        Http2Exception error(Http2ErrorCode::PROTOCOL_ERROR, "boom");
+
+        expect(error.get_code() == Http2ErrorCode::PROTOCOL_ERROR);
+        expect(std::string_view(error.what()) == "boom");
+    };
+};
+
+suite<"StreamError"> stream_error_suite = [] {
+    "carries the stream id alongside the inherited code and message"_test = [] {
+        StreamError error(7, Http2ErrorCode::CANCEL, "stream gone");
+
+        expect(error.get_stream_id() == 7);
+        expect(error.get_code() == Http2ErrorCode::CANCEL);
+        expect(std::string_view(error.what()) == "stream gone");
+    };
+};
+
+suite<"ConnectionError"> connection_error_suite = [] {
+    "defaults the last stream id to MAX_CONNECTED_STREAMS"_test = [] {
+        ConnectionError error(Http2ErrorCode::INTERNAL_ERROR, "down");
+
+        expect(error.get_last_stream_id() == MAX_CONNECTED_STREAMS);
+        expect(error.get_code() == Http2ErrorCode::INTERNAL_ERROR);
+    };
+
+    "accepts an explicit last stream id"_test = [] {
+        ConnectionError error(Http2ErrorCode::FLOW_CONTROL_ERROR, "down", 42);
+
+        expect(error.get_last_stream_id() == 42);
+    };
+};
+
+suite<"DecodeError"> decode_error_suite = [] {
+    "wraps the given message"_test = [] {
+        DecodeError error("bad decode");
+
+        expect(std::string_view(error.what()) == "bad decode");
+    };
+};
+
+suite<"InvalidIndexError"> invalid_index_error_suite = [] {
+    "carries the offending index and formats a message"_test = [] {
+        InvalidIndexError<> error(5);
+
+        expect(error.index() == 5);
+        expect(std::string_view(error.what()) == "hpack: invalid index 5");
+    };
+};
+
+suite<"EmptyNameError"> empty_name_error_suite = [] {
+    "has a fixed message"_test = [] {
+        EmptyNameError error;
+
+        expect(std::string_view(error.what()) == "hpack: literal header field has empty name");
+    };
+};
+
+suite<"TableSizeError"> table_size_error_suite = [] {
+    "carries the requested size and the exceeded limit"_test = [] {
+        TableSizeError error(100, 50);
+
+        expect(error.requested() == 100);
+        expect(error.limit() == 50);
+        expect(std::string_view(error.what()) ==
+               "hpack: table size update 100 exceeds acknowledged limit 50");
+    };
+};
+
+suite<"TruncatedDataError"> truncated_data_error_suite = [] {
+    "has a fixed message"_test = [] {
+        TruncatedDataError error;
+
+        expect(std::string_view(error.what()) == "hpack: unexpected end of header block");
+    };
+};
+
+suite<"HuffmanDecodeError"> huffman_decode_error_suite = [] {
+    "wraps the given message"_test = [] {
+        HuffmanDecodeError error("bad code");
+
+        expect(std::string_view(error.what()) == "hpack: huffman error — bad code");
+    };
+};
+
+suite<"IntegerDecodeError"> integer_decode_error_suite = [] {
+    "wraps the given message"_test = [] {
+        IntegerDecodeError error("overflow");
+
+        expect(std::string_view(error.what()) == "hpack: integer decode error — overflow");
+    };
+};
+
+suite<"StringDecodeError"> string_decode_error_suite = [] {
+    "wraps the given message"_test = [] {
+        StringDecodeError error("bad string");
+
+        expect(std::string_view(error.what()) == "hpack: string decode error — bad string");
+    };
+};
+
+suite<"CompressionError"> compression_error_suite = [] {
+    "wraps the given message"_test = [] {
+        CompressionError error("context lost");
+
+        expect(std::string_view(error.what()) == "context lost");
+    };
+};
+
+suite<"Http2ErrorCode formatter"> http2_error_code_formatter_suite = [] {
+    "formats a known code as its RFC 9113 name"_test = [] {
+        expect(std::format("{}", Http2ErrorCode::PROTOCOL_ERROR) == "PROTOCOL_ERROR");
+        expect(std::format("{}", Http2ErrorCode::HTTP_1_1_REQUIRED) == "HTTP_1_1_REQUIRED");
+    };
+
+    "formats an unrecognized value as UNKNOWN"_test = [] {
+        auto bogus = static_cast<Http2ErrorCode>(0xff);
+        expect(std::format("{}", bogus) == "UNKNOWN");
+    };
+};
+
+} // namespace io::error::http::tests
+#endif

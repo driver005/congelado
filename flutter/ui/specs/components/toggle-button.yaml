@@ -1,0 +1,34 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/toggle-button.css"
+  files: [tool/sources/heroui-toggle-button.css]
+  docs: https://heroui.com/en/docs/react/components/toggle-button
+anatomy:
+  - button (relative isolate inline-flex h-10 w-fit items-center justify-center gap-2 rounded-3xl px-4 text-sm font-medium, md:h-9)
+  - label (whitespace-nowrap)
+  - icon (size-5 sm:size-4, pointer-events-none)
+
+kinds: default (bg-default) | ghost (transparent, bg-default on hover, text-default-foreground)
+
+sizes: sm (h-9 md:h-8, px-3, icon size-4) | md (default) | lg (h-11 md:h-10, text-base)
+default: -
+
+states: rest | hover (default-hover / accent-soft-hover) | selected (bg-accent-soft text-accent-soft-foreground) | pressed (scale 0.98/0.97/0.96) | focus-visible (status-focused) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.default, color.defaultHover, color.defaultForeground, color.accentSoft, color.accentSoftHover, color.accentSoftForeground, color.transparent, color.focus, double.disabledOpacity]
+  component: [radius.3xl (24), weight.medium, space.2 (gap), space.4 (px-4)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - size heights (32/36/40, md values) and px (12/16) are literals
+  - pressed scale factors (0.98/0.97/0.96) are literals
+  - icon sizes 16/20 are literals
+
+behavior: selectable pill: tap toggles via onPressed; HeroFocusRing around the button; disabled fades to disabled-opacity.
+
+approximations:
+  - md: breakpoint collapsed (fixed md values used)
+  - focus ring offset (status-focused ring-offset 2 — HeroFocusRing matches)
+  - `currentColor` foreground approximated with default-foreground

@@ -1,0 +1,55 @@
+component: pagination
+flutter_name: HeroPagination
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/pagination.css"
+  files: [tool/sources/heroui-pagination.css]
+  docs: https://heroui.com/en/docs/react/components/pagination
+
+anatomy:
+  - root (.pagination flex w-full flex-col items-center justify-between
+    gap-4 sm:flex-row)
+  - summary (.pagination__summary flex gap-2 self-start text-sm text-muted
+    sm:self-center)
+  - content (.pagination__content flex gap-1 self-start sm:self-center)
+  - link (.pagination__link: size-9 md:size-8 rounded-3xl text-sm
+    font-medium; transparent bg, hover/pressed bg --default-hover, pressed
+    scale 0.97; [data-active] bg --default with --default-foreground text;
+    focus ring; disabled opacity 0.5; transform 250ms --ease-smooth, bg
+    100ms --ease-out)
+  - ellipsis (.pagination__ellipsis size-9 md:size-8 text-sm text-muted)
+  - nav (.pagination__link--nav w-auto gap-1.5 px-2.5 with prev/next icons)
+
+kinds: none
+default: -
+
+sizes:
+  sm (size-8 md:size-7, text-xs, nav px-2, press scale 0.98)
+  md (default)
+  lg (size-10 md:size-9, text-base, nav px-3, press scale 0.96)
+  default: md
+
+states:
+  hover, pressed, active page, disabled (prev/next at bounds unless loop),
+  focus-visible
+
+tokens:
+  role: [color.default, color.defaultHover, color.defaultForeground,
+    color.muted, color.transparent, color.focus (ring)]
+  component: [radius.3xl (24), type.sm/xs/base (14/12/16),
+    weight.medium (500), double.disabledOpacity (0.5)]
+
+non_token_measurements:
+  - sizes 36/32 (default), 32/28 (sm), 40/36 (lg) with md at the 768px
+    breakpoint; nav gap 6, nav padding 10/8/12
+
+behavior:
+  bounded page window (boundaries + siblings with ellipses); prev/next with
+  optional loop; onPageChanged(page); optional summary slot; mobile column
+  vs sm row layout at 640px.
+
+approximations:
+  - page window uses boundaries/siblings like HeroUI's windowing but with a
+    simplified ellipse rule (single ellipsis per gap)
+  - RTL icon rotation not implemented

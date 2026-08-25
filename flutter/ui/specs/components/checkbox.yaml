@@ -1,0 +1,39 @@
+component: Checkbox
+flutter_name: HeroCheckbox
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/checkbox.css"
+  files: [tool/sources/heroui-checkbox.css]
+  docs: https://heroui.com/en/docs/react/components/checkbox
+
+anatomy:
+  - control (size-4 16, rounded-md 6, bg-field, shadow-field)
+  - checkmark indicator (size-2.5 10, stroke 2.5, accent-foreground)
+  - label slot (caller-composed; the widget itself is control-only)
+
+kinds: none
+default: -
+
+sizes: none (size-4 fixed)
+default: -
+
+states: rest | hover (border -> field-border-hover) | checked (bg-accent)
+  | focus (2px accent ring) | disabled (via RemixCheckbox)
+
+tokens:
+  role: [color.field, color.accent, color.accentForeground, color.focus,
+         color.fieldBorderHover, shadow.field (per-theme)]
+  component: [double.checkbox.size, radius.checkbox.radius,
+              double.checkbox.iconSize, double.focusRingWidth]
+
+non_token_measurements:
+  - tristate/indeterminate icon (Icons.horizontal_rule) left at the
+    RemixCheckbox default (HeroUI uses a custom dash)
+
+behavior: checked/unchecked/tristate semantics, keyboard, focus via
+  RemixCheckbox (Naked UI).
+
+approximations:
+  - the field shadow is resolved by the HeroCheckbox facade (per-theme)
+  - the 200ms fill/scale transitions from the source are not reproduced

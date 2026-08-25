@@ -1,0 +1,31 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/menu.css"
+  files: [tool/sources/heroui-menu.css]
+  docs: https://heroui.com/en/docs/react/components/menu
+anatomy:
+  - trigger (dropdown__trigger)
+  - popover (bg-overlay radius min(32px, radius-3xl) shadow-overlay min-w-55 max-w-48svw, enter fade+zoom 150ms)
+  - menu list (relative flex w-full flex-col gap-1 overflow-clip p-1)
+
+kinds: none
+
+sizes: none (min-w-55 = 220px)
+default: -
+
+states: rest | open (popup shown)
+
+tokens:
+  role: [color.overlay, color.overlayForeground, color.focus]
+  component: [radius.3xl (24), shadow.overlay, space.1 (p-1 / gap-1)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - min-width 220px (min-w-55) and max-width 48svw are literals
+
+behavior: anchored overlay (HeroPopup): trigger tap toggles; outside tap closes; menu items fire onPressed.
+
+approximations:
+  - 48svw approximated with 48% of the screen width
+  - enter 150ms ease-smooth / exit 100ms via HeroPopup fade + zoom 95%

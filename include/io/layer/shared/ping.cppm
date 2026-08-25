@@ -1,6 +1,9 @@
 export module io_layer_shared:ping;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::shared_layer::ping {
 

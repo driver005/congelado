@@ -1,0 +1,32 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/input-group.css"
+  files: [tool/sources/heroui-input-group.css]
+  docs: https://heroui.com/en/docs/react/components/input-group
+anatomy:
+  - group (inline-flex min-h-9 items-center rounded-field border bg-field text-sm text-field-foreground shadow-field; hover bg-field-hover; focus-within status-focused-field)
+  - prefix (h-full px-3 text-field-placeholder, border-s field-border, rounded-s-field)
+  - input (flex-1 px-3 py-2 text-base bg-transparent)
+  - suffix (h-full px-3 text-field-placeholder, border-s field-border, rounded-e-field)
+
+kinds: primary (shadow-field) | secondary (shadow-none, bg-default)
+
+sizes: none (min-h-9 = 36)
+default: -
+
+states: rest | hover (bg-field-hover) | focus-within (status-focused-field) | invalid (status-invalid-field) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.field, color.fieldHover, color.fieldFocus, color.fieldForeground, color.fieldPlaceholder, color.fieldBorder, color.fieldBorderHover, color.focus, color.danger, color.default, color.defaultHover, color.transparent, double.borderWidth, double.disabledOpacity]
+  component: [radius.field (12), double.input.minHeight (36), double.input.fontSize (14), double.input.transitionMs (150), space.3 (px-3 slots), shadow.field]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - prefix/suffix separator 1px field-border and slot paddings are literals
+
+behavior: joins borderless children (inputs/textarea) inside a field shell; a FocusScope tracks child focus to paint the shell ring.
+
+approximations:
+  - prefix/suffix border uses the transparent field-border token (invisible in the default theme, matching CSS)
+  - textarea-in-group variant (items-start) not parameterized

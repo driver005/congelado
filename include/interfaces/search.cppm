@@ -44,12 +44,6 @@ class ISearchProvider {
      * @return the backend's name.
      */
     [[nodiscard]] virtual std::string_view backend_name() const noexcept = 0;
-    /**
-     * @brief Says whether this backend is load-bearing or just optional infra riding along.
-     * @return false by default — search is optional motion, callers degrade gracefully (empty
-     * results, not a crash) with none configured.
-     */
-    [[nodiscard]] virtual bool required() const noexcept { return false; }
 
     /**
      * @brief Upserts a document into the index.

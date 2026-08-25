@@ -5,6 +5,9 @@ export module core_router:handler;
 import std;
 import interfaces;
 import :consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::router {
 
@@ -175,3 +178,102 @@ class HandlerPool {
 };
 
 } // namespace core::router
+
+#ifdef CONGELADO_TEST
+namespace core::router::tests {
+using namespace boost::ut;
+
+// static: internal linkage so this doesn't collide with the same-named test helper other
+// core_router partition files (builder.cppm, router.cppm) define in this same tests namespace.
+static interfaces::HandlerFn noop_handler() {
+    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {};
+}
+
+suite<"Handler"> handler_suite = [] {
+    "starts empty — find returns nullptr for any method"_test = [] {
+        Handler<4> table;
+        expect(table.get_size() == 0);
+        expect(table.find(interfaces::io::types::Method::GET) == nullptr);
+    };
+    "add_handler registers by method, find retrieves it"_test = [] {
+        Handler<4> table;
+        table.add_handler(interfaces::io::types::Method::GET, noop_handler());
+
+        expect(table.get_size() == 1);
+        expect(table.find(interfaces::io::types::Method::GET) != nullptr);
+        expect(table.find(interfaces::io::types::Method::POST) == nullptr);
+    };
+    "registering the same method twice throws"_test = [] {
+        Handler<4> table;
+        table.add_handler(interfaces::io::types::Method::GET, noop_handler());
+        expect(throws<std::runtime_error>(
+            [&] { table.add_handler(interfaces::io::types::Method::GET, noop_handler()); }));
+    };
+    "add_handler throws once the table is full"_test = [] {
+        Handler<1> table;
+        table.add_handler(interfaces::io::types::Method::GET, noop_handler());
+        expect(throws<std::runtime_error>(
+            [&] { table.add_handler(interfaces::io::types::Method::POST, noop_handler()); }));
+    };
+};
+
+suite<"HandlerPool"> handler_pool_suite = [] {
+    "starts empty"_test = [] {
+        HandlerPool<4> pool;
+        expect(pool.get_size() == 0);
+        expect(pool.begin() == pool.end());
+    };
+    "add_handler appends, find resolves via idx + mask offset"_test = [] {
+        HandlerPool<4> pool;
+        pool.add_handler(noop_handler());
+        pool.add_handler(noop_handler());
+
+        Handler<4> table;
+        table.add_handler(interfaces::io::types::Method::GET, noop_handler());
+
+        // Handler's own mask encodes GET at offset 0 into ITS table; reusing that mask against
+        // the pool with idx=1 should resolve to slot 1 (idx + offset).
+        expect(pool.find(1, table.get_mask(), interfaces::io::types::Method::GET) != nullptr);
+        expect(pool.find(1, table.get_mask(), interfaces::io::types::Method::POST) == nullptr);
+    };
+    "add_handler throws once the pool is full"_test = [] {
+        HandlerPool<1> pool;
+        pool.add_handler(noop_handler());
+        expect(throws<std::runtime_error>([&] { pool.add_handler(noop_handler()); }));
+    };
+
+    // find()'s own doc comment flags it: no bounds check on idx + offset against the pool's real
+    // size, and the caller gets back whatever's at that slot with zero validation that it was ever
+    // actually registered. Here idx + offset (2) stays well within HandlerSize (4) — a real,
+    // in-bounds, default-constructed std::function sitting in a slot nobody ever called
+    // add_handler() for — so this is safe to exercise directly. The true out-of-bounds case
+    // (idx + offset >= HandlerSize) is real UB per the @warning above and is NOT exercised here;
+    // that would read past the backing std::array's storage.
+    "find on an in-bounds but never-registered slot returns whatever's sitting there, unvalidated"_test =
+        [] {
+            HandlerPool<4> pool;
+            pool.add_handler(noop_handler());
+            pool.add_handler(noop_handler());
+            // Slots 0 and 1 are now real registered handlers; slots 2 and 3 are still whatever the
+            // default std::array<HandlerFn, 4> init left them as (empty std::function, i.e.
+            // operator bool() == false) — never touched by add_handler().
+
+            // Craft a mask whose GET lane points at offset 2, which no add_handler() call above
+            // ever wrote to. idx=0 + offset=2 = 2, safely inside HandlerSize=4.
+            const std::size_t OFFSET_INTO_UNREGISTERED_SLOT = 2;
+            const std::size_t MASK = ~(0xFFULL << (std::to_underlying(interfaces::io::types::Method::GET) * 8));
+            const std::size_t GET_MASK =
+                MASK | (OFFSET_INTO_UNREGISTERED_SLOT
+                        << (std::to_underlying(interfaces::io::types::Method::GET) * 8));
+
+            const auto RESULT = pool.find(0, GET_MASK, interfaces::io::types::Method::GET);
+            // find() has no notion of "was this slot ever registered" — it just reads m_handler[idx
+            // + offset] and hands it back. Slot 2 was never assigned, so this is the array's
+            // default-constructed std::function: a real, callable-typed value that's empty, not a
+            // nullptr and not flagged invalid in any way by find() itself.
+            expect(not static_cast<bool>(RESULT));
+        };
+};
+
+} // namespace core::router::tests
+#endif

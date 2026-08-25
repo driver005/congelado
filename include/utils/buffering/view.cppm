@@ -2,6 +2,9 @@ export module utils_buffering:view;
 
 import std;
 import :node;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::buffering {
 
@@ -497,3 +500,80 @@ class BufferView {
 };
 
 } // namespace utils::buffering
+
+#ifdef CONGELADO_TEST
+namespace utils::buffering::tests {
+using namespace boost::ut;
+
+suite<"NodeView"> node_view_suite = [] {
+    "exposes its slice bounds and links"_test = [] {
+        auto *node = new BufferNode(4);
+        node->acquire(); // keep the node alive across the NodeView's own acquire/release pair
+
+        NodeView view{node, 1, 2};
+        expect(view.get_start() == 1);
+        expect(view.get_length() == 2);
+        expect(view.get_node() == node);
+        expect(view.get_next() == nullptr);
+
+        view.set_next(&view); // exercise the setter (nonsensical self-link, just checking wiring)
+        expect(view.get_next() == &view);
+
+        node->release(); // drop our extra ref; view's own dtor drops the rest below
+    };
+};
+
+suite<"BufferView"> buffer_view_suite = [] {
+    "empty view has no head and size 0"_test = [] {
+        BufferView view;
+        expect(view.empty());
+        expect(view.size() == 0);
+    };
+    "push_back(node, start, length) links a slice and accumulates size"_test = [] {
+        auto *node = new BufferNode(4);
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+
+        BufferView view;
+        view.push_back(node, 0, 2);
+
+        expect(not view.empty());
+        expect(view.size() == 2);
+        expect(view.get_head() == view.get_tail());
+    };
+    "iterator walks a chained slice byte by byte"_test = [] {
+        auto *node = new BufferNode(3);
+        node->push_back(std::byte{10});
+        node->push_back(std::byte{20});
+        node->push_back(std::byte{30});
+
+        BufferView view;
+        view.push_back(node, 0, 3);
+
+        std::vector<std::byte> collected;
+        for (auto it = view.begin(); it != view.end(); ++it) {
+            collected.push_back(*it);
+        }
+
+        expect(collected.size() == 3);
+        expect(collected[0] == std::byte{10});
+        expect(collected[2] == std::byte{30});
+    };
+    "release tears the chain down and resets to empty"_test = [] {
+        auto *node = new BufferNode(2);
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+
+        BufferView view;
+        view.push_back(node, 0, 2);
+        expect(not view.empty());
+
+        view.release();
+        expect(view.empty());
+        expect(view.size() == 0);
+        expect(view.get_head() == nullptr);
+    };
+};
+
+} // namespace utils::buffering::tests
+#endif

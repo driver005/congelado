@@ -5,6 +5,9 @@ export module io_quic:connection;
 
 import std;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // Per-connection QUIC wrapper around an OpenSSL connection SSL*.
 //
@@ -351,3 +354,44 @@ export class Connection {
 };
 
 } // namespace quic
+
+// Connection's contract requires a real SSL* from SSL_accept_connection() — every method that
+// actually touches m_ssl (tick(), poll_streams(), a stream open/write that gets past the
+// Connected-state guard) needs a live QUIC handshake, not reproducible here. What IS safe to
+// exercise: the state-machine surface that early-returns before ever touching m_ssl when the
+// connection isn't Connected yet — true for a freshly-constructed Connection regardless of what
+// SSL* it wraps, and its destructor's SSL_free(nullptr) is a documented no-op, so a null SSL*
+// is safe to construct with as long as tick()/poll_streams() are never called on it.
+#ifdef CONGELADO_TEST
+namespace quic::tests {
+using namespace boost::ut;
+
+suite<"Connection"> connection_suite = [] {
+    "starts Handshaking, not connected"_test = [] {
+        Connection conn{nullptr};
+        expect(conn.state() == ConnState::Handshaking);
+        expect(not conn.connected());
+        expect(conn.native() == nullptr);
+    };
+    "stream operations fail closed before the handshake completes"_test = [] {
+        Connection conn{nullptr};
+
+        expect(conn.open_stream() == UINT64_MAX);
+
+        std::array<std::byte, 4> data{};
+        expect(not conn.send_stream(data));
+        expect(not conn.write_stream(0, data));
+    };
+    "on_connected/on_stream just replace the stored callbacks, no invocation without a tick"_test =
+        [] {
+        Connection conn{nullptr};
+        bool connected_fired = false;
+        conn.on_connected([&connected_fired] { connected_fired = true; });
+        conn.on_stream([](std::uint64_t, std::vector<std::byte>, bool) {});
+
+        expect(not connected_fired);
+    };
+};
+
+} // namespace quic::tests
+#endif

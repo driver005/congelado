@@ -1,0 +1,158 @@
+# Bazel is the authoritative build. Xmake remains an optional legacy compatibility path.
+
+# ------------------------------ General --------------------------------------
+common --enable_platform_specific_config
+# TF-parity: print effective options from all rc files.
+common --announce_rc
+# TF-parity: quiet by default, opt into full logs with --config=verbose_logs.
+common --config=short_logs
+# TF-parity: no sandbox overhead — matches the repository's local development workflow.
+common --spawn_strategy=standalone
+common --incompatible_enforce_config_setting_visibility
+# Bazel 8 flipped this to false; XLA re-enabled it after external-runfiles breakage.
+common --legacy_external_runfiles=true
+
+# Bazel 9 disables native-rule autoloading (cc_library/cc_test/py_library/...)
+# by default. XLA and its transitive deps (snappy, ml_dtypes, rocm config,
+# ...) ship vendored BUILD files that predate this and lack the required
+# load() statements. Restore the pre-Bazel-9 autoload whitelist rather than
+# patching every affected external repo individually.
+common --incompatible_autoload_externally=cc_binary,cc_import,cc_library,cc_shared_library,cc_test,cc_toolchain,cc_toolchain_suite,cc_proto_library,fdo_prefetch_hints,fdo_profile,proto_lang_toolchain,proto_library,py_library,py_runtime,py_test,sh_library,sh_test
+
+# rules_cc < 0.2.20: the external_include_paths feature breaks clang header
+# resolution for vendored repositories. Drop until rules_cc is bumped >= 0.2.20.
+common --features=-external_include_paths
+common --host_features=-external_include_paths
+
+# Self-hosted TF-style log configs (we don't import tensorflow.bazelrc).
+# short_logs = only errors + progress; verbose_logs = full command lines.
+common:short_logs   --ui_event_filters=-INFO,-FINISH,-SUBCOMMAND
+common:verbose_logs --ui_event_filters=
+
+# --------------------------- Compiler environment ----------------------------
+build --action_env=CC="ccache clang"
+build --action_env=CXX="ccache clang++"
+build --repo_env=CC="ccache clang"
+build --repo_env=CXX="ccache clang++"
+# Bazel copies/symlinks inputs into a fresh exec root every invocation,
+# resetting mtimes and defeating ccache's default mtime-based cache key even
+# when content is identical. Relax it — the real compiler still runs on every
+# actual content change, this only stops false invalidation on timestamp noise.
+build --action_env=CCACHE_SLOPPINESS="include_file_mtime,include_file_ctime,time_macros"
+
+# By default, build in C++ 20 mode (TF-parity pattern).
+common:android --cxxopt=-std=gnu++20
+common:android --host_cxxopt=-std=gnu++20
+common:ios --cxxopt=-std=gnu++20
+common:ios --host_cxxopt=-std=gnu++20
+common:linux --cxxopt=-std=gnu++20
+common:linux --host_cxxopt=-std=gnu++20
+common:macos --cxxopt=-std=gnu++20
+common:macos --host_cxxopt=-std=gnu++20
+common:windows --cxxopt=/std:c++20
+common:windows --host_cxxopt=/std:c++20
+
+# ------------------------------ Performance -----------------------------------
+# Maximize job parallelism while letting Bazel detect available RAM
+build --jobs=HOST_CPUS
+build --local_resources=memory=HOST_RAM*.8
+
+# Default build is plain fastbuild (-O0, unstripped) for fast edit/compile/test
+# iteration. Optimized/stripped output requires --config=prod (below).
+
+# Enable high-speed lld linker on Linux/macOS
+build:linux --linkopt="-fuse-ld=lld"
+build:macos --linkopt="-fuse-ld=lld"
+
+# Opt-in faster alternative linker (generally outlinks lld on large static
+# links like LLVM/XLA): bazel build --config=mold //...
+build:mold --linkopt="-fuse-ld=mold"
+
+# -------------------------- Cache & hermeticity ------------------------------
+# Enable persistent local disk cache for built target artifacts
+build --disk_cache=~/.cache/bazel-disk
+# Ensure fetched external archives are cached locally
+build --repository_cache=~/.cache/bazel-repo
+# Retain cached actions across builds (Action Cache)
+build --action_cache_store_output_metadata
+# Enforce hermetic actions to prevent cache invalidation.
+# (Explicit pin — default-on since Bazel 7; CC/CXX above ride in via --action_env.)
+build --incompatible_strict_action_env
+
+# Permission GATE for C++ module machinery — required globally because rules_cc
+# hard-fails analysis of `module_interfaces` attrs without it. Inert for targets
+# that don't opt into the cpp_modules feature.
+build --experimental_cpp_modules
+
+# OpenXLA (vendored under third_party/xla) uses remotable repository rules.
+# Must be `common`: module-extension bzl loads happen under query/sync too, not just build.
+common --experimental_repo_remote_exec
+
+# XLA's generated ROCm config globs %{rocm_root}/include/** — empty when no AMD
+# GPU/ROCm is installed. Allow empty globs instead of patching every template.
+common --incompatible_disallow_empty_glob=false
+
+# ---------------------------- Compilation modes ------------------------------
+# bazel build --config=debug //...  (debug symbols, unstripped)
+build:debug --compilation_mode=dbg
+build:debug --copt=-g
+build:debug --strip=never
+# Split DWARF into separate .dwo files — linker isn't stuck merging huge
+# inline debug sections, meaningfully faster link step on debug builds.
+build:debug --copt=-gsplit-dwarf
+# mold overrides the default lld linkopt (last -fuse-ld wins) — big win on
+# link time for XLA/LLVM-heavy static links, and debug rebuilds link often.
+build:debug --linkopt="-fuse-ld=mold"
+
+# bazel build --config=prod //...  (optimized, stripped)
+build:prod --compilation_mode=opt
+build:prod --copt="-O3"
+build:prod --copt="-fno-semantic-interposition"
+build:prod --strip=always
+build:prod --linkopt="-fuse-ld=mold"
+
+# -------------------------------- Tests ---------------------------------------
+test --test_output=errors
+test --test_summary=short
+# Print a stacktrace when a test is killed (TF-parity).
+test --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1"
+
+# ------------------------------- Warnings ------------------------------------
+# TF-parity default: suppress C++ compiler warnings wholesale (build logs become
+# 10s of MBs otherwise), except two targeted error-promotions on Linux.
+# Mirrors tensorflow/.bazelrc. Platform configs auto-activate via
+# --enable_platform_specific_config above.
+# Suppress all C++ compiler warnings, otherwise build logs become 10s of MBs.
+common:android --copt=-w
+common:ios --copt=-w
+common:linux --host_copt=-w
+common:macos --copt=-w
+common:windows --copt=/W0
+common:windows --host_copt=/W0
+
+# Suppress most C++ compiler warnings to reduce log size but allow
+# for specific warnings to still be present.
+common:linux --copt="-Wno-all"
+common:linux --copt="-Wno-extra"
+common:linux --copt="-Wno-deprecated"
+common:linux --copt="-Wno-deprecated-declarations"
+common:linux --copt="-Wno-ignored-attributes"
+common:linux --copt="-Wno-array-bounds"
+
+# Add unused-result as an error on Linux.
+common:linux --copt="-Wunused-result"
+common:linux --copt="-Werror=unused-result"
+# Add switch as an error on Linux.
+common:linux --copt="-Wswitch"
+common:linux --copt="-Werror=switch"
+
+# Linux ARM64 specific options
+common:linux_arm64 --copt="-mtune=generic" --copt="-march=armv8-a" --copt="-O3"
+common:linux_arm64 --define=ynn_enable_arm64_neonfp8=false
+
+# Opt-in strict check of workspace code only (TF/XLA warnings-as-errors):
+#   bazel build //... --config=warnings   (or `make warn-check`)
+# Every dep lives under exec-path external/ and is silenced there by the -w
+# carve-out; congelado sources stay checked. Host builds are NOT checked
+# (common:linux --host_copt=-w above wins).
+import %workspace%/warnings.bazelrc

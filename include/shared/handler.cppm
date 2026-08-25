@@ -1,6 +1,9 @@
 export module shared:handler;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace shared {
 
@@ -174,3 +177,141 @@ inline void release() {
 }
 
 } // namespace shared::this_handler
+
+#ifdef CONGELADO_TEST
+namespace shared::tests {
+
+// Satisfies HandlerTemplate — the no-arg schedule/deschedule/release trio.
+class MockScheduledHandler {
+  public:
+    void schedule() {}
+    void deschedule() {}
+    void release() {}
+};
+
+// Satisfies HandlerController — id-taking schedule/deschedule/release plus create().
+class MockController {
+  public:
+    void schedule(std::uint32_t identifier) { m_last_scheduled = identifier; }
+    void deschedule(std::uint32_t identifier) { m_last_descheduled = identifier; }
+    void release(std::uint32_t identifier) { m_last_released = identifier; }
+
+    MockScheduledHandler create(std::string_view name, WorkerFunction, ReleaseFunction, ErrorHandler) {
+        m_created_name = name;
+        return {};
+    }
+
+    std::uint32_t m_last_scheduled{0};
+    std::uint32_t m_last_descheduled{0};
+    std::uint32_t m_last_released{0};
+    std::string m_created_name;
+};
+
+class MissingCreateController {
+  public:
+    void schedule(std::uint32_t) {}
+    void deschedule(std::uint32_t) {}
+    void release(std::uint32_t) {}
+};
+
+class MockHandler final : public HandlerBase {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "mock-handler"; }
+    WorkerFunction on_execute() override {
+        return [] {};
+    }
+};
+
+class MockInstaller {
+  public:
+    static void install(HandlerBase &) {}
+};
+
+class MockHandlerInterface final : public HandlerInterface {
+  public:
+    void schedule(std::uint32_t identifier) override { m_scheduled = identifier; }
+    void deschedule(std::uint32_t identifier) override { m_descheduled = identifier; }
+    void release(std::uint32_t identifier) override { m_released = identifier; }
+
+    std::optional<std::uint32_t> m_scheduled;
+    std::optional<std::uint32_t> m_descheduled;
+    std::optional<std::uint32_t> m_released;
+};
+
+using namespace boost::ut;
+
+suite<"HandlerTemplate/HandlerController/ExecutionPattern concepts"> handler_concepts_suite = [] {
+    "MockScheduledHandler satisfies HandlerTemplate"_test = [] {
+        expect(HandlerTemplate<MockScheduledHandler>);
+    };
+
+    "MockController satisfies HandlerController"_test = [] {
+        expect(HandlerController<MockController>);
+    };
+
+    "a controller missing create() does not satisfy HandlerController"_test = [] {
+        expect(!HandlerController<MissingCreateController>);
+    };
+
+    "MockInstaller satisfies ExecutionPattern"_test = [] {
+        expect((ExecutionPattern<MockInstaller>));
+    };
+};
+
+suite<"HandlerBase::create"> handler_base_create_suite = [] {
+    "create() forwards this handler's name into the controller and returns a HandlerTemplate"_test = [] {
+        MockHandler handler;
+        MockController controller;
+        auto scheduled = handler.create(controller);
+        expect(controller.m_created_name == "mock-handler");
+        scheduled.schedule();
+        scheduled.deschedule();
+        scheduled.release();
+    };
+
+    "default on_released/on_error hooks are null"_test = [] {
+        MockHandler handler;
+        expect(!handler.on_released());
+        expect(!handler.on_error());
+    };
+};
+
+suite<"this_handler free functions"> this_handler_suite = [] {
+    "shedule() throws when no handler is bound to this thread"_test = [] {
+        this_handler::current = nullptr;
+        expect(throws<std::runtime_error>([] { this_handler::shedule(); }));
+    };
+
+    "deschedule() throws when no handler is bound to this thread"_test = [] {
+        this_handler::current = nullptr;
+        expect(throws<std::runtime_error>([] { this_handler::deschedule(); }));
+    };
+
+    "release() throws when no handler is bound to this thread"_test = [] {
+        this_handler::current = nullptr;
+        expect(throws<std::runtime_error>([] { this_handler::release(); }));
+    };
+
+    "shedule/deschedule/release forward current_id to the bound handler"_test = [] {
+        MockHandlerInterface mock;
+        this_handler::current = &mock;
+        this_handler::current_id = 42;
+
+        this_handler::shedule();
+        expect(mock.m_scheduled.has_value()) << fatal;
+        expect(*mock.m_scheduled == 42);
+
+        this_handler::deschedule();
+        expect(mock.m_descheduled.has_value()) << fatal;
+        expect(*mock.m_descheduled == 42);
+
+        this_handler::release();
+        expect(mock.m_released.has_value()) << fatal;
+        expect(*mock.m_released == 42);
+
+        this_handler::current = nullptr;
+    };
+};
+
+} // namespace shared::tests
+#endif

@@ -1,0 +1,37 @@
+NOTICE
+
+congelado_hero_ui
+=================
+
+This package is an independent, from-scratch Flutter implementation that
+mirrors the visual design of HeroUI v3. It is not affiliated with, endorsed
+by, or sponsored by HeroUI / heroui.com.
+
+Upstream attributions
+---------------------
+
+Design tokens
+  Name     : @heroui/styles
+  Version  : 3.2.4
+  Source   : https://registry.npmjs.org/@heroui/styles
+  License  : MIT
+  Note     : Only design values (colors, radii, shadows, spacing, type
+             metrics, easing) are derived from the pinned CSS; the Dart code
+             is original. See tool/sources/SHA256SUMS for the pinned files.
+
+Component machinery
+  Name     : remix (https://pub.dev/packages/remix)
+  License  : BSD-3-Clause (c) 2022 Concepta
+  Note     : Headless UI behavior (Naked UI) + styling engine (Mix); used as
+             a dependency, not copied.
+
+  Name     : mix (https://pub.dev/packages/mix)
+  License  : BSD-3-Clause
+
+  Name     : naked_ui (https://pub.dev/packages/naked_ui)
+  License  : BSD-3-Clause
+
+Fonts
+  Inter (v4.1, github.com/rsms/inter) — SIL Open Font License 1.1.
+  Bundled at assets/fonts (Regular 400 / Medium 500 / SemiBold 600); used by
+  the generated type-scale tokens (HeroSourceManifest.fontFamily).

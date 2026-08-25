@@ -1,6 +1,9 @@
 export module utils_buffering:node;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::buffering {
 
@@ -24,6 +27,21 @@ class BufferNode {
      */
     explicit BufferNode(std::byte *data, std::size_t size)
         : m_data{data, [](std::byte *) { /* no-op */ }}, m_limit{size}, m_written{size}, m_refs{0} {
+    }
+
+    /**
+     * @brief Adopts a moved-in vector's buffer instead of copying — heap-owns the vector, points
+     * `m_data` at its `data()`, and stashes a deleter that frees the owning vector. O(1), no
+     * byte copy at any body size. The node is marked fully written (`m_written == size`).
+     * @param bytes the vector whose buffer this node takes ownership of.
+     */
+    explicit BufferNode(std::vector<std::byte> &&bytes)
+        : m_data{nullptr, [](std::byte *) { /* no-op, replaced below */ }}, m_limit{0}, m_written{0},
+          m_refs{0} {
+        m_limit = bytes.size();
+        auto *owned = new std::vector<std::byte>(std::move(bytes));
+        m_data = decltype(m_data){owned->data(), [owned](std::byte *) { delete owned; }};
+        m_written.store(m_limit, std::memory_order_relaxed);
     }
 
     /**
@@ -220,3 +238,81 @@ class BufferNode {
 
 
 } // namespace utils::buffering
+
+#ifdef CONGELADO_TEST
+namespace utils::buffering::tests {
+using namespace boost::ut;
+
+suite<"BufferNode"> buffer_node_suite = [] {
+    "heap allocation starts empty with the requested capacity"_test = [] {
+        auto *node = new BufferNode(16);
+        node->acquire();
+
+        expect(node->get_limit() == 16);
+        expect(node->get_written() == 0);
+        expect(node->get_remaining() == 16);
+
+        node->release();
+    };
+    "push_back writes sequentially and advances the write cursor"_test = [] {
+        auto *node = new BufferNode(4);
+        node->acquire();
+
+        node->push_back(std::byte{1});
+        node->push_back(std::byte{2});
+
+        expect(node->get_written() == 2);
+        expect(node->get_remaining() == 2);
+        expect((*node)[0] == std::byte{1});
+        expect((*node)[1] == std::byte{2});
+
+        node->release();
+    };
+    "set_written/expand_written override the cursor directly"_test = [] {
+        auto *node = new BufferNode(8);
+        node->acquire();
+
+        node->set_written(3);
+        expect(node->get_written() == 3);
+        node->expand_written(2);
+        expect(node->get_written() == 5);
+
+        node->release();
+    };
+    "wraps externally-owned data as already fully written"_test = [] {
+        std::array<std::byte, 3> data{std::byte{7}, std::byte{8}, std::byte{9}};
+        auto *node = new BufferNode(data.data(), data.size());
+        node->acquire();
+
+        expect(node->get_limit() == 3);
+        expect(node->get_written() == 3);
+        expect(node->get_data() == data.data());
+
+        node->release();
+    };
+    "adopts a moved vector's buffer as fully written"_test = [] {
+        std::vector<std::byte> bytes{std::byte{9}, std::byte{8}};
+        auto *node = new BufferNode(std::move(bytes));
+        node->acquire();
+
+        expect(node->get_limit() == 2);
+        expect(node->get_written() == 2);
+        expect((*node)[0] == std::byte{9});
+
+        node->release();
+    };
+    "acquire/release deletes the node once the last reference drops"_test = [] {
+        auto *node = new BufferNode(4);
+        node->acquire();
+        node->acquire();
+        expect(node->get_limit() == 4); // still alive with two refs held
+
+        node->release();
+        expect(node->get_limit() == 4); // still alive with one ref held
+
+        node->release(); // drops to zero, self-deletes — nothing touches `node` after this
+    };
+};
+
+} // namespace utils::buffering::tests
+#endif

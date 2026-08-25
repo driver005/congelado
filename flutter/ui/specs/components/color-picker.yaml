@@ -1,0 +1,47 @@
+component: color-picker
+flutter_name: HeroColorPicker
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-picker.css"
+  files: [tool/sources/heroui-color-picker.css]
+  docs: https://heroui.com/en/docs/react/components/color-picker
+
+anatomy:
+  - .color-picker: inline-flex
+  - .color-picker__trigger: inline-flex items-center gap-3 (12) rounded-sm (4) text-sm no-highlight; transition background-color 150ms ease-smooth, box-shadow 150ms ease-out; focus-visible status-focused; disabled status-disabled; [data-slot="label"]
+  - .color-picker__popover: min-w-62 (248) px-2 (8) pt-2 (8) pb-3 (12) bg-overlay shadow-overlay scrollbar-none; border-radius min(32px, calc(var(--radius) * 2.5)) = 20; flex flex-col gap-3 (12); overflow-y-auto; enter fade-in-0 zoom-in-95 150ms ease-smooth + placement slide; exit fade-out zoom-out-95 100ms ease-smooth
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: min-w-62 (248)
+
+states:
+  - rest
+  - focus-visible (trigger: status-focused)
+  - disabled (trigger: status-disabled)
+  - popover enter (150ms) / exit (100ms)
+
+tokens:
+  role: [colorOverlay, colorBackdrop, colorFocus, colorForeground, shadowOverlay]
+  component: []
+
+non_token_measurements:
+  - min width 248 (min-w-62)
+  - radius 20 (min(32px, radius * 2.5))
+  - padding 8 / 8 / 12 (px-2 pt-2 pb-3), section gap 12 (gap-3)
+  - trigger radius 4 (rounded-sm), gap 12 (gap-3)
+
+behavior:
+  - trigger (swatch + optional label) opens the picker via showHeroColorPicker
+  - panel content: SV color area, hue/saturation/lightness/alpha sliders, hex color field, swatch row (heroDefaultColorSwatches by default), Done button
+  - onSelected fires live on every change; the future resolves to the final color (null when dismissed)
+  - modal uses showRemixDialog (like showHeroModal) with overlay chrome + backdrop
+
+approximations:
+  - popover placement + slide-in animations approximated by the dialog's 150ms fade/scale transition
+  - Done button added (not part of color-picker.css; needed to close a modal)
+  - lightness slider converts HSV <-> HSL internally (CSS gradient data equivalent)

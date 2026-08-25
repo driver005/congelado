@@ -1,0 +1,50 @@
+component: color-area
+flutter_name: HeroColorArea
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/color-area.css"
+  files: [tool/sources/heroui-color-area.css]
+  docs: https://heroui.com/en/docs/react/components/color-area
+
+anatomy:
+  - .color-area: relative w-full max-w-56 (224) shrink-0 rounded-2xl (16), square (aspect-ratio 1/1), JS-painted HSV face, inset 0 0 0 1px rgba(0,0,0,0.1)
+  - .color-area--show-dots: 8px radial dot overlay (rgba(255,255,255,0.2) 1px dots)
+  - .color-area__thumb: size-4 (16, size-5 = 20 while dragging), rounded-xl (12), current-color fill, 3px white border, 0 0 0 1px + inset 1px black@10%, width/height 150ms ease-out; focus-visible: status-focused ring
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: max-w-56 (224), square
+
+states:
+  - rest
+  - dragging (thumb grows 16 -> 20, 150ms ease-out)
+  - focus-visible (ring on the thumb via HeroFocusRing)
+  - disabled (input ignored)
+
+tokens:
+  role: [colorFocus]
+  component: []
+
+non_token_measurements:
+  - max width 224 (max-w-56)
+  - radius 16 (rounded-2xl)
+  - thumb 16 / 20 (dragging), thumb radius 12
+  - thumb border 3px, outer + inset 1px ring rgba(0,0,0,0.1)
+  - dot grid 8px, dot radius 1px, white 20% (payload)
+
+behavior:
+  - 2D saturation x / value y square for the current hue; hue + alpha are preserved
+  - drag anywhere (pan down/update) sets saturation = x/w, value = 1 - y/h
+  - keyboard: arrows adjust saturation/value (shift = 10x step)
+  - null value renders the hue-0 face at full saturation/value
+  - thumb shows the current color; focus ring on the thumb
+
+approximations:
+  - checkerboard/dot overlays painted as a plain 8px grid (CSS conic/radial gradients approximated)
+  - inset hairline shadow rendered as a foreground 1px border
+  - HeroFocusRing renders ring-2 ring-offset-2 outside the thumb
+  - 2px ring offset grows layout by 2px on focus (HeroFocusRing pattern)

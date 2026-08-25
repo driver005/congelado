@@ -3,10 +3,15 @@ export module io_base_flow;
 import std;
 import shared;
 import io_base_leverage;
+import utils_buffering;
 
 export import io_flow_sender;
 export import io_flow_receiver;
 export import io_flow_socket;
+
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 
 export namespace io::base::flow {
@@ -77,3 +82,67 @@ class Flow {
 };
 
 } // namespace io::base::flow
+
+#ifdef CONGELADO_TEST
+namespace io::base::flow::flow_tests {
+
+// Satisfies shared::HandlerController — id-taking schedule/deschedule/release plus create().
+class MockFlowController {
+  public:
+    void schedule(std::uint32_t) {}
+    void deschedule(std::uint32_t) {}
+    void release(std::uint32_t) {}
+
+    struct Scheduled {
+        void schedule() {}
+        void deschedule() {}
+        void release() {}
+    };
+
+    Scheduled create(std::string_view, shared::WorkerFunction, shared::ReleaseFunction, shared::ErrorHandler) {
+        return {};
+    }
+};
+
+// Satisfies shared::FlowBase<MockFlowComponent, MockFlowController, leverage::Leverager<leverage::Context>> —
+// constructible from (ReadCallback&&, Leverager<Context>&, Controller), has on_send(int) -> SendCallback.
+// This is exactly the shape `Flow::add<T>()` requires of T.
+class MockFlowComponent {
+  public:
+    MockFlowComponent(shared::ReadCallback &&, leverage::Leverager<leverage::Context> &, MockFlowController) {}
+    shared::SendCallback on_send(int) {
+        return [](utils::buffering::BufferNode &&) {};
+    }
+};
+
+// Missing on_send() — should not satisfy FlowBase.
+class NotAFlowComponent {
+  public:
+    NotAFlowComponent(shared::ReadCallback &&, leverage::Leverager<leverage::Context> &, MockFlowController) {}
+};
+
+using namespace boost::ut;
+
+suite<"Flow concept gating"> flow_concepts_suite = [] {
+    "MockFlowController satisfies shared::HandlerController"_test = [] {
+        expect(shared::HandlerController<MockFlowController>);
+    };
+
+    "MockFlowComponent satisfies the exact shared::FlowBase shape Flow::add<T>() requires"_test = [] {
+        expect((shared::FlowBase<MockFlowComponent, MockFlowController, leverage::Leverager<leverage::Context>>));
+    };
+
+    "a component missing on_send() does not satisfy that FlowBase shape"_test = [] {
+        expect(!(shared::FlowBase<NotAFlowComponent, MockFlowController, leverage::Leverager<leverage::Context>>));
+    };
+};
+
+// Flow's constructor/add()/build() are hardcoded (not template-parameterized) to
+// `leverage::Leverager<leverage::Context>&` — constructing one spins up a live io_uring ring, the
+// same "not unit-testable in isolation" situation `io_base_leverage`'s own test block documents
+// for Leverager<Context> itself. There's no injection point here (unlike Receiver/Sender, which
+// take a mockable Worker type param), so runtime construction/add()/build() can't be exercised
+// without live io_uring — only the compile-time concept gating add<T>() relies on is covered above.
+
+} // namespace io::base::flow::flow_tests
+#endif

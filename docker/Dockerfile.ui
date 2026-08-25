@@ -1,36 +1,31 @@
-# ── Congelado UI (Flutter shell) ────────────────────────────────────────────────
-# Builds app/'s web target inside a container that actually carries the Flutter SDK (this
-# repo's own dev environment doesn't), then serves the static output with a tiny web server.
-# Independent of the C++ build entirely — no shared build_output volume, no builder
-# dependency (see docker-compose.yml's `ui` service). The running shell talks to the engine's
-# HTTP/2 API straight from the browser (see plugins/*/ui/lib/api_client.dart's base URL).
+# ── Congelado UI (Flutter app) ─────────────────────────────────────────────────
+# Builds flutter/ui/'s web target inside a container that actually carries the
+# Flutter SDK (this repo's own dev environment doesn't), then serves the static
+# output with a tiny web server. Independent of the C++ build entirely — no
+# shared build_output volume, no builder dependency (see docker-compose.yml's
+# `ui` service). flutter/ui has no path dependencies (remix + mix + widgetbook,
+# all pub-hosted), so one COPY line suffices.
 # ─────────────────────────────────────────────────────────────────────────────────
 
 FROM ghcr.io/cirruslabs/flutter:stable AS build
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy the whole Dart workspace — app/ plus every path-dependency it references
-# (sdk/ui_dart/, plugins/*/ui/) — pub needs all of them present on disk to resolve path
-# deps. Add a COPY line here for each plugin's ui/ package as more get onboarded (mirrors
-# app/pubspec.yaml's own path: dependency list and app/lib/registry.dart's merge).
-COPY sdk/ui_dart ./sdk/ui_dart
-COPY plugins/engine/ui ./plugins/engine/ui
-COPY plugins/openapi_generator/ui ./plugins/openapi_generator/ui
-COPY app ./app
+COPY flutter/ui ./flutter/ui
 
-WORKDIR /app/app
+WORKDIR /workspace/flutter/ui
 
-# app/'s platform runner folders (web/, linux/, etc.) aren't checked into the repo yet — see
-# app/README.md — so scaffold just the web target here, inside the one place in this project
-# that actually has the Flutter SDK to do it correctly. `flutter create` never overwrites
-# lib/ or pubspec.yaml, only fills in what's missing.
-RUN flutter create --platforms=web --project-name congelado_app . \
+# Platform runner folders (web/, linux/, etc.) aren't checked into the repo yet
+# — see flutter/ui/README.md — so scaffold just the web target here, inside the
+# one place in this project that actually has the Flutter SDK to do it
+# correctly. `flutter create` never overwrites lib/ or pubspec.yaml, only fills
+# in what's missing.
+RUN flutter create --platforms=web --project-name congelado_hero_ui . \
     && flutter pub get \
     && flutter build web --release
 
 FROM nginx:alpine AS runtime
 
-COPY --from=build /app/app/build/web /usr/share/nginx/html
+COPY --from=build /workspace/flutter/ui/build/web /usr/share/nginx/html
 
 EXPOSE 80

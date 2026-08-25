@@ -1,5 +1,6 @@
 module;
 #include <cassert>
+#include <charconv>
 #include <ranges>
 export module io_layer_http2:response;
 
@@ -9,8 +10,12 @@ import shared;
 import interfaces;
 import io_layer_shared;
 import io_codec_hpack;
+import utils_buffering;
 import interfaces;
 import :frame;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -78,22 +83,27 @@ class HttpResponse : public interfaces::io::IResponse {
                         throw std::invalid_argument("Header name cannot be empty");
                     }
 
-                    // No matching token — lands in the dynamic hashmap (see class-level warning
-                    // for the empty-value edge case here).
+                    // No matching token — lands in the dynamic hashmap. Root-cause fix (see the
+                    // identical bug + fix in HttpRequest::set_header, req.cppm): previously a
+                    // non-empty value on a never-before-seen name hit an unconditional `return`
+                    // before ever reaching the insert below, silently dropping it; an empty
+                    // value on an unknown name fell through to `token_opt.value()` with no
+                    // value present, an unconditional std::bad_optional_access. Handling the
+                    // not-found case explicitly and always returning afterward fixes both.
                     auto token_opt = interfaces::io::types::tokenize(name);
                     if (!token_opt.has_value()) {
-                        if (!value.empty()) {
-                            if (auto existing_opt = m_headers.find(name);
-                                existing_opt.has_value()) {
+                        if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
+                            if (!value.empty()) {
                                 const auto &existing = *existing_opt;
                                 existing->set_value(existing->get_value() +
                                                     interfaces::consts::VALUE_SEPARATOR +
                                                     std::string(value));
                             }
-                            return;
+                        } else {
+                            m_headers.insert(
+                                name, std::make_shared<interfaces::io::HeaderField<false>>(name, value));
                         }
-                        m_headers.insert(name, std::make_shared<interfaces::io::HeaderField<false>>(
-                                                   name, value));
+                        return;
                     }
 
                     auto token = token_opt.value();
@@ -240,17 +250,149 @@ class HttpResponse : public interfaces::io::IResponse {
     }
 
     /**
-     * @brief `IResponse::set_body()` override — takes full ownership of `body`, replacing
-     * whatever was there before.
+     * @brief `IResponse::set_body()` override — adopts `body`'s buffer into a `BufferNode` (O(1)
+     * move, no byte copy) and installs it as this response's body chain.
+     * @note An empty `body` leaves `m_body` untouched (no node pushed), matching the
+     * `get_body().empty()` checks in `WriteHttpResponseAdaptor`.
      * @param body the bytes to install as the response body.
      */
-    void set_body(std::vector<std::byte> body) & noexcept override { m_body = std::move(body); }
+    void set_body(std::vector<std::byte> body) & noexcept override {
+        if (body.empty()) {
+            return;
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — ref-counted acquire()/release() owns it.
+        auto *node = new utils::buffering::BufferNode{std::move(body)};
+        m_body.push_back(node, 0, node->get_written());
+    }
 
     /**
-     * @brief `IResponse::get_body()` override.
-     * @return a read-only view over the body bytes.
+     * @brief `IResponse::get_status()` override — reads the STATUS pseudo-header back into a
+     * `Status` enum (the enum's value is the numeric HTTP code, so it's a straight cast).
+     * @return the status, or `OK` if no STATUS header is set.
      */
-    [[nodiscard]] std::span<const std::byte> get_body() const noexcept override { return m_body; }
+    [[nodiscard]] interfaces::io::types::Status get_status() const noexcept override {
+        const auto &field =
+            m_static_headers[std::to_underlying(interfaces::io::types::Token::STATUS)];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        if (field == nullptr) {
+            return interfaces::io::types::Status::OK;
+        }
+        const auto &value = field->get_value();
+        std::uint16_t code = 0;
+        std::from_chars(value.data(), value.data() + value.size(), code);
+        return static_cast<interfaces::io::types::Status>(code);
+    }
+
+    /**
+     * @brief `IResponse::is_success()` override.
+     * @return true if the status is 2xx.
+     */
+    [[nodiscard]] bool is_success() const noexcept override {
+        const auto CODE = interfaces::io::types::status_code(get_status());
+        return CODE >= 200 && CODE < 300;
+    }
+
+    /**
+     * @brief `IResponse::get_status_text()` override — a short reason phrase for the status.
+     * @return the reason phrase, or "Unknown" for statuses without one mapped here.
+     */
+    [[nodiscard]] std::string_view get_status_text() const noexcept override {
+        using interfaces::io::types::Status;
+        switch (get_status()) {
+        case Status::OK:
+            return "OK";
+        case Status::CREATED:
+            return "Created";
+        case Status::ACCEPTED:
+            return "Accepted";
+        case Status::NO_CONTENT:
+            return "No Content";
+        case Status::BAD_REQUEST:
+            return "Bad Request";
+        case Status::UNAUTHORIZED:
+            return "Unauthorized";
+        case Status::FORBIDDEN:
+            return "Forbidden";
+        case Status::NOT_FOUND:
+            return "Not Found";
+        case Status::NOT_ACCEPTABLE:
+            return "Not Acceptable";
+        case Status::CONFLICT:
+            return "Conflict";
+        case Status::UNPROCESSABLE_CONTENT:
+            return "Unprocessable Content";
+        case Status::INTERNAL_SERVER_ERROR:
+            return "Internal Server Error";
+        case Status::SERVICE_UNAVAILABLE:
+            return "Service Unavailable";
+        default:
+            return "Unknown";
+        }
+    }
+
+    /**
+     * @brief `IResponse::find_header()` override — checks `m_static_headers` for a known token
+     * (or a tokenizable string name) first, falls back to the `m_headers` hashmap.
+     * @param name_or_token the header name, or its interned token.
+     * @return the header's value, or an empty `string_view` if unset.
+     */
+    // FIXME(clang-tidy): bugprone-exception-escape — SwissHashMap::find isn't noexcept, but the
+    // override must match IResponse::find_header()'s noexcept signature.
+    [[nodiscard]] std::string_view
+    find_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token)
+        const noexcept override {
+        if (const auto *token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
+            const auto &field = m_static_headers[std::to_underlying(*token)];  // FIXME(clang-tidy): unchecked operator[]
+            return field ? std::string_view{field->get_value()} : std::string_view{};
+        }
+        const auto &name = *std::get_if<std::string_view>(&name_or_token);
+        auto token_opt = interfaces::io::types::tokenize(name);
+        if (token_opt.has_value()) {
+            const auto &field = m_static_headers[std::to_underlying(token_opt.value())];  // FIXME(clang-tidy): unchecked operator[]
+            return field ? std::string_view{field->get_value()} : std::string_view{};
+        }
+        auto result = m_headers.find(name);
+        return result.has_value() ? std::string_view{(*result)->get_value()} : std::string_view{};
+    }
+
+    /**
+     * @brief `IResponse::get_content_type()` override — reads the CONTENT_TYPE header.
+     * @return the content-type value, or empty if unset.
+     */
+    [[nodiscard]] std::string_view get_content_type() const noexcept override {
+        const auto &field =
+            m_static_headers[std::to_underlying(interfaces::io::types::Token::CONTENT_TYPE)];  // FIXME(clang-tidy): unchecked operator[]
+        return field ? std::string_view{field->get_value()} : std::string_view{};
+    }
+
+    /**
+     * @brief `IResponse::get_content_length()` override — reads and parses the CONTENT_LENGTH header.
+     * @return the content length, or 0 if unset/unparsable.
+     */
+    [[nodiscard]] std::size_t get_content_length() const noexcept override {
+        const auto &field =
+            m_static_headers[std::to_underlying(interfaces::io::types::Token::CONTENT_LENGTH)];  // FIXME(clang-tidy): unchecked operator[]
+        if (field == nullptr) {
+            return 0;
+        }
+        const auto &value = field->get_value();
+        std::size_t length = 0;
+        std::from_chars(value.data(), value.data() + value.size(), length);
+        return length;
+    }
+
+    /**
+     * @brief `IResponse::get_body()` override — mutable access.
+     * @return a mutable `BufferView` over the body bytes.
+     */
+    [[nodiscard]] utils::buffering::BufferView &get_body() noexcept override { return m_body; }
+
+    /**
+     * @brief `IResponse::get_body()` const override — read-only access.
+     * @return a read-only `BufferView` over the body bytes.
+     */
+    [[nodiscard]] const utils::buffering::BufferView &get_body() const noexcept override {
+        return m_body;
+    }
 
   private:
     /**
@@ -288,7 +430,7 @@ class HttpResponse : public interfaces::io::IResponse {
     hashmap::swiss::SwissHashMap<std::string_view,
                                  std::shared_ptr<interfaces::io::HeaderField<false>>>
         m_headers;
-    std::vector<std::byte> m_body;
+    utils::buffering::BufferView m_body;
 };
 
 struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpResponseAdaptor> {
@@ -381,3 +523,106 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
 };
 
 } // namespace io::layer::http2
+
+// WriteHttpResponseAdaptor needs a real HPackTable and encodes through HpackEncoder — that path
+// already has known-broken suites elsewhere in this codebase right now, so it's skipped here.
+// HttpResponse's own header/status/body bookkeeping is pure, in-memory, and fully testable.
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+
+suite<"HttpResponse"> http_response_suite = [] {
+    "starts with no headers, an empty body, and status OK by default"_test = [] {
+        HttpResponse res{5};
+        expect(res.get_headers().empty());
+        expect(res.get_body().empty());
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(res.is_success());
+    };
+    "set_status sets the STATUS pseudo-header, readable back via get_status"_test = [] {
+        HttpResponse res{1};
+        res.set_status(interfaces::io::types::Status::NOT_FOUND);
+
+        expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
+        expect(not res.is_success());
+        expect(res.get_status_text() == "Not Found");
+    };
+    "set_header/find_header round-trip via the Token overload"_test = [] {
+        HttpResponse res{1};
+        res.set_header(interfaces::io::types::Token::CONTENT_TYPE, "application/json");
+        expect(res.get_content_type() == "application/json");
+    };
+    "an unrecognized name with a non-empty value lands in the dynamic map"_test = [] {
+        HttpResponse res{1};
+        res.set_header(std::string_view{"x-custom"}, "value1");
+        expect(res.find_header(std::string_view{"x-custom"}) == "value1");
+    };
+    "an empty header name throws invalid_argument"_test = [] {
+        HttpResponse res{1};
+        expect(throws<std::invalid_argument>([&] { res.set_header(std::string_view{}, "v"); }));
+    };
+    "Token::NONE throws invalid_argument"_test = [] {
+        HttpResponse res{1};
+        expect(throws<std::invalid_argument>(
+            [&] { res.set_header(interfaces::io::types::Token::NONE, "v"); }));
+    };
+    "COOKIE set via the direct Token overload always overwrites (no name to tokenize with)"_test =
+        [] {
+        HttpResponse res{1};
+        res.set_header(interfaces::io::types::Token::COOKIE, "a=1");
+        res.set_header(interfaces::io::types::Token::COOKIE, "b=2");
+        expect(res.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
+    };
+    "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test =
+        [] {
+        HttpResponse res{1};
+        res.set_header(std::string_view{"cookie"}, "a=1");
+        res.set_header(std::string_view{"cookie"}, "b=2");
+        expect(res.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
+    };
+    "remove_header clears a known token slot"_test = [] {
+        HttpResponse res{1};
+        res.set_header(interfaces::io::types::Token::CONTENT_TYPE, "text/plain");
+        res.remove_header(interfaces::io::types::Token::CONTENT_TYPE);
+        expect(res.get_content_type().empty());
+    };
+    "get_content_length parses the CONTENT_LENGTH header"_test = [] {
+        HttpResponse res{1};
+        res.set_header(interfaces::io::types::Token::CONTENT_LENGTH, "42");
+        expect(res.get_content_length() == 42);
+    };
+    "get_content_length defaults to 0 when unset"_test = [] {
+        HttpResponse res{1};
+        expect(res.get_content_length() == 0);
+    };
+    "set_body/get_body round-trip a non-empty body"_test = [] {
+        HttpResponse res{1};
+        std::vector<std::byte> body{std::byte{1}, std::byte{2}, std::byte{3}};
+        res.set_body(std::move(body));
+        expect(res.get_body().size() == 3);
+    };
+    "set_body with an empty vector leaves the body untouched"_test = [] {
+        HttpResponse res{1};
+        res.set_body({});
+        expect(res.get_body().empty());
+    };
+    "get_size accounts for at least the mandatory empty-body DATA frame"_test = [] {
+        HttpResponse res{1};
+        res.set_status(interfaces::io::types::Status::OK);
+        expect(res.get_size(16384) > 0);
+    };
+    "get_headers collects both static and dynamic entries"_test = [] {
+        HttpResponse res{1};
+        res.set_status(interfaces::io::types::Status::OK);
+        res.set_header(std::string_view{"x-custom"}, "value1");
+        expect(res.get_headers().size() == 2);
+    };
+    "get_status_text falls back to Unknown for an unmapped status"_test = [] {
+        HttpResponse res{1};
+        res.set_status(static_cast<interfaces::io::types::Status>(599));
+        expect(res.get_status_text() == "Unknown");
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

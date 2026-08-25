@@ -39,10 +39,10 @@ file = "worker.log"
 level = "debug"
 stdout_level = "debug"
 
-# otel_otlp_plugin — docker service-name endpoints, which resolve inside the compose network. No
-# `required` override, so it keeps the default (required = true): the plugin probes each endpoint at
-# load and fails worker boot if any is unreachable, surfacing broken observability wiring loudly
-# rather than silently dropping telemetry. Set required = false to opt out.
+# otel_otlp_plugin — docker service-name endpoints, which resolve inside the compose network.
+# Reaching every endpoint below is an unconditional hard requirement (no opt-out): the plugin
+# probes each at load and fails worker boot if any is unreachable, surfacing broken observability
+# wiring loudly rather than silently dropping telemetry.
 [plugins.otel_otlp_plugin]
 type = "custom"
 service_name = "congelado-worker"

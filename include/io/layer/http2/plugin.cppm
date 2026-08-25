@@ -15,6 +15,9 @@ import io_flow_socket;
 import :extension;
 import :flow;
 import :request;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -78,7 +81,7 @@ class Client final : public interfaces::IClient {
                                                     ::shared::CloseCallback close) override {
         // Flow only gets built once we actually have send/close callbacks to wire it up with.
         m_flow = std::make_unique<ClientFlow>(std::move(send), std::move(close),
-                                              m_extension_registry, m_dispatch);
+                                              m_extension_registry, *m_contract_group, m_dispatch);
 
         // on_connect() hands back a callback that itself runs the handshake and returns the
         // steady-state read callback — invoke it right away, no lazy deferral here.
@@ -100,24 +103,25 @@ class Client final : public interfaces::IClient {
      * yet at that point, so there's nothing to send through.
      */
     // Please pass in a HttpRequest object. Else this function will throw a std::bad_cast exception.
-    void send(interfaces::io::IRequest &req) override {
+    std::uint32_t send(interfaces::io::IRequest &req) override {
         if (!m_flow) {
             core::logger::error("http2", "send() called before the connection was established");
             core::events::publish("http2.send.not_connected");
-            return;
+            return 0;
         }
         try {
             // Downcast to the concrete request type this protocol actually knows how to frame.
             auto &http_request = dynamic_cast<HttpRequest &>(req);
 
-            m_flow->sender(http_request);
-            return;
+            // Returns the stream id the session actually assigned — the response-correlation key.
+            return m_flow->sender(http_request);
         } catch (const std::bad_cast &e) {
             // Wrong IRequest type got routed here, no cap — log it and drop the request instead
             // of propagating the exception up to the caller.
             core::logger::error("http2", "Failed to cast IRequest to HttpRequest: {}", e.what());
             core::events::publish("http2.request.cast_failed", {{"error", e.what()}});
         }
+        return 0;
     }
 
     /**
@@ -159,6 +163,9 @@ class Client final : public interfaces::IClient {
         if (m_socket_flow.has_value()) {
             return std::unexpected("client already running");
         }
+        // Stash the contract group so on_connect() can register each ClientFlow's frame executor
+        // against it (on_connect fires later, async, once the handshake lands).
+        m_contract_group = &contract_group;
         m_socket_flow.emplace(std::move(endpoint), leverager, contract_group, verify_peer);
         m_socket_flow->add_on_accept([this, on_connected = std::move(on_connected)](
                                          ::shared::SendCallback send,
@@ -189,6 +196,7 @@ class Client final : public interfaces::IClient {
     std::unique_ptr<ClientFlow> m_flow;
     interfaces::io::ReceiveDispatchFn m_dispatch;
     HttpExtensionRegistry m_extension_registry;
+    core::contract::ContractGroup<> *m_contract_group{nullptr};
     std::optional<io::base::flow::sync::ClientFlowSocket<core::contract::ContractGroup<>,
                                                          io::base::socket::Protocol::TLS>>
         m_socket_flow;
@@ -295,8 +303,18 @@ class Server {
                                                     ::shared::CloseCallback close) {
         return m_flows
             .emplace_back(std::make_unique<ServerFlow>(std::move(send), std::move(close),
-                                                       m_extension_registry, m_dispatch))
+                                                       m_extension_registry, *m_contract_group,
+                                                       m_dispatch))
             ->on_read();
+    }
+
+    /**
+     * @brief Wires the contract group each accepted connection's `ServerFlow` registers its frame
+     * executor against. Must be called (by the transport plugin) before any connection is accepted.
+     * @param group the shared contract group; must outlive this server.
+     */
+    void set_contract_group(core::contract::ContractGroup<> &group) noexcept {
+        m_contract_group = &group;
     }
 
     /**
@@ -368,6 +386,7 @@ class Server {
     interfaces::io::ReceiveDispatchFn m_dispatch;
     std::optional<core::router::RouteHandler<>> m_server;
     std::optional<core::router::RouterExecutor> m_executor;
+    core::contract::ContractGroup<> *m_contract_group{nullptr};
 };
 
 // HTTP/2 protocol implementation.
@@ -481,3 +500,55 @@ class Http2Protocol final : public interfaces::IProtocol<Server> {
 };
 
 } // namespace io::layer::http2
+
+// Client/Server both need a live socket/leverager/router-context to do anything meaningful —
+// not reproducible here. Http2Protocol's constructor validation and plain accessors are pure
+// config parsing with no I/O, so those are tested directly.
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+
+core::config::PluginConfig valid_http2_config() {
+    core::config::PluginConfig cfg;
+    cfg.add_field("host", "0.0.0.0");
+    cfg.add_field("cert", "server.crt");
+    cfg.add_field("key", "server.key");
+    cfg.add_field("port", "8443");
+    return cfg;
+}
+
+suite<"Http2Protocol"> http2_protocol_suite = [] {
+    "a null config throws"_test = [] {
+        expect(throws<std::runtime_error>([] { Http2Protocol protocol{nullptr}; }));
+    };
+    "a valid config parses every field"_test = [] {
+        auto cfg = valid_http2_config();
+        Http2Protocol protocol{&cfg};
+
+        expect(protocol.get_protocol_name() == "http/2");
+        expect(protocol.get_bind_host() == "0.0.0.0");
+        expect(protocol.get_bind_port() == 8443);
+        expect(protocol.get_tls_cert() == "server.crt");
+        expect(protocol.get_tls_key() == "server.key");
+    };
+    "a config missing a required field throws"_test = [] {
+        core::config::PluginConfig cfg;
+        cfg.add_field("host", "0.0.0.0");
+        // cert/key/port intentionally left unset.
+        expect(throws<std::runtime_error>([&] { Http2Protocol protocol{&cfg}; }));
+    };
+    "get_server/get_client hand back fresh, unconnected instances"_test = [] {
+        auto cfg = valid_http2_config();
+        Http2Protocol protocol{&cfg};
+
+        auto server = protocol.get_server();
+        expect(server != nullptr);
+
+        auto client = protocol.get_client(
+            [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {});
+        expect(client != nullptr);
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

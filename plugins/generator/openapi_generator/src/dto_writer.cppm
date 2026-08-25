@@ -3,6 +3,9 @@ export module openapi_generator_plugin:dto_writer;
 import std;
 import core_generator;
 import :schema_model;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::client {
 
@@ -223,3 +226,233 @@ class DtoWriter {
 };
 
 } // namespace congelado::client
+
+#ifdef CONGELADO_TEST
+namespace openapi_gen_dto_writer_tests {
+using namespace boost::ut;
+using congelado::client::DtoWriter;
+using congelado::client::SchemaKind;
+using congelado::client::SchemaType;
+
+[[nodiscard]] SchemaType make_primitive(SchemaKind kind, bool nullable = false) {
+    SchemaType schema;
+    schema.set_kind(kind);
+    schema.set_nullable(nullable);
+    return schema;
+}
+
+[[nodiscard]] SchemaType make_ref(std::string name) {
+    SchemaType schema;
+    schema.set_kind(SchemaKind::REF);
+    schema.set_ref(std::move(name));
+    return schema;
+}
+
+[[nodiscard]] SchemaType make_array(SchemaType items) {
+    SchemaType schema;
+    schema.set_kind(SchemaKind::ARRAY);
+    schema.set_items(std::move(items));
+    return schema;
+}
+
+suite<"DtoWriter"> dto_writer_suite = [] {
+    "write emits a setter/getter/field per property, PascalCase-derived from snake_case"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("task_name", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("class Widget"));
+        expect(result->contains("void setTaskName(std::string value)"));
+        expect(result->contains("const std::string &getTaskName() const noexcept"));
+        expect(result->contains("m_task_name"));
+    };
+
+    "to_pascal_case: a single-char segment name still capitalizes"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("id", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("setId("));
+        expect(result->contains("getId("));
+    };
+
+    "to_pascal_case: an internal underscore run collapses to one capital each"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("a_b", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("setAB("));
+        expect(result->contains("getAB("));
+    };
+
+    "to_pascal_case: a leading underscore is dropped, not preserved"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("_foo", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("setFoo("));
+    };
+
+    "resolve_cpp_type: Ref becomes the bare referenced class name"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("owner", make_ref("Person"));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}, {"Person", SchemaType{}}};
+        schemas.at("Person").set_kind(SchemaKind::OBJECT);
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("void setOwner(Person value)"));
+    };
+
+    "resolve_cpp_type: Array of Ref becomes std::vector<Ref>"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("items", make_array(make_ref("Item")));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}, {"Item", SchemaType{}}};
+        schemas.at("Item").set_kind(SchemaKind::OBJECT);
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("std::vector<Item>"));
+    };
+
+    "resolve_cpp_type: Integer/Number/Boolean map to int64_t/double/bool"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("count", make_primitive(SchemaKind::INTEGER));
+        widget.add_property("ratio", make_primitive(SchemaKind::NUMBER));
+        widget.add_property("active", make_primitive(SchemaKind::BOOLEAN));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("std::int64_t value"));
+        expect(result->contains("double value"));
+        expect(result->contains("bool value"));
+    };
+
+    "resolve_cpp_type: nullable wraps the base type in std::optional"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("nickname", make_primitive(SchemaKind::STRING, true));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("std::optional<std::string>"));
+    };
+
+    "resolve_cpp_type: Object kind is currently always std::string, even with properties"_test = [] {
+        // Locks in resolve_cpp_type's current, unmodified behavior: an anonymous inline
+        // OBJECT-kind property always resolves to "std::string", regardless of whether it
+        // carries any properties of its own. Not a claim this is ideal — just the documented,
+        // as-written behavior this pass must not change.
+        SchemaType inline_object;
+        inline_object.set_kind(SchemaKind::OBJECT);
+        inline_object.add_property("nested", make_primitive(SchemaKind::STRING));
+
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("blob", inline_object);
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("void setBlob(std::string value)"));
+        expect(not result->contains("serde::Value"));
+    };
+
+    "write topo-sorts direct Ref dependencies before their dependents"_test = [] {
+        SchemaType parent;
+        parent.set_kind(SchemaKind::OBJECT);
+        parent.add_property("child", make_ref("Child"));
+        SchemaType child;
+        child.set_kind(SchemaKind::OBJECT);
+        child.add_property("value", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Parent", parent}, {"Child", child}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        auto child_pos = result->find("class Child");
+        auto parent_pos = result->find("class Parent");
+        expect(child_pos != std::string::npos);
+        expect(parent_pos != std::string::npos);
+        expect(child_pos < parent_pos);
+    };
+
+    "write topo-sorts array-of-Ref dependencies before their dependents"_test = [] {
+        SchemaType parent;
+        parent.set_kind(SchemaKind::OBJECT);
+        parent.add_property("children", make_array(make_ref("Child")));
+        SchemaType child;
+        child.set_kind(SchemaKind::OBJECT);
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Parent", parent}, {"Child", child}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        auto child_pos = result->find("class Child");
+        auto parent_pos = result->find("class Parent");
+        expect(child_pos != std::string::npos);
+        expect(parent_pos != std::string::npos);
+        expect(child_pos < parent_pos);
+    };
+
+    "write errors when a named schema isn't an object"_test = [] {
+        std::unordered_map<std::string, SchemaType> schemas{{"NotAnObject", make_primitive(SchemaKind::STRING)}};
+
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(not result.has_value()) << fatal;
+        expect(result.error() == "named schema 'NotAnObject' is not an object");
+    };
+
+    "write emits a serde::Serializable specialization per class"_test = [] {
+        SchemaType widget;
+        widget.set_kind(SchemaKind::OBJECT);
+        widget.add_property("name", make_primitive(SchemaKind::STRING));
+
+        std::unordered_map<std::string, SchemaType> schemas{{"Widget", widget}};
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains("struct serde::Serializable<dto_mod::Widget>"));
+        expect(result->contains("serde::FieldDesc<\"name\", &Widget::getName, &Widget::setName>"));
+    };
+
+    "write on an empty schema map still renders a valid, empty module"_test = [] {
+        std::unordered_map<std::string, SchemaType> schemas;
+
+        auto result = DtoWriter::write(schemas, "dto_mod");
+
+        expect(result.has_value()) << fatal;
+        expect(result->starts_with("export module dto_mod;\n"));
+        expect(not result->contains("class "));
+    };
+};
+
+} // namespace openapi_gen_dto_writer_tests
+#endif

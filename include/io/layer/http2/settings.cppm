@@ -12,6 +12,9 @@ import core_logger;
 import utils_codec;
 import :consts;
 import :frame;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::layer::http2 {
 
@@ -474,3 +477,232 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
 };
 
 } // namespace io::layer::http2
+
+#ifdef CONGELADO_TEST
+namespace io::layer::http2::tests {
+using namespace boost::ut;
+
+suite<"Settings defaults"> settings_defaults_suite = [] {
+    "starts at RFC 9113 spec defaults"_test = [] {
+        Settings settings;
+
+        expect(settings.get_header_table_size() == DEFAULT_HEADER_TABLE_SIZE);
+        expect(settings.get_enable_push());
+        expect(settings.get_max_concurrent_streams() == 100U);
+        expect(settings.get_initial_window_size() == DEFAULT_INITIAL_WINDOW_SIZE);
+        expect(settings.get_max_frame_size() == MIN_FRAME_SIZE);
+        expect(settings.get_max_header_list_size() == std::numeric_limits<std::uint32_t>::max());
+        expect(not settings.is_finished());
+        expect(not settings.is_acknowledged());
+        expect(settings.get_vendor_settings().empty());
+    };
+};
+
+suite<"Settings::apply"> settings_apply_suite = [] {
+    "applies every recognized setting id to its matching field"_test = [] {
+        Settings settings;
+
+        settings.apply(0x1, 8192);
+        settings.apply(0x2, 0);
+        settings.apply(0x3, 50);
+        settings.apply(0x4, 1000);
+        settings.apply(0x5, 20000);
+        settings.apply(0x6, 4000);
+
+        expect(settings.get_header_table_size() == 8192U);
+        expect(not settings.get_enable_push());
+        expect(settings.get_max_concurrent_streams() == 50U);
+        expect(settings.get_initial_window_size() == 1000U);
+        expect(settings.get_max_frame_size() == 20000U);
+        expect(settings.get_max_header_list_size() == 4000U);
+    };
+
+    "rejects ENABLE_PUSH values other than 0 or 1"_test = [] {
+        Settings settings;
+        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x2, 2); }));
+    };
+
+    "rejects INITIAL_WINDOW_SIZE past 2^31-1"_test = [] {
+        Settings settings;
+        expect(throws<error::http::ConnectionError>(
+            [&] { settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE + 1); }));
+        expect(nothrow([&] { settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE); }));
+    };
+
+    "rejects MAX_FRAME_SIZE outside [16384, 2^24-1]"_test = [] {
+        Settings settings;
+        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x5, MIN_FRAME_SIZE - 1); }));
+        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x5, MAX_FRAME_SIZE + 1); }));
+        expect(nothrow([&] { settings.apply(0x5, MIN_FRAME_SIZE); }));
+    };
+
+    "records unknown setting ids as vendor settings instead of rejecting"_test = [] {
+        Settings settings;
+        settings.apply(0x8, 1);
+
+        expect(settings.get_vendor_settings().size() == 1U);
+        expect(settings.get_vendor_settings()[0].first == 0x8);
+        expect(settings.get_vendor_settings()[0].second == 1U);
+    };
+};
+
+suite<"Settings::apply_all"> settings_apply_all_suite = [] {
+    "copies the six negotiable fields and vendor settings, leaving lifecycle state untouched"_test =
+        [] {
+            Settings source;
+            source.apply(0x1, 8192);
+            source.apply(0x3, 10);
+            source.apply(0x9, 42);
+
+            Settings target;
+            target.set_last_stream_id(7);
+            target.set_state(SettingsState::ACKNOWLEDGED);
+            target.set_delta_window_on_settings(5);
+
+            target.apply_all(source);
+
+            expect(target.get_header_table_size() == 8192U);
+            expect(target.get_max_concurrent_streams() == 10U);
+            expect(target.get_vendor_settings().size() == 1U);
+            expect(target.get_vendor_settings()[0].first == 0x9);
+
+            // Lifecycle state deliberately untouched by apply_all().
+            expect(target.get_last_stream_id() == 7U);
+            expect(target.is_acknowledged());
+            expect(target.get_delta_window_on_settings() == 5);
+        };
+};
+
+suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
+    "add_local_setting_override records a vendor id/value pair"_test = [] {
+        Settings settings;
+        settings.add_local_setting_override(0x8, 1);
+
+        expect(settings.get_vendor_settings().size() == 1U);
+        expect(settings.get_vendor_settings()[0] == std::pair<std::uint16_t, std::uint32_t>{0x8, 1});
+    };
+
+    "set_last_stream_id / get_last_stream_id round-trip"_test = [] {
+        Settings settings;
+        settings.set_last_stream_id(99);
+        expect(settings.get_last_stream_id() == 99U);
+    };
+
+    "set_delta_window_on_settings / get_delta_window_on_settings round-trip"_test = [] {
+        Settings settings;
+        settings.set_delta_window_on_settings(-500);
+        expect(settings.get_delta_window_on_settings() == -500);
+    };
+
+    "set_state drives is_finished/is_acknowledged"_test = [] {
+        Settings settings;
+        expect(not settings.is_finished());
+        expect(not settings.is_acknowledged());
+
+        settings.set_state(SettingsState::ACKNOWLEDGED);
+        expect(settings.is_acknowledged());
+        expect(not settings.is_finished());
+
+        settings.set_state(SettingsState::IMPLEMENTED);
+        expect(settings.is_finished());
+    };
+
+    "next_stream_id bumps by 2 and stays odd-parity"_test = [] {
+        Settings settings;
+        settings.set_last_stream_id(1);
+
+        expect(settings.next_stream_id() == 3U);
+        expect(settings.next_stream_id() == 5U);
+        expect(settings.get_last_stream_id() == 5U);
+    };
+};
+
+suite<"Settings::generate_ack"> settings_generate_ack_suite = [] {
+    "builds a bare SETTINGS ACK frame with no payload"_test = [] {
+        auto ack = Settings::generate_ack();
+
+        expect(ack.get_type() == shared_layer::FrameType::SETTINGS);
+        expect(ack.get_flags() == shared_layer::Flags::ACK);
+        expect(ack.get_stream_id() == 0U);
+        expect(ack.get_length() == 0U);
+    };
+};
+
+suite<"SettingsState formatter"> settings_state_formatter_suite = [] {
+    "formats every known state by name, unknown as UNKNOWN"_test = [] {
+        expect(std::format("{}", SettingsState::UNACKNOWLEDGED) == "UNACKNOWLEDGED");
+        expect(std::format("{}", SettingsState::ACKNOWLEDGED) == "ACKNOWLEDGED");
+        expect(std::format("{}", SettingsState::IMPLEMENTED) == "IMPLEMENTED");
+
+        auto bogus = static_cast<SettingsState>(99);
+        expect(std::format("{}", bogus) == "UNKNOWN");
+    };
+};
+
+suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
+    "decodes 6-byte id/value pairs, dropping a trailing partial chunk"_test = [] {
+        std::vector<std::byte> bytes;
+
+        auto append_pair = [&](std::uint16_t setting_id, std::uint32_t value) {
+            auto entry = std::views::empty<std::byte> |
+                        utils::codec::WriteBigEndianAdaptor<std::uint16_t>{setting_id} |
+                        utils::codec::WriteBigEndianAdaptor<std::uint32_t>{value} |
+                        std::ranges::to<std::vector<std::byte>>();
+            bytes.insert(bytes.end(), entry.begin(), entry.end());
+        };
+
+        append_pair(0x1, 8192);
+        append_pair(0x3, 10);
+        // Trailing partial chunk (3 bytes) — dropped, not decoded.
+        bytes.insert(bytes.end(), 3, std::byte{0});
+
+        auto decoded = bytes | ReadSettingsAdaptor{};
+
+        expect(decoded.get_header_table_size() == 8192U);
+        expect(decoded.get_max_concurrent_streams() == 10U);
+    };
+
+    "encodes only settings that diverge from spec defaults, round-tripping through Read"_test = [] {
+        Settings settings;
+
+        auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        // MAX_CONCURRENT_STREAMS and MAX_FRAME_SIZE always get emitted per the adaptor's own
+        // comparison logic (see WriteSettingsAdaptor::operator() in this file) — two 6-byte
+        // entries even for an otherwise-default Settings.
+        expect(bytes.size() == 12U);
+
+        auto decoded = bytes | ReadSettingsAdaptor{};
+        expect(decoded.get_max_concurrent_streams() == settings.get_max_concurrent_streams());
+        expect(decoded.get_max_frame_size() == settings.get_max_frame_size());
+    };
+
+    "emits a changed HEADER_TABLE_SIZE and disabled ENABLE_PUSH"_test = [] {
+        Settings settings;
+        settings.apply(0x1, 8192);
+        settings.apply(0x2, 0);
+
+        auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        auto decoded = bytes | ReadSettingsAdaptor{};
+        expect(decoded.get_header_table_size() == 8192U);
+        expect(not decoded.get_enable_push());
+    };
+
+    "vendor/extension overrides are appended after the six spec fields"_test = [] {
+        Settings settings;
+        settings.add_local_setting_override(0x8, 1);
+
+        auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
+                     std::ranges::to<std::vector<std::byte>>();
+
+        auto decoded = bytes | ReadSettingsAdaptor{};
+        expect(decoded.get_vendor_settings().size() == 1U);
+        expect(decoded.get_vendor_settings()[0] == std::pair<std::uint16_t, std::uint32_t>{0x8, 1});
+    };
+};
+
+} // namespace io::layer::http2::tests
+#endif

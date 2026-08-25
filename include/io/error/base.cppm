@@ -5,6 +5,9 @@ module;
 export module io_error:base;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::error {
 
@@ -57,3 +60,41 @@ class TlsError : std::runtime_error {
 };
 
 } // namespace io::error
+
+#ifdef CONGELADO_TEST
+namespace io::error::tests {
+using namespace boost::ut;
+
+suite<"handle_error"> handle_error_suite = [] {
+    "invokes the callback with the message and ctx"_test = [] {
+        std::string captured_message;
+        void *captured_ctx = nullptr;
+        int marker = 42;
+
+        io::error::handle_error<false, false>(
+            "test message", [&](std::string_view message, void *ctx) {
+                captured_message = std::string(message);
+                captured_ctx = ctx;
+            },
+            &marker);
+
+        expect(captured_message == "test message");
+        expect(captured_ctx == &marker);
+    };
+
+    "throws when UseException is set"_test = [] {
+        expect(throws<std::runtime_error>([] { io::error::handle_error<true, false>("boom"); }));
+    };
+};
+
+suite<"TlsError"> tls_error_suite = [] {
+    // TlsError privately inherits std::runtime_error (no `public` on the base), so `what()`
+    // and any base-class conversion are inaccessible from outside the class — the only
+    // observable public surface is that construction itself succeeds.
+    "constructs without throwing"_test = [] {
+        expect(nothrow([] { TlsError error("my-context"); }));
+    };
+};
+
+} // namespace io::error::tests
+#endif

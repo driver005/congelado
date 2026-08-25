@@ -1,0 +1,32 @@
+component: form
+flutter_name: HeroForm
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/form.css"
+  files: [tool/sources/heroui-form.css]
+  docs: https://heroui.com/en/docs/react/components/form
+
+anatomy:
+  - (container only, no CSS spec)
+
+kinds:
+  color: none
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - container-only (no spec in @heroui/styles); column gap 24
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

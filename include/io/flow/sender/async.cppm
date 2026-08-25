@@ -11,6 +11,9 @@ import interfaces;
 import utils_buffering;
 import io_base_socket;
 import shared;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::base::flow::async {
 
@@ -281,3 +284,80 @@ class Sender : public shared::HandlerBase {
 static_assert(interfaces::io::AsyncSendable<socket::Socket<socket::Protocol::TCP>, socket::SocketStatus>);
 
 } // namespace io::base::flow::async
+
+#ifdef CONGELADO_TEST
+namespace io::base::flow::async::sender_async_tests {
+
+// No instance of Sender<Worker, Status, Args...> can be constructed here (or, as far as this
+// codebase's usage shows, anywhere) — this class's own compile-time constraint is self-
+// contradictory, independent of any mock:
+//
+//   1. `interfaces::io::AsyncGetter` (include/interfaces/io/io.cppm, outside this file's edit
+//      scope) requires get_fd() to return EXACTLY `void`:
+//         { sock.get_fd() } noexcept -> std::same_as<void>;
+//   2. But every Sender method that touches get_fd() (send(), on_execute(), on_error(),
+//      arm_write()) uses its result as a real fd value — a format argument, or the first `int`
+//      of ErrorCallback = move_only_function<void(int,int)>. `const auto FD =
+//      m_worker.get().get_fd();` can't even name a `void`.
+//   3. Sender overrides shared::HandlerBase's pure virtual on_execute()/on_released()/on_error().
+//      Per [temp.inst], implicitly instantiating a class template specialization instantiates
+//      the DEFINITIONS of its virtual member functions unconditionally (the vtable needs real
+//      addresses for them) — so merely constructing a Sender<Worker,...>, without calling
+//      anything on it, forces on_execute()'s lambda body to compile against whatever get_fd()
+//      returns.
+//
+//   A get_fd() returning `int` fails the class's own `requires interfaces::io::IoAsyncSend<...>`
+//   clause outright (the type can't be named at all). A get_fd() returning `void` satisfies that
+//   clause but then fails to compile inside on_execute()/on_error()/arm_write(). No Worker can
+//   satisfy both at once. Confirms this isn't a mocking gap: grepping the codebase,
+//   `interfaces::io::IoAsyncSend` is referenced exactly once anywhere — this class's own
+//   requires-clause — and every static_assert in this file (see above) and its Receiver/sync-
+//   Sender siblings checks the plain `AsyncSendable`/`AsyncReceivable`/`SyncSendable` concept
+//   instead, never a composite that drags in `AsyncGetter`/`SyncGetter`. So what follows only
+//   exercises the compile-time concept machinery the class's requires-clause depends on.
+
+class GetFdReturnsVoid {
+  public:
+    void get_fd() const noexcept {}
+    void attach() noexcept {}
+    void detach() noexcept {}
+    void async_close() noexcept {}
+    void async_send(const std::byte *, std::size_t, interfaces::io::IoCallback<socket::SocketStatus>) noexcept {}
+};
+
+class GetFdReturnsInt {
+  public:
+    int get_fd() const noexcept { return 0; }
+    void attach() noexcept {}
+    void detach() noexcept {}
+    void async_close() noexcept {}
+    void async_send(const std::byte *, std::size_t, interfaces::io::IoCallback<socket::SocketStatus>) noexcept {}
+};
+
+using namespace boost::ut;
+
+suite<"Sender (async) — IoAsyncSend concept gating (see block comment above)"> sender_async_concept_suite = [] {
+    "a get_fd() returning void satisfies AsyncGetter/IoAsyncSend as literally written"_test = [] {
+        expect(interfaces::io::AsyncGetter<GetFdReturnsVoid>);
+        expect((interfaces::io::IoAsyncSend<GetFdReturnsVoid, socket::SocketStatus>));
+    };
+
+    "a get_fd() returning a real, usable fd type does NOT satisfy AsyncGetter"_test = [] {
+        expect(!interfaces::io::AsyncGetter<GetFdReturnsInt>);
+        expect(!(interfaces::io::IoAsyncSend<GetFdReturnsInt, socket::SocketStatus>));
+    };
+};
+
+// UAF-design-gap test (same structural pattern as Receiver's async.cppm / Connector's) NOT added
+// here: as the block comment at the top of this suite proves, no `Sender<Worker, Status, Args...>`
+// can be instantiated at all for ANY Worker — the class's own `requires
+// interfaces::io::IoAsyncSend<...>` clause and its virtual-function bodies demand mutually
+// exclusive `get_fd()` return types ([temp.inst] forces on_execute()/on_error()/arm_write() to
+// compile against whatever `get_fd()` returns the moment a Sender is constructed, and no return
+// type satisfies both the concept and those bodies). Since arm_write()'s raw-`this`-capture bug
+// this test would target is unreachable without a live `Sender` instance to destroy, and none can
+// exist, this finding is documented-and-skipped rather than faked with a type that wouldn't
+// actually compile against the real template.
+
+} // namespace io::base::flow::async::sender_async_tests
+#endif

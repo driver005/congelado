@@ -13,6 +13,9 @@ import io_layer_shared;
 import io_codec_shared;
 import utils_codec;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 
 export namespace io::codec::hpack {
@@ -378,20 +381,21 @@ class HpackTableSizeUpdateAdaptor
     std::reference_wrapper<HPackTable> m_table;
 };
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4,
+          typename Target = interfaces::io::IRequest>
     requires shared_codec::DecodeWidth<Width>
 class HpackDecoderAdapter
-    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width>> {
+    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width, Target>> {
   public:
     /**
-     * @brief Wires up an HPACK decoder over a fixed table and request sink — decoding writes
-     * headers straight into `req` as it goes, no intermediate buffer of decoded fields.
+     * @brief Wires up an HPACK decoder over a fixed table and header sink — decoding writes
+     * headers straight into `target` as it goes, no intermediate buffer of decoded fields.
      * @param table the decoding-side dynamic table, mutated in place as indexed/literal fields
      * get inserted.
-     * @param req the request that decoded headers get pushed into via add_header().
+     * @param target the request or response that decoded headers get pushed into via add_header().
      */
-    explicit HpackDecoderAdapter(HPackTable &table, interfaces::io::IRequest &req) noexcept
-        : m_table{table}, m_request{req} {}
+    explicit HpackDecoderAdapter(HPackTable &table, Target &target) noexcept
+        : m_table{table}, m_target{target} {}
 
     /**
      * @brief Walks a byte range field-by-field, detecting each representation type and
@@ -516,9 +520,9 @@ class HpackDecoderAdapter
                         add_field(*entry);
                     }
                 } else {
-                    // Without-indexing / never-indexed — push straight to the request,
+                    // Without-indexing / never-indexed — push straight to the target,
                     // no table mutation.
-                    m_request.get().add_header(ptr->get_name(), value);
+                    m_target.get().add_header(ptr->get_name(), value);
                 }
             },
             m_table.get().at(idx));
@@ -546,14 +550,14 @@ class HpackDecoderAdapter
                 add_field(*entry);
             }
         } else {
-            // No indexing — straight to the request.
-            m_request.get().add_header(name, value);
+            // No indexing — straight to the target.
+            m_target.get().add_header(name, value);
         }
     }
 
     /**
-     * @brief Pushes a resolved header entry onto the request, translating well-known Tokens
-     * back to their string form for static fields since IRequest deals in strings either way —
+     * @brief Pushes a resolved header entry onto the target, translating well-known Tokens
+     * back to their string form for static fields since the sink deals in strings either way —
      * bet, no reason to leak the Token enum past this boundary.
      * @param entry the header entry (static-token or dynamic-string field) to add.
      */
@@ -562,12 +566,12 @@ class HpackDecoderAdapter
             [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
                 // Static fields store a Token, not a string — translate it back before
-                // it reaches IRequest, which only deals in strings.
+                // it reaches the sink, which only deals in strings.
                 if constexpr (std::is_same_v<FieldType, interfaces::io::HeaderField<true>>) {
-                    m_request.get().add_header(
+                    m_target.get().add_header(
                         interfaces::io::types::token_to_string(ptr->get_name()), ptr->get_value());
                 } else {
-                    m_request.get().add_header(ptr->get_name(), ptr->get_value());
+                    m_target.get().add_header(ptr->get_name(), ptr->get_value());
                 }
             },
             entry);
@@ -726,7 +730,7 @@ class HpackDecoderAdapter
     }
 
     std::reference_wrapper<HPackTable> m_table;
-    std::reference_wrapper<interfaces::io::IRequest> m_request;
+    std::reference_wrapper<Target> m_target;
 };
 
 template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
@@ -739,15 +743,18 @@ class Hpack {
      * state independently, per RFC 7541.
      * @param decoding_table the dynamic table used when decoding inbound headers.
      * @param encoding_table the dynamic table used when encoding outbound headers.
-     * @param req the request that decoded headers get written into.
-     * @param res the response whose headers get encoded on outbound.
+     * @param req the request that decoded headers get written into (server-side inbound).
+     * @param res the response whose headers get encoded on outbound, and the target decoded
+     * headers get written into on the client side (inbound responses).
+     * @param is_server true on a server session (inbound headers decode into `req`); false on a
+     * client session (inbound headers decode into `res`).
      * @param use_huffman when true, encoded string literals get Huffman-coded.
      */
     explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table,
-                   interfaces::io::IRequest &req, interfaces::io::IResponse &res,
+                   interfaces::io::IRequest &req, interfaces::io::IResponse &res, bool is_server,
                    bool use_huffman = true) noexcept
         : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req},
-          m_response{res}, m_use_huffman{use_huffman} {}
+          m_response{res}, m_is_server{is_server}, m_use_huffman{use_huffman} {}
 
     /**
      * @brief Builds an HpackEncoder over the response's current headers — call the returned
@@ -770,8 +777,8 @@ class Hpack {
     }
 
     /**
-     * @brief Decodes a full HPACK byte block into `m_request`'s headers, using the decoding
-     * table for index resolution and inserts.
+     * @brief Decodes a full HPACK byte block into the role-appropriate sink — `m_request` on a
+     * server, `m_response` on a client — using the decoding table for index resolution and inserts.
      * @tparam R a viewable range whose elements are std::byte.
      * @param data the encoded HPACK bytes to decode.
      * @return the total number of bytes consumed.
@@ -780,8 +787,14 @@ class Hpack {
     template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     [[nodiscard]] std::size_t decode(R &&data) {
+        if (m_is_server) {
+            return std::views::all(std::forward<R>(data)) |
+                   HpackDecoderAdapter<UInt, Width, interfaces::io::IRequest>{m_decoding_table,
+                                                                             m_request};
+        }
         return std::views::all(std::forward<R>(data)) |
-               HpackDecoderAdapter<UInt, Width>{m_decoding_table, m_request};
+               HpackDecoderAdapter<UInt, Width, interfaces::io::IResponse>{m_decoding_table,
+                                                                          m_response};
     }
 
     /**
@@ -819,11 +832,221 @@ class Hpack {
     std::reference_wrapper<HPackTable> m_decoding_table;
     std::reference_wrapper<interfaces::io::IRequest> m_request;
     std::reference_wrapper<interfaces::io::IResponse> m_response;
+    bool m_is_server;
     bool m_use_huffman;
 };
 
 } // namespace io::codec::hpack
 
+#ifdef CONGELADO_TEST
+namespace io::codec::hpack::tests {
+using namespace boost::ut;
+
+// Minimal decode target: HpackDecoderAdapter is templated on Target purely so it can be
+// unit-tested without pulling in a real io_layer_http2 request (which imports this module,
+// so a real one would be circular).
+class FakeHeaderTarget {
+  public:
+    void add_header(std::string_view name, std::string_view value) {
+        m_headers.emplace_back(std::string(name), std::string(value));
+    }
+    void add_header(interfaces::io::types::Token token, std::string_view value) {
+        add_header(interfaces::io::types::token_to_string(token), value);
+    }
+
+    [[nodiscard]] const std::vector<std::pair<std::string, std::string>> &get_headers() const noexcept {
+        return m_headers;
+    }
+
+  private:
+    std::vector<std::pair<std::string, std::string>> m_headers;
+};
+
+using TestDecoder = HpackDecoderAdapter<std::uint32_t, 4, FakeHeaderTarget>;
+
+suite<"HpackEncoder"> hpack_encoder_suite = [] {
+    "encodes an already-known static header as a single Indexed Field byte"_test = [] {
+        HPackTable table;
+        std::vector<interfaces::io::HeaderEntry> headers{
+            std::make_shared<interfaces::io::HeaderField<true>>(
+                interfaces::io::types::Token::METHOD, "GET")};
+        std::vector<std::byte> encoded;
+
+        HpackEncoder<std::uint32_t, 4> encoder{
+            table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason) {
+                encoded.insert(encoded.end(), chunk.begin(), chunk.end());
+            }};
+        encoder();
+
+        expect(encoded.size() == 1U);
+        // Plain `==` on std::byte forces boost::ut's failure-diagnostic printer to instantiate
+        // operator<<(ostream&, std::byte), which doesn't exist — comparing via std::to_integer
+        // keeps this a plain integer comparison instead.
+        expect(std::to_integer<int>(encoded[0]) == 0x82);
+    };
+
+    "encoding a fresh literal header inserts it into the dynamic table"_test = [] {
+        HPackTable table;
+        std::vector<interfaces::io::HeaderEntry> headers{
+            std::make_shared<interfaces::io::HeaderField<false>>("x-custom", "value1")};
+        std::vector<std::byte> encoded;
+
+        HpackEncoder<std::uint32_t, 4> encoder{
+            table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason) {
+                encoded.insert(encoded.end(), chunk.begin(), chunk.end());
+            },
+            false, false};
+        encoder();
+
+        expect(not encoded.empty());
+        expect(table.dynamic_count() == 1U);
+    };
+
+    // Pins the exact-16384-byte flush boundary at the safe `max_frame_size` default (matching
+    // `m_buf`'s fixed capacity). A `max_frame_size` above 16384 would make the `m_buf_pos ==
+    // m_flush_size` check unreachable before `m_buf`'s array bound — a real OOB write — so that
+    // case is deliberately NOT exercised here for test-binary safety.
+    "a header block landing exactly at the 16384-byte boundary flushes right there"_test = [] {
+        HPackTable table;
+        // name="x" (2 encoded bytes: 1 length-prefix + 1 char), value is 16378 raw chars (3
+        // length-prefix bytes since 16378 - 127 needs two 7-bit continuation octets, + 16378
+        // char bytes = 16381), plus the 1 literal-with-indexing prefix byte: 1 + 2 + 16381 =
+        // 16384 exactly.
+        const std::string VALUE(16378, 'a');
+        std::vector<interfaces::io::HeaderEntry> headers{
+            std::make_shared<interfaces::io::HeaderField<false>>("x", VALUE)};
+
+        std::vector<std::pair<std::size_t, HpackFlushReason>> flushes;
+        HpackEncoder<std::uint32_t, 4> encoder{
+            table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason reason) {
+                flushes.emplace_back(chunk.size(), reason);
+            },
+            false, false};
+        encoder();
+
+        expect(flushes.size() == 2U) << fatal;
+        expect(flushes[0].first == 16384U);
+        expect(flushes[0].second == HpackFlushReason::OVERFLOW);
+        expect(flushes[1].first == 0U);
+        expect(flushes[1].second == HpackFlushReason::END);
+    };
+};
+
+suite<"HpackEncoder/HpackDecoderAdapter round-trip"> hpack_round_trip_suite = [] {
+    "round-trips a repeated header through encode then decode"_test = [] {
+        HPackTable encode_table;
+        HPackTable decode_table;
+
+        std::vector<interfaces::io::HeaderEntry> headers{
+            std::make_shared<interfaces::io::HeaderField<false>>("x-custom", "value1"),
+            std::make_shared<interfaces::io::HeaderField<false>>("x-custom", "value1"),
+        };
+        std::vector<std::byte> encoded;
+
+        HpackEncoder<std::uint32_t, 4> encoder{
+            encode_table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason) {
+                encoded.insert(encoded.end(), chunk.begin(), chunk.end());
+            },
+            false, false};
+        encoder();
+
+        FakeHeaderTarget target;
+        TestDecoder decoder{decode_table, target};
+        std::size_t consumed = decoder(encoded);
+
+        expect(consumed == encoded.size());
+        expect(target.get_headers().size() == 2U);
+        expect(target.get_headers()[0].first == "x-custom");
+        expect(target.get_headers()[0].second == "value1");
+        expect(target.get_headers()[1].first == "x-custom");
+        expect(target.get_headers()[1].second == "value1");
+    };
+
+    "round-trips a cookie header split into individual crumbs"_test = [] {
+        HPackTable encode_table;
+        HPackTable decode_table;
+
+        std::vector<interfaces::io::HeaderEntry> headers{
+            std::make_shared<interfaces::io::HeaderField<true>>(
+                interfaces::io::types::Token::COOKIE, "a=1; b=2"),
+        };
+        std::vector<std::byte> encoded;
+
+        HpackEncoder<std::uint32_t, 4> encoder{
+            encode_table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason) {
+                encoded.insert(encoded.end(), chunk.begin(), chunk.end());
+            },
+            false, false};
+        encoder();
+
+        FakeHeaderTarget target;
+        TestDecoder decoder{decode_table, target};
+        std::ignore = decoder(encoded);
+
+        expect(target.get_headers().size() == 2U);
+        expect(target.get_headers()[0].first == "cookie");
+        expect(target.get_headers()[0].second == "a=1");
+        expect(target.get_headers()[1].first == "cookie");
+        expect(target.get_headers()[1].second == "b=2");
+    };
+};
+
+suite<"HpackDecoderAdapter error paths"> hpack_decoder_error_suite = [] {
+    "decoding an Indexed Field with index 0 throws"_test = [] {
+        HPackTable table;
+        FakeHeaderTarget target;
+        TestDecoder decoder{table, target};
+        std::vector<std::byte> encoded{std::byte{0x80}};
+
+        expect(throws<error::http::InvalidIndexError<std::uint32_t>>(
+            [&] { std::ignore = decoder(encoded); }));
+    };
+
+    "decoding a table size update past the negotiated max throws"_test = [] {
+        HPackTable table{100};
+        FakeHeaderTarget target;
+        TestDecoder decoder{table, target};
+
+        auto size_range = 200U | shared_codec::lowlevel::EncodeIntAdaptor<std::uint32_t>{
+                                     5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
+        std::vector<std::byte> encoded(size_range.begin(), size_range.end());
+
+        expect(throws<error::http::TableSizeError>([&] { std::ignore = decoder(encoded); }));
+    };
+
+    "decoding a within-budget table size update resizes the table"_test = [] {
+        HPackTable table{100};
+        FakeHeaderTarget target;
+        TestDecoder decoder{table, target};
+
+        auto size_range = 20U | shared_codec::lowlevel::EncodeIntAdaptor<std::uint32_t>{
+                                    5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
+        std::vector<std::byte> encoded(size_range.begin(), size_range.end());
+        std::ignore = decoder(encoded);
+
+        expect(table.max_size() == 20U);
+    };
+};
+
+suite<"HpackTableSizeUpdateAdaptor"> hpack_table_size_update_adaptor_suite = [] {
+    "resizes the table and emits the matching wire bytes"_test = [] {
+        HPackTable table;
+        auto encoded_range = 20U | HpackTableSizeUpdateAdaptor<std::uint32_t>{table};
+        std::vector<std::byte> encoded(encoded_range.begin(), encoded_range.end());
+
+        expect(table.max_size() == 20U);
+        expect(encoded.size() == 1U);
+        expect(std::to_integer<int>(encoded[0]) == 0x34);
+    };
+};
+
+} // namespace io::codec::hpack::tests
+#endif
 
 // export namespace io::codec::hpack {
 // static constexpr std::string COOKIE_SEPARATOR = "; ";

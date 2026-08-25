@@ -42,14 +42,6 @@ class ICache {
      * @return the backend's name, straight from the implementer, no filter.
      */
     [[nodiscard]] virtual std::string_view backend_name() const noexcept = 0;
-    /**
-     * @brief Says whether this cache is load-bearing or just optional flex.
-     * @note Defaults to `false` — if your app genuinely can't function without this backend up,
-     * override it to `true` so a connection failure gets treated like the L it actually is
-     * instead of getting quietly shrugged off.
-     * @return true if this cache is a hard requirement, false if it's optional motion.
-     */
-    [[nodiscard]] virtual bool required() const noexcept { return false; }
 
     /**
      * @brief Fires off an async lookup for `key` — zero blocking, the result just shows up

@@ -2,6 +2,9 @@ export module io_codec_shared:huffman;
 import std;
 import io_error;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace io::shared_codec::huffman {
 
@@ -630,3 +633,80 @@ struct Huffman {
 };
 
 } // namespace io::shared_codec::huffman
+
+#ifdef CONGELADO_TEST
+namespace io::shared_codec::huffman::tests {
+using namespace boost::ut;
+
+suite<"Huffman encode/decode"> huffman_round_trip_suite = [] {
+    "round-trips an empty string"_test = [] {
+        std::string original;
+        std::vector<std::byte> byte_view;
+
+        std::vector<std::byte> encoded;
+        for (std::byte value : byte_view | Huffman<4>::encode()) {
+            encoded.push_back(value);
+        }
+        expect(encoded.empty());
+
+        std::string decoded;
+        for (char character : encoded | Huffman<4>::decode()) {
+            decoded += character;
+        }
+        expect(decoded == original);
+    };
+
+    "round-trips a short ASCII string"_test = [] {
+        std::string original = "hello world";
+        std::vector<std::byte> byte_view;
+        for (char character : original) {
+            byte_view.push_back(static_cast<std::byte>(character));
+        }
+
+        std::vector<std::byte> encoded;
+        for (std::byte value : byte_view | Huffman<4>::encode()) {
+            encoded.push_back(value);
+        }
+
+        std::string decoded;
+        for (char character : encoded | Huffman<4>::decode()) {
+            decoded += character;
+        }
+        expect(decoded == original);
+    };
+
+    "matches the RFC 7541 C.4.1 known encoding for \"www.example.com\""_test = [] {
+        std::string original = "www.example.com";
+        std::vector<std::byte> byte_view;
+        for (char character : original) {
+            byte_view.push_back(static_cast<std::byte>(character));
+        }
+
+        std::vector<std::byte> encoded;
+        for (std::byte value : byte_view | Huffman<4>::encode()) {
+            encoded.push_back(value);
+        }
+
+        std::vector<std::byte> expected{std::byte{0xf1}, std::byte{0xe3}, std::byte{0xc2}, std::byte{0xe5},
+                                        std::byte{0xf2}, std::byte{0x3a}, std::byte{0x6b}, std::byte{0xa0},
+                                        std::byte{0xab}, std::byte{0x90}, std::byte{0xf4}, std::byte{0xff}};
+        // Plain `==` on two std::vector<std::byte> forces boost::ut's failure-diagnostic printer
+        // to instantiate operator<<(ostream&, std::byte), which doesn't exist — wrapping in
+        // std::ranges::equal() keeps the comparison a plain bool instead.
+        expect(std::ranges::equal(encoded, expected));
+    };
+
+    "decoding an all-ones stream throws HuffmanDecodeError"_test = [] {
+        std::vector<std::byte> garbage{std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}};
+
+        expect(throws<error::http::HuffmanDecodeError>([&] {
+            std::string decoded;
+            for (char character : garbage | Huffman<4>::decode()) {
+                decoded += character;
+            }
+        }));
+    };
+};
+
+} // namespace io::shared_codec::huffman::tests
+#endif

@@ -1,0 +1,32 @@
+component: close-button
+flutter_name: HeroCloseButton
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/close-button.css"
+  files: [tool/sources/heroui-close-button.css]
+  docs: https://heroui.com/en/docs/react/components/close-button
+
+anatomy:
+  - (none)
+
+kinds:
+  color: default bg, muted icon
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - size-6 rounded-xl p-1; hover default-hover; press scale 0.93; focus ring
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

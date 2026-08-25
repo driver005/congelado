@@ -11,6 +11,9 @@ import core_otel;
 import core_plugin;
 import utils_openapi; // for interfaces::IOpenApiGenerator (see utils_openapi:generator_interface's
                        // own doc comment for why it lives there instead of in `interfaces` itself)
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace congelado::heart {
 
@@ -225,6 +228,136 @@ class LoggerAdapter final : public interfaces::ILogger,
 }
 
 /**
+ * @brief Resolves a loaded plugin's WORKER_MANAGER-capability interface pointer via
+ * `congelado_call(WORKER_MANAGER, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IWorkerManager>` (same lifetime idiom as
+ * `resolve_cron_provider`), or `nullptr` if the plugin doesn't export the WORKER_MANAGER capability.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IWorkerManager>
+resolve_worker_manager(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 4096U); // CONGELADO_CAP_WORKER_MANAGER
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_WORKER_MANAGER, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *manager = static_cast<interfaces::IWorkerManager *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorkerManager>(manager, [](interfaces::IWorkerManager *) {});
+}
+
+/**
+ * @brief Resolves a loaded plugin's WORKER_ORCHESTRATOR-capability interface pointer via
+ * `congelado_call(WORKER_ORCHESTRATOR, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IWorkerOrchestrator>` (same lifetime idiom as
+ * `resolve_worker_manager`), or `nullptr` if the plugin doesn't export the WORKER_ORCHESTRATOR
+ * capability.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IWorkerOrchestrator>
+resolve_worker_orchestrator(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 32768U); // CONGELADO_CAP_WORKER_ORCHESTRATOR
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_WORKER_ORCHESTRATOR, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *orchestrator = static_cast<interfaces::IWorkerOrchestrator *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorkerOrchestrator>(orchestrator,
+                                                            [](interfaces::IWorkerOrchestrator *) {});
+}
+
+/**
+ * @brief Resolves a loaded plugin's PAYLOAD_STORAGE-capability interface pointer via
+ * `congelado_call(PAYLOAD_STORAGE, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IExternalPayloadStorage>` (same lifetime idiom as
+ * `resolve_storage`), or `nullptr` if the plugin doesn't export the PAYLOAD_STORAGE capability.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IExternalPayloadStorage>
+resolve_payload_storage(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 131072U); // CONGELADO_CAP_PAYLOAD_STORAGE
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_PAYLOAD_STORAGE, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *storage = static_cast<interfaces::IExternalPayloadStorage *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IExternalPayloadStorage>(
+        storage, [](interfaces::IExternalPayloadStorage *) {});
+}
+
+/**
+ * @brief Resolves a loaded plugin's WORKFLOW_ORCHESTRATOR-capability interface pointer via
+ * `congelado_call(WORKFLOW_ORCHESTRATOR, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IWorkflowOrchestrator>` (same lifetime idiom as
+ * `resolve_worker_orchestrator`), or `nullptr` if the plugin doesn't export the capability.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IWorkflowOrchestrator>
+resolve_workflow_orchestrator(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 65536U); // CONGELADO_CAP_WORKFLOW_ORCHESTRATOR
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_WORKFLOW_ORCHESTRATOR, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *orchestrator = static_cast<interfaces::IWorkflowOrchestrator *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorkflowOrchestrator>(
+        orchestrator, [](interfaces::IWorkflowOrchestrator *) {});
+}
+
+/**
+ * @brief Resolves a loaded plugin's WORKER-capability interface pointer via
+ * `congelado_call(WORKER, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IWorker>`, or `nullptr` if the plugin doesn't export
+ * the WORKER capability. Unlike single-active capabilities, the worker host resolves this for every
+ * loaded worker plugin and keys them by `IWorker::get_task_type()`.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IWorker> resolve_worker(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 8192U); // CONGELADO_CAP_WORKER
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_WORKER, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *worker = static_cast<interfaces::IWorker *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorker>(worker, [](interfaces::IWorker *) {});
+}
+
+/**
+ * @brief Resolves a loaded plugin's APP_DEFS-capability interface pointer via
+ * `congelado_call(APP_DEFS, GET, ...)`, if it has one.
+ * @param ref the loaded plugin's symbol table.
+ * @return a non-owning `shared_ptr<interfaces::IAppDefs>`, or `nullptr` if the plugin doesn't export
+ * the APP_DEFS capability. Like WORKER, the worker host resolves this for every loaded app plugin
+ * and merges their code-built defs into the on-load engine registration.
+ */
+[[nodiscard]] inline std::shared_ptr<interfaces::IAppDefs> resolve_app_defs(PluginRef &ref) {
+    auto call_fn = resolve_call_fn(ref, 16384U); // CONGELADO_CAP_APP_DEFS
+    if (call_fn == nullptr) {
+        return nullptr;
+    }
+    auto result = call_fn(CONGELADO_RUN_APP_DEFS, CONGELADO_ACTION_GET, nullptr, 0);
+    if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
+        return nullptr;
+    }
+    auto *defs = static_cast<interfaces::IAppDefs *>(result.v_ptr);
+    return std::shared_ptr<interfaces::IAppDefs>(defs, [](interfaces::IAppDefs *) {});
+}
+
+/**
  * @brief Resolves a loaded plugin's EVENTS-capability interface pointer via
  * `congelado_call(EVENTS, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.
@@ -436,3 +569,53 @@ class OtelLogBridge final : public interfaces::ILogger,
 }
 
 } // namespace congelado::heart
+
+// resolve_call_fn/resolve_*(PluginRef&) capability resolvers only ever get exercised via a live
+// dlopen'd plugin's exported symbol table in production — every resolve_* beyond resolve_call_fn
+// itself calls straight through the resolved function pointer into whatever real capability
+// object the plugin registered, which needs a live plugin loaded to mean anything. resolve_call_fn
+// is the one piece of pure logic underneath all of them (capability-bit check + two map lookups on
+// PluginRef::m_data), and IS testable without any live plugin — that's what's covered below.
+// OtelLogBridge::write()/error() likewise need a live core::otel::LogRecordRegistry to observe
+// anything, so only its side-effect-free get_name() is covered.
+#ifdef CONGELADO_TEST
+namespace congelado::heart::tests {
+using namespace boost::ut;
+
+void dummy_call_symbol() {}
+
+suite<"resolve_call_fn"> resolve_call_fn_suite = [] {
+    "missing congelado_capabilities entry yields nullptr"_test = [] {
+        PluginRef ref;
+        expect(resolve_call_fn(ref, 1U) == nullptr);
+    };
+    "capability bit not set yields nullptr even with the entry present"_test = [] {
+        PluginRef ref;
+        ref.m_data["congelado_capabilities"] = std::uint32_t{2U}; // bit 1 set, not bit 0
+        expect(resolve_call_fn(ref, 1U) == nullptr);
+    };
+    "capability bit set but missing congelado_call yields nullptr"_test = [] {
+        PluginRef ref;
+        ref.m_data["congelado_capabilities"] = std::uint32_t{1U};
+        expect(resolve_call_fn(ref, 1U) == nullptr);
+    };
+    "capability bit set and congelado_call present resolves non-null"_test = [] {
+        PluginRef ref;
+        ref.m_data["congelado_capabilities"] = std::uint32_t{1U};
+        ref.m_data["congelado_call"] = static_cast<void *>(reinterpret_cast<void *>(&dummy_call_symbol));
+
+        auto call_fn = resolve_call_fn(ref, 1U);
+        expect(call_fn != nullptr);
+        expect(reinterpret_cast<void *>(call_fn) == reinterpret_cast<void *>(&dummy_call_symbol));
+    };
+};
+
+suite<"OtelLogBridge"> otel_log_bridge_suite = [] {
+    "get_name returns a fixed identifying name"_test = [] {
+        OtelLogBridge bridge;
+        expect(bridge.get_name() == "otel-log-bridge");
+    };
+};
+
+} // namespace congelado::heart::tests
+#endif

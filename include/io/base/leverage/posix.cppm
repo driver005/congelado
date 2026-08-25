@@ -10,6 +10,9 @@ module;
 export module io_base_leverage:posix;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import :types;
 import :uring;
 
@@ -728,3 +731,103 @@ void Leverager<Context>::unregister_file(unsigned int file_descriptor) noexcept 
 }
 
 } // namespace io::base::leverage
+
+#ifdef CONGELADO_TEST
+namespace io::base::leverage::tests {
+using namespace boost::ut;
+
+// Context's instance methods (init/get_sqe_safe/process_completions/cleanup/...) and every
+// Leverager<Context> specialization in this file need a live io_uring ring to do anything
+// meaningful — not unit-testable in isolation, skipped here. PendingOp is a plain value type with
+// no syscalls involved, so that's covered for real. Context::submit_async() is the one exception:
+// it's `static` and only ever touches the `io_uring_sqe*` argument it's handed (stamps flags,
+// calls `io_uring_sqe_set_data()`) — both real liburing calls, but pure struct-field writes with
+// no ring/kernel interaction (verified against /usr/include/liburing.h: `io_uring_sqe_set_data()`
+// is just `sqe->user_data = (unsigned long)data`). A stack-allocated `io_uring_sqe{}` is enough to
+// exercise it for real, no live ring required.
+
+suite<"PendingOp"> pending_op_suite = [] {
+    "fields round-trip through their setters/getters"_test = [] {
+        PendingOp op;
+        int buffer = 0;
+        op.set_buffer(&buffer);
+        op.set_buffer_size(128);
+        op.set_offset(64);
+        op.set_op_type(3);
+
+        expect(op.get_buffer() == &buffer);
+        expect(op.get_buffer_size() == 128);
+        expect(op.get_offset() == 64);
+        expect(op.get_op_type() == 3);
+    };
+
+    "starts with a null buffer, zeroed size/offset/op_type"_test = [] {
+        PendingOp op;
+
+        expect(op.get_buffer() == nullptr);
+        expect(op.get_buffer_size() == 0);
+        expect(op.get_offset() == 0);
+        expect(op.get_op_type() == 0);
+    };
+
+    "stashed callback fires with the value it's invoked with"_test = [] {
+        PendingOp op;
+        int seen = 0;
+        op.set_callback([&seen](int result) { seen = result; });
+
+        op.get_callback()(42);
+
+        expect(seen == 42);
+    };
+};
+
+suite<"Context::submit_async"> submit_async_suite = [] {
+    "stamps the requested SQE flags onto the entry"_test = [] {
+        liburing::io_uring_sqe sqe{};
+        Context::submit_async(&sqe, [](int) {}, 0x04);
+
+        expect(sqe.flags == 0x04);
+
+        // Reclaim the PendingOp submit_async() heap-allocated so this test doesn't leak it —
+        // nothing else will, since no ring ever saw this SQE.
+        delete reinterpret_cast<PendingOp *>(static_cast<std::uintptr_t>(sqe.user_data));  // NOLINT(cppcoreguidelines-owning-memory) — reclaiming what submit_async() deliberately leaked into user_data, see below
+    };
+
+    "hangs a heap PendingOp carrying the callback off user_data, unconditionally"_test = [] {
+        liburing::io_uring_sqe sqe{};
+        int seen = -1;
+        Context::submit_async(&sqe, [&seen](int result) { seen = result; }, 0);
+
+        // user_data now holds the raw pointer submit_async() released ownership of — exactly the
+        // handoff process_completions() expects to reclaim later via io_uring_cqe_get_data().
+        expect(sqe.user_data != 0) << fatal;
+        auto *op = reinterpret_cast<PendingOp *>(static_cast<std::uintptr_t>(sqe.user_data));
+
+        op->get_callback()(7);
+        expect(seen == 7);
+
+        delete op;  // NOLINT(cppcoreguidelines-owning-memory) — see above
+    };
+
+    // Regression/design-gap marker, NOT a fix (matches submit_async()'s own @warning): this test
+    // proves the missing "reject submissions once the ring is tearing down" guard structurally,
+    // through the function's own signature, rather than by actually tearing down a live ring
+    // mid-flight (unsafe — real ops could still be in flight against kernel memory). submit_async()
+    // is `static` and takes no `Context&`/`this` at all — its only inputs are the caller-prepped
+    // `io_uring_sqe*`, the callback, and the iflags byte. A function that cannot observe `this`
+    // cannot consult any instance state (a "ring is shutting down" flag, an op counter, anything)
+    // to decide whether to refuse the submission — there is structurally nowhere for such a guard
+    // to live short of adding a new parameter, which is exactly what's missing. Every call
+    // unconditionally heap-allocates and hands off ownership, confirmed by the two tests above.
+    "submit_async() takes no Context/ring reference, so no ring-liveness guard is structurally "
+    "possible"_test = [] {
+        // A plain (non-member) function pointer type — no `Context::*` receiver at all — proves
+        // this static method has zero access to any per-instance "ring is tearing down" state.
+        using SubmitAsyncPtr = decltype(&Context::submit_async);
+        expect(std::is_same_v<SubmitAsyncPtr,
+                              void (*)(liburing::io_uring_sqe *, completion_callback, std::uint8_t)>);
+    };
+};
+
+} // namespace io::base::leverage::tests
+#endif

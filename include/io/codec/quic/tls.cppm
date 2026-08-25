@@ -14,6 +14,9 @@ export module io_quic:tls;
 
 import std;
 import :types;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // OpenSSL 3.6 native QUIC TLS layer.
 //
@@ -324,3 +327,28 @@ export class TlsSession {
 };
 
 } // namespace quic::tls
+
+// TlsSession needs a valid TlsContext (real cert/key files) plus a live UDP fd to construct at
+// all — no pure-logic surface separable from that. TlsContext itself is testable at its edges
+// without real certs: the default (invalid) state, and from_files()'s failure path when the
+// cert/key can't be loaded.
+#ifdef CONGELADO_TEST
+namespace quic::tls::tests {
+using namespace boost::ut;
+
+suite<"TlsContext"> tls_context_suite = [] {
+    "default-constructed context is invalid"_test = [] {
+        TlsContext ctx;
+        expect(not ctx.valid());
+        expect(ctx.get() == nullptr);
+    };
+    "from_files throws when the cert/key can't be loaded"_test = [] {
+        expect(throws<std::runtime_error>([] {
+            [[maybe_unused]] auto ctx =
+                TlsContext::from_files("/nonexistent/cert.pem", "/nonexistent/key.pem");
+        }));
+    };
+};
+
+} // namespace quic::tls::tests
+#endif

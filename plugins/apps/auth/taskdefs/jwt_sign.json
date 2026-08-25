@@ -1,0 +1,18 @@
+{
+  "name": "auth_jwt_sign",
+  "type": "SIMPLE",
+  "worker_type": "jwt_sign",
+  "input_keys": ["sub"],
+  "output_keys": ["token"],
+  "retry": {
+    "max_attempts": 3,
+    "backoff": "FIXED",
+    "interval_ms": 1000
+  },
+  "timeout": {
+    "timeout_ms": 30000,
+    "action": "FAIL_WORKFLOW"
+  },
+  "enforce_schema": false,
+  "masked_fields": []
+}

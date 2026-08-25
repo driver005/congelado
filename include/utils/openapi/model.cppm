@@ -2,6 +2,9 @@ export module utils_openapi:model;
 
 import std;
 import serde;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace utils::openapi {
 
@@ -445,6 +448,167 @@ class Document {
 };
 
 } // namespace utils::openapi
+
+#ifdef CONGELADO_TEST
+namespace utils::openapi::tests {
+using namespace boost::ut;
+
+suite<"SchemaObject"> schema_object_suite = [] {
+    "defaults to not-nullable with everything else empty"_test = [] {
+        SchemaObject schema;
+        expect(schema.get_type().empty());
+        expect(not schema.get_nullable());
+        expect(schema.get_required().empty());
+        expect(schema.get_properties().empty());
+        expect(schema.get_items() == nullptr);
+    };
+    "setters round-trip, add_required/add_enum_value accumulate"_test = [] {
+        SchemaObject schema;
+        schema.set_type("string");
+        schema.set_format("date-time");
+        schema.set_nullable(true);
+        schema.set_ref("#/components/schemas/Foo");
+        schema.add_required("id");
+        schema.add_required("name");
+        schema.add_enum_value("A");
+
+        expect(schema.get_type() == "string");
+        expect(schema.get_format() == "date-time");
+        expect(schema.get_nullable());
+        expect(schema.get_ref() == "#/components/schemas/Foo");
+        expect(schema.get_required().size() == 2);
+        expect(schema.get_enum_values().size() == 1);
+    };
+    "add_property/set_items wrap nested schemas"_test = [] {
+        SchemaObject inner;
+        inner.set_type("integer");
+
+        SchemaObject schema;
+        schema.add_property("id", inner);
+        schema.set_items(inner);
+
+        expect(schema.get_properties().size() == 1);
+        expect(schema.get_properties().at("id")->get_type() == "integer");
+        expect(schema.get_items() != nullptr);
+        expect(schema.get_items()->get_type() == "integer");
+    };
+};
+
+suite<"Components"> components_suite = [] {
+    "add_schema registers a named schema"_test = [] {
+        Components components;
+        SchemaObject schema;
+        schema.set_type("object");
+        components.add_schema("TaskDef", schema);
+
+        expect(components.get_schemas().size() == 1);
+        expect(components.get_schemas().at("TaskDef").get_type() == "object");
+    };
+};
+
+suite<"MediaType"> media_type_suite = [] {
+    "set_schema/get_schema round-trip"_test = [] {
+        MediaType media;
+        SchemaObject schema;
+        schema.set_type("string");
+        media.set_schema(schema);
+
+        expect(media.get_schema().get_type() == "string");
+    };
+};
+
+suite<"RequestBody"> request_body_suite = [] {
+    "defaults to required with no content"_test = [] {
+        RequestBody body;
+        expect(body.get_required());
+        expect(body.get_content().empty());
+    };
+    "add_content registers a media-type entry"_test = [] {
+        RequestBody body;
+        body.set_required(false);
+        body.add_content("application/json", MediaType{});
+
+        expect(not body.get_required());
+        expect(body.get_content().contains("application/json"));
+    };
+};
+
+suite<"Response"> response_suite = [] {
+    "defaults to description OK with no content"_test = [] {
+        Response response;
+        expect(response.get_description() == "OK");
+        expect(response.get_content().empty());
+    };
+    "setters round-trip and add_content accumulates"_test = [] {
+        Response response;
+        response.set_description("Not Found");
+        response.add_content("application/json", MediaType{});
+
+        expect(response.get_description() == "Not Found");
+        expect(response.get_content().contains("application/json"));
+    };
+};
+
+suite<"Operation"> operation_suite = [] {
+    "defaults to empty with no request body"_test = [] {
+        Operation operation;
+        expect(operation.get_summary().empty());
+        expect(operation.get_tags().empty());
+        expect(operation.get_request_body() == nullptr);
+        expect(operation.get_responses().empty());
+    };
+    "setters/adders round-trip"_test = [] {
+        Operation operation;
+        operation.set_summary("List tasks");
+        operation.set_description("Returns every task");
+        operation.add_tag("tasks");
+        operation.set_request_body(RequestBody{});
+        operation.add_response("200", Response{});
+
+        expect(operation.get_summary() == "List tasks");
+        expect(operation.get_description() == "Returns every task");
+        expect(operation.get_tags().size() == 1);
+        expect(operation.get_request_body() != nullptr);
+        expect(operation.get_responses().contains("200"));
+    };
+};
+
+suite<"Info"> info_suite = [] {
+    "defaults to Congelado API / 1.0.0"_test = [] {
+        Info info;
+        expect(info.get_title() == "Congelado API");
+        expect(info.get_version() == "1.0.0");
+    };
+    "setters round-trip"_test = [] {
+        Info info;
+        info.set_title("My API");
+        info.set_version("2.0.0");
+
+        expect(info.get_title() == "My API");
+        expect(info.get_version() == "2.0.0");
+    };
+};
+
+suite<"Document"> document_suite = [] {
+    "defaults to openapi 3.0.3 with no paths"_test = [] {
+        Document document;
+        expect(document.get_openapi() == "3.0.3");
+        expect(document.get_paths().empty());
+    };
+    "add_operation nests path -> method -> operation"_test = [] {
+        Document document;
+        Operation operation;
+        operation.set_summary("List tasks");
+        document.add_operation("/tasks", "get", operation);
+
+        expect(document.get_paths().contains("/tasks"));
+        expect(document.get_paths().at("/tasks").contains("get"));
+        expect(document.get_paths().at("/tasks").at("get").get_summary() == "List tasks");
+    };
+};
+
+} // namespace utils::openapi::tests
+#endif
 
 template <>
 struct serde::Serializable<utils::openapi::SchemaObject> {

@@ -12,6 +12,9 @@ module;
 export module core_plugin:plugin_ref;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::plugin::types {
 
@@ -79,8 +82,8 @@ class PluginRef {
 
     // ── Shared symbol list (ordering is significant for index-based lookups) ─
     static constexpr SymbolInfo SHARED_SYMBOLS[] = {
-        {.m_name = "congelado_init", .m_kind = SymbolKind::FUNCTION},      // index 0
-        {.m_name = "congelado_type", .m_kind = SymbolKind::STRING_FN},     // index 1
+        {.m_name = "congelado_init", .m_kind = SymbolKind::FUNCTION},        // index 0
+        {.m_name = "congelado_type", .m_kind = SymbolKind::STRING_FN},       // index 1
         {.m_name = "congelado_on_unload", .m_kind = SymbolKind::FUNCTION},   // index 2
         {.m_name = "congelado_on_ready", .m_kind = SymbolKind::FUNCTION},    // index 3
         {.m_name = "congelado_on_shutdown", .m_kind = SymbolKind::FUNCTION}, // index 4
@@ -121,7 +124,6 @@ class PluginRef {
         {.m_name = "congelado_call", .m_kind = SymbolKind::FUNCTION},
     };
 
-    // ── Data members ────────────────────────────────────────────────────
 
     std::unique_ptr<void, DlDeleter> m_handle;
     std::unordered_map<std::string, std::any> m_data;
@@ -140,3 +142,50 @@ class PluginRef {
 }
 
 } // namespace core::plugin::types
+
+#ifdef CONGELADO_TEST
+namespace core::plugin::types::tests {
+using namespace boost::ut;
+
+suite<"PluginRef"> plugin_ref_suite = [] {
+    "default-constructed ref has no handle and no data"_test = [] {
+        PluginRef ref;
+        expect(ref.get_handle() == nullptr);
+        expect(ref.m_data.empty());
+    };
+    "DlDeleter is a safe no-op on a null handle"_test = [] {
+        PluginRef::DlDeleter deleter;
+        expect(nothrow([&] { deleter(nullptr); }));
+    };
+};
+
+suite<"shared_symbol_name"> shared_symbol_name_suite = [] {
+    "resolves the documented indices"_test = [] {
+        expect(PluginRef::shared_symbol_name(0) == "congelado_init");
+        expect(PluginRef::shared_symbol_name(1) == "congelado_type");
+        expect(PluginRef::shared_symbol_name(2) == "congelado_on_unload");
+        expect(PluginRef::shared_symbol_name(3) == "congelado_on_ready");
+        expect(PluginRef::shared_symbol_name(4) == "congelado_on_shutdown");
+    };
+    "an out-of-range index returns an empty string_view, not a crash"_test = [] {
+        expect(PluginRef::shared_symbol_name(999).empty());
+    };
+};
+
+suite<"is_shared_lib"> is_shared_lib_suite = [] {
+    "recognizes this platform's shared library extension"_test = [] {
+#if defined(_WIN32)
+        expect(is_shared_lib(std::filesystem::path{"libfoo.dll"}));
+#elif defined(__APPLE__)
+        expect(is_shared_lib(std::filesystem::path{"libfoo.dylib"}));
+#else
+        expect(is_shared_lib(std::filesystem::path{"libfoo.so"}));
+#endif
+    };
+    "rejects an unrelated extension"_test = [] {
+        expect(not is_shared_lib(std::filesystem::path{"readme.txt"}));
+    };
+};
+
+} // namespace core::plugin::types::tests
+#endif

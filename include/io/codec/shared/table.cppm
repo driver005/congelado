@@ -5,6 +5,9 @@ import hashmap;
 import interfaces;
 import :types;
 import :consts;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 namespace io::shared_codec::table {
 
@@ -741,3 +744,118 @@ class DynamicTable {
 };
 
 } // namespace io::shared_codec::table
+
+#ifdef CONGELADO_TEST
+namespace io::shared_codec::table::tests {
+using namespace boost::ut;
+
+suite<"DynamicTable"> dynamic_table_suite = [] {
+    "starts empty"_test = [] {
+        DynamicTable dyn_table;
+
+        expect(dyn_table.get_size() == 0U);
+        expect(dyn_table.get_current_size() == 0U);
+        expect(dyn_table.get_insert_count() == 0U);
+        expect(dyn_table.get_max_size() == 4096U);
+    };
+
+    "custom max_size is stored"_test = [] {
+        DynamicTable dyn_table{100};
+        expect(dyn_table.get_max_size() == 100U);
+    };
+
+    "insert then search finds a full match and a name-only match"_test = [] {
+        DynamicTable dyn_table{10000};
+        dyn_table.insert("content-type", "text/plain");
+
+        auto full = dyn_table.search_full_match("content-type", "text/plain");
+        expect(full.found());
+        expect(full.is_full_match());
+
+        auto name_only = dyn_table.search_name_only("content-type");
+        expect(name_only.found());
+        expect(not name_only.is_full_match());
+
+        expect(not dyn_table.search("missing", "value").found());
+    };
+
+    "QPACK generations increase monotonically per insert"_test = [] {
+        DynamicTable dyn_table{10000};
+
+        expect(dyn_table.insert("a", "1") == 1U);
+        expect(dyn_table.insert("b", "2") == 2U);
+        expect(dyn_table.insert("c", "3") == 3U);
+        expect(dyn_table.get_insert_count() == 3U);
+    };
+
+    "HPACK indexing returns a live position instead of a raw generation"_test = [] {
+        DynamicTable dyn_table{10000};
+
+        expect((dyn_table.insert<IndexCalculation::H_PACK>("a", "1")) == 0U);
+        expect((dyn_table.insert<IndexCalculation::H_PACK>("b", "2")) == 0U);
+    };
+
+    "eviction removes the oldest entries once the byte budget is exceeded"_test = [] {
+        // Every entry here costs name.size() + value.size() + ENTRY_OVERHEAD(32) = 34 bytes.
+        // A budget of 70 fits exactly two, so the third insert evicts the first.
+        DynamicTable dyn_table{70};
+
+        dyn_table.insert("a", "1");
+        dyn_table.insert("b", "2");
+        dyn_table.insert("c", "3");
+
+        expect(dyn_table.get_size() == 2U);
+        expect(dyn_table.get_current_size() == 68U);
+        expect(dyn_table.get_insert_count() == 3U);
+
+        expect(not dyn_table.search_full_match("a", "1").found());
+        expect(dyn_table.search_full_match("b", "2").found());
+        expect(dyn_table.search_full_match("c", "3").found());
+    };
+
+    "at_positon and at_generation locate live entries, nullopt once evicted"_test = [] {
+        DynamicTable dyn_table{70};
+        dyn_table.insert("a", "1");
+        dyn_table.insert("b", "2");
+        dyn_table.insert("c", "3"); // evicts "a" (generation 1)
+
+        expect(not dyn_table.at_generation(1).has_value());
+
+        auto by_generation = dyn_table.at_generation(3);
+        expect(by_generation.has_value());
+        expect(std::visit([](const auto &field) { return field->get_value(); }, *by_generation) ==
+               std::string{"3"});
+
+        auto by_position = dyn_table.at_positon(0);
+        expect(by_position.has_value());
+        expect(std::visit([](const auto &field) { return field->get_value(); }, *by_position) ==
+               std::string{"3"});
+
+        expect(not dyn_table.at_positon(2).has_value());
+    };
+
+    "set_max_size shrinks the table by evicting oldest entries"_test = [] {
+        DynamicTable dyn_table{70};
+        dyn_table.insert("b", "2");
+        dyn_table.insert("c", "3");
+        expect(dyn_table.get_size() == 2U);
+
+        dyn_table.set_max_size(40);
+
+        expect(dyn_table.get_size() == 1U);
+        expect(dyn_table.get_current_size() == 34U);
+        expect(not dyn_table.search_full_match("b", "2").found());
+        expect(dyn_table.search_full_match("c", "3").found());
+    };
+
+    "an entry bigger than the whole budget evicts everything and isn't inserted"_test = [] {
+        DynamicTable dyn_table{10};
+
+        expect(dyn_table.insert("x", "y") == 0U);
+        expect(dyn_table.get_size() == 0U);
+        expect(not dyn_table.search_full_match("x", "y").found());
+    };
+};
+
+} // namespace io::shared_codec::table::tests
+#endif

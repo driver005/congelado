@@ -1,6 +1,9 @@
 export module interfaces:io_request;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 import utils_buffering;
 import utils_encode;
 import :io_types;
@@ -750,3 +753,38 @@ class IRequest {
 }; // namespace interfaces::io
 
 } // namespace interfaces::io
+
+#ifdef CONGELADO_TEST
+namespace interfaces::io::tests {
+using namespace boost::ut;
+
+// Only the stream-id/timeout plumbing has real behavior on the base class itself — every
+// header/body accessor is a mandatory-override hook that aborts by default (see the class
+// warnings above), so exercising those here would require a fake subclass, not a test of this
+// file's own logic.
+suite<"IRequest"> request_suite = [] {
+    "ctor stores the given stream id and starts with a zero timeout"_test = [] {
+        IRequest request{3};
+
+        expect(request.get_stream_id() == 3);
+        expect(request.get_timeout() == std::chrono::milliseconds::zero());
+    };
+
+    "default ctor starts at stream id 0"_test = [] {
+        IRequest request;
+
+        expect(request.get_stream_id() == 0);
+    };
+
+    "set_stream_id/set_timeout overwrite the stored values"_test = [] {
+        IRequest request{1};
+        request.set_stream_id(9);
+        request.set_timeout(std::chrono::milliseconds{500});
+
+        expect(request.get_stream_id() == 9);
+        expect(request.get_timeout() == std::chrono::milliseconds{500});
+    };
+};
+
+} // namespace interfaces::io::tests
+#endif

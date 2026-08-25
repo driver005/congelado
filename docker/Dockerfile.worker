@@ -42,8 +42,8 @@ ENV LD_LIBRARY_PATH=/app/build/linux/x86_64/debug:$LD_LIBRARY_PATH
 ENV PYTHONHOME=/app/build/python-stdlib
 
 # run_worker()'s argv[0]-relative plugin-dir lookup ("<binary's own dir>/../../../plugins", same
-# offset math as src/main.cc — see src/worker_main.cc) needs the binary invoked at its real
+# offset math as src/main.cc — see sdk/worker/worker_main.cc) needs the binary invoked at its real
 # nested build/linux/x86_64/debug/ path, not flattened, so that offset lands on build/plugins
 # instead of the filesystem root. Passing "./build/workers" explicitly as the internal-workers-dir
 # argument for the same reason — its own default ("./workers") assumed the old flattened layout.
-CMD ["sh", "-c", "modprobe tls 2>/dev/null || true; exec ./build/linux/x86_64/debug/congelado_worker worker.toml ./build/workers"]
+CMD ["sh", "-c", "modprobe tls 2>/dev/null || true; exec ./build/linux/x86_64/debug/worker worker.toml ./build/workers"]

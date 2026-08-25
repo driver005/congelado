@@ -1,0 +1,61 @@
+component: date-input-group
+flutter_name: HeroDateInputGroup
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/date-input-group.css"
+  files: [tool/sources/heroui-date-input-group.css]
+  docs: https://heroui.com/en/docs/react/components/date-input-group
+
+anatomy:
+  - .date-input-group: inline-flex h-9 (36) items-center overflow-hidden rounded-field (12) border bg-field text-sm text-field-foreground shadow-field; border-width var(--border-width-field) (0); transition bg/border 150ms ease-smooth + box-shadow 150ms ease-out
+  - hover (hover media, not focus-within): bg-field-hover + field-border-hover
+  - focus-within (not a picker trigger): status-focused-field (2px accent ring, offset 0)
+  - invalid: status-invalid-field (1px danger outline / danger ring on focus), bg-field-focus
+  - disabled: status-disabled
+  - .date-input-group__input: flex flex-1 gap-px rounded-none border-0 bg-transparent px-3 (12) py-2 (8) text-base sm:text-sm (14)
+  - .date-input-group__segment: inline-block rounded-md (6) px-0.5 (2) text-end; literal "/" p-0 text-muted; placeholder text-field-placeholder; focused bg-accent-soft text-accent-soft-foreground; disabled opacity-50; invalid text-danger
+  - .date-input-group__prefix: ms-3 me-0 pointer-events-none text-field-placeholder
+  - .date-input-group__suffix: me-3 pointer-events-none text-field-placeholder
+  - .date-input-group--secondary: shadow-none, bg var(--default) (hover --default-hover, focus --default)
+  - .date-input-group--full-width: w-full
+
+kinds:
+  color: color:bg, color:outline, color:text
+  default: primary (bg-field + shadow-field)
+
+sizes: fontSize, overflow-hidden, shadow-field
+default: h-9 (36)
+
+states:
+  - rest
+  - hover (hover media only): bg-field-hover + field-border-hover
+  - focus-within: status-focused-field (2px accent ring)
+  - invalid: status-invalid-field, bg-field-focus
+  - disabled: status-disabled (50% opacity)
+  - focused segment: bg-accent-soft text-accent-soft-foreground
+
+tokens:
+  role: [colorField, colorFieldHover, colorFieldFocus, colorFieldForeground, colorFieldPlaceholder, colorFieldBorderHover, colorDanger, colorAccentSoft, colorAccentSoftForeground, colorMuted, colorDefault, colorDefaultHover, doubleInputMinHeight, doubleInputPaddingX, doubleInputPaddingY, doubleInputFontSize, doubleInputTransitionMs, doubleBorderWidth, doubleDisabledOpacity, radiusField, radiusMd, typeXs, weightMedium]
+  component: [space1=4 (gap-px approx), space3=12 (px-3/ms-3/me-3), space2=8 (py-2), radiusField=12 (rounded-field), radiusMd=6 (segment rounded-md), doubleInputMinHeight=36 (h-9), doubleInputFontSize=14 (text-sm)]
+
+non_token_measurements:
+  - field height 36 (h-9)
+  - inner padding 12 horizontal / 8 vertical (px-3 py-2)
+  - prefix/suffix edge insets 12 (ms-3 / me-3)
+  - border width 0 base, 1 on hover (doubleBorderWidth; source uses --field-border-width)
+  - transition 150ms ease-smooth (bg/border), 150ms ease-out (box-shadow)
+
+behavior:
+  - renders the date as inline day / month / year segments with "/" separators inside the field box
+  - null value renders placeholder segments in field-placeholder color
+  - leading calendar icon (prefix) + trailing chevron, or a clear icon when onClear is set and a value exists
+  - tapping a segment focuses it (accent-soft highlight)
+  - label/helper column wraps the field (label text-sm medium, helper text-xs muted/danger)
+  - secondary variant: bg-default fill, no shadow
+  - onTap supports opening an overlay picker
+
+approximations:
+  - focus ring rendered via HeroFocusRing (2px offset) instead of ring-offset-0 status-focused-field
+  - segments are read-only (tap-to-focus); keyboard digit-entry not implemented
+  - default prefix/suffix icons approximate the storybook composition

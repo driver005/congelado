@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package tensorflow;
+
+import "cc/proto/attr_value.proto";
+
+// ApiDef defines the API of an op for external users.
+message ApiDef {
+  string graph_op_name = 1;
+  string api_name = 2;
+  string deprecation_message = 3;
+  int32 deprecation_version = 4;
+  Visibility visibility = 5;
+  string endpoint_prefix = 7;
+
+  repeated Arg attr = 6;
+  repeated Arg in_arg = 8;
+  repeated Arg out_arg = 9;
+  repeated Arg arg_order = 12;
+  string summary = 10;
+  string description = 11;
+  string description_prefix = 13;
+  string description_suffix = 14;
+
+  enum Visibility {
+    DEFAULT_VISIBILITY = 0;
+    VISIBLE = 1;
+    SKIP = 2;
+    HIDDEN = 3;
+  }
+
+  message Arg {
+    string name = 1;
+    string rename_to = 2;
+    string description = 3;
+  }
+}
+
+// ApiDefs is a collection of ApiDef.
+message ApiDefs {
+  repeated ApiDef op = 1;
+}

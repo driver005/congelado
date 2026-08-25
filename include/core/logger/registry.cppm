@@ -2,6 +2,9 @@ export module core_logger:registry;
 
 import std;
 import interfaces;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace core::logger {
 
@@ -61,3 +64,87 @@ class LoggerRegistry {
 };
 
 } // namespace core::logger
+
+#ifdef CONGELADO_TEST
+namespace core::logger::tests {
+using namespace boost::ut;
+
+class LoggerRegistryFakeLogger : public interfaces::ILogger {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "fake"; }
+    void write(interfaces::LogLevel, std::string_view) noexcept override {}
+    void error(std::string_view) noexcept override {}
+};
+
+suite<"LoggerRegistry"> registry_suite = [] {
+    "starts empty"_test = [] {
+        LoggerRegistry registry;
+        expect(not registry.has_logger());
+        expect(registry.get_loggers().empty());
+    };
+
+    "add_logger registers a logger"_test = [] {
+        LoggerRegistry registry;
+        registry.add_logger(std::make_shared<LoggerRegistryFakeLogger>());
+
+        expect(registry.has_logger());
+        expect(registry.get_loggers().size() == 1);
+    };
+
+    "add_logger ignores a null logger"_test = [] {
+        LoggerRegistry registry;
+        registry.add_logger(nullptr);
+
+        expect(not registry.has_logger());
+    };
+
+    "multiple loggers accumulate in registration order"_test = [] {
+        LoggerRegistry registry;
+        auto first = std::make_shared<LoggerRegistryFakeLogger>();
+        auto second = std::make_shared<LoggerRegistryFakeLogger>();
+        registry.add_logger(first);
+        registry.add_logger(second);
+
+        expect(registry.get_loggers().size() == 2);
+        expect(registry.get_loggers()[0] == first);
+        expect(registry.get_loggers()[1] == second);
+    };
+
+    "set_active/get_active round-trip"_test = [] {
+        auto *previous = LoggerRegistry::get_active();
+
+        LoggerRegistry registry;
+        LoggerRegistry::set_active(&registry);
+        expect(LoggerRegistry::get_active() == &registry);
+
+        LoggerRegistry::set_active(nullptr);
+        expect(LoggerRegistry::get_active() == nullptr);
+
+        LoggerRegistry::set_active(previous);
+    };
+
+    // Documents that nothing in LoggerRegistry's lifecycle clears s_active automatically:
+    // destroying the actively-registered instance leaves the ambient pointer dangling until a
+    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
+    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
+    // reads get_active() while the pointer is dangling.
+    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test = [] {
+        auto *previous = LoggerRegistry::get_active();
+
+        {
+            LoggerRegistry registry;
+            LoggerRegistry::set_active(&registry);
+            expect(LoggerRegistry::get_active() == &registry);
+        } // registry destroyed here -- s_active still points at the freed instance, nothing
+          // clears it automatically
+
+        // Explicit cleanup the class itself never performs on destruction.
+        LoggerRegistry::set_active(nullptr);
+        expect(LoggerRegistry::get_active() == nullptr);
+
+        LoggerRegistry::set_active(previous);
+    };
+};
+
+} // namespace core::logger::tests
+#endif

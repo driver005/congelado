@@ -68,3 +68,45 @@ function apply_common_layer_settings(opts)
 		add_cxflags("-ffile-prefix-map=$(projectdir)=.", "-fmacro-prefix-map=$(projectdir)=.")
 	end
 end
+
+-- The "cargo test" sibling of apply_common_layer_settings(): recompiles opts.files fresh into
+-- a `<opts.name>_test` binary with CONGELADO_TEST defined, so every file's own
+-- `#ifdef CONGELADO_TEST` boost::ut suite (living beside the code it tests, Rust
+-- `#[cfg(test)] mod tests` style) actually gets compiled in. Never add_deps() the production
+-- target instead of recompiling — that target never defines CONGELADO_TEST, so its copies of
+-- the same files never pull boost::ut in at all, same reason `cargo test` recompiles the
+-- crate rather than reusing the release artifact.
+function apply_test_target(opts)
+	opts = opts or {}
+	target(opts.name .. "_test")
+	set_kind("binary")
+	set_languages("c++26")
+	set_policy("build.c++.modules", true)
+	add_defines("CONGELADO_TEST")
+	add_deps("boost_ut_module")
+	if opts.deps then
+		add_deps(table.unpack(opts.deps))
+	end
+	apply_common_layer_settings({
+		layer = opts.layer,
+		core_packages = opts.core_packages,
+	})
+	add_packages("boost_ut")
+	if opts.includedirs then
+		for _, inc in ipairs(opts.includedirs) do
+			add_includedirs(inc)
+		end
+	end
+	add_files(table.unpack(opts.files))
+	add_files(path.join(core_root, "xmake", "test_main.cc"))
+	if opts.remove then
+		for _, pattern in ipairs(opts.remove) do
+			remove_files(pattern)
+		end
+	end
+	if opts.on_load then
+		on_load(opts.on_load)
+	end
+	add_tests("default")
+	target_end()
+end

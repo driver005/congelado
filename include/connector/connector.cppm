@@ -4,15 +4,17 @@ module;
 
 export module connector;
 
-export import :local_cache;
-
 import core_contract;
 import core_events;
+import core_logger;
 import core_otel;
 import interfaces;
 import shared;
 import serde;
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 // ─── SQL DDL/query codegen ────────────────────────────────────────────────────────────────────
 //
@@ -435,8 +437,9 @@ class Connector : public shared::HandlerBase {
 
     /**
      * @brief Swaps in a new cache backend pointer.
-     * @param cache the cache backend to use going forward, or nullptr to fall back to the
-     * built-in LocalCache.
+     * @param cache the cache backend to use going forward. Required before any cache-touching
+     * operation runs — there's no built-in fallback anymore (the `local` cache plugin is the
+     * default backend the host resolves); passing nullptr leaves cache ops with nothing to call.
      */
     void set_cache(interfaces::ICache *cache) noexcept { m_cache = cache; }
     /**
@@ -564,13 +567,21 @@ class Connector : public shared::HandlerBase {
             active_cache().get(cache_key_string, [this, owned_key, cache_key_string,
                                                   callback = std::move(callback)](
                                                      std::string_view cached_value) mutable {
-                // Cache hit — decode it straight up, no need to go any further.
+                // Cache hit — decode it straight up, no need to go any further. A decode failure
+                // (e.g. no "application/json" format plugin registered, the normal case for a
+                // local-only/test connector that never loaded one) falls through exactly like a
+                // cache miss instead of reporting a false negative — write_through() caches
+                // unconditionally even with no database, so without this fallthrough every
+                // find() after an insert()/update() would wrongly report nullopt.
                 if (!cached_value.empty()) {
                     auto decoded = serde::Ser::deserialize<T>("application/json", cached_value);
-                    callback(decoded ? std::optional<T>{std::move(*decoded)} : std::nullopt);
-                    return;
+                    if (decoded) {
+                        callback(std::optional<T>{std::move(*decoded)});
+                        return;
+                    }
                 }
-                // Cache miss and no database configured — fall through to the local store.
+                // Cache miss (or an undecodable cache hit) and no database configured — fall
+                // through to the local store.
                 if (!m_database) {
                     auto &store = get_local_store<T>();
                     auto local_iterator = store.find(owned_key);
@@ -909,7 +920,7 @@ class Connector : public shared::HandlerBase {
             return;
         }
         // Queued for a later tick, possibly drained by a different pool thread — same
-        // genuine-async-gap situation as ClientRuntime's send()/dispatch(), so this needs a
+        // genuine-async-gap situation as core::client::Register's send()/dispatch(), so this needs a
         // DetachedSpan (no ambient stack involvement) rather than a ScopedSpan.
         auto span = core::otel::start_detached_span(span_name, interfaces::SpanKind::CLIENT);
         {
@@ -937,22 +948,38 @@ class Connector : public shared::HandlerBase {
     }
 
     /**
-     * @brief Resolves whichever cache is actually active right now.
-     * @return `*m_cache` if a real backend's wired up, otherwise the built-in `m_local_cache` —
-     * this always hands back something usable, never null.
+     * @brief Resolves the active cache backend.
+     * @warning Requires `set_cache()` to already have been called with a non-null pointer — the
+     * connector requires a cache backend to be wired via `set_cache()` (the `local` cache plugin
+     * is the default one the host resolves); there's no built-in in-process fallback anymore. A
+     * null `m_cache` here means the host's wiring is broken (e.g. the cache plugin failed to
+     * load), not a normal degraded mode — logs and aborts instead of an unguarded deref, so this
+     * fails loud with a reason instead of silently corrupting memory.
+     * @return a reference to the configured cache backend.
      */
     interfaces::ICache &active_cache() noexcept {
-        return m_cache != nullptr ? *m_cache : static_cast<interfaces::ICache &>(m_local_cache);
+        if (m_cache == nullptr) {
+            core::logger::error("connector", "active_cache() called with no cache backend configured");
+            std::abort();
+        }
+        return *m_cache;
     }
 
     /**
      * @brief Resolves the active database backend.
-     * @warning No null check here — dereferences `m_database` straight up. Every call site in
-     * this class already guards on `!m_database` first, so don't call this one cold, that's an
-     * instant UB L.
+     * @warning Every call site in this class already guards on `!m_database` first — this is a
+     * second line of defense, not the primary check. A null `m_database` here means a call site
+     * skipped that guard; logs and aborts instead of an unguarded deref.
      * @return a reference to the configured database backend.
      */
-    interfaces::IDatabase &active_database() noexcept { return *m_database; }
+    interfaces::IDatabase &active_database() noexcept {
+        if (m_database == nullptr) {
+            core::logger::error("connector",
+                                "active_database() called with no database backend configured");
+            std::abort();
+        }
+        return *m_database;
+    }
 
     /**
      * @brief Shared write path for insert()/update()/upsert(): always writes `value` into the
@@ -1020,8 +1047,257 @@ class Connector : public shared::HandlerBase {
     bool m_executing{false};
     interfaces::ICache *m_cache{nullptr};
     interfaces::IDatabase *m_database{nullptr};
-    LocalCache m_local_cache;
     std::unordered_map<std::type_index, std::any> m_local_stores;
 };
 
 } // namespace connector
+
+#ifdef CONGELADO_TEST
+namespace connector::tests {
+
+// Minimal serde::IConnectable fixture — one PK field, one plain field — just enough to drive
+// Sql's reflection walk and Connector's cache/local-store paths without a real database.
+class SqlTestRecord {
+  public:
+    SqlTestRecord() = default;
+
+    void set_id(std::string id) { m_id = std::move(id); }
+    void set_label(std::string label) { m_label = std::move(label); }
+
+    [[nodiscard]] const std::string &get_id() const noexcept { return m_id; }
+    [[nodiscard]] const std::string &get_label() const noexcept { return m_label; }
+
+  private:
+    std::string m_id;
+    std::string m_label;
+};
+
+// Trivial synchronous in-memory ICache — every call resolves its callback immediately, no
+// network/socket involved, just enough for Connector's write-through/cache-aside paths.
+class InMemoryCache : public interfaces::ICache {
+  public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override { return "test_cache"; }
+
+    void get(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+        auto found = m_store.find(std::string{key});
+        result(found != m_store.end() ? std::string_view{found->second} : std::string_view{});
+    }
+    void set(std::string_view key, std::string_view value, shared::QueryReadFn &&result) noexcept override {
+        m_store[std::string{key}] = std::string{value};
+        result("ok");
+    }
+    void remove(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+        m_store.erase(std::string{key});
+        result("ok");
+    }
+
+  private:
+    std::unordered_map<std::string, std::string> m_store;
+};
+
+// Deferred/cancellable-callback mock: get() STASHES the completion callback instead of invoking
+// it, simulating a slow backend whose async op is still in flight when the caller moves on. Used
+// to demonstrate — structurally, via this mock's own state — that Connector has no way to cancel
+// or invalidate a pending callback when it's destroyed mid-flight.
+class DeferredCache : public interfaces::ICache {
+  public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override { return "deferred_cache"; }
+
+    void get(std::string_view /*key*/, shared::QueryReadFn &&result) noexcept override {
+        m_pending_get = std::move(result);
+    }
+    void set(std::string_view /*key*/, std::string_view /*value*/,
+             shared::QueryReadFn &&result) noexcept override {
+        result("ok");
+    }
+    void remove(std::string_view /*key*/, shared::QueryReadFn &&result) noexcept override {
+        result("ok");
+    }
+
+    /** @brief Whether an async get() completion is still sitting here, unresolved. */
+    [[nodiscard]] bool has_pending_get() const noexcept {
+        return static_cast<bool>(m_pending_get);
+    }
+
+  private:
+    shared::QueryReadFn m_pending_get;
+};
+
+} // namespace connector::tests
+
+template <>
+struct serde::Serializable<connector::tests::SqlTestRecord> {
+    static constexpr auto fields() {
+        return std::tuple{
+            serde::FieldDesc<"id", &connector::tests::SqlTestRecord::get_id,
+                             &connector::tests::SqlTestRecord::set_id,
+                             serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<"label", &connector::tests::SqlTestRecord::get_label,
+                             &connector::tests::SqlTestRecord::set_label>{},
+        };
+    }
+    static constexpr std::string_view table_name() { return "sql_test_records"; }
+};
+
+namespace connector::tests {
+using namespace boost::ut;
+
+suite<"QueryOptions"> query_options_suite = [] {
+    "starts empty"_test = [] {
+        QueryOptions options;
+
+        expect(options.get_joins().empty());
+        expect(options.get_where_conditions().empty());
+        expect(options.get_order_by_clauses().empty());
+        expect(not options.get_limit().has_value());
+    };
+
+    "add_join/add_where/add_order_by accumulate in call order"_test = [] {
+        QueryOptions options;
+        options.add_join("JOIN b ON a.id = b.a_id");
+        options.add_where("a.active = true");
+        options.add_where("b.deleted = false");
+        options.add_order_by("a.created_at");
+        options.add_order_by("b.name", false);
+
+        expect(options.get_joins().size() == 1);
+        expect(options.get_where_conditions().size() == 2);
+        expect(options.get_where_conditions()[0] == "a.active = true");
+        expect(options.get_where_conditions()[1] == "b.deleted = false");
+        expect(options.get_order_by_clauses().size() == 2);
+        expect(options.get_order_by_clauses()[0].first == "a.created_at");
+        expect(options.get_order_by_clauses()[0].second == true);
+        expect(options.get_order_by_clauses()[1].second == false);
+    };
+
+    "set_limit is not cumulative — only the last call wins"_test = [] {
+        QueryOptions options;
+        options.set_limit(10);
+        options.set_limit(5);
+
+        expect(options.get_limit().value() == 5);
+    };
+
+    "every adder returns *this for chaining"_test = [] {
+        QueryOptions options;
+        options.add_join("JOIN x").add_where("y = 1").add_order_by("z").set_limit(3);
+
+        expect(options.get_joins().size() == 1);
+        expect(options.get_where_conditions().size() == 1);
+        expect(options.get_order_by_clauses().size() == 1);
+        expect(options.get_limit().value() == 3);
+    };
+};
+
+suite<"Sql"> sql_suite = [] {
+    "build_*_sql reports a clean error when no dialect plugin is registered"_test = [] {
+        auto *previous = serde::SerdeFormatRegistry::get_active();
+        serde::SerdeFormatRegistry::set_active(nullptr);
+
+        auto create_sql = Sql::build_create_sql<SqlTestRecord>();
+        auto select_sql = Sql::build_select_sql<SqlTestRecord>("some-id");
+
+        serde::SerdeFormatRegistry::set_active(previous);
+
+        expect(create_sql.contains("no format plugin loaded"));
+        expect(create_sql.contains(std::string{connector::SQL_DIALECT_CONTENT_TYPE}));
+        expect(select_sql.contains("no format plugin loaded"));
+    };
+};
+
+suite<"Connector"> connector_suite = [] {
+    "insert then find round-trips through the local store and cache"_test = [] {
+        InMemoryCache cache;
+        Connector connector{&cache, nullptr};
+
+        SqlTestRecord record;
+        record.set_id("abc-1");
+        record.set_label("hello");
+
+        bool insert_ok = false;
+        connector.insert(record, [&insert_ok](bool ok) { insert_ok = ok; });
+
+        std::optional<SqlTestRecord> found;
+        connector.find<SqlTestRecord>(
+            "abc-1", [&found](std::optional<SqlTestRecord> result) { found = std::move(result); });
+
+        expect(insert_ok);
+        expect(found.has_value()) << fatal;
+        expect(found->get_label() == "hello");
+    };
+
+    "remove clears a previously inserted row from the local store"_test = [] {
+        InMemoryCache cache;
+        Connector connector{&cache, nullptr};
+
+        SqlTestRecord record;
+        record.set_id("abc-2");
+        record.set_label("bye");
+        connector.insert(record, [](bool) {});
+
+        bool remove_ok = false;
+        connector.remove<SqlTestRecord>("abc-2", [&remove_ok](bool ok) { remove_ok = ok; });
+
+        std::optional<SqlTestRecord> found;
+        connector.find<SqlTestRecord>(
+            "abc-2", [&found](std::optional<SqlTestRecord> result) { found = std::move(result); });
+
+        expect(remove_ok);
+        expect(not found.has_value());
+    };
+
+    "find_all reflects every inserted row when there is no database"_test = [] {
+        InMemoryCache cache;
+        Connector connector{&cache, nullptr};
+
+        SqlTestRecord first;
+        first.set_id("all-1");
+        first.set_label("one");
+        SqlTestRecord second;
+        second.set_id("all-2");
+        second.set_label("two");
+        connector.insert(first, [](bool) {});
+        connector.insert(second, [](bool) {});
+
+        std::vector<SqlTestRecord> all;
+        connector.find_all<SqlTestRecord>(
+            [&all](std::vector<SqlTestRecord> results) { all = std::move(results); });
+
+        expect(all.size() == 2);
+    };
+
+    "get_name identifies this handler as 'connector'"_test = [] {
+        Connector connector;
+        expect(connector.get_name() == "connector");
+    };
+
+    // Regression/design-gap marker, NOT a fix: find()'s cache-aside callback chain captures a
+    // raw `this` (see find()'s active_cache().get(cache_key_string, [this, ...]{ ... }) above).
+    // Connector has no cancel()/invalidate() hook, and ICache::get() takes no cancellation
+    // token, so a still-pending callback held by a slower backend simply outlives a destroyed
+    // Connector with nothing to neuter it. This test proves that gap structurally, through the
+    // mock's own state — it deliberately NEVER invokes the stored callback after the Connector
+    // is destroyed, since actually doing so would be a real use-after-free.
+    "destroying a Connector leaves an in-flight cache callback dangling with no cancellation hook"_test =
+        [] {
+            DeferredCache cache;
+            {
+                Connector connector{&cache, nullptr};
+                connector.find<SqlTestRecord>("some-id", [](std::optional<SqlTestRecord>) {
+                    // Never reached in this test — the mock never resolves the callback.
+                });
+                // No database configured, so enqueue() ran find()'s body synchronously; by now
+                // active_cache().get() has already handed its `this`-capturing callback to the
+                // mock, which stashed it instead of calling it.
+                expect(cache.has_pending_get()) << fatal;
+            } // `connector` destroyed here — nothing reaches into `cache` to cancel anything.
+
+            // The callback is still sitting there, fully intact, capturing a `this` that now
+            // points at a destroyed Connector. Nothing in Connector's or ICache's API could have
+            // invalidated it even if it wanted to.
+            expect(cache.has_pending_get());
+        };
+};
+
+} // namespace connector::tests
+#endif

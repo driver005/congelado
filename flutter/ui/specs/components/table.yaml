@@ -1,0 +1,97 @@
+component: table
+flutter_name: HeroTable
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/table.css"
+  files: [tool/sources/heroui-table.css]
+  docs: https://heroui.com/en/docs/react/components/table
+
+anatomy:
+  - .table-root: relative grid w-full overflow-clip
+  - .table-root--primary: bg-surface-secondary px-1 pb-1 (4), border-radius
+    min(32px, calc(var(--radius) * 2.5)) = 20 (--radius = 0.5rem)
+  - .table__scroll-container: overflow-x-auto (horizontal scroll only)
+  - .table__content: w-full border-separate border-spacing-0 text-sm
+  - .table__header: border-b border-separator/50 bg-surface-secondary
+  - .table__column (th): relative px-4 py-2.5 text-start text-xs font-medium
+    text-muted; ::after = absolute end-0 top-1/2 h-4 w-px -translate-y-1/2
+    rounded-sm bg-separator (hidden on last-child:not(:only-child))
+  - .table__row (tr): relative h-full border-b border-separator/50; last-child
+    border-b-0; hover -> cells bg-surface/40; [data-selected] -> cells
+    bg-surface/10; focus-visible -> inset 2px --focus ring split across cells
+    (rounded-lg on outer corners)
+  - .table__cell (td): h-full bg-surface px-4 py-3 align-middle text-sm
+    text-foreground border-b border-separator-tertiary/50; corner cells of the
+    first/last body rows rounded min(32px, var(--radius-2xl)) = 16
+  - .table__footer: flex items-center px-4 py-2.5 (outside the scroll
+    container, on the root background)
+  - .table-root--secondary: no wrapper; .table__header bg-transparent border-b-0;
+    .table__column bg-surface-secondary with first/last cell start/end corners
+    rounded 16; body cells bg-transparent, hover bg-default/50, corners
+    rounded-none
+  - not mirrored: column resizing (.table__column-resizer), sortable headers
+    (data-allows-sorting + indicator), tree indent ([data-tree-column]),
+    load-more sentinel, drag/drop row states, virtualized variants
+
+kinds:
+  color: none
+  default: primary (gray wrapper + white card body)
+  secondary: table-root--secondary (transparent root, rounded header strip,
+    transparent cells)
+
+sizes: full width (w-full); columns flex to fill or scroll horizontally
+default: full width (flex columns share the viewport; fixed widths kept)
+
+states:
+  - rest (cells bg-surface / transparent)
+  - hover (row hover -> cells bg-surface/40 primary, bg-default/50 secondary;
+    only applies to rows, desktop-hover equivalent)
+  - focus-visible (interactive rows only: 2px --focus inset ring split across
+    the row's cells, rounded-lg outer corners)
+  - selected ([data-selected] -> cells bg-surface/10; wins over hover per
+    source order)
+  - disabled (status-disabled = opacity 0.5) — in the spec, not exposed by the
+    facade
+  - dragging / drop-target — in the spec (opacity-50 / bg-accent-soft), not
+    exposed by the facade
+
+tokens:
+  role: [color.surface, color.surfaceSecondary, color.separator,
+         color.separatorTertiary, color.muted, color.foreground, color.focus,
+         color.default, color.transparent, space.1, space.3, space.4,
+         radius.2xl, radius.lg, radius.sm, double.borderWidth, type.xs,
+         type.sm, weight.medium]
+  component: []
+
+non_token_measurements:
+  - root radius 20px (min(32px, calc(var(--radius) * 2.5)); --radius = 8px)
+  - header th vertical padding 10px (py-2.5); footer padding 10px vertical
+  - column ::after separator 1px x 16px (w-px h-4)
+  - focus inset ring width 2px
+  - row focus corner radius 8px (rounded-lg)
+
+behavior: hand-rolled layout (no Remix table widget); rows are
+  keyboard-focusable (Enter/Space activate) and hoverable; the primary
+  wrapper clips to its 20px radius; the body card corners are rounded 16 via
+  the corner cells' own radii; empty rows render a full-width centered muted
+  message; a footer strip can be appended below the table.
+
+approximations:
+  - table.css declares no transitions for hover/selected, so state changes are
+    instant (no HeroMotion animation), matching the source
+  - the row focus ring is the CSS inset ring (no layout shift), so it is drawn
+    with the row's own FocusNode instead of the external HeroFocusRing
+    wrapper, whose 2px outside ring cannot span a table row
+  - the row-level border-b (separator/50) and the cell-level border-b
+    (separator-tertiary/50) paint the same edge; only the cell border (the
+    visible one) is drawn, on every row including the last
+  - numeric: right-aligns the header label and cells; the CSS spec defines no
+    numeric alignment
+  - column widths: fixed widths kept; remaining space shared equally by flex
+    columns (all-fixed columns grow equally) to mirror w-full auto layout
+  - hover is enabled for every row (not gated on pointer-capable devices);
+    non-interactive rows keep the default cursor
+  - empty state is a simple centered muted text row (the storybook uses the
+    EmptyState component, outside table.css)
+  - sorting, column resizing, tree indent and load-more are not exposed

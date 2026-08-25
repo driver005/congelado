@@ -1,6 +1,9 @@
 export module interfaces:cron;
 
 import std;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace interfaces {
 
@@ -76,3 +79,33 @@ class ICron {
 };
 
 } // namespace interfaces
+
+#ifdef CONGELADO_TEST
+namespace interfaces::cron_tests {
+
+// Minimal ICron fixture — every pure virtual gets a trivial body so required()'s default
+// implementation can be exercised in isolation.
+class MockCron final : public ICron {
+  public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override { return "mock-cron"; }
+    [[nodiscard]] bool validate(std::string_view) const noexcept override { return true; }
+    [[nodiscard]] std::optional<std::chrono::system_clock::time_point>
+    next_after(std::string_view, std::chrono::system_clock::time_point) const noexcept override {
+        return std::nullopt;
+    }
+    void set_fire_callback(std::move_only_function<void(std::string_view)>) override {}
+    void upsert_job(std::string_view, std::string_view) override {}
+    void remove_job(std::string_view) override {}
+};
+
+using namespace boost::ut;
+
+suite<"ICron"> cron_suite = [] {
+    "required() defaults to true when not overridden"_test = [] {
+        MockCron cron;
+        expect(cron.required());
+    };
+};
+
+} // namespace interfaces::cron_tests
+#endif

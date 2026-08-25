@@ -1,0 +1,36 @@
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/slider.css"
+  files: [tool/sources/heroui-slider.css]
+  docs: https://heroui.com/en/docs/react/components/slider
+anatomy:
+  - grid (w-full gap-1; label row + track row)
+  - label (w-fit text-sm font-medium)
+  - output (text-sm font-medium tabular-nums)
+  - track (relative h-5 rounded-xl bg-default; transparent 0.75rem side borders for thumb overhang)
+  - fill (absolute bg-accent)
+  - thumb (absolute bg-accent rounded-xl; inner rounded-lg bg-accent-foreground shadow-field pill 24x16, scale 0.9 while dragging)
+
+kinds: none
+
+sizes: none (track h-5 = 20; thumb 28x20 outer / 24x16 inner)
+default: -
+
+states: rest | drag (thumb inner scale 0.9) | focus-visible (status-focused z-10) | disabled (status-disabled opacity 0.5)
+
+tokens:
+  role: [color.accent, color.accentForeground, color.default, color.focus, color.foreground, double.disabledOpacity]
+  component: [weight.medium, type.sm, shadow.field, space.1 (gap)]
+  type: [type.sm, type.xs]
+
+non_token_measurements:
+  - track 20px, radius 12, thumb 28x20, inner pill 24x16, overhang 12px are CSS literals
+
+behavior: value min..max (default 0..100) with optional step snapping; drag + tap-to-jump via GestureDetector; arrow keys adjust; onChanged/onChangeEnd.
+
+approximations:
+  - thumb ::after inner pill rendered as a widget (no pseudo-element)
+  - dragging scale via AnimatedScale (CSS transition 250ms ease-out)
+  - focus ring via HeroFocusRing (2px offset)
+  - vertical orientation not implemented (horizontal only)

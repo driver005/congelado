@@ -9,6 +9,9 @@ import io_error;
 import utils_codec;
 import :types;
 import :huffman;
+#ifdef CONGELADO_TEST
+import boost.ut;
+#endif
 
 export namespace io::shared_codec::lowlevel {
 
@@ -452,3 +455,137 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
 };
 
 } // namespace io::shared_codec::lowlevel
+
+#ifdef CONGELADO_TEST
+namespace io::shared_codec::lowlevel::tests {
+using namespace boost::ut;
+
+suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
+    "single-octet value"_test = [] {
+        EncodeIntView<std::uint32_t> view{10U, 5U, std::uint8_t{0}};
+
+        expect(view.size() == 1);
+        std::vector<std::byte> bytes(view.begin(), view.end());
+        expect(bytes.size() == 1);
+        // Plain `==` on std::byte forces boost::ut's failure-diagnostic printer to instantiate
+        // operator<<(ostream&, std::byte), which doesn't exist — comparing via std::to_integer
+        // keeps this a plain integer comparison instead.
+        expect(std::to_integer<int>(bytes[0]) == 10);
+    };
+
+    "multi-octet value matches the RFC 7541 C.1.2 known vector"_test = [] {
+        auto view = 1337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
+
+        expect(view.size() == 3);
+        std::vector<std::byte> bytes(view.begin(), view.end());
+        expect(bytes.size() == 3);
+        expect(std::to_integer<int>(bytes[0]) == 0x1F);
+        expect(std::to_integer<int>(bytes[1]) == 0x9A);
+        expect(std::to_integer<int>(bytes[2]) == 0x0A);
+    };
+};
+
+suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
+    "round-trips through EncodeIntAdaptor"_test = [] {
+        auto encoded_view = 1337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
+        std::vector<std::byte> bytes(encoded_view.begin(), encoded_view.end());
+
+        auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U};
+        expect(result.value() == 1337U);
+        expect(result.consumed() == 3U);
+    };
+
+    "captures prefix metadata bits when PrefixOffset > 0"_test = [] {
+        // prefix_size=5, metadata bits = 0b01 (is_static), value = 10 (single octet).
+        std::vector<std::byte> bytes{std::byte{static_cast<std::uint8_t>((0x01U << 5) | 10U)}};
+
+        auto result = bytes | DecodeIntAdaptor<std::uint32_t, 1>{5U};
+        expect(result.value() == 10U);
+        expect(result.is_static());
+        expect(not result.is_never_indexed());
+    };
+
+    "rejects an out-of-range prefix size"_test = [] {
+        std::vector<std::byte> bytes{std::byte{0x00}};
+        expect(throws<std::invalid_argument>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{0U}; }));
+    };
+
+    "an empty range throws TruncatedDataError"_test = [] {
+        std::vector<std::byte> bytes;
+        expect(throws<error::http::TruncatedDataError>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U}; }));
+    };
+
+    "a stream with no terminal continuation byte throws IntegerDecodeError"_test = [] {
+        std::vector<std::byte> bytes{std::byte{0x07}, std::byte{0x80}, std::byte{0x80},
+                                     std::byte{0x80}, std::byte{0x80}, std::byte{0x80}};
+        expect(throws<error::http::IntegerDecodeError>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{3U}; }));
+    };
+};
+
+suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
+    "raw round-trip through the pipe adaptors"_test = [] {
+        std::string original = "hello";
+        auto byte_view = original | std::views::transform(
+                                        [](char character) { return static_cast<std::byte>(character); });
+
+        std::vector<std::byte> encoded;
+        for (std::byte value : byte_view | EncodeStringAdaptor<4>{false}) {
+            encoded.push_back(value);
+        }
+
+        auto [decoded, consumed] = encoded | DecodeStringAdaptor<4>{};
+        expect(decoded == original);
+        expect(consumed == encoded.size());
+    };
+
+    "the huffman_encode flag is currently a no-op — output is identical either way"_test = [] {
+        std::string original = "hello";
+        auto byte_view = original | std::views::transform(
+                                        [](char character) { return static_cast<std::byte>(character); });
+
+        std::vector<std::byte> raw_encoded;
+        for (std::byte value : byte_view | EncodeStringAdaptor<4>{false}) {
+            raw_encoded.push_back(value);
+        }
+        std::vector<std::byte> flagged_encoded;
+        for (std::byte value : byte_view | EncodeStringAdaptor<4>{true}) {
+            flagged_encoded.push_back(value);
+        }
+
+        // Plain `==` on two std::vector<std::byte> forces boost::ut's failure-diagnostic printer
+        // to instantiate operator<<(ostream&, std::byte), which doesn't exist — wrapping in
+        // std::ranges::equal() keeps the comparison a plain bool instead.
+        expect(std::ranges::equal(raw_encoded, flagged_encoded));
+    };
+
+    "DecodeStringAdaptor huffman-decodes the body when the H-bit is set"_test = [] {
+        std::string original = "www.example.com";
+        auto byte_view = original | std::views::transform(
+                                        [](char character) { return static_cast<std::byte>(character); });
+
+        std::vector<std::byte> huffman_body;
+        for (std::byte value : byte_view | huffman::HuffmanEncodeAdaptor{}) {
+            huffman_body.push_back(value);
+        }
+
+        std::vector<std::byte> data;
+        auto length_view = static_cast<std::uint32_t>(huffman_body.size()) |
+                           EncodeIntAdaptor<std::uint32_t>{7U, PrefixHelper::HUFFMAN_ENABLED};
+        for (std::byte value : length_view) {
+            data.push_back(value);
+        }
+        data.insert(data.end(), huffman_body.begin(), huffman_body.end());
+
+        auto [decoded, consumed] = data | DecodeStringAdaptor<4>{};
+        expect(decoded == original);
+        expect(consumed == data.size());
+    };
+
+    "an empty range throws TruncatedDataError"_test = [] {
+        std::vector<std::byte> data;
+        expect(throws<error::http::TruncatedDataError>([&] { auto result = data | DecodeStringAdaptor<4>{}; }));
+    };
+};
+
+} // namespace io::shared_codec::lowlevel::tests
+#endif

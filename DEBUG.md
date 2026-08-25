@@ -127,6 +127,7 @@ grep -rn "__sanitizer\|std::println(stderr, \"ACQ\|std::println(stderr, \"REL" i
 - For non-refcounted leaks, the LSan allocation stack usually points straight at
   a missing `delete` / an owner that outlived its scope — no instrumentation
   needed.
+
 ```
 
 See `include/utils/buffering/README.md` for the buffer subsystem's acquire /

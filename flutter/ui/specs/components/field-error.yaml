@@ -1,0 +1,32 @@
+component: field-error
+flutter_name: HeroFieldError
+status: complete
+
+source:
+  ref: "@heroui/styles@3.2.4 (npm), dist/components/field-error.css"
+  files: [tool/sources/heroui-field-error.css]
+  docs: https://heroui.com/en/docs/react/components/field-error
+
+anatomy:
+  - (none)
+
+kinds:
+  color: danger
+  default: -
+
+sizes: none
+default: -
+
+states: rest only
+
+tokens:
+  role: []
+  component: []
+
+non_token_measurements:
+  - animated height 350ms + opacity 150ms; hidden -> h-0 opacity-0
+
+behavior: static (or state-driven where noted).
+
+approximations:
+  - none material

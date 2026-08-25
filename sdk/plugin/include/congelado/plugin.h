@@ -21,6 +21,12 @@
 #define CONGELADO_CAP_EVENTS   512u
 #define CONGELADO_CAP_CACHE    1024u
 #define CONGELADO_CAP_CRON     2048u
+#define CONGELADO_CAP_WORKER_MANAGER 4096u
+#define CONGELADO_CAP_WORKER   8192u
+#define CONGELADO_CAP_APP_DEFS 16384u
+#define CONGELADO_CAP_WORKER_ORCHESTRATOR 32768u
+#define CONGELADO_CAP_WORKFLOW_ORCHESTRATOR 65536u
+#define CONGELADO_CAP_PAYLOAD_STORAGE 131072u
 
 // ── CONGELADO_PLUGIN(T) ───────────────────────────────────────────────────────
 // Generates all C dlsym symbols from a congelado::Plugin subclass.
