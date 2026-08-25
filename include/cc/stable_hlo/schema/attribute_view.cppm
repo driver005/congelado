@@ -17,7 +17,9 @@ class StableHloAttributeView : public ice::GeneratorAttributeViewBase {
 
     ice::StringBuilder get_name() const override { return ice::StringBuilder{m_schema.name}; }
     ice::StringBuilder get_description() const override {
+
         return ice::StringBuilder{m_schema.optional ? "optional:true" : "optional:false"};
+
     }
     ice::StringBuilder get_full_type() const override { return ice::StringBuilder{m_schema.cpp_type}; }
     ice::StringBuilder get_base_type() const override { return ice::StringBuilder{m_schema.cpp_type}; }

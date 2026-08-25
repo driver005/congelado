@@ -18,25 +18,33 @@ class ProfilerFnsBuilder {
 
   ProfilerFnsBuilder(ProfilerFnsBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   ProfilerFnsBuilder& operator=(ProfilerFnsBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_ProfilerFnsDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   ProfilerFnsBuilder& set_start(TP_ProfilerFns_Start callback) {
+
     TP_ProfilerFns_SetStart(m_handle, callback);
     return *this;
+
   }
   ProfilerFnsBuilder& set_stop(TP_ProfilerFns_Stop callback) {
+
     TP_ProfilerFns_SetStop(m_handle, callback);
     return *this;
+
   }
   ProfilerFnsBuilder& set_collect_data_xspace(TP_ProfilerFns_CollectDataXspace callback) {
+
     TP_ProfilerFns_SetCollectDataXspace(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

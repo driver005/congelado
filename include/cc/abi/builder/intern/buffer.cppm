@@ -13,8 +13,10 @@ class BufferBuilder {
     BufferBuilder() : m_buffer{TF_NewBuffer()} {}
 
     ~BufferBuilder() {
+
         if (m_buffer)
             TF_DeleteBuffer(m_buffer);
+
     }
 
     BufferBuilder(const BufferBuilder &) = delete;
@@ -23,6 +25,7 @@ class BufferBuilder {
     BufferBuilder(BufferBuilder &&other) noexcept : m_buffer{other.m_buffer} { other.m_buffer = nullptr; }
 
     BufferBuilder &operator=(BufferBuilder &&other) noexcept {
+
         if (this != &other) {
             if (m_buffer)
                 TF_DeleteBuffer(m_buffer);
@@ -30,6 +33,7 @@ class BufferBuilder {
             other.m_buffer = nullptr;
         }
         return *this;
+
     }
 
     bool is_valid() const { return m_buffer != nullptr; }
@@ -37,7 +41,9 @@ class BufferBuilder {
     size_t get_length() const { return m_buffer->length; }
 
     std::string to_string() const {
+
         return std::string(reinterpret_cast<const char *>(m_buffer->data), m_buffer->length);
+
     }
 
     // Underlying handle — pass directly to the C ABI

@@ -9,7 +9,7 @@ import std;
 import cc_abi_builder_intern;
 import cc_abi_builder_generator;
 import :c_definition;
-import :c_sourcecode;
+import :c_generator_source_code;
 
 export namespace ice {
 
@@ -26,7 +26,9 @@ export namespace ice {
 class GeneratorRuntime : public GeneratorBuilderBase {
 public:
     ~GeneratorRuntime() override {
+
         if (m_c_handle) TF_Generator_Destroy(m_c_handle);
+
     }
 
     GeneratorRuntime(const GeneratorRuntime&) = delete;
@@ -36,6 +38,7 @@ public:
 
     static std::unique_ptr<GeneratorRuntime> create(std::string_view name, std::string_view output_dir,
                                                      std::string_view source_dir, TF_Status* status) {
+
         GeneratorBuilderBase* in_process =
             GeneratorBuilderRegistry::default_registry().get_or_create(name, output_dir, source_dir);
         if (in_process) {
@@ -49,9 +52,11 @@ public:
             return nullptr;
         }
         return std::unique_ptr<GeneratorRuntime>(new GeneratorRuntime(handle));
+
     }
 
     void write_file(std::string_view path, const GeneratorSourceCodeBase& code) override {
+
         if (m_in_process) {
             m_in_process->write_file(path, code);
             return;
@@ -61,9 +66,11 @@ public:
         TF_Status* status = TF_NewStatus();
         TF_Generator_WriteFile(m_c_handle, std::string{path}.c_str(), c_code->get_handle(), status);
         TF_DeleteStatus(status);
+
     }
 
     void write_module(std::string_view path) override {
+
         if (m_in_process) {
             m_in_process->write_module(path);
             return;
@@ -71,21 +78,27 @@ public:
         TF_Status* status = TF_NewStatus();
         TF_Generator_WriteModule(m_c_handle, std::string{path}.c_str(), status);
         TF_DeleteStatus(status);
+
     }
 
     size_t get_definition_count() const override {
+
         if (m_in_process) return m_in_process->get_definition_count();
         return TF_Generator_GetDefinitionCount(m_c_handle);
+
     }
 
     std::unique_ptr<GeneratorDefinitionViewBase> get_definition(size_t index) const override {
+
         if (m_in_process) return m_in_process->get_definition(index);
         const TF_Generator_Definition* def = TF_Generator_GetDefinition(m_c_handle, index);
         if (!def) return nullptr;
         return std::make_unique<CGeneratorDefinitionView>(def);
+
     }
 
     void set_name(std::string_view name) override {
+
         if (m_in_process) {
             m_in_process->set_name(name);
             return;
@@ -95,9 +108,11 @@ public:
         TF_StringAssignView(&tf_name, name.data(), name.size());
         TF_Generator_SetName(m_c_handle, &tf_name);
         TF_StringDealloc(&tf_name);
+
     }
 
     StringBuilder get_name() const override {
+
         if (m_in_process) return m_in_process->get_name();
         TF_String tf_name;
         TF_StringInit(&tf_name);
@@ -105,6 +120,7 @@ public:
         StringBuilder result{&tf_name};
         TF_StringDealloc(&tf_name);
         return result;
+
     }
 
     // True if this generator was resolved in-process (no C-ABI crossing).

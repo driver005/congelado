@@ -18,17 +18,21 @@ class IoRuntime {
   explicit IoRuntime(TP_IO* handle) : m_handle{handle} {}
 
   RequestRuntime invoke_create_request(TF_Status* status) const {
+
     if (m_handle && m_handle->create_request_cb) {
       return RequestRuntime{m_handle->create_request_cb(m_handle->ext, status)};
     }
     return RequestRuntime{};
+
   }
 
   ResponseRuntime invoke_create_response(TF_Status* status) const {
+
     if (m_handle && m_handle->create_response_cb) {
       return ResponseRuntime{m_handle->create_response_cb(m_handle->ext, status)};
     }
     return ResponseRuntime{};
+
   }
 
   // Underlying handle — pass directly to the C ABI

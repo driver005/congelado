@@ -51,6 +51,7 @@ struct JsonOpDefinition {
 
 // Escapes a string for embedding in a C++ string literal ("..." form).
 std::string escape_cpp_string(const std::string &text) {
+
     std::string out;
     out.reserve(text.size());
     for (char c : text) {
@@ -62,23 +63,31 @@ std::string escape_cpp_string(const std::string &text) {
         }
     }
     return out;
+
 }
 
 void log_line(std::FILE *stream, std::string_view message) {
+
     std::fwrite(message.data(), 1, message.size(), stream);
     std::fputc('\n', stream);
+
 }
 
 std::string render_param_schema_literal(const JsonParameter &param) {
+
     return std::format("{{\"{}\", {}}}", escape_cpp_string(param.name), param.variadic ? "true" : "false");
+
 }
 
 std::string render_attr_schema_literal(const JsonAttr &attr) {
+
     return std::format("{{\"{}\", \"{}\", {}, {}}}", escape_cpp_string(attr.name), escape_cpp_string(attr.cpp_type),
                        attr.optional ? "true" : "false", attr.list ? "true" : "false");
+
 }
 
 std::string render_op_schema_literal(const JsonOpDefinition &op) {
+
     std::string inputs = "{";
     for (std::size_t i = 0; i < op.inputs.size(); ++i) {
         if (i > 0) inputs += ", ";
@@ -96,15 +105,18 @@ std::string render_op_schema_literal(const JsonOpDefinition &op) {
     return std::format("        {{\"{}\", \"{}\", \"{}\", {}, {}, {}}},", escape_cpp_string(op.name),
                        escape_cpp_string(op.summary), escape_cpp_string(op.category), inputs, attrs,
                        op.output_count);
+
 }
 
 // The one generated file: the compiled-in stable_hlo_op_schema_table() function, one
 // StableHloOpSchema literal per manifest op. Just data — the StableHloOpSchema/
 // StableHloParamSchema/StableHloAttrSchema types it uses are hand-written (schema/types.cppm).
 std::vector<std::string> render_table_file(const std::vector<JsonOpDefinition> &ops) {
+
     std::vector<std::string> lines;
     std::size_t start = 0;
     auto push_block = [&lines, &start](const std::string &block) {
+
         start = 0;
         while (start <= block.size()) {
             std::size_t end = block.find('\n', start);
@@ -115,6 +127,7 @@ std::vector<std::string> render_table_file(const std::vector<JsonOpDefinition> &
             lines.push_back(block.substr(start, end - start));
             start = end + 1;
         }
+
     };
 
     push_block(R"GENCODE(// GENERATED FILE — produced at build time by include/cc/stable_hlo/build.cc, do not hand-edit.
@@ -131,6 +144,7 @@ import :types;
 export namespace cc::stable_hlo {
 
 const std::vector<StableHloOpSchema> &stable_hlo_op_schema_table() {
+
     static const std::vector<StableHloOpSchema> table = {
 )GENCODE");
 
@@ -140,16 +154,19 @@ const std::vector<StableHloOpSchema> &stable_hlo_op_schema_table() {
 
     push_block(R"GENCODE(    };
     return table;
+
 }
 
 } // namespace cc::stable_hlo
 )GENCODE");
     return lines;
+
 }
 
 } // namespace
 
 int main(int argument_count, char **arguments) {
+
     if (argument_count != 3) {
         log_line(stderr, "usage: stable_hlo_build <ops.json path> <output dir>");
         return 1;
@@ -186,4 +203,5 @@ int main(int argument_count, char **arguments) {
 
     log_line(stdout, std::format("stable_hlo_build: wrote {} op schema entries into schema/table.cppm", ops.size()));
     return 0;
+
 }

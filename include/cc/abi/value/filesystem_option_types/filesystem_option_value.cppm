@@ -2,7 +2,7 @@ module;
 
 #include "c/extern/filesystem.h"
 
-export module cc_abi_value:filesystem_option_types;
+export module cc_abi_value:filesystem_option_value;
 
 import std;
 
@@ -21,14 +21,6 @@ struct FilesystemOptionValue {
     int num_values{};
     // Values are owned by caller, managed externally
     // This mirrors the C TF_Filesystem_Option_Value_Union
-};
-
-// Option struct wrapper
-struct FilesystemOption {
-    std::string name;
-    std::string description;
-    bool per_file{};
-    // Value is owned by caller
 };
 
 } // namespace ice

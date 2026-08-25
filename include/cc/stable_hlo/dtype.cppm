@@ -58,7 +58,9 @@ class StableHloDType {
     [[nodiscard]] constexpr Kind get_kind() const noexcept { return m_kind; }
 
     [[nodiscard]] constexpr bool operator==(const StableHloDType &other) const noexcept {
+
         return m_kind == other.m_kind;
+
     }
 
     // Renders this element type exactly as StableHLO's textual assembly spells it, e.g.
@@ -85,14 +87,17 @@ class StableHloDType {
 export template <>
 struct std::formatter<cc::stable_hlo::StableHloDType> {
     constexpr auto parse(std::format_parse_context &ctx) {
+
         auto it = ctx.begin();
         if (it != ctx.end() && *it != '}') {
             throw std::format_error("StableHloDType: unsupported format specifier");
+
         }
         return it;
     }
 
     auto format(const cc::stable_hlo::StableHloDType &dtype, std::format_context &ctx) const {
+
         using Kind = cc::stable_hlo::StableHloDType::Kind;
         std::string_view text;
         switch (dtype.get_kind()) {
@@ -117,6 +122,7 @@ struct std::formatter<cc::stable_hlo::StableHloDType> {
             case Kind::COMPLEX_F64: return std::format_to(ctx.out(), "complex<f64>");
         }
         return std::format_to(ctx.out(), "{}", text);
+
     }
 };
 

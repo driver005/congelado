@@ -7,4 +7,5 @@ export import :allocator_attributes;
 export import :file_statistics;
 export import :otel_enums;
 export import :io_enums;
-export import :filesystem_option_types;
+export import :filesystem_option_value;
+export import :filesystem_option;

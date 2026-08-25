@@ -19,21 +19,27 @@ class SerdeBuilder {
 
   SerdeBuilder(SerdeBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   SerdeBuilder& operator=(SerdeBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_SerdeDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   SerdeBuilder& set_encode(TP_Serde_EncodeFn callback) {
+
     TP_Serde_SetEncodeCallback(m_handle, callback);
     return *this;
+
   }
   SerdeBuilder& set_decode(TP_Serde_DecodeFn callback) {
+
     TP_Serde_SetDecodeCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_content_type() { return StringBuilder{&m_handle->content_type}; }

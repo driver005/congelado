@@ -21,16 +21,24 @@ public:
     CGeneratorTypeInfoView& operator=(CGeneratorTypeInfoView&&) = default;
 
     int get_data_type() const override {
+
         return TF_Generator_TypeInfo_GetDataType(m_handle);
+
     }
     StringBuilder get_type_attr_name() const override {
+
         return StringBuilder(TF_Generator_TypeInfo_GetTypeAttrName(m_handle));
+
     }
     bool is_read_only() const override {
+
         return TF_Generator_TypeInfo_IsReadOnly(m_handle);
+
     }
     bool is_list() const override {
+
         return TF_Generator_TypeInfo_IsList(m_handle);
+
     }
 
     const TF_Generator_TypeInfo* get_handle() const { return m_handle; }

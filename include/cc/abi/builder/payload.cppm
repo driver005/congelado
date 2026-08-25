@@ -24,21 +24,27 @@ class PayloadBuilder {
 
   PayloadBuilder(PayloadBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   PayloadBuilder& operator=(PayloadBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_PayloadDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   PayloadBuilder& set_write(TP_Payload_WriteFn callback) {
+
     TP_Payload_SetWriteCallback(m_handle, callback);
     return *this;
+
   }
   PayloadBuilder& set_read(TP_Payload_ReadFn callback) {
+
     TP_Payload_SetReadCallback(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

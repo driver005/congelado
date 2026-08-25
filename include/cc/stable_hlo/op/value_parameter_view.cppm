@@ -23,7 +23,9 @@ class StableHloValueParameterView : public ice::GeneratorParameterViewBase {
     ice::StringBuilder get_description() const override { return ice::StringBuilder{}; }
     int get_position() const override { return m_position; }
     std::unique_ptr<ice::GeneratorTypeInfoViewBase> get_type() const override {
+
         return std::make_unique<StableHloTypeInfoView>(StableHloTypeInfoView::from_shape(m_value.get_shape(), m_is_read_only));
+
     }
 
   private:

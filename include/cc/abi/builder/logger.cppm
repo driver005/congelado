@@ -28,21 +28,27 @@ class LoggerBuilder {
 
   LoggerBuilder(LoggerBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   LoggerBuilder& operator=(LoggerBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_LoggerDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   LoggerBuilder& set_write(TP_Logger_WriteFn callback) {
+
     TP_Logger_SetWriteCallback(m_handle, callback);
     return *this;
+
   }
   LoggerBuilder& set_required(TP_Logger_RequiredFn callback) {
+
     TP_Logger_SetRequiredCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->name}; }

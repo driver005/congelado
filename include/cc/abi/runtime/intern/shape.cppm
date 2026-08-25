@@ -19,11 +19,13 @@ class ShapeRuntime {
     int64_t get_dim(int index) const { return TF_ShapeDim(m_shape, index); }
 
     std::vector<int64_t> to_vector() const {
+
         int n = get_num_dims();
         std::vector<int64_t> dims(n);
         for (int i = 0; i < n; ++i)
             dims[i] = get_dim(i);
         return dims;
+
     }
 
     // Underlying handle — pass directly to the C ABI

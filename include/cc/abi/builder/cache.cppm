@@ -19,25 +19,33 @@ class CacheBuilder {
 
   CacheBuilder(CacheBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   CacheBuilder& operator=(CacheBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_CacheDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   CacheBuilder& set_get(TP_Cache_GetFn callback) {
+
     TP_Cache_SetGetCallback(m_handle, callback);
     return *this;
+
   }
   CacheBuilder& set_set(TP_Cache_SetFn callback) {
+
     TP_Cache_SetSetCallback(m_handle, callback);
     return *this;
+
   }
   CacheBuilder& set_remove(TP_Cache_RemoveFn callback) {
+
     TP_Cache_SetRemoveCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->backend_name}; }

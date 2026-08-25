@@ -21,19 +21,29 @@ public:
     CGeneratorAttributeView& operator=(CGeneratorAttributeView&&) = default;
 
     StringBuilder get_name() const override {
+
         return StringBuilder(TF_Generator_Attribute_GetName(m_handle));
+
     }
     StringBuilder get_description() const override {
+
         return StringBuilder(TF_Generator_Attribute_GetDescription(m_handle));
+
     }
     StringBuilder get_full_type() const override {
+
         return StringBuilder(TF_Generator_Attribute_GetFullType(m_handle));
+
     }
     StringBuilder get_base_type() const override {
+
         return StringBuilder(TF_Generator_Attribute_GetBaseType(m_handle));
+
     }
     bool is_list() const override {
+
         return TF_Generator_Attribute_IsList(m_handle);
+
     }
 
     const TF_Generator_Attribute* get_handle() const { return m_handle; }

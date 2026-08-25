@@ -18,17 +18,21 @@ class HistogramBuilder {
 
   HistogramBuilder(HistogramBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   HistogramBuilder& operator=(HistogramBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_OtelHistogramDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   HistogramBuilder& set_record(TP_Otel_Histogram_RecordFn callback) {
+
     TP_OtelHistogram_SetRecordCallback(m_handle, callback);
     return *this;
+
   }
 
   // Underlying handle — pass directly to the C ABI

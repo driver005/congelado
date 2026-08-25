@@ -19,17 +19,21 @@ class ProtocolBuilder {
 
   ProtocolBuilder(ProtocolBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   ProtocolBuilder& operator=(ProtocolBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_ProtocolDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   ProtocolBuilder& set_create_server(TP_Protocol_CreateServerFn callback) {
+
     TP_Protocol_SetCreateServerCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->name}; }

@@ -19,25 +19,33 @@ class SearchBuilder {
 
   SearchBuilder(SearchBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
   SearchBuilder& operator=(SearchBuilder&& other) noexcept {
+
     if (this != &other) {
       TP_SearchDelete(m_handle);
       m_handle = other.m_handle;
       other.m_handle = nullptr;
     }
     return *this;
+
   }
 
   SearchBuilder& set_index(TP_Search_IndexFn callback) {
+
     TP_Search_SetIndexCallback(m_handle, callback);
     return *this;
+
   }
   SearchBuilder& set_remove(TP_Search_RemoveFn callback) {
+
     TP_Search_SetRemoveCallback(m_handle, callback);
     return *this;
+
   }
   SearchBuilder& set_search(TP_Search_SearchFn callback) {
+
     TP_Search_SetSearchCallback(m_handle, callback);
     return *this;
+
   }
 
   StringBuilder get_name() { return StringBuilder{&m_handle->backend_name}; }

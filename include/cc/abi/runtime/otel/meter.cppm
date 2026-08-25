@@ -18,17 +18,21 @@ class MeterRuntime {
 
   CounterRuntime invoke_create_counter(const TF_TString* name, const TF_TString* description,
                                        const TF_TString* unit) const {
+
     if (m_handle && m_handle->create_counter_cb) {
       return CounterRuntime{m_handle->create_counter_cb(m_handle->ext, name, description, unit)};
     }
     return CounterRuntime{};
+
   }
   HistogramRuntime invoke_create_histogram(const TF_TString* name, const TF_TString* description,
                                            const TF_TString* unit) const {
+
     if (m_handle && m_handle->create_histogram_cb) {
       return HistogramRuntime{m_handle->create_histogram_cb(m_handle->ext, name, description, unit)};
     }
     return HistogramRuntime{};
+
   }
 
   // Underlying handle — pass directly to the C ABI

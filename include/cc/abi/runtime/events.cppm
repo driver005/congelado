@@ -14,9 +14,11 @@ class EventsRuntime {
   explicit EventsRuntime(TP_Events* handle) : m_handle{handle} {}
 
   void invoke_publish(const TF_TString* event_name, const TF_TString* payload_json) const {
+
     if (m_handle && m_handle->publish_cb) {
       m_handle->publish_cb(m_handle->ext, event_name, payload_json);
     }
+
   }
 
   StringRuntime get_name() const { return m_handle ? StringRuntime{&m_handle->name} : StringRuntime{}; }

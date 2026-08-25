@@ -26,7 +26,9 @@ class StableHloShape {
     [[nodiscard]] std::size_t get_rank() const noexcept { return m_dims.size(); }
 
     [[nodiscard]] bool operator==(const StableHloShape &other) const noexcept {
+
         return m_dims == other.m_dims && m_dtype == other.m_dtype;
+
     }
 
   private:
@@ -42,14 +44,17 @@ class StableHloShape {
 export template <>
 struct std::formatter<cc::stable_hlo::StableHloShape> {
     constexpr auto parse(std::format_parse_context &ctx) {
+
         auto it = ctx.begin();
         if (it != ctx.end() && *it != '}') {
             throw std::format_error("StableHloShape: unsupported format specifier");
+
         }
         return it;
     }
 
     auto format(const cc::stable_hlo::StableHloShape &shape, std::format_context &ctx) const {
+
         auto out = std::format_to(ctx.out(), "tensor<");
         for (auto dim : shape.get_dims()) {
             if (dim == cc::stable_hlo::StableHloShape::DYNAMIC_DIM) {
@@ -60,6 +65,7 @@ struct std::formatter<cc::stable_hlo::StableHloShape> {
         }
         out = std::format_to(out, "{}", shape.get_dtype());
         return std::format_to(out, ">");
+
     }
 };
 

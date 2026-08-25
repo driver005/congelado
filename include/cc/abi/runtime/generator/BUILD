@@ -12,7 +12,8 @@ congelado_module_library(
         "c_controller.cppm",
         "c_definition.cppm",
         "c_parameter.cppm",
-        "c_sourcecode.cppm",
+        "c_sourcecode/c_generator_source_code.cppm",
+        "c_sourcecode/c_generator_source_code_view.cppm",
         "c_typeinfo.cppm",
     ],
     deps = [
