@@ -15,15 +15,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/framework/node_def_builder.h"
-#include "tensorflow/core/framework/types.h"
-#include <vector>
 #include "tensorflow/core/framework/attr_value.pb.h"
+#include "tensorflow/core/framework/node_def_builder.h"
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/op_def.pb.h"
 #include "tensorflow/core/framework/op_def_util.h"
+#include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
+
+#include <vector>
 
 export module cc_tmp:utils_fake_input;
 
@@ -32,243 +33,281 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// These functions return values that may be passed to
-// NodeDefBuilder::Input() to add an input for a test.  Use them when
-// you don't care about the node names/output indices providing the
-// input.  They also allow you to omit the input types and/or
-// list length when they may be inferred.
-FakeInputFunctor FakeInput();  // Infer everything
-FakeInputFunctor FakeInput(DataType dt);
-FakeInputFunctor FakeInput(int n);  // List of length n
-FakeInputFunctor FakeInput(int n, DataType dt);
-FakeInputFunctor FakeInput(DataTypeSlice dts);
-inline FakeInputFunctor FakeInput(std::initializer_list<DataType> dts) {
-  return FakeInput(DataTypeSlice(dts));
-}
+        // These functions return values that may be passed to
+        // NodeDefBuilder::Input() to add an input for a test.  Use them when
+        // you don't care about the node names/output indices providing the
+        // input.  They also allow you to omit the input types and/or
+        // list length when they may be inferred.
+        FakeInputFunctor FakeInput(); // Infer everything
+        FakeInputFunctor FakeInput(DataType dt);
+        FakeInputFunctor FakeInput(int n); // List of length n
+        FakeInputFunctor FakeInput(int n, DataType dt);
+        FakeInputFunctor FakeInput(DataTypeSlice dts);
 
-}  // namespace tensorflow
+        inline FakeInputFunctor FakeInput(std::initializer_list<DataType> dts)
+        {
+            return FakeInput(DataTypeSlice(dts));
+        }
 
-// ==================================================================
-// Implementation: fake_input.cc
-// ==================================================================
+    } // namespace tensorflow
 
-namespace tensorflow {
-namespace {
+    // ==================================================================
+    // Implementation: fake_input.cc
+    // ==================================================================
 
-class FakeInputImpl {
- public:
-  FakeInputImpl(const OpDef* op_def, int in_index, const NodeDef* node_def,
-                NodeDefBuilder* builder);
-  void SetN(int n);
-  void SetDataType(DataType dt);
-  void SetTypeList(DataTypeSlice dts);
-  absl::Status AddInputToBuilder();
+    namespace tensorflow {
+        namespace {
 
- private:
-  static std::string FakeNodeName(int in_index);
-  absl::Status GetN(int* n) const;
-  absl::Status GetDataType(DataType* dt) const;
-  void NSources(int n, DataType dt) const;
-  void SourceList(DataTypeSlice dts) const;
+            class FakeInputImpl
+            {
+            public:
+                FakeInputImpl(
+                    const OpDef* op_def,
+                    int in_index,
+                    const NodeDef* node_def,
+                    NodeDefBuilder* builder
+                );
+                void SetN(int n);
+                void SetDataType(DataType dt);
+                void SetTypeList(DataTypeSlice dts);
+                absl::Status AddInputToBuilder();
 
-  const OpDef* const op_def_;
-  const OpDef::ArgDef* const arg_;
-  const std::string in_node_;
-  const NodeDef* const node_def_;
-  NodeDefBuilder* const builder_;
+            private:
+                static std::string FakeNodeName(int in_index);
+                absl::Status GetN(int* n) const;
+                absl::Status GetDataType(DataType* dt) const;
+                void NSources(int n, DataType dt) const;
+                void SourceList(DataTypeSlice dts) const;
 
-  bool n_specified_;
-  int n_;
-  bool dt_specified_;
-  DataType dt_;
-  bool dts_specified_;
-  DataTypeSlice dts_;
-};
+                const OpDef* const op_def_;
+                const OpDef::ArgDef* const arg_;
+                const std::string in_node_;
+                const NodeDef* const node_def_;
+                NodeDefBuilder* const builder_;
 
-FakeInputImpl::FakeInputImpl(const OpDef* op_def, int in_index,
-                             const NodeDef* node_def, NodeDefBuilder* builder)
-    : op_def_(op_def),
-      arg_(&op_def->input_arg(in_index)),
-      in_node_(FakeNodeName(in_index)),
-      node_def_(node_def),
-      builder_(builder),
-      n_specified_(false),
-      dt_specified_(false),
-      dts_specified_(false) {}
+                bool n_specified_;
+                int n_;
+                bool dt_specified_;
+                DataType dt_;
+                bool dts_specified_;
+                DataTypeSlice dts_;
+            };
 
-void FakeInputImpl::SetN(int n) {
-  n_specified_ = true;
-  n_ = n;
-}
+            FakeInputImpl::FakeInputImpl(
+                const OpDef* op_def, int in_index, const NodeDef* node_def, NodeDefBuilder* builder
+            ) :
+                op_def_(op_def),
+                arg_(&op_def->input_arg(in_index)),
+                in_node_(FakeNodeName(in_index)),
+                node_def_(node_def),
+                builder_(builder),
+                n_specified_(false),
+                dt_specified_(false),
+                dts_specified_(false)
+            {
+            }
 
-void FakeInputImpl::SetDataType(DataType dt) {
-  dt_specified_ = true;
-  dt_ = dt;
-}
+            void FakeInputImpl::SetN(int n)
+            {
+                n_specified_ = true;
+                n_ = n;
+            }
 
-void FakeInputImpl::SetTypeList(DataTypeSlice dts) {
-  dts_specified_ = true;
-  dts_ = dts;
-}
+            void FakeInputImpl::SetDataType(DataType dt)
+            {
+                dt_specified_ = true;
+                dt_ = dt;
+            }
 
-absl::Status FakeInputImpl::AddInputToBuilder() {
-  if (dts_specified_) {
-    SourceList(dts_);
+            void FakeInputImpl::SetTypeList(DataTypeSlice dts)
+            {
+                dts_specified_ = true;
+                dts_ = dts;
+            }
 
-  } else if (n_specified_ || !arg_->number_attr().empty()) {
-    int n;
-    TF_RETURN_IF_ERROR(GetN(&n));
+            absl::Status FakeInputImpl::AddInputToBuilder()
+            {
+                if (dts_specified_) {
+                    SourceList(dts_);
+                } else if (n_specified_ || !arg_->number_attr().empty()) {
+                    int n;
+                    TF_RETURN_IF_ERROR(GetN(&n));
 
-    DataType dt;
-    if (n > 0) {
-      TF_RETURN_IF_ERROR(GetDataType(&dt));
-    } else {
-      dt = DT_FLOAT;
-    }
+                    DataType dt;
+                    if (n > 0) {
+                        TF_RETURN_IF_ERROR(GetDataType(&dt));
+                    } else {
+                        dt = DT_FLOAT;
+                    }
 
-    NSources(n, dt);
-  } else {
-    if (!dt_specified_ && !arg_->type_list_attr().empty()) {
-      DataTypeVector dts;
-      absl::Status status =
-          GetNodeAttr(*node_def_, arg_->type_list_attr(), &dts);
-      if (!status.ok()) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("Could not infer list of types for input '",
-                         arg_->name(), "': ", status.message()));
-      }
-      SourceList(dts);
-      return absl::OkStatus();
-    }
+                    NSources(n, dt);
+                } else {
+                    if (!dt_specified_ && !arg_->type_list_attr().empty()) {
+                        DataTypeVector dts;
+                        absl::Status status = GetNodeAttr(*node_def_, arg_->type_list_attr(), &dts);
+                        if (!status.ok()) {
+                            return absl::InvalidArgumentError(
+                                absl::StrCat(
+                                    "Could not infer list of types for input '", arg_->name(),
+                                    "': ", status.message()
+                                )
+                            );
+                        }
+                        SourceList(dts);
+                        return absl::OkStatus();
+                    }
 
-    DataType dt;
-    TF_RETURN_IF_ERROR(GetDataType(&dt));
-    builder_->Input(in_node_, 0, dt);
-  }
-  return absl::OkStatus();
-}
+                    DataType dt;
+                    TF_RETURN_IF_ERROR(GetDataType(&dt));
+                    builder_->Input(in_node_, 0, dt);
+                }
+                return absl::OkStatus();
+            }
 
-// static
-std::string FakeInputImpl::FakeNodeName(int in_index) {
-  char c = 'a' + (in_index % 26);
-  return std::string(&c, 1);
-}
+            // static
+            std::string FakeInputImpl::FakeNodeName(int in_index)
+            {
+                char c = 'a' + (in_index % 26);
+                return std::string(&c, 1);
+            }
 
-absl::Status FakeInputImpl::GetN(int* n) const {
-  if (n_specified_) {
-    *n = n_;
-  } else {
-    absl::Status status = GetNodeAttr(*node_def_, arg_->number_attr(), n);
-    if (!status.ok()) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Could not infer length of input '", arg_->name(),
-                       "': ", status.message()));
-    }
-  }
-  return absl::OkStatus();
-}
+            absl::Status FakeInputImpl::GetN(int* n) const
+            {
+                if (n_specified_) {
+                    *n = n_;
+                } else {
+                    absl::Status status = GetNodeAttr(*node_def_, arg_->number_attr(), n);
+                    if (!status.ok()) {
+                        return absl::InvalidArgumentError(
+                            absl::StrCat(
+                                "Could not infer length of input '", arg_->name(),
+                                "': ", status.message()
+                            )
+                        );
+                    }
+                }
+                return absl::OkStatus();
+            }
 
-absl::Status FakeInputImpl::GetDataType(DataType* dt) const {
-  if (dt_specified_) {
-    *dt = dt_;
-    return absl::OkStatus();  // Ignore is_ref field of arg_.
-  } else if (arg_->type() != DT_INVALID) {
-    *dt = arg_->type();
-  } else if (!arg_->type_attr().empty()) {
-    absl::Status status = GetNodeAttr(*node_def_, arg_->type_attr(), dt);
-    if (!status.ok()) {
-      // Check if the type attr has a default
-      const OpDef::AttrDef* attr = FindAttr(arg_->type_attr(), *op_def_);
-      if (attr && attr->has_default_value()) {
-        *dt = attr->default_value().type();
-      } else {
-        return absl::InvalidArgumentError(
-            absl::StrCat("Could not infer type for input '", arg_->name(),
-                         "': ", status.message()));
-      }
-    }
-  } else {
-    return absl::InvalidArgumentError(
-        absl::StrCat("No type or type_attr field in arg '", arg_->name(), "'"));
-  }
-  if (arg_->is_ref()) {
-    *dt = MakeRefType(*dt);
-  }
-  return absl::OkStatus();
-}
+            absl::Status FakeInputImpl::GetDataType(DataType* dt) const
+            {
+                if (dt_specified_) {
+                    *dt = dt_;
+                    return absl::OkStatus(); // Ignore is_ref field of arg_.
+                } else if (arg_->type() != DT_INVALID) {
+                    *dt = arg_->type();
+                } else if (!arg_->type_attr().empty()) {
+                    absl::Status status = GetNodeAttr(*node_def_, arg_->type_attr(), dt);
+                    if (!status.ok()) {
+                        // Check if the type attr has a default
+                        const OpDef::AttrDef* attr = FindAttr(arg_->type_attr(), *op_def_);
+                        if (attr && attr->has_default_value()) {
+                            *dt = attr->default_value().type();
+                        } else {
+                            return absl::InvalidArgumentError(
+                                absl::StrCat(
+                                    "Could not infer type for input '", arg_->name(),
+                                    "': ", status.message()
+                                )
+                            );
+                        }
+                    }
+                } else {
+                    return absl::InvalidArgumentError(
+                        absl::StrCat("No type or type_attr field in arg '", arg_->name(), "'")
+                    );
+                }
+                if (arg_->is_ref()) {
+                    *dt = MakeRefType(*dt);
+                }
+                return absl::OkStatus();
+            }
 
-void FakeInputImpl::NSources(int n, DataType dt) const {
-  std::vector<NodeDefBuilder::NodeOut> srcs;
-  srcs.reserve(n);
-  for (int i = 0; i < n; ++i) {
-    srcs.emplace_back(in_node_, i, dt);
-  }
-  builder_->Input(absl::Span<const NodeDefBuilder::NodeOut>(srcs));
-}
+            void FakeInputImpl::NSources(int n, DataType dt) const
+            {
+                std::vector<NodeDefBuilder::NodeOut> srcs;
+                srcs.reserve(n);
+                for (int i = 0; i < n; ++i) {
+                    srcs.emplace_back(in_node_, i, dt);
+                }
+                builder_->Input(absl::Span<const NodeDefBuilder::NodeOut>(srcs));
+            }
 
-void FakeInputImpl::SourceList(DataTypeSlice dts) const {
-  std::vector<NodeDefBuilder::NodeOut> srcs;
-  srcs.reserve(dts.size());
-  for (size_t i = 0; i < dts.size(); ++i) {
-    srcs.emplace_back(in_node_, i, dts[i]);
-  }
-  builder_->Input(absl::Span<const NodeDefBuilder::NodeOut>(srcs));
-}
+            void FakeInputImpl::SourceList(DataTypeSlice dts) const
+            {
+                std::vector<NodeDefBuilder::NodeOut> srcs;
+                srcs.reserve(dts.size());
+                for (size_t i = 0; i < dts.size(); ++i) {
+                    srcs.emplace_back(in_node_, i, dts[i]);
+                }
+                builder_->Input(absl::Span<const NodeDefBuilder::NodeOut>(srcs));
+            }
 
-}  // namespace
+        } // namespace
 
-// Public interface ------------------------------------------------------------
+        // Public interface ------------------------------------------------------------
 
-FakeInputFunctor FakeInput() {
-  return [](const OpDef& op_def, int in_index, const NodeDef& node_def,
-            NodeDefBuilder* builder) {
-    FakeInputImpl impl(&op_def, in_index, &node_def, builder);
-    return impl.AddInputToBuilder();
-  };
-}
+        FakeInputFunctor FakeInput()
+        {
+            return [](const OpDef& op_def, int in_index, const NodeDef& node_def,
+                      NodeDefBuilder* builder) {
+                FakeInputImpl impl(&op_def, in_index, &node_def, builder);
+                return impl.AddInputToBuilder();
+            };
+        }
 
-FakeInputFunctor FakeInput(DataType dt) {
-  return [dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
-              NodeDefBuilder* builder) {
-    FakeInputImpl impl(&op_def, in_index, &node_def, builder);
-    impl.SetDataType(dt);
-    return impl.AddInputToBuilder();
-  };
-}
+        FakeInputFunctor FakeInput(DataType dt)
+        {
+            return [dt](
+                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       NodeDefBuilder* builder
+                   ) {
+                FakeInputImpl impl(&op_def, in_index, &node_def, builder);
+                impl.SetDataType(dt);
+                return impl.AddInputToBuilder();
+            };
+        }
 
-FakeInputFunctor FakeInput(int n) {
-  return [n](const OpDef& op_def, int in_index, const NodeDef& node_def,
-             NodeDefBuilder* builder) {
-    FakeInputImpl impl(&op_def, in_index, &node_def, builder);
-    impl.SetN(n);
-    return impl.AddInputToBuilder();
-  };
-}
+        FakeInputFunctor FakeInput(int n)
+        {
+            return [n](const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       NodeDefBuilder* builder) {
+                FakeInputImpl impl(&op_def, in_index, &node_def, builder);
+                impl.SetN(n);
+                return impl.AddInputToBuilder();
+            };
+        }
 
-FakeInputFunctor FakeInput(int n, DataType dt) {
-  return [n, dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
-                 NodeDefBuilder* builder) {
-    FakeInputImpl impl(&op_def, in_index, &node_def, builder);
-    impl.SetN(n);
-    impl.SetDataType(dt);
-    return impl.AddInputToBuilder();
-  };
-}
+        FakeInputFunctor FakeInput(int n, DataType dt)
+        {
+            return [n, dt](
+                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       NodeDefBuilder* builder
+                   ) {
+                FakeInputImpl impl(&op_def, in_index, &node_def, builder);
+                impl.SetN(n);
+                impl.SetDataType(dt);
+                return impl.AddInputToBuilder();
+            };
+        }
 
-FakeInputFunctor FakeInput(DataTypeSlice dts) {
-  // Make a copy to ensure the data will still be around when the lambda is
-  // called.
-  DataTypeVector dtv(dts.begin(), dts.end());
-  return [dtv](const OpDef& op_def, int in_index, const NodeDef& node_def,
-               NodeDefBuilder* builder) {
-    FakeInputImpl impl(&op_def, in_index, &node_def, builder);
-    impl.SetTypeList(dtv);
-    return impl.AddInputToBuilder();
-  };
-}
+        FakeInputFunctor FakeInput(DataTypeSlice dts)
+        {
+            // Make a copy to ensure the data will still be around when the lambda is
+            // called.
+            DataTypeVector dtv(dts.begin(), dts.end());
+            return [dtv](
+                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       NodeDefBuilder* builder
+                   ) {
+                FakeInputImpl impl(&op_def, in_index, &node_def, builder);
+                impl.SetTypeList(dtv);
+                return impl.AddInputToBuilder();
+            };
+        }
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

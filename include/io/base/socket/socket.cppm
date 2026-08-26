@@ -9,22 +9,22 @@ module;
 
 #ifdef _WIN32
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
+#    define _WINSOCK_DEPRECATED_NO_WARNINGS
+#    define WIN32_LEAN_AND_MEAN
+#    define NOMINMAX
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#    include <winsock2.h>
+#    include <ws2tcpip.h>
 
 #else
 
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#    include <arpa/inet.h>
+#    include <fcntl.h>
+#    include <netdb.h>
+#    include <netinet/tcp.h>
+#    include <sys/ioctl.h>
+#    include <sys/socket.h>
+#    include <sys/types.h>
 
 #endif
 
@@ -47,8 +47,9 @@ export import :win32;
 export import :posix;
 #endif
 
-class SSLAutoInitializer {
-  public:
+class SSLAutoInitializer
+{
+public:
     /**
      * @brief Bet, this is the whole reason the class exists — fires `OPENSSL_init_ssl`/
      * `OPENSSL_init_crypto` once, at static-init time, via the file-scope `AUTO_INIT` instance
@@ -64,7 +65,8 @@ class SSLAutoInitializer {
     // logged std::terminate() (see the try/catch), so this constructor genuinely cannot let an
     // exception escape — which is what let AUTO_INIT below drop its
     // bugprone-throwing-static-initialization finding without any behavior change.
-    SSLAutoInitializer() noexcept {
+    SSLAutoInitializer() noexcept
+    {
         // Everything below used to let a std::runtime_error escape straight out of static
         // initialization (before main() even runs), which is what
         // bugprone-throwing-static-initialization flags — an exception there can't be caught by
@@ -75,31 +77,36 @@ class SSLAutoInitializer {
             // Load the SSL string tables first, then the crypto side (ciphers, digests, config) —
             // both need to succeed before anything downstream can touch OpenSSL safely.
             int ssl_init = OPENSSL_init_ssl(
-                OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
+                OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr
+            );
 
             int crypto_init = OPENSSL_init_crypto(
                 OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_ADD_ALL_CIPHERS |
                     OPENSSL_INIT_ADD_ALL_DIGESTS,
-                nullptr);
+                nullptr
+            );
 
             // Either init call returning 0 means OpenSSL never came up — nothing to do but bail.
             if (ssl_init == 0 || crypto_init == 0) {
                 throw std::runtime_error(
                     "Failed to initialize OpenSSL libraries (Fatal - plesae check "
-                    "online or create a new issue)");
+                    "online or create a new issue)"
+                );
                 ERR_print_errors_fp(stderr);
             }
             std::println("OpenSSL libraries initialized successfully (DevInfo)");
-        } catch (const std::exception &caught_error) {
+        } catch (const std::exception& caught_error) {
             // The diagnostic print itself could in theory throw (format/allocation failure);
             // swallow that too so this constructor can never let anything past std::terminate()
             // below — this catch block already means the whole program is toast either way, per
             // the class-level @warning above.
             try {
-                std::println(stderr, "Fatal: OpenSSL static initialization failed: {}",
-                             caught_error.what());
-            } catch (...) {  // NOLINT(bugprone-empty-catch) — best-effort diagnostic only, std::terminate() below fires unconditionally either way
-                // Best-effort diagnostic only — terminate() below fires regardless.
+                std::println(
+                    stderr, "Fatal: OpenSSL static initialization failed: {}", caught_error.what()
+                );
+            } catch (...) { // NOLINT(bugprone-empty-catch) — best-effort diagnostic only,
+                            // std::terminate() below fires unconditionally either way Best-effort
+                            // diagnostic only — terminate() below fires regardless.
             }
             std::terminate();
         }
@@ -108,19 +115,34 @@ class SSLAutoInitializer {
 
 static const SSLAutoInitializer AUTO_INIT;
 
-
 export namespace io::base::socket {
 
-enum class Protocol : std::uint8_t { TCP = 0, UDP = 1, TLS = 2, QUIC = 3 };
-enum class WaitMode : std::uint8_t { AS_SOON_AS_ARRIVED, WAIT_FOR_WHOLE_MESSAGE };
-[[nodiscard]] constexpr bool is_waiting(WaitMode mode) noexcept {
+enum class Protocol : std::uint8_t
+{
+    TCP = 0,
+    UDP = 1,
+    TLS = 2,
+    QUIC = 3
+};
+enum class WaitMode : std::uint8_t
+{
+    AS_SOON_AS_ARRIVED,
+    WAIT_FOR_WHOLE_MESSAGE
+};
+
+[[nodiscard]] constexpr bool is_waiting(WaitMode mode) noexcept
+{
     return mode == WaitMode::WAIT_FOR_WHOLE_MESSAGE;
 }
 
-class AddressInfo {
-  public:
+class AddressInfo
+{
+public:
     /** @brief Zero-value default — empty sockaddr storage, size 0. */
-    AddressInfo() : m_adrinf{} {}
+    AddressInfo() :
+        m_adrinf{}
+    {
+    }
 
     /**
      * @brief Sets both the raw address bytes and their length in one shot — this is what
@@ -128,7 +150,8 @@ class AddressInfo {
      * @param adrinf the raw sockaddr storage to copy in.
      * @param sock_size the actual length of the address within `adrinf`.
      */
-    void set(const sockaddr_storage &adrinf, socklen_t &sock_size) {
+    void set(const sockaddr_storage& adrinf, socklen_t& sock_size)
+    {
         m_adrinf = adrinf;
         m_sock_size = sock_size;
     }
@@ -137,54 +160,89 @@ class AddressInfo {
      * @brief Sets just the raw address bytes, leaving the stored size untouched.
      * @param adrinf the raw sockaddr storage to copy in.
      */
-    void set_data(const sockaddr_storage &adrinf) { m_adrinf = adrinf; }
+    void set_data(const sockaddr_storage& adrinf)
+    {
+        m_adrinf = adrinf;
+    }
+
     /**
      * @brief Sets just the stored address length, leaving the raw bytes untouched.
      * @param sock_size the new length to store.
      */
-    void set_size(const socklen_t &sock_size) { m_sock_size = sock_size; }
+    void set_size(const socklen_t& sock_size)
+    {
+        m_sock_size = sock_size;
+    }
 
     /**
      * @brief Grabs the raw address bytes.
      * @return a const reference to the stored `sockaddr_storage`.
      */
-    [[nodiscard]] const sockaddr_storage &get_data() const noexcept { return m_adrinf; }
+    [[nodiscard]] const sockaddr_storage& get_data() const noexcept
+    {
+        return m_adrinf;
+    }
+
     /**
-     * @brief Mutable overload of get_data() — lets callers (e.g. `recvfrom`) write straight into
-     * the stored storage.
+     * @brief Mutable overload of get_data() — lets callers (e.g. `recvfrom`) write straight
+     * into the stored storage.
      * @return a mutable reference to the stored `sockaddr_storage`.
      */
-    sockaddr_storage &get_data() noexcept { return m_adrinf; }
+    sockaddr_storage& get_data() noexcept
+    {
+        return m_adrinf;
+    }
+
     /**
      * @brief Grabs the stored address length.
      * @return a const reference to the stored `socklen_t`.
      */
-    [[nodiscard]] const socklen_t &get_size() const noexcept { return m_sock_size; }
+    [[nodiscard]] const socklen_t& get_size() const noexcept
+    {
+        return m_sock_size;
+    }
+
     /**
-     * @brief Mutable overload of get_size() — lets callers write the length directly (e.g. as an
-     * in/out param to `recvfrom`).
+     * @brief Mutable overload of get_size() — lets callers write the length directly (e.g. as
+     * an in/out param to `recvfrom`).
      * @return a mutable reference to the stored `socklen_t`.
      */
-    socklen_t &get_size() noexcept { return m_sock_size; }
+    socklen_t& get_size() noexcept
+    {
+        return m_sock_size;
+    }
 
-  private:
+private:
     sockaddr_storage m_adrinf;
     socklen_t m_sock_size{0};
 };
 
-enum class Event : std::uint8_t { READ = 0x1, WRITE = 0x2, EXCEPT = 0x4 };
+enum class Event : std::uint8_t
+{
+    READ = 0x1,
+    WRITE = 0x2,
+    EXCEPT = 0x4
+};
 
-class Endpoint {
-  public:
+class Endpoint
+{
+public:
     /** @brief Zero-value default — empty address, port 0. */
-    Endpoint() : m_port{0} {}
+    Endpoint() :
+        m_port{0}
+    {
+    }
 
     /**
      * @brief Builds straight from an already-split address and port — no parsing motion here.
      * @param address host/IP portion.
      * @param port port number.
      */
-    Endpoint(std::string_view address, std::uint16_t port) : m_address{address}, m_port{port} {}
+    Endpoint(std::string_view address, std::uint16_t port) :
+        m_address{address},
+        m_port{port}
+    {
+    }
 
     /**
      * @brief Parses a combined `"host:port"` string into its two parts.
@@ -192,11 +250,14 @@ class Endpoint {
      * @warning Doesn't throw on a bad address — every failure path (`no ':'`, missing port,
      * unparseable port, out-of-range port) routes through `core::logger::fatal`, which per this
      * codebase's logger convention terminates the process. Bad input here is a straight crash,
-     * not a recoverable error. Also note this constructor doesn't handle bracketed IPv6 literals
-     * (`[::1]:port`) — it just splits on the *last* `:`, which works for IPv6 addresses that have
-     * no port suffix but would mis-split anything with a real `:port` after a raw IPv6 literal.
+     * not a recoverable error. Also note this constructor doesn't handle bracketed IPv6
+     * literals
+     * (`[::1]:port`) — it just splits on the *last* `:`, which works for IPv6 addresses that
+     * have no port suffix but would mis-split anything with a real `:port` after a raw IPv6
+     * literal.
      */
-    Endpoint(std::string_view address) {
+    Endpoint(std::string_view address)
+    {
         // Split on the last ':' — no colon at all, or a colon with nothing after it, both
         // mean there's no usable port here.
         const auto SEPARATOR = address.find_last_of(':');
@@ -248,7 +309,8 @@ class Endpoint {
      * (process-terminating) rather than returning an error state — same crash-on-bad-input
      * pattern as the string ctor.
      */
-    Endpoint(const SOCKADDR *address) {
+    Endpoint(const SOCKADDR* address)
+    {
         // Nothing to decode from a null pointer, straight fatal.
         if (address == nullptr) {
             core::events::publish("socket.endpoint.null_address");
@@ -259,23 +321,31 @@ class Endpoint {
         // Decode the raw bytes per address family — IPv4 and IPv6 need different struct
         // layouts and different string-conversion calls (inet_ntoa vs inet_ntop).
         switch (address->sa_family) {
-        case AF_INET: {
-            const auto *addr = reinterpret_cast<const SOCKADDR_IN *>(address);
-            m_address = inet_ntoa(addr->sin_addr);  // NOLINT(concurrency-mt-unsafe) — inet_ntoa uses a static buffer; switching to inet_ntop would change behavior/API and isn't a mechanical fix
-            m_port = ntohs(addr->sin_port);
-            break;
-        }
-        case AF_INET6: {
-            const auto *addr = reinterpret_cast<const sockaddr_in6 *>(address);
-            char buf[INET6_ADDRSTRLEN];
-            m_address = inet_ntop(AF_INET6, &addr->sin6_addr, buf, sizeof(buf));  // FIXME(clang-tidy): array-to-pointer decay
-            m_port = ntohs(addr->sin6_port);
-            break;
-        }
-        default: {
-            core::events::publish("socket.endpoint.unsupported_family");
-            core::logger::fatal("SocketLib", "Unsupported address family");
-        }
+            case AF_INET:
+                {
+                    const auto* addr = reinterpret_cast<const SOCKADDR_IN*>(address);
+                    m_address =
+                        inet_ntoa(addr->sin_addr); // NOLINT(concurrency-mt-unsafe) — inet_ntoa uses
+                                                   // a static buffer; switching to inet_ntop would
+                                                   // change behavior/API and isn't a mechanical fix
+                    m_port = ntohs(addr->sin_port);
+                    break;
+                }
+            case AF_INET6:
+                {
+                    const auto* addr = reinterpret_cast<const sockaddr_in6*>(address);
+                    char buf[INET6_ADDRSTRLEN];
+                    m_address = inet_ntop(
+                        AF_INET6, &addr->sin6_addr, buf, sizeof(buf)
+                    ); // FIXME(clang-tidy): array-to-pointer decay
+                    m_port = ntohs(addr->sin6_port);
+                    break;
+                }
+            default:
+                {
+                    core::events::publish("socket.endpoint.unsupported_family");
+                    core::logger::fatal("SocketLib", "Unsupported address family");
+                }
         }
 
         // Belt and suspenders — if the family-specific conversion above somehow left the
@@ -293,10 +363,11 @@ class Endpoint {
      * failure) — every call site of this feeds straight into logging/event calls that are
      * `noexcept`, so this stays `noexcept` too rather than letting that throw escape into them.
      */
-    [[nodiscard]] std::string to_string() const noexcept {
+    [[nodiscard]] std::string to_string() const noexcept
+    {
         try {
             return std::format("{}:{}", m_address, m_port);
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             // Avoid another std::format() call here — it's what just failed, so build the
             // fallback with plain concatenation instead.
             return std::string{"<endpoint format failed: "} + e.what() + ">";
@@ -307,19 +378,27 @@ class Endpoint {
      * @brief Grabs the host/IP portion.
      * @return a const reference to the stored address string.
      */
-    [[nodiscard]] const std::string &get_address() const noexcept { return m_address; }
+    [[nodiscard]] const std::string& get_address() const noexcept
+    {
+        return m_address;
+    }
+
     /**
      * @brief Grabs the port number.
      * @return a const reference to the stored port.
      */
-    [[nodiscard]] const std::uint16_t &get_port() const noexcept { return m_port; }
+    [[nodiscard]] const std::uint16_t& get_port() const noexcept
+    {
+        return m_port;
+    }
 
-  private:
+private:
     std::string m_address;
     std::uint16_t m_port;
 };
 
-enum class VALUES : std::int8_t {
+enum class VALUES : std::int8_t
+{
     ERRORED = 0x0,
     VALID = 0x1,
     CLEANLY_DISCONNECTED = 0x2,
@@ -327,44 +406,62 @@ enum class VALUES : std::int8_t {
     TIMED_OUT = 0x4
 };
 
-class SocketStatus {
-  public:
+class SocketStatus
+{
+public:
     /** @brief Default's pessimistic on purpose — no value given means ERRORED, not some
      * uninitialized/valid-looking state. */
-    SocketStatus() : m_value(VALUES::ERRORED) {}
+    SocketStatus() :
+        m_value(VALUES::ERRORED)
+    {
+    }
+
     /**
      * @brief Bool-to-status shorthand — collapses the common "did it work" case down to just
      * VALID/ERRORED, skipping the finer-grained states.
      * @param is_valid `true` maps to VALID, `false` maps to ERRORED.
      */
-    SocketStatus(bool is_valid) : m_value(is_valid ? VALUES::VALID : VALUES::ERRORED) {}
+    SocketStatus(bool is_valid) :
+        m_value(is_valid ? VALUES::VALID : VALUES::ERRORED)
+    {
+    }
+
     /**
      * @brief Direct wrap of a specific status value — the one to reach for when you need the
      * finer-grained states (TIMED_OUT, WOULD_HAVE_BLOCKED, etc.), not just pass/fail.
      * @param value the exact status to wrap.
      */
-    SocketStatus(VALUES value) : m_value(value) {}
+    SocketStatus(VALUES value) :
+        m_value(value)
+    {
+    }
+
     /**
      * @brief Wrap a status alongside the real OS/SSL error code that produced it — what
      * `get_value()` gives back is just the `VALUES` tag (e.g. `ERRORED == 0`), which is useless
-     * for diagnostics; this carries the actual `errno`/`SSL_get_error()` code so callers can log
-     * something meaningful instead of the tag.
+     * for diagnostics; this carries the actual `errno`/`SSL_get_error()` code so callers can
+     * log something meaningful instead of the tag.
      * @param value the status tag.
      * @param error_code the OS errno or SSL error code behind it, 0 if not applicable.
      */
-    SocketStatus(VALUES value, int error_code) : m_value(value), m_error_code(error_code) {}
+    SocketStatus(VALUES value, int error_code) :
+        m_value(value),
+        m_error_code(error_code)
+    {
+    }
 
     /** @brief Trivial value type, default dtor's all that's needed. */
     ~SocketStatus() = default;
 
-    /** @brief Trivially copyable — just the status tag plus an int error code under the hood. */
-    SocketStatus(const SocketStatus &) = default;
+    /** @brief Trivially copyable — just the status tag plus an int error code under the hood.
+     */
+    SocketStatus(const SocketStatus&) = default;
     /** @brief Trivially movable — same deal as the copy ctor. */
-    SocketStatus(SocketStatus &&) = default;
+    SocketStatus(SocketStatus&&) = default;
     /** @brief Trivially copy-assignable. */
-    SocketStatus &operator=(const SocketStatus &) = default;
+    SocketStatus& operator=(const SocketStatus&) = default;
     /** @brief Trivially move-assignable. */
-    SocketStatus &operator=(SocketStatus &&) = default;
+    SocketStatus& operator=(SocketStatus&&) = default;
 
     /**
      * @brief Bool-conversion shorthand — bet, this is what makes `if (status)` work at call
@@ -374,62 +471,95 @@ class SocketStatus {
      * treated as falsy here). Don't assume this means "operation succeeded" for every non-VALID
      * state, it specifically tracks the underlying enum's numeric sign.
      */
-    operator bool() const noexcept { return std::to_underlying(m_value) > 0; }
+    operator bool() const noexcept
+    {
+        return std::to_underlying(m_value) > 0;
+    }
+
     /**
      * @brief Grabs the raw underlying enum value as an int8.
      * @return the numeric `VALUES` code.
      */
-    [[nodiscard]] std::int8_t get_value() const noexcept { return std::to_underlying(m_value); }
+    [[nodiscard]] std::int8_t get_value() const noexcept
+    {
+        return std::to_underlying(m_value);
+    }
+
     /**
      * @brief Direct equality against a raw `VALUES` — lets call sites write
      * `status == VALUES::TIMED_OUT` without unwrapping first.
      * @param val the status value to compare against.
      * @return `true` if this status wraps exactly `val`.
      */
-    bool operator==(VALUES val) const noexcept { return m_value == val; }
+    bool operator==(VALUES val) const noexcept
+    {
+        return m_value == val;
+    }
 
     /**
      * @brief Checks for the clean-success state specifically (not just "truthy").
      * @return `true` if this status is exactly VALID.
      */
-    [[nodiscard]] bool is_valid() const noexcept { return m_value == VALUES::VALID; }
+    [[nodiscard]] bool is_valid() const noexcept
+    {
+        return m_value == VALUES::VALID;
+    }
+
     /**
      * @brief Checks for the hard-failure state.
      * @return `true` if this status is exactly ERRORED.
      */
-    [[nodiscard]] bool is_errored() const noexcept { return m_value == VALUES::ERRORED; }
+    [[nodiscard]] bool is_errored() const noexcept
+    {
+        return m_value == VALUES::ERRORED;
+    }
+
     /**
      * @brief Checks for a graceful peer disconnect (as opposed to an actual error).
      * @return `true` if this status is exactly CLEANLY_DISCONNECTED.
      */
-    [[nodiscard]] bool is_cleanly_disconnected() const noexcept {
+    [[nodiscard]] bool is_cleanly_disconnected() const noexcept
+    {
         return m_value == VALUES::CLEANLY_DISCONNECTED;
     }
+
     /**
      * @brief Checks whether a non-blocking op would've blocked — the "come back later" signal
      * for retry/re-arm logic (see Socket::sync_handshake()'s `wait_for_write` out-param, which
      * only gets meaningful values alongside this state).
      * @return `true` if this status is exactly NON_BLOCKING_WOULD_HAVE_BLOCKED.
      */
-    [[nodiscard]] bool would_have_blocked() const noexcept {
+    [[nodiscard]] bool would_have_blocked() const noexcept
+    {
         return m_value == VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED;
     }
+
     /**
      * @brief Checks for the timeout state specifically.
      * @return `true` if this status is exactly TIMED_OUT.
      */
-    [[nodiscard]] bool is_timed_out() const noexcept { return m_value == VALUES::TIMED_OUT; }
+    [[nodiscard]] bool is_timed_out() const noexcept
+    {
+        return m_value == VALUES::TIMED_OUT;
+    }
 
     /**
      * @brief Grabs the wrapped status enum directly.
      * @return a const reference to the underlying `VALUES`.
      */
-    [[nodiscard]] const VALUES &get_status() const noexcept { return m_value; }
+    [[nodiscard]] const VALUES& get_status() const noexcept
+    {
+        return m_value;
+    }
+
     /**
      * @brief Mutable overload of get_status().
      * @return a mutable reference to the underlying `VALUES`.
      */
-    VALUES &get_status() noexcept { return m_value; }
+    VALUES& get_status() noexcept
+    {
+        return m_value;
+    }
 
     /**
      * @brief Grabs the real OS errno / `SSL_get_error()` code behind this status, if one was
@@ -437,55 +567,82 @@ class SocketStatus {
      * `VALUES` tag (e.g. every plain ERRORED without a code attached reads back as `0`).
      * @return the wrapped error code, or 0 if this status was built without one.
      */
-    [[nodiscard]] int get_error_code() const noexcept { return m_error_code; }
+    [[nodiscard]] int get_error_code() const noexcept
+    {
+        return m_error_code;
+    }
 
-  private:
+private:
     VALUES m_value;
     int m_error_code{0};
 };
 
-
-template <Protocol Protocol, bool RootSocket = false>
-class Socket {
-  public:
+template<Protocol Protocol, bool RootSocket = false>
+class Socket
+{
+public:
     /**
      * @brief Empty/invalid socket — every handle field zeroed or nulled, no address resolution,
-     * no leverager. Mostly here so sync_accept()/async_accept() have something to hand back on a
-     * would-block/failure path without needing `std::optional<Socket>`.
+     * no leverager. Mostly here so sync_accept()/async_accept() have something to hand back on
+     * a would-block/failure path without needing `std::optional<Socket>`.
      */
-    Socket()
-        : m_socket{INVALID_SOCKET}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr},
-          m_address_info_hint{}, m_address_info_result{nullptr}, m_socket_address_info{nullptr},
-          m_socket_input_buffer{}, m_socket_input_buffer_length{0}, m_leverager{std::nullopt},
-          m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {}
+    Socket() :
+        m_socket{INVALID_SOCKET},
+        m_ssl{nullptr},
+        m_ssl_ctx{nullptr},
+        m_bio{nullptr},
+        m_address_info_hint{},
+        m_address_info_result{nullptr},
+        m_socket_address_info{nullptr},
+        m_socket_input_buffer{},
+        m_socket_input_buffer_length{0},
+        m_leverager{std::nullopt},
+        m_ktls_tx{false},
+        m_ktls_rx{false},
+        m_os{}
+    {
+    }
 
     /**
      * @brief The main client-side ctor — resolves `endpoint` via `getaddrinfo` and opens a raw
      * socket against the first address family that succeeds. This is the one you reach for
      * before calling sync_connect()/async_connect().
      * @param endpoint the host:port to resolve and prep a socket for.
-     * @param leverager optional async I/O engine reference — required for every `async_*` method
-     * on this socket; leave it `std::nullopt` for sync-only usage.
+     * @param leverager optional async I/O engine reference — required for every `async_*`
+     * method on this socket; leave it `std::nullopt` for sync-only usage.
      * @note Skips `AI_ADDRCONFIG` in the resolver hints for well-known loopback names/addresses
      * (localhost, ::1, 127.0.0.1, etc.) — works around a known glibc resolver quirk where
      * `AI_ADDRCONFIG` can spuriously drop loopback results, see the referenced Fedora wiki page
      * in the source comment.
      * @warning Resolution/socket-creation failures go through `core::logger::error`, not an
-     * exception or return code — check is_valid() after construction if you need to know whether
-     * this actually got a live socket.
+     * exception or return code — check is_valid() after construction if you need to know
+     * whether this actually got a live socket.
      */
-    Socket(Endpoint endpoint,
-           std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
-               std::nullopt)
-        : m_socket{INVALID_SOCKET}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr},
-          m_endpoint{std::move(endpoint)}, m_address_info_hint{}, m_address_info_result{nullptr},
-          m_socket_address_info{nullptr}, m_socket_input_buffer{}, m_socket_input_buffer_length{0},
-          m_leverager{leverager}, m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {
+    Socket(
+        Endpoint endpoint,
+        std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
+            std::nullopt
+    ) :
+        m_socket{INVALID_SOCKET},
+        m_ssl{nullptr},
+        m_ssl_ctx{nullptr},
+        m_bio{nullptr},
+        m_endpoint{std::move(endpoint)},
+        m_address_info_hint{},
+        m_address_info_result{nullptr},
+        m_socket_address_info{nullptr},
+        m_socket_input_buffer{},
+        m_socket_input_buffer_length{0},
+        m_leverager{leverager},
+        m_ktls_tx{false},
+        m_ktls_rx{false},
+        m_os{}
+    {
         init_address_info();
 
         // Don't use AI_ADDRCONFIG if connecting to loopback
         // See https://fedoraproject.org/wiki/QA/Networking/NameResolution/ADDRCONFIG
-        const std::string &address = m_endpoint.get_address();
+        const std::string& address = m_endpoint.get_address();
         if (address == "localhost" || address == "localhost.localdomain" ||
             address == "localhost6" || address == "localhost6.localdomain6" ||
             address == "127.0.0.1" || address == "::1") {
@@ -493,15 +650,17 @@ class Socket {
         }
 
         // Resolve host:port into every candidate address the resolver can find.
-        if (getaddrinfo(address.data(), std::to_string(m_endpoint.get_port()).data(),
-                        &m_address_info_hint, &m_address_info_result) != 0) {
+        if (getaddrinfo(
+                address.data(), std::to_string(m_endpoint.get_port()).data(), &m_address_info_hint,
+                &m_address_info_result
+            ) != 0) {
             core::logger::error("SocketLib", "resolve failed");
             core::events::publish("socket.resolve_failed", {{"address", address}});
         }
 
         // Walk the resolved list and open a raw socket against the first address family that
         // actually works — no cap, we don't try to connect yet, just get an fd open.
-        for (addrinfo *addr = m_address_info_result; addr != nullptr; addr = addr->ai_next) {
+        for (addrinfo* addr = m_address_info_result; addr != nullptr; addr = addr->ai_next) {
             m_socket = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
             if (m_socket != INVALID_SOCKET) {
                 m_socket_address_info = addr;
@@ -513,8 +672,10 @@ class Socket {
             core::logger::error("SocketLib", "socket create failed");
             core::events::publish("socket.create_failed");
         } else {
-            core::logger::debug("SocketLib", "socket {} created for endpoint {}:{}", m_socket,
-                                m_endpoint.get_address(), m_endpoint.get_port());
+            core::logger::debug(
+                "SocketLib", "socket {} created for endpoint {}:{}", m_socket,
+                m_endpoint.get_address(), m_endpoint.get_port()
+            );
         }
     }
 
@@ -525,16 +686,32 @@ class Socket {
      * @param endpoint the peer endpoint associated with this socket.
      * @param leverager optional async I/O engine reference for `async_*` methods.
      */
-    Socket(SOCKET nativ, Endpoint endpoint,
-           std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
-               std::nullopt)
-        : m_socket{nativ}, m_ssl{nullptr}, m_ssl_ctx{nullptr}, m_bio{nullptr},
-          m_endpoint{std::move(endpoint)}, m_address_info_hint{}, m_address_info_result{nullptr},
-          m_socket_address_info{nullptr}, m_socket_input_buffer{}, m_socket_input_buffer_length{0},
-          m_leverager{leverager}, m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {
+    Socket(
+        SOCKET nativ,
+        Endpoint endpoint,
+        std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
+            std::nullopt
+    ) :
+        m_socket{nativ},
+        m_ssl{nullptr},
+        m_ssl_ctx{nullptr},
+        m_bio{nullptr},
+        m_endpoint{std::move(endpoint)},
+        m_address_info_hint{},
+        m_address_info_result{nullptr},
+        m_socket_address_info{nullptr},
+        m_socket_input_buffer{},
+        m_socket_input_buffer_length{0},
+        m_leverager{leverager},
+        m_ktls_tx{false},
+        m_ktls_rx{false},
+        m_os{}
+    {
         init_address_info();
-        core::logger::debug("SocketLib", "socket {} created for endpoint {}:{}", nativ, m_endpoint.get_address(),
-                            m_endpoint.get_port());
+        core::logger::debug(
+            "SocketLib", "socket {} created for endpoint {}:{}", nativ, m_endpoint.get_address(),
+            m_endpoint.get_port()
+        );
     }
 
     /**
@@ -546,49 +723,81 @@ class Socket {
      * @param endpoint the peer endpoint associated with this socket.
      * @param leverager optional async I/O engine reference for `async_*` methods.
      */
-    Socket(SOCKET nativ, SSL *ssl, Endpoint endpoint,
-           std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
-               std::nullopt)
-        : m_socket{nativ}, m_ssl{ssl}, m_ssl_ctx{nullptr}, m_bio{nullptr},
-          m_endpoint{std::move(endpoint)}, m_address_info_hint{}, m_address_info_result{nullptr},
-          m_socket_address_info{nullptr}, m_socket_input_buffer{}, m_socket_input_buffer_length{0},
-          m_leverager{leverager}, m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {
+    Socket(
+        SOCKET nativ,
+        SSL* ssl,
+        Endpoint endpoint,
+        std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
+            std::nullopt
+    ) :
+        m_socket{nativ},
+        m_ssl{ssl},
+        m_ssl_ctx{nullptr},
+        m_bio{nullptr},
+        m_endpoint{std::move(endpoint)},
+        m_address_info_hint{},
+        m_address_info_result{nullptr},
+        m_socket_address_info{nullptr},
+        m_socket_input_buffer{},
+        m_socket_input_buffer_length{0},
+        m_leverager{leverager},
+        m_ktls_tx{false},
+        m_ktls_rx{false},
+        m_os{}
+    {
         init_address_info();
-        core::logger::debug("SocketLib", "socket {} created for endpoint {}:{}", nativ, m_endpoint.get_address(),
-                            m_endpoint.get_port());
+        core::logger::debug(
+            "SocketLib", "socket {} created for endpoint {}:{}", nativ, m_endpoint.get_address(),
+            m_endpoint.get_port()
+        );
     }
 
     /**
-     * @brief QUIC-flavored accepted-connection ctor — no `Endpoint` param since QUIC connections
-     * ride over a shared UDP socket, there's no dedicated per-connection fd/peer-address pairing
-     * the way TCP/TLS accept gives you.
+     * @brief QUIC-flavored accepted-connection ctor — no `Endpoint` param since QUIC
+     * connections ride over a shared UDP socket, there's no dedicated per-connection
+     * fd/peer-address pairing the way TCP/TLS accept gives you.
      * @warning Actual bug: `m_endpoint{nullptr}` resolves to `Endpoint(const SOCKADDR *)`, and
-     * that constructor treats a null pointer as fatal — it calls `core::logger::fatal("SocketLib",
-     * "Null address passed to Endpoint")` immediately, which per this codebase's logger
-     * convention terminates the process. Every QUIC socket built through this ctor crashes on
-     * construction as written, it's not just an edge case. Straight L, needs a real fix
-     * upstream (either a genuinely-empty `Endpoint` default or dropping this init entirely).
+     * that constructor treats a null pointer as fatal — it calls
+     * `core::logger::fatal("SocketLib", "Null address passed to Endpoint")` immediately, which
+     * per this codebase's logger convention terminates the process. Every QUIC socket built
+     * through this ctor crashes on construction as written, it's not just an edge case.
+     * Straight L, needs a real fix upstream (either a genuinely-empty `Endpoint` default or
+     * dropping this init entirely).
      * @param nativ the (typically shared) socket handle this QUIC connection rides on.
      * @param ssl the SSL object for this QUIC connection — ownership taken, freed in
      * sync_close()/async_close().
      * @param leverager optional async I/O engine reference for `async_*` methods.
      */
-    Socket(SOCKET nativ, SSL *ssl,
-           std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
-               std::nullopt)
-        : m_socket{nativ}, m_ssl{ssl}, m_ssl_ctx{nullptr}, m_bio{nullptr}, m_endpoint{nullptr},
-          m_address_info_hint{}, m_address_info_result{nullptr}, m_socket_address_info{nullptr},
-          m_socket_input_buffer{}, m_socket_input_buffer_length{0}, m_leverager{leverager},
-          m_ktls_tx{false}, m_ktls_rx{false}, m_os{} {
+    Socket(
+        SOCKET nativ,
+        SSL* ssl,
+        std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>> leverager =
+            std::nullopt
+    ) :
+        m_socket{nativ},
+        m_ssl{ssl},
+        m_ssl_ctx{nullptr},
+        m_bio{nullptr},
+        m_endpoint{nullptr},
+        m_address_info_hint{},
+        m_address_info_result{nullptr},
+        m_socket_address_info{nullptr},
+        m_socket_input_buffer{},
+        m_socket_input_buffer_length{0},
+        m_leverager{leverager},
+        m_ktls_tx{false},
+        m_ktls_rx{false},
+        m_os{}
+    {
         init_address_info();
         core::logger::debug("SocketLib", "socket {} created (QUIC, shared UDP)", nativ);
     }
 
-    /** @brief Deleted — a Socket owns a raw fd plus SSL/BIO handles, copying it would double-own
-     * (and double-close) OS resources. Move it instead. */
-    Socket(const Socket &) = delete;
+    /** @brief Deleted — a Socket owns a raw fd plus SSL/BIO handles, copying it would
+     * double-own (and double-close) OS resources. Move it instead. */
+    Socket(const Socket&) = delete;
     /** @brief Deleted — mirrors the copy ctor. */
-    Socket &operator=(const Socket &) = delete;
+    Socket& operator=(const Socket&) = delete;
 
     /**
      * @brief Steals every handle/field from `other` and resets `other` back to an invalid,
@@ -596,17 +805,22 @@ class Socket {
      * @param other the socket to move from — left invalid (`INVALID_SOCKET`, null SSL/BIO/addr
      * pointers) after the move.
      */
-    Socket(Socket &&other) noexcept
-        : m_socket{other.m_socket}, m_ssl{other.m_ssl},
-          m_ssl_ctx{other.m_ssl_ctx}, m_bio{other.m_bio},
-          m_endpoint{std::move(other.m_endpoint)},
-          m_address_info_hint{other.m_address_info_hint},
-          m_address_info_result{other.m_address_info_result},
-          m_socket_address_info{other.m_socket_address_info},
-          m_socket_input_buffer{other.m_socket_input_buffer},
-          m_socket_input_buffer_length{other.m_socket_input_buffer_length},
-          m_leverager{other.m_leverager}, m_ktls_tx{other.m_ktls_tx},
-          m_ktls_rx{other.m_ktls_rx}, m_os{other.m_os} {
+    Socket(Socket&& other) noexcept :
+        m_socket{other.m_socket},
+        m_ssl{other.m_ssl},
+        m_ssl_ctx{other.m_ssl_ctx},
+        m_bio{other.m_bio},
+        m_endpoint{std::move(other.m_endpoint)},
+        m_address_info_hint{other.m_address_info_hint},
+        m_address_info_result{other.m_address_info_result},
+        m_socket_address_info{other.m_socket_address_info},
+        m_socket_input_buffer{other.m_socket_input_buffer},
+        m_socket_input_buffer_length{other.m_socket_input_buffer_length},
+        m_leverager{other.m_leverager},
+        m_ktls_tx{other.m_ktls_tx},
+        m_ktls_rx{other.m_ktls_rx},
+        m_os{other.m_os}
+    {
         other.m_socket = INVALID_SOCKET;
         other.m_ssl = nullptr;
         other.m_ssl_ctx = nullptr;
@@ -628,7 +842,8 @@ class Socket {
      * guarded no-op).
      * @return a reference to `*this`.
      */
-    Socket &operator=(Socket &&other) noexcept {
+    Socket& operator=(Socket&& other) noexcept
+    {
         // Self-assignment would otherwise steal our own fields and then null them out from
         // under ourselves — guard it out.
         if (this != &other) {
@@ -648,7 +863,8 @@ class Socket {
             m_ktls_rx = other.m_ktls_rx;
             m_os = other.m_os;
 
-            // ...then reset `other` so its dtor won't double-close what we just took ownership of.
+            // ...then reset `other` so its dtor won't double-close what we just took ownership
+            // of.
             other.m_socket = INVALID_SOCKET;
             other.m_ssl = nullptr;
             other.m_ssl_ctx = nullptr;
@@ -664,10 +880,11 @@ class Socket {
      * @brief Closes the socket (and frees the SSL/BIO/addrinfo chain) via sync_close(), unless
      * this is a non-root QUIC connection sharing its fd with another Socket instance.
      * @note QUIC connections that aren't the root socket skip cleanup here entirely — they ride
-     * on a shared UDP fd owned by the root, so closing it here would pull the rug out from under
-     * every other connection multiplexed on that socket.
+     * on a shared UDP fd owned by the root, so closing it here would pull the rug out from
+     * under every other connection multiplexed on that socket.
      */
-    ~Socket() {
+    ~Socket()
+    {
         // Non-root QUIC connections share their fd with the root socket — skip cleanup
         // entirely so we don't pull the rug out from other connections on that fd.
         if constexpr (Protocol != Protocol::QUIC || RootSocket) {
@@ -683,7 +900,8 @@ class Socket {
      * `set_non_blocking_impl`.
      * @param non_blocking `true` to enable non-blocking mode, `false` to go back to blocking.
      */
-    void set_non_blocking(bool non_blocking = true) const {
+    void set_non_blocking(bool non_blocking = true) const
+    {
         set_non_blocking_impl(m_socket, non_blocking);
     }
 
@@ -691,36 +909,50 @@ class Socket {
      * @brief Sets/clears `SO_REUSEADDR`.
      * @param reuse `true` to allow rebinding an address still in TIME_WAIT.
      */
-    void set_reuse_address(bool reuse = true) const {
+    void set_reuse_address(bool reuse = true) const
+    {
         int optval = reuse ? 1 : 0;
-        if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char *>(&optval),  // FIXME(clang-tidy): reinterpret_cast usage
-                       sizeof(optval)) != 0) {
+        if (setsockopt(
+                m_socket, SOL_SOCKET, SO_REUSEADDR,
+                reinterpret_cast<char*>(&optval), // FIXME(clang-tidy): reinterpret_cast usage
+                sizeof(optval)
+            ) != 0) {
             core::logger::error("SocketLib", "Failed to set SO_REUSEADDR");
-            core::events::publish("socket.set_reuse_address_failed", {{"fd", std::to_string(m_socket)}});
+            core::events::publish(
+                "socket.set_reuse_address_failed", {{"fd", std::to_string(m_socket)}}
+            );
         }
 
-        core::logger::debug("SocketLib",
-                            "socket {} SO_REUSEADDR set to {} (allow rebind to a recently-used "
-                            "local address without waiting out TIME_WAIT)",
-                            m_socket, reuse);
+        core::logger::debug(
+            "SocketLib",
+            "socket {} SO_REUSEADDR set to {} (allow rebind to a recently-used "
+            "local address without waiting out TIME_WAIT)",
+            m_socket, reuse
+        );
     }
-
 
     /**
      * @brief Sets/clears `SO_BROADCAST`.
      * @param broadcast `true` to allow sending to a broadcast address.
      */
-    void set_broadcast(bool broadcast = true) const {
+    void set_broadcast(bool broadcast = true) const
+    {
         int optval = broadcast ? 1 : 0;
-        if (setsockopt(m_socket, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char *>(&optval),  // FIXME(clang-tidy): reinterpret_cast usage
-                       sizeof(optval)) != 0) {
+        if (setsockopt(
+                m_socket, SOL_SOCKET, SO_BROADCAST,
+                reinterpret_cast<char*>(&optval), // FIXME(clang-tidy): reinterpret_cast usage
+                sizeof(optval)
+            ) != 0) {
             core::logger::error("SocketLib", "Failed to set SO_BROADCAST");
-            core::events::publish("socket.set_broadcast_failed", {{"fd", std::to_string(m_socket)}});
+            core::events::publish(
+                "socket.set_broadcast_failed", {{"fd", std::to_string(m_socket)}}
+            );
         }
 
         core::logger::debug(
             "SocketLib", "socket {} SO_BROADCAST set to {} (allow sending to a broadcast address)",
-            m_socket, broadcast);
+            m_socket, broadcast
+        );
     }
 
     /**
@@ -728,21 +960,29 @@ class Socket {
      * no-op for anything but TCP/TLS.
      * @param no_delay `true` to disable Nagle's algorithm (send small writes immediately).
      */
-    void set_tcp_no_delay(bool no_delay = true) const {
+    void set_tcp_no_delay(bool no_delay = true) const
+    {
         // TCP_NODELAY only makes sense over an actual TCP stream — no-ops (compiles out) for
         // UDP/QUIC.
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             int optval = no_delay ? 1 : 0;
-            if (setsockopt(m_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char *>(&optval),  // FIXME(clang-tidy): reinterpret_cast usage
-                           sizeof(optval)) != 0) {
+            if (setsockopt(
+                    m_socket, IPPROTO_TCP, TCP_NODELAY,
+                    reinterpret_cast<char*>(&optval), // FIXME(clang-tidy): reinterpret_cast usage
+                    sizeof(optval)
+                ) != 0) {
                 core::logger::error("SocketLib", "Failed to set TCP_NODELAY");
-                core::events::publish("socket.set_tcp_no_delay_failed", {{"fd", std::to_string(m_socket)}});
+                core::events::publish(
+                    "socket.set_tcp_no_delay_failed", {{"fd", std::to_string(m_socket)}}
+                );
             }
 
-            core::logger::debug("SocketLib",
-                                "socket {} TCP_NODELAY set to {} (disable Nagle: send small "
-                                "writes immediately instead of coalescing)",
-                                m_socket, no_delay);
+            core::logger::debug(
+                "SocketLib",
+                "socket {} TCP_NODELAY set to {} (disable Nagle: send small "
+                "writes immediately instead of coalescing)",
+                m_socket, no_delay
+            );
         }
     }
 
@@ -750,24 +990,28 @@ class Socket {
      * @brief Queries `SO_ERROR` off the socket to check for a pending async error.
      * @warning Actual bug: this function is declared to return `SocketStatus` and marked
      * `[[nodiscard]]`, but the body has no `return` statement at all — it just logs `error` and
-     * falls off the end. Falling off the end of a value-returning function is undefined behavior
-     * in C++; whatever `SocketStatus` a caller gets back here is garbage, not a real status. This
-     * needs a real fix (probably `return {error == 0};` at the end), don't trust this method's
-     * return value as written.
+     * falls off the end. Falling off the end of a value-returning function is undefined
+     * behavior in C++; whatever `SocketStatus` a caller gets back here is garbage, not a real
+     * status. This needs a real fix (probably `return {error == 0};` at the end), don't trust
+     * this method's return value as written.
      * @return undefined — see the warning, the function never actually constructs/returns a
      * `SocketStatus`.
      */
-    [[nodiscard]] SocketStatus get_status() const {
+    [[nodiscard]] SocketStatus get_status() const
+    {
         int error = 0;
         socklen_t len = sizeof(error);
-        if (getsockopt(m_socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&error), &len) !=  // FIXME(clang-tidy): reinterpret_cast usage
+        if (getsockopt(
+                m_socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&error), &len
+            ) != // FIXME(clang-tidy): reinterpret_cast usage
             0) {
             core::logger::error("SocketLib", "Failed to get socket status");
             core::events::publish("socket.get_status_failed", {{"fd", std::to_string(m_socket)}});
         }
 
-        core::logger::debug("SocketLib", "socket {} status check, pending SO_ERROR={}", m_socket,
-                            error);
+        core::logger::debug(
+            "SocketLib", "socket {} status check, pending SO_ERROR={}", m_socket, error
+        );
     }
 
     /**
@@ -776,12 +1020,13 @@ class Socket {
      * @warning Builds and runs a shell command via `std::system()` with `key_path`/`cert_path`
      * interpolated straight into the command string, unquoted-escape-wise beyond the format
      * string's own literal quotes. If either path is ever attacker-influenced (not just
-     * hardcoded config), this is a command-injection footgun — no cap, don't feed this untrusted
-     * input.
+     * hardcoded config), this is a command-injection footgun — no cap, don't feed this
+     * untrusted input.
      * @param cert_path where to write the generated cert. Also checked for pre-existence.
      * @param key_path where to write the generated private key. Also checked for pre-existence.
      */
-    void generate_certificate(std::string_view cert_path, std::string_view key_path) {
+    void generate_certificate(std::string_view cert_path, std::string_view key_path)
+    {
         // Both files already on disk — nothing to regenerate, bounce out early.
         if (std::filesystem::exists(key_path) && std::filesystem::exists(cert_path)) {
             core::logger::debug("Security", "SSL material already exists, skipping generation.");
@@ -789,13 +1034,19 @@ class Socket {
         }
 
         // Shell out to the openssl CLI to mint a fresh self-signed cert+key pair.
-        std::string command = std::format("openssl req -x509 -newkey rsa:2048 -keyout {} -out {} "
-                                          "-days 365 -nodes -subj '/CN=localhost'",
-                                          key_path, cert_path);
+        std::string command = std::format(
+            "openssl req -x509 -newkey rsa:2048 -keyout {} -out {} "
+            "-days 365 -nodes -subj '/CN=localhost'",
+            key_path, cert_path
+        );
 
         core::logger::debug("Security", "Generating new SSL material...");
 
-        int result = std::system(command.c_str());  // NOLINT(bugprone-command-processor,concurrency-mt-unsafe) — shelling out to the openssl CLI is the intended behavior here; replacing std::system() with exec()/posix_spawn() would be a real redesign, not a mechanical fix
+        int result = std::system(
+            command.c_str()
+        ); // NOLINT(bugprone-command-processor,concurrency-mt-unsafe) — shelling out to the
+           // openssl CLI is the intended behavior here; replacing std::system() with
+           // exec()/posix_spawn() would be a real redesign, not a mechanical fix
 
         // Only trust it if the command exited clean AND the cert actually landed with content —
         // a zero exit code alone isn't proof the file's good.
@@ -808,66 +1059,87 @@ class Socket {
         }
     }
 
-
     /**
      * @brief Loads a cert chain + private key into `m_ssl_ctx`, verifying the pair actually
      * matches. TLS/QUIC-only, compiles out (well, no-ops via the `if constexpr`) for TCP/UDP.
      * @warning `cert_file.data()`/`key_file.data()` get handed to OpenSSL C APIs expecting
      * null-terminated `const char *`. `std::string_view::data()` is **not** guaranteed
      * null-terminated — it's only safe here if every caller happens to pass a view over an
-     * already-NUL-terminated buffer (e.g. built from a `std::string` or string literal). Passing
-     * a view over a non-NUL-terminated substring is a buffer over-read waiting to happen.
+     * already-NUL-terminated buffer (e.g. built from a `std::string` or string literal).
+     * Passing a view over a non-NUL-terminated substring is a buffer over-read waiting to
+     * happen.
      * @param cert_file path to the certificate chain file (PEM).
      * @param key_file path to the private key file (PEM).
      * @return `true` if the chain, key, and key/cert match all loaded cleanly. For non-TLS/QUIC
      * protocols this falls through to `core::logger::fatal` at the end of the function (process
      * termination), since there's no meaningful `bool` to return there.
      */
-    bool load_certificate(std::string_view cert_file, std::string_view key_file) {
+    bool load_certificate(std::string_view cert_file, std::string_view key_file)
+    {
         if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
             if (m_ssl_ctx == nullptr) {
                 core::events::publish("socket.tls.context_not_initialized");
-                core::logger::fatal("SocketLib",
-                                    "SSL context is not initialized, cannot load certificate");
+                core::logger::fatal(
+                    "SocketLib", "SSL context is not initialized, cannot load certificate"
+                );
             }
             // Load the cert chain first — bail on any single step failing instead of trying
             // the rest with a half-configured context.
-            if (SSL_CTX_use_certificate_chain_file(m_ssl_ctx, std::string(cert_file).c_str()) != 1) {
+            if (SSL_CTX_use_certificate_chain_file(m_ssl_ctx, std::string(cert_file).c_str()) !=
+                1) {
                 char err_buf[256];
-                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));  // FIXME(clang-tidy): array-to-pointer decay
+                ERR_error_string_n(
+                    ERR_get_error(), err_buf, sizeof(err_buf)
+                ); // FIXME(clang-tidy): array-to-pointer decay
                 core::logger::error("SocketLib", "Failed to load chain: {}", err_buf);
-                core::events::publish("socket.tls.load_chain_failed", {{"error", std::string{err_buf}}});
+                core::events::publish(
+                    "socket.tls.load_chain_failed", {{"error", std::string{err_buf}}}
+                );
                 return false;
             }
             // Then the private key that's supposed to go with it.
-            if (SSL_CTX_use_PrivateKey_file(m_ssl_ctx, std::string(key_file).c_str(), SSL_FILETYPE_PEM) != 1) {
+            if (SSL_CTX_use_PrivateKey_file(
+                    m_ssl_ctx, std::string(key_file).c_str(), SSL_FILETYPE_PEM
+                ) != 1) {
                 char err_buf[256];
-                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));  // FIXME(clang-tidy): array-to-pointer decay
+                ERR_error_string_n(
+                    ERR_get_error(), err_buf, sizeof(err_buf)
+                ); // FIXME(clang-tidy): array-to-pointer decay
                 core::logger::error("SocketLib", "Failed to load key: {}", err_buf);
-                core::events::publish("socket.tls.load_key_failed", {{"error", std::string{err_buf}}});
+                core::events::publish(
+                    "socket.tls.load_key_failed", {{"error", std::string{err_buf}}}
+                );
                 return false;
             }
             // Finally confirm the key actually matches the cert — loading two unrelated files
             // without this check would silently produce a broken TLS context.
             if (SSL_CTX_check_private_key(m_ssl_ctx) != 1) {
                 char err_buf[256];
-                ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));  // FIXME(clang-tidy): array-to-pointer decay
+                ERR_error_string_n(
+                    ERR_get_error(), err_buf, sizeof(err_buf)
+                ); // FIXME(clang-tidy): array-to-pointer decay
                 core::logger::error(
                     "SocketLib",
-                    "Key/Cert Mismatch: Private key does not match public key. Detailed Error: {}",
-                    err_buf);
-                core::events::publish("socket.tls.key_cert_mismatch", {{"error", std::string{err_buf}}});
+                    "Key/Cert Mismatch: Private key does not match public key. Detailed Error: "
+                    "{}",
+                    err_buf
+                );
+                core::events::publish(
+                    "socket.tls.key_cert_mismatch", {{"error", std::string{err_buf}}}
+                );
                 return false;
             }
 
-            core::logger::debug("SocketLib", "TLS cert chain '{}' and private key '{}' loaded",
-                                cert_file, key_file);
+            core::logger::debug(
+                "SocketLib", "TLS cert chain '{}' and private key '{}' loaded", cert_file, key_file
+            );
             return true;
         }
 
         core::events::publish("socket.tls.load_certificate_unsupported_protocol");
-        core::logger::fatal("SocketLib",
-                            "Loading certificates is only supported for TLS and QUIC protocols");
+        core::logger::fatal(
+            "SocketLib", "Loading certificates is only supported for TLS and QUIC protocols"
+        );
     }
 
     /**
@@ -876,10 +1148,11 @@ class Socket {
      * @param allow_unauthorized TLS-only: when `true`, sets `SSL_VERIFY_NONE` instead of
      * requiring+verifying a peer cert. Unused (`[[maybe_unused]]`) outside the TLS branch.
      * @warning `allow_unauthorized = true` disables peer certificate verification entirely for
-     * this TLS server context — fine for local dev/testing, a real security footgun if that ever
-     * lands in a prod path unintentionally.
+     * this TLS server context — fine for local dev/testing, a real security footgun if that
+     * ever lands in a prod path unintentionally.
      */
-    void bind([[maybe_unused]] bool allow_unauthorized = false) {
+    void bind([[maybe_unused]] bool allow_unauthorized = false)
+    {
         if (m_socket_address_info == nullptr) {
             core::logger::error("SocketLib", "No valid address info to bind to");
             core::events::publish("socket.bind.no_address_info");
@@ -901,16 +1174,22 @@ class Socket {
                 core::events::publish("socket.tls.create_context_failed", {{"site", "bind"}});
             }
 
-            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL* ssl, int where, int ret) {
                 if (where & SSL_CB_ALERT) {
-                    const char *type = (where & SSL_CB_READ) ? "read" : "write";
-                    core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
-                                          reinterpret_cast<const void *>(ssl), SSL_alert_type_string_long(ret),  // FIXME(clang-tidy): reinterpret_cast usage
-                                          SSL_alert_desc_string_long(ret));
-                    core::events::publish("socket.tls.alert",
-                                          {{"direction", type},
-                                           {"alert_type", SSL_alert_type_string_long(ret)},
-                                           {"alert_desc", SSL_alert_desc_string_long(ret)}});
+                    const char* type = (where & SSL_CB_READ) ? "read" : "write";
+                    core::logger::warning(
+                        "SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
+                        reinterpret_cast<const void*>(ssl),
+                        SSL_alert_type_string_long(
+                            ret
+                        ), // FIXME(clang-tidy): reinterpret_cast usage
+                        SSL_alert_desc_string_long(ret)
+                    );
+                    core::events::publish(
+                        "socket.tls.alert", {{"direction", type},
+                                             {"alert_type", SSL_alert_type_string_long(ret)},
+                                             {"alert_desc", SSL_alert_desc_string_long(ret)}}
+                    );
                 }
             });
 
@@ -918,22 +1197,28 @@ class Socket {
             // advertise — an empty wire format means "don't bother selecting anything".
             if (!m_alpn_wire_format.empty()) {
                 // TODO: fix printing here
-                core::logger::debug("SocketLib", "ALPN protocols offered (wire format): {}",
-                                    m_alpn_wire_format);
+                core::logger::debug(
+                    "SocketLib", "ALPN protocols offered (wire format): {}", m_alpn_wire_format
+                );
                 SSL_CTX_set_alpn_select_cb(
                     m_ssl_ctx,
-                    [](SSL *, const unsigned char **out, unsigned char *outlen,
-                       const unsigned char *client, unsigned int inlen, void *arg) -> int {
-                        auto &wire = *static_cast<std::vector<unsigned char> *>(arg);
-                        if (SSL_select_next_proto(const_cast<unsigned char **>(out), outlen,  // NOLINT(cppcoreguidelines-pro-type-const-cast) — OpenSSL's ALPN callback signature fixes `out` as `const unsigned char **`, but SSL_select_next_proto() requires a non-const `unsigned char **`
-                                                  wire.data(),
-                                                  static_cast<unsigned int>(wire.size()), client,
-                                                  inlen) == OPENSSL_NPN_NEGOTIATED) {
+                    [](SSL*, const unsigned char** out, unsigned char* outlen,
+                       const unsigned char* client, unsigned int inlen, void* arg) -> int {
+                        auto& wire = *static_cast<std::vector<unsigned char>*>(arg);
+                        if (SSL_select_next_proto(
+                                const_cast<unsigned char**>(out),
+                                outlen, // NOLINT(cppcoreguidelines-pro-type-const-cast) —
+                                        // OpenSSL's ALPN callback signature fixes `out` as
+                                        // `const unsigned char **`, but SSL_select_next_proto()
+                                        // requires a non-const `unsigned char **`
+                                wire.data(), static_cast<unsigned int>(wire.size()), client, inlen
+                            ) == OPENSSL_NPN_NEGOTIATED) {
                             return SSL_TLSEXT_ERR_OK;
                         }
                         return SSL_TLSEXT_ERR_NOACK;
                     },
-                    &m_alpn_wire_format);
+                    &m_alpn_wire_format
+                );
             }
 
             // Dev-mode escape hatch vs the real deal — skip peer cert verification entirely,
@@ -941,8 +1226,9 @@ class Socket {
             if (allow_unauthorized) {
                 SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_NONE, nullptr);
             } else {
-                SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                                   nullptr);
+                SSL_CTX_set_verify(
+                    m_ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr
+                );
             }
             SSL_CTX_set_default_verify_paths(m_ssl_ctx);
         } else if constexpr (Protocol == Protocol::QUIC) {
@@ -951,8 +1237,10 @@ class Socket {
             add_quic_bio();
         }
 
-        core::logger::debug("SocketLib", "socket {} bound to local address {}:{}", m_socket,
-                            m_endpoint.get_address(), m_endpoint.get_port());
+        core::logger::debug(
+            "SocketLib", "socket {} bound to local address {}:{}", m_socket,
+            m_endpoint.get_address(), m_endpoint.get_port()
+        );
     }
 
     /**
@@ -960,24 +1248,26 @@ class Socket {
      * opens the socket, binds, then issues `IP_ADD_MEMBERSHIP`/`IPV6_JOIN_GROUP` depending on
      * address family.
      * @param endpoint the multicast group endpoint to join.
-     * @param group optional source-interface address (`imr_interface`/`ipv6mr_interface`); empty
-     * defaults to `INADDR_ANY` (IPv4) or interface index 0 (IPv6).
+     * @param group optional source-interface address (`imr_interface`/`ipv6mr_interface`);
+     * empty defaults to `INADDR_ANY` (IPv4) or interface index 0 (IPv6).
      * @warning Calling this on a non-UDP Socket hits `core::logger::fatal` (process-terminating
-     * per this codebase's logger convention) right at the top via the `Protocol != Protocol::UDP`
-     * `if constexpr` guard — genuinely fatal, not a soft no-op. Only ever call this on a UDP
-     * socket.
+     * per this codebase's logger convention) right at the top via the `Protocol !=
+     * Protocol::UDP` `if constexpr` guard — genuinely fatal, not a soft no-op. Only ever call
+     * this on a UDP socket.
      */
-    void join(const Endpoint &endpoint, std::string_view group = "") {
+    void join(const Endpoint& endpoint, std::string_view group = "")
+    {
         // UDP-only motion — multicast groups don't mean anything over a TCP/TLS/QUIC stream.
         if constexpr (Protocol != Protocol::UDP) {
             core::events::publish("socket.multicast.join_unsupported_protocol");
-            core::logger::fatal("SocketLib",
-                                "Joining multicast groups is only supported for UDP protocol");
+            core::logger::fatal(
+                "SocketLib", "Joining multicast groups is only supported for UDP protocol"
+            );
         }
 
         // Resolve the multicast group address itself (numeric-only, no DNS lookup needed here).
-        addrinfo *multicast_addr_info{};
-        addrinfo *local_addr_info{};
+        addrinfo* multicast_addr_info{};
+        addrinfo* local_addr_info{};
         addrinfo hints = {};
         hints.ai_family = PF_UNSPEC;
         hints.ai_flags = AI_NUMERICHOST;
@@ -992,16 +1282,18 @@ class Socket {
         hints.ai_family = multicast_addr_info->ai_family;
         hints.ai_socktype = SOCK_DGRAM;
         hints.ai_flags = AI_PASSIVE;
-        if (getaddrinfo(nullptr, std::to_string(endpoint.get_port()).data(), &hints,
-                        &local_addr_info) != 0) {
+        if (getaddrinfo(
+                nullptr, std::to_string(endpoint.get_port()).data(), &hints, &local_addr_info
+            ) != 0) {
             core::logger::error("SocketLib", "Failed to resolve local address for multicast");
             core::events::publish("socket.multicast.resolve_local_address_failed");
         }
 
         // Open the socket against the local address and bind it before touching multicast
         // membership — you can't join a group on a socket that isn't bound yet.
-        m_socket = ::socket(local_addr_info->ai_family, local_addr_info->ai_socktype,
-                            local_addr_info->ai_protocol);
+        m_socket = ::socket(
+            local_addr_info->ai_family, local_addr_info->ai_socktype, local_addr_info->ai_protocol
+        );
         if (m_socket == INVALID_SOCKET) {
             core::logger::error("SocketLib", "Failed to create socket for multicast");
             core::events::publish("socket.multicast.create_socket_failed");
@@ -1017,9 +1309,12 @@ class Socket {
             multicast_addr_info->ai_addrlen == sizeof(struct sockaddr_in)) {
             struct ip_mreq mreq{};
 
-            std::memcpy(&mreq.imr_multiaddr,
-                        &reinterpret_cast<struct sockaddr_in *>(multicast_addr_info->ai_addr)->sin_addr,  // FIXME(clang-tidy): reinterpret_cast usage
-                        sizeof(mreq.imr_multiaddr));
+            std::memcpy(
+                &mreq.imr_multiaddr,
+                &reinterpret_cast<struct sockaddr_in*>(multicast_addr_info->ai_addr)
+                     ->sin_addr, // FIXME(clang-tidy): reinterpret_cast usage
+                sizeof(mreq.imr_multiaddr)
+            );
 
             // No explicit source interface given — let the kernel pick via INADDR_ANY.
             if (group.empty()) {
@@ -1028,37 +1323,49 @@ class Socket {
                 mreq.imr_interface.s_addr = inet_addr(std::string(group).c_str());
             }
 
-            if (setsockopt(m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<char *>(&mreq),  // FIXME(clang-tidy): reinterpret_cast usage
-                           sizeof(mreq)) != 0) {
+            if (setsockopt(
+                    m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                    reinterpret_cast<char*>(&mreq), // FIXME(clang-tidy): reinterpret_cast usage
+                    sizeof(mreq)
+                ) != 0) {
                 core::logger::error("SocketLib", "Failed to join multicast group");
                 core::events::publish("socket.multicast.join_failed", {{"family", "inet"}});
             }
-        } else if (multicast_addr_info->ai_family == AF_INET6 &&
-                   multicast_addr_info->ai_addrlen == sizeof(struct sockaddr_in6)) {
+        } else if (
+            multicast_addr_info->ai_family == AF_INET6 &&
+            multicast_addr_info->ai_addrlen == sizeof(struct sockaddr_in6)
+        ) {
             struct ipv6_mreq mreq6{};
 
-            std::memcpy(&mreq6.ipv6mr_multiaddr,
-                        &reinterpret_cast<struct sockaddr_in6 *>(multicast_addr_info->ai_addr)->sin6_addr,
-                        sizeof(mreq6.ipv6mr_multiaddr));
+            std::memcpy(
+                &mreq6.ipv6mr_multiaddr,
+                &reinterpret_cast<struct sockaddr_in6*>(multicast_addr_info->ai_addr)->sin6_addr,
+                sizeof(mreq6.ipv6mr_multiaddr)
+            );
 
             // IPv6 wants an interface index rather than an address — resolve the group string
             // and pull its scope id if one was given, else default to "any interface" (0).
             if (group.empty()) {
                 mreq6.ipv6mr_interface = 0;
             } else {
-                struct addrinfo *group_addr_info{};
-                if (getaddrinfo(std::string(group).c_str(), nullptr, nullptr, &group_addr_info) != 0) {
-                    core::logger::error("SocketLib",
-                                        "Failed to resolve group address for multicast");
+                struct addrinfo* group_addr_info{};
+                if (getaddrinfo(std::string(group).c_str(), nullptr, nullptr, &group_addr_info) !=
+                    0) {
+                    core::logger::error(
+                        "SocketLib", "Failed to resolve group address for multicast"
+                    );
                     core::events::publish("socket.multicast.resolve_group_interface_failed");
                 }
 
-                mreq6.ipv6mr_interface = reinterpret_cast<sockaddr_in6 *>(group_addr_info->ai_addr)->sin6_scope_id;
+                mreq6.ipv6mr_interface =
+                    reinterpret_cast<sockaddr_in6*>(group_addr_info->ai_addr)->sin6_scope_id;
                 freeaddrinfo(group_addr_info);
             }
 
-            if (setsockopt(m_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP,
-                           reinterpret_cast<char *>(&mreq6), sizeof(mreq6)) != 0) {  // FIXME(clang-tidy): reinterpret_cast usage
+            if (setsockopt(
+                    m_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, reinterpret_cast<char*>(&mreq6),
+                    sizeof(mreq6)
+                ) != 0) { // FIXME(clang-tidy): reinterpret_cast usage
                 core::logger::error("SocketLib", "Failed to join multicast group");
                 core::events::publish("socket.multicast.join_failed", {{"family", "inet6"}});
             }
@@ -1067,9 +1374,10 @@ class Socket {
             core::events::publish("socket.multicast.unsupported_family");
         }
 
-        core::logger::debug("SocketLib", "socket {} joined multicast group {} on {}:{}", m_socket,
-                            group.empty() ? "(default)" : group, endpoint.get_address(),
-                            endpoint.get_port());
+        core::logger::debug(
+            "SocketLib", "socket {} joined multicast group {} on {}:{}", m_socket,
+            group.empty() ? "(default)" : group, endpoint.get_address(), endpoint.get_port()
+        );
 
         freeaddrinfo(multicast_addr_info);
     }
@@ -1085,21 +1393,25 @@ class Socket {
      * genuine terminal `else` branch of a real if/else-if/else chain, so it *only* fires for
      * unsupported protocols.
      */
-    void listen() {
+    void listen()
+    {
         // Plain TCP/TLS listen — the SSL context for TLS was already stood up in bind().
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             if (::listen(m_socket, SOMAXCONN) == SOCKET_ERROR) {
                 core::logger::error("SocketLib", "Failed to listen on socket");
                 core::events::publish("socket.listen_failed", {{"fd", std::to_string(m_socket)}});
             }
-            core::logger::debug("SocketLib", "socket {} listening for connections on {}:{}", m_socket,
-                                m_endpoint.get_address(), m_endpoint.get_port());
+            core::logger::debug(
+                "SocketLib", "socket {} listening for connections on {}:{}", m_socket,
+                m_endpoint.get_address(), m_endpoint.get_port()
+            );
         } else if constexpr (Protocol == Protocol::QUIC) {
             // QUIC has no real "listen" syscall — it's all built on top of the datagram BIO
             // set up earlier in bind(), so make sure that actually happened first.
             if (m_bio == nullptr) {
-                core::logger::error("SocketLib",
-                                    "BIO must be initialized before listening for QUIC");
+                core::logger::error(
+                    "SocketLib", "BIO must be initialized before listening for QUIC"
+                );
                 core::events::publish("socket.quic.bio_not_initialized");
             }
 
@@ -1107,61 +1419,74 @@ class Socket {
             m_ssl_ctx = SSL_CTX_new(OSSL_QUIC_server_method());
             if (m_ssl_ctx == nullptr) {
                 core::logger::error("SocketLib", "Failed to create SSL context for QUIC");
-                core::events::publish("socket.tls.create_context_failed", {{"site", "listen_quic"}});
+                core::events::publish(
+                    "socket.tls.create_context_failed", {{"site", "listen_quic"}}
+                );
             }
 
-            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+            SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL* ssl, int where, int ret) {
                 if (where & SSL_CB_ALERT) {
-                    const char *type = (where & SSL_CB_READ) ? "read" : "write";
-                    core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
-                                          reinterpret_cast<const void *>(ssl), SSL_alert_type_string_long(ret),  // FIXME(clang-tidy): reinterpret_cast usage
-                                          SSL_alert_desc_string_long(ret));
-                    core::events::publish("socket.tls.alert",
-                                          {{"direction", type},
-                                           {"alert_type", SSL_alert_type_string_long(ret)},
-                                           {"alert_desc", SSL_alert_desc_string_long(ret)}});
+                    const char* type = (where & SSL_CB_READ) ? "read" : "write";
+                    core::logger::warning(
+                        "SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
+                        reinterpret_cast<const void*>(ssl),
+                        SSL_alert_type_string_long(
+                            ret
+                        ), // FIXME(clang-tidy): reinterpret_cast usage
+                        SSL_alert_desc_string_long(ret)
+                    );
+                    core::events::publish(
+                        "socket.tls.alert", {{"direction", type},
+                                             {"alert_type", SSL_alert_type_string_long(ret)},
+                                             {"alert_desc", SSL_alert_desc_string_long(ret)}}
+                    );
                 }
             });
 
             m_ssl = SSL_new(m_ssl_ctx);
             if (m_ssl == nullptr) {
                 core::logger::error("SocketLib", "Failed to create SSL object for QUIC");
-                core::events::publish("socket.tls.create_ssl_object_failed", {{"site", "listen_quic"}});
+                core::events::publish(
+                    "socket.tls.create_ssl_object_failed", {{"site", "listen_quic"}}
+                );
             }
 
             // Wire the SSL object to the shared BIO and put it in server (accept) mode.
             SSL_set_bio(m_ssl, m_bio, m_bio);
             SSL_set_accept_state(m_ssl);
 
-            core::logger::debug("SocketLib", "socket {} listening for QUIC connections on {}:{}",
-                                m_socket,
-                                m_endpoint.get_address(), m_endpoint.get_port());
+            core::logger::debug(
+                "SocketLib", "socket {} listening for QUIC connections on {}:{}", m_socket,
+                m_endpoint.get_address(), m_endpoint.get_port()
+            );
         } else {
             core::events::publish("socket.listen_unsupported_protocol");
-            core::logger::fatal("SocketLib",
-                                "Listen is only supported for TCP, TLS, and QUIC protocols");
+            core::logger::fatal(
+                "SocketLib", "Listen is only supported for TCP, TLS, and QUIC protocols"
+            );
         }
     }
 
     /**
-     * @brief Thin wrapper over the posix `select()` syscall for a single fd (this socket's own),
-     * watching whichever of read/write/except are requested.
+     * @brief Thin wrapper over the posix `select()` syscall for a single fd (this socket's
+     * own), watching whichever of read/write/except are requested.
      * @param event_mask actually an `Event` bitmask (READ/WRITE/EXCEPT), despite the misleading
-     * param name — matched against `m_socket` for each requested direction, not a separate fd to
-     * watch.
+     * param name — matched against `m_socket` for each requested direction, not a separate fd
+     * to watch.
      * @param timeout_ms how long to wait before giving up.
      * @return VALID if `select()` reports the socket ready, TIMED_OUT if the timeout elapsed
-     * first, NON_BLOCKING_WOULD_HAVE_BLOCKED on `EINTR`/`EAGAIN`/`EWOULDBLOCK`, or ERRORED on any
-     * other `select()` failure.
+     * first, NON_BLOCKING_WOULD_HAVE_BLOCKED on `EINTR`/`EAGAIN`/`EWOULDBLOCK`, or ERRORED on
+     * any other `select()` failure.
      */
-    [[nodiscard]] SocketStatus select(int event_mask, std::uint64_t timeout_ms) const noexcept {
+    [[nodiscard]] SocketStatus select(int event_mask, std::uint64_t timeout_ms) const noexcept
+    {
         fd_set readfds;
         fd_set writefds;
         fd_set exceptfds;
 
-        fd_set *p_read = nullptr;
-        fd_set *p_write = nullptr;
-        fd_set *p_except = nullptr;
+        fd_set* p_read = nullptr;
+        fd_set* p_write = nullptr;
+        fd_set* p_except = nullptr;
 
         // Only build (and watch) the fd_sets for whichever directions the caller's bitmask
         // actually asked for — select() wants nullptr for the ones we're not watching.
@@ -1182,8 +1507,8 @@ class Socket {
         }
 
         struct timeval tv{};
-        tv.tv_sec = static_cast<decltype(tv.tv_sec)>(timeout_ms / 1000);
-        tv.tv_usec = static_cast<decltype(tv.tv_usec)>((timeout_ms % 1000) * 1000);
+        tv.tv_sec = static_cast<decltype(tv.tv_sec)>(timeout_ms / 1'000);
+        tv.tv_usec = static_cast<decltype(tv.tv_usec)>((timeout_ms % 1'000) * 1'000);
 
         // Three-way outcome: real failure, timeout with nothing ready, or the fd's actually
         // ready — each maps to a different SocketStatus.
@@ -1191,29 +1516,38 @@ class Socket {
         if (result < 0) {
             const auto ERR = get_error_code();
             if (ERR == EINTR || ERR == EAGAIN || ERR == EWOULDBLOCK) {
-                core::logger::warning("SocketLib", "socket {} select blocked/interrupted",
-                                      m_socket);
-                core::events::publish("socket.select.blocked_interrupted",
-                                      {{"fd", std::to_string(m_socket)}});
+                core::logger::warning(
+                    "SocketLib", "socket {} select blocked/interrupted", m_socket
+                );
+                core::events::publish(
+                    "socket.select.blocked_interrupted", {{"fd", std::to_string(m_socket)}}
+                );
                 return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
-            core::logger::warning("SocketLib",
-                                  "Critical failure in select() syscall with error code `{}`", ERR);
-            core::events::publish("socket.select.failed",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+            core::logger::warning(
+                "SocketLib", "Critical failure in select() syscall with error code `{}`", ERR
+            );
+            core::events::publish(
+                "socket.select.failed",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+            );
             return {VALUES::ERRORED};
         }
         if (result == 0) {
-            core::logger::warning("SocketLib", "socket {} select timeout {}ms", m_socket,
-                                  timeout_ms);
-            core::events::publish("socket.select.timeout",
-                                  {{"fd", std::to_string(m_socket)}, {"timeout_ms", std::to_string(timeout_ms)}});
+            core::logger::warning(
+                "SocketLib", "socket {} select timeout {}ms", m_socket, timeout_ms
+            );
+            core::events::publish(
+                "socket.select.timeout",
+                {{"fd", std::to_string(m_socket)}, {"timeout_ms", std::to_string(timeout_ms)}}
+            );
             return {VALUES::TIMED_OUT};
         }
 
-        core::logger::debug("SocketLib",
-                            "socket {} select reports ready (a connection is pending to accept)",
-                            m_socket);
+        core::logger::debug(
+            "SocketLib", "socket {} select reports ready (a connection is pending to accept)",
+            m_socket
+        );
         return {VALUES::VALID};
     }
 
@@ -1228,24 +1562,28 @@ class Socket {
      * @note UDP isn't in the supported-protocol list here and falls to `core::logger::fatal`
      * (process-terminating) — properly gated by a real if/else, not the shutdown()-style bug.
      */
-    SocketStatus sync_connect(std::uint64_t timeout = 0) {
-        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS ||
-                      Protocol == Protocol::QUIC) {
+    SocketStatus sync_connect(std::uint64_t timeout = 0)
+    {
+        if constexpr (
+            Protocol == Protocol::TCP || Protocol == Protocol::TLS || Protocol == Protocol::QUIC
+        ) {
             // Resolution failed in the ctor (getaddrinfo error) or no address family yielded an
-            // open socket — m_address_info_result / m_socket_address_info are null. Bail cleanly
-            // instead of dereferencing a null m_address_info_result in the fallback walk below.
+            // open socket — m_address_info_result / m_socket_address_info are null. Bail
+            // cleanly instead of dereferencing a null m_address_info_result in the fallback
+            // walk below.
             if (m_address_info_result == nullptr || m_socket_address_info == nullptr) {
                 core::logger::error("SocketLib", "Failed to connect to any resolved address");
-                core::events::publish("socket.connect.all_addresses_failed",
-                                      {{"address", m_endpoint.get_address()}});
+                core::events::publish(
+                    "socket.connect.all_addresses_failed", {{"address", m_endpoint.get_address()}}
+                );
                 return {VALUES::ERRORED};
             }
 
             // Try the address the ctor already opened a socket against first — only fall back
             // to walking the rest of the resolved list if that one doesn't connect.
-            auto *current = m_socket_address_info;
+            auto* current = m_socket_address_info;
             if (connect<false>(current, timeout) != SocketStatus(VALUES::VALID)) {
-                for (auto *addr = m_address_info_result->ai_next; addr != nullptr;
+                for (auto* addr = m_address_info_result->ai_next; addr != nullptr;
                      addr = addr->ai_next) {
                     // Already checked this one, skip it
                     if (addr == current) {
@@ -1259,8 +1597,9 @@ class Socket {
 
             if (m_socket == INVALID_SOCKET) {
                 core::logger::error("SocketLib", "Failed to connect to any resolved address");
-                core::events::publish("socket.connect.all_addresses_failed",
-                                      {{"address", m_endpoint.get_address()}});
+                core::events::publish(
+                    "socket.connect.all_addresses_failed", {{"address", m_endpoint.get_address()}}
+                );
                 // No socket ever connected — bail here. Falling through would run the TLS/QUIC
                 // handshake against an unconnected socket, producing a spurious
                 // SSL_ERROR_SYSCALL/empty-error-queue "handshake failed" that hides the real
@@ -1282,21 +1621,24 @@ class Socket {
                 }
             }
 
-            core::logger::debug("SocketLib", "socket {} connected {}:{}", m_socket,
-                                m_endpoint.get_address(), m_endpoint.get_port());
+            core::logger::debug(
+                "SocketLib", "socket {} connected {}:{}", m_socket, m_endpoint.get_address(),
+                m_endpoint.get_port()
+            );
             return {VALUES::VALID};
         } else {
             core::events::publish("socket.connect_unsupported_protocol");
-            core::logger::fatal("SocketLib",
-                                "Connect is only supported for TCP, TLS, QUIC protocols");
+            core::logger::fatal(
+                "SocketLib", "Connect is only supported for TCP, TLS, QUIC protocols"
+            );
         }
     }
 
     /**
      * @brief Async counterpart to sync_connect() — kicks off a non-blocking connect through the
      * leverager, and on failure re-arms itself against the next resolved address, walking
-     * `m_address_info_result`'s linked list one attempt per completion until one succeeds or the
-     * list runs out.
+     * `m_address_info_result`'s linked list one attempt per completion until one succeeds or
+     * the list runs out.
      * @param callback invoked once with the final SocketStatus — VALID once connected (and, for
      * TLS/QUIC, TLS-context-ready), TIMED_OUT/NON_BLOCKING_WOULD_HAVE_BLOCKED/ERRORED depending
      * on what killed the last attempt.
@@ -1306,16 +1648,19 @@ class Socket {
      */
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the three
     // distinct outcomes of one re-arm attempt (connect landed, ran out of candidates, still got
-    // candidates left) are now complete_async_connect(), report_final_async_connect_error(), and
-    // reopen_socket_for_connect_retry(), private methods below. Logic, ordering, and the
+    // candidates left) are now complete_async_connect(), report_final_async_connect_error(),
+    // and reopen_socket_for_connect_retry(), private methods below. Logic, ordering, and the
     // retry/fallback behavior are unchanged — this is a straight mechanical split of the lambda
     // body into named steps.
-    void async_connect(std::move_only_function<void(SocketStatus)> callback,
-                       std::uint8_t iflags = 0) {
-        if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS ||
-                      Protocol == Protocol::QUIC) {
+    void async_connect(
+        std::move_only_function<void(SocketStatus)> callback, std::uint8_t iflags = 0
+    )
+    {
+        if constexpr (
+            Protocol == Protocol::TCP || Protocol == Protocol::TLS || Protocol == Protocol::QUIC
+        ) {
             if (m_leverager) {
-                auto *current = (m_socket_address_info != nullptr) ? m_socket_address_info
+                auto* current = (m_socket_address_info != nullptr) ? m_socket_address_info
                                                                    : m_address_info_result;
 
                 set_non_blocking(true);
@@ -1347,21 +1692,23 @@ class Socket {
                         return;
                     }
 
-                    m_leverager->get().connect(m_socket, current->ai_addr, current->ai_addrlen,
-                                               *attempt, iflags);
+                    m_leverager->get().connect(
+                        m_socket, current->ai_addr, current->ai_addrlen, *attempt, iflags
+                    );
                 };
 
                 // Kick off the first attempt against the currently-open socket/address.
-                m_leverager->get().connect(m_socket, current->ai_addr, current->ai_addrlen,
-                                           *attempt, iflags);
+                m_leverager->get().connect(
+                    m_socket, current->ai_addr, current->ai_addrlen, *attempt, iflags
+                );
             } else {
                 core::events::publish("socket.leverager_not_set", {{"site", "async_connect"}});
-                core::logger::fatal("SocketLib",
-                                    "m_leverager is not set so async funtion calls cannot be used");
+                core::logger::fatal(
+                    "SocketLib", "m_leverager is not set so async funtion calls cannot be used"
+                );
             }
         }
     }
-
 
     /// Call this after connect() or after accept() returns a socket, each time
     /// the completion queue signals the fd is ready. Returns:
@@ -1373,15 +1720,18 @@ class Socket {
     ///   socket_status::errored                     — handshake failed, close the socket
     ///
     /// For plain tcp sockets this is a no-op and always returns valid.
-    /// @warning Stale relative to the current body below — plain TCP does NOT take a no-op/valid
-    /// path here. The `else` branch for non-TLS/QUIC protocols calls `core::logger::fatal`
-    /// (process-terminating per this codebase's convention), not a silent valid return. Trust the
-    /// code over this comment on that specific point.
-    SocketStatus sync_handshake(bool *wait_for_write = nullptr) noexcept {
+    /// @warning Stale relative to the current body below — plain TCP does NOT take a
+    /// no-op/valid path here. The `else` branch for non-TLS/QUIC protocols calls
+    /// `core::logger::fatal` (process-terminating per this codebase's convention), not a silent
+    /// valid return. Trust the code over this comment on that specific point.
+    SocketStatus sync_handshake(bool* wait_for_write = nullptr) noexcept
+    {
         if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
             if (m_ssl == nullptr) {
                 core::logger::warning("SocketLib", "SSL object is not initialized for handshake");
-                core::events::publish("socket.tls.ssl_not_initialized", {{"site", "sync_handshake"}});
+                core::events::publish(
+                    "socket.tls.ssl_not_initialized", {{"site", "sync_handshake"}}
+                );
                 return {VALUES::ERRORED};
             }
 
@@ -1415,36 +1765,42 @@ class Socket {
                 if (wait_for_write != nullptr) {
                     *wait_for_write = false;
                 }
-                core::logger::debug("SocketLib",
-                                    "socket {} handshake wait-read (pending={} want={})", m_socket,
-                                    SSL_pending(m_ssl), SSL_want(m_ssl));
+                core::logger::debug(
+                    "SocketLib", "socket {} handshake wait-read (pending={} want={})", m_socket,
+                    SSL_pending(m_ssl), SSL_want(m_ssl)
+                );
                 return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
             if (err == SSL_ERROR_WANT_WRITE) {
                 if (wait_for_write != nullptr) {
                     *wait_for_write = true;
                 }
-                core::logger::debug("SocketLib",
-                                    "socket {} handshake wait-write (pending={} want={})", m_socket,
-                                    SSL_pending(m_ssl), SSL_want(m_ssl));
+                core::logger::debug(
+                    "SocketLib", "socket {} handshake wait-write (pending={} want={})", m_socket,
+                    SSL_pending(m_ssl), SSL_want(m_ssl)
+                );
                 return {VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED};
             }
 
             char err_buf[256];
-            ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));  // FIXME(clang-tidy): array-to-pointer decay
+            ERR_error_string_n(
+                ERR_get_error(), err_buf, sizeof(err_buf)
+            ); // FIXME(clang-tidy): array-to-pointer decay
             core::logger::warning(
-                "SocketLib",
-                "Socket `{}` handshake failed: SSL_get_error={} detail={}", m_socket, err,
-                err_buf);
-            core::events::publish("socket.tls.handshake_failed",
-                                  {{"fd", std::to_string(m_socket)},
-                                   {"ssl_error", std::to_string(err)},
-                                   {"detail", std::string{err_buf}}});
+                "SocketLib", "Socket `{}` handshake failed: SSL_get_error={} detail={}", m_socket,
+                err, err_buf
+            );
+            core::events::publish(
+                "socket.tls.handshake_failed", {{"fd", std::to_string(m_socket)},
+                                                {"ssl_error", std::to_string(err)},
+                                                {"detail", std::string{err_buf}}}
+            );
             return {VALUES::ERRORED};
         } else {
             core::events::publish("socket.handshake_plain_tcp", {{"fd", std::to_string(m_socket)}});
-            core::logger::fatal("SocketLib",
-                                "Socket `{}` is a plain TCP socket, no handshake needed", m_socket);
+            core::logger::fatal(
+                "SocketLib", "Socket `{}` is a plain TCP socket, no handshake needed", m_socket
+            );
         }
     }
 
@@ -1455,13 +1811,15 @@ class Socket {
      * or fails.
      * @param callback invoked once with the final SocketStatus.
      * @param iflags forwarded to each leverager recv()/send() re-arm call.
-     * @warning TLS/QUIC only. For any other protocol, or if `m_leverager` isn't set, this routes
-     * to `core::logger::fatal` (process-terminating) — same "plain TCP socket, no handshake
-     * needed" message as sync_handshake(), same caveat about that being a hard crash, not a
-     * no-op.
+     * @warning TLS/QUIC only. For any other protocol, or if `m_leverager` isn't set, this
+     * routes to `core::logger::fatal` (process-terminating) — same "plain TCP socket, no
+     * handshake needed" message as sync_handshake(), same caveat about that being a hard crash,
+     * not a no-op.
      */
-    void async_handshake(std::move_only_function<void(SocketStatus)> callback,
-                         std::uint8_t iflags = 0) noexcept {
+    void async_handshake(
+        std::move_only_function<void(SocketStatus)> callback, std::uint8_t iflags = 0
+    ) noexcept
+    {
         if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
             if (m_leverager) {
                 auto attempt = std::make_shared<std::function<void(int)>>();
@@ -1470,10 +1828,12 @@ class Socket {
                     // The re-arm itself failed — no point driving the handshake further.
                     if (res < 0) {
                         core::logger::warning(
-                            "SocketLib", "socket {} async handshake failed err={}", m_socket, res);
-                        core::events::publish("socket.tls.async_handshake_failed",
-                                              {{"fd", std::to_string(m_socket)},
-                                               {"error_code", std::to_string(res)}});
+                            "SocketLib", "socket {} async handshake failed err={}", m_socket, res
+                        );
+                        core::events::publish(
+                            "socket.tls.async_handshake_failed",
+                            {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}}
+                        );
                         callback(SocketStatus(VALUES::ERRORED));
                         return;
                     }
@@ -1483,7 +1843,8 @@ class Socket {
                     SocketStatus status = sync_handshake(&wait_for_write);
 
                     // Still not done — re-arm on whichever direction sync_handshake() said it's
-                    // waiting on (zero-length recv/send just re-triggers the leverager on that fd).
+                    // waiting on (zero-length recv/send just re-triggers the leverager on that
+                    // fd).
                     if (status.would_have_blocked()) {
                         if (wait_for_write) {
                             m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
@@ -1496,36 +1857,42 @@ class Socket {
                 };
 
                 // Call to jumpstart the async handshake process, it will immediately call the
-                // callback which will then re-arm itself until the handshake is complete or fails
+                // callback which will then re-arm itself until the handshake is complete or
+                // fails
                 (*attempt)(0);
             } else {
                 core::events::publish("socket.leverager_not_set", {{"site", "async_handshake"}});
-                core::logger::fatal("SocketLib",
-                                    "m_leverager is not set so async funtion calls cannot be used");
+                core::logger::fatal(
+                    "SocketLib", "m_leverager is not set so async funtion calls cannot be used"
+                );
             }
         } else {
-            core::events::publish("socket.handshake_plain_tcp", {{"fd", std::to_string(m_socket)},
-                                                                 {"site", "async_handshake"}});
-            core::logger::fatal("SocketLib",
-                                "Socket `{}` is a plain TCP socket, no handshake needed", m_socket);
+            core::events::publish(
+                "socket.handshake_plain_tcp",
+                {{"fd", std::to_string(m_socket)}, {"site", "async_handshake"}}
+            );
+            core::logger::fatal(
+                "SocketLib", "Socket `{}` is a plain TCP socket, no handshake needed", m_socket
+            );
         }
     }
 
     /**
      * @brief Checks whether the TLS/SSL handshake has completed.
      * @warning Likely a copy-paste bug: the `if constexpr` checks `TCP || QUIC`, not `TLS ||
-     * QUIC`. `m_ssl` is never set for plain TCP sockets (only TLS/QUIC ever populate it), so this
-     * always evaluates `(nullptr != nullptr) && ...` and returns `false` for every TCP socket —
-     * and worse, **TLS sockets fall through to the unconditional `return true;` at the bottom
-     * instead of actually checking `SSL_is_init_finished`**, since `Protocol::TLS` isn't in the
-     * condition at all. So this reports "handshake done" for TLS unconditionally and "handshake
-     * not done" for TCP unconditionally — both backwards from what the name promises. Don't rely
-     * on this to gate real handshake-completion logic until the condition is fixed to `TLS ||
-     * QUIC`.
+     * QUIC`. `m_ssl` is never set for plain TCP sockets (only TLS/QUIC ever populate it), so
+     * this always evaluates `(nullptr != nullptr) && ...` and returns `false` for every TCP
+     * socket — and worse, **TLS sockets fall through to the unconditional `return true;` at the
+     * bottom instead of actually checking `SSL_is_init_finished`**, since `Protocol::TLS` isn't
+     * in the condition at all. So this reports "handshake done" for TLS unconditionally and
+     * "handshake not done" for TCP unconditionally — both backwards from what the name
+     * promises. Don't rely on this to gate real handshake-completion logic until the condition
+     * is fixed to `TLS || QUIC`.
      * @return per the current (likely buggy) condition: real SSL-state-based result for QUIC,
      * always `false` for TCP, always `true` for TLS and UDP.
      */
-    [[nodiscard]] bool is_handshake_done() const noexcept {
+    [[nodiscard]] bool is_handshake_done() const noexcept
+    {
         // See the @warning above — this condition is likely supposed to read `TLS || QUIC`.
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::QUIC) {
             return (m_ssl != nullptr) && (SSL_is_init_finished(m_ssl) != 0);
@@ -1534,103 +1901,128 @@ class Socket {
     }
 
     /**
-     * @brief Blocking accept — plain `::accept()` for TCP/TLS (wrapping the client fd in a fresh
-     * SSL object for TLS), or `SSL_accept_connection` for QUIC.
-     * @warning The TCP/TLS accepted-socket constructors here (`Socket<Protocol>{client_fd, ...}`)
-     * are called *without* `m_leverager` — unlike async_accept(), which does thread it through.
-     * A socket handed back by this method has no async engine wired up, so any `async_*` call on
-     * it will hit the "m_leverager is not set" fatal. If you need the accepted connection to
-     * support async I/O, use async_accept() instead.
-     * @return a live client Socket, or a default-constructed (invalid) one if `accept()` would've
-     * blocked (`EWOULDBLOCK`/`EAGAIN`/`EINTR`).
-     * @note UDP isn't accept-able and routes to `core::logger::fatal` — properly gated by a real
-     * if/else-if/else chain here.
+     * @brief Blocking accept — plain `::accept()` for TCP/TLS (wrapping the client fd in a
+     * fresh SSL object for TLS), or `SSL_accept_connection` for QUIC.
+     * @warning The TCP/TLS accepted-socket constructors here (`Socket<Protocol>{client_fd,
+     * ...}`) are called *without* `m_leverager` — unlike async_accept(), which does thread it
+     * through. A socket handed back by this method has no async engine wired up, so any
+     * `async_*` call on it will hit the "m_leverager is not set" fatal. If you need the
+     * accepted connection to support async I/O, use async_accept() instead.
+     * @return a live client Socket, or a default-constructed (invalid) one if `accept()`
+     * would've blocked (`EWOULDBLOCK`/`EAGAIN`/`EINTR`).
+     * @note UDP isn't accept-able and routes to `core::logger::fatal` — properly gated by a
+     * real if/else-if/else chain here.
      */
-    [[nodiscard]] Socket<Protocol> sync_accept() const {
+    [[nodiscard]] Socket<Protocol> sync_accept() const
+    {
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             sockaddr_storage client_addr{};
             socklen_t addr_len = sizeof(client_addr);
 
             // Would-block/interrupted isn't a real failure — just hand back an invalid Socket
             // so the caller knows to try again later.
-            SOCKET client_fd =
-                ::accept(m_socket, reinterpret_cast<sockaddr *>(&client_addr), &addr_len);  // FIXME(clang-tidy): reinterpret_cast usage
+            SOCKET client_fd = ::accept(
+                m_socket, reinterpret_cast<sockaddr*>(&client_addr), &addr_len
+            ); // FIXME(clang-tidy): reinterpret_cast usage
             if (client_fd == INVALID_SOCKET) {
                 const auto ERR = get_error_code();
 
                 if (ERR == EWOULDBLOCK || ERR == EAGAIN || ERR == EINTR) {
                     core::logger::debug(
                         "SocketLib",
-                        "socket {} accept would have blocked, no new connections pending to accept",
-                        m_socket);
+                        "socket {} accept would have blocked, no new connections pending to "
+                        "accept",
+                        m_socket
+                    );
                     return Socket<Protocol>{};
                 }
 
                 core::logger::error(
-                    "SocketLib", "Critical failure in accept() syscall with error code `{}`", ERR);
-                core::events::publish("socket.accept.failed",
-                                      {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+                    "SocketLib", "Critical failure in accept() syscall with error code `{}`", ERR
+                );
+                core::events::publish(
+                    "socket.accept.failed",
+                    {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                );
             }
 
             // TLS: wrap the freshly-accepted fd in its own SSL object, in server (accept) mode,
             // before handing it back as a Socket.
             if constexpr (Protocol == Protocol::TLS) {
-                SSL *client_ssl = SSL_new(m_ssl_ctx);
+                SSL* client_ssl = SSL_new(m_ssl_ctx);
                 if (client_ssl == nullptr) {
                     closesocket(client_fd);
-                    core::logger::error("SocketLib",
-                                        "Failed to create SSL object for accepted connection");
-                    core::events::publish("socket.tls.create_ssl_object_failed", {{"site", "sync_accept"}});
+                    core::logger::error(
+                        "SocketLib", "Failed to create SSL object for accepted connection"
+                    );
+                    core::events::publish(
+                        "socket.tls.create_ssl_object_failed", {{"site", "sync_accept"}}
+                    );
                 }
 
                 if (SSL_set_fd(client_ssl, client_fd) == 0) {
                     SSL_free(client_ssl);
                     closesocket(client_fd);
-                    core::logger::error("SocketLib",
-                                        "Failed to associate SSL object with accepted socket");
+                    core::logger::error(
+                        "SocketLib", "Failed to associate SSL object with accepted socket"
+                    );
                     core::events::publish("socket.tls.set_fd_failed", {{"site", "sync_accept"}});
                 }
 
                 SSL_set_accept_state(client_ssl);
 
-                auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(&client_addr));  // FIXME(clang-tidy): reinterpret_cast usage
-                core::logger::debug("SocketLib", "socket {} accepted new TLS connection from {}:{}", m_socket,
-                                    endpoint.get_address(), endpoint.get_port());
+                auto endpoint = Endpoint(
+                    reinterpret_cast<sockaddr*>(&client_addr)
+                ); // FIXME(clang-tidy): reinterpret_cast usage
+                core::logger::debug(
+                    "SocketLib", "socket {} accepted new TLS connection from {}:{}", m_socket,
+                    endpoint.get_address(), endpoint.get_port()
+                );
 
                 return Socket<Protocol>{client_fd, client_ssl, std::move(endpoint)};
             }
 
             // Plain TCP: just wrap the fd, no SSL object needed.
-            auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(&client_addr));  // FIXME(clang-tidy): reinterpret_cast usage
-            core::logger::debug("SocketLib", "socket {} accepted new TCP connection from {}:{}", m_socket,
-                                endpoint.get_address(), endpoint.get_port());
+            auto endpoint = Endpoint(
+                reinterpret_cast<sockaddr*>(&client_addr)
+            ); // FIXME(clang-tidy): reinterpret_cast usage
+            core::logger::debug(
+                "SocketLib", "socket {} accepted new TCP connection from {}:{}", m_socket,
+                endpoint.get_address(), endpoint.get_port()
+            );
 
             return Socket<Protocol>{client_fd, std::move(endpoint)};
         } else if constexpr (Protocol == Protocol::QUIC) {
             // QUIC connections aren't accepted off a listening fd the BSD-socket way — they're
             // pulled off the shared UDP socket's SSL object as individual QUIC streams/conns.
             if (m_ssl == nullptr) {
-                core::logger::error("SocketLib",
-                                    "Socket `{}` SSL object is not initialized for QUIC accept",
-                                    m_socket);
-                core::events::publish("socket.tls.ssl_not_initialized",
-                                      {{"fd", std::to_string(m_socket)}, {"site", "sync_accept_quic"}});
+                core::logger::error(
+                    "SocketLib", "Socket `{}` SSL object is not initialized for QUIC accept",
+                    m_socket
+                );
+                core::events::publish(
+                    "socket.tls.ssl_not_initialized",
+                    {{"fd", std::to_string(m_socket)}, {"site", "sync_accept_quic"}}
+                );
             }
 
-            SSL *client_ssl = SSL_accept_connection(m_ssl, 0);
+            SSL* client_ssl = SSL_accept_connection(m_ssl, 0);
             if (client_ssl == nullptr) {
-                core::logger::error("SocketLib",
-                                    "Socket `{}` failed to accept new QUIC connection ", m_socket);
-                core::events::publish("socket.quic.accept_failed", {{"fd", std::to_string(m_socket)}});
+                core::logger::error(
+                    "SocketLib", "Socket `{}` failed to accept new QUIC connection ", m_socket
+                );
+                core::events::publish(
+                    "socket.quic.accept_failed", {{"fd", std::to_string(m_socket)}}
+                );
             }
 
             core::logger::debug("SocketLib", "socket {} accepted new QUIC connection", m_socket);
             return Socket<Protocol>{m_socket, client_ssl};
-
         } else {
             core::events::publish("socket.accept_unsupported_protocol", {{"site", "sync_accept"}});
-            core::logger::fatal("SocketLib",
-                                "Accept is only supported for TCP, TLS and QUIC protocols");
+            core::logger::fatal(
+                "SocketLib", "Accept is only supported for TCP, TLS and QUIC protocols"
+            );
         }
     }
 
@@ -1649,8 +2041,8 @@ class Socket {
      * that's fixed.
      */
     // bugprone-exception-escape: not `noexcept` (see below) — this method isn't a virtual
-    // override and doesn't satisfy any AsyncSendable/AsyncReceivable/AsyncClose-style concept in
-    // interfaces::io (grepped — async_accept isn't referenced there at all), so there's no
+    // override and doesn't satisfy any AsyncSendable/AsyncReceivable/AsyncClose-style concept
+    // in interfaces::io (grepped — async_accept isn't referenced there at all), so there's no
     // contract requiring it to stay noexcept. Dropping the qualifier is the genuine fix: the
     // std::make_shared allocations and the leverager's accept() call can legitimately throw
     // (bad_alloc, submission-time failures), and letting that propagate to the caller is more
@@ -1658,15 +2050,18 @@ class Socket {
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the
     // would-block-vs-critical-failure classification is now report_async_accept_failure(), and
     // the TLS SSL-object setup is now create_accepted_tls_ssl(), both private methods below.
-    void async_accept(std::move_only_function<void(Socket<Protocol>)> callback,
-                      std::uint8_t iflags = 0) {
+    void async_accept(
+        std::move_only_function<void(Socket<Protocol>)> callback, std::uint8_t iflags = 0
+    )
+    {
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             if (m_leverager) {
                 auto client_addr = std::make_shared<sockaddr_storage>();
                 auto addr_len = std::make_shared<socklen_t>(sizeof(sockaddr_storage));
 
                 m_leverager->get().accept(
-                    m_socket, reinterpret_cast<sockaddr *>(client_addr.get()), addr_len.get(), 0,  // FIXME(clang-tidy): reinterpret_cast usage
+                    m_socket, reinterpret_cast<sockaddr*>(client_addr.get()), addr_len.get(),
+                    0, // FIXME(clang-tidy): reinterpret_cast usage
                     [this, client_addr, addr_len,
                      callback = std::move(callback)](int res, std::uint32_t) mutable {
                         // Same would-block-vs-real-failure split as sync_accept(), just routed
@@ -1678,62 +2073,79 @@ class Socket {
                         auto client_fd = static_cast<SOCKET>(res);
 
                         // TLS: wrap the fd in a fresh SSL object same as sync_accept(), but
-                        // thread m_leverager through so the accepted Socket can do async I/O too.
+                        // thread m_leverager through so the accepted Socket can do async I/O
+                        // too.
                         if constexpr (Protocol == Protocol::TLS) {
-                            SSL *client_ssl = create_accepted_tls_ssl(client_fd);
+                            SSL* client_ssl = create_accepted_tls_ssl(client_fd);
                             if (client_ssl == nullptr) {
                                 callback(Socket<Protocol>{});
                                 return;
                             }
 
-                            auto endpoint =
-                                Endpoint(reinterpret_cast<sockaddr *>(client_addr.get()));  // FIXME(clang-tidy): reinterpret_cast usage
-                            core::logger::debug("SocketLib", "socket {} accepted new TLS connection from {}:{}",
-                                                m_socket, endpoint.get_address(),
-                                                endpoint.get_port());
-                            callback(Socket<Protocol>{client_fd, client_ssl, std::move(endpoint),
-                                                      m_leverager});
+                            auto endpoint = Endpoint(
+                                reinterpret_cast<sockaddr*>(client_addr.get())
+                            ); // FIXME(clang-tidy): reinterpret_cast usage
+                            core::logger::debug(
+                                "SocketLib", "socket {} accepted new TLS connection from {}:{}",
+                                m_socket, endpoint.get_address(), endpoint.get_port()
+                            );
+                            callback(
+                                Socket<Protocol>{
+                                    client_fd, client_ssl, std::move(endpoint), m_leverager
+                                }
+                            );
                             return;
                         }
                         // Plain TCP: wrap the fd, still threading m_leverager through.
-                        auto endpoint = Endpoint(reinterpret_cast<sockaddr *>(client_addr.get()));  // FIXME(clang-tidy): reinterpret_cast usage
-                        core::logger::debug("SocketLib", "socket {} accepted new TCP connection from {}:{}",
-                                            m_socket, endpoint.get_address(), endpoint.get_port());
+                        auto endpoint = Endpoint(
+                            reinterpret_cast<sockaddr*>(client_addr.get())
+                        ); // FIXME(clang-tidy): reinterpret_cast usage
+                        core::logger::debug(
+                            "SocketLib", "socket {} accepted new TCP connection from {}:{}",
+                            m_socket, endpoint.get_address(), endpoint.get_port()
+                        );
 
                         callback(Socket<Protocol>{client_fd, std::move(endpoint), m_leverager});
                     },
-                    iflags);
+                    iflags
+                );
             } else {
                 core::events::publish("socket.leverager_not_set", {{"site", "async_accept"}});
-                core::logger::fatal("SocketLib",
-                                    "m_leverager is not set so async funtion calls cannot be used");
+                core::logger::fatal(
+                    "SocketLib", "m_leverager is not set so async funtion calls cannot be used"
+                );
             }
         } else if constexpr (Protocol == Protocol::QUIC) {
             if (m_ssl == nullptr) {
-                core::logger::error("SocketLib",
-                                    "Socket `{}` SSL object is not initialized for QUIC accept",
-                                    m_socket);
-                core::events::publish("socket.tls.ssl_not_initialized",
-                                      {{"fd", std::to_string(m_socket)}, {"site", "async_accept_quic"}});
+                core::logger::error(
+                    "SocketLib", "Socket `{}` SSL object is not initialized for QUIC accept",
+                    m_socket
+                );
+                core::events::publish(
+                    "socket.tls.ssl_not_initialized",
+                    {{"fd", std::to_string(m_socket)}, {"site", "async_accept_quic"}}
+                );
             }
 
-            SSL *client_ssl = SSL_accept_connection(m_ssl, 0);
+            SSL* client_ssl = SSL_accept_connection(m_ssl, 0);
             if (client_ssl == nullptr) {
-                core::logger::error("SocketLib",
-                                    "Socket `{}` failed to accept new QUIC connection ", m_socket);
-                core::events::publish("socket.quic.accept_failed", {{"fd", std::to_string(m_socket)}});
+                core::logger::error(
+                    "SocketLib", "Socket `{}` failed to accept new QUIC connection ", m_socket
+                );
+                core::events::publish(
+                    "socket.quic.accept_failed", {{"fd", std::to_string(m_socket)}}
+                );
             }
 
             core::logger::debug("SocketLib", "socket {} accepted new QUIC connection", m_socket);
             return Socket<Protocol>{m_socket, client_ssl};
-
         } else {
             core::events::publish("socket.accept_unsupported_protocol", {{"site", "async_accept"}});
-            core::logger::fatal("SocketLib",
-                                "Accept is only supported for TCP, TLS and QUIC protocols");
+            core::logger::fatal(
+                "SocketLib", "Accept is only supported for TCP, TLS and QUIC protocols"
+            );
         }
     }
-
 
     /**
      * @brief Blocking send — plain `::send()` for TCP (or TLS with kTLS active), `SSL_write_ex`
@@ -1745,51 +2157,78 @@ class Socket {
      * `m_socket_address_info` (the endpoint this socket connected/resolved to).
      * @return the number of bytes actually sent alongside a status: VALID on a normal send,
      * NON_BLOCKING_WOULD_HAVE_BLOCKED if the socket/SSL object would've blocked,
-     * CLEANLY_DISCONNECTED if the peer closed (SSL zero-return), or ERRORED on any other failure.
-     * Bytes sent is always 0 on a non-VALID status.
+     * CLEANLY_DISCONNECTED if the peer closed (SSL zero-return), or ERRORED on any other
+     * failure. Bytes sent is always 0 on a non-VALID status.
      */
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the SSL-error
-    // mapping switch (want-read/want-write/zero-return/syscall/default) is now map_send_ssl_error(),
-    // a private method below, pulled out purely to bring this function's complexity down; logic
-    // and ordering are unchanged.
-    std::pair<std::size_t, SocketStatus> sync_send(const std::byte *buffer,
-                                                   const std::size_t LENGTH,
-                                                   AddressInfo *addr = nullptr) const {
+    // mapping switch (want-read/want-write/zero-return/syscall/default) is now
+    // map_send_ssl_error(), a private method below, pulled out purely to bring this function's
+    // complexity down; logic and ordering are unchanged.
+    std::pair<std::size_t, SocketStatus>
+    sync_send(const std::byte* buffer, const std::size_t LENGTH, AddressInfo* addr = nullptr) const
+    {
         std::size_t sent_bytes{0};
         int ssl_call_result{0};
 
         // Dispatch the actual write per-protocol — plain send() for TCP/UDP, SSL_write_ex for
         // TLS/QUIC unless kTLS has taken over the record layer (then it's a plain send() too).
         if constexpr (Protocol == Protocol::TCP) {
-            sent_bytes = ::send(m_socket, reinterpret_cast<const char *>(buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                static_cast<buffsize_t>(LENGTH), 0);
+            sent_bytes = ::send(
+                m_socket,
+                reinterpret_cast<const char*>(buffer), // FIXME(clang-tidy): reinterpret_cast usage
+                static_cast<buffsize_t>(LENGTH), 0
+            );
         } else if constexpr (Protocol == Protocol::TLS) {
             if (m_ktls_tx) {
-                sent_bytes = ::send(m_socket, reinterpret_cast<const char *>(buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                    static_cast<buffsize_t>(LENGTH), 0);
+                sent_bytes = ::send(
+                    m_socket,
+                    reinterpret_cast<const char*>(
+                        buffer
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    static_cast<buffsize_t>(LENGTH), 0
+                );
             } else {
-                ssl_call_result = SSL_write_ex(m_ssl, reinterpret_cast<const void *>(buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                               LENGTH, &sent_bytes);
+                ssl_call_result = SSL_write_ex(
+                    m_ssl,
+                    reinterpret_cast<const void*>(
+                        buffer
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    LENGTH, &sent_bytes
+                );
             }
         } else if constexpr (Protocol == Protocol::QUIC) {
-            ssl_call_result =
-                SSL_write_ex(m_ssl, reinterpret_cast<const void *>(buffer), LENGTH, &sent_bytes);  // FIXME(clang-tidy): reinterpret_cast usage
+            ssl_call_result = SSL_write_ex(
+                m_ssl, reinterpret_cast<const void*>(buffer), LENGTH, &sent_bytes
+            ); // FIXME(clang-tidy): reinterpret_cast usage
         } else if constexpr (Protocol == Protocol::UDP) {
             if (addr != nullptr) {
-                sent_bytes = ::sendto(m_socket, reinterpret_cast<const char *>(buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                      static_cast<buffsize_t>(LENGTH), 0,
-                                      reinterpret_cast<const sockaddr *>(&addr->get_data()),  // FIXME(clang-tidy): reinterpret_cast usage
-                                      addr->get_size());
+                sent_bytes = ::sendto(
+                    m_socket,
+                    reinterpret_cast<const char*>(
+                        buffer
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    static_cast<buffsize_t>(LENGTH), 0,
+                    reinterpret_cast<const sockaddr*>(
+                        &addr->get_data()
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    addr->get_size()
+                );
             } else {
-                sent_bytes = ::sendto(m_socket, reinterpret_cast<const char *>(buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                      static_cast<buffsize_t>(LENGTH), 0,
-                                      static_cast<sockaddr *>(m_socket_address_info->ai_addr),
-                                      m_socket_address_info->ai_addrlen);
+                sent_bytes = ::sendto(
+                    m_socket,
+                    reinterpret_cast<const char*>(
+                        buffer
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    static_cast<buffsize_t>(LENGTH), 0,
+                    static_cast<sockaddr*>(m_socket_address_info->ai_addr),
+                    m_socket_address_info->ai_addrlen
+                );
             }
         }
 
-        // kTLS bypasses SSL_write_ex entirely (it's a plain send() above), so its error handling
-        // lives in the `else` below — this branch only covers the non-kTLS SSL_write_ex path.
+        // kTLS bypasses SSL_write_ex entirely (it's a plain send() above), so its error
+        // handling lives in the `else` below — this branch only covers the non-kTLS
+        // SSL_write_ex path.
         if (!m_ktls_tx) {
             if constexpr (Protocol == Protocol::TLS || Protocol == Protocol::QUIC) {
                 if (ssl_call_result <= 0) {
@@ -1805,14 +2244,20 @@ class Socket {
                     core::logger::warning(
                         "SocketLib",
                         "Send on socket `{}` would have blocked, no buffer space available",
-                        m_socket);
-                    core::events::publish("socket.send.would_block", {{"fd", std::to_string(m_socket)}});
+                        m_socket
+                    );
+                    core::events::publish(
+                        "socket.send.would_block", {{"fd", std::to_string(m_socket)}}
+                    );
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 }
-                core::logger::warning("SocketLib", "Socket `{}` critical failure in send() syscall",
-                                      m_socket);
-                core::events::publish("socket.send.critical_failure",
-                                      {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+                core::logger::warning(
+                    "SocketLib", "Socket `{}` critical failure in send() syscall", m_socket
+                );
+                core::events::publish(
+                    "socket.send.critical_failure",
+                    {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                );
                 return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
             }
         }
@@ -1838,66 +2283,84 @@ class Socket {
      * sync_send() for non-kTLS TLS.
      * @warning Requires `m_leverager` — without one, this also routes to `core::logger::fatal`.
      */
-    // bugprone-exception-escape: genuinely fixed, not NOLINT'd — the whole body below is wrapped
-    // in a top-level try/catch so nothing can escape this noexcept function. It has to stay
-    // noexcept: interfaces::io::AsyncSendable's requires-expression demands
+    // bugprone-exception-escape: genuinely fixed, not NOLINT'd — the whole body below is
+    // wrapped in a top-level try/catch so nothing can escape this noexcept function. It has to
+    // stay noexcept: interfaces::io::AsyncSendable's requires-expression demands
     // `{ sock.async_send(...) } noexcept -> std::same_as<void>`, and
     // io/flow/sender/async.cppm has `static_assert(AsyncSendable<Socket<TCP>, SocketStatus>)`,
     // which would stop compiling if this lost noexcept. What can actually throw here:
     // std::make_shared (QUIC branch), converting the completion lambdas to the leverager's
     // `completion_callback`/`std::function` (the type-erasing conversion can allocate), and the
     // leverager's own send()/sendmsg() calls (they queue through Context::submit_async(), which
-    // isn't noexcept). If any of that throws, `callback` may already be moved-from (empty) by the
-    // time we reach the catch — `if (callback)` on a move_only_function is a safe, well-defined
-    // check for that, so we only re-invoke it when it's still ours to call, and that
-    // re-invocation is itself guarded so a throwing callback can't escape either.
+    // isn't noexcept). If any of that throws, `callback` may already be moved-from (empty) by
+    // the time we reach the catch — `if (callback)` on a move_only_function is a safe,
+    // well-defined check for that, so we only re-invoke it when it's still ours to call, and
+    // that re-invocation is itself guarded so a throwing callback can't escape either.
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the three
     // TCP/TLS + UDP(addr) + UDP(no-addr) completion lambdas were byte-identical, so they're now
     // one shared complete_async_send() helper; the QUIC retry loop's SSL-error switch is now
     // handle_async_send_ssl_wait(). Both are private methods below, called instead of inlined.
-    void async_send(const std::byte *buffer, const std::size_t LENGTH,
-                    std::move_only_function<void(std::size_t, SocketStatus)> callback,
-                    AddressInfo *addr = nullptr, std::uint8_t iflags = 0) noexcept {
+    void async_send(
+        const std::byte* buffer,
+        const std::size_t LENGTH,
+        std::move_only_function<void(std::size_t, SocketStatus)> callback,
+        AddressInfo* addr = nullptr,
+        std::uint8_t iflags = 0
+    ) noexcept
+    {
         try {
             if (m_leverager) {
                 if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
-                    // Non-kTLS TLS can't do async send — SSL_write_ex's return semantics don't map
-                    // onto a single completion, so refuse instead of behaving weirdly.
+                    // Non-kTLS TLS can't do async send — SSL_write_ex's return semantics don't
+                    // map onto a single completion, so refuse instead of behaving weirdly.
                     if constexpr (Protocol == Protocol::TLS) {
                         if (!m_ktls_tx) {
-                            core::events::publish("socket.async_send.tls_without_ktls_unsupported",
-                                                  {{"fd", std::to_string(m_socket)}});
+                            core::events::publish(
+                                "socket.async_send.tls_without_ktls_unsupported",
+                                {{"fd", std::to_string(m_socket)}}
+                            );
                             core::logger::fatal(
-                                "SocketLib",
-                                "Async send is not supported for TLS sockets without kTLS enabled due "
-                                "to "
-                                "the complexity of handling SSL_write's various return conditions in "
-                                "an "
-                                "async context. Please enable kTLS for this socket to use async send.");
+                                "SocketLib", "Async send is not supported for TLS sockets "
+                                             "without kTLS enabled due "
+                                             "to "
+                                             "the complexity of handling SSL_write's various "
+                                             "return conditions in "
+                                             "an "
+                                             "async context. Please enable kTLS for this "
+                                             "socket to use async send."
+                            );
                         }
                     }
                     m_leverager->get().send(
                         m_socket, buffer, static_cast<unsigned>(LENGTH), 0,
-                        [this, callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
+                        [this,
+                         callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
                             complete_async_send(sent_bytes, callback);
                         },
-                        iflags);
+                        iflags
+                    );
                 } else if constexpr (Protocol == Protocol::UDP) {
                     // Explicit destination given vs falling back to this socket's own resolved
                     // endpoint — same sendmsg() plumbing either way, just a different msg_name;
-                    // these two cases used to be fully duplicated blocks (down to the completion
-                    // lambda), merged here into one shared iovec/msghdr/sendmsg call since only
-                    // the two msg_name/msg_namelen assignments actually differed.
+                    // these two cases used to be fully duplicated blocks (down to the
+                    // completion lambda), merged here into one shared iovec/msghdr/sendmsg call
+                    // since only the two msg_name/msg_namelen assignments actually differed.
                     iovec iov{};
-                    iov.iov_base = const_cast<std::byte *>(buffer);  // NOLINT(cppcoreguidelines-pro-type-const-cast) — iovec::iov_base is a plain (non-const) void* by POSIX definition; sendmsg() only reads it here, but the struct's field type forces the const_cast
+                    iov.iov_base = const_cast<std::byte*>(
+                        buffer
+                    ); // NOLINT(cppcoreguidelines-pro-type-const-cast) — iovec::iov_base is a
+                       // plain (non-const) void* by POSIX definition; sendmsg() only reads it
+                       // here, but the struct's field type forces the const_cast
                     iov.iov_len = LENGTH;
 
                     msghdr msg{};
                     if (addr != nullptr) {
-                        msg.msg_name = reinterpret_cast<sockaddr *>(&addr->get_data());  // FIXME(clang-tidy): reinterpret_cast usage
+                        msg.msg_name = reinterpret_cast<sockaddr*>(
+                            &addr->get_data()
+                        ); // FIXME(clang-tidy): reinterpret_cast usage
                         msg.msg_namelen = addr->get_size();
                     } else {
-                        msg.msg_name = static_cast<sockaddr *>(m_socket_address_info->ai_addr);
+                        msg.msg_name = static_cast<sockaddr*>(m_socket_address_info->ai_addr);
                         msg.msg_namelen = m_socket_address_info->ai_addrlen;
                     }
                     msg.msg_iov = &iov;
@@ -1905,10 +2368,12 @@ class Socket {
 
                     m_leverager->get().sendmsg(
                         m_socket, &msg, 0,
-                        [this, callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
+                        [this,
+                         callback = std::move(callback)](int sent_bytes, std::uint32_t) mutable {
                             complete_async_send(sent_bytes, callback);
                         },
-                        iflags);
+                        iflags
+                    );
                 } else if constexpr (Protocol == Protocol::QUIC) {
                     auto attempt = std::make_shared<std::function<void(int)>>();
                     *attempt = [this, buffer, LENGTH, callback = std::move(callback), iflags,
@@ -1924,8 +2389,9 @@ class Socket {
                 }
             } else {
                 core::events::publish("socket.leverager_not_set", {{"site", "async_send"}});
-                core::logger::fatal("SocketLib",
-                                    "m_leverager is not set so async funtion calls cannot be used");
+                core::logger::fatal(
+                    "SocketLib", "m_leverager is not set so async funtion calls cannot be used"
+                );
             }
         } catch (...) {
             // The actual diagnostic-logging/callback-recovery logic lives in
@@ -1936,7 +2402,6 @@ class Socket {
         }
     }
 
-
     /**
      * @brief Blocking receive into an output iterator, offset variant — advances `out` by
      * `start_offset` before writing, letting callers fill the tail of a larger buffer in
@@ -1944,38 +2409,45 @@ class Socket {
      * sync_send()'s mirror image.
      * @tparam Out an output iterator over `std::byte` (e.g. from a `std::vector<std::byte>` or
      * raw buffer).
-     * @param out destination iterator — advanced by `start_offset` before any bytes are written.
-     * @param length total logical buffer length; `length - start_offset` is the actual max bytes
-     * read this call.
+     * @param out destination iterator — advanced by `start_offset` before any bytes are
+     * written.
+     * @param length total logical buffer length; `length - start_offset` is the actual max
+     * bytes read this call.
      * @param start_offset how far into the logical buffer this call's data should land.
      * @param addr UDP-only: out-param filled with the sender's address.
      * @warning `MAX_LENGTH` (`length - start_offset`) is computed as `std::size_t` (unsigned),
-     * then checked with `if (MAX_LENGTH < 0)` — that comparison can never be true for an unsigned
-     * type. If `start_offset > length`, the subtraction wraps around to a huge value instead of
-     * going negative, and the intended bounds-check silently does nothing. Passing a bad offset
-     * doesn't get caught here the way the code implies it does.
+     * then checked with `if (MAX_LENGTH < 0)` — that comparison can never be true for an
+     * unsigned type. If `start_offset > length`, the subtraction wraps around to a huge value
+     * instead of going negative, and the intended bounds-check silently does nothing. Passing a
+     * bad offset doesn't get caught here the way the code implies it does.
      * @return bytes received alongside a status — same VALID/NON_BLOCKING_WOULD_HAVE_BLOCKED/
      * CLEANLY_DISCONNECTED/ERRORED contract as sync_send()'s return.
      */
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the SSL-error
-    // mapping switch is now map_receive_ssl_error(), a private method below shared with the other
-    // sync_receive() overload (the two switches were byte-identical); logic and ordering are
-    // unchanged.
-    template <std::output_iterator<std::byte> Out>
-    std::pair<std::size_t, SocketStatus> sync_receive(Out out, const std::size_t LENGTH,
-                                                      const std::size_t START_OFFSET = 0,
-                                                      AddressInfo *addr = nullptr) {
+    // mapping switch is now map_receive_ssl_error(), a private method below shared with the
+    // other sync_receive() overload (the two switches were byte-identical); logic and ordering
+    // are unchanged.
+    template<std::output_iterator<std::byte> Out>
+    std::pair<std::size_t, SocketStatus> sync_receive(
+        Out out,
+        const std::size_t LENGTH,
+        const std::size_t START_OFFSET = 0,
+        AddressInfo* addr = nullptr
+    )
+    {
         // Advance the destination iterator past the part of the buffer we're not filling this
         // call, then figure out how much room is actually left for the read.
         std::advance(out, START_OFFSET);
         const auto MAX_LENGTH = LENGTH - START_OFFSET;
         if (MAX_LENGTH < 0) {
-            core::logger::error("SocketLib",
-                                "Start offset {} is greater than the total buffer length {}",
-                                START_OFFSET, LENGTH);
-            core::events::publish("socket.receive.invalid_offset",
-                                  {{"start_offset", std::to_string(START_OFFSET)},
-                                   {"length", std::to_string(LENGTH)}});
+            core::logger::error(
+                "SocketLib", "Start offset {} is greater than the total buffer length {}",
+                START_OFFSET, LENGTH
+            );
+            core::events::publish(
+                "socket.receive.invalid_offset",
+                {{"start_offset", std::to_string(START_OFFSET)}, {"length", std::to_string(LENGTH)}}
+            );
             return std::make_pair(0, SocketStatus(VALUES::ERRORED));
         }
 
@@ -1984,26 +2456,53 @@ class Socket {
 
         // Dispatch the actual read per-protocol, mirroring sync_send()'s dispatch shape.
         if constexpr (Protocol == Protocol::TCP) {
-            received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                    static_cast<buffsize_t>(MAX_LENGTH), 0);
+            received_bytes = ::recv(
+                m_socket,
+                reinterpret_cast<char*>(
+                    std::to_address(out)
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                static_cast<buffsize_t>(MAX_LENGTH), 0
+            );
         } else if constexpr (Protocol == Protocol::TLS) {
             if (m_ktls_rx) {
-                received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        static_cast<buffsize_t>(MAX_LENGTH), 0);
+                received_bytes = ::recv(
+                    m_socket,
+                    reinterpret_cast<char*>(
+                        std::to_address(out)
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    static_cast<buffsize_t>(MAX_LENGTH), 0
+                );
             } else {
-                ssl_call_result = SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                              MAX_LENGTH, &received_bytes);
+                ssl_call_result = SSL_read_ex(
+                    m_ssl,
+                    reinterpret_cast<void*>(
+                        std::to_address(out)
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    MAX_LENGTH, &received_bytes
+                );
             }
         } else if constexpr (Protocol == Protocol::QUIC) {
-            ssl_call_result = SSL_read_ex(m_ssl, reinterpret_cast<void *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                          MAX_LENGTH, &received_bytes);
+            ssl_call_result = SSL_read_ex(
+                m_ssl,
+                reinterpret_cast<void*>(
+                    std::to_address(out)
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                MAX_LENGTH, &received_bytes
+            );
         } else if constexpr (Protocol == Protocol::UDP) {
             m_socket_input_buffer_length = sizeof(m_socket_input_buffer);
 
-            received_bytes = ::recvfrom(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        static_cast<buffsize_t>(MAX_LENGTH), 0,
-                                        reinterpret_cast<sockaddr *>(&m_socket_input_buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        &m_socket_input_buffer_length);
+            received_bytes = ::recvfrom(
+                m_socket,
+                reinterpret_cast<char*>(
+                    std::to_address(out)
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                static_cast<buffsize_t>(MAX_LENGTH), 0,
+                reinterpret_cast<sockaddr*>(
+                    &m_socket_input_buffer
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                &m_socket_input_buffer_length
+            );
             if (addr) {
                 addr->set(m_socket_input_buffer, m_socket_input_buffer_length);
             }
@@ -2025,14 +2524,20 @@ class Socket {
                 if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                     core::logger::warning(
                         "SocketLib", "Receive on socket `{}` would have blocked, no data available",
-                        m_socket);
-                    core::events::publish("socket.receive.would_block", {{"fd", std::to_string(m_socket)}});
+                        m_socket
+                    );
+                    core::events::publish(
+                        "socket.receive.would_block", {{"fd", std::to_string(m_socket)}}
+                    );
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 }
-                core::logger::warning("SocketLib", "Socket `{}` critical failure in recv() syscall",
-                                      m_socket);
-                core::events::publish("socket.receive.critical_failure",
-                                      {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+                core::logger::warning(
+                    "SocketLib", "Socket `{}` critical failure in recv() syscall", m_socket
+                );
+                core::events::publish(
+                    "socket.receive.critical_failure",
+                    {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                );
                 return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
             }
 
@@ -2046,7 +2551,8 @@ class Socket {
 
     /**
      * @brief Blocking receive overload, wait-mode variant — trades the offset param from the
-     * other sync_receive() overload for a `WaitMode` toggle between "wait for the whole message"
+     * other sync_receive() overload for a `WaitMode` toggle between "wait for the whole
+     * message"
      * (`MSG_WAITALL`) and "grab whatever's arrived" (temporarily flips non-blocking).
      * @tparam Out an output iterator over `std::byte`.
      * @param out destination iterator.
@@ -2067,14 +2573,18 @@ class Socket {
     // flag setup (MSG_WAITALL vs MSG_DONTWAIT/set_non_blocking) was the same shape 3 times over
     // (TCP, TLS-with-kTLS, UDP), now shared via prepare_receive_wait_flags(); the SSL-error
     // mapping switch is now map_receive_ssl_error(), the same private method the other
-    // sync_receive() overload uses (the two switches were byte-identical). Logic and ordering are
-    // unchanged; the post-call Windows-only `set_non_blocking(false)` restore stays inline per
-    // branch since UDP's original code never had that restore step (an existing TCP/TLS-vs-UDP
-    // asymmetry, not something this pass should silently "fix").
-    template <std::output_iterator<std::byte> Out>
-    std::pair<std::size_t, SocketStatus> sync_receive(Out out, const std::size_t LENGTH,
-                                                      WaitMode wait = WaitMode::AS_SOON_AS_ARRIVED,
-                                                      AddressInfo *addr = nullptr) {
+    // sync_receive() overload uses (the two switches were byte-identical). Logic and ordering
+    // are unchanged; the post-call Windows-only `set_non_blocking(false)` restore stays inline
+    // per branch since UDP's original code never had that restore step (an existing
+    // TCP/TLS-vs-UDP asymmetry, not something this pass should silently "fix").
+    template<std::output_iterator<std::byte> Out>
+    std::pair<std::size_t, SocketStatus> sync_receive(
+        Out out,
+        const std::size_t LENGTH,
+        WaitMode wait = WaitMode::AS_SOON_AS_ARRIVED,
+        AddressInfo* addr = nullptr
+    )
+    {
         std::size_t received_bytes{0};
         int ssl_call_result{0};
 
@@ -2085,8 +2595,13 @@ class Socket {
         if constexpr (Protocol == Protocol::TCP) {
             int flags = prepare_receive_wait_flags(wait, MSG_WAITALL);
 
-            received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                    static_cast<buffsize_t>(LENGTH), flags);
+            received_bytes = ::recv(
+                m_socket,
+                reinterpret_cast<char*>(
+                    std::to_address(out)
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                static_cast<buffsize_t>(LENGTH), flags
+            );
 
             if constexpr (IS_WINDOWS) {
                 set_non_blocking(false);
@@ -2097,8 +2612,13 @@ class Socket {
             if (m_ktls_rx) {
                 int flags = prepare_receive_wait_flags(wait, MSG_WAITALL);
 
-                received_bytes = ::recv(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        static_cast<buffsize_t>(LENGTH), flags);
+                received_bytes = ::recv(
+                    m_socket,
+                    reinterpret_cast<char*>(
+                        std::to_address(out)
+                    ), // FIXME(clang-tidy): reinterpret_cast usage
+                    static_cast<buffsize_t>(LENGTH), flags
+                );
 
                 if constexpr (IS_WINDOWS) {
                     set_non_blocking(false);
@@ -2108,13 +2628,14 @@ class Socket {
                 // SSL_read_ex can hand back less than `length` instead of insisting on a full
                 // fill, then restore the mode afterward.
                 ssl_call_result = read_ssl_with_partial_mode_toggle(
-                    wait, reinterpret_cast<void *>(std::to_address(out)), LENGTH, received_bytes);  // FIXME(clang-tidy): reinterpret_cast usage
+                    wait, reinterpret_cast<void*>(std::to_address(out)), LENGTH, received_bytes
+                ); // FIXME(clang-tidy): reinterpret_cast usage
             }
-
         } else if constexpr (Protocol == Protocol::QUIC) {
             // Same partial-write-mode toggle as non-kTLS TLS above.
             ssl_call_result = read_ssl_with_partial_mode_toggle(
-                wait, reinterpret_cast<void *>(std::to_address(out)), LENGTH, received_bytes);  // FIXME(clang-tidy): reinterpret_cast usage
+                wait, reinterpret_cast<void*>(std::to_address(out)), LENGTH, received_bytes
+            ); // FIXME(clang-tidy): reinterpret_cast usage
         } else if constexpr (Protocol == Protocol::UDP) {
             m_socket_input_buffer_length = sizeof(m_socket_input_buffer);
 
@@ -2124,10 +2645,17 @@ class Socket {
             // never sets MSG_WAITALL, matching the original UDP-only behavior exactly.
             int flags = prepare_receive_wait_flags(wait, 0);
 
-            received_bytes = ::recvfrom(m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        static_cast<buffsize_t>(LENGTH), flags,
-                                        reinterpret_cast<sockaddr *>(&m_socket_input_buffer),  // FIXME(clang-tidy): reinterpret_cast usage
-                                        &m_socket_input_buffer_length);
+            received_bytes = ::recvfrom(
+                m_socket,
+                reinterpret_cast<char*>(
+                    std::to_address(out)
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                static_cast<buffsize_t>(LENGTH), flags,
+                reinterpret_cast<sockaddr*>(
+                    &m_socket_input_buffer
+                ), // FIXME(clang-tidy): reinterpret_cast usage
+                &m_socket_input_buffer_length
+            );
             if (addr) {
                 addr->set(m_socket_input_buffer, m_socket_input_buffer_length);
             }
@@ -2146,14 +2674,20 @@ class Socket {
                 if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                     core::logger::warning(
                         "SocketLib", "Receive on socket `{}` would have blocked, no data available",
-                        m_socket);
-                    core::events::publish("socket.receive.would_block", {{"fd", std::to_string(m_socket)}});
+                        m_socket
+                    );
+                    core::events::publish(
+                        "socket.receive.would_block", {{"fd", std::to_string(m_socket)}}
+                    );
                     return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 }
-                core::logger::warning("SocketLib", "Socket `{}` critical failure in recv() syscall",
-                                      m_socket);
-                core::events::publish("socket.receive.critical_failure",
-                                      {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+                core::logger::warning(
+                    "SocketLib", "Socket `{}` critical failure in recv() syscall", m_socket
+                );
+                core::events::publish(
+                    "socket.receive.critical_failure",
+                    {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                );
                 return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
             }
             core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
@@ -2165,60 +2699,74 @@ class Socket {
     }
 
     /**
-     * @brief Async counterpart to sync_receive() — routes through the leverager for TCP/kTLS-TLS
-     * and UDP, or a self-re-arming SSL_read_ex retry loop for QUIC (non-kTLS TLS is rejected, see
-     * the warning, mirroring async_send()).
+     * @brief Async counterpart to sync_receive() — routes through the leverager for
+     * TCP/kTLS-TLS and UDP, or a self-re-arming SSL_read_ex retry loop for QUIC (non-kTLS TLS
+     * is rejected, see the warning, mirroring async_send()).
      * @tparam Out an output iterator over `std::byte`.
      * @param out destination iterator — caller-owned till `callback` fires.
      * @param length max bytes to receive into `out`.
      * @param callback invoked with the bytes received and resulting status.
      * @param iflags forwarded to the underlying leverager recv()/recvmsg() call.
-     * @warning TLS sockets without kTLS enabled hit `core::logger::fatal` instead of receiving —
-     * same reasoning as async_send(). Requires `m_leverager` — without one, this also routes to
-     * `core::logger::fatal`.
+     * @warning TLS sockets without kTLS enabled hit `core::logger::fatal` instead of receiving
+     * — same reasoning as async_send(). Requires `m_leverager` — without one, this also routes
+     * to `core::logger::fatal`.
      */
     // bugprone-exception-escape: genuinely fixed, not NOLINT'd — same reasoning and pattern as
-    // async_send() above: the whole body is wrapped in a top-level try/catch, funneling into the
-    // shared report_async_io_exception() helper on any exception, so nothing can escape. Stays
-    // noexcept because interfaces::io::AsyncReceivable's requires-expression demands
+    // async_send() above: the whole body is wrapped in a top-level try/catch, funneling into
+    // the shared report_async_io_exception() helper on any exception, so nothing can escape.
+    // Stays noexcept because interfaces::io::AsyncReceivable's requires-expression demands
     // `{ sock.async_receive(...) } noexcept -> std::same_as<void>`.
-    // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the TCP/TLS and
-    // UDP completion lambdas were byte-identical, so they're now one shared
+    // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the TCP/TLS
+    // and UDP completion lambdas were byte-identical, so they're now one shared
     // complete_async_receive() helper; the QUIC retry loop's attempt lambda and its SSL-error
-    // switch are now attempt_async_quic_receive() and handle_async_receive_ssl_wait(), mirroring
-    // async_send()'s decomposition.
-    template <std::output_iterator<std::byte> Out>
-    void async_receive(Out out, const std::size_t LENGTH,
-                       std::move_only_function<void(std::size_t, SocketStatus)> callback,
-                       std::uint8_t iflags = 0) noexcept {
+    // switch are now attempt_async_quic_receive() and handle_async_receive_ssl_wait(),
+    // mirroring async_send()'s decomposition.
+    template<std::output_iterator<std::byte> Out>
+    void async_receive(
+        Out out,
+        const std::size_t LENGTH,
+        std::move_only_function<void(std::size_t, SocketStatus)> callback,
+        std::uint8_t iflags = 0
+    ) noexcept
+    {
         try {
             if (m_leverager) {
                 if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
-                    // Same non-kTLS-TLS refusal as async_send() — no clean way to map SSL_read_ex
-                    // onto a single async completion without kernel offload.
+                    // Same non-kTLS-TLS refusal as async_send() — no clean way to map
+                    // SSL_read_ex onto a single async completion without kernel offload.
                     if constexpr (Protocol == Protocol::TLS) {
                         if (!m_ktls_rx) {
-                            core::events::publish("socket.async_receive.tls_without_ktls_unsupported",
-                                                  {{"fd", std::to_string(m_socket)}});
-                            core::logger::fatal("SocketLib", "Async receive is not supported for TLS "
-                                                             "sockets without kTLS enabled due to "
-                                                             "the complexity of handling SSL_write's "
-                                                             "various return conditions in an "
-                                                             "async context. Please enable kTLS for "
-                                                             "this socket to use async receive.");
+                            core::events::publish(
+                                "socket.async_receive.tls_without_ktls_unsupported",
+                                {{"fd", std::to_string(m_socket)}}
+                            );
+                            core::logger::fatal(
+                                "SocketLib", "Async receive is not supported for TLS "
+                                             "sockets without kTLS enabled due to "
+                                             "the complexity of handling SSL_write's "
+                                             "various return conditions in an "
+                                             "async context. Please enable kTLS for "
+                                             "this socket to use async receive."
+                            );
                         }
                     }
                     m_leverager->get().recv(
-                        m_socket, reinterpret_cast<char *>(std::to_address(out)),  // FIXME(clang-tidy): reinterpret_cast usage
+                        m_socket,
+                        reinterpret_cast<char*>(
+                            std::to_address(out)
+                        ), // FIXME(clang-tidy): reinterpret_cast usage
                         static_cast<unsigned>(LENGTH), 0,
-                        [this, callback = std::move(callback)](int received_bytes,
-                                                               std::uint32_t) mutable {
+                        [this, callback =
+                                   std::move(callback)](int received_bytes, std::uint32_t) mutable {
                             complete_async_receive(received_bytes, callback);
                         },
-                        iflags);
+                        iflags
+                    );
                 } else if constexpr (Protocol == Protocol::UDP) {
                     iovec iov{};
-                    iov.iov_base = reinterpret_cast<char *>(std::to_address(out));  // FIXME(clang-tidy): reinterpret_cast usage
+                    iov.iov_base = reinterpret_cast<char*>(
+                        std::to_address(out)
+                    ); // FIXME(clang-tidy): reinterpret_cast usage
                     iov.iov_len = LENGTH;
 
                     msghdr msg{};
@@ -2229,17 +2777,22 @@ class Socket {
 
                     m_leverager->get().recvmsg(
                         m_socket, &msg, 0,
-                        [this, callback = std::move(callback)](int received_bytes,
-                                                               std::uint32_t) mutable {
+                        [this, callback =
+                                   std::move(callback)](int received_bytes, std::uint32_t) mutable {
                             complete_async_receive(received_bytes, callback);
                         },
-                        iflags);
+                        iflags
+                    );
                 } else if constexpr (Protocol == Protocol::QUIC) {
-                    auto *data_ptr = reinterpret_cast<char *>(std::to_address(out));  // FIXME(clang-tidy): reinterpret_cast usage
+                    auto* data_ptr = reinterpret_cast<char*>(
+                        std::to_address(out)
+                    ); // FIXME(clang-tidy): reinterpret_cast usage
                     auto attempt = std::make_shared<std::function<void(int)>>();
                     *attempt = [this, data_ptr, LENGTH, callback = std::move(callback), iflags,
                                 attempt](int res, std::uint32_t) mutable {
-                        attempt_async_quic_receive(res, data_ptr, LENGTH, attempt, callback, iflags);
+                        attempt_async_quic_receive(
+                            res, data_ptr, LENGTH, attempt, callback, iflags
+                        );
                     };
 
                     // Call to jumpstart the async receive process
@@ -2250,8 +2803,9 @@ class Socket {
                 }
             } else {
                 core::events::publish("socket.leverager_not_set", {{"site", "async_receive"}});
-                core::logger::fatal("SocketLib",
-                                    "m_leverager is not set so async funtion calls cannot be used");
+                core::logger::fatal(
+                    "SocketLib", "m_leverager is not set so async funtion calls cannot be used"
+                );
             }
         } catch (...) {
             report_async_io_exception("async_receive", callback);
@@ -2263,12 +2817,14 @@ class Socket {
      * the real cleanup logic the dtor and move-assign-leak warning both reference.
      * @note Only fires if `m_socket != INVALID_SOCKET` — calling this on an already-closed or
      * default-constructed Socket is a safe no-op, no double-close risk.
-     * @note Minor logging quirk: `m_socket` gets reset to `INVALID_SOCKET` *before* the trailing
-     * `core::logger::debug("socket {} closed", m_socket)` call, so the debug line always logs
+     * @note Minor logging quirk: `m_socket` gets reset to `INVALID_SOCKET` *before* the
+     * trailing `core::logger::debug("socket {} closed", m_socket)` call, so the debug line
+     * always logs
      * `-1`/`INVALID_SOCKET` rather than the fd that actually got closed. Cosmetic, not a
      * functional bug.
      */
-    void sync_close() {
+    void sync_close()
+    {
         // No-op on an already-closed/default-constructed Socket — nothing to tear down.
         if (m_socket != INVALID_SOCKET) {
             // TLS/QUIC: mark both directions shut, run the SSL shutdown handshake, then free
@@ -2291,11 +2847,14 @@ class Socket {
                 }
             }
             // Only close the actual fd if we own it outright — non-root QUIC connections share
-            // their fd with the root socket, closing it here would break every other connection.
+            // their fd with the root socket, closing it here would break every other
+            // connection.
             if constexpr (Protocol != Protocol::QUIC || RootSocket) {
                 if (closesocket(m_socket) == SOCKET_ERROR) {
                     core::logger::error("SocketLib", "Socket `{}` failed to close", m_socket);
-                    core::events::publish("socket.close_failed", {{"fd", std::to_string(m_socket)}});
+                    core::events::publish(
+                        "socket.close_failed", {{"fd", std::to_string(m_socket)}}
+                    );
                 }
             }
 
@@ -2310,23 +2869,25 @@ class Socket {
      * then queues the actual fd close through the leverager instead of blocking on it.
      * @param callback invoked with `true`/`false` once the close completes.
      * @param iflags forwarded to the leverager's close() call.
-     * @warning For non-root QUIC connections (shared fd, skipped per the dtor's note), `callback`
-     * never fires at all — the whole leverager-close block, callback included, sits inside the
-     * `Protocol != Protocol::QUIC || RootSocket` `if constexpr` guard. A caller awaiting the
-     * callback on a non-root QUIC socket will hang forever. Same for a Socket whose `m_socket` is
-     * already `INVALID_SOCKET` — the outer `if` skips everything, callback included.
+     * @warning For non-root QUIC connections (shared fd, skipped per the dtor's note),
+     * `callback` never fires at all — the whole leverager-close block, callback included, sits
+     * inside the `Protocol != Protocol::QUIC || RootSocket` `if constexpr` guard. A caller
+     * awaiting the callback on a non-root QUIC socket will hang forever. Same for a Socket
+     * whose `m_socket` is already `INVALID_SOCKET` — the outer `if` skips everything, callback
+     * included.
      */
     // bugprone-exception-escape: not `noexcept` (see below) — this method isn't a virtual
-    // override, and the only concept that even names async_close() is interfaces::io::AsyncClose,
-    // which requires a zero-argument `sock.async_close()` call; this overload takes a mandatory
-    // `callback` with no default, so it can never satisfy that concept regardless of the
-    // noexcept qualifier (confirmed no static_assert anywhere in the tree checks AsyncClose
-    // against Socket, and the two call sites that invoke `.async_close()` with no arguments —
-    // Sender/Receiver's on_released() — are templates never instantiated with Socket as the
-    // Worker type). So nothing actually depends on this staying noexcept; dropping it is the
-    // genuine fix, since the leverager's close() call and the user-supplied `callback` can both
-    // legitimately throw.
-    void async_close(std::function<void(bool)> callback, std::uint8_t iflags = 0) {
+    // override, and the only concept that even names async_close() is
+    // interfaces::io::AsyncClose, which requires a zero-argument `sock.async_close()` call;
+    // this overload takes a mandatory `callback` with no default, so it can never satisfy that
+    // concept regardless of the noexcept qualifier (confirmed no static_assert anywhere in the
+    // tree checks AsyncClose against Socket, and the two call sites that invoke
+    // `.async_close()` with no arguments — Sender/Receiver's on_released() — are templates
+    // never instantiated with Socket as the Worker type). So nothing actually depends on this
+    // staying noexcept; dropping it is the genuine fix, since the leverager's close() call and
+    // the user-supplied `callback` can both legitimately throw.
+    void async_close(std::function<void(bool)> callback, std::uint8_t iflags = 0)
+    {
         if (m_socket != INVALID_SOCKET) {
             // Same SSL/BIO teardown as sync_close() — this part's still synchronous, only the
             // actual fd close below gets queued through the leverager.
@@ -2355,9 +2916,12 @@ class Socket {
                     m_socket,
                     [this, callback = std::move(callback)](int res, std::uint32_t) mutable {
                         if (res < 0) {
-                            core::logger::warning("SocketLib", "Socket `{}` failed to close",
-                                                  m_socket);
-                            core::events::publish("socket.close_failed", {{"fd", std::to_string(m_socket)}});
+                            core::logger::warning(
+                                "SocketLib", "Socket `{}` failed to close", m_socket
+                            );
+                            core::events::publish(
+                                "socket.close_failed", {{"fd", std::to_string(m_socket)}}
+                            );
                             callback(false);
                             return;
                         }
@@ -2365,7 +2929,8 @@ class Socket {
                         m_socket = INVALID_SOCKET;
                         callback(true);
                     },
-                    iflags);
+                    iflags
+                );
             }
         }
     }
@@ -2373,21 +2938,25 @@ class Socket {
     /**
      * @brief Issues a synchronous `SHUT_RDWR` on the socket — compile-time skipped for non-root
      * QUIC connections (shared fd, see the dtor's note).
-     * @warning Actual bug, not a footgun: the `core::logger::fatal("Shutdown is not supported for
-     * QUIC or non-root sockets")` call at the bottom sits **outside** the `if constexpr` guard, so
-     * it runs unconditionally on every single call — including a perfectly normal TCP/UDP/TLS
-     * shutdown that just succeeded two lines above. Every call to this method terminates the
-     * process (per this codebase's `logger::fatal` convention) after doing its real work, not
-     * just the QUIC-non-root case the message claims. Looks like the fatal call was meant to live
-     * inside an `else` branch of the `if constexpr` and got left outside it by mistake.
+     * @warning Actual bug, not a footgun: the `core::logger::fatal("Shutdown is not supported
+     * for QUIC or non-root sockets")` call at the bottom sits **outside** the `if constexpr`
+     * guard, so it runs unconditionally on every single call — including a perfectly normal
+     * TCP/UDP/TLS shutdown that just succeeded two lines above. Every call to this method
+     * terminates the process (per this codebase's `logger::fatal` convention) after doing its
+     * real work, not just the QUIC-non-root case the message claims. Looks like the fatal call
+     * was meant to live inside an `else` branch of the `if constexpr` and got left outside it
+     * by mistake.
      */
-    void shutdown() {
+    void shutdown()
+    {
         // Root-owned fd only (mirrors sync_close()'s guard) — issue the actual SHUT_RDWR.
         if constexpr (Protocol != Protocol::QUIC || RootSocket) {
             if (m_socket != INVALID_SOCKET) {
                 if (::shutdown(m_socket, SHUT_RDWR) == SOCKET_ERROR) {
                     core::logger::error("SocketLib", "Socket `{}` failed to shutdown", m_socket);
-                    core::events::publish("socket.shutdown_failed", {{"fd", std::to_string(m_socket)}});
+                    core::events::publish(
+                        "socket.shutdown_failed", {{"fd", std::to_string(m_socket)}}
+                    );
                 }
 
                 core::logger::debug("SocketLib", "socket {} shutdown", m_socket);
@@ -2396,25 +2965,28 @@ class Socket {
 
         // See the @warning above — this fatal() sits outside the if constexpr, so it fires on
         // every call, including ones that just shut down cleanly.
-        core::events::publish("socket.shutdown_unconditional_fatal", {{"fd", std::to_string(m_socket)}});
+        core::events::publish(
+            "socket.shutdown_unconditional_fatal", {{"fd", std::to_string(m_socket)}}
+        );
         core::logger::fatal("SocketLib", "Shutdown is not supported for QUIC or non-root sockets");
     }
 
     /**
-     * @brief Async counterpart to shutdown() — queues the shutdown through the leverager instead
-     * of blocking.
+     * @brief Async counterpart to shutdown() — queues the shutdown through the leverager
+     * instead of blocking.
      * @warning Same unconditional-`fatal`-at-the-bottom bug as shutdown() — see its warning.
      * Every call here also terminates the process after queuing (or skipping) the shutdown op.
      * @note The `if constexpr` guard here is `Protocol != Protocol::QUIC || !RootSocket` — the
-     * inverse condition from shutdown()'s `Protocol != Protocol::QUIC || RootSocket`. That means
-     * this one runs its body for QUIC *non-root* sockets and skips QUIC *root* sockets, backwards
-     * from shutdown()'s root/non-root split. Worth confirming that asymmetry is intentional before
-     * relying on it.
-     * @param callback invoked with `true`/`false` once the shutdown completes (only reachable if
-     * the process survives the trailing fatal() — see the warning).
+     * inverse condition from shutdown()'s `Protocol != Protocol::QUIC || RootSocket`. That
+     * means this one runs its body for QUIC *non-root* sockets and skips QUIC *root* sockets,
+     * backwards from shutdown()'s root/non-root split. Worth confirming that asymmetry is
+     * intentional before relying on it.
+     * @param callback invoked with `true`/`false` once the shutdown completes (only reachable
+     * if the process survives the trailing fatal() — see the warning).
      * @param iflags forwarded to the leverager's shutdown() call.
      */
-    void async_shutdown(std::function<void(bool)> callback, std::uint8_t iflags = 0) {
+    void async_shutdown(std::function<void(bool)> callback, std::uint8_t iflags = 0)
+    {
         // Note the inverted guard vs shutdown() — see the @note above on that asymmetry.
         if constexpr (Protocol != Protocol::QUIC || !RootSocket) {
             if (m_socket != INVALID_SOCKET) {
@@ -2422,21 +2994,27 @@ class Socket {
                     m_socket, SHUT_RDWR,
                     [this, callback = std::move(callback)](int res, std::uint32_t) mutable {
                         if (res < 0) {
-                            core::logger::warning("SocketLib", "Socket `{}` failed to shutdown",
-                                                  m_socket);
-                            core::events::publish("socket.shutdown_failed", {{"fd", std::to_string(m_socket)}});
+                            core::logger::warning(
+                                "SocketLib", "Socket `{}` failed to shutdown", m_socket
+                            );
+                            core::events::publish(
+                                "socket.shutdown_failed", {{"fd", std::to_string(m_socket)}}
+                            );
                             callback(false);
                             return;
                         }
                         core::logger::debug("SocketLib", "socket {} shutdown", m_socket);
                         callback(true);
                     },
-                    iflags);
+                    iflags
+                );
             }
         }
 
         // Same unconditional-fatal quirk as shutdown() — see its @warning.
-        core::events::publish("socket.shutdown_unconditional_fatal", {{"fd", std::to_string(m_socket)}});
+        core::events::publish(
+            "socket.shutdown_unconditional_fatal", {{"fd", std::to_string(m_socket)}}
+        );
         core::logger::fatal("SocketLib", "Shutdown is not supported for QUIC or non-root sockets");
     }
 
@@ -2444,32 +3022,43 @@ class Socket {
      * @brief Grabs the endpoint this socket was constructed/connected against.
      * @return a const reference to `m_endpoint`.
      */
-    [[nodiscard]] const Endpoint &get_endpoint() const noexcept { return m_endpoint; }
+    [[nodiscard]] const Endpoint& get_endpoint() const noexcept
+    {
+        return m_endpoint;
+    }
+
     /**
      * @brief Mutable overload of get_endpoint().
      * @return a mutable reference to `m_endpoint`.
      */
-    Endpoint &get_endpoint() noexcept { return m_endpoint; }
+    Endpoint& get_endpoint() noexcept
+    {
+        return m_endpoint;
+    }
 
     /**
      * @brief Grabs the *peer* endpoint a datagram actually arrived from — different from
      * get_endpoint() for UDP, where the socket's own configured endpoint and the last packet's
      * sender can be different addresses.
-     * @warning Only TCP and UDP are handled. For TLS/QUIC there's no `if constexpr` branch and no
-     * trailing `return`, so this falls off the end of a non-void function — undefined behavior,
-     * same class of bug as SocketStatus get_status() above. Don't call this on a TLS/QUIC socket.
+     * @warning Only TCP and UDP are handled. For TLS/QUIC there's no `if constexpr` branch and
+     * no trailing `return`, so this falls off the end of a non-void function — undefined
+     * behavior, same class of bug as SocketStatus get_status() above. Don't call this on a
+     * TLS/QUIC socket.
      * @return get_endpoint() for TCP; the sender address decoded from `m_socket_input_buffer`
      * (populated by the last sync_receive()/async_receive() UDP call) for UDP; undefined
      * otherwise.
      */
-    [[nodiscard]] Endpoint get_recived_endpoint() const {
+    [[nodiscard]] Endpoint get_recived_endpoint() const
+    {
         // TCP's peer never changes mid-connection, so the socket's own endpoint is the answer.
         if constexpr (Protocol == Protocol::TCP) {
             return get_endpoint();
         } else if constexpr (Protocol == Protocol::UDP) {
             // UDP: decode whoever the *last* datagram actually came from, which can differ
             // packet to packet.
-            const auto *addr = reinterpret_cast<const SOCKADDR *>(&m_socket_input_buffer);  // FIXME(clang-tidy): reinterpret_cast usage
+            const auto* addr = reinterpret_cast<const SOCKADDR*>(
+                &m_socket_input_buffer
+            ); // FIXME(clang-tidy): reinterpret_cast usage
             return Endpoint{addr};
         }
     }
@@ -2481,11 +3070,14 @@ class Socket {
      * negative value — which shouldn't happen from `FIONREAD` but isn't distinguished from
      * "genuinely zero pending" if it did).
      */
-    [[nodiscard]] std::size_t get_pending_bytes() const {
+    [[nodiscard]] std::size_t get_pending_bytes() const
+    {
         ioctl_setting pending_bytes = 0;
         if (ioctlsocket(m_socket, FIONREAD, &pending_bytes) < 0) {
             core::logger::error("SocketLib", "Failed to get pending bytes");
-            core::events::publish("socket.get_pending_bytes_failed", {{"fd", std::to_string(m_socket)}});
+            core::events::publish(
+                "socket.get_pending_bytes_failed", {{"fd", std::to_string(m_socket)}}
+            );
         }
 
         core::logger::debug("SocketLib", "socket {} pending {} bytes", m_socket, pending_bytes);
@@ -2510,10 +3102,11 @@ class Socket {
      * entry that'll confuse whatever parses it downstream. Real inconsistency between the two
      * ALPN-setting methods worth fixing.
      */
-    void set_alpn_protos(const std::vector<std::string> &protocols) {
+    void set_alpn_protos(const std::vector<std::string>& protocols)
+    {
         // Full rebuild — wipe whatever ALPN wire format was there before.
         m_alpn_wire_format.clear();
-        for (const auto &proto : protocols) {
+        for (const auto& proto: protocols) {
             // See the @warning above — an oversized name only logs here, it doesn't skip the
             // entry, so the length prefix below can desync from the real byte count.
             if (proto.length() > 255) {
@@ -2528,13 +3121,14 @@ class Socket {
     }
 
     /**
-     * @brief Appends one more ALPN protocol name onto the existing `m_alpn_wire_format`, without
-     * touching what's already there — the incremental counterpart to set_alpn_protos().
+     * @brief Appends one more ALPN protocol name onto the existing `m_alpn_wire_format`,
+     * without touching what's already there — the incremental counterpart to set_alpn_protos().
      * @param ALPN the protocol name to add.
      * @note Correctly bails out (`return`) on an empty or >255-byte name, unlike
      * set_alpn_protos()'s loop — see that method's warning for the inconsistency.
      */
-    void add_alpn_proto(const std::string_view ALPN) {
+    void add_alpn_proto(const std::string_view ALPN)
+    {
         // Unlike set_alpn_protos()'s loop, this one actually bails on a bad name instead of
         // pushing a desynced entry.
         if (ALPN.empty() || ALPN.length() > 255) {
@@ -2550,19 +3144,28 @@ class Socket {
 
     /**
      * @brief Sets whether a client-side TLS handshake (`setup_tls()`) requires and verifies the
-     * peer's certificate against the default trust store. Must be called before `sync_connect()`
-     * /`async_connect()` — `setup_tls()` reads this flag once, right when it builds `m_ssl_ctx`.
+     * peer's certificate against the default trust store. Must be called before
+     * `sync_connect()`
+     * /`async_connect()` — `setup_tls()` reads this flag once, right when it builds
+     * `m_ssl_ctx`.
      * @param verify `false` to set `SSL_VERIFY_NONE` instead of `SSL_VERIFY_PEER` — needed for
      * connecting to a self-signed/dev cert that isn't in the system trust store; `true` (the
      * default) keeps normal peer verification.
      */
-    void set_verify_peer(bool verify) noexcept { m_verify_peer = verify; }
+    void set_verify_peer(bool verify) noexcept
+    {
+        m_verify_peer = verify;
+    }
 
     /**
      * @brief Grabs the compile-time protocol this Socket instantiation is bound to.
      * @return the `Protocol` template parameter's value.
      */
-    static enum Protocol get_protocol() noexcept { return Protocol; }
+    static enum Protocol get_protocol() noexcept
+    {
+        return Protocol;
+    }
+
     /**
      * @brief Grabs the raw native socket handle, mutably.
      * @warning Handing out a mutable reference to the owned handle means a caller can reassign
@@ -2570,45 +3173,62 @@ class Socket {
      * one) — there's no encapsulation protecting ownership here.
      * @return a mutable reference to `m_socket`.
      */
-    SOCKET &get_fd() noexcept { return m_socket; }
+    SOCKET& get_fd() noexcept
+    {
+        return m_socket;
+    }
+
     /**
      * @brief Const overload of get_fd().
      * @return a const reference to `m_socket`.
      */
-    [[nodiscard]] const SOCKET &get_fd() const noexcept { return m_socket; }
+    [[nodiscard]] const SOCKET& get_fd() const noexcept
+    {
+        return m_socket;
+    }
 
     /**
      * @brief Identity comparison purely on the native fd value.
      * @param other the socket to compare against.
      * @return `true` if both sockets wrap the same native fd.
      */
-    constexpr bool operator==(const Socket &other) const noexcept {
+    constexpr bool operator==(const Socket& other) const noexcept
+    {
         return m_socket == other.m_socket;
     }
+
     /**
      * @brief Checks whether this Socket wraps a real (non-`INVALID_SOCKET`) handle.
      * @return `true` if the underlying fd isn't `INVALID_SOCKET`.
      */
-    [[nodiscard]] bool is_valid() const noexcept { return m_socket != INVALID_SOCKET; }
+    [[nodiscard]] bool is_valid() const noexcept
+    {
+        return m_socket != INVALID_SOCKET;
+    }
 
     /**
      * @brief Bool-conversion shorthand for is_valid() — bet, lets call sites write
      * `if (socket) { ... }` directly.
      * @return `true` if the socket is valid.
      */
-    operator bool() const noexcept { return is_valid(); }
+    operator bool() const noexcept
+    {
+        return is_valid();
+    }
 
-  private:
+private:
     /**
-     * @brief Body of async_connect()'s "connect landed" branch — layers TLS/QUIC setup on top of
-     * a successful raw connect same as sync_connect(), then reports the final status through
+     * @brief Body of async_connect()'s "connect landed" branch — layers TLS/QUIC setup on top
+     * of a successful raw connect same as sync_connect(), then reports the final status through
      * `callback`. Pulled out to its own method purely to bring async_connect()'s cognitive
      * complexity down; logic and ordering are unchanged from the original inline code.
      * @param addr the resolved address the successful connect landed against.
      * @param callback the caller's async_connect() callback.
      */
-    void complete_async_connect(addrinfo *addr,
-                                std::move_only_function<void(SocketStatus)> &callback) {
+    void complete_async_connect(
+        addrinfo* addr, std::move_only_function<void(SocketStatus)>& callback
+    )
+    {
         m_socket_address_info = addr;
 
         if constexpr (Protocol == Protocol::TLS) {
@@ -2624,23 +3244,29 @@ class Socket {
             }
         }
 
-        core::logger::debug("SocketLib", "socket {} connected {}:{}", m_socket,
-                            m_endpoint.get_address(), m_endpoint.get_port());
+        core::logger::debug(
+            "SocketLib", "socket {} connected {}:{}", m_socket, m_endpoint.get_address(),
+            m_endpoint.get_port()
+        );
         callback(SocketStatus(VALUES::VALID));
     }
 
     /**
      * @brief Body of async_connect()'s "ran out of candidates" branch — classifies the last
-     * attempt's error and reports a final status through `callback`. Pulled out to its own method
-     * purely to bring async_connect()'s cognitive complexity down; logic and ordering are
-     * unchanged from the original inline code.
+     * attempt's error and reports a final status through `callback`. Pulled out to its own
+     * method purely to bring async_connect()'s cognitive complexity down; logic and ordering
+     * are unchanged from the original inline code.
      * @param res the last re-arm attempt's completion result (a negative errno).
      * @param callback the caller's async_connect() callback.
      */
-    void report_final_async_connect_error(int res,
-                                          std::move_only_function<void(SocketStatus)> &callback) const {
+    void report_final_async_connect_error(
+        int res, std::move_only_function<void(SocketStatus)>& callback
+    ) const
+    {
         core::logger::warning("SocketLib", "socket {} no more addresses to try", m_socket);
-        core::events::publish("socket.connect.no_more_addresses", {{"fd", std::to_string(m_socket)}});
+        core::events::publish(
+            "socket.connect.no_more_addresses", {{"fd", std::to_string(m_socket)}}
+        );
         if (res == -ETIMEDOUT) {
             core::logger::warning("SocketLib", "socket {} connect timed out", m_socket);
             core::events::publish("socket.connect.timed_out", {{"fd", std::to_string(m_socket)}});
@@ -2650,26 +3276,30 @@ class Socket {
                 "SocketLib",
                 "socket {} connect would have blocked, connection still in progress (not yet "
                 "established)",
-                m_socket);
+                m_socket
+            );
             core::events::publish("socket.connect.would_block", {{"fd", std::to_string(m_socket)}});
             callback(SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
         } else {
             core::logger::warning("SocketLib", "socket {} connect failed err={}", m_socket, res);
-            core::events::publish("socket.connect.failed",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}});
+            core::events::publish(
+                "socket.connect.failed",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}}
+            );
             callback(SocketStatus(VALUES::ERRORED));
         }
     }
 
     /**
-     * @brief Body of async_connect()'s "still got candidates left" branch — opens a fresh socket
-     * for the next address family ahead of re-arming the async connect against it. Pulled out to
-     * its own method purely to bring async_connect()'s cognitive complexity down; logic and
-     * ordering are unchanged from the original inline code.
+     * @brief Body of async_connect()'s "still got candidates left" branch — opens a fresh
+     * socket for the next address family ahead of re-arming the async connect against it.
+     * Pulled out to its own method purely to bring async_connect()'s cognitive complexity down;
+     * logic and ordering are unchanged from the original inline code.
      * @param addr the next resolved address to open a socket for.
      * @return `true` on success, `false` if socket creation failed (already logged).
      */
-    [[nodiscard]] bool reopen_socket_for_connect_retry(addrinfo *addr) {
+    [[nodiscard]] bool reopen_socket_for_connect_retry(addrinfo* addr)
+    {
         m_socket = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
         if (m_socket == INVALID_SOCKET) {
             core::logger::warning("SocketLib", "socket create failed for connect retry");
@@ -2683,10 +3313,12 @@ class Socket {
 
     /**
      * @brief Classifies the SSL error from sync_send()'s non-kTLS `SSL_write_ex` path into the
-     * matching SocketStatus — want-read/want-write both mean "come back later", zero-return means
-     * the peer hung up cleanly. Pulled out to its own method purely to bring sync_send()'s
-     * cognitive complexity down; logic and ordering are unchanged from the original inline switch.
-     * @param ssl_call_result the value to feed `SSL_get_error` (`SSL_write_ex`'s own return value).
+     * matching SocketStatus — want-read/want-write both mean "come back later", zero-return
+     * means the peer hung up cleanly. Pulled out to its own method purely to bring
+     * sync_send()'s cognitive complexity down; logic and ordering are unchanged from the
+     * original inline switch.
+     * @param ssl_call_result the value to feed `SSL_get_error` (`SSL_write_ex`'s own return
+     * value).
      * @return `(0, status)` for every case — sync_send() never has partial bytes to report on a
      * non-success SSL result.
      */
@@ -2696,112 +3328,170 @@ class Socket {
         const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
         switch (SSL_ERR) {
-        case SSL_ERROR_WANT_READ: {
-            core::logger::warning(
-                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.send.want_read", {{"fd", std::to_string(m_socket)}});
-            return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-        }
-        case SSL_ERROR_WANT_WRITE: {
-            core::logger::warning(
-                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.send.want_write", {{"fd", std::to_string(m_socket)}});
-            return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-        }
-        case SSL_ERROR_ZERO_RETURN: {
-            core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
-            return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-        }
-        case SSL_ERROR_SYSCALL: {
-            if (get_error_code() == EWOULDBLOCK) {
-                core::logger::warning("SocketLib",
-                                      "Sending on socket `{}` would have blocked, no data available "
-                                      "(SSL - Pending: {}, Want: {})",
-                                      m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-                core::events::publish("socket.tls.send.would_block", {{"fd", std::to_string(m_socket)}});
-                return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-            }
+            case SSL_ERROR_WANT_READ:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.send.want_read", {{"fd", std::to_string(m_socket)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                }
+            case SSL_ERROR_WANT_WRITE:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.send.want_write", {{"fd", std::to_string(m_socket)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                }
+            case SSL_ERROR_ZERO_RETURN:
+                {
+                    core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
+                    return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
+                }
+            case SSL_ERROR_SYSCALL:
+                {
+                    if (get_error_code() == EWOULDBLOCK) {
+                        core::logger::warning(
+                            "SocketLib",
+                            "Sending on socket `{}` would have blocked, no data available "
+                            "(SSL - Pending: {}, Want: {})",
+                            m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                        );
+                        core::events::publish(
+                            "socket.tls.send.would_block", {{"fd", std::to_string(m_socket)}}
+                        );
+                        return std::make_pair(
+                            0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED)
+                        );
+                    }
 
-            const auto ERR = get_error_code();
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with system error code `{}`",
-                m_socket, ERR);
-            core::events::publish("socket.tls.send.syscall_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
-            return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
-        }
-        default: {
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with SSL error code `{}`",
-                m_socket, SSL_ERR);
-            core::events::publish("socket.tls.send.ssl_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}});
-            return std::make_pair(0, SocketStatus(VALUES::ERRORED, SSL_ERR));
-        }
+                    const auto ERR = get_error_code();
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_write_ex() with system error code "
+                        "`{}`",
+                        m_socket, ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.send.syscall_failure",
+                        {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
+                }
+            default:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_write_ex() with SSL error code "
+                        "`{}`",
+                        m_socket, SSL_ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.send.ssl_failure",
+                        {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::ERRORED, SSL_ERR));
+                }
         }
     }
 
     /**
-     * @brief Classifies the SSL error from both sync_receive() overloads' non-kTLS `SSL_read_ex`
-     * path into the matching SocketStatus — the two overloads had byte-identical switches, so
-     * this one method now serves both, pulled out purely to bring their cognitive complexity
-     * down. Same want-read/want-write/zero-return/syscall/default mapping as map_send_ssl_error(),
-     * mirrored for the receive direction.
-     * @param ssl_call_result the value to feed `SSL_get_error` (`SSL_read_ex`'s own return value).
-     * @return `(0, status)` for every case — neither sync_receive() overload has partial bytes to
-     * report on a non-success SSL result.
+     * @brief Classifies the SSL error from both sync_receive() overloads' non-kTLS
+     * `SSL_read_ex` path into the matching SocketStatus — the two overloads had byte-identical
+     * switches, so this one method now serves both, pulled out purely to bring their cognitive
+     * complexity down. Same want-read/want-write/zero-return/syscall/default mapping as
+     * map_send_ssl_error(), mirrored for the receive direction.
+     * @param ssl_call_result the value to feed `SSL_get_error` (`SSL_read_ex`'s own return
+     * value).
+     * @return `(0, status)` for every case — neither sync_receive() overload has partial bytes
+     * to report on a non-success SSL result.
      */
-    [[nodiscard]] std::pair<std::size_t, SocketStatus> map_receive_ssl_error(int ssl_call_result) const
+    [[nodiscard]] std::pair<std::size_t, SocketStatus>
+    map_receive_ssl_error(int ssl_call_result) const
         requires(Protocol == Protocol::TLS || Protocol == Protocol::QUIC)
     {
         const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
         switch (SSL_ERR) {
-        case SSL_ERROR_WANT_READ: {
-            core::logger::warning(
-                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.receive.want_read", {{"fd", std::to_string(m_socket)}});
-            return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-        }
-        case SSL_ERROR_WANT_WRITE: {
-            core::logger::warning(
-                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.receive.want_write", {{"fd", std::to_string(m_socket)}});
-            return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-        }
-        case SSL_ERROR_ZERO_RETURN: {
-            core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
-            return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-        }
-        case SSL_ERROR_SYSCALL: {
-            const auto ERR = get_error_code();
-            if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
-                core::logger::warning("SocketLib",
-                                      "Receive on socket `{}` would have blocked, no data available "
-                                      "(SSL - Pending: {}, Want: {})",
-                                      m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-                core::events::publish("socket.tls.receive.would_block", {{"fd", std::to_string(m_socket)}});
-                return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-            }
+            case SSL_ERROR_WANT_READ:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.receive.want_read", {{"fd", std::to_string(m_socket)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                }
+            case SSL_ERROR_WANT_WRITE:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.receive.want_write", {{"fd", std::to_string(m_socket)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                }
+            case SSL_ERROR_ZERO_RETURN:
+                {
+                    core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
+                    return std::make_pair(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
+                }
+            case SSL_ERROR_SYSCALL:
+                {
+                    const auto ERR = get_error_code();
+                    if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
+                        core::logger::warning(
+                            "SocketLib",
+                            "Receive on socket `{}` would have blocked, no data available "
+                            "(SSL - Pending: {}, Want: {})",
+                            m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                        );
+                        core::events::publish(
+                            "socket.tls.receive.would_block", {{"fd", std::to_string(m_socket)}}
+                        );
+                        return std::make_pair(
+                            0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED)
+                        );
+                    }
 
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}", m_socket, ERR);
-            core::events::publish("socket.tls.receive.syscall_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
-            return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
-        }
-        default: {
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
-                m_socket, SSL_ERR);
-            core::events::publish("socket.tls.receive.ssl_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}});
-            return std::make_pair(0, SocketStatus(VALUES::ERRORED, SSL_ERR));
-        }
+                    core::logger::warning(
+                        "SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
+                        m_socket, ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.receive.syscall_failure",
+                        {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::ERRORED, ERR));
+                }
+            default:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
+                        m_socket, SSL_ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.receive.ssl_failure",
+                        {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}}
+                    );
+                    return std::make_pair(0, SocketStatus(VALUES::ERRORED, SSL_ERR));
+                }
         }
     }
 
@@ -2816,7 +3506,8 @@ class Socket {
      * protocols with no such concept).
      * @return the flags value to pass to the underlying `recv()`/`recvfrom()` call.
      */
-    [[nodiscard]] int prepare_receive_wait_flags(WaitMode wait, int waitall_flag) {
+    [[nodiscard]] int prepare_receive_wait_flags(WaitMode wait, int waitall_flag)
+    {
         int flags = 0;
 
         if (is_waiting(wait)) {
@@ -2834,8 +3525,8 @@ class Socket {
 
     /**
      * @brief Runs `SSL_read_ex`, toggling `SSL_MODE_ENABLE_PARTIAL_WRITE` /
-     * `SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER` around it for a non-waiting read so OpenSSL can hand
-     * back less than `length` instead of insisting on a full fill — the exact same 3-step
+     * `SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER` around it for a non-waiting read so OpenSSL can
+     * hand back less than `length` instead of insisting on a full fill — the exact same 3-step
      * toggle/read/restore shape sync_receive()'s wait-mode overload used inline for both its
      * non-kTLS TLS and QUIC branches, now one method. Logic and ordering unchanged.
      * @param wait which wait mode the caller asked for — the toggle only applies when not
@@ -2845,35 +3536,43 @@ class Socket {
      * @param received_bytes out-param, filled by `SSL_read_ex`.
      * @return `SSL_read_ex`'s own return value.
      */
-    int read_ssl_with_partial_mode_toggle(WaitMode wait, void *dest, std::size_t length,
-                                          std::size_t &received_bytes)
+    int read_ssl_with_partial_mode_toggle(
+        WaitMode wait, void* dest, std::size_t length, std::size_t& received_bytes
+    )
         requires(Protocol == Protocol::TLS || Protocol == Protocol::QUIC)
     {
         if (!is_waiting(wait)) {
-            SSL_set_mode(m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+            SSL_set_mode(
+                m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+            );
         }
 
         int ssl_call_result = SSL_read_ex(m_ssl, dest, length, &received_bytes);
 
         if (!is_waiting(wait)) {
-            SSL_clear_mode(m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+            SSL_clear_mode(
+                m_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+            );
         }
 
         return ssl_call_result;
     }
 
     /**
-     * @brief Classifies an async_accept() leverager completion result and, on failure, reports it
-     * through `callback` — same would-block-vs-real-failure split as sync_accept(), pulled out to
-     * its own method purely to bring async_accept()'s cognitive complexity down.
-     * @param res the leverager completion result: the accepted fd on success, negative on error.
+     * @brief Classifies an async_accept() leverager completion result and, on failure, reports
+     * it through `callback` — same would-block-vs-real-failure split as sync_accept(), pulled
+     * out to its own method purely to bring async_accept()'s cognitive complexity down.
+     * @param res the leverager completion result: the accepted fd on success, negative on
+     * error.
      * @param callback the caller's async_accept() callback — invoked with an invalid Socket if
      * this returns `true`.
      * @return `true` if `res` was a failure (callback already invoked, caller should bail),
      * `false` if `res` was a real accepted fd (caller should keep going).
      */
     [[nodiscard]] bool report_async_accept_failure(
-        int res, std::move_only_function<void(Socket<Protocol>)> &callback) const {
+        int res, std::move_only_function<void(Socket<Protocol>)>& callback
+    ) const
+    {
         if (res >= 0) {
             return false;
         }
@@ -2884,41 +3583,53 @@ class Socket {
             core::logger::debug(
                 "SocketLib",
                 "socket {} accept would have blocked, no new connections pending to accept",
-                m_socket);
+                m_socket
+            );
             callback(Socket<Protocol>{});
             return true;
         }
 
-        core::logger::warning("SocketLib", "Socket `{}` critical failure in async accept", m_socket);
-        core::events::publish("socket.async_accept.critical_failure",
-                              {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+        core::logger::warning(
+            "SocketLib", "Socket `{}` critical failure in async accept", m_socket
+        );
+        core::events::publish(
+            "socket.async_accept.critical_failure",
+            {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+        );
         callback(Socket<Protocol>{});
         return true;
     }
 
     /**
      * @brief Wraps a freshly-accepted TLS client fd in a fresh `SSL` object, in server (accept)
-     * mode — same setup async_accept() and sync_accept() both need, pulled out to its own method
-     * purely to bring async_accept()'s cognitive complexity down.
-     * @param client_fd the freshly-accepted client fd to wrap — closed by this method on failure.
-     * @return the ready-to-use `SSL*` on success, `nullptr` on any setup failure (already logged
-     * and cleaned up).
+     * mode — same setup async_accept() and sync_accept() both need, pulled out to its own
+     * method purely to bring async_accept()'s cognitive complexity down.
+     * @param client_fd the freshly-accepted client fd to wrap — closed by this method on
+     * failure.
+     * @return the ready-to-use `SSL*` on success, `nullptr` on any setup failure (already
+     * logged and cleaned up).
      */
-    [[nodiscard]] SSL *create_accepted_tls_ssl(SOCKET client_fd) const
+    [[nodiscard]] SSL* create_accepted_tls_ssl(SOCKET client_fd) const
         requires(Protocol == Protocol::TLS)
     {
-        SSL *client_ssl = SSL_new(m_ssl_ctx);
+        SSL* client_ssl = SSL_new(m_ssl_ctx);
         if (client_ssl == nullptr) {
             closesocket(client_fd);
-            core::logger::warning("SocketLib", "Failed to create SSL object for accepted connection");
-            core::events::publish("socket.tls.create_ssl_object_failed", {{"site", "async_accept"}});
+            core::logger::warning(
+                "SocketLib", "Failed to create SSL object for accepted connection"
+            );
+            core::events::publish(
+                "socket.tls.create_ssl_object_failed", {{"site", "async_accept"}}
+            );
             return nullptr;
         }
 
         if (SSL_set_fd(client_ssl, client_fd) == 0) {
             SSL_free(client_ssl);
             closesocket(client_fd);
-            core::logger::warning("SocketLib", "Failed to associate SSL object with accepted socket");
+            core::logger::warning(
+                "SocketLib", "Failed to associate SSL object with accepted socket"
+            );
             core::events::publish("socket.tls.set_fd_failed", {{"site", "async_accept"}});
             return nullptr;
         }
@@ -2936,19 +3647,22 @@ class Socket {
      * @param addr the resolved address to attempt.
      * @param timeout milliseconds to wait for the connect to complete via a `select()` on the
      * writable/exceptional fd sets; 0 means a fully blocking connect with no timeout handling.
-     * @return VALID on success, ERRORED on socket-creation failure, connect failure, or timeout.
+     * @return VALID on success, ERRORED on socket-creation failure, connect failure, or
+     * timeout.
      * @note Non-TCP/TLS protocols route to `core::logger::fatal` — properly gated by a real
      * if/else here.
      */
     // readability-function-cognitive-complexity: genuinely fixed, not NOLINT'd — the
-    // non-blocking connect's select()/getsockopt() wait dance is now wait_for_connect_result(), a
-    // private method below, pulled out purely to bring this function's complexity down; logic and
-    // ordering (including the timeout/retry behavior) are unchanged.
-    template <bool CreateSocket = true>
-    SocketStatus connect(addrinfo *addr, std::uint64_t timeout) noexcept {
+    // non-blocking connect's select()/getsockopt() wait dance is now wait_for_connect_result(),
+    // a private method below, pulled out purely to bring this function's complexity down; logic
+    // and ordering (including the timeout/retry behavior) are unchanged.
+    template<bool CreateSocket = true>
+    SocketStatus connect(addrinfo* addr, std::uint64_t timeout) noexcept
+    {
         if constexpr (Protocol == Protocol::TCP || Protocol == Protocol::TLS) {
             // Retry path: the previous attempt's socket is for the wrong address family, close
-            // it and open a fresh one for this candidate. First attempt reuses the ctor's socket.
+            // it and open a fresh one for this candidate. First attempt reuses the ctor's
+            // socket.
             if constexpr (CreateSocket) {
                 core::logger::debug("SocketLib", "socket {} closing to retry connect", m_socket);
                 sync_close();
@@ -2957,8 +3671,9 @@ class Socket {
             }
 
             if (m_socket == INVALID_SOCKET) {
-                core::logger::warning("SocketLib",
-                                      "Failed to create socket for connection attempt");
+                core::logger::warning(
+                    "SocketLib", "Failed to create socket for connection attempt"
+                );
                 core::events::publish("socket.connect.create_socket_failed");
                 return {VALUES::ERRORED};
             }
@@ -2966,7 +3681,8 @@ class Socket {
             m_socket_address_info = addr;
 
             // A timeout was requested — go non-blocking so the connect() below returns
-            // immediately instead of blocking indefinitely, letting us select() with a deadline.
+            // immediately instead of blocking indefinitely, letting us select() with a
+            // deadline.
             if (timeout > 0) {
                 set_non_blocking(true);
             }
@@ -2978,8 +3694,9 @@ class Socket {
                 // Non-blocking connect kicked off but hasn't finished — wait for it to become
                 // writable (or error out) via select(), bounded by the caller's timeout.
                 if (err == EINPROGRESS || err == EWOULDBLOCK || err == EAGAIN) {
-                    core::logger::debug("SocketLib", "socket {} connect in progress timeout={}ms",
-                                        m_socket, timeout);
+                    core::logger::debug(
+                        "SocketLib", "socket {} connect in progress timeout={}ms", m_socket, timeout
+                    );
                     err = wait_for_connect_result(timeout);
                 }
             }
@@ -2993,36 +3710,45 @@ class Socket {
             if (err != 0) {
                 sync_close();
                 m_socket_address_info = nullptr;
-                core::logger::warning("SocketLib",
-                                      "Connect attempt on socket `{}` failed with error code `{}`",
-                                      m_socket, err);
-                core::events::publish("socket.connect.attempt_failed",
-                                      {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(err)}});
+                core::logger::warning(
+                    "SocketLib", "Connect attempt on socket `{}` failed with error code `{}`",
+                    m_socket, err
+                );
+                core::events::publish(
+                    "socket.connect.attempt_failed",
+                    {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(err)}}
+                );
                 return {VALUES::ERRORED};
             }
 
-            core::logger::debug("SocketLib", "socket {} connected {}:{}", m_socket,
-                                m_endpoint.get_address(), m_endpoint.get_port());
+            core::logger::debug(
+                "SocketLib", "socket {} connected {}:{}", m_socket, m_endpoint.get_address(),
+                m_endpoint.get_port()
+            );
             return {VALUES::VALID};
         } else {
-            core::events::publish("socket.connect_unsupported_protocol", {{"site", "connect_attempt"}});
+            core::events::publish(
+                "socket.connect_unsupported_protocol", {{"site", "connect_attempt"}}
+            );
             core::logger::fatal("SocketLib", "Connect is only supported for TCP and TLS protocols");
         }
     }
 
     /**
-     * @brief Waits (via `select()`) for a non-blocking connect() to finish, bounded by `timeout`,
-     * then pulls the real result out of `SO_ERROR` — the select()/getsockopt() half of connect()'s
-     * retry dance, pulled out to its own method purely to bring connect()'s cognitive complexity
-     * down. Logic and ordering are unchanged from the original inline code.
+     * @brief Waits (via `select()`) for a non-blocking connect() to finish, bounded by
+     * `timeout`, then pulls the real result out of `SO_ERROR` — the select()/getsockopt() half
+     * of connect()'s retry dance, pulled out to its own method purely to bring connect()'s
+     * cognitive complexity down. Logic and ordering are unchanged from the original inline
+     * code.
      * @param timeout milliseconds to wait for the connect to complete.
-     * @return `0` on a successful connect, `ETIMEDOUT` if the deadline passed with nothing ready,
-     * or the real connect/select error code otherwise.
+     * @return `0` on a successful connect, `ETIMEDOUT` if the deadline passed with nothing
+     * ready, or the real connect/select error code otherwise.
      */
-    [[nodiscard]] int wait_for_connect_result(std::uint64_t timeout) const {
+    [[nodiscard]] int wait_for_connect_result(std::uint64_t timeout) const
+    {
         struct timeval tv{};
-        tv.tv_sec = static_cast<decltype(tv.tv_sec)>(timeout / 1000);
-        tv.tv_usec = static_cast<decltype(tv.tv_usec)>((timeout % 1000) * 1000);
+        tv.tv_sec = static_cast<decltype(tv.tv_sec)>(timeout / 1'000);
+        tv.tv_usec = static_cast<decltype(tv.tv_usec)>((timeout % 1'000) * 1'000);
 
         fd_set writefds;
         fd_set exceptfds;
@@ -3038,10 +3764,14 @@ class Socket {
         if (select_result > 0) {
             int err = 0;
             socklen_t len = sizeof(err);
-            if (getsockopt(m_socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&err), &len) <  // FIXME(clang-tidy): reinterpret_cast usage
+            if (getsockopt(
+                    m_socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len
+                ) < // FIXME(clang-tidy): reinterpret_cast usage
                 0) {
                 core::logger::error("SocketLib", "getsockopt failed after select");
-                core::events::publish("socket.getsockopt_failed", {{"fd", std::to_string(m_socket)}});
+                core::events::publish(
+                    "socket.getsockopt_failed", {{"fd", std::to_string(m_socket)}}
+                );
             }
             return err;
         }
@@ -3057,7 +3787,8 @@ class Socket {
      * `AI_ADDRCONFIG` so `getaddrinfo` only returns address families the host actually has
      * configured. Called from every constructor that resolves an address.
      */
-    void init_address_info() {
+    void init_address_info()
+    {
         int sock_type{};
         int iprotocol{};
 
@@ -3082,10 +3813,11 @@ class Socket {
      * @brief Wraps the already-open UDP socket in a connected datagram BIO for OpenSSL's QUIC
      * stack to read/write through — called from both the connect and listen/accept QUIC paths.
      * @warning `BIO_set_fd`/`BIO_ctrl` run unconditionally even if `BIO_new` returned null (the
-     * null check only logs, doesn't bail) — that's a null-pointer call into OpenSSL's BIO API on
-     * allocation failure, not a guarded skip.
+     * null check only logs, doesn't bail) — that's a null-pointer call into OpenSSL's BIO API
+     * on allocation failure, not a guarded skip.
      */
-    void add_quic_bio() {
+    void add_quic_bio()
+    {
         // Wrap the existing UDP fd in a datagram BIO (BIO_NOCLOSE — this BIO doesn't own the
         // fd, sync_close()/async_close() still handle that), then mark it connected so OpenSSL
         // treats it like a point-to-point stream instead of routing per-datagram addresses.
@@ -3113,7 +3845,8 @@ class Socket {
      * @return `true` if `TCP_ULP "tls"` is actually accepted by this kernel, `false` otherwise
      * (including on Windows, which has no kTLS concept at all).
      */
-    [[nodiscard]] static bool ktls_kernel_supported() noexcept {
+    [[nodiscard]] static bool ktls_kernel_supported() noexcept
+    {
 #ifdef _WIN32
         return false;
 #else
@@ -3123,8 +3856,7 @@ class Socket {
                 return false;
             }
             constexpr char ULP_NAME[] = "tls";
-            bool ok =
-                ::setsockopt(probe_fd, IPPROTO_TCP, TCP_ULP, ULP_NAME, sizeof(ULP_NAME)) == 0;
+            bool ok = ::setsockopt(probe_fd, IPPROTO_TCP, TCP_ULP, ULP_NAME, sizeof(ULP_NAME)) == 0;
             closesocket(probe_fd);
             return ok;
         }();
@@ -3153,29 +3885,34 @@ class Socket {
             return false;
         }
 
-        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL* ssl, int where, int ret) {
             if (where & SSL_CB_ALERT) {
-                const char *type = (where & SSL_CB_READ) ? "read" : "write";
-                core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
-                                      reinterpret_cast<const void *>(ssl), SSL_alert_type_string_long(ret),  // FIXME(clang-tidy): reinterpret_cast usage
-                                      SSL_alert_desc_string_long(ret));
-                core::events::publish("socket.tls.alert",
-                                      {{"direction", type},
-                                       {"alert_type", SSL_alert_type_string_long(ret)},
-                                       {"alert_desc", SSL_alert_desc_string_long(ret)}});
+                const char* type = (where & SSL_CB_READ) ? "read" : "write";
+                core::logger::warning(
+                    "SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
+                    reinterpret_cast<const void*>(ssl),
+                    SSL_alert_type_string_long(ret), // FIXME(clang-tidy): reinterpret_cast usage
+                    SSL_alert_desc_string_long(ret)
+                );
+                core::events::publish(
+                    "socket.tls.alert", {{"direction", type},
+                                         {"alert_type", SSL_alert_type_string_long(ret)},
+                                         {"alert_desc", SSL_alert_desc_string_long(ret)}}
+                );
             }
         });
 
         // Advertise ALPN protocols only if the caller configured any.
         if (!m_alpn_wire_format.empty()) {
             core::logger::debug("SocketLib", "ALPN protocols configured on TLS socket context");
-            SSL_CTX_set_alpn_protos(m_ssl_ctx, m_alpn_wire_format.data(),
-                                    m_alpn_wire_format.size());
+            SSL_CTX_set_alpn_protos(
+                m_ssl_ctx, m_alpn_wire_format.data(), m_alpn_wire_format.size()
+            );
         }
 
         // Opt into kernel TLS offload only when the kernel actually supports it — see
-        // ktls_kernel_supported()'s own doc comment for why this is checked directly rather than
-        // just always setting the flag and trusting OpenSSL's fallback.
+        // ktls_kernel_supported()'s own doc comment for why this is checked directly rather
+        // than just always setting the flag and trusting OpenSSL's fallback.
         if (ktls_kernel_supported()) {
             SSL_CTX_set_options(m_ssl_ctx, SSL_OP_ENABLE_KTLS);
         }
@@ -3206,8 +3943,9 @@ class Socket {
             return false;
         }
 
-        core::logger::debug("SocketLib", "socket {} TLS SSL ready SNI={}", m_socket,
-                            m_endpoint.get_address());
+        core::logger::debug(
+            "SocketLib", "socket {} TLS SSL ready SNI={}", m_socket, m_endpoint.get_address()
+        );
         SSL_set_connect_state(m_ssl);
         return true;
     }
@@ -3234,24 +3972,29 @@ class Socket {
             return false;
         }
 
-        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL *ssl, int where, int ret) {
+        SSL_CTX_set_info_callback(m_ssl_ctx, [](const SSL* ssl, int where, int ret) {
             if (where & SSL_CB_ALERT) {
-                const char *type = (where & SSL_CB_READ) ? "read" : "write";
-                core::logger::warning("SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
-                                      reinterpret_cast<const void *>(ssl), SSL_alert_type_string_long(ret),  // FIXME(clang-tidy): reinterpret_cast usage
-                                      SSL_alert_desc_string_long(ret));
-                core::events::publish("socket.tls.alert",
-                                      {{"direction", type},
-                                       {"alert_type", SSL_alert_type_string_long(ret)},
-                                       {"alert_desc", SSL_alert_desc_string_long(ret)}});
+                const char* type = (where & SSL_CB_READ) ? "read" : "write";
+                core::logger::warning(
+                    "SocketLib", "SSL alert [{}] on socket {}: {} - {}", type,
+                    reinterpret_cast<const void*>(ssl),
+                    SSL_alert_type_string_long(ret), // FIXME(clang-tidy): reinterpret_cast usage
+                    SSL_alert_desc_string_long(ret)
+                );
+                core::events::publish(
+                    "socket.tls.alert", {{"direction", type},
+                                         {"alert_type", SSL_alert_type_string_long(ret)},
+                                         {"alert_desc", SSL_alert_desc_string_long(ret)}}
+                );
             }
         });
 
         // Same ALPN-if-configured + require-verified-peer setup as setup_tls().
         if (!m_alpn_wire_format.empty()) {
             core::logger::debug("SocketLib", "ALPN protocols configured on QUIC socket context");
-            SSL_CTX_set_alpn_protos(m_ssl_ctx, m_alpn_wire_format.data(),
-                                    m_alpn_wire_format.size());
+            SSL_CTX_set_alpn_protos(
+                m_ssl_ctx, m_alpn_wire_format.data(), m_alpn_wire_format.size()
+            );
         }
 
         SSL_CTX_set_verify(m_ssl_ctx, SSL_VERIFY_PEER, nullptr);
@@ -3275,55 +4018,66 @@ class Socket {
             return false;
         }
 
-        core::logger::debug("SocketLib", "socket {} QUIC SSL ready SNI={}", m_socket,
-                            m_endpoint.get_address());
+        core::logger::debug(
+            "SocketLib", "socket {} QUIC SSL ready SNI={}", m_socket, m_endpoint.get_address()
+        );
         SSL_set_connect_state(m_ssl);
         return true;
     }
 
     /**
-     * @brief Shared exception-recovery path for async_send()/async_receive() — both are declared
-     * `noexcept` (required by `interfaces::io::AsyncSendable`/`AsyncReceivable`, see the note on
-     * async_send()), so their bodies wrap everything in a top-level try/catch and funnel here on
-     * any exception. Kept as its own method specifically so its own try/catch nesting doesn't
-     * count against async_send()'s/async_receive()'s cognitive complexity.
+     * @brief Shared exception-recovery path for async_send()/async_receive() — both are
+     * declared `noexcept` (required by `interfaces::io::AsyncSendable`/`AsyncReceivable`, see
+     * the note on async_send()), so their bodies wrap everything in a top-level try/catch and
+     * funnel here on any exception. Kept as its own method specifically so its own try/catch
+     * nesting doesn't count against async_send()'s/async_receive()'s cognitive complexity.
      * @param operation_name which caller this is, purely for the log message ("async_send" or
      * "async_receive").
-     * @param callback the caller's callback — may already be moved-from (empty) if the exception
-     * came from moving it into a leverager completion lambda; `if (callback)` on a
+     * @param callback the caller's callback — may already be moved-from (empty) if the
+     * exception came from moving it into a leverager completion lambda; `if (callback)` on a
      * `move_only_function` is a safe, well-defined check for that, so this only re-invokes it
      * when it's still valid, and that re-invocation is itself guarded so a throwing callback
      * can't escape either.
      */
     void report_async_io_exception(
-        const char *operation_name,
-        std::move_only_function<void(std::size_t, SocketStatus)> &callback) const noexcept {
+        const char* operation_name,
+        std::move_only_function<void(std::size_t, SocketStatus)>& callback
+    ) const noexcept
+    {
         try {
             std::rethrow_exception(std::current_exception());
-        } catch (const std::exception &caught_error) {
+        } catch (const std::exception& caught_error) {
             try {
-                core::logger::warning("SocketLib", "Socket `{}` {} raised an exception: {}", m_socket,
-                                      operation_name, caught_error.what());
-                core::events::publish("socket.async_io.exception",
-                                      {{"fd", std::to_string(m_socket)},
-                                       {"operation", std::string{operation_name}},
-                                       {"error", caught_error.what()}});
-            } catch (...) {  // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
+                core::logger::warning(
+                    "SocketLib", "Socket `{}` {} raised an exception: {}", m_socket, operation_name,
+                    caught_error.what()
+                );
+                core::events::publish(
+                    "socket.async_io.exception", {{"fd", std::to_string(m_socket)},
+                                                  {"operation", std::string{operation_name}},
+                                                  {"error", caught_error.what()}}
+                );
+            } catch (...) { // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
             }
         } catch (...) {
             try {
-                core::logger::warning("SocketLib", "Socket `{}` {} raised an unknown exception",
-                                      m_socket, operation_name);
-                core::events::publish("socket.async_io.unknown_exception",
-                                      {{"fd", std::to_string(m_socket)},
-                                       {"operation", std::string{operation_name}}});
-            } catch (...) {  // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
+                core::logger::warning(
+                    "SocketLib", "Socket `{}` {} raised an unknown exception", m_socket,
+                    operation_name
+                );
+                core::events::publish(
+                    "socket.async_io.unknown_exception",
+                    {{"fd", std::to_string(m_socket)}, {"operation", std::string{operation_name}}}
+                );
+            } catch (...) { // NOLINT(bugprone-empty-catch) — best-effort diagnostic only
             }
         }
         if (callback) {
             try {
                 callback(0, SocketStatus(VALUES::ERRORED));
-            } catch (...) {  // NOLINT(bugprone-empty-catch) — nowhere left to report a second failure to
+            } catch (
+                ...
+            ) { // NOLINT(bugprone-empty-catch) — nowhere left to report a second failure to
             }
         }
     }
@@ -3331,28 +4085,37 @@ class Socket {
     /**
      * @brief Shared completion handler for async_send()'s TCP/TLS and both UDP (with/without an
      * explicit destination) leverager callbacks — the three were byte-identical, so they're one
-     * method now instead of three copies. Same would-block-vs-critical-failure-vs-success mapping
-     * as sync_send()'s plain-syscall path.
-     * @param sent_bytes the leverager completion result: bytes sent on success, negative on error.
+     * method now instead of three copies. Same would-block-vs-critical-failure-vs-success
+     * mapping as sync_send()'s plain-syscall path.
+     * @param sent_bytes the leverager completion result: bytes sent on success, negative on
+     * error.
      * @param callback the caller's async_send() callback — invoked exactly once with the mapped
      * status.
      */
-    void complete_async_send(int sent_bytes,
-                             std::move_only_function<void(std::size_t, SocketStatus)> &callback) const {
+    void complete_async_send(
+        int sent_bytes, std::move_only_function<void(std::size_t, SocketStatus)>& callback
+    ) const
+    {
         if (sent_bytes < 0) {
             const auto ERR = get_error_code();
             if (ERR == EWOULDBLOCK) {
                 core::logger::warning(
-                    "SocketLib", "Send on socket `{}` would have blocked, no buffer space available",
-                    m_socket);
-                core::events::publish("socket.async_send.would_block", {{"fd", std::to_string(m_socket)}});
+                    "SocketLib",
+                    "Send on socket `{}` would have blocked, no buffer space available", m_socket
+                );
+                core::events::publish(
+                    "socket.async_send.would_block", {{"fd", std::to_string(m_socket)}}
+                );
                 callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 return;
             }
-            core::logger::warning("SocketLib", "Socket `{}` critical failure when sending data async",
-                                  m_socket);
-            core::events::publish("socket.async_send.critical_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+            core::logger::warning(
+                "SocketLib", "Socket `{}` critical failure when sending data async", m_socket
+            );
+            core::events::publish(
+                "socket.async_send.critical_failure",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+            );
             callback(0, SocketStatus(VALUES::ERRORED));
             return;
         }
@@ -3368,30 +4131,37 @@ class Socket {
      * @param res the re-arm completion result (negative means the re-arm itself failed).
      * @param buffer bytes to send, forwarded to `SSL_write_ex`.
      * @param length number of bytes in `buffer`.
-     * @param attempt the shared re-arm callback, passed through to handle_async_send_ssl_wait() on
-     * a want-read/want-write outcome.
+     * @param attempt the shared re-arm callback, passed through to handle_async_send_ssl_wait()
+     * on a want-read/want-write outcome.
      * @param callback the caller's async_send() callback.
      * @param iflags forwarded to the leverager's recv()/send() re-arm call.
      */
-    void attempt_async_quic_send(int res, const std::byte *buffer, std::size_t length,
-                                 std::shared_ptr<std::function<void(int)>> &attempt,
-                                 std::move_only_function<void(std::size_t, SocketStatus)> &callback,
-                                 std::uint8_t iflags)
+    void attempt_async_quic_send(
+        int res,
+        const std::byte* buffer,
+        std::size_t length,
+        std::shared_ptr<std::function<void(int)>>& attempt,
+        std::move_only_function<void(std::size_t, SocketStatus)>& callback,
+        std::uint8_t iflags
+    )
         requires(Protocol == Protocol::QUIC)
     {
         // The re-arm itself failed — nothing left to retry.
         if (res < 0) {
-            core::logger::warning("SocketLib",
-                                  "Socket `{}` async send attempt failed with error code `{}`",
-                                  m_socket, res);
-            core::events::publish("socket.async_send.attempt_failed",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}});
+            core::logger::warning(
+                "SocketLib", "Socket `{}` async send attempt failed with error code `{}`", m_socket,
+                res
+            );
+            core::events::publish(
+                "socket.async_send.attempt_failed",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}}
+            );
             callback(0, SocketStatus(VALUES::ERRORED));
             return;
         }
 
-        // Try the actual SSL write — success reports straight back through the callback, no more
-        // re-arming needed.
+        // Try the actual SSL write — success reports straight back through the callback, no
+        // more re-arming needed.
         std::size_t sent_bytes = 0;
         int ret = SSL_write_ex(m_ssl, buffer, length, &sent_bytes);
         if (ret > 0) {
@@ -3408,114 +4178,157 @@ class Socket {
     }
 
     /**
-     * @brief Classifies the SSL error from async_send()'s QUIC retry loop and either re-arms the
-     * leverager on the right direction (want-read/want-write) or reports a terminal status through
-     * `callback` — same SSL-error-to-SocketStatus mapping as sync_send()'s SSL_write_ex path,
-     * pulled out to its own method purely to bring async_send()'s cognitive complexity down.
-     * @param ssl_call_result the value to feed `SSL_get_error` — matches the original inline code,
-     * which (pre-existing behavior, unchanged here) passes the truncated `sent_bytes` rather than
-     * SSL_write_ex()'s own return value.
-     * @param attempt the shared re-arm callback, re-submitted to the leverager on want-read/want-write.
-     * @param callback the caller's async_send() callback — invoked on a terminal (non-retry) outcome.
+     * @brief Classifies the SSL error from async_send()'s QUIC retry loop and either re-arms
+     * the leverager on the right direction (want-read/want-write) or reports a terminal status
+     * through `callback` — same SSL-error-to-SocketStatus mapping as sync_send()'s SSL_write_ex
+     * path, pulled out to its own method purely to bring async_send()'s cognitive complexity
+     * down.
+     * @param ssl_call_result the value to feed `SSL_get_error` — matches the original inline
+     * code, which (pre-existing behavior, unchanged here) passes the truncated `sent_bytes`
+     * rather than SSL_write_ex()'s own return value.
+     * @param attempt the shared re-arm callback, re-submitted to the leverager on
+     * want-read/want-write.
+     * @param callback the caller's async_send() callback — invoked on a terminal (non-retry)
+     * outcome.
      * @param iflags forwarded to the leverager's recv()/send() re-arm call.
      */
-    void handle_async_send_ssl_wait(int ssl_call_result, std::shared_ptr<std::function<void(int)>> &attempt,
-                                    std::move_only_function<void(std::size_t, SocketStatus)> &callback,
-                                    std::uint8_t iflags)
+    void handle_async_send_ssl_wait(
+        int ssl_call_result,
+        std::shared_ptr<std::function<void(int)>>& attempt,
+        std::move_only_function<void(std::size_t, SocketStatus)>& callback,
+        std::uint8_t iflags
+    )
         requires(Protocol == Protocol::QUIC)
     {
         const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
         switch (SSL_ERR) {
-        case SSL_ERROR_WANT_READ: {
-            // Pre-existing dormant bug fixed here: the original inline version of this switch
-            // (Socket<QUIC> is never instantiated anywhere in the tree, so this was dead code no
-            // one ever compiled) only passed 2 args for this format string's 3 placeholders,
-            // dropping SSL_want(m_ssl). Extracting this into its own method makes the format
-            // string a non-dependent expression the compiler checks eagerly (instead of being
-            // skipped as an uninstantiated `if constexpr` branch), which surfaced the mismatch as
-            // a hard error. Restoring the missing SSL_want(m_ssl) arg matches every sibling
-            // occurrence of this exact message elsewhere in the file (sync_send/sync_receive's
-            // WANT_READ case).
-            core::logger::warning(
-                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.async_send.want_read", {{"fd", std::to_string(m_socket)}});
-            m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
-            break;
-        }
-        case SSL_ERROR_WANT_WRITE: {
-            // Same dormant-bug fix as SSL_ERROR_WANT_READ above — restoring the dropped
-            // SSL_want(m_ssl) arg.
-            core::logger::warning(
-                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.async_send.want_write", {{"fd", std::to_string(m_socket)}});
-            m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
-            break;
-        }
-        case SSL_ERROR_ZERO_RETURN: {
-            core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
-            callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-            break;
-        }
-        case SSL_ERROR_SYSCALL: {
-            if (get_error_code() == EWOULDBLOCK) {
-                // Same dormant-bug fix as above — restoring the dropped SSL_want(m_ssl) arg.
-                core::logger::warning("SocketLib",
-                                      "Sending on socket `{}` would have blocked, no data available "
-                                      "(SSL - Pending: {}, Want: {})",
-                                      m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-                core::events::publish("socket.tls.async_send.would_block", {{"fd", std::to_string(m_socket)}});
-                callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-                break;
-            }
+            case SSL_ERROR_WANT_READ:
+                {
+                    // Pre-existing dormant bug fixed here: the original inline version of this
+                    // switch (Socket<QUIC> is never instantiated anywhere in the tree, so this
+                    // was dead code no one ever compiled) only passed 2 args for this format
+                    // string's 3 placeholders, dropping SSL_want(m_ssl). Extracting this into
+                    // its own method makes the format string a non-dependent expression the
+                    // compiler checks eagerly (instead of being skipped as an uninstantiated
+                    // `if constexpr` branch), which surfaced the mismatch as a hard error.
+                    // Restoring the missing SSL_want(m_ssl) arg matches every sibling
+                    // occurrence of this exact message elsewhere in the file
+                    // (sync_send/sync_receive's WANT_READ case).
+                    core::logger::warning(
+                        "SocketLib",
+                        "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.async_send.want_read", {{"fd", std::to_string(m_socket)}}
+                    );
+                    m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
+                    break;
+                }
+            case SSL_ERROR_WANT_WRITE:
+                {
+                    // Same dormant-bug fix as SSL_ERROR_WANT_READ above — restoring the dropped
+                    // SSL_want(m_ssl) arg.
+                    core::logger::warning(
+                        "SocketLib",
+                        "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.async_send.want_write", {{"fd", std::to_string(m_socket)}}
+                    );
+                    m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
+                    break;
+                }
+            case SSL_ERROR_ZERO_RETURN:
+                {
+                    core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
+                    callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
+                    break;
+                }
+            case SSL_ERROR_SYSCALL:
+                {
+                    if (get_error_code() == EWOULDBLOCK) {
+                        // Same dormant-bug fix as above — restoring the dropped SSL_want(m_ssl)
+                        // arg.
+                        core::logger::warning(
+                            "SocketLib",
+                            "Sending on socket `{}` would have blocked, no data available "
+                            "(SSL - Pending: {}, Want: {})",
+                            m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                        );
+                        core::events::publish(
+                            "socket.tls.async_send.would_block", {{"fd", std::to_string(m_socket)}}
+                        );
+                        callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                        break;
+                    }
 
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with system error code `{}`",
-                m_socket, get_error_code());
-            core::events::publish("socket.tls.async_send.syscall_failure",
-                                  {{"fd", std::to_string(m_socket)},
-                                   {"error_code", std::to_string(get_error_code())}});
-            callback(0, SocketStatus(VALUES::ERRORED));
-            break;
-        }
-        default: {
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_write_ex() with SSL error code `{}`",
-                m_socket, SSL_ERR);
-            core::events::publish("socket.tls.async_send.ssl_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}});
-            callback(0, SocketStatus(VALUES::ERRORED));
-        }
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_write_ex() with system error code "
+                        "`{}`",
+                        m_socket, get_error_code()
+                    );
+                    core::events::publish(
+                        "socket.tls.async_send.syscall_failure",
+                        {{"fd", std::to_string(m_socket)},
+                         {"error_code", std::to_string(get_error_code())}}
+                    );
+                    callback(0, SocketStatus(VALUES::ERRORED));
+                    break;
+                }
+            default:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_write_ex() with SSL error code "
+                        "`{}`",
+                        m_socket, SSL_ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.async_send.ssl_failure",
+                        {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}}
+                    );
+                    callback(0, SocketStatus(VALUES::ERRORED));
+                }
         }
     }
 
     /**
-     * @brief Shared completion handler for async_receive()'s TCP/TLS and UDP leverager callbacks
-     * — the two were byte-identical, so they're one method now instead of two copies. Same
-     * would-block-vs-critical-failure-vs-clean-disconnect mapping as sync_receive()'s
+     * @brief Shared completion handler for async_receive()'s TCP/TLS and UDP leverager
+     * callbacks — the two were byte-identical, so they're one method now instead of two copies.
+     * Same would-block-vs-critical-failure-vs-clean-disconnect mapping as sync_receive()'s
      * plain-syscall path.
-     * @param received_bytes the leverager completion result: bytes received on success, negative
-     * on error, 0 on a clean disconnect.
+     * @param received_bytes the leverager completion result: bytes received on success,
+     * negative on error, 0 on a clean disconnect.
      * @param callback the caller's async_receive() callback — invoked with the mapped status.
      */
     void complete_async_receive(
-        int received_bytes, std::move_only_function<void(std::size_t, SocketStatus)> &callback) const {
+        int received_bytes, std::move_only_function<void(std::size_t, SocketStatus)>& callback
+    ) const
+    {
         if (received_bytes < 0) {
             const auto ERR = get_error_code();
             if (ERR == EWOULDBLOCK || ERR == EAGAIN) {
                 core::logger::warning(
                     "SocketLib", "Receive on socket `{}` would have blocked, no data available",
-                    m_socket);
-                core::events::publish("socket.async_receive.would_block", {{"fd", std::to_string(m_socket)}});
+                    m_socket
+                );
+                core::events::publish(
+                    "socket.async_receive.would_block", {{"fd", std::to_string(m_socket)}}
+                );
                 callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
                 return;
             }
-            core::logger::warning("SocketLib", "Socket `{}` critical failure in recv() syscall",
-                                  m_socket);
-            core::events::publish("socket.async_receive.critical_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}});
+            core::logger::warning(
+                "SocketLib", "Socket `{}` critical failure in recv() syscall", m_socket
+            );
+            core::events::publish(
+                "socket.async_receive.critical_failure",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(ERR)}}
+            );
             callback(0, SocketStatus(VALUES::ERRORED));
         } else if (received_bytes == 0) {
             core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
@@ -3524,34 +4337,41 @@ class Socket {
     }
 
     /**
-     * @brief Body of async_receive()'s QUIC self-re-arming attempt lambda, pulled out to its own
-     * method purely to bring async_receive()'s cognitive complexity down — logic and ordering are
-     * unchanged from the original inline lambda. `out` is passed in already resolved to a raw
-     * pointer (via `std::to_address`) rather than as the original templated iterator, since a
-     * private member method can't itself be templated on async_receive()'s `Out` without dragging
-     * that template parameter along; the resolved address is exactly what the original lambda
-     * body used it for anyway (feeding `SSL_read_ex`).
+     * @brief Body of async_receive()'s QUIC self-re-arming attempt lambda, pulled out to its
+     * own method purely to bring async_receive()'s cognitive complexity down — logic and
+     * ordering are unchanged from the original inline lambda. `out` is passed in already
+     * resolved to a raw pointer (via `std::to_address`) rather than as the original templated
+     * iterator, since a private member method can't itself be templated on async_receive()'s
+     * `Out` without dragging that template parameter along; the resolved address is exactly
+     * what the original lambda body used it for anyway (feeding `SSL_read_ex`).
      * @param res the re-arm completion result (negative means the re-arm itself failed).
      * @param data_ptr destination buffer, already resolved from the caller's output iterator.
      * @param length max bytes to receive into `data_ptr`.
-     * @param attempt the shared re-arm callback, passed through to handle_async_receive_ssl_wait()
-     * on a want-read/want-write outcome.
+     * @param attempt the shared re-arm callback, passed through to
+     * handle_async_receive_ssl_wait() on a want-read/want-write outcome.
      * @param callback the caller's async_receive() callback.
      * @param iflags forwarded to the leverager's recv()/send() re-arm call.
      */
-    void attempt_async_quic_receive(int res, char *data_ptr, std::size_t length,
-                                    std::shared_ptr<std::function<void(int)>> &attempt,
-                                    std::move_only_function<void(std::size_t, SocketStatus)> &callback,
-                                    std::uint8_t iflags)
+    void attempt_async_quic_receive(
+        int res,
+        char* data_ptr,
+        std::size_t length,
+        std::shared_ptr<std::function<void(int)>>& attempt,
+        std::move_only_function<void(std::size_t, SocketStatus)>& callback,
+        std::uint8_t iflags
+    )
         requires(Protocol == Protocol::QUIC)
     {
         // The re-arm itself failed — nothing left to retry.
         if (res < 0) {
-            core::logger::warning("SocketLib",
-                                  "Socket `{}` async read attempt failed with error code `{}`",
-                                  m_socket, res);
-            core::events::publish("socket.async_receive.attempt_failed",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}});
+            core::logger::warning(
+                "SocketLib", "Socket `{}` async read attempt failed with error code `{}`", m_socket,
+                res
+            );
+            core::events::publish(
+                "socket.async_receive.attempt_failed",
+                {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(res)}}
+            );
             callback(0, SocketStatus(VALUES::ERRORED));
             return;
         }
@@ -3560,7 +4380,9 @@ class Socket {
         std::size_t received_bytes = 0;
         int ret = SSL_read_ex(m_ssl, data_ptr, length, &received_bytes);
         if (ret > 0) {
-            core::logger::debug("SocketLib", "socket {} received {} bytes", m_socket, received_bytes);
+            core::logger::debug(
+                "SocketLib", "socket {} received {} bytes", m_socket, received_bytes
+            );
             callback(received_bytes, SocketStatus(VALUES::VALID));
             return;
         }
@@ -3568,97 +4390,130 @@ class Socket {
         // Not done — same want-read/want-write re-arm loop as async_send()'s QUIC branch, just
         // recv-driven instead of send-driven.
         if (received_bytes <= 0) {
-            handle_async_receive_ssl_wait(static_cast<int>(received_bytes), attempt, callback, iflags);
+            handle_async_receive_ssl_wait(
+                static_cast<int>(received_bytes), attempt, callback, iflags
+            );
         }
     }
 
     /**
      * @brief Classifies the SSL error from async_receive()'s QUIC retry loop and either re-arms
      * the leverager on the right direction (want-read/want-write) or reports a terminal status
-     * through `callback` — same SSL-error-to-SocketStatus mapping as sync_receive()'s SSL_read_ex
-     * path, pulled out to its own method purely to bring async_receive()'s cognitive complexity
-     * down.
-     * @param ssl_call_result the value to feed `SSL_get_error` — matches the original inline code,
-     * which (pre-existing behavior, unchanged here) passes the truncated `received_bytes` rather
-     * than SSL_read_ex()'s own return value.
-     * @param attempt the shared re-arm callback, re-submitted to the leverager on want-read/want-write.
+     * through `callback` — same SSL-error-to-SocketStatus mapping as sync_receive()'s
+     * SSL_read_ex path, pulled out to its own method purely to bring async_receive()'s
+     * cognitive complexity down.
+     * @param ssl_call_result the value to feed `SSL_get_error` — matches the original inline
+     * code, which (pre-existing behavior, unchanged here) passes the truncated `received_bytes`
+     * rather than SSL_read_ex()'s own return value.
+     * @param attempt the shared re-arm callback, re-submitted to the leverager on
+     * want-read/want-write.
      * @param callback the caller's async_receive() callback — invoked on a terminal outcome.
      * @param iflags forwarded to the leverager's recv()/send() re-arm call.
      */
-    void handle_async_receive_ssl_wait(int ssl_call_result,
-                                       std::shared_ptr<std::function<void(int)>> &attempt,
-                                       std::move_only_function<void(std::size_t, SocketStatus)> &callback,
-                                       std::uint8_t iflags)
+    void handle_async_receive_ssl_wait(
+        int ssl_call_result,
+        std::shared_ptr<std::function<void(int)>>& attempt,
+        std::move_only_function<void(std::size_t, SocketStatus)>& callback,
+        std::uint8_t iflags
+    )
         requires(Protocol == Protocol::QUIC)
     {
         const int SSL_ERR = SSL_get_error(m_ssl, ssl_call_result);
 
         switch (SSL_ERR) {
-        case SSL_ERROR_WANT_READ: {
-            // Same dormant dropped-argument bug as handle_async_send_ssl_wait()'s WANT_READ case
-            // (Socket<QUIC> is never instantiated anywhere in the tree, so this was dead code no
-            // one ever compiled) — restoring the missing SSL_want(m_ssl) arg to match every
-            // sibling occurrence of this message elsewhere in the file.
-            core::logger::warning(
-                "SocketLib", "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.async_receive.want_read", {{"fd", std::to_string(m_socket)}});
-            m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
-            break;
-        }
-        case SSL_ERROR_WANT_WRITE: {
-            // Same dormant-bug fix as SSL_ERROR_WANT_READ above.
-            core::logger::warning(
-                "SocketLib", "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
-                m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-            core::events::publish("socket.tls.async_receive.want_write", {{"fd", std::to_string(m_socket)}});
-            m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
-            break;
-        }
-        case SSL_ERROR_ZERO_RETURN: {
-            core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
-            callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
-            break;
-        }
-        case SSL_ERROR_SYSCALL: {
-            auto err = get_error_code();
-            if (err == EWOULDBLOCK) {
-                // Same dormant-bug fix as above — restoring the dropped SSL_want(m_ssl) arg.
-                core::logger::warning("SocketLib",
-                                      "Receive on socket `{}` would have blocked, no data available "
-                                      "(SSL - Pending: {}, Want: {})",
-                                      m_socket, SSL_pending(m_ssl), SSL_want(m_ssl));
-                core::events::publish("socket.tls.async_receive.would_block", {{"fd", std::to_string(m_socket)}});
-                callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
-                break;
-            }
+            case SSL_ERROR_WANT_READ:
+                {
+                    // Same dormant dropped-argument bug as handle_async_send_ssl_wait()'s
+                    // WANT_READ case (Socket<QUIC> is never instantiated anywhere in the tree,
+                    // so this was dead code no one ever compiled) — restoring the missing
+                    // SSL_want(m_ssl) arg to match every sibling occurrence of this message
+                    // elsewhere in the file.
+                    core::logger::warning(
+                        "SocketLib",
+                        "Read on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.async_receive.want_read", {{"fd", std::to_string(m_socket)}}
+                    );
+                    m_leverager->get().recv(m_socket, nullptr, 0, 0, *attempt, iflags);
+                    break;
+                }
+            case SSL_ERROR_WANT_WRITE:
+                {
+                    // Same dormant-bug fix as SSL_ERROR_WANT_READ above.
+                    core::logger::warning(
+                        "SocketLib",
+                        "Write on socket `{}` would have blocked (SSL - Pending: {}, Want: {})",
+                        m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                    );
+                    core::events::publish(
+                        "socket.tls.async_receive.want_write", {{"fd", std::to_string(m_socket)}}
+                    );
+                    m_leverager->get().send(m_socket, nullptr, 0, 0, *attempt, iflags);
+                    break;
+                }
+            case SSL_ERROR_ZERO_RETURN:
+                {
+                    core::logger::debug("SocketLib", "socket {} cleanly disconnected", m_socket);
+                    callback(0, SocketStatus(VALUES::CLEANLY_DISCONNECTED));
+                    break;
+                }
+            case SSL_ERROR_SYSCALL:
+                {
+                    auto err = get_error_code();
+                    if (err == EWOULDBLOCK) {
+                        // Same dormant-bug fix as above — restoring the dropped SSL_want(m_ssl)
+                        // arg.
+                        core::logger::warning(
+                            "SocketLib",
+                            "Receive on socket `{}` would have blocked, no data available "
+                            "(SSL - Pending: {}, Want: {})",
+                            m_socket, SSL_pending(m_ssl), SSL_want(m_ssl)
+                        );
+                        core::events::publish(
+                            "socket.tls.async_receive.would_block",
+                            {{"fd", std::to_string(m_socket)}}
+                        );
+                        callback(0, SocketStatus(VALUES::NON_BLOCKING_WOULD_HAVE_BLOCKED));
+                        break;
+                    }
 
-            core::logger::warning("SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
-                                  m_socket, err);
-            core::events::publish("socket.tls.async_receive.syscall_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(err)}});
-            callback(0, SocketStatus(VALUES::ERRORED));
-            break;
-        }
-        default: {
-            core::logger::warning(
-                "SocketLib", "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
-                m_socket, SSL_ERR);
-            core::events::publish("socket.tls.async_receive.ssl_failure",
-                                  {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}});
-            callback(0, SocketStatus(VALUES::ERRORED));
-        }
+                    core::logger::warning(
+                        "SocketLib", "Socket `{}` critical failure in SSL syscall, errno: {}",
+                        m_socket, err
+                    );
+                    core::events::publish(
+                        "socket.tls.async_receive.syscall_failure",
+                        {{"fd", std::to_string(m_socket)}, {"error_code", std::to_string(err)}}
+                    );
+                    callback(0, SocketStatus(VALUES::ERRORED));
+                    break;
+                }
+            default:
+                {
+                    core::logger::warning(
+                        "SocketLib",
+                        "Socket `{}` critical failure in SSL_read_ex with error code `{}`",
+                        m_socket, SSL_ERR
+                    );
+                    core::events::publish(
+                        "socket.tls.async_receive.ssl_failure",
+                        {{"fd", std::to_string(m_socket)}, {"ssl_error", std::to_string(SSL_ERR)}}
+                    );
+                    callback(0, SocketStatus(VALUES::ERRORED));
+                }
         }
     }
 
     SOCKET m_socket;
-    SSL *m_ssl;
-    SSL_CTX *m_ssl_ctx;
-    BIO *m_bio;
+    SSL* m_ssl;
+    SSL_CTX* m_ssl_ctx;
+    BIO* m_bio;
     Endpoint m_endpoint;
     addrinfo m_address_info_hint;
-    addrinfo *m_address_info_result;
-    addrinfo *m_socket_address_info;
+    addrinfo* m_address_info_result;
+    addrinfo* m_socket_address_info;
     sockaddr_storage m_socket_input_buffer;
     socklen_t m_socket_input_buffer_length;
     std::vector<unsigned char> m_alpn_wire_format;
@@ -3688,26 +4543,30 @@ using namespace boost::ut;
 // above (no live-socket/live-ring syscalls, no faked std::system()/UB calls):
 //
 // - sync_receive()'s offset overload: `const auto MAX_LENGTH = LENGTH - START_OFFSET;` is
-//   unsigned, guarded by `if (MAX_LENGTH < 0)` — a no-op comparison for an unsigned type (see the
-//   function's own @warning). MAX_LENGTH is computed inline and immediately fed straight into
+//   unsigned, guarded by `if (MAX_LENGTH < 0)` — a no-op comparison for an unsigned type (see
+//   the function's own @warning). MAX_LENGTH is computed inline and immediately fed straight
+//   into
 //   `::recv`/`SSL_read_ex`/`::recvfrom` in the same expression-statement block with no
-//   intervening return or extraction point — there's no private helper isolating the arithmetic,
-//   so the only way to observe the wraparound is to let a real, live m_socket reach one of those
-//   syscalls with a bogus (huge) length argument. That risks a real oversized recv() against
-//   whatever `m_socket` happens to hold (INVALID_SOCKET by default), so it's skipped rather than
-//   risked.
+//   intervening return or extraction point — there's no private helper isolating the
+//   arithmetic, so the only way to observe the wraparound is to let a real, live m_socket reach
+//   one of those syscalls with a bogus (huge) length argument. That risks a real oversized
+//   recv() against whatever `m_socket` happens to hold (INVALID_SOCKET by default), so it's
+//   skipped rather than risked.
 //
-// - async_accept()'s raw-`this`-capture (same UAF-shape as the async Receiver/Sender's arm_read()
+// - async_accept()'s raw-`this`-capture (same UAF-shape as the async Receiver/Sender's
+// arm_read()
 //   /arm_write()): the completion lambda is handed to `m_leverager->get().accept(...)`, but
-//   `m_leverager` is `std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>>`
-//   — a concrete, non-virtual class (include/io/base/leverage/types.cppm), not an interface Socket
+//   `m_leverager` is
+//   `std::optional<std::reference_wrapper<leverage::Leverager<leverage::Context>>>` — a
+//   concrete, non-virtual class (include/io/base/leverage/types.cppm), not an interface Socket
 //   depends on abstractly. There's no seam to substitute a mock that stashes the completion
 //   instead of firing it the way MockAsyncWorker does for the flow Receiver/Sender — exercising
 //   this for real means standing up a live `leverage::Context` (a real io_uring ring on posix),
-//   which is exactly the "live OS reactor" this file's tests already opt out of above. Documented
-//   here, not tested.
+//   which is exactly the "live OS reactor" this file's tests already opt out of above.
+//   Documented here, not tested.
 //
-// - get_status() (see its own @warning): declared `[[nodiscard]] SocketStatus` but has no return
+// - get_status() (see its own @warning): declared `[[nodiscard]] SocketStatus` but has no
+// return
 //   statement at all — falling off the end of a value-returning function is UB. There is no
 //   correct expected value to assert against, and calling it at all means reading whatever
 //   garbage happens to be sitting in the return slot. Not called here, not testable.
@@ -3715,10 +4574,10 @@ using namespace boost::ut;
 // - generate_certificate(): builds a `std::system()` shell command with `cert_path`/`key_path`
 //   interpolated unescaped (see its own @warning — a real command-injection footgun for
 //   attacker-influenced paths). The string-building isn't separated into its own helper — it's
-//   one `std::format(...)` immediately followed by the `std::system(command.c_str())` call in the
-//   same function body, with no seam to test the format step in isolation. Actually invoking this
-//   would shell out to the real `openssl` CLI (or run an injected command), so it's skipped
-//   rather than exercised.
+//   one `std::format(...)` immediately followed by the `std::system(command.c_str())` call in
+//   the same function body, with no seam to test the format step in isolation. Actually
+//   invoking this would shell out to the real `openssl` CLI (or run an injected command), so
+//   it's skipped rather than exercised.
 
 suite<"AddressInfo"> address_info_suite = [] {
     "starts zero-sized"_test = [] {
@@ -3755,10 +4614,10 @@ suite<"AddressInfo"> address_info_suite = [] {
 
 suite<"Endpoint"> endpoint_suite = [] {
     "address+port ctor stores both verbatim"_test = [] {
-        Endpoint endpoint{"example.com", 8080};
+        Endpoint endpoint{"example.com", 8'080};
 
         expect(endpoint.get_address() == "example.com");
-        expect(endpoint.get_port() == 8080);
+        expect(endpoint.get_port() == 8'080);
     };
 
     "default ctor is empty address, port 0"_test = [] {
@@ -3776,7 +4635,7 @@ suite<"Endpoint"> endpoint_suite = [] {
     };
 
     "to_string() re-joins address and port"_test = [] {
-        Endpoint endpoint{"127.0.0.1", 9000};
+        Endpoint endpoint{"127.0.0.1", 9'000};
 
         expect(endpoint.to_string() == "127.0.0.1:9000");
     };
@@ -3784,25 +4643,25 @@ suite<"Endpoint"> endpoint_suite = [] {
     "sockaddr_in ctor decodes an IPv4 address and port"_test = [] {
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
-        addr.sin_port = htons(4242);
-        addr.sin_addr.s_addr = htonl(0x7F000001); // 127.0.0.1
+        addr.sin_port = htons(4'242);
+        addr.sin_addr.s_addr = htonl(0x7F'00'00'01); // 127.0.0.1
 
-        Endpoint endpoint{reinterpret_cast<const sockaddr *>(&addr)};
+        Endpoint endpoint{reinterpret_cast<const sockaddr*>(&addr)};
 
         expect(endpoint.get_address() == "127.0.0.1");
-        expect(endpoint.get_port() == 4242);
+        expect(endpoint.get_port() == 4'242);
     };
 
     "sockaddr_in6 ctor decodes an IPv6 address and port"_test = [] {
         sockaddr_in6 addr{};
         addr.sin6_family = AF_INET6;
-        addr.sin6_port = htons(9999);
+        addr.sin6_port = htons(9'999);
         addr.sin6_addr.s6_addr[15] = 1; // ::1
 
-        Endpoint endpoint{reinterpret_cast<const sockaddr *>(&addr)};
+        Endpoint endpoint{reinterpret_cast<const sockaddr*>(&addr)};
 
         expect(endpoint.get_address() == "::1");
-        expect(endpoint.get_port() == 9999);
+        expect(endpoint.get_port() == 9'999);
     };
 };
 

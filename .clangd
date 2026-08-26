@@ -2,63 +2,44 @@ CompileFlags:
   Compiler: clang++
   Add:
     - "-std=c++26"
-    # --- Module support ---
     - "-fmodules"
     - "-fno-implicit-modules"
     - "-fno-implicit-module-maps"
-
-    # --- Warning hardening (inspired by grpc/abseil/folly) ---
     - "-Wall"
     - "-Wextra"
-    - "-Wshadow" # catches subtle capture/param shadowing bugs
-    - "-Wnon-virtual-dtor" # catches base class dtor bugs in session hierarchies
-    - "-Wcast-align" # catches dangerous pointer casts (important for io_uring SQE alignment)
-    - "-Woverloaded-virtual" # catches silent hiding of virtual functions
+    - "-Wshadow"
+    - "-Wnon-virtual-dtor"
+    - "-Wcast-align"
+    - "-Woverloaded-virtual"
     - "-Wpedantic"
-    - "-Wconversion" # catches implicit narrowing; critical around byte/int boundaries
-    - "-Wsign-conversion" # catches signed/unsigned mixing in span indexing
-    - "-Wdouble-promotion" # catches accidental float->double promotion
-    - "-Wformat=2" # stricter format string checking
-    - "-Wimplicit-fallthrough" # catches missing break in switch (esp. frame type dispatch)
+    - "-Wconversion"
+    - "-Wsign-conversion"
+    - "-Wdouble-promotion"
+    - "-Wformat=2"
+    - "-Wimplicit-fallthrough"
     - "-Wunused"
-
-    # --- Suppress noisy/irrelevant warnings for a modules project ---
     - "-Wno-invalid-token-paste"
     - "-Wno-pragma-once-outside-header"
     - "-Wno-experimental-header-units"
-
-    # --- Linux / io_uring platform defines ---
-    # Ensures linux-specific syscall wrappers are visible when
-    # clangd parses io_uring headers outside of xmake's DB context
     - "-D_GNU_SOURCE"
     - "-D_POSIX_C_SOURCE=200809L"
-
   Remove:
     - "-Werror"
     - "-fshow-column"
-    # Strip GCC-only module flags xmake may inject
     - "-fmodule-mapper=*"
     - "-fno-module-lazy"
-    # GCC-specific flags that choke clang's parser
     - "-fno-fat-lto-objects"
     - "-fstack-usage"
 
-# ============================================================
-
 Hover:
-  ShowAKA: Yes # Desugars type aliases — essential for concept-constrained templates
-  ShowSymbolExtensions: Yes
-
-# ============================================================
+  ShowAKA: true # was: Yes
 
 InlayHints:
-  Designators: Yes
-  Enabled: Yes
-  ParameterNames: Yes
-  DeducedTypes: Yes
-  DefaultArguments: Yes # Shows defaulted template args — useful when reading STL concepts
-
-# ============================================================
+  Designators: true # was: Yes
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true
+  DefaultArguments: true
 
 Diagnostics:
   Suppress:
@@ -66,50 +47,28 @@ Diagnostics:
     - "invalid_module_format"
     - "module_file_not_found"
     - "missing_module_declaration"
-
-  # Pure-modules project: #include only appears in GMFs, never as a dependency
   UnusedIncludes: None
   MissingIncludes: None
-
   ClangTidy:
     Add:
-      # Catches real bugs: use-after-move, misused-promises, dangling refs, etc.
       - "bugprone-*"
-      # Catches perf issues: unnecessary copies, pass-by-value, redundant string ops
       - "performance-*"
-      # Modernise: nullptr, range-for, override, constexpr, etc.
       - "modernize-*"
-      # Readability: magic numbers, identifier naming, function complexity
       - "readability-*"
-      # Core guidelines: avoid C arrays, owning memory, etc.
       - "cppcoreguidelines-*"
-      # Concurrency: locks, thread annotations (useful for io_uring ring access)
       - "concurrency-*"
     Remove:
-      # Disables warnings about adjacent parameters of the same type
       - "bugprone-easily-swappable-parameters"
-      # Disables warnings that suggest converting initializer lists to default member initializers
       - "modernize-use-default-member-init"
-      # Conflicts with C++23 deducing-this & trailing return patterns
       - "modernize-use-trailing-return-type"
-      # Too noisy in systems code with deliberate magic constants
       - "readability-magic-numbers"
       - "cppcoreguidelines-avoid-magic-numbers"
-      # We use C arrays in io_uring buffer rings and fixed descriptors
       - "cppcoreguidelines-avoid-c-arrays"
       - "modernize-avoid-c-arrays"
-      # Every function taking a span triggers this; noisy
       - "cppcoreguidelines-pro-bounds-pointer-arithmetic"
-      # Overly pedantic about every implicit conversion
       - "cppcoreguidelines-narrowing-conversions"
-      # LLVM 22's dataflow-analysis framework segfaults (runTypeErasedDataflowAnalysis) on
-      # certain std::optional/std::variant-heavy code in this codebase (verified crash on
-      # core::plugin::HandleTable::map_get in include/core/manager/value.cppm) — a clang-tidy
-      # tool bug, not a code issue; disabled until upstream fixes the crash.
       - "bugprone-unchecked-optional-access"
-
     CheckOptions:
-      # Enforce consistent naming across the codebase
       readability-identifier-naming.ClassCase: CamelCase
       readability-identifier-naming.StructCase: CamelCase
       readability-identifier-naming.FunctionCase: lower_case
@@ -120,30 +79,26 @@ Diagnostics:
       readability-identifier-naming.ConstantCase: UPPER_CASE
       readability-identifier-naming.EnumConstantCase: UPPER_CASE
       readability-identifier-naming.TemplateParameterCase: CamelCase
-      # Reasonable function size for complex io_uring completion handlers
       readability-function-cognitive-complexity.Threshold: "30"
-      # Avoid overly short identifiers except loop counters
       readability-identifier-length.MinimumVariableNameLength: "2"
 
-# ============================================================
-
 Index:
-  Background: Build # Full project index; required for cross-module go-to-def
-  StandardLibrary: Yes # Index std module — enables go-to-def into std:: symbols
-
-# ============================================================
+  Background: Build
+  StandardLibrary: true # was: Yes
 
 Completion:
-  AllScopes: Yes # Surface symbols from unimported modules
-  ArgumentLists: FullPlaceholders # Show full parameter placeholders on completion
-
-
-# ============================================================
-# Per-file overrides
-# ============================================================
+  AllScopes: true # was: Yes
+  ArgumentLists: FullPlaceholders
 
 ---
-# Module interface units: tell clangd these are named interface TUs, not headers
+If:
+  PathMatch: ".*/c/.*\\.(h|hpp)"
+Diagnostics:
+  Suppress: "*"
+  ClangTidy:
+    Remove: "*"
+
+---
 If:
   PathMatch: ".*\\.cppm"
 CompileFlags:
@@ -152,19 +107,6 @@ CompileFlags:
     - "c++"
 
 ---
-# plugin_api.h/hpp: pure-C ABI header — snake_case member names are intentional,
-# macro-parentheses check is a false positive for type-param macros.
-If:
-  PathMatch: ".*plugin_api\\.(h|hpp)"
-Diagnostics:
-  ClangTidy:
-    Remove:
-      - "readability-identifier-naming"
-      - "bugprone-macro-parentheses"
-      - "cppcoreguidelines-macro-usage"
-
----
-# Test files: relax some checks that are too strict for test code
 If:
   PathMatch: ".*(test|spec).*\\.(cpp|cppm)"
 Diagnostics:

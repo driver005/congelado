@@ -1,6 +1,6 @@
 // OpenXLA hello world.
 //
-// Builds a vector-add kernel as stablehlo MLIR text with the StableHloBuilder
+// Builds a vector-add kernel as stablehlo MLIR text with cc::stable_hlo::Builder
 // (include/cc/stable_hlo), compiles it through PJRT's in-process CPU client
 // (@xla//xla/pjrt/c:pjrt_c_api_cpu), feeds it two f32 vectors, executes it and
 // prints the elementwise sum — a quick end-to-end check that the stable_hlo ->
@@ -59,21 +59,29 @@ int main() {
   using namespace cc::stable_hlo;
 
   // ---- 1. Build the add kernel as stablehlo MLIR text. --------------------
-  StableHloBuilder builder{"add_kernel"};
-  builder.add_main({StableHloShape{{4}, StableHloDType::f32()},
-                    StableHloShape{{4}, StableHloDType::f32()}});
-  auto lhs = builder.get_argument(0);
-  auto rhs = builder.get_argument(1);
-  auto sum = builder.add_op<Add>(lhs, rhs);
-  if (!sum) {
-    std::fprintf(stderr, "add_op failed: %s\n", sum.error().get_message().c_str());
-    return 1;
-  }
-  if (!builder.add_return({*sum})) {
-    return 1;
-  }
+  Builder builder;
+  Function function{"main"};
+  function.add_parameter(Shape{{4}, DType::f32()});
+  Parameter lhs = function.get_arguments().back(); // copy — a second add_parameter below could
+                                                     // reallocate m_arguments and dangle a
+                                                     // reference taken here
+  function.add_parameter(Shape{{4}, DType::f32()});
+  Parameter rhs = function.get_arguments().back(); // copy
+
+  Operation op{"add", "binary"};
+  op.append_parameter(lhs);
+  op.append_parameter(rhs);
+  op.append_result(Parameter{function.next_id(), lhs.get_shape()});
+  function.add_op(op);
+  auto results = function.get_op(function.get_op_count() - 1).get_results();
+  function.set_returns({results.begin(), results.end()});
+
+  Module module{"add_kernel"};
+  module.append_function(function);
+  builder.append_module(module);
   auto module_text = builder.build();
   if (!module_text) {
+    std::fprintf(stderr, "build failed: %s\n", module_text.error().c_str());
     return 1;
   }
   std::printf("kernel (stablehlo mlir):\n%s\n", module_text->c_str());
@@ -99,7 +107,7 @@ int main() {
 
   PJRT_Program program{};
   program.struct_size = PJRT_Program_STRUCT_SIZE;
-  program.code = const_cast<char *>(module_text->data());
+  program.code = const_cast<char *>(module_text->c_str());
   program.code_size = module_text->size();
   program.format = "mlir";
   program.format_size = 4;

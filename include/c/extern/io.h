@@ -18,8 +18,8 @@ limitations under the License.
 
 #include "c/extern/io/enums.h"
 #include "c/extern/io/opaque_types.h"
+#include "c/extern/io/registration.h"
 #include "c/extern/io/request.h"
 #include "c/extern/io/response.h"
-#include "c/extern/io/registration.h"
 
-#endif  // CONGELADO_C_IO_H_
+#endif // CONGELADO_C_IO_H_

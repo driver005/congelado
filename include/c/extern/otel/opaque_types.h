@@ -20,22 +20,23 @@ limitations under the License.
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// Forward declarations only — full definitions and their New/Delete/Set*
-// inlines live in registration.h, counter.h, histogram.h, meter.h,
-// span.h, tracer.h to avoid circular-include and redefinition issues.
+    // Forward declarations only — full definitions and their New/Delete/Set*
+    // inlines live in registration.h, counter.h, histogram.h, meter.h,
+    // span.h, tracer.h to avoid circular-include and redefinition issues.
 
-struct TP_Otel;
-struct TP_Otel_Tracer;
-struct TP_Otel_Meter;
-struct TP_Otel_Span;
-struct TP_Otel_Counter;
-struct TP_Otel_Histogram;
+    struct TP_Otel;
+    struct TP_Otel_Tracer;
+    struct TP_Otel_Meter;
+    struct TP_Otel_Span;
+    struct TP_Otel_Counter;
+    struct TP_Otel_Histogram;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_OTEL_OPAQUE_TYPES_H_
+#endif // CONGELADO_C_OTEL_OPAQUE_TYPES_H_

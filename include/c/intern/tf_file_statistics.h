@@ -16,33 +16,36 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_FILE_STATISTICS_H_
 #define TENSORFLOW_C_TF_FILE_STATISTICS_H_
 
+#include "c/abi/macros.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
-#include "c/abi/macros.h"
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_FileStatistics {
-  size_t struct_size;
-  int is_directory;
-  int64_t length;
-  int64_t mtime_nsec;
-} TF_FileStatistics;
+    typedef struct TF_FileStatistics
+    {
+        size_t struct_size;
+        int is_directory;
+        int64_t length;
+        int64_t mtime_nsec;
+    } TF_FileStatistics;
 
 #define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatistics, mtime_nsec)
 
-static inline void TF_FileStatisticsInit(TF_FileStatistics* stats) {
-  stats->struct_size = TF_FILE_STATISTICS_STRUCT_SIZE;
-  stats->is_directory = 0;
-  stats->length = 0;
-  stats->mtime_nsec = 0;
-}
+    static inline void TF_FileStatisticsInit(TF_FileStatistics* stats)
+    {
+        stats->struct_size = TF_FILE_STATISTICS_STRUCT_SIZE;
+        stats->is_directory = 0;
+        stats->length = 0;
+        stats->mtime_nsec = 0;
+    }
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_TF_FILE_STATISTICS_H_
+#endif // TENSORFLOW_C_TF_FILE_STATISTICS_H_

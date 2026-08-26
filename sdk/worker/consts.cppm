@@ -11,7 +11,7 @@ export namespace congelado::worker::consts {
 // worker_main.cc's value_or(...) calls). One place to tune every default.
 
 // Delay between failed engine-connect attempts, in milliseconds.
-inline constexpr std::uint32_t connect_retry_delay_ms = 1000;
+inline constexpr std::uint32_t connect_retry_delay_ms = 1'000;
 
 // Overall engine-connect deadline, in milliseconds. 0 means retry forever, never give up.
 inline constexpr std::uint32_t connect_timeout_ms = 0;
@@ -24,7 +24,7 @@ using namespace boost::ut;
 
 suite<"WorkerConsts"> worker_consts_suite = [] {
     "connect retry delay default is 1000ms"_test = [] {
-        expect(connect_retry_delay_ms == 1000);
+        expect(connect_retry_delay_ms == 1'000);
     };
 
     "connect timeout default is 0 (retry forever)"_test = [] {

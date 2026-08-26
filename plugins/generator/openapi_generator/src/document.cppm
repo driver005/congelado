@@ -6,7 +6,7 @@ module;
 // plugins/serde/json/bin/json_plugin.cc's own tests already use) is the only way to exercise
 // at() here; guarded so production builds never see this include (this file otherwise
 // deliberately never touches rfl headers directly, see the note below).
-#include <rfl/Generic.hpp>
+#    include <rfl/Generic.hpp>
 #endif
 
 export module openapi_generator_plugin:document;
@@ -27,8 +27,9 @@ import boost.ut;
 
 export namespace congelado::client {
 
-class Document {
-  public:
+class Document
+{
+public:
     /**
      * @brief Parses a raw JSON string into a dynamic value tree via the registered JSON format
      * plugin — no target type needed, this is for navigating JSON whose shape you don't know
@@ -37,7 +38,8 @@ class Document {
      * @return the parsed value tree, or an error message if `data` isn't valid JSON or no JSON
      * format plugin is loaded.
      */
-    [[nodiscard]] static std::expected<serde::Value, std::string> parse(std::string_view data) {
+    [[nodiscard]] static std::expected<serde::Value, std::string> parse(std::string_view data)
+    {
         return serde::Ser::decode_generic("application/json", data);
     }
 
@@ -48,15 +50,20 @@ class Document {
      * the file's missing, unreadable, or isn't valid JSON.
      */
     [[nodiscard]] static std::expected<serde::Value, std::string>
-    load(const std::filesystem::path &path) {
+    load(const std::filesystem::path& path)
+    {
         std::ifstream file{path};
         if (!file) {
             return std::unexpected{std::format("failed to open '{}'", path.string())};
         }
-        std::string contents{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+        std::string contents{
+            std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}
+        };
         auto result = parse(contents);
         if (!result) {
-            return std::unexpected{std::format("failed to parse '{}': {}", path.string(), result.error())};
+            return std::unexpected{
+                std::format("failed to parse '{}': {}", path.string(), result.error())
+            };
         }
         return *result;
     }
@@ -70,9 +77,10 @@ class Document {
      * isn't an object or is missing the next key — bails clean, no exception.
      */
     [[nodiscard]] static std::optional<serde::Value>
-    at(const serde::Value &value, std::initializer_list<std::string_view> keys) {
+    at(const serde::Value& value, std::initializer_list<std::string_view> keys)
+    {
         serde::Value current = value;
-        for (auto key : keys) {
+        for (auto key: keys) {
             auto object = current.to_object();
             if (!object) {
                 return std::nullopt;
@@ -95,16 +103,18 @@ using namespace boost::ut;
 using congelado::client::Document;
 
 suite<"Document"> document_suite = [] {
-    "parse() always errors in this isolated test target — no JSON format plugin is linked"_test = [] {
-        // See the module-preamble note above: this test target never links a format plugin
-        // (json_plugin is a whole separate runtime-loadable target), so
-        // serde::Ser::decode_generic()'s registry lookup is guaranteed empty here — this is a
-        // deterministic property of the test environment, not something parse() itself does.
-        auto result = Document::parse(R"({"a": 1})");
+    "parse() always errors in this isolated test target — no JSON format plugin is linked"_test =
+        [] {
+            // See the module-preamble note above: this test target never links a format plugin
+            // (json_plugin is a whole separate runtime-loadable target), so
+            // serde::Ser::decode_generic()'s registry lookup is guaranteed empty here — this is
+            // a deterministic property of the test environment, not something parse() itself
+            // does.
+            auto result = Document::parse(R"({"a": 1})");
 
-        expect(not result.has_value()) << fatal;
-        expect(result.error() == "no format plugin loaded for 'application/json'");
-    };
+            expect(not result.has_value()) << fatal;
+            expect(result.error() == "no format plugin loaded for 'application/json'");
+        };
 
     "load() on a nonexistent path fails to open"_test = [] {
         auto result = Document::load("/nonexistent/path/does/not/exist.json");
@@ -137,8 +147,8 @@ suite<"Document"> document_suite = [] {
         serde::Value::Object content_holder;
         content_holder.insert(std::string{"content"}, serde::Value{json_holder});
 
-        auto found = Document::at(serde::Value{content_holder},
-                                  {"content", "application/json", "schema"});
+        auto found =
+            Document::at(serde::Value{content_holder}, {"content", "application/json", "schema"});
 
         expect(found.has_value()) << fatal;
         auto leaf = found->to_string();

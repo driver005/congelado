@@ -17,16 +17,18 @@ import boost.ut;
 
 export namespace io::layer::http2 {
 
-enum class HandshakeState : std::uint8_t {
+enum class HandshakeState : std::uint8_t
+{
     AWAITING_PREFACE,
     PREFACE_RECEIVED,
     PREFACE_ERROR,
     COMPLETED
 };
 
-template <bool IsServer = true>
-class Handshake {
-  public:
+template<bool IsServer = true>
+class Handshake
+{
+public:
     /**
      * @brief Builds a handshake bound to the local settings and a submitter callback for
      * flushing the outgoing SETTINGS frame (and, client-side, the connection preface).
@@ -34,8 +36,11 @@ class Handshake {
      * during `send_handshake()`.
      * @param submiter callback that actually pushes the built handshake bytes out.
      */
-    Handshake(Settings &settings, shared::SendCallback submiter)
-        : m_local_settings{settings}, m_submiter{std::move(submiter)} {}
+    Handshake(Settings& settings, shared::SendCallback submiter) :
+        m_local_settings{settings},
+        m_submiter{std::move(submiter)}
+    {
+    }
 
     /**
      * @brief Server-side handshake step — sends the local SETTINGS frame (once, idempotent
@@ -50,8 +55,8 @@ class Handshake {
      * @return `AWAITING_PREFACE` if not enough bytes yet, `COMPLETED` if the preface matched
      * (and got consumed off `view`), `PREFACE_ERROR` if what's there doesn't match.
      */
-    HandshakeState process(utils::buffering::BufferReader &view,
-                           HttpExtensionRegistry &extension_registry)
+    HandshakeState
+    process(utils::buffering::BufferReader& view, HttpExtensionRegistry& extension_registry)
         requires IsServer
     {
         core::logger::debug("http2/handshake", "process size={}", view.size());
@@ -72,7 +77,7 @@ class Handshake {
      * `send_handshake()` to fold in any registered extension's local SETTINGS overrides.
      * @return always `COMPLETED` — there's nothing left to wait on from this side.
      */
-    HandshakeState process(HttpExtensionRegistry &extension_registry)
+    HandshakeState process(HttpExtensionRegistry& extension_registry)
         requires(!IsServer)
     {
         core::logger::debug("http2/handshake", "process");
@@ -83,7 +88,7 @@ class Handshake {
         return HandshakeState::COMPLETED;
     }
 
-  private:
+private:
     /**
      * @brief Checks `view`'s leading bytes against the fixed 24-byte HTTP/2 connection preface
      * (`"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"`), consuming them off `view` if they match.
@@ -91,12 +96,14 @@ class Handshake {
      * @return `AWAITING_PREFACE` if `view` doesn't have 24 bytes yet, `COMPLETED` with the
      * preface consumed if it matches, `PREFACE_ERROR` if it's there but wrong.
      */
-    HandshakeState is_valid_preface(utils::buffering::BufferReader &view) const {
-        const auto &preface = HTTP2_CONNECTION_PREFACE;
+    HandshakeState is_valid_preface(utils::buffering::BufferReader& view) const
+    {
+        const auto& preface = HTTP2_CONNECTION_PREFACE;
         // Not enough bytes buffered yet to even compare — nothing to do but wait for more.
         if (view.size() < preface.size()) {
-            core::logger::debug("http2/handshake", "awaiting preface rx={} need={}", view.size(),
-                                preface.size());
+            core::logger::debug(
+                "http2/handshake", "awaiting preface rx={} need={}", view.size(), preface.size()
+            );
 
             return HandshakeState::AWAITING_PREFACE;
         }
@@ -105,7 +112,8 @@ class Handshake {
         if (std::ranges::equal(preface, view | std::views::take(preface.size()))) {
             core::logger::debug("http2/handshake", "valid preface");
 
-            // Match — consume those bytes off the view so they don't get reprocessed as a frame.
+            // Match — consume those bytes off the view so they don't get reprocessed as a
+            // frame.
             view.consume(preface.size());
             return HandshakeState::COMPLETED;
         }
@@ -126,7 +134,8 @@ class Handshake {
      * partial-preface retry on the server side would blast out a duplicate SETTINGS frame. It's
      * guarded correctly as written, just flagging why the guard has to exist.
      */
-    void send_handshake(HttpExtensionRegistry &extension_registry) {
+    void send_handshake(HttpExtensionRegistry& extension_registry)
+    {
         // Guard clause — already sent once, and server-side this can get called again on every
         // partial-preface retry, so bail here or we'd double-send SETTINGS.
         if (m_sent_settings) {
@@ -141,8 +150,9 @@ class Handshake {
         // 8441's SETTINGS_ENABLE_CONNECT_PROTOCOL via local.add_local_setting_override(...))
         // before they're serialized. No-op if no extensions are registered. Runs once per
         // connection thanks to the m_sent_settings guard above.
-        extension_registry.for_each(
-            [&](auto &extension) { extension->on_local_settings(m_local_settings.get()); });
+        extension_registry.for_each([&](auto& extension) {
+            extension->on_local_settings(m_local_settings.get());
+        });
 
         // Serialize the local settings into a SETTINGS frame payload first.
         auto payload = std::views::empty<std::byte> | WriteSettingsAdaptor{m_local_settings.get()} |
@@ -159,15 +169,17 @@ class Handshake {
         // sends the SETTINGS frame on its own since the client already handled the preface.
         if constexpr (!IsServer) {
             auto size = HTTP2_CONNECTION_PREFACE.size() + frame.get_size();
-            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame),
-                                                    m_local_settings.get().get_max_frame_size()};
+            auto adaptor = WriteFrameBuilderAdaptor{
+                std::move(frame), m_local_settings.get().get_max_frame_size()
+            };
             auto node = std::span{HTTP2_CONNECTION_PREFACE} | adaptor |
                         std::ranges::to<utils::buffering::BufferNode>(size);
             m_submiter(std::move(node));
         } else {
             auto size = frame.get_size();
-            auto adaptor = WriteFrameBuilderAdaptor{std::move(frame),
-                                                    m_local_settings.get().get_max_frame_size()};
+            auto adaptor = WriteFrameBuilderAdaptor{
+                std::move(frame), m_local_settings.get().get_max_frame_size()
+            };
             auto node = std::views::empty<std::byte> | adaptor |
                         std::ranges::to<utils::buffering::BufferNode>(size);
             m_submiter(std::move(node));
@@ -189,9 +201,10 @@ using namespace boost::ut;
 
 /// @brief Builds a BufferReader wrapping exactly `bytes` — same helper shape used across this
 /// module's other partitions (see stream.cppm's make_reader).
-static utils::buffering::BufferReader make_reader(const std::vector<std::byte> &bytes) {
-    auto *node = new utils::buffering::BufferNode(bytes.size());
-    for (auto b : bytes) {
+static utils::buffering::BufferReader make_reader(const std::vector<std::byte>& bytes)
+{
+    auto* node = new utils::buffering::BufferNode(bytes.size());
+    for (auto b: bytes) {
         node->push_back(b);
     }
     utils::buffering::BufferReader reader;
@@ -202,52 +215,53 @@ static utils::buffering::BufferReader make_reader(const std::vector<std::byte> &
 suite<"Handshake<true> (server)"> server_handshake_suite = [] {
     "process() sends the local SETTINGS exactly once, even across repeated AWAITING_PREFACE calls"_test =
         [] {
-        Settings local;
-        int send_calls = 0;
-        std::vector<std::byte> last_bytes;
-        shared::SendCallback submiter = [&](utils::buffering::BufferNode &&node) {
-            ++send_calls;
-            last_bytes.assign(node.get_data(), node.get_data() + node.get_written());
+            Settings local;
+            int send_calls = 0;
+            std::vector<std::byte> last_bytes;
+            shared::SendCallback submiter = [&](utils::buffering::BufferNode&& node) {
+                ++send_calls;
+                last_bytes.assign(node.get_data(), node.get_data() + node.get_written());
+            };
+            Handshake<true> handshake{local, std::move(submiter)};
+            HttpExtensionRegistry registry;
+
+            std::vector<std::byte> partial(10, std::byte{0});
+            auto reader = make_reader(partial);
+
+            auto state1 = handshake.process(reader, registry);
+            expect(state1 == HandshakeState::AWAITING_PREFACE);
+            expect(send_calls == 1);
+
+            auto state2 = handshake.process(reader, registry);
+            expect(state2 == HandshakeState::AWAITING_PREFACE);
+            expect(send_calls == 1); // guarded by m_sent_settings — no double-send
+
+            auto header = last_bytes | ReadFrameHeaderAdaptor{local.get_max_frame_size()};
+            expect(header.get_type() == shared_layer::FrameType::SETTINGS);
+            expect(header.get_stream_id() == 0U);
         };
-        Handshake<true> handshake{local, std::move(submiter)};
-        HttpExtensionRegistry registry;
-
-        std::vector<std::byte> partial(10, std::byte{0});
-        auto reader = make_reader(partial);
-
-        auto state1 = handshake.process(reader, registry);
-        expect(state1 == HandshakeState::AWAITING_PREFACE);
-        expect(send_calls == 1);
-
-        auto state2 = handshake.process(reader, registry);
-        expect(state2 == HandshakeState::AWAITING_PREFACE);
-        expect(send_calls == 1); // guarded by m_sent_settings — no double-send
-
-        auto header = last_bytes | ReadFrameHeaderAdaptor{local.get_max_frame_size()};
-        expect(header.get_type() == shared_layer::FrameType::SETTINGS);
-        expect(header.get_stream_id() == 0U);
-    };
 
     "process() with a full valid preface returns COMPLETED and consumes exactly the preface bytes"_test =
         [] {
-        Settings local;
-        shared::SendCallback submiter = [](utils::buffering::BufferNode && /*node*/) {};
-        Handshake<true> handshake{local, std::move(submiter)};
-        HttpExtensionRegistry registry;
+            Settings local;
+            shared::SendCallback submiter = [](utils::buffering::BufferNode&& /*node*/) {};
+            Handshake<true> handshake{local, std::move(submiter)};
+            HttpExtensionRegistry registry;
 
-        std::vector<std::byte> bytes(HTTP2_CONNECTION_PREFACE.begin(),
-                                     HTTP2_CONNECTION_PREFACE.end());
-        bytes.push_back(std::byte{0xAA}); // trailing byte, should survive untouched
-        auto reader = make_reader(bytes);
+            std::vector<std::byte> bytes(
+                HTTP2_CONNECTION_PREFACE.begin(), HTTP2_CONNECTION_PREFACE.end()
+            );
+            bytes.push_back(std::byte{0xAA}); // trailing byte, should survive untouched
+            auto reader = make_reader(bytes);
 
-        auto state = handshake.process(reader, registry);
-        expect(state == HandshakeState::COMPLETED);
-        expect(reader.size() == 1U);
-    };
+            auto state = handshake.process(reader, registry);
+            expect(state == HandshakeState::COMPLETED);
+            expect(reader.size() == 1U);
+        };
 
     "process() with a mismatched preface returns PREFACE_ERROR"_test = [] {
         Settings local;
-        shared::SendCallback submiter = [](utils::buffering::BufferNode && /*node*/) {};
+        shared::SendCallback submiter = [](utils::buffering::BufferNode&& /*node*/) {};
         Handshake<true> handshake{local, std::move(submiter)};
         HttpExtensionRegistry registry;
 
@@ -264,7 +278,7 @@ suite<"Handshake<false> (client)"> client_handshake_suite = [] {
         Settings local;
         int send_calls = 0;
         std::vector<std::byte> last_bytes;
-        shared::SendCallback submiter = [&](utils::buffering::BufferNode &&node) {
+        shared::SendCallback submiter = [&](utils::buffering::BufferNode&& node) {
             ++send_calls;
             last_bytes.assign(node.get_data(), node.get_data() + node.get_written());
         };
@@ -280,8 +294,12 @@ suite<"Handshake<false> (client)"> client_handshake_suite = [] {
         expect(send_calls == 1); // guarded by m_sent_settings — no double-send
 
         expect(last_bytes.size() >= HTTP2_CONNECTION_PREFACE.size()) << fatal;
-        expect(std::ranges::equal(
-            std::span(last_bytes).first(HTTP2_CONNECTION_PREFACE.size()), HTTP2_CONNECTION_PREFACE));
+        expect(
+            std::ranges::equal(
+                std::span(last_bytes).first(HTTP2_CONNECTION_PREFACE.size()),
+                HTTP2_CONNECTION_PREFACE
+            )
+        );
 
         auto header = std::span(last_bytes).subspan(HTTP2_CONNECTION_PREFACE.size()) |
                       ReadFrameHeaderAdaptor{local.get_max_frame_size()};

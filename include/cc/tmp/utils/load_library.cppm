@@ -9,15 +9,17 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class LoadLibrary {
-public:
-    static ice::DynamicLibrary Load(const std::string& path) {
-        return ice::DynamicLibrary(path);
-    }
-};
+        class LoadLibrary
+        {
+        public:
+            static ice::DynamicLibrary Load(const std::string& path)
+            {
+                return ice::DynamicLibrary(path);
+            }
+        };
 
-} // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

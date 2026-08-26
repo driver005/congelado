@@ -16,24 +16,28 @@ export namespace serde {
 // Structural NTTP wrapper so string literals can be template parameters.
 // Usage: template <StringLiteral S> — caller writes MyTemplate<"application/json">.
 
-template <std::size_t N>
-struct StringLiteral {
+template<std::size_t N>
+struct StringLiteral
+{
     /**
      * @brief Copies a string literal's characters (including the trailing NUL) into `value`
      * at compile time — this is the whole trick that lets a literal ride along as a
      * template parameter, no cap.
      * @param source the string literal being wrapped, e.g. `"application/json"`.
      */
-    consteval StringLiteral(const char (&source)[N]) noexcept {
+    consteval StringLiteral(const char (&source)[N]) noexcept
+    {
         std::copy_n(source, N, m_value);
     }
+
     char m_value[N]{};
 
     /**
      * @brief Gets a view over the literal, trailing NUL excluded.
      * @return a `string_view` of length `N - 1` over `m_value`.
      */
-    [[nodiscard]] constexpr std::string_view string_view() const noexcept {
+    [[nodiscard]] constexpr std::string_view string_view() const noexcept
+    {
         return {m_value, N - 1};
     }
 
@@ -44,8 +48,9 @@ struct StringLiteral {
      * @param other the StringLiteral being compared against.
      * @return true if both literals hold the same characters.
      */
-    template <std::size_t M>
-    [[nodiscard]] constexpr bool operator==(const StringLiteral<M> &other) const noexcept {
+    template<std::size_t M>
+    [[nodiscard]] constexpr bool operator==(const StringLiteral<M>& other) const noexcept
+    {
         // Different lengths can never be equal — bail before touching a single char.
         if constexpr (N != M) {
             return false;
@@ -62,76 +67,90 @@ struct StringLiteral {
 
 // ─── MFPTraits ────────────────────────────────────────────────────────────────
 
-template <typename MFP>
+template<typename MFP>
 struct MFPTraits;
 
-template <typename C, typename R>
-struct MFPTraits<R (C::*)() const> {
+template<typename C, typename R>
+struct MFPTraits<R (C::*)() const>
+{
     using class_t = C;
     using value_t = std::remove_cvref_t<R>;
 };
 
-template <typename C, typename R>
-struct MFPTraits<R (C::*)() const noexcept> {
+template<typename C, typename R>
+struct MFPTraits<R (C::*)() const noexcept>
+{
     using class_t = C;
     using value_t = std::remove_cvref_t<R>;
 };
 
 // ─── FieldOptionsDb ───────────────────────────────────────────────────────────
 
-class FieldOptionsDb {
-  public:
-    bool             m_primary_key = false;
-    bool             m_unique      = false;
-    bool             m_nullable    = true;
-    bool             m_skip_insert = false;
-    bool             m_skip_update = false;
-    const char *m_ref_table  = nullptr;
-    const char *m_ref_column = nullptr;
+class FieldOptionsDb
+{
+public:
+    bool m_primary_key = false;
+    bool m_unique = false;
+    bool m_nullable = true;
+    bool m_skip_insert = false;
+    bool m_skip_update = false;
+    const char* m_ref_table = nullptr;
+    const char* m_ref_column = nullptr;
 
     /// @brief Builds a default-initialized FieldOptionsDb — the fluent-chain starting point.
     /// @return a fresh FieldOptionsDb with every flag at its default (nullable, no PK/unique).
-    [[nodiscard]] static constexpr FieldOptionsDb init() { return {}; }
+    [[nodiscard]] static constexpr FieldOptionsDb init()
+    {
+        return {};
+    }
 
     /**
      * @brief Returns a copy with `m_primary_key` flipped on — chain this on `init()` to mark
      * a column as the table's PK, bet.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptionsDb pk() const {
+    [[nodiscard]] constexpr FieldOptionsDb pk() const
+    {
         auto opt = *this;
         opt.m_primary_key = true;
         return opt;
     }
+
     /**
      * @brief Returns a copy with `m_nullable` flipped off.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptionsDb not_null() const {
+    [[nodiscard]] constexpr FieldOptionsDb not_null() const
+    {
         auto opt = *this;
         opt.m_nullable = false;
         return opt;
     }
+
     /**
      * @brief Returns a copy with `m_skip_insert` flipped on, so Sql::build_insert_sql /
      * build_insert_many_sql leave this column out of generated INSERTs.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptionsDb no_insert() const {
+    [[nodiscard]] constexpr FieldOptionsDb no_insert() const
+    {
         auto opt = *this;
         opt.m_skip_insert = true;
         return opt;
     }
+
     /**
      * @brief Returns a copy with `m_skip_update` flipped on, so Sql::build_update_sql leaves
      * this column out of generated UPDATE SET clauses.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptionsDb no_update() const {
+    [[nodiscard]] constexpr FieldOptionsDb no_update() const
+    {
         auto opt = *this;
         opt.m_skip_update = true;
         return opt;
     }
+
     /**
      * @brief Returns a copy with a foreign-key reference attached, rendered as
      * `REFERENCES table(column)` by Sql::build_create_sql.
@@ -143,7 +162,9 @@ class FieldOptionsDb {
      * waiting to happen.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptionsDb references(const char *table_name, const char *column_name) const {
+    [[nodiscard]] constexpr FieldOptionsDb
+    references(const char* table_name, const char* column_name) const
+    {
         auto opt = *this;
         opt.m_ref_table = table_name;
         opt.m_ref_column = column_name;
@@ -153,13 +174,17 @@ class FieldOptionsDb {
 
 // ─── FieldOptions ─────────────────────────────────────────────────────────────
 
-class FieldOptions {
-  public:
+class FieldOptions
+{
+public:
     FieldOptionsDb m_db{};
 
     /// @brief Builds a default-initialized FieldOptions — the fluent-chain starting point.
     /// @return a fresh FieldOptions with a default-constructed `m_db` block.
-    [[nodiscard]] static constexpr FieldOptions init() { return {}; }
+    [[nodiscard]] static constexpr FieldOptions init()
+    {
+        return {};
+    }
 
     /**
      * @brief Returns a copy with `m_db` swapped in — this is how FieldDesc's `Opts` template
@@ -167,7 +192,8 @@ class FieldOptions {
      * @param db_options the FieldOptionsDb to attach.
      * @return the modified copy; the original is untouched.
      */
-    [[nodiscard]] constexpr FieldOptions with_db(FieldOptionsDb db_options) const {
+    [[nodiscard]] constexpr FieldOptions with_db(FieldOptionsDb db_options) const
+    {
         auto opt = *this;
         opt.m_db = db_options;
         return opt;
@@ -176,32 +202,44 @@ class FieldOptions {
 
 // ─── FieldDesc ────────────────────────────────────────────────────────────────
 
-template <rfl::internal::StringLiteral Name, auto Getter, auto Setter,
-          FieldOptions Opts = FieldOptions{}>
-struct FieldDesc {
+template<
+    rfl::internal::StringLiteral Name,
+    auto Getter,
+    auto Setter,
+    FieldOptions Opts = FieldOptions{}>
+struct FieldDesc
+{
     // FIXME(clang-tidy): readability-identifier-naming — name/getter/setter/options have
     // external callers across 20+ files (e.g. include/model/**, include/serde/sql.cppm,
     // include/serde/cache.cppm, sdk/client/**, plugins/engine/handler/**); rename needs a
     // repo-wide sweep.
-    static constexpr auto         name    = Name;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
-    static constexpr auto         getter  = Getter;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
-    static constexpr auto         setter  = Setter;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
-    static constexpr FieldOptions options = Opts;  // NOLINT(readability-identifier-naming) — shared field name with 20+ external call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr auto name =
+        Name; // NOLINT(readability-identifier-naming) — shared field name with 20+ external
+              // call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr auto getter =
+        Getter; // NOLINT(readability-identifier-naming) — shared field name with 20+ external
+                // call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr auto setter =
+        Setter; // NOLINT(readability-identifier-naming) — shared field name with 20+ external
+                // call sites across model/serde/sdk/plugins, rename out of scope
+    static constexpr FieldOptions options =
+        Opts; // NOLINT(readability-identifier-naming) — shared field name with 20+ external
+              // call sites across model/serde/sdk/plugins, rename out of scope
     using ClassType = MFPTraits<decltype(Getter)>::class_t;
     using ValueType = MFPTraits<decltype(Getter)>::value_t;
 };
 
 // ─── Serializable<T> + concepts ───────────────────────────────────────────────
 
-template <typename T>
+template<typename T>
 struct Serializable;
 
-template <typename T>
+template<typename T>
 concept ISerializable = requires {
     { Serializable<T>::fields() };
 };
 
-template <typename T>
+template<typename T>
 concept IConnectable = ISerializable<T> && requires {
     { Serializable<T>::table_name() } -> std::convertible_to<std::string_view>;
 };
@@ -210,15 +248,14 @@ concept IConnectable = ISerializable<T> && requires {
 // IAnyFormat: a format class declares a content_type (usable in template packs).
 // IFormat<F,T>: full wire-format contract — encode T → string, decode string → T.
 
-template <typename F>
+template<typename F>
 concept IAnyFormat = requires {
     { F::content_type } -> std::convertible_to<std::string_view>;
 };
 
-template <typename F, typename T>
+template<typename F, typename T>
 concept IFormat =
-    IAnyFormat<F> && ISerializable<T> &&
-    requires(const T &value, std::string_view data) {
+    IAnyFormat<F> && ISerializable<T> && requires(const T& value, std::string_view data) {
         { F::encode(value) } -> std::same_as<std::string>;
         { F::decode(data) } -> std::same_as<std::expected<T, std::string>>;
     };
@@ -231,8 +268,19 @@ concept IFormat =
 // dialect-flavored string. Mapping a ValueKind to an actual column-type string (e.g.
 // Postgres's "TEXT"/"BIGINT"/"JSONB") is a dialect's own opinion, not serde's.
 
-enum class ValueKind : std::uint8_t {
-    STRING, BOOLEAN, INT64, UINT64, INT32, UINT32, DOUBLE, FLOAT, TIMESTAMP, UUID, OTHER
+enum class ValueKind : std::uint8_t
+{
+    STRING,
+    BOOLEAN,
+    INT64,
+    UINT64,
+    INT32,
+    UINT32,
+    DOUBLE,
+    FLOAT,
+    TIMESTAMP,
+    UUID,
+    OTHER
 };
 
 /**
@@ -243,15 +291,20 @@ enum class ValueKind : std::uint8_t {
  * Postgres treats it as `JSONB`).
  * @return the value's generic kind.
  */
-template <typename VT>
-constexpr ValueKind value_kind_of() {
-    if constexpr (std::same_as<VT, std::string> || std::same_as<VT, std::optional<std::string>> ||
-                  std::is_enum_v<VT>) {
+template<typename VT>
+constexpr ValueKind value_kind_of()
+{
+    if constexpr (
+        std::same_as<VT, std::string> || std::same_as<VT, std::optional<std::string>> ||
+        std::is_enum_v<VT>
+    ) {
         return ValueKind::STRING;
     } else if constexpr (std::same_as<VT, bool>) {
         return ValueKind::BOOLEAN;
-    } else if constexpr (std::same_as<VT, std::chrono::system_clock::time_point> ||
-                       std::same_as<VT, std::optional<std::chrono::system_clock::time_point>>) {
+    } else if constexpr (
+        std::same_as<VT, std::chrono::system_clock::time_point> ||
+        std::same_as<VT, std::optional<std::chrono::system_clock::time_point>>
+    ) {
         return ValueKind::TIMESTAMP;
     } else if constexpr (std::same_as<VT, std::int64_t>) {
         return ValueKind::INT64;
@@ -265,7 +318,9 @@ constexpr ValueKind value_kind_of() {
         return ValueKind::DOUBLE;
     } else if constexpr (std::same_as<VT, float>) {
         return ValueKind::FLOAT;
-    } else if constexpr (std::same_as<VT, uuids::uuid> || std::same_as<VT, std::optional<uuids::uuid>>) {
+    } else if constexpr (
+        std::same_as<VT, uuids::uuid> || std::same_as<VT, std::optional<uuids::uuid>>
+    ) {
         return ValueKind::UUID;
     } else {
         return ValueKind::OTHER;
@@ -277,54 +332,55 @@ constexpr ValueKind value_kind_of() {
  * `options.m_db.m_primary_key`.
  * @tparam T the connectable type whose PK field is being looked up.
  * @warning If no field is marked `primary_key`, this quietly returns an empty `string_view`
- * instead of erroring — every caller then splices that empty string into whatever it's building,
- * a footgun for any `T` that forgot `.pk()` on its `FieldOptionsDb`.
+ * instead of erroring — every caller then splices that empty string into whatever it's
+ * building, a footgun for any `T` that forgot `.pk()` on its `FieldOptionsDb`.
  * @return the primary key's field name, or empty if no field is marked as one.
  */
-template <IConnectable T>
-std::string_view pk_column_name() {
+template<IConnectable T>
+std::string_view pk_column_name()
+{
     std::string_view result;
     // Fold over every reflected field looking for the one flagged primary_key — linear
     // scan wearing a fold-expression trenchcoat.
     std::apply(
         [&](auto... fields) {
-            ((fields.options.m_db.m_primary_key
-                  ? (result = fields.name.string_view())
-                  : std::string_view{}),
+            ((fields.options.m_db.m_primary_key ? (result = fields.name.string_view())
+                                                : std::string_view{}),
              ...);
         },
-        Serializable<T>::fields());
+        Serializable<T>::fields()
+    );
     return result;
 }
 
 // ─── Cache / SQL concepts ─────────────────────────────────────────────────────
 
-template <typename F, typename T>
-concept ICacheHelper =
-    IConnectable<T> &&
-    requires(const T &value, std::string_view pk_value) {
-        { F::pk_string(value)                } -> std::same_as<std::string>;
-        { F::cache_key(value)                } -> std::same_as<std::string>;
-        { F::template cache_key<T>(pk_value) } -> std::same_as<std::string>;
-        { F::cache_value(value)              } -> std::same_as<std::string>;
-    };
+template<typename F, typename T>
+concept ICacheHelper = IConnectable<T> && requires(const T& value, std::string_view pk_value) {
+    { F::pk_string(value) } -> std::same_as<std::string>;
+    { F::cache_key(value) } -> std::same_as<std::string>;
+    { F::template cache_key<T>(pk_value) } -> std::same_as<std::string>;
+    { F::cache_value(value) } -> std::same_as<std::string>;
+};
 
-template <typename F, typename T>
-concept ISqlBuilder =
-    IConnectable<T> &&
-    requires(const T &value, std::string_view key,
-             std::span<const std::string> keys, std::span<const T> values) {
-        { F::template build_create_sql<T>()            } -> std::same_as<std::string>;
-        { F::template build_select_sql<T>(key)         } -> std::same_as<std::string>;
-        { F::template build_select_many_sql<T>(keys)   } -> std::same_as<std::string>;
-        { F::template build_select_all_sql<T>()        } -> std::same_as<std::string>;
-        { F::template build_insert_sql<T>(value)       } -> std::same_as<std::string>;
-        { F::template build_insert_many_sql<T>(values) } -> std::same_as<std::string>;
-        { F::template build_update_sql<T>(value)       } -> std::same_as<std::string>;
-        { F::template build_upsert_sql<T>(value)       } -> std::same_as<std::string>;
-        { F::template build_delete_sql<T>(key)         } -> std::same_as<std::string>;
-        { F::template build_delete_many_sql<T>(keys)   } -> std::same_as<std::string>;
-    };
+template<typename F, typename T>
+concept ISqlBuilder = IConnectable<T> && requires(
+                                             const T& value,
+                                             std::string_view key,
+                                             std::span<const std::string> keys,
+                                             std::span<const T> values
+                                         ) {
+    { F::template build_create_sql<T>() } -> std::same_as<std::string>;
+    { F::template build_select_sql<T>(key) } -> std::same_as<std::string>;
+    { F::template build_select_many_sql<T>(keys) } -> std::same_as<std::string>;
+    { F::template build_select_all_sql<T>() } -> std::same_as<std::string>;
+    { F::template build_insert_sql<T>(value) } -> std::same_as<std::string>;
+    { F::template build_insert_many_sql<T>(values) } -> std::same_as<std::string>;
+    { F::template build_update_sql<T>(value) } -> std::same_as<std::string>;
+    { F::template build_upsert_sql<T>(value) } -> std::same_as<std::string>;
+    { F::template build_delete_sql<T>(key) } -> std::same_as<std::string>;
+    { F::template build_delete_many_sql<T>(keys) } -> std::same_as<std::string>;
+};
 
 } // namespace serde
 
@@ -332,29 +388,43 @@ concept ISqlBuilder =
 namespace serde::tests {
 
 // Minimal IConnectable fixture for pk_column_name<T>() — one field, flagged as the PK.
-class CoreTestRecord {
-  public:
+class CoreTestRecord
+{
+public:
     CoreTestRecord() = default;
 
-    void set_id(std::string id) { m_id = std::move(id); }
-    [[nodiscard]] const std::string &get_id() const noexcept { return m_id; }
+    void set_id(std::string id)
+    {
+        m_id = std::move(id);
+    }
 
-  private:
+    [[nodiscard]] const std::string& get_id() const noexcept
+    {
+        return m_id;
+    }
+
+private:
     std::string m_id;
 };
 
 } // namespace serde::tests
 
-template <>
-struct serde::Serializable<serde::tests::CoreTestRecord> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<serde::tests::CoreTestRecord>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"id", &serde::tests::CoreTestRecord::get_id,
-                             &serde::tests::CoreTestRecord::set_id,
-                             serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<
+                "id", &serde::tests::CoreTestRecord::get_id, &serde::tests::CoreTestRecord::set_id,
+                serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
         };
     }
-    static constexpr std::string_view table_name() { return "core_test_records"; }
+
+    static constexpr std::string_view table_name()
+    {
+        return "core_test_records";
+    }
 };
 
 namespace serde::tests {
@@ -379,14 +449,14 @@ suite<"StringLiteral"> string_literal_suite = [] {
         constexpr StringLiteral first{"abc"};
         constexpr StringLiteral second{"abd"};
 
-        expect(not (first == second));
+        expect(not(first == second));
     };
 
     "different-length literals compare unequal"_test = [] {
         constexpr StringLiteral first{"abc"};
         constexpr StringLiteral second{"abcd"};
 
-        expect(not (first == second));
+        expect(not(first == second));
     };
 };
 

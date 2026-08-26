@@ -15,23 +15,27 @@ namespace core::otel::detail {
  * re-create the instrument on every call. Mutex-guarded since counters get bumped from many
  * threads (HTTP handlers, poll-cycle contracts) concurrently.
  */
-struct CounterCache {
+struct CounterCache
+{
     std::mutex mutex;
     std::unordered_map<std::string, std::vector<std::shared_ptr<interfaces::ICounter>>> entries;
 };
 
 /// @brief Same caching deal as `CounterCache`, for histogram instruments.
-struct HistogramCache {
+struct HistogramCache
+{
     std::mutex mutex;
     std::unordered_map<std::string, std::vector<std::shared_ptr<interfaces::IHistogram>>> entries;
 };
 
-inline CounterCache &counter_cache() {
+inline CounterCache& counter_cache()
+{
     static CounterCache cache;
     return cache;
 }
 
-inline HistogramCache &histogram_cache() {
+inline HistogramCache& histogram_cache()
+{
     static HistogramCache cache;
     return cache;
 }
@@ -49,23 +53,25 @@ export namespace core::otel {
  * @param value the amount to add.
  * @param attrs attributes (dimensions) this data point carries.
  */
-inline void counter_add(std::string_view name, double value,
-                        std::span<const interfaces::Attribute> attrs = {}) noexcept {
+inline void counter_add(
+    std::string_view name, double value, std::span<const interfaces::Attribute> attrs = {}
+) noexcept
+{
     try {
-        auto *registry = MeterRegistry::get_active();
+        auto* registry = MeterRegistry::get_active();
         if (registry == nullptr || !registry->has_provider()) {
             return;
         }
-        auto &cache = detail::counter_cache();
+        auto& cache = detail::counter_cache();
         std::scoped_lock lock(cache.mutex);
-        auto &counters = cache.entries[std::string{name}];
+        auto& counters = cache.entries[std::string{name}];
         if (counters.empty()) {
             counters.reserve(registry->get_providers().size());
-            for (const auto &provider : registry->get_providers()) {
+            for (const auto& provider: registry->get_providers()) {
                 counters.push_back(provider->create_counter(name, "", ""));
             }
         }
-        for (const auto &counter : counters) {
+        for (const auto& counter: counters) {
             if (counter) {
                 counter->add(value, attrs);
             }
@@ -77,29 +83,31 @@ inline void counter_add(std::string_view name, double value,
 
 /**
  * @brief Records one observation into the named histogram on every registered `IMeterProvider`,
- * creating the instrument on first use per provider. Same never-throws/graceful-degrade contract
- * as `counter_add()`.
+ * creating the instrument on first use per provider. Same never-throws/graceful-degrade
+ * contract as `counter_add()`.
  * @param name the histogram's name (e.g. `"task.duration_ms"`).
  * @param value the observed value.
  * @param attrs attributes (dimensions) this data point carries.
  */
-inline void histogram_record(std::string_view name, double value,
-                             std::span<const interfaces::Attribute> attrs = {}) noexcept {
+inline void histogram_record(
+    std::string_view name, double value, std::span<const interfaces::Attribute> attrs = {}
+) noexcept
+{
     try {
-        auto *registry = MeterRegistry::get_active();
+        auto* registry = MeterRegistry::get_active();
         if (registry == nullptr || !registry->has_provider()) {
             return;
         }
-        auto &cache = detail::histogram_cache();
+        auto& cache = detail::histogram_cache();
         std::scoped_lock lock(cache.mutex);
-        auto &histograms = cache.entries[std::string{name}];
+        auto& histograms = cache.entries[std::string{name}];
         if (histograms.empty()) {
             histograms.reserve(registry->get_providers().size());
-            for (const auto &provider : registry->get_providers()) {
+            for (const auto& provider: registry->get_providers()) {
                 histograms.push_back(provider->create_histogram(name, "", ""));
             }
         }
-        for (const auto &histogram : histograms) {
+        for (const auto& histogram: histograms) {
             if (histogram) {
                 histogram->record(value, attrs);
             }
@@ -115,9 +123,11 @@ inline void histogram_record(std::string_view name, double value,
 namespace core::otel::tests {
 using namespace boost::ut;
 
-class MetricsFakeCounter : public interfaces::ICounter {
-  public:
-    void add(double value, std::span<const interfaces::Attribute>) noexcept override {
+class MetricsFakeCounter : public interfaces::ICounter
+{
+public:
+    void add(double value, std::span<const interfaces::Attribute>) noexcept override
+    {
         m_last_value = value;
         ++m_add_count;
     }
@@ -126,9 +136,11 @@ class MetricsFakeCounter : public interfaces::ICounter {
     int m_add_count{0};
 };
 
-class MetricsFakeHistogram : public interfaces::IHistogram {
-  public:
-    void record(double value, std::span<const interfaces::Attribute>) noexcept override {
+class MetricsFakeHistogram : public interfaces::IHistogram
+{
+public:
+    void record(double value, std::span<const interfaces::Attribute>) noexcept override
+    {
         m_last_value = value;
         ++m_record_count;
     }
@@ -140,16 +152,20 @@ class MetricsFakeHistogram : public interfaces::IHistogram {
 // Every counter_add()/histogram_record() name goes through a process-wide static cache
 // (detail::counter_cache()/histogram_cache()), so each test below uses its own unique
 // instrument name to avoid tripping over a stale entry left by another test.
-class MetricsFakeMeterProvider : public interfaces::IMeterProvider {
-  public:
+class MetricsFakeMeterProvider : public interfaces::IMeterProvider
+{
+public:
     [[nodiscard]] std::shared_ptr<interfaces::ICounter>
-    create_counter(std::string_view, std::string_view, std::string_view) override {
+    create_counter(std::string_view, std::string_view, std::string_view) override
+    {
         ++m_create_counter_count;
         m_counter = std::make_shared<MetricsFakeCounter>();
         return m_counter;
     }
+
     [[nodiscard]] std::shared_ptr<interfaces::IHistogram>
-    create_histogram(std::string_view, std::string_view, std::string_view) override {
+    create_histogram(std::string_view, std::string_view, std::string_view) override
+    {
         ++m_create_histogram_count;
         m_histogram = std::make_shared<MetricsFakeHistogram>();
         return m_histogram;
@@ -163,16 +179,18 @@ class MetricsFakeMeterProvider : public interfaces::IMeterProvider {
 
 suite<"otel::counter_add"> counter_add_suite = [] {
     "no-op and doesn't throw when no registry is active"_test = [] {
-        auto *previous = MeterRegistry::get_active();
+        auto* previous = MeterRegistry::get_active();
         MeterRegistry::set_active(nullptr);
 
-        expect(nothrow([] { counter_add("test.metrics.counter.noop", 1.0); }));
+        expect(nothrow([] {
+            counter_add("test.metrics.counter.noop", 1.0);
+        }));
 
         MeterRegistry::set_active(previous);
     };
 
     "creates the instrument once per provider and adds on every call"_test = [] {
-        auto *previous = MeterRegistry::get_active();
+        auto* previous = MeterRegistry::get_active();
         MeterRegistry registry;
         auto provider = std::make_shared<MetricsFakeMeterProvider>();
         registry.add_provider(provider);
@@ -191,16 +209,18 @@ suite<"otel::counter_add"> counter_add_suite = [] {
 
 suite<"otel::histogram_record"> histogram_record_suite = [] {
     "no-op and doesn't throw when no registry is active"_test = [] {
-        auto *previous = MeterRegistry::get_active();
+        auto* previous = MeterRegistry::get_active();
         MeterRegistry::set_active(nullptr);
 
-        expect(nothrow([] { histogram_record("test.metrics.histogram.noop", 1.0); }));
+        expect(nothrow([] {
+            histogram_record("test.metrics.histogram.noop", 1.0);
+        }));
 
         MeterRegistry::set_active(previous);
     };
 
     "creates the instrument once per provider and records on every call"_test = [] {
-        auto *previous = MeterRegistry::get_active();
+        auto* previous = MeterRegistry::get_active();
         MeterRegistry registry;
         auto provider = std::make_shared<MetricsFakeMeterProvider>();
         registry.add_provider(provider);

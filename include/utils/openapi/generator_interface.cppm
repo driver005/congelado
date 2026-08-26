@@ -14,18 +14,19 @@ import core_router;
 // other capability interface for naming consistency.
 export namespace interfaces {
 
-class IOpenApiGenerator {
-  public:
+class IOpenApiGenerator
+{
+public:
     /**
      * @brief Virtual dtor, default's good — generator backends clean up fine through the base
      * pointer, no extra motion needed.
      */
     virtual ~IOpenApiGenerator() = default;
     IOpenApiGenerator() = default;
-    IOpenApiGenerator(const IOpenApiGenerator &) = delete;
-    IOpenApiGenerator &operator=(const IOpenApiGenerator &) = delete;
-    IOpenApiGenerator(IOpenApiGenerator &&) = delete;
-    IOpenApiGenerator &operator=(IOpenApiGenerator &&) = delete;
+    IOpenApiGenerator(const IOpenApiGenerator&) = delete;
+    IOpenApiGenerator& operator=(const IOpenApiGenerator&) = delete;
+    IOpenApiGenerator(IOpenApiGenerator&&) = delete;
+    IOpenApiGenerator& operator=(IOpenApiGenerator&&) = delete;
 
     /**
      * @brief A short human-readable name for this generator backend, for logs/diagnostics.
@@ -34,17 +35,17 @@ class IOpenApiGenerator {
     [[nodiscard]] virtual std::string_view generator_name() const noexcept = 0;
 
     /**
-     * @brief Builds the OpenAPI document fresh from the process-wide route/schema registries and
-     * writes it to `output_path` as JSON — mirrors `utils::openapi::Generator::generate()` +
-     * `write()` chained together.
+     * @brief Builds the OpenAPI document fresh from the process-wide route/schema registries
+     * and writes it to `output_path` as JSON — mirrors `utils::openapi::Generator::generate()`
+     * + `write()` chained together.
      * @param title the document's `info.title`.
      * @param version the document's `info.version`.
      * @param output_path the filesystem path to write the serialized document to.
      * @return nothing on success, or an error string if serialization/write failed.
      */
-    [[nodiscard]] virtual std::expected<void, std::string>
-    write_document(std::string_view title, std::string_view version,
-                   std::filesystem::path const &output_path) const = 0;
+    [[nodiscard]] virtual std::expected<void, std::string> write_document(
+        std::string_view title, std::string_view version, const std::filesystem::path& output_path
+    ) const = 0;
 
     /**
      * @brief Builds a live GET route that regenerates the OpenAPI document from the registries
@@ -69,11 +70,12 @@ class IOpenApiGenerator {
      * fresh one, or empty to generate `"{namespace_name}_dto"` as usual.
      * @return nothing on success, or an error string describing whatever step failed.
      */
-    [[nodiscard]] virtual std::expected<void, std::string>
-    generate_client_sdk(std::filesystem::path const &openapi_path,
-                        std::filesystem::path const &output_dir,
-                        std::string_view namespace_name,
-                        std::optional<std::string_view> shared_models) const = 0;
+    [[nodiscard]] virtual std::expected<void, std::string> generate_client_sdk(
+        const std::filesystem::path& openapi_path,
+        const std::filesystem::path& output_dir,
+        std::string_view namespace_name,
+        std::optional<std::string_view> shared_models
+    ) const = 0;
 };
 
 } // namespace interfaces

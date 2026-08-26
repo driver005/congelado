@@ -15,10 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <complex>
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/FixedPoint"
 #include "tensorflow/core/platform/types.h"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/FixedPoint"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+
+#include <complex>
 
 export module cc_tmp:types_numeric_types;
 
@@ -27,59 +28,65 @@ import cc_abi;
 
 export {
 
-// Disable clang-format to prevent 'FixedPoint' header from being included
-// before 'Tensor' header on which it depends.
-// clang-format off
-// clang-format on
+    // Disable clang-format to prevent 'FixedPoint' header from being included
+    // before 'Tensor' header on which it depends.
+    // clang-format off
+    // clang-format on
 
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Single precision complex.
-typedef std::complex<float> complex64;
-// Double precision complex.
-typedef std::complex<double> complex128;
+        // Single precision complex.
+        typedef std::complex<float> complex64;
+        // Double precision complex.
+        typedef std::complex<double> complex128;
 
-// We use Eigen's QInt implementations for our quantized int types.
-typedef Eigen::QInt8 qint8;
-typedef Eigen::QUInt8 quint8;
-typedef Eigen::QInt32 qint32;
-typedef Eigen::QInt16 qint16;
-typedef Eigen::QUInt16 quint16;
+        // We use Eigen's QInt implementations for our quantized int types.
+        typedef Eigen::QInt8 qint8;
+        typedef Eigen::QUInt8 quint8;
+        typedef Eigen::QInt32 qint32;
+        typedef Eigen::QInt16 qint16;
+        typedef Eigen::QUInt16 quint16;
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
-static inline tensorflow::bfloat16 FloatToBFloat16(float float_val) {
+    static inline tensorflow::bfloat16 FloatToBFloat16(float float_val)
+    {
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  return *reinterpret_cast<tensorflow::bfloat16*>(
-      reinterpret_cast<uint16_t*>(&float_val));
+        return *reinterpret_cast<tensorflow::bfloat16*>(reinterpret_cast<uint16_t*>(&float_val));
 #else
-  return *reinterpret_cast<tensorflow::bfloat16*>(
-      &(reinterpret_cast<uint16_t*>(&float_val)[1]));
+        return *reinterpret_cast<tensorflow::bfloat16*>(
+            &(reinterpret_cast<uint16_t*>(&float_val)[1])
+        );
 #endif
-}
+    }
 
-namespace Eigen {
-template <>
-struct NumTraits<tensorflow::tstring> : GenericNumTraits<tensorflow::tstring> {
-  enum {
-    RequireInitialization = 1,
-    ReadCost = HugeCost,
-    AddCost = HugeCost,
-    MulCost = HugeCost
-  };
+    namespace Eigen {
+        template<>
+        struct NumTraits<tensorflow::tstring> : GenericNumTraits<tensorflow::tstring>
+        {
+            enum
+            {
+                RequireInitialization = 1,
+                ReadCost = HugeCost,
+                AddCost = HugeCost,
+                MulCost = HugeCost
+            };
 
-  static inline int digits10() { return 0; }
+            static inline int digits10()
+            {
+                return 0;
+            }
 
- private:
-  static inline tensorflow::tstring epsilon();
-  static inline tensorflow::tstring dummy_precision();
-  static inline tensorflow::tstring lowest();
-  static inline tensorflow::tstring highest();
-  static inline tensorflow::tstring infinity();
-  static inline tensorflow::tstring quiet_NaN();
-};
+        private:
+            static inline tensorflow::tstring epsilon();
+            static inline tensorflow::tstring dummy_precision();
+            static inline tensorflow::tstring lowest();
+            static inline tensorflow::tstring highest();
+            static inline tensorflow::tstring infinity();
+            static inline tensorflow::tstring quiet_NaN();
+        };
 
-}  // namespace Eigen
+    } // namespace Eigen
 
 } // export

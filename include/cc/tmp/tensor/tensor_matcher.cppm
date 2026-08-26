@@ -12,20 +12,32 @@ import :tensor_tensor;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class TensorMatcher {
-public:
-    static bool Equal(const Tensor& a, const Tensor& b) {
-        if (a.dtype() != b.dtype()) return false;
-        if (a.shape() != b.shape()) return false;
-        if (a.TotalBytes() != b.TotalBytes()) return false;
-        if (a.data() == b.data()) return true;
-        if (!a.data() || !b.data()) return false;
-        return std::memcmp(a.data(), b.data(), a.TotalBytes()) == 0;
-    }
-};
+        class TensorMatcher
+        {
+        public:
+            static bool Equal(const Tensor& a, const Tensor& b)
+            {
+                if (a.dtype() != b.dtype()) {
+                    return false;
+                }
+                if (a.shape() != b.shape()) {
+                    return false;
+                }
+                if (a.TotalBytes() != b.TotalBytes()) {
+                    return false;
+                }
+                if (a.data() == b.data()) {
+                    return true;
+                }
+                if (!a.data() || !b.data()) {
+                    return false;
+                }
+                return std::memcmp(a.data(), b.data(), a.TotalBytes()) == 0;
+            }
+        };
 
-} // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

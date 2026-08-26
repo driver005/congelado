@@ -19,36 +19,40 @@ constexpr NativeHandle kInvalidHandle = -1;
 // Layout-compatible with struct iovec on Linux.
 // Manually mapped to WSABUF on Windows (field order swap in backend).
 
-struct IoVec {
-    void*    m_base{};
+struct IoVec
+{
+    void* m_base{};
     uint64_t m_len{};
 };
 
 // ─── IpEndpoint ──────────────────────────────────────────────────────────────
 
-struct IpEndpoint {
+struct IpEndpoint
+{
     alignas(8) std::byte m_storage[128]{};
-    int                  m_len{};
+    int m_len{};
 };
 
 // ─── OpenFlags ───────────────────────────────────────────────────────────────
 
-enum class OpenFlags : uint32_t {
-    ReadOnly  = 0x0001,
-    WriteOnly = 0x0002,
-    ReadWrite = 0x0003,
-    Create    = 0x0010,
-    Truncate  = 0x0020,
-    Append    = 0x0040,
+enum class OpenFlags : uint32_t
+{
+    ReadOnly = 0x00'01,
+    WriteOnly = 0x00'02,
+    ReadWrite = 0x00'03,
+    Create = 0x00'10,
+    Truncate = 0x00'20,
+    Append = 0x00'40,
 };
 
-constexpr auto operator|(OpenFlags a, OpenFlags b) noexcept -> OpenFlags {
-    return static_cast<OpenFlags>(
-        static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+constexpr auto operator|(OpenFlags a, OpenFlags b) noexcept -> OpenFlags
+{
+    return static_cast<OpenFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
-constexpr auto operator&(OpenFlags a, OpenFlags b) noexcept -> OpenFlags {
-    return static_cast<OpenFlags>(
-        static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+
+constexpr auto operator&(OpenFlags a, OpenFlags b) noexcept -> OpenFlags
+{
+    return static_cast<OpenFlags>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
 }
 
 // ─── Completion ──────────────────────────────────────────────────────────────
@@ -65,10 +69,10 @@ using Completion = std::function<void(int result) noexcept>;
 // Thread-safety: single-threaded per instance.
 // Scale-out: one IoService per thread + SO_REUSEPORT.
 
-template <typename Derived>
-class IoServiceBase {
+template<typename Derived>
+class IoServiceBase
+{
 public:
-
     // ── Reads ─────────────────────────────────────────────────────────────
 
     /**
@@ -79,9 +83,10 @@ public:
      * @param offset file offset to read from.
      * @param cb fires exactly once with bytes read (`>= 0`) or a negated error code (`< 0`).
      */
-    auto read(NativeHandle handle, void* buf,
-              uint32_t nbytes, int64_t offset,
-              Completion cb) noexcept -> void {
+    auto read(
+        NativeHandle handle, void* buf, uint32_t nbytes, int64_t offset, Completion cb
+    ) noexcept -> void
+    {
         derived().do_read(handle, buf, nbytes, offset, std::move(cb));
     }
 
@@ -94,9 +99,10 @@ public:
      * @param cb fires exactly once with total bytes read (`>= 0`) or a negated error code
      * (`< 0`).
      */
-    auto readv(NativeHandle handle, const IoVec* vecs,
-               uint32_t count, int64_t offset,
-               Completion cb) noexcept -> void {
+    auto readv(
+        NativeHandle handle, const IoVec* vecs, uint32_t count, int64_t offset, Completion cb
+    ) noexcept -> void
+    {
         derived().do_readv(handle, vecs, count, offset, std::move(cb));
     }
 
@@ -106,11 +112,12 @@ public:
      * @param buf destination buffer for the received bytes.
      * @param nbytes maximum number of bytes to receive.
      * @param flags backend-specific recv flags (e.g. `MSG_*` on POSIX).
-     * @param cb fires exactly once with bytes received (`>= 0`) or a negated error code (`< 0`).
+     * @param cb fires exactly once with bytes received (`>= 0`) or a negated error code (`<
+     * 0`).
      */
-    auto recv(NativeHandle sock, void* buf,
-              uint32_t nbytes, int flags,
-              Completion cb) noexcept -> void {
+    auto recv(NativeHandle sock, void* buf, uint32_t nbytes, int flags, Completion cb) noexcept
+        -> void
+    {
         derived().do_recv(sock, buf, nbytes, flags, std::move(cb));
     }
 
@@ -124,9 +131,10 @@ public:
      * @param offset file offset to write at.
      * @param cb fires exactly once with bytes written (`>= 0`) or a negated error code (`< 0`).
      */
-    auto write(NativeHandle handle, const void* buf,
-               uint32_t nbytes, int64_t offset,
-               Completion cb) noexcept -> void {
+    auto write(
+        NativeHandle handle, const void* buf, uint32_t nbytes, int64_t offset, Completion cb
+    ) noexcept -> void
+    {
         derived().do_write(handle, buf, nbytes, offset, std::move(cb));
     }
 
@@ -139,9 +147,10 @@ public:
      * @param cb fires exactly once with total bytes written (`>= 0`) or a negated error code
      * (`< 0`).
      */
-    auto writev(NativeHandle handle, const IoVec* vecs,
-                uint32_t count, int64_t offset,
-                Completion cb) noexcept -> void {
+    auto writev(
+        NativeHandle handle, const IoVec* vecs, uint32_t count, int64_t offset, Completion cb
+    ) noexcept -> void
+    {
         derived().do_writev(handle, vecs, count, offset, std::move(cb));
     }
 
@@ -153,9 +162,10 @@ public:
      * @param flags backend-specific send flags (e.g. `MSG_*` on POSIX).
      * @param cb fires exactly once with bytes sent (`>= 0`) or a negated error code (`< 0`).
      */
-    auto send(NativeHandle sock, const void* buf,
-              uint32_t nbytes, int flags,
-              Completion cb) noexcept -> void {
+    auto send(
+        NativeHandle sock, const void* buf, uint32_t nbytes, int flags, Completion cb
+    ) noexcept -> void
+    {
         derived().do_send(sock, buf, nbytes, flags, std::move(cb));
     }
 
@@ -166,12 +176,11 @@ public:
      * @brief Issues an async accept on a listening socket.
      * @param listen_sock the listening socket to accept on.
      * @param endpoint gets filled in with the connecting peer's address.
-     * @param cb fires exactly once with the new connection's handle cast to `int` (`>= 0`), or a
-     * negated error code (`< 0`).
+     * @param cb fires exactly once with the new connection's handle cast to `int` (`>= 0`), or
+     * a negated error code (`< 0`).
      */
-    auto accept(NativeHandle listen_sock,
-                IpEndpoint*  endpoint,
-                Completion   cb) noexcept -> void {
+    auto accept(NativeHandle listen_sock, IpEndpoint* endpoint, Completion cb) noexcept -> void
+    {
         derived().do_accept(listen_sock, endpoint, std::move(cb));
     }
 
@@ -181,9 +190,8 @@ public:
      * @param endpoint the remote address to connect to.
      * @param cb fires exactly once with `>= 0` on success or a negated error code (`< 0`).
      */
-    auto connect(NativeHandle      sock,
-                 const IpEndpoint& endpoint,
-                 Completion        cb) noexcept -> void {
+    auto connect(NativeHandle sock, const IpEndpoint& endpoint, Completion cb) noexcept -> void
+    {
         derived().do_connect(sock, endpoint, std::move(cb));
     }
 
@@ -194,8 +202,8 @@ public:
      * @param how which direction(s) to shut down — `0` read, `1` write, `2` both.
      * @param cb fires exactly once with `>= 0` on success or a negated error code (`< 0`).
      */
-    auto shutdown(NativeHandle sock, int how,
-                  Completion cb) noexcept -> void {
+    auto shutdown(NativeHandle sock, int how, Completion cb) noexcept -> void
+    {
         derived().do_shutdown(sock, how, std::move(cb));
     }
 
@@ -207,14 +215,17 @@ public:
      * @param path the path to open, relative to `dir_handle`.
      * @param flags open flags (read/write/create/truncate/append), OR'd together.
      * @param mode file mode bits used if the open creates a new file.
-     * @param cb fires exactly once with the new handle cast to `int` (`>= 0`) or a negated error
-     * code (`< 0`).
+     * @param cb fires exactly once with the new handle cast to `int` (`>= 0`) or a negated
+     * error code (`< 0`).
      */
-    auto openat(NativeHandle   dir_handle,
-                std::string_view path,
-                OpenFlags      flags,
-                uint32_t       mode,
-                Completion     cb) noexcept -> void {
+    auto openat(
+        NativeHandle dir_handle,
+        std::string_view path,
+        OpenFlags flags,
+        uint32_t mode,
+        Completion cb
+    ) noexcept -> void
+    {
         derived().do_openat(dir_handle, path, flags, mode, std::move(cb));
     }
 
@@ -223,7 +234,8 @@ public:
      * @param handle the handle to close.
      * @param cb fires exactly once with `>= 0` on success or a negated error code (`< 0`).
      */
-    auto close(NativeHandle handle, Completion cb) noexcept -> void {
+    auto close(NativeHandle handle, Completion cb) noexcept -> void
+    {
         derived().do_close(handle, std::move(cb));
     }
 
@@ -233,8 +245,8 @@ public:
      * @param data_only `true` for fdatasync-style (data only), `false` to also flush metadata.
      * @param cb fires exactly once with `>= 0` on success or a negated error code (`< 0`).
      */
-    auto fsync(NativeHandle handle, bool data_only,
-               Completion cb) noexcept -> void {
+    auto fsync(NativeHandle handle, bool data_only, Completion cb) noexcept -> void
+    {
         derived().do_fsync(handle, data_only, std::move(cb));
     }
 
@@ -245,8 +257,8 @@ public:
      * @param duration how long to wait before firing.
      * @param cb fires exactly once after the delay.
      */
-    auto sleep_for(std::chrono::nanoseconds duration,
-                   Completion cb) noexcept -> void {
+    auto sleep_for(std::chrono::nanoseconds duration, Completion cb) noexcept -> void
+    {
         derived().do_sleep_for(duration, std::move(cb));
     }
 
@@ -258,7 +270,8 @@ public:
      * cooperative-multitasking yield point, good for not hogging the loop.
      * @param cb fires on a later turn of the event loop.
      */
-    auto yield(Completion cb) noexcept -> void {
+    auto yield(Completion cb) noexcept -> void
+    {
         derived().do_yield(std::move(cb));
     }
 
@@ -272,23 +285,32 @@ public:
      * `handle` — skip it there and every subsequent op on that handle is straight cooked.
      * @param handle the handle to associate with this service.
      */
-    auto associate(NativeHandle handle) -> void {
+    auto associate(NativeHandle handle) -> void
+    {
         derived().do_associate(handle);
     }
 
     // ── Event loop ────────────────────────────────────────────────────────
 
     /// @brief Runs the event loop, dispatching completions until `stop()` is observed.
-    auto run()         -> void  { derived().do_run();  }
+    auto run() -> void
+    {
+        derived().do_run();
+    }
+
     /// @brief Signals the event loop to wind down; `run()` returns once it picks this up.
-    auto stop() noexcept -> void { derived().do_stop(); }
+    auto stop() noexcept -> void
+    {
+        derived().do_stop();
+    }
 
 private:
     /**
      * @brief CRTP helper — casts `this` down to the concrete backend type.
      * @return a reference to this instance as `Derived&`.
      */
-    [[nodiscard]] auto derived() noexcept -> Derived& {
+    [[nodiscard]] auto derived() noexcept -> Derived&
+    {
         return *static_cast<Derived*>(this);
     }
 };

@@ -15,9 +15,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "tensorflow/core/framework/log_memory.pb.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/framework/log_memory.pb.h"
 
 export module cc_tmp:utils_log_memory;
 
@@ -26,181 +26,216 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// LogMemory contains methods for recording memory allocations and
-// frees, associating each allocation with a step identified by a
-// process-wide id. For now, logging is enabled whenever VLOG_IS_ON(1)
-// for the log_memory module.
-//
-// Limitations: We don't log memory allocations by Eigen on the CPU
-// since that would require major changes to plumb through to the
-// Eigen::{DefaultDevice,ThreadPoolDevice} allocate and deallocate
-// methods. We do log Eigen allocations on GPU since the plumbing was
-// already in place.
-class LogMemory {
- public:
-  // Allocations sometimes happen outside any computation step, and
-  // SpecialStepIds lists the ids used for those steps.
-  enum SpecialStepIds {
-    // Used when performing a just-in-time constant folding optimization.
-    CONSTANT_FOLDING_STEP_ID = -1,
-    // Used when constructing an Op kernel before executing a step.
-    OP_KERNEL_CONSTRUCTION_STEP_ID = -2,
-    // Used when allocating a tensor buffer from external code, e.g.,
-    // the C API.
-    EXTERNAL_TENSOR_ALLOCATION_STEP_ID = -3,
-    // Used when allocating a buffer for network transfer.
-    NETWORK_BUFFER_STEP_ID = -4,
-    // Used when allocating a buffer to fill a Proto from the GPU.
-    PROTO_BUFFER_STEP_ID = -5,
-    // Used when allocating a Tensor where the caller has not indicated
-    // the step.
-    UNKNOWN_STEP_ID = -6,
-  };
+        // LogMemory contains methods for recording memory allocations and
+        // frees, associating each allocation with a step identified by a
+        // process-wide id. For now, logging is enabled whenever VLOG_IS_ON(1)
+        // for the log_memory module.
+        //
+        // Limitations: We don't log memory allocations by Eigen on the CPU
+        // since that would require major changes to plumb through to the
+        // Eigen::{DefaultDevice,ThreadPoolDevice} allocate and deallocate
+        // methods. We do log Eigen allocations on GPU since the plumbing was
+        // already in place.
+        class LogMemory
+        {
+        public:
+            // Allocations sometimes happen outside any computation step, and
+            // SpecialStepIds lists the ids used for those steps.
+            enum SpecialStepIds
+            {
+                // Used when performing a just-in-time constant folding optimization.
+                CONSTANT_FOLDING_STEP_ID = -1,
+                // Used when constructing an Op kernel before executing a step.
+                OP_KERNEL_CONSTRUCTION_STEP_ID = -2,
+                // Used when allocating a tensor buffer from external code, e.g.,
+                // the C API.
+                EXTERNAL_TENSOR_ALLOCATION_STEP_ID = -3,
+                // Used when allocating a buffer for network transfer.
+                NETWORK_BUFFER_STEP_ID = -4,
+                // Used when allocating a buffer to fill a Proto from the GPU.
+                PROTO_BUFFER_STEP_ID = -5,
+                // Used when allocating a Tensor where the caller has not indicated
+                // the step.
+                UNKNOWN_STEP_ID = -6,
+            };
 
-  static const std::string kLogMemoryLabel;
+            static const std::string kLogMemoryLabel;
 
-  // Test to see if memory logging is enabled. For now, logging is
-  // enabled whenever VLOG_IS_ON(2) for the log_memory module.
-  static bool IsEnabled();
+            // Test to see if memory logging is enabled. For now, logging is
+            // enabled whenever VLOG_IS_ON(2) for the log_memory module.
+            static bool IsEnabled();
 
-  // Log the beginning of a step.
-  static void RecordStep(int64_t step_id, const std::string& handle);
+            // Log the beginning of a step.
+            static void RecordStep(int64_t step_id, const std::string& handle);
 
-  // Log a tensor buffer allocation. The name indicates which kernel
-  // made the allocation. If the allocation is made through an
-  // OpKernelContext the step_id indicates which step is executing,
-  // otherwise step_id is one of the SpecialStepIds defined in
-  // op_kernel.h, e.g. Op Kernel construction or an optimization pass
-  // such as constant folding.
-  static void RecordTensorAllocation(const std::string& kernel_name,
-                                     int64_t step_id, const Tensor& tensor);
+            // Log a tensor buffer allocation. The name indicates which kernel
+            // made the allocation. If the allocation is made through an
+            // OpKernelContext the step_id indicates which step is executing,
+            // otherwise step_id is one of the SpecialStepIds defined in
+            // op_kernel.h, e.g. Op Kernel construction or an optimization pass
+            // such as constant folding.
+            static void RecordTensorAllocation(
+                const std::string& kernel_name, int64_t step_id, const Tensor& tensor
+            );
 
-  // Log a tensor buffer deallocation. The deallocation is triggered
-  // when the buffer's refcount falls to zero, and the tracking
-  // mechanism does not associate it with a particular step or
-  // kernel. The allocation_id/allocator_name should match a
-  // corresponding tensor previously passed in to
-  // RecordTensorAllocation.
-  static void RecordTensorDeallocation(int64_t allocation_id,
-                                       const std::string& allocator_name);
+            // Log a tensor buffer deallocation. The deallocation is triggered
+            // when the buffer's refcount falls to zero, and the tracking
+            // mechanism does not associate it with a particular step or
+            // kernel. The allocation_id/allocator_name should match a
+            // corresponding tensor previously passed in to
+            // RecordTensorAllocation.
+            static void
+            RecordTensorDeallocation(int64_t allocation_id, const std::string& allocator_name);
 
-  // Log the use of a tensor as an output from a kernel.
-  static void RecordTensorOutput(const std::string& kernel_name,
-                                 int64_t step_id, int index,
-                                 const Tensor& tensor);
+            // Log the use of a tensor as an output from a kernel.
+            static void RecordTensorOutput(
+                const std::string& kernel_name, int64_t step_id, int index, const Tensor& tensor
+            );
 
-  // Log a "raw" allocation, which is just a buffer sized in
-  // bytes. The Eigen allocator, and memory copies, record their
-  // allocations this way, since they do not allocate TensorFlow
-  // tensors. The operation is set to the OpKernel name if this is
-  // called from within an Op execution, otherwise it indicates an
-  // operation such as memcpy. The step_id if >=0 indicates which step
-  // is executing, otherwise step_id is one of the SpecialStepIds
-  // defined in op_kernel.h, e.g. Op Kernel construction or an
-  // optimization pass such as constant folding.
-  static void RecordRawAllocation(const std::string& operation, int64_t step_id,
-                                  size_t num_bytes, void* ptr,
-                                  Allocator* allocator);
+            // Log a "raw" allocation, which is just a buffer sized in
+            // bytes. The Eigen allocator, and memory copies, record their
+            // allocations this way, since they do not allocate TensorFlow
+            // tensors. The operation is set to the OpKernel name if this is
+            // called from within an Op execution, otherwise it indicates an
+            // operation such as memcpy. The step_id if >=0 indicates which step
+            // is executing, otherwise step_id is one of the SpecialStepIds
+            // defined in op_kernel.h, e.g. Op Kernel construction or an
+            // optimization pass such as constant folding.
+            static void RecordRawAllocation(
+                const std::string& operation,
+                int64_t step_id,
+                size_t num_bytes,
+                void* ptr,
+                Allocator* allocator
+            );
 
-  // Log a "raw" deallocation of a buffer. When deferred is true, the
-  // buffer won't be used again, but a GPU kernel may still be
-  // enqueued using the buffer. A deferred deallocation should always
-  // be followed by a matching non-deferred deallocation when the
-  // buffer is actually returned and can be reused.
-  static void RecordRawDeallocation(const std::string& operation,
-                                    int64_t step_id, void* ptr,
-                                    Allocator* allocator, bool deferred);
-};
+            // Log a "raw" deallocation of a buffer. When deferred is true, the
+            // buffer won't be used again, but a GPU kernel may still be
+            // enqueued using the buffer. A deferred deallocation should always
+            // be followed by a matching non-deferred deallocation when the
+            // buffer is actually returned and can be reused.
+            static void RecordRawDeallocation(
+                const std::string& operation,
+                int64_t step_id,
+                void* ptr,
+                Allocator* allocator,
+                bool deferred
+            );
+        };
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
-// ==================================================================
-// Implementation: log_memory.cc
-// ==================================================================
+    // ==================================================================
+    // Implementation: log_memory.cc
+    // ==================================================================
 
-namespace tensorflow {
+    namespace tensorflow {
 
-const std::string LogMemory::kLogMemoryLabel = "__LOG_MEMORY__";
+        const std::string LogMemory::kLogMemoryLabel = "__LOG_MEMORY__";
 
-bool LogMemory::IsEnabled() { return VLOG_IS_ON(2); }
+        bool LogMemory::IsEnabled()
+        {
+            return VLOG_IS_ON(2);
+        }
 
-namespace {
+        namespace {
 
-// Write the proto entry to LOG(INFO).
-template <typename T>
-void OutputToLog(const T& proto) {
-  std::string type_name(proto.GetTypeName());
-  const size_t index = type_name.find_last_of('.');
-  if (index != std::string::npos) type_name = type_name.substr(index + 1);
-  LOG(INFO) << LogMemory::kLogMemoryLabel << " " << type_name << " { "
-            << proto.ShortDebugString() << " }";
-}
+            // Write the proto entry to LOG(INFO).
+            template<typename T>
+            void OutputToLog(const T& proto)
+            {
+                std::string type_name(proto.GetTypeName());
+                const size_t index = type_name.find_last_of('.');
+                if (index != std::string::npos) {
+                    type_name = type_name.substr(index + 1);
+                }
+                LOG(INFO) << LogMemory::kLogMemoryLabel << " " << type_name << " { "
+                          << proto.ShortDebugString() << " }";
+            }
 
-}  // namespace
+        } // namespace
 
-void LogMemory::RecordStep(const int64_t step_id, const std::string& handle) {
-  MemoryLogStep step;
-  step.set_step_id(step_id);
-  step.set_handle(handle);
-  OutputToLog(step);
-}
+        void LogMemory::RecordStep(const int64_t step_id, const std::string& handle)
+        {
+            MemoryLogStep step;
+            step.set_step_id(step_id);
+            step.set_handle(handle);
+            OutputToLog(step);
+        }
 
-void LogMemory::RecordTensorAllocation(const std::string& kernel_name,
-                                       const int64_t step_id,
-                                       const Tensor& tensor) {
-  MemoryLogTensorAllocation allocation;
-  allocation.set_step_id(step_id);
-  allocation.set_kernel_name(kernel_name);
-  tensor.FillDescription(allocation.mutable_tensor());
-  OutputToLog(allocation);
-}
+        void LogMemory::RecordTensorAllocation(
+            const std::string& kernel_name, const int64_t step_id, const Tensor& tensor
+        )
+        {
+            MemoryLogTensorAllocation allocation;
+            allocation.set_step_id(step_id);
+            allocation.set_kernel_name(kernel_name);
+            tensor.FillDescription(allocation.mutable_tensor());
+            OutputToLog(allocation);
+        }
 
-void LogMemory::RecordTensorDeallocation(const int64_t allocation_id,
-                                         const std::string& allocator_name) {
-  MemoryLogTensorDeallocation deallocation;
-  deallocation.set_allocation_id(allocation_id);
-  deallocation.set_allocator_name(allocator_name);
-  OutputToLog(deallocation);
-}
+        void LogMemory::RecordTensorDeallocation(
+            const int64_t allocation_id, const std::string& allocator_name
+        )
+        {
+            MemoryLogTensorDeallocation deallocation;
+            deallocation.set_allocation_id(allocation_id);
+            deallocation.set_allocator_name(allocator_name);
+            OutputToLog(deallocation);
+        }
 
-void LogMemory::RecordTensorOutput(const std::string& kernel_name,
-                                   const int64_t step_id, const int index,
-                                   const Tensor& tensor) {
-  MemoryLogTensorOutput output;
-  output.set_step_id(step_id);
-  output.set_kernel_name(kernel_name);
-  output.set_index(index);
-  tensor.FillDescription(output.mutable_tensor());
-  OutputToLog(output);
-}
+        void LogMemory::RecordTensorOutput(
+            const std::string& kernel_name,
+            const int64_t step_id,
+            const int index,
+            const Tensor& tensor
+        )
+        {
+            MemoryLogTensorOutput output;
+            output.set_step_id(step_id);
+            output.set_kernel_name(kernel_name);
+            output.set_index(index);
+            tensor.FillDescription(output.mutable_tensor());
+            OutputToLog(output);
+        }
 
-void LogMemory::RecordRawAllocation(const std::string& operation,
-                                    const int64_t step_id, size_t num_bytes,
-                                    void* ptr, Allocator* allocator) {
-  MemoryLogRawAllocation allocation;
-  allocation.set_step_id(step_id);
-  allocation.set_operation(operation);
-  allocation.set_num_bytes(static_cast<int64_t>(num_bytes));
-  allocation.set_ptr(reinterpret_cast<uintptr_t>(ptr));
-  allocation.set_allocation_id(allocator->AllocationId(ptr));
-  allocation.set_allocator_name(allocator->Name());
-  OutputToLog(allocation);
-}
+        void LogMemory::RecordRawAllocation(
+            const std::string& operation,
+            const int64_t step_id,
+            size_t num_bytes,
+            void* ptr,
+            Allocator* allocator
+        )
+        {
+            MemoryLogRawAllocation allocation;
+            allocation.set_step_id(step_id);
+            allocation.set_operation(operation);
+            allocation.set_num_bytes(static_cast<int64_t>(num_bytes));
+            allocation.set_ptr(reinterpret_cast<uintptr_t>(ptr));
+            allocation.set_allocation_id(allocator->AllocationId(ptr));
+            allocation.set_allocator_name(allocator->Name());
+            OutputToLog(allocation);
+        }
 
-void LogMemory::RecordRawDeallocation(const std::string& operation,
-                                      const int64_t step_id, void* ptr,
-                                      Allocator* allocator, bool deferred) {
-  MemoryLogRawDeallocation deallocation;
-  deallocation.set_step_id(step_id);
-  deallocation.set_operation(operation);
-  deallocation.set_allocation_id(allocator->AllocationId(ptr));
-  deallocation.set_allocator_name(allocator->Name());
-  deallocation.set_deferred(deferred);
-  OutputToLog(deallocation);
-}
+        void LogMemory::RecordRawDeallocation(
+            const std::string& operation,
+            const int64_t step_id,
+            void* ptr,
+            Allocator* allocator,
+            bool deferred
+        )
+        {
+            MemoryLogRawDeallocation deallocation;
+            deallocation.set_step_id(step_id);
+            deallocation.set_operation(operation);
+            deallocation.set_allocation_id(allocator->AllocationId(ptr));
+            deallocation.set_allocator_name(allocator->Name());
+            deallocation.set_deferred(deferred);
+            OutputToLog(deallocation);
+        }
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

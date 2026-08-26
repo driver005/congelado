@@ -26,39 +26,44 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-const uint64_t kIllegalFrameId = ~0uLL;
-const int64_t kIllegalIterId = -1;
+        const uint64_t kIllegalFrameId = ~0uLL;
+        const int64_t kIllegalIterId = -1;
 
-// For the purpose of control flow, every tensor produced by TensorFlow is
-// conceptually tagged by a 'FrameAndIter'. FrameAndIter consists of a
-// 'frame_id' and an 'iter_id'. The tensor value it represents is produced
-// in the frame with frame_id at the iteration of iter_id.
-struct FrameAndIter {
-  uint64_t frame_id = kIllegalFrameId;
-  int64_t iter_id = kIllegalIterId;
+        // For the purpose of control flow, every tensor produced by TensorFlow is
+        // conceptually tagged by a 'FrameAndIter'. FrameAndIter consists of a
+        // 'frame_id' and an 'iter_id'. The tensor value it represents is produced
+        // in the frame with frame_id at the iteration of iter_id.
+        struct FrameAndIter
+        {
+            uint64_t frame_id = kIllegalFrameId;
+            int64_t iter_id = kIllegalIterId;
 
-  FrameAndIter() = default;
+            FrameAndIter() = default;
 
-  FrameAndIter(uint64_t frame, int64_t iter) {
-    frame_id = frame;
-    iter_id = iter;
-  }
+            FrameAndIter(uint64_t frame, int64_t iter)
+            {
+                frame_id = frame;
+                iter_id = iter;
+            }
 
-  bool operator==(const FrameAndIter& other) const {
-    return (frame_id == other.frame_id && iter_id == other.iter_id);
-  }
-};
+            bool operator==(const FrameAndIter& other) const
+            {
+                return (frame_id == other.frame_id && iter_id == other.iter_id);
+            }
+        };
 
-struct FrameAndIterHash {
-  size_t operator()(const FrameAndIter& key) const {
-    // Make sure there are no padding bytes that we don't want
-    CHECK_EQ(sizeof(uint64_t) + sizeof(int64_t), sizeof(FrameAndIter));
-    return Hash64(reinterpret_cast<const char*>(&key), sizeof(FrameAndIter));
-  }
-};
+        struct FrameAndIterHash
+        {
+            size_t operator()(const FrameAndIter& key) const
+            {
+                // Make sure there are no padding bytes that we don't want
+                CHECK_EQ(sizeof(uint64_t) + sizeof(int64_t), sizeof(FrameAndIter));
+                return Hash64(reinterpret_cast<const char*>(&key), sizeof(FrameAndIter));
+            }
+        };
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

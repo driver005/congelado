@@ -17,8 +17,9 @@ import boost.ut;
 // ─── Forward declaration of TomlParser::from_toml_impl ───────────────────────
 
 export namespace serde {
-class TomlParser {
-  public:
+class TomlParser
+{
+public:
     /**
      * @brief Populates every reflected field of `T` from a parsed TOML table — the
      * recursive engine behind every ISerializable FieldConverter's `from_toml`. Forward-
@@ -30,10 +31,10 @@ class TomlParser {
      * output object, left unnamed here since this is just the declaration).
      * @return success, or an error message the moment any field fails to extract.
      */
-    template <ISerializable T>
-    static std::expected<void, std::string> from_toml_impl(const toml::table &table, T &object);
+    template<ISerializable T>
+    static std::expected<void, std::string> from_toml_impl(const toml::table& table, T& object);
 };
-}
+} // namespace serde
 
 // Forward-declare so FieldConverter<ISerializable>::from_simdjson can call it via
 // qualified lookup (phase-1). Definition is in export namespace simdjson below.
@@ -51,16 +52,17 @@ export namespace simdjson {
  * @param obj the object to populate, mutated in place.
  * @return a simdjson error_code — SUCCESS if every field decoded clean.
  */
-template <typename V, serde::ISerializable T>
-error_code tag_invoke(deserialize_tag tag, V &json_value, T &object);
+template<typename V, serde::ISerializable T>
+error_code tag_invoke(deserialize_tag tag, V& json_value, T& object);
 } // namespace simdjson
 
 // ─── FieldConverter<VT> primary + concrete specializations ───────────────────
 
 export namespace serde {
 
-template <typename VT>
-struct FieldConverter {
+template<typename VT>
+struct FieldConverter
+{
     using rfl_type = VT;
 
     /**
@@ -71,7 +73,8 @@ struct FieldConverter {
      * @param out the destination to write the decoded value into.
      * @return a simdjson error_code — SUCCESS on a clean decode.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value, VT &out) {
+    static simdjson::error_code from_simdjson(simdjson::ondemand::value& json_value, VT& out)
+    {
         return json_value.get(out);
     }
 
@@ -83,14 +86,16 @@ struct FieldConverter {
      * @return the decoded value, or an error message if the field's missing or its TOML
      * type doesn't convert to VT.
      */
-    static std::expected<VT, std::string> from_toml(const toml::table &table,
-                                                     std::string_view field_name) {
+    static std::expected<VT, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // toml++'s generic value<VT>() covers the lookup + type-conversion in one shot — a
         // missing key and a wrong-typed value both land here as a single failure mode.
-        auto toml_value = table[field_name].value<VT>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto toml_value =
+            table[field_name]
+                .value<VT>(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (!toml_value) {
-            return std::unexpected{
-                std::format("missing or invalid field '{}'", field_name)};
+            return std::unexpected{std::format("missing or invalid field '{}'", field_name)};
         }
         return *toml_value;
     }
@@ -98,17 +103,25 @@ struct FieldConverter {
     /// @brief Converts VT to its rfl-facing representation — identity for the generic case.
     /// @param value the value to convert.
     /// @return `value`, unchanged (rfl_type == VT here).
-    static rfl_type to_rfl(const VT &value) { return value; }
+    static rfl_type to_rfl(const VT& value)
+    {
+        return value;
+    }
+
     /// @brief Converts an rfl-facing value back to VT — identity for the generic case.
     /// @param value the rfl-side value to convert.
     /// @return `value`, unchanged.
-    static VT       from_rfl(const rfl_type &value) { return value; }
+    static VT from_rfl(const rfl_type& value)
+    {
+        return value;
+    }
 };
 
 // ─── uint32_t ─────────────────────────────────────────────────────────────────
 
-template <>
-struct FieldConverter<std::uint32_t> {
+template<>
+struct FieldConverter<std::uint32_t>
+{
     using rfl_type = std::uint32_t;
 
     /**
@@ -122,8 +135,9 @@ struct FieldConverter<std::uint32_t> {
      * format is trusted to actually fit in 32 bits.
      * @return a simdjson error_code — SUCCESS on a clean decode.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::uint32_t &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::uint32_t& out)
+    {
         // simdjson has no get_uint32 — pull the native uint64 first.
         std::uint64_t tmp{};
         if (auto ec = json_value.get_uint64().get(tmp); ec) {
@@ -143,10 +157,12 @@ struct FieldConverter<std::uint32_t> {
      * `static_cast`.
      * @return the decoded value, or an error message if the field's missing.
      */
-    static std::expected<std::uint32_t, std::string> from_toml(const toml::table &table,
-                                                                std::string_view field_name) {
+    static std::expected<std::uint32_t, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // toml++ only does signed ints — read as int64_t first, same detour as from_simdjson.
-        auto toml_value = table[field_name].value<std::int64_t>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto toml_value = table[field_name].value<std::int64_t>(); // FIXME(clang-tidy): unchecked
+                                                                   // operator[], consider .at()
         if (!toml_value) {
             return std::unexpected{std::format("missing field '{}'", field_name)};
         }
@@ -157,11 +173,18 @@ struct FieldConverter<std::uint32_t> {
     /// @brief Converts a uint32 to its rfl-facing representation — identity here.
     /// @param value the value to convert.
     /// @return `value`, unchanged.
-    static std::uint32_t to_rfl(std::uint32_t value) { return value; }
+    static std::uint32_t to_rfl(std::uint32_t value)
+    {
+        return value;
+    }
+
     /// @brief Converts an rfl-facing uint32 back — identity here.
     /// @param value the rfl-side value to convert.
     /// @return `value`, unchanged.
-    static std::uint32_t from_rfl(std::uint32_t value) { return value; }
+    static std::uint32_t from_rfl(std::uint32_t value)
+    {
+        return value;
+    }
 };
 
 // ─── Enum types ───────────────────────────────────────────────────────────────
@@ -171,9 +194,10 @@ struct FieldConverter<std::uint32_t> {
  * name string (via rfl::string_to_enum), never their underlying integer value.
  * @tparam E the enum type being converted; constrained to `std::is_enum_v<E>`.
  */
-template <typename E>
+template<typename E>
     requires std::is_enum_v<E>
-struct FieldConverter<E> {
+struct FieldConverter<E>
+{
     using rfl_type = E;
 
     /**
@@ -189,7 +213,8 @@ struct FieldConverter<E> {
      * @return a simdjson error_code — SUCCESS on a clean decode, INCORRECT_TYPE if the
      * string doesn't name a valid enumerator.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value, E &out) {
+    static simdjson::error_code from_simdjson(simdjson::ondemand::value& json_value, E& out)
+    {
         // Enums always ride the wire as their name string, never a raw integer.
         std::string_view string_value;
         if (auto ec = json_value.get_string().get(string_value); ec) {
@@ -214,9 +239,11 @@ struct FieldConverter<E> {
      * doesn't name a valid enumerator (this path, unlike simdjson's, actually names the bad
      * value in the error).
      */
-    static std::expected<E, std::string> from_toml(const toml::table &table,
-                                                    std::string_view field_name) {
-        auto string_value = table[field_name].value<std::string>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    static std::expected<E, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
+        auto string_value = table[field_name].value<std::string>(); // FIXME(clang-tidy): unchecked
+                                                                    // operator[], consider .at()
         if (!string_value) {
             return std::unexpected{std::format("missing field '{}'", field_name)};
         }
@@ -225,7 +252,8 @@ struct FieldConverter<E> {
         auto result = rfl::string_to_enum<E>(*string_value);
         if (!result) {
             return std::unexpected{
-                std::format("invalid enum '{}' for field '{}'", *string_value, field_name)};
+                std::format("invalid enum '{}' for field '{}'", *string_value, field_name)
+            };
         }
         return *result;
     }
@@ -234,17 +262,25 @@ struct FieldConverter<E> {
     /// the string mapping internally via its own Reflector).
     /// @param value the value to convert.
     /// @return `value`, unchanged.
-    static E to_rfl(const E &value) { return value; }
+    static E to_rfl(const E& value)
+    {
+        return value;
+    }
+
     /// @brief Converts an rfl-facing enum back — identity here.
     /// @param value the rfl-side value to convert.
     /// @return `value`, unchanged.
-    static E from_rfl(const E &value) { return value; }
+    static E from_rfl(const E& value)
+    {
+        return value;
+    }
 };
 
 // ─── uuids::uuid ──────────────────────────────────────────────────────────────
 
-template <>
-struct FieldConverter<uuids::uuid> {
+template<>
+struct FieldConverter<uuids::uuid>
+{
     using rfl_type = std::string;
 
     /**
@@ -254,8 +290,9 @@ struct FieldConverter<uuids::uuid> {
      * @return a simdjson error_code — SUCCESS on a clean decode, INCORRECT_TYPE if the
      * string isn't a parseable UUID.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               uuids::uuid &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, uuids::uuid& out)
+    {
         // Must be a JSON string first — no string, no UUID to even attempt parsing.
         std::string_view string_value;
         if (auto ec = json_value.get_string().get(string_value); ec) {
@@ -278,10 +315,12 @@ struct FieldConverter<uuids::uuid> {
      * @return the decoded UUID, or an error message if the field's missing or its string
      * isn't a parseable UUID.
      */
-    static std::expected<uuids::uuid, std::string> from_toml(const toml::table &table,
-                                                               std::string_view field_name) {
+    static std::expected<uuids::uuid, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Missing field is a hard error here — no silent nullopt fallback for a required UUID.
-        auto string_value = table[field_name].value<std::string>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto string_value = table[field_name].value<std::string>(); // FIXME(clang-tidy): unchecked
+                                                                    // operator[], consider .at()
         if (!string_value) {
             return std::unexpected{std::format("missing field '{}'", field_name)};
         }
@@ -296,7 +335,11 @@ struct FieldConverter<uuids::uuid> {
     /// @brief Converts a UUID to its rfl-facing representation — a plain string here.
     /// @param value the UUID to convert.
     /// @return the UUID's canonical string form.
-    static std::string to_rfl(const uuids::uuid &value) { return uuids::to_string(value); }
+    static std::string to_rfl(const uuids::uuid& value)
+    {
+        return uuids::to_string(value);
+    }
+
     /**
      * @brief Converts an rfl-facing string back to a UUID.
      * @param str the string to parse.
@@ -306,15 +349,17 @@ struct FieldConverter<uuids::uuid> {
      * as a real primary key downstream.
      * @return the parsed UUID, or a default-constructed (nil) UUID if `str` is invalid.
      */
-    static uuids::uuid from_rfl(const std::string &str) {
+    static uuids::uuid from_rfl(const std::string& str)
+    {
         return uuids::uuid::from_string(str).value_or(uuids::uuid{});
     }
 };
 
 // ─── std::optional<uuids::uuid> ───────────────────────────────────────────────
 
-template <>
-struct FieldConverter<std::optional<uuids::uuid>> {
+template<>
+struct FieldConverter<std::optional<uuids::uuid>>
+{
     using rfl_type = std::optional<std::string>;
 
     /**
@@ -325,8 +370,9 @@ struct FieldConverter<std::optional<uuids::uuid>> {
      * @return a simdjson error_code — SUCCESS whether `out` ends up set or `nullopt`,
      * INCORRECT_TYPE if a non-null value isn't a parseable UUID.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::optional<uuids::uuid> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::optional<uuids::uuid>& out)
+    {
         // Null short-circuits straight to nullopt — everything past this point assumes a
         // present, string-typed value.
         if (json_value.is_null()) {
@@ -356,10 +402,12 @@ struct FieldConverter<std::optional<uuids::uuid>> {
      * isn't a parseable UUID.
      */
     static std::expected<std::optional<uuids::uuid>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Unlike the non-optional UUID, a missing field here is not an error — it just reads
         // as absent, same as an explicit nullopt.
-        auto string_value = table[field_name].value<std::string>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto string_value = table[field_name].value<std::string>(); // FIXME(clang-tidy): unchecked
+                                                                    // operator[], consider .at()
         if (!string_value) {
             return std::nullopt;
         }
@@ -374,13 +422,15 @@ struct FieldConverter<std::optional<uuids::uuid>> {
     /// @brief Converts an optional UUID to its rfl-facing optional-string representation.
     /// @param value the optional UUID to convert.
     /// @return `nullopt` if `value` is empty, else its canonical string form.
-    static rfl_type to_rfl(const std::optional<uuids::uuid> &value) {
+    static rfl_type to_rfl(const std::optional<uuids::uuid>& value)
+    {
         // No value, no string — everything else delegates to the canonical stringify.
         if (!value) {
             return std::nullopt;
         }
         return uuids::to_string(*value);
     }
+
     /**
      * @brief Converts an rfl-facing optional string back to an optional UUID.
      * @param str the optional string to parse.
@@ -390,7 +440,8 @@ struct FieldConverter<std::optional<uuids::uuid>> {
      * @return `nullopt` if `str` is empty, else the parsed UUID (or a nil UUID if parsing
      * fails).
      */
-    static std::optional<uuids::uuid> from_rfl(const rfl_type &str) {
+    static std::optional<uuids::uuid> from_rfl(const rfl_type& str)
+    {
         // No string in, no UUID out.
         if (!str) {
             return std::nullopt;
@@ -405,8 +456,9 @@ struct FieldConverter<std::optional<uuids::uuid>> {
 
 using TP = std::chrono::system_clock::time_point;
 
-template <>
-struct FieldConverter<TP> {
+template<>
+struct FieldConverter<TP>
+{
     using rfl_type = std::int64_t;
 
     /**
@@ -415,7 +467,8 @@ struct FieldConverter<TP> {
      * @param out the destination to write the decoded time_point into.
      * @return a simdjson error_code — SUCCESS on a clean decode.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value, TP &out) {
+    static simdjson::error_code from_simdjson(simdjson::ondemand::value& json_value, TP& out)
+    {
         // Pull the raw millisecond count off the wire first...
         std::int64_t milliseconds{};
         if (auto ec = json_value.get_int64().get(milliseconds); ec) {
@@ -433,10 +486,12 @@ struct FieldConverter<TP> {
      * @param field_name the key to look up.
      * @return the decoded time_point, or an error message if the field's missing.
      */
-    static std::expected<TP, std::string> from_toml(const toml::table &table,
-                                                     std::string_view field_name) {
+    static std::expected<TP, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Read as a plain int64 by convention — this is NOT toml++'s native date_time type.
-        auto milliseconds = table[field_name].value<std::int64_t>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto milliseconds = table[field_name].value<std::int64_t>(); // FIXME(clang-tidy): unchecked
+                                                                     // operator[], consider .at()
         if (!milliseconds) {
             return std::unexpected{std::format("missing field '{}'", field_name)};
         }
@@ -446,22 +501,26 @@ struct FieldConverter<TP> {
     /// @brief Converts a time_point to milliseconds-since-epoch for the rfl-facing side.
     /// @param value the time_point to convert.
     /// @return `value`'s epoch offset, truncated to whole milliseconds.
-    static std::int64_t to_rfl(const TP &value) {
+    static std::int64_t to_rfl(const TP& value)
+    {
         return std::chrono::duration_cast<std::chrono::milliseconds>(value.time_since_epoch())
             .count();
     }
+
     /// @brief Converts an rfl-facing millisecond count back to a time_point.
     /// @param milliseconds the epoch offset in milliseconds.
     /// @return the reconstructed time_point.
-    static TP from_rfl(std::int64_t milliseconds) {
+    static TP from_rfl(std::int64_t milliseconds)
+    {
         return TP{std::chrono::milliseconds{milliseconds}};
     }
 };
 
 // ─── std::optional<time_point> ────────────────────────────────────────────────
 
-template <>
-struct FieldConverter<std::optional<TP>> {
+template<>
+struct FieldConverter<std::optional<TP>>
+{
     using rfl_type = std::optional<std::int64_t>;
 
     /**
@@ -471,8 +530,9 @@ struct FieldConverter<std::optional<TP>> {
      * @param out the destination to write the decoded value into.
      * @return a simdjson error_code — SUCCESS whether `out` ends up set or `nullopt`.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::optional<TP> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::optional<TP>& out)
+    {
         // Null maps straight to nullopt, no int parsing attempted.
         if (json_value.is_null()) {
             out = std::nullopt;
@@ -496,9 +556,12 @@ struct FieldConverter<std::optional<TP>> {
      * @return the decoded optional time_point; `nullopt` if the field's absent.
      */
     static std::expected<std::optional<TP>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
-        // A missing field maps to nullopt here — no hard error, unlike non-optional TP's from_toml.
-        auto milliseconds = table[field_name].value<std::int64_t>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
+        // A missing field maps to nullopt here — no hard error, unlike non-optional TP's
+        // from_toml.
+        auto milliseconds = table[field_name].value<std::int64_t>(); // FIXME(clang-tidy): unchecked
+                                                                     // operator[], consider .at()
         if (!milliseconds) {
             return std::nullopt;
         }
@@ -508,7 +571,8 @@ struct FieldConverter<std::optional<TP>> {
     /// @brief Converts an optional time_point to an optional millisecond count.
     /// @param value the optional time_point to convert.
     /// @return `nullopt` if `value` is empty, else its epoch offset in whole milliseconds.
-    static rfl_type to_rfl(const std::optional<TP> &value) {
+    static rfl_type to_rfl(const std::optional<TP>& value)
+    {
         // Empty stays empty; otherwise reduce to whole milliseconds since epoch.
         if (!value) {
             return std::nullopt;
@@ -516,11 +580,13 @@ struct FieldConverter<std::optional<TP>> {
         return std::chrono::duration_cast<std::chrono::milliseconds>(value->time_since_epoch())
             .count();
     }
+
     /// @brief Converts an rfl-facing optional millisecond count back to an optional
     /// time_point.
     /// @param milliseconds the optional epoch offset in milliseconds.
     /// @return `nullopt` if `milliseconds` is empty, else the reconstructed time_point.
-    static std::optional<TP> from_rfl(const rfl_type &milliseconds) {
+    static std::optional<TP> from_rfl(const rfl_type& milliseconds)
+    {
         // Mirror to_rfl's empty check, then rebuild the time_point from the raw count.
         if (!milliseconds) {
             return std::nullopt;
@@ -531,8 +597,9 @@ struct FieldConverter<std::optional<TP>> {
 
 // ─── std::vector<std::string> ─────────────────────────────────────────────────
 
-template <>
-struct FieldConverter<std::vector<std::string>> {
+template<>
+struct FieldConverter<std::vector<std::string>>
+{
     using rfl_type = std::vector<std::string>;
 
     /**
@@ -543,15 +610,16 @@ struct FieldConverter<std::vector<std::string>> {
      * @return a simdjson error_code — SUCCESS on a clean decode, propagates the first
      * element-level error otherwise.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::vector<std::string> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::vector<std::string>& out)
+    {
         // Must actually be a JSON array before iterating it.
         simdjson::ondemand::array json_array;
         if (auto ec = json_value.get_array().get(json_array); ec) {
             return ec;
         }
         // Every element must itself be a string — mixed-type arrays bail on the first mismatch.
-        for (auto element : json_array) {
+        for (auto element: json_array) {
             simdjson::ondemand::value element_value;
             if (auto ec = element.get(element_value); ec) {
                 return ec;
@@ -577,21 +645,22 @@ struct FieldConverter<std::vector<std::string>> {
      * isn't a TOML string.
      */
     static std::expected<std::vector<std::string>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Missing array is treated as empty, not an error — inconsistent with most other
         // from_toml's in this file, which treat a missing field as a hard failure.
-        const auto *toml_array = table[field_name].as_array();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const auto* toml_array =
+            table[field_name].as_array(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (toml_array == nullptr) {
             return std::vector<std::string>{};
         }
         std::vector<std::string> result;
         result.reserve(toml_array->size());
         // But once present, every element must actually be a string — no exceptions there.
-        for (const auto &element : *toml_array) {
+        for (const auto& element: *toml_array) {
             auto string_value = element.value<std::string>();
             if (!string_value) {
-                return std::unexpected{
-                    std::format("element of '{}' must be a string", field_name)};
+                return std::unexpected{std::format("element of '{}' must be a string", field_name)};
             }
             result.push_back(std::move(*string_value));
         }
@@ -601,17 +670,25 @@ struct FieldConverter<std::vector<std::string>> {
     /// @brief Converts a string vector to its rfl-facing representation — identity here.
     /// @param value the vector to convert.
     /// @return `value`, unchanged.
-    static rfl_type                to_rfl(const std::vector<std::string> &value) { return value; }
+    static rfl_type to_rfl(const std::vector<std::string>& value)
+    {
+        return value;
+    }
+
     /// @brief Converts an rfl-facing string vector back — identity here.
     /// @param value the rfl-side vector to convert.
     /// @return `value`, unchanged.
-    static std::vector<std::string> from_rfl(const rfl_type &value) { return value; }
+    static std::vector<std::string> from_rfl(const rfl_type& value)
+    {
+        return value;
+    }
 };
 
 // ─── std::optional<std::string> ───────────────────────────────────────────────
 
-template <>
-struct FieldConverter<std::optional<std::string>> {
+template<>
+struct FieldConverter<std::optional<std::string>>
+{
     using rfl_type = std::optional<std::string>;
 
     /**
@@ -621,8 +698,9 @@ struct FieldConverter<std::optional<std::string>> {
      * @return a simdjson error_code — SUCCESS whether `out` ends up set or `nullopt`,
      * propagates the underlying error if a non-null value isn't a JSON string.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::optional<std::string> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::optional<std::string>& out)
+    {
         // Null maps to nullopt straight away.
         if (json_value.is_null()) {
             out = std::nullopt;
@@ -645,10 +723,12 @@ struct FieldConverter<std::optional<std::string>> {
      * @return the decoded optional string; `nullopt` if absent or not a TOML string.
      */
     static std::expected<std::optional<std::string>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // A missing key and a wrong-typed value both quietly resolve to nullopt here — no
         // distinction made between the two.
-        auto string_value = table[field_name].value<std::string>();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        auto string_value = table[field_name].value<std::string>(); // FIXME(clang-tidy): unchecked
+                                                                    // operator[], consider .at()
         if (!string_value) {
             return std::nullopt;
         }
@@ -658,19 +738,25 @@ struct FieldConverter<std::optional<std::string>> {
     /// @brief Converts an optional string to its rfl-facing representation — identity here.
     /// @param value the optional string to convert.
     /// @return `value`, unchanged.
-    static rfl_type                    to_rfl(const std::optional<std::string> &value) {
+    static rfl_type to_rfl(const std::optional<std::string>& value)
+    {
         return value;
     }
+
     /// @brief Converts an rfl-facing optional string back — identity here.
     /// @param value the rfl-side optional string to convert.
     /// @return `value`, unchanged.
-    static std::optional<std::string> from_rfl(const rfl_type &value) { return value; }
+    static std::optional<std::string> from_rfl(const rfl_type& value)
+    {
+        return value;
+    }
 };
 
 // ─── std::unordered_map<std::string, std::string> ────────────────────────────
 
-template <>
-struct FieldConverter<std::unordered_map<std::string, std::string>> {
+template<>
+struct FieldConverter<std::unordered_map<std::string, std::string>>
+{
     using rfl_type = std::map<std::string, std::string>;
 
     /**
@@ -682,15 +768,16 @@ struct FieldConverter<std::unordered_map<std::string, std::string>> {
      * key/value-level error otherwise.
      */
     static simdjson::error_code from_simdjson(
-        simdjson::ondemand::value &json_value,
-        std::unordered_map<std::string, std::string> &out) {
+        simdjson::ondemand::value& json_value, std::unordered_map<std::string, std::string>& out
+    )
+    {
         // Must be a JSON object before iterating its key/value pairs.
         simdjson::ondemand::object json_object;
         if (auto ec = json_value.get_object().get(json_object); ec) {
             return ec;
         }
         // Every key becomes a map key; every value must itself be a JSON string.
-        for (auto field : json_object) {
+        for (auto field: json_object) {
             std::string_view key;
             std::string_view string_value;
             if (auto ec = field.unescaped_key().get(key); ec) {
@@ -714,20 +801,21 @@ struct FieldConverter<std::unordered_map<std::string, std::string>> {
      * string.
      */
     static std::expected<std::unordered_map<std::string, std::string>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // No sub-table at all is just an empty map, no error — same missing-is-empty
         // convention as the vector<string> specialization above.
-        const auto *sub_table = table[field_name].as_table();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const auto* sub_table =
+            table[field_name].as_table(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (sub_table == nullptr) {
             return std::unordered_map<std::string, std::string>{};
         }
         std::unordered_map<std::string, std::string> result;
         // Every value under the sub-table must be a string, though, no exceptions there.
-        for (auto &&[key, value] : *sub_table) {
+        for (auto&& [key, value]: *sub_table) {
             auto string_value = value.value<std::string>();
             if (!string_value) {
-                return std::unexpected{
-                    std::format("value in '{}' must be a string", field_name)};
+                return std::unexpected{std::format("value in '{}' must be a string", field_name)};
             }
             result.emplace(std::string{key.str()}, std::move(*string_value));
         }
@@ -741,15 +829,18 @@ struct FieldConverter<std::unordered_map<std::string, std::string>> {
      * @param value the unordered_map to convert.
      * @return an ordered `std::map` with the same key/value pairs.
      */
-    static rfl_type to_rfl(const std::unordered_map<std::string, std::string> &value) {
+    static rfl_type to_rfl(const std::unordered_map<std::string, std::string>& value)
+    {
         return rfl_type{value.begin(), value.end()};
     }
+
     /**
      * @brief Converts an rfl-facing ordered map back to an unordered_map.
      * @param map the ordered map to convert.
      * @return an `unordered_map` with the same key/value pairs, order no longer guaranteed.
      */
-    static std::unordered_map<std::string, std::string> from_rfl(const rfl_type &map) {
+    static std::unordered_map<std::string, std::string> from_rfl(const rfl_type& map)
+    {
         return {map.begin(), map.end()};
     }
 };
@@ -766,8 +857,9 @@ struct FieldConverter<std::unordered_map<std::string, std::string>> {
  * @param object the instance to read field values from.
  * @return an `rfl::NamedTuple` with one named entry per field in `Fds...`.
  */
-template <typename T, typename... Fds>
-auto build_named_tuple(const T &object, std::tuple<Fds...> field_descriptors) {
+template<typename T, typename... Fds>
+auto build_named_tuple(const T& object, std::tuple<Fds...> field_descriptors)
+{
     // Fold over every FieldDesc: call its getter, run the result through the matching
     // FieldConverter::to_rfl, and pack it into a named rfl field — one per Fd, in order.
     return std::apply(
@@ -775,9 +867,13 @@ auto build_named_tuple(const T &object, std::tuple<Fds...> field_descriptors) {
             return rfl::NamedTuple(
                 rfl::make_field<decltype(fields)::name>(
                     FieldConverter<typename decltype(fields)::ValueType>::to_rfl(
-                        (object.*decltype(fields)::getter)()))...);
+                        (object.*decltype(fields)::getter)()
+                    )
+                )...
+            );
         },
-        std::tuple<Fds...>{});
+        std::tuple<Fds...>{}
+    );
 }
 
 /**
@@ -789,18 +885,22 @@ auto build_named_tuple(const T &object, std::tuple<Fds...> field_descriptors) {
  * @param object the instance to write field values onto, mutated in place.
  * @param named_tuple the NamedTuple to read field values from.
  */
-template <typename T, typename NT, typename... Fds>
-void apply_named_tuple_to(T &object, const NT &named_tuple, std::tuple<Fds...> field_descriptors) {
+template<typename T, typename NT, typename... Fds>
+void apply_named_tuple_to(T& object, const NT& named_tuple, std::tuple<Fds...> field_descriptors)
+{
     // The inverse fold: pull each named field back out of the tuple, run it through
     // FieldConverter::from_rfl, and write it onto `object` via that field's setter.
     std::apply(
         [&](auto... fields) {
             ((object.*decltype(fields)::setter)(
                  FieldConverter<typename decltype(fields)::ValueType>::from_rfl(
-                     rfl::get<decltype(fields)::name>(named_tuple))),
+                     rfl::get<decltype(fields)::name>(named_tuple)
+                 )
+             ),
              ...);
         },
-        std::tuple<Fds...>{});
+        std::tuple<Fds...>{}
+    );
 }
 
 // ─── ISerializable FieldConverter specializations ────────────────────────────
@@ -812,11 +912,12 @@ void apply_named_tuple_to(T &object, const NT &named_tuple, std::tuple<Fds...> f
  * reflected all the way down for rfl's own machinery to handle it.
  * @tparam VT the nested serializable type being converted; constrained to `ISerializable`.
  */
-template <typename VT>
+template<typename VT>
     requires ISerializable<VT>
-struct FieldConverter<VT> {
+struct FieldConverter<VT>
+{
     using rfl_type =
-        decltype(build_named_tuple(std::declval<const VT &>(), Serializable<VT>::fields()));
+        decltype(build_named_tuple(std::declval<const VT&>(), Serializable<VT>::fields()));
 
     /**
      * @brief Reads a nested-object field by delegating straight to `VT`'s own
@@ -826,7 +927,8 @@ struct FieldConverter<VT> {
      * @param out the destination to write the decoded nested object into.
      * @return a simdjson error_code — SUCCESS on a clean decode.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value, VT &out) {
+    static simdjson::error_code from_simdjson(simdjson::ondemand::value& json_value, VT& out)
+    {
         return simdjson::tag_invoke(simdjson::deserialize_tag{}, json_value, out);
     }
 
@@ -838,13 +940,14 @@ struct FieldConverter<VT> {
      * @return the decoded nested object, or an error message if the field isn't a TOML
      * table or any of its own fields fail to extract.
      */
-    static std::expected<VT, std::string> from_toml(const toml::table &table,
-                                                     std::string_view field_name) {
+    static std::expected<VT, std::string>
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Nested object needs a nested TOML table — anything else is an immediate type error.
-        const auto *sub_table = table[field_name].as_table();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const auto* sub_table =
+            table[field_name].as_table(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (sub_table == nullptr) {
-            return std::unexpected{
-                std::format("field '{}' must be a TOML table", field_name)};
+            return std::unexpected{std::format("field '{}' must be a TOML table", field_name)};
         }
         // Recurse one level deeper into VT's own fields.
         VT result;
@@ -857,13 +960,16 @@ struct FieldConverter<VT> {
     /// @brief Converts a nested object to its full NamedTuple rfl representation.
     /// @param value the nested object to convert.
     /// @return the NamedTuple built from `value`'s reflected fields.
-    static rfl_type to_rfl(const VT &value) {
+    static rfl_type to_rfl(const VT& value)
+    {
         return build_named_tuple(value, Serializable<VT>::fields());
     }
+
     /// @brief Converts an rfl-facing NamedTuple back into a nested object.
     /// @param named_tuple the NamedTuple to read field values from.
     /// @return the reconstructed nested object.
-    static VT from_rfl(const rfl_type &named_tuple) {
+    static VT from_rfl(const rfl_type& named_tuple)
+    {
         // Build a fresh default VT, then populate it field-by-field from the tuple.
         VT result;
         apply_named_tuple_to(result, named_tuple, Serializable<VT>::fields());
@@ -877,9 +983,10 @@ struct FieldConverter<VT> {
  * object-decoding work to it.
  * @tparam VT the nested serializable type being converted; constrained to `ISerializable`.
  */
-template <typename VT>
+template<typename VT>
     requires ISerializable<VT>
-struct FieldConverter<std::optional<VT>> {
+struct FieldConverter<std::optional<VT>>
+{
     using InnerRfl = FieldConverter<VT>::rfl_type;
     using rfl_type = std::optional<InnerRfl>;
 
@@ -890,8 +997,9 @@ struct FieldConverter<std::optional<VT>> {
      * @param out the destination to write the decoded value into.
      * @return a simdjson error_code — SUCCESS whether `out` ends up set or `nullopt`.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::optional<VT> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::optional<VT>& out)
+    {
         // Null skips the whole nested-object decode entirely.
         if (json_value.is_null()) {
             out = std::nullopt;
@@ -916,9 +1024,11 @@ struct FieldConverter<std::optional<VT>> {
      * @return the decoded optional nested object; `nullopt` if the field's absent.
      */
     static std::expected<std::optional<VT>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // No sub-table means no value at all — nullopt, not an error.
-        const auto *sub_table = table[field_name].as_table();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const auto* sub_table =
+            table[field_name].as_table(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (sub_table == nullptr) {
             return std::nullopt;
         }
@@ -934,18 +1044,21 @@ struct FieldConverter<std::optional<VT>> {
     /// @brief Converts an optional nested object to its optional-NamedTuple rfl form.
     /// @param value the optional nested object to convert.
     /// @return `nullopt` if `value` is empty, else its NamedTuple representation.
-    static rfl_type to_rfl(const std::optional<VT> &value) {
+    static rfl_type to_rfl(const std::optional<VT>& value)
+    {
         // Empty stays empty, otherwise delegate to the plain-VT converter.
         if (!value) {
             return std::nullopt;
         }
         return FieldConverter<VT>::to_rfl(*value);
     }
+
     /// @brief Converts an rfl-facing optional NamedTuple back into an optional nested
     /// object.
     /// @param named_tuple the optional NamedTuple to read field values from.
     /// @return `nullopt` if `named_tuple` is empty, else the reconstructed nested object.
-    static std::optional<VT> from_rfl(const rfl_type &named_tuple) {
+    static std::optional<VT> from_rfl(const rfl_type& named_tuple)
+    {
         // Same empty-stays-empty motion in reverse.
         if (!named_tuple) {
             return std::nullopt;
@@ -959,9 +1072,10 @@ struct FieldConverter<std::optional<VT>> {
  * decodes/encodes element by element, delegating each one to the plain-VT specialization.
  * @tparam VT the nested serializable element type; constrained to `ISerializable`.
  */
-template <typename VT>
+template<typename VT>
     requires ISerializable<VT>
-struct FieldConverter<std::vector<VT>> {
+struct FieldConverter<std::vector<VT>>
+{
     using InnerRfl = FieldConverter<VT>::rfl_type;
     using rfl_type = std::vector<InnerRfl>;
 
@@ -973,15 +1087,16 @@ struct FieldConverter<std::vector<VT>> {
      * @return a simdjson error_code — SUCCESS on a clean decode, propagates the first
      * element-level error otherwise.
      */
-    static simdjson::error_code from_simdjson(simdjson::ondemand::value &json_value,
-                                               std::vector<VT> &out) {
+    static simdjson::error_code
+    from_simdjson(simdjson::ondemand::value& json_value, std::vector<VT>& out)
+    {
         // Must be a JSON array first.
         simdjson::ondemand::array json_array;
         if (auto ec = json_value.get_array().get(json_array); ec) {
             return ec;
         }
         // Decode each element as a full nested VT, one recursive call per element.
-        for (auto element : json_array) {
+        for (auto element: json_array) {
             simdjson::ondemand::value element_value;
             if (auto ec = element.get(element_value); ec) {
                 return ec;
@@ -1005,9 +1120,11 @@ struct FieldConverter<std::vector<VT>> {
      * isn't a TOML table or fails its own field extraction.
      */
     static std::expected<std::vector<VT>, std::string>
-    from_toml(const toml::table &table, std::string_view field_name) {
+    from_toml(const toml::table& table, std::string_view field_name)
+    {
         // Missing array resolves to empty, no error.
-        const auto *toml_array = table[field_name].as_array();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const auto* toml_array =
+            table[field_name].as_array(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (toml_array == nullptr) {
             return std::vector<VT>{};
         }
@@ -1015,11 +1132,12 @@ struct FieldConverter<std::vector<VT>> {
         result.reserve(toml_array->size());
         // Every present element must be a TOML table and must decode as a full VT — no
         // exceptions on either front.
-        for (const auto &element : *toml_array) {
-            const auto *sub_table = element.as_table();
+        for (const auto& element: *toml_array) {
+            const auto* sub_table = element.as_table();
             if (sub_table == nullptr) {
                 return std::unexpected{
-                    std::format("element of '{}' must be a TOML table", field_name)};
+                    std::format("element of '{}' must be a TOML table", field_name)
+                };
             }
             VT value;
             if (auto outcome = TomlParser::from_toml_impl(*sub_table, value); !outcome) {
@@ -1033,23 +1151,26 @@ struct FieldConverter<std::vector<VT>> {
     /// @brief Converts a vector of nested objects to a vector of their NamedTuple forms.
     /// @param value the vector of nested objects to convert.
     /// @return a vector with one NamedTuple per element, same order.
-    static rfl_type to_rfl(const std::vector<VT> &value) {
+    static rfl_type to_rfl(const std::vector<VT>& value)
+    {
         // Reserve up front, then convert each element via the plain-VT converter.
         rfl_type result;
         result.reserve(value.size());
-        for (const auto &element : value) {
+        for (const auto& element: value) {
             result.push_back(FieldConverter<VT>::to_rfl(element));
         }
         return result;
     }
+
     /// @brief Converts an rfl-facing vector of NamedTuples back into nested objects.
     /// @param named_tuple the vector of NamedTuples to convert.
     /// @return a vector with one reconstructed object per NamedTuple, same order.
-    static std::vector<VT> from_rfl(const rfl_type &named_tuple) {
+    static std::vector<VT> from_rfl(const rfl_type& named_tuple)
+    {
         // Same reserve-then-convert motion, in reverse.
         std::vector<VT> result;
         result.reserve(named_tuple.size());
-        for (const auto &element : named_tuple) {
+        for (const auto& element: named_tuple) {
             result.push_back(FieldConverter<VT>::from_rfl(element));
         }
         return result;
@@ -1074,9 +1195,11 @@ namespace serde {
  * holds just stays put.
  * @return a simdjson error_code — SUCCESS if the field was absent or decoded clean.
  */
-template <typename Fd>
-simdjson::error_code extract_simdjson_field(simdjson::ondemand::object &json_object,
-                                            typename Fd::ClassType &out, Fd field_descriptor) {
+template<typename Fd>
+simdjson::error_code extract_simdjson_field(
+    simdjson::ondemand::object& json_object, typename Fd::ClassType& out, Fd field_descriptor
+)
+{
     using VT = Fd::ValueType;
     // Look the field up by name — a missing key is fine, this codec is lenient about absent
     // JSON keys by design, so it counts as SUCCESS, not an error.
@@ -1090,7 +1213,8 @@ simdjson::error_code extract_simdjson_field(simdjson::ondemand::object &json_obj
     }
     // Present — decode through the field's own FieldConverter, then write it via the setter.
     VT value{};
-    if (auto inner_error_code = FieldConverter<VT>::from_simdjson(field_value, value); inner_error_code) {
+    if (auto inner_error_code = FieldConverter<VT>::from_simdjson(field_value, value);
+        inner_error_code) {
         return inner_error_code;
     }
     (out.*Fd::setter)(std::move(value));
@@ -1109,9 +1233,10 @@ simdjson::error_code extract_simdjson_field(simdjson::ondemand::object &json_obj
  * specific FieldConverter before assuming leniency.
  * @return success, or an error message if the field's value fails to extract or convert.
  */
-template <typename Fd>
-std::expected<void, std::string> extract_toml_field(const toml::table &table,
-                                                    typename Fd::ClassType &out, Fd field_descriptor) {
+template<typename Fd>
+std::expected<void, std::string>
+extract_toml_field(const toml::table& table, typename Fd::ClassType& out, Fd field_descriptor)
+{
     using VT = Fd::ValueType;
     // Missing-vs-error leniency is entirely up to VT's own FieldConverter::from_toml — this
     // function just propagates whatever it decides.
@@ -1131,8 +1256,9 @@ std::expected<void, std::string> extract_toml_field(const toml::table &table,
  * @param object the instance to convert.
  * @return the NamedTuple built from `object`'s reflected fields.
  */
-template <ISerializable T>
-auto rfl_build_from(const T &object) {
+template<ISerializable T>
+auto rfl_build_from(const T& object)
+{
     return build_named_tuple(object, Serializable<T>::fields());
 }
 
@@ -1152,8 +1278,9 @@ export namespace serde {
  * first error, later fields (even ones that would've succeeded) are simply never attempted.
  * @return success, or the first field-extraction error encountered.
  */
-template <ISerializable T>
-std::expected<void, std::string> TomlParser::from_toml_impl(const toml::table &table, T &object) {
+template<ISerializable T>
+std::expected<void, std::string> TomlParser::from_toml_impl(const toml::table& table, T& object)
+{
     std::expected<void, std::string> result{};
     // Fold over every field in order — `result && (...)` means the moment one extraction
     // fails, `result` latches onto that first error and every remaining field is skipped
@@ -1162,7 +1289,8 @@ std::expected<void, std::string> TomlParser::from_toml_impl(const toml::table &t
         [&](auto... fields) {
             ((result ? (result = extract_toml_field(table, object, fields)) : result), ...);
         },
-        Serializable<T>::fields());
+        Serializable<T>::fields()
+    );
     return result;
 }
 
@@ -1180,9 +1308,10 @@ export namespace rfl {
  * anything rfl-specific.
  * @tparam T the serializable type being reflected; constrained to `serde::ISerializable`.
  */
-template <serde::ISerializable T>
-struct Reflector<T> {
-    using ReflType = decltype(serde::rfl_build_from(std::declval<const T &>()));
+template<serde::ISerializable T>
+struct Reflector<T>
+{
+    using ReflType = decltype(serde::rfl_build_from(std::declval<const T&>()));
 
     /**
      * @brief Reconstructs a T from its NamedTuple representation — called by rfl whenever
@@ -1190,7 +1319,8 @@ struct Reflector<T> {
      * @param named_tuple the NamedTuple to read field values from.
      * @return the reconstructed T.
      */
-    static T to(const ReflType &named_tuple) noexcept {
+    static T to(const ReflType& named_tuple) noexcept
+    {
         // Default-construct T, then let apply_named_tuple_to fill in every reflected field.
         T object;
         serde::apply_named_tuple_to(object, named_tuple, serde::Serializable<T>::fields());
@@ -1203,7 +1333,10 @@ struct Reflector<T> {
      * @param object the instance to convert.
      * @return the NamedTuple built from `object`'s reflected fields.
      */
-    static ReflType from(const T &object) { return serde::rfl_build_from(object); }
+    static ReflType from(const T& object)
+    {
+        return serde::rfl_build_from(object);
+    }
 };
 
 } // namespace rfl
@@ -1225,8 +1358,9 @@ export namespace simdjson {
  * skipped entirely rather than attempted, no cap.
  * @return a simdjson error_code — SUCCESS if every field decoded clean.
  */
-template <typename V, serde::ISerializable T>
-error_code tag_invoke(deserialize_tag tag, V &json_value, T &object) {
+template<typename V, serde::ISerializable T>
+error_code tag_invoke(deserialize_tag tag, V& json_value, T& object)
+{
     // Must actually be a JSON object before any field extraction can start.
     ondemand::object json_object;
     if (auto ec = json_value.get_object().get(json_object); ec) {
@@ -1243,9 +1377,9 @@ error_code tag_invoke(deserialize_tag tag, V &json_value, T &object) {
                   : SUCCESS),
              ...);
         },
-        serde::Serializable<T>::fields());
+        serde::Serializable<T>::fields()
+    );
     return result;
 }
 
 } // namespace simdjson
-

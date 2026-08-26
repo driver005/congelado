@@ -16,25 +16,26 @@ limitations under the License.
 #ifndef CONGELADO_C_ENV_TIME_H_
 #define CONGELADO_C_ENV_TIME_H_
 
-#include <stdint.h>
-
 #include "c/abi/macros.h"
 
+#include <stdint.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// Returns the number of nanoseconds since the Unix epoch.
-TF_CAPI_EXPORT extern uint64_t TF_NowNanos(void);
+    // Returns the number of nanoseconds since the Unix epoch.
+    TF_CAPI_EXPORT extern uint64_t TF_NowNanos(void);
 
-// Returns the number of microseconds since the Unix epoch.
-TF_CAPI_EXPORT extern uint64_t TF_NowMicros(void);
+    // Returns the number of microseconds since the Unix epoch.
+    TF_CAPI_EXPORT extern uint64_t TF_NowMicros(void);
 
-// Returns the number of seconds since the Unix epoch.
-TF_CAPI_EXPORT extern uint64_t TF_NowSeconds(void);
+    // Returns the number of seconds since the Unix epoch.
+    TF_CAPI_EXPORT extern uint64_t TF_NowSeconds(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_ENV_TIME_H_
+#endif // CONGELADO_C_ENV_TIME_H_

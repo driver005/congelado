@@ -16,28 +16,29 @@ limitations under the License.
 #ifndef CONGELADO_C_GENERATOR_PARAMETER_H_
 #define CONGELADO_C_GENERATOR_PARAMETER_H_
 
-#include <stddef.h>
-
 #include "c/abi/macros.h"
 
+#include <stddef.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_Generator_Parameter TF_Generator_Parameter;
-typedef struct TF_Generator_TypeInfo TF_Generator_TypeInfo;
+    typedef struct TF_Generator_Parameter TF_Generator_Parameter;
+    typedef struct TF_Generator_TypeInfo TF_Generator_TypeInfo;
 
-TF_CAPI_EXPORT extern const char* TF_Generator_Parameter_GetName(
-    const TF_Generator_Parameter* param);
-TF_CAPI_EXPORT extern const char* TF_Generator_Parameter_GetDescription(
-    const TF_Generator_Parameter* param);
-TF_CAPI_EXPORT extern int TF_Generator_Parameter_GetPosition(
-    const TF_Generator_Parameter* param);
-TF_CAPI_EXPORT extern const TF_Generator_TypeInfo* TF_Generator_Parameter_GetType(
-    const TF_Generator_Parameter* param);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Parameter_GetName(const TF_Generator_Parameter* param);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Parameter_GetDescription(const TF_Generator_Parameter* param);
+    TF_CAPI_EXPORT extern int
+    TF_Generator_Parameter_GetPosition(const TF_Generator_Parameter* param);
+    TF_CAPI_EXPORT extern const TF_Generator_TypeInfo*
+    TF_Generator_Parameter_GetType(const TF_Generator_Parameter* param);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_GENERATOR_PARAMETER_H_
+#endif // CONGELADO_C_GENERATOR_PARAMETER_H_

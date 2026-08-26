@@ -1,8 +1,8 @@
 module;
 
-#include <string>
-#include <memory>
 #include <functional>
+#include <memory>
+#include <string>
 
 export module cc_tmp:runtime_rendezvous;
 
@@ -12,16 +12,20 @@ import :tensor_tensor;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class Rendezvous {
-public:
-    virtual ~Rendezvous() = default;
+        class Rendezvous
+        {
+        public:
+            virtual ~Rendezvous() = default;
 
-    virtual ice::Status Send(const std::string& key, const Tensor& val, bool is_dead) = 0;
-    virtual void RecvAsync(const std::string& key, std::function<void(const ice::Status&, const Tensor&, bool)> done) = 0;
-};
+            virtual ice::Status Send(const std::string& key, const Tensor& val, bool is_dead) = 0;
+            virtual void RecvAsync(
+                const std::string& key,
+                std::function<void(const ice::Status&, const Tensor&, bool)> done
+            ) = 0;
+        };
 
-} // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

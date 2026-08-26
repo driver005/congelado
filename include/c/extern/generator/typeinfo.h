@@ -16,28 +16,26 @@ limitations under the License.
 #ifndef CONGELADO_C_GENERATOR_TYPEINFO_H_
 #define CONGELADO_C_GENERATOR_TYPEINFO_H_
 
-#include <stdbool.h>
-
 #include "c/abi/macros.h"
 #include "c/intern/tf_datatype.h"
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_Generator_TypeInfo TF_Generator_TypeInfo;
+    typedef struct TF_Generator_TypeInfo TF_Generator_TypeInfo;
 
-TF_CAPI_EXPORT extern int TF_Generator_TypeInfo_GetDataType(
-    const TF_Generator_TypeInfo* type);
-TF_CAPI_EXPORT extern const char* TF_Generator_TypeInfo_GetTypeAttrName(
-    const TF_Generator_TypeInfo* type);
-TF_CAPI_EXPORT extern bool TF_Generator_TypeInfo_IsReadOnly(
-    const TF_Generator_TypeInfo* type);
-TF_CAPI_EXPORT extern bool TF_Generator_TypeInfo_IsList(
-    const TF_Generator_TypeInfo* type);
+    TF_CAPI_EXPORT extern int TF_Generator_TypeInfo_GetDataType(const TF_Generator_TypeInfo* type);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_TypeInfo_GetTypeAttrName(const TF_Generator_TypeInfo* type);
+    TF_CAPI_EXPORT extern bool TF_Generator_TypeInfo_IsReadOnly(const TF_Generator_TypeInfo* type);
+    TF_CAPI_EXPORT extern bool TF_Generator_TypeInfo_IsList(const TF_Generator_TypeInfo* type);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_GENERATOR_TYPEINFO_H_
+#endif // CONGELADO_C_GENERATOR_TYPEINFO_H_

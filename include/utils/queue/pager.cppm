@@ -10,7 +10,11 @@ import page;
 import atomic_list;
 import consts;
 
-export enum class AllocationMode : std::uint8_t { CAN_ALLOC = 0, CANNOT_ALLOC = 1 };
+export enum class AllocationMode : std::uint8_t
+{
+    CAN_ALLOC = 0,
+    CANNOT_ALLOC = 1
+};
 
 /**
  * @brief
@@ -26,18 +30,22 @@ export enum class AllocationMode : std::uint8_t { CAN_ALLOC = 0, CANNOT_ALLOC = 
  * @param rhs the right-hand sequence number.
  * @return true if `lhs` is "before" `rhs` in circular sequence order.
  */
-export template <typename T>
-inline bool circular_less_than(T lhs, T rhs) {
-    static_assert(std::is_integral_v<T> && !std::is_signed_v<T>,
-                  "circular_less_than is intended for unsigned integer types only");
+export template<typename T>
+inline bool circular_less_than(T lhs, T rhs)
+{
+    static_assert(
+        std::is_integral_v<T> && !std::is_signed_v<T>,
+        "circular_less_than is intended for unsigned integer types only"
+    );
 
     constexpr T SHIFT = (sizeof(T) * CHAR_BIT) - 1;
     return static_cast<T>(lhs - rhs) > (static_cast<T>(1) << SHIFT);
 }
 
-export template <typename T>
-class Pager {
-  public:
+export template<typename T>
+class Pager
+{
+public:
     /**
      * @brief Writes `item` into the current tail page, allocating a fresh page first if the
      * current one just filled up.
@@ -52,23 +60,25 @@ class Pager {
      * @return true on success, false if a new page was needed and couldn't be obtained (only
      * possible under `AllocationMode::CANNOT_ALLOC` with an empty recycle list).
      */
-    template <AllocationMode Mode>
-    bool enqueue(const T &item) {
+    template<AllocationMode Mode>
+    bool enqueue(const T& item)
+    {
         auto check_index = m_writer.load(std::memory_order_relaxed);
 
-        // Check if index is equal to block size, if so we need to allocate a new page becouse else we whould be writing
-        // to the start of the current page instead of the next page This is a safe operation every thread has its own
-        // list of pages
+        // Check if index is equal to block size, if so we need to allocate a new page becouse else
+        // we whould be writing to the start of the current page instead of the next page This is a
+        // safe operation every thread has its own list of pages
         if ((check_index & (BLOCK_SIZE - 1)) == 0) {
             auto status = add_new_page();
             if (!status) {
-                // Failed to add new page, likely due to allocation failure in CANNOT_ALLOC mode and no more pages
-                // available in recycle list
+                // Failed to add new page, likely due to allocation failure in CANNOT_ALLOC mode and
+                // no more pages available in recycle list
                 return false;
             }
         }
 
-        // It is space in the current page, we can increase the writer index without worrying about a rollback
+        // It is space in the current page, we can increase the writer index without worrying about
+        // a rollback
         auto index = m_writer.fetch_add(1, std::memory_order_acq_rel);
 
         // Calculate block base index
@@ -92,8 +102,9 @@ class Pager {
      * @return true if all `count` items were written, false (with everything rolled back) if a
      * needed page couldn't be obtained partway through.
      */
-    template <AllocationMode Mode>
-    bool enqueue_bulk(const T *items, std::size_t count) {
+    template<AllocationMode Mode>
+    bool enqueue_bulk(const T* items, std::size_t count)
+    {
         if (count == 0) {
             return true; // Nothing to enqueue, trivially successful
         }
@@ -101,9 +112,9 @@ class Pager {
         std::size_t start_index = m_writer.load(std::memory_order_relaxed);
         auto end_index = start_index + count;
 
-        auto *const START_PAGE = m_tail;
-        auto *end_page = m_tail;
-        Page<T> *first_alloc_page = nullptr;
+        auto* const START_PAGE = m_tail;
+        auto* end_page = m_tail;
+        Page<T>* first_alloc_page = nullptr;
 
         // How many whole page boundaries sit between the start and end index — that's how many
         // fresh pages we'll need to walk/allocate below.
@@ -113,12 +124,12 @@ class Pager {
         while (page_diff > 0) {
             page_diff -= static_cast<std::size_t>(BLOCK_SIZE);
 
-            // Oh no, the alloction falied what now? In case of a faile we need to rollback all pages allocated starting
-            // with first_alloc_page as long as it has a next page!
+            // Oh no, the alloction falied what now? In case of a faile we need to rollback all
+            // pages allocated starting with first_alloc_page as long as it has a next page!
             if (!add_new_page<Mode>()) {
-                Page<T> *current_page = first_alloc_page;
+                Page<T>* current_page = first_alloc_page;
                 while (current_page) {
-                    auto *next_page = current_page->m_next;
+                    auto* next_page = current_page->m_next;
                     remove_page<Mode>();
                     current_page = next_page;
                 }
@@ -140,7 +151,8 @@ class Pager {
         }
 
         // Rest the tail so we can write the items into the corresponding pages
-        if ((start_index & static_cast<std::size_t>(BLOCK_SIZE - 1)) == 0 && first_alloc_page != nullptr) {
+        if ((start_index & static_cast<std::size_t>(BLOCK_SIZE - 1)) == 0 &&
+            first_alloc_page != nullptr) {
             m_tail = first_alloc_page;
         } else {
             m_tail = START_PAGE;
@@ -150,14 +162,15 @@ class Pager {
         while (true) {
             // stop_index = first index of the NEXT block (or end_index if
             // the remaining items all fit in this block).
-            std::size_t stop_index =
-                (write_index & ~static_cast<std::size_t>(BLOCK_SIZE - 1)) + static_cast<std::size_t>(BLOCK_SIZE);
+            std::size_t stop_index = (write_index & ~static_cast<std::size_t>(BLOCK_SIZE - 1)) +
+                                     static_cast<std::size_t>(BLOCK_SIZE);
             if (circular_less_than<std::size_t>(end_index, stop_index)) {
                 stop_index = end_index;
             }
 
             while (write_index != stop_index) {
-                const std::size_t BLOCK_INDEX = write_index & (static_cast<std::size_t>(BLOCK_SIZE) - 1);
+                const std::size_t BLOCK_INDEX =
+                    write_index & (static_cast<std::size_t>(BLOCK_SIZE) - 1);
                 m_tail->operator[](BLOCK_INDEX) = items[write_index - start_index];
                 ++write_index;
             }
@@ -190,13 +203,16 @@ class Pager {
      * @return true if an element was dequeued into `item`, false if nothing was available (or the
      * page swap failed under `AllocationMode::CANNOT_ALLOC`).
      */
-    template <AllocationMode Mode>
-    bool dequeue(T &item) {
+    template<AllocationMode Mode>
+    bool dequeue(T& item)
+    {
         auto tail = m_writer.load(std::memory_order_relaxed);
         auto overcommit = m_reader_overcommit.load(std::memory_order_relaxed);
 
         // Check if there might be elements available using the optimistic formula
-        if (circular_less_than<std::size_t>(m_reader_optimistic.load(std::memory_order_relaxed) - overcommit, tail)) {
+        if (circular_less_than<std::size_t>(
+                m_reader_optimistic.load(std::memory_order_relaxed) - overcommit, tail
+            )) {
             // Acquire fence to synchronize with potential overcommit updates
             std::atomic_thread_fence(std::memory_order_acquire);
 
@@ -217,8 +233,9 @@ class Pager {
                     // Remove old page and get new one
                     auto status = remove_page<Mode>();
                     if (!status) {
-                        // Failed to remove page, likely due to allocation failure in CANNOT_ALLOC mode no more pages
-                        // available in recycle list Rollback the optimistic claim and return false
+                        // Failed to remove page, likely due to allocation failure in CANNOT_ALLOC
+                        // mode no more pages available in recycle list Rollback the optimistic
+                        // claim and return false
                         m_reader_overcommit.fetch_add(1, std::memory_order_release);
                         return false;
                     }
@@ -274,14 +291,16 @@ class Pager {
     // already known-broken and untested risks hiding that bug further or introducing a new one
     // in code nobody can currently exercise to verify. Deferring rather than guessing at a
     // refactor of unreachable, already-buggy code.
-    template <AllocationMode Mode>
-    std::size_t dequeue_bulk(T *items, std::size_t max) {
+    template<AllocationMode Mode>
+    std::size_t dequeue_bulk(T* items, std::size_t max)
+    {
         auto tail = m_writer.load(std::memory_order_relaxed);
         auto overcommit = m_reader_overcommit.load(std::memory_order_relaxed);
 
         // Rough estimate of how much is actually available to read right now.
-        auto desired_count =
-            static_cast<std::size_t>(tail - (m_reader_optimistic.load(std::memory_order_relaxed) - overcommit));
+        auto desired_count = static_cast<std::size_t>(
+            tail - (m_reader_optimistic.load(std::memory_order_relaxed) - overcommit)
+        );
 
         // Nothing available — bail before touching any atomics that matter.
         if (!circular_less_than<std::size_t>(0, desired_count)) {
@@ -295,7 +314,8 @@ class Pager {
 
         // Optimistically claim `desired_count` elements up front, then re-check against the
         // writer's current position in case it moved since the estimate above.
-        auto my_dequeue_count = m_reader_optimistic.fetch_add(desired_count, std::memory_order_relaxed);
+        auto my_dequeue_count =
+            m_reader_optimistic.fetch_add(desired_count, std::memory_order_relaxed);
 
         tail = m_writer.load(std::memory_order_acquire);
 
@@ -332,7 +352,7 @@ class Pager {
                 // Move-assignable without throwing — no need for exception-safety bookkeeping,
                 // just move each element out and destroy the source slot.
                 while (index != end_index) {
-                    auto &el = (*m_head)[index & (Page<T>::CAPACITY - 1)];
+                    auto& el = (*m_head)[index & (Page<T>::CAPACITY - 1)];
                     items[index - first_index] = std::move(el);
                     el.~T();
                     ++index;
@@ -340,7 +360,7 @@ class Pager {
             } else {
                 try {
                     while (index != end_index) {
-                        auto &el = (*m_head)[index & (Page<T>::CAPACITY - 1)];
+                        auto& el = (*m_head)[index & (Page<T>::CAPACITY - 1)];
                         items[index - first_index] = std::move(el);
                         el.~T();
                         ++index;
@@ -349,11 +369,13 @@ class Pager {
                     // Destroy all remaining claimed-but-unread elements before rethrowing.
                     auto cleanup = index;
                     while (cleanup != first_index + actual_count) {
-                        std::size_t cleanup_end = (cleanup & ~static_cast<std::size_t>(Page<T>::CAPACITY - 1)) +
-                                                  static_cast<std::size_t>(Page<T>::CAPACITY);
-                        cleanup_end = circular_less_than<std::size_t>(first_index + actual_count, cleanup_end)
-                                          ? first_index + actual_count
-                                          : cleanup_end;
+                        std::size_t cleanup_end =
+                            (cleanup & ~static_cast<std::size_t>(Page<T>::CAPACITY - 1)) +
+                            static_cast<std::size_t>(Page<T>::CAPACITY);
+                        cleanup_end =
+                            circular_less_than<std::size_t>(first_index + actual_count, cleanup_end)
+                                ? first_index + actual_count
+                                : cleanup_end;
 
                         while (cleanup != cleanup_end) {
                             (*m_head)[cleanup & (Page<T>::CAPACITY - 1)].~T();
@@ -377,7 +399,7 @@ class Pager {
         return actual_count;
     }
 
-  private:
+private:
     /**
      * @brief Retires the current head page — advances `m_head` to the next page, bumps `m_base`
      * to reflect the new page's starting index, and either frees or recycles the old page
@@ -386,9 +408,10 @@ class Pager {
      * back since no fresh allocation is coming), anything else hands the page back to the
      * recycle list for reuse.
      */
-    template <AllocationMode Mode>
-    void remove_page() {
-        auto *old_page = m_head;
+    template<AllocationMode Mode>
+    void remove_page()
+    {
+        auto* old_page = m_head;
 
         // Advance to the next page and bump the base index to match, so future reads know the
         // new head page's starting position.
@@ -400,7 +423,8 @@ class Pager {
         // list for reuse.
         if constexpr (Mode == AllocationMode::CANNOT_ALLOC) {
             if (old_page->m_dynamicly_allocated) {
-                delete old_page; // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no GSL dependency in this codebase
+                delete old_page; // NOLINT(cppcoreguidelines-owning-memory) — would need
+                                 // gsl::owner<> annotation; no GSL dependency in this codebase
             }
         } else {
             m_recycle_list->add(old_page);
@@ -421,8 +445,9 @@ class Pager {
      * @return true if a page was obtained (recycled or freshly allocated), false if neither
      * worked.
      */
-    template <AllocationMode Mode>
-    bool add_new_page() {
+    template<AllocationMode Mode>
+    bool add_new_page()
+    {
         // Prefer a recycled page over a fresh allocation, always.
         auto page = recycle_page();
         if (page) {
@@ -444,8 +469,9 @@ class Pager {
      * @return true if a recycled page was found and linked in, false if the recycle list was
      * empty.
      */
-    bool recycle_page() {
-        auto *new_page = m_recycle_list->try_get();
+    bool recycle_page()
+    {
+        auto* new_page = m_recycle_list->try_get();
 
         // Nothing sitting on the freelist — nothing to link in.
         if (new_page != nullptr) {
@@ -466,10 +492,13 @@ class Pager {
      * @return true, always — this one doesn't have a failure path (barring `bad_alloc`, which
      * just propagates out uncaught).
      */
-    bool allocate_page() {
+    bool allocate_page()
+    {
         // Same link-on-as-tail motion as recycle_page(), just against a freshly heap-allocated
         // page instead of one pulled off the freelist.
-        auto *new_page = new Page<T>(); // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no GSL dependency in this codebase
+        auto* new_page =
+            new Page<T>(); // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<>
+                           // annotation; no GSL dependency in this codebase
         if (m_tail) {
             m_tail->m_next = new_page;
         }
@@ -484,7 +513,7 @@ class Pager {
     std::atomic<std::size_t> m_reader_optimistic{0};
     std::atomic<std::size_t> m_reader_overcommit{0};
 
-    Page<T> *m_head;
-    Page<T> *m_tail;
-    AtomicList *m_recycle_list{nullptr};
+    Page<T>* m_head;
+    Page<T>* m_tail;
+    AtomicList* m_recycle_list{nullptr};
 };

@@ -42,7 +42,9 @@ suite<"workflow_engine barrel re-exports"> workflow_engine_barrel_suite = [] {
         SummaryProjector projector{ctx};
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
-        expect(nothrow([&] { projector.project_task(instance); }));
+        expect(nothrow([&] {
+            projector.project_task(instance);
+        }));
 
         Orchestrator orchestrator{ctx};
         expect(orchestrator.get_name() == "engine.sweep");

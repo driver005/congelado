@@ -11,8 +11,9 @@ import boost.ut;
 
 export namespace utils {
 
-class Sha256 {
-  public:
+class Sha256
+{
+public:
     /**
      * @brief Computes the SHA-256 digest of `data` and renders it as a lowercase hex string.
      * @param data the bytes to hash.
@@ -21,8 +22,9 @@ class Sha256 {
      * empty input hashes to a well-known non-empty 64-char digest), so an empty return is an
      * unambiguous failure signal to callers, not "hash of nothing".
      */
-    [[nodiscard]] static std::string hash_hex(std::string_view data) noexcept {
-        auto *ctx = EVP_MD_CTX_new();
+    [[nodiscard]] static std::string hash_hex(std::string_view data) noexcept
+    {
+        auto* ctx = EVP_MD_CTX_new();
         if (ctx == nullptr) {
             return "";
         }
@@ -54,12 +56,16 @@ using namespace boost::ut;
 
 suite<"Sha256"> sha256_suite = [] {
     "matches the well-known digest of an empty input"_test = [] {
-        expect(Sha256::hash_hex("") ==
-               "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        expect(
+            Sha256::hash_hex("") ==
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
     };
     "matches the well-known digest of \"abc\""_test = [] {
-        expect(Sha256::hash_hex("abc") ==
-               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        expect(
+            Sha256::hash_hex("abc") ==
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     };
     "digest is deterministic and 64 lowercase hex characters"_test = [] {
         auto digest = Sha256::hash_hex("congelado");

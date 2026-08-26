@@ -17,23 +17,25 @@ limitations under the License.
 #define CONGELADO_C_IO_ENUMS_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef enum TF_IO_Method {
-  TF_IO_GET = 0,
-  TF_IO_POST = 1,
-  TF_IO_PUT = 2,
-  TF_IO_DELETE = 3,
-  TF_IO_PATCH = 4,
-  TF_IO_HEAD = 5,
-  TF_IO_OPTIONS = 5,
-  TF_IO_CONNECT = 6,
-  TF_IO_TRACE = 7,
-} TF_IO_Method;
+    typedef enum TF_IO_Method
+    {
+        TF_IO_GET = 0,
+        TF_IO_POST = 1,
+        TF_IO_PUT = 2,
+        TF_IO_DELETE = 3,
+        TF_IO_PATCH = 4,
+        TF_IO_HEAD = 5,
+        TF_IO_OPTIONS = 5,
+        TF_IO_CONNECT = 6,
+        TF_IO_TRACE = 7,
+    } TF_IO_Method;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_IO_ENUMS_H_
+#endif // CONGELADO_C_IO_ENUMS_H_

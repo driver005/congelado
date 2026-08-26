@@ -17,17 +17,19 @@ inline constexpr std::array<std::byte, 24> HTTP2_CONNECTION_PREFACE = [] {
     // Copy each char of the literal preface into the byte array one at a time — no
     // reinterpret_cast shortcuts here, keeps it constexpr-friendly, bet.
     for (std::size_t i = 0; i < 24; ++i) {
-        arr[i] = static_cast<std::byte>(sv[i]);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        arr[i] = static_cast<std::byte>(
+            sv[i]
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
     }
     return arr;
 }();
 
 inline constexpr std::uint32_t DEFAULT_INITIAL_WINDOW_SIZE = (1U << 16) - 1; // 65535 (2^16 - 1)
-inline constexpr std::uint32_t MAX_INITIAL_WINDOW_SIZE = (1U << 31) - 1;     // 2147483647 (2^31 - 1)
+inline constexpr std::uint32_t MAX_INITIAL_WINDOW_SIZE = (1U << 31) - 1; // 2147483647 (2^31 - 1)
 
 inline constexpr std::uint32_t MAX_CONNECTED_STREAMS = (1U << 31) - 1; // 2147483647 (2^31 - 1)
 
-inline constexpr std::uint32_t DEFAULT_HEADER_TABLE_SIZE = 4096;
+inline constexpr std::uint32_t DEFAULT_HEADER_TABLE_SIZE = 4'096;
 inline constexpr std::uint32_t MIN_FRAME_SIZE = 1U << 14;       // 16384 (2^14)
 inline constexpr std::uint32_t MAX_FRAME_SIZE = (1U << 24) - 1; // 16777215 (2^24 - 1)
 
@@ -59,12 +61,12 @@ suite<"http2 consts"> http2_consts_suite = [] {
     };
 
     "window/stream/table/frame size limits match RFC 9113 defaults"_test = [] {
-        expect(DEFAULT_INITIAL_WINDOW_SIZE == 65535U);
-        expect(MAX_INITIAL_WINDOW_SIZE == 2147483647U);
-        expect(MAX_CONNECTED_STREAMS == 2147483647U);
-        expect(DEFAULT_HEADER_TABLE_SIZE == 4096U);
-        expect(MIN_FRAME_SIZE == 16384U);
-        expect(MAX_FRAME_SIZE == 16777215U);
+        expect(DEFAULT_INITIAL_WINDOW_SIZE == 65'535U);
+        expect(MAX_INITIAL_WINDOW_SIZE == 2'147'483'647U);
+        expect(MAX_CONNECTED_STREAMS == 2'147'483'647U);
+        expect(DEFAULT_HEADER_TABLE_SIZE == 4'096U);
+        expect(MIN_FRAME_SIZE == 16'384U);
+        expect(MAX_FRAME_SIZE == 16'777'215U);
     };
 };
 

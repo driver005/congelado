@@ -6,55 +6,75 @@ export module cc_abi_builder_otel:span;
 
 import cc_abi_builder_intern;
 
-export namespace ice {
+export namespace ice::builder {
 
-class SpanBuilder {
- public:
-  SpanBuilder() : m_handle{TP_OtelSpanNew()} {}
-  ~SpanBuilder() { TP_OtelSpanDelete(m_handle); }
-
-  SpanBuilder(const SpanBuilder&) = delete;
-  SpanBuilder& operator=(const SpanBuilder&) = delete;
-
-  SpanBuilder(SpanBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
-  SpanBuilder& operator=(SpanBuilder&& other) noexcept {
-
-    if (this != &other) {
-      TP_OtelSpanDelete(m_handle);
-      m_handle = other.m_handle;
-      other.m_handle = nullptr;
+class SpanBuilder
+{
+public:
+    SpanBuilder() :
+        m_handle{TP_OtelSpanNew()}
+    {
     }
-    return *this;
 
-  }
+    ~SpanBuilder()
+    {
+        TP_OtelSpanDelete(m_handle);
+    }
 
-  SpanBuilder& set_attribute(TP_Otel_Span_SetAttributeFn callback) {
+    SpanBuilder(const SpanBuilder&) = delete;
+    SpanBuilder& operator=(const SpanBuilder&) = delete;
 
-    TP_OtelSpan_SetSetAttributeCallback(m_handle, callback);
-    return *this;
+    SpanBuilder(SpanBuilder&& other) noexcept :
+        m_handle{other.m_handle}
+    {
+        other.m_handle = nullptr;
+    }
 
-  }
+    SpanBuilder& operator=(SpanBuilder&& other) noexcept
+    {
 
-  SpanBuilder& set_status(TP_Otel_Span_SetStatusFn callback) {
+        if (this != &other) {
+            TP_OtelSpanDelete(m_handle);
+            m_handle = other.m_handle;
+            other.m_handle = nullptr;
+        }
+        return *this;
+    }
 
-    TP_OtelSpan_SetSetStatusCallback(m_handle, callback);
-    return *this;
+    SpanBuilder& set_attribute(TP_Otel_Span_SetAttributeFn callback)
+    {
 
-  }
+        TP_OtelSpan_SetSetAttributeCallback(m_handle, callback);
+        return *this;
+    }
 
-  SpanBuilder& set_end(TP_Otel_Span_EndFn callback) {
+    SpanBuilder& set_status(TP_Otel_Span_SetStatusFn callback)
+    {
 
-    TP_OtelSpan_SetEndCallback(m_handle, callback);
-    return *this;
+        TP_OtelSpan_SetSetStatusCallback(m_handle, callback);
+        return *this;
+    }
 
-  }
+    SpanBuilder& set_end(TP_Otel_Span_EndFn callback)
+    {
 
-  // Underlying handle — pass directly to the C ABI
-  TP_Otel_Span *get_handle() { return m_handle; }
-  const TP_Otel_Span *get_handle() const { return m_handle; }
+        TP_OtelSpan_SetEndCallback(m_handle, callback);
+        return *this;
+    }
 
- private:
-  TP_Otel_Span* m_handle;
+    // Underlying handle — pass directly to the C ABI
+    TP_Otel_Span* get_handle()
+    {
+        return m_handle;
+    }
+
+    const TP_Otel_Span* get_handle() const
+    {
+        return m_handle;
+    }
+
+private:
+    TP_Otel_Span* m_handle;
 };
 
-}  // namespace ice
+} // namespace ice::builder

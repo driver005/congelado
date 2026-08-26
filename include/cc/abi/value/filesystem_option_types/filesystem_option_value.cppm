@@ -9,14 +9,16 @@ import std;
 export namespace ice {
 
 // Option type enum
-enum class FilesystemOptionType {
+enum class FilesystemOptionType
+{
     Int = TF_Filesystem_Option_Type_Int,
     Real = TF_Filesystem_Option_Type_Real,
     Buffer = TF_Filesystem_Option_Type_Buffer,
 };
 
 // Option value union wrapper
-struct FilesystemOptionValue {
+struct FilesystemOptionValue
+{
     FilesystemOptionType type_tag{};
     int num_values{};
     // Values are owned by caller, managed externally

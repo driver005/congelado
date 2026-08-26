@@ -16,35 +16,47 @@ import boost.ut;
 
 export namespace engine {
 
-class TaskSubmitBody {
-  public:
+class TaskSubmitBody
+{
+public:
     /**
      * @brief Sets the result the worker is reporting.
      * @param result the outcome to record.
      */
-    void set_result(model::TaskResult result) noexcept { m_result = result; }
+    void set_result(model::TaskResult result) noexcept
+    {
+        m_result = result;
+    }
+
     /**
      * @brief Sets the output data the worker produced.
      * @param data the output key/value pairs to store, moved in.
      */
-    void set_output_data(std::unordered_map<std::string, std::string> data) noexcept {
+    void set_output_data(std::unordered_map<std::string, std::string> data) noexcept
+    {
         m_output_data = std::move(data);
     }
+
     /**
      * @brief Gets the recorded result.
      * @return the outcome, defaults to SUCCESS if never set.
      */
-    [[nodiscard]] model::TaskResult get_result() const noexcept { return m_result; }
+    [[nodiscard]] model::TaskResult get_result() const noexcept
+    {
+        return m_result;
+    }
+
     /**
      * @brief Gets the recorded output data.
      * @return the output key/value pairs.
      */
-    [[nodiscard]] const std::unordered_map<std::string, std::string> &
-    get_output_data() const noexcept {
+    [[nodiscard]] const std::unordered_map<std::string, std::string>&
+    get_output_data() const noexcept
+    {
         return m_output_data;
     }
 
-  private:
+private:
     model::TaskResult m_result{model::TaskResult::SUCCESS};
     std::unordered_map<std::string, std::string> m_output_data;
 };
@@ -52,24 +64,51 @@ class TaskSubmitBody {
 /// @brief Body for `POST /api/v1/queue/update` — the generic external-signal completion
 /// endpoint, keyed by `(exec_id, node_ref)` rather than an internal task_id (for callers that
 /// don't track that id — event actions, external systems signaling a HUMAN/WAIT node by name).
-class QueueUpdateBody {
-  public:
-    void set_exec_id(std::string value) noexcept { m_exec_id = std::move(value); }
-    void set_node_ref(std::string value) noexcept { m_node_ref = std::move(value); }
-    void set_status(model::TaskStatus value) noexcept { m_status = value; }
-    void set_output_data(std::unordered_map<std::string, std::string> value) noexcept {
+class QueueUpdateBody
+{
+public:
+    void set_exec_id(std::string value) noexcept
+    {
+        m_exec_id = std::move(value);
+    }
+
+    void set_node_ref(std::string value) noexcept
+    {
+        m_node_ref = std::move(value);
+    }
+
+    void set_status(model::TaskStatus value) noexcept
+    {
+        m_status = value;
+    }
+
+    void set_output_data(std::unordered_map<std::string, std::string> value) noexcept
+    {
         m_output_data = std::move(value);
     }
 
-    [[nodiscard]] const std::string &get_exec_id() const noexcept { return m_exec_id; }
-    [[nodiscard]] const std::string &get_node_ref() const noexcept { return m_node_ref; }
-    [[nodiscard]] model::TaskStatus get_status() const noexcept { return m_status; }
-    [[nodiscard]] const std::unordered_map<std::string, std::string> &
-    get_output_data() const noexcept {
+    [[nodiscard]] const std::string& get_exec_id() const noexcept
+    {
+        return m_exec_id;
+    }
+
+    [[nodiscard]] const std::string& get_node_ref() const noexcept
+    {
+        return m_node_ref;
+    }
+
+    [[nodiscard]] model::TaskStatus get_status() const noexcept
+    {
+        return m_status;
+    }
+
+    [[nodiscard]] const std::unordered_map<std::string, std::string>&
+    get_output_data() const noexcept
+    {
         return m_output_data;
     }
 
-  private:
+private:
     std::string m_exec_id;
     std::string m_node_ref;
     model::TaskStatus m_status{model::TaskStatus::COMPLETED};
@@ -78,100 +117,153 @@ class QueueUpdateBody {
 
 /// @brief One worker_type's current SCHEDULED count — the response shape for
 /// `GET /api/v1/tasks/queue_sizes`.
-class QueueSize {
-  public:
+class QueueSize
+{
+public:
     QueueSize() = default;
-    QueueSize(std::string worker_type, std::uint32_t count) noexcept
-        : m_worker_type{std::move(worker_type)}, m_count{count} {}
-    void set_worker_type(std::string value) { m_worker_type = std::move(value); }
-    void set_count(std::uint32_t value) noexcept { m_count = value; }
-    [[nodiscard]] const std::string &get_worker_type() const noexcept { return m_worker_type; }
-    [[nodiscard]] std::uint32_t get_count() const noexcept { return m_count; }
 
-  private:
+    QueueSize(std::string worker_type, std::uint32_t count) noexcept :
+        m_worker_type{std::move(worker_type)},
+        m_count{count}
+    {
+    }
+
+    void set_worker_type(std::string value)
+    {
+        m_worker_type = std::move(value);
+    }
+
+    void set_count(std::uint32_t value) noexcept
+    {
+        m_count = value;
+    }
+
+    [[nodiscard]] const std::string& get_worker_type() const noexcept
+    {
+        return m_worker_type;
+    }
+
+    [[nodiscard]] std::uint32_t get_count() const noexcept
+    {
+        return m_count;
+    }
+
+private:
     std::string m_worker_type;
     std::uint32_t m_count{0};
 };
 
-class TaskEnqueueBody {
-  public:
+class TaskEnqueueBody
+{
+public:
     /**
      * @brief Sets the input data to hand the worker once it claims this instance — a dynamic
      * JSON-like value (`serde::Value`), not a flat string map, so typed fields survive.
      * @param data the input value to store, moved in.
      */
-    void set_input_data(serde::Value data) noexcept { m_input_data = std::move(data); }
+    void set_input_data(serde::Value data) noexcept
+    {
+        m_input_data = std::move(data);
+    }
+
     /**
      * @brief Sets the ordering sequence number for this enqueue request.
      * @param seq the sequence value — poll() sorts scheduled instances by this.
      */
-    void set_seq(std::uint32_t seq) noexcept { m_seq = seq; }
+    void set_seq(std::uint32_t seq) noexcept
+    {
+        m_seq = seq;
+    }
+
     /**
      * @brief Gets the recorded input value.
      * @return the input value.
      */
-    [[nodiscard]] const serde::Value &get_input_data() const noexcept { return m_input_data; }
+    [[nodiscard]] const serde::Value& get_input_data() const noexcept
+    {
+        return m_input_data;
+    }
+
     /**
      * @brief Gets the recorded sequence number.
      * @return the sequence value, defaults to 0 if never set.
      */
-    [[nodiscard]] std::uint32_t get_seq() const noexcept { return m_seq; }
+    [[nodiscard]] std::uint32_t get_seq() const noexcept
+    {
+        return m_seq;
+    }
 
-  private:
+private:
     serde::Value m_input_data;
     std::uint32_t m_seq{0};
 };
 
 } // namespace engine
 
-template <>
-struct serde::Serializable<engine::TaskSubmitBody> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<engine::TaskSubmitBody>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"result", &engine::TaskSubmitBody::get_result,
-                             &engine::TaskSubmitBody::set_result>{},
-            serde::FieldDesc<"output_data", &engine::TaskSubmitBody::get_output_data,
-                             &engine::TaskSubmitBody::set_output_data>{},
+            serde::FieldDesc<
+                "result", &engine::TaskSubmitBody::get_result,
+                &engine::TaskSubmitBody::set_result>{},
+            serde::FieldDesc<
+                "output_data", &engine::TaskSubmitBody::get_output_data,
+                &engine::TaskSubmitBody::set_output_data>{},
         };
     }
 };
 
-template <>
-struct serde::Serializable<engine::QueueUpdateBody> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<engine::QueueUpdateBody>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"exec_id", &engine::QueueUpdateBody::get_exec_id,
-                             &engine::QueueUpdateBody::set_exec_id>{},
-            serde::FieldDesc<"node_ref", &engine::QueueUpdateBody::get_node_ref,
-                             &engine::QueueUpdateBody::set_node_ref>{},
-            serde::FieldDesc<"status", &engine::QueueUpdateBody::get_status,
-                             &engine::QueueUpdateBody::set_status>{},
-            serde::FieldDesc<"output_data", &engine::QueueUpdateBody::get_output_data,
-                             &engine::QueueUpdateBody::set_output_data>{},
+            serde::FieldDesc<
+                "exec_id", &engine::QueueUpdateBody::get_exec_id,
+                &engine::QueueUpdateBody::set_exec_id>{},
+            serde::FieldDesc<
+                "node_ref", &engine::QueueUpdateBody::get_node_ref,
+                &engine::QueueUpdateBody::set_node_ref>{},
+            serde::FieldDesc<
+                "status", &engine::QueueUpdateBody::get_status,
+                &engine::QueueUpdateBody::set_status>{},
+            serde::FieldDesc<
+                "output_data", &engine::QueueUpdateBody::get_output_data,
+                &engine::QueueUpdateBody::set_output_data>{},
         };
     }
 };
 
-template <>
-struct serde::Serializable<engine::QueueSize> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<engine::QueueSize>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"worker_type", &engine::QueueSize::get_worker_type,
-                             &engine::QueueSize::set_worker_type>{},
-            serde::FieldDesc<"count", &engine::QueueSize::get_count,
-                             &engine::QueueSize::set_count>{},
+            serde::FieldDesc<
+                "worker_type", &engine::QueueSize::get_worker_type,
+                &engine::QueueSize::set_worker_type>{},
+            serde::FieldDesc<
+                "count", &engine::QueueSize::get_count, &engine::QueueSize::set_count>{},
         };
     }
 };
 
-template <>
-struct serde::Serializable<engine::TaskEnqueueBody> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<engine::TaskEnqueueBody>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"input_data", &engine::TaskEnqueueBody::get_input_data,
-                             &engine::TaskEnqueueBody::set_input_data>{},
-            serde::FieldDesc<"seq", &engine::TaskEnqueueBody::get_seq,
-                             &engine::TaskEnqueueBody::set_seq>{},
+            serde::FieldDesc<
+                "input_data", &engine::TaskEnqueueBody::get_input_data,
+                &engine::TaskEnqueueBody::set_input_data>{},
+            serde::FieldDesc<
+                "seq", &engine::TaskEnqueueBody::get_seq, &engine::TaskEnqueueBody::set_seq>{},
         };
     }
 };
@@ -292,8 +384,9 @@ export namespace engine {
 //   GET    /api/v1/tasks/queue_polldata     → queue_polldata
 //   POST   /api/v1/tasks/queue_requeue/:type → queue_requeue
 //   POST   /api/v1/queue/update             → queue_update
-class TaskHandler {
-  public:
+class TaskHandler
+{
+public:
     /**
      * @brief Builds a handler bound to the shared EngineContext — no state of its own, every
      * route below leans on `m_ctx` to reach the connector.
@@ -311,7 +404,10 @@ class TaskHandler {
      * @param ctx the engine context to bind; caller keeps it alive for this handler's whole
      * lifetime.
      */
-    explicit TaskHandler(EngineContext &ctx) noexcept : m_ctx{ctx} {}
+    explicit TaskHandler(EngineContext& ctx) noexcept :
+        m_ctx{ctx}
+    {
+    }
 
     /**
      * @brief Handles `GET /api/v1/tasks/:name` — looks up one TaskDef by name.
@@ -320,8 +416,10 @@ class TaskHandler {
      * @param req the inbound request; path supplies the name, Accept header picks the format.
      * @param res the response — 200 with the definition, or 404 if nothing matched.
      */
-    void get_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                        std::function<void()> send) noexcept {
+    void get_definition(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    ) noexcept
+    {
         // slice the name off the tail of the path — no dedicated route-param binding here
         auto accept = req.find_header("accept");
         auto target = req.get_path();
@@ -329,20 +427,24 @@ class TaskHandler {
 
         // look it up and let the callback decide 404 vs a normal 200 reply. Not noexcept: the
         // callback formats/serializes the reply (serde::Ser::serialize*, logger), which may
-        // throw, and Connector::find()'s callback parameter (std::move_only_function<void(...)>)
-        // doesn't require noexcept — nor does HandlerFn (std::function), so this is safe.
+        // throw, and Connector::find()'s callback parameter
+        // (std::move_only_function<void(...)>) doesn't require noexcept — nor does HandlerFn
+        // (std::function), so this is safe.
         m_ctx.get().get_connector().find<model::TaskDef>(
             name, [&res, accept, send = std::move(send)](std::optional<model::TaskDef> result) {
                 if (!result) {
                     // nothing under that name — bounce a 404
-                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
                 reply(res, serde::Ser::serialize(accept, *result));
                 send();
-            });
+            }
+        );
     }
 
     /**
@@ -359,8 +461,10 @@ class TaskHandler {
     // throw. HandlerFn (interfaces::HandlerFn = std::function<void(IRequest&, IResponse&)>)
     // doesn't require a noexcept target, and every route lambda in routes.cppm that calls this
     // isn't noexcept either, so dropping it here is safe.
-    void create_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                           std::function<void()> send) {
+    void create_definition(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
@@ -369,8 +473,10 @@ class TaskHandler {
         auto parsed = serde::Ser::deserialize<model::TaskDef>(content_type, body);
         if (!parsed) {
             core::logger::warning("engine", "task/create bad request: {}", parsed.error());
-            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::io::types::Status::BAD_REQUEST);
+            reply(
+                res, serde::Ser::serialize_error(accept, parsed.error()),
+                interfaces::io::types::Status::BAD_REQUEST
+            );
             send();
             return;
         }
@@ -378,8 +484,10 @@ class TaskHandler {
         // run domain validation before it ever touches the store — 422 if it's not clean
         if (auto validate = parsed->validate(); !validate) {
             core::logger::warning("engine", "task/create invalid: {}", validate.error());
-            reply(res, serde::Ser::serialize_error(accept, validate.error()),
-                  interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
+            reply(
+                res, serde::Ser::serialize_error(accept, validate.error()),
+                interfaces::io::types::Status::UNPROCESSABLE_CONTENT
+            );
             send();
             return;
         }
@@ -403,17 +511,22 @@ class TaskHandler {
             task_def, [&res, accept, task_def, send = std::move(send)](bool oke) {
                 if (!oke) {
                     core::logger::error("engine", "task/create db upsert failed");
-                    reply(res, serde::Ser::serialize_error(accept, "upsert failed"),
-                          interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "upsert failed"),
+                        interfaces::io::types::Status::INTERNAL_SERVER_ERROR
+                    );
                     send();
                     return;
                 }
                 core::logger::info("engine", "task created: '{}'", task_def.get_name());
                 core::events::publish("engine.task_def.created", {{"name", task_def.get_name()}});
-                reply(res, serde::Ser::serialize(accept, task_def),
-                      interfaces::io::types::Status::CREATED);
+                reply(
+                    res, serde::Ser::serialize(accept, task_def),
+                    interfaces::io::types::Status::CREATED
+                );
                 send();
-            });
+            }
+        );
     }
 
     /**
@@ -429,8 +542,10 @@ class TaskHandler {
      * a validation failure, or 404 if the connector's update() can't find that name.
      */
     // Not noexcept — same reasoning as create_definition() above.
-    void update_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                           std::function<void()> send) {
+    void update_definition(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
 
@@ -439,8 +554,10 @@ class TaskHandler {
         auto parsed = serde::Ser::deserialize<model::TaskDef>(content_type, body);
         if (!parsed) {
             core::logger::warning("engine", "task/update bad request: {}", parsed.error());
-            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::io::types::Status::BAD_REQUEST);
+            reply(
+                res, serde::Ser::serialize_error(accept, parsed.error()),
+                interfaces::io::types::Status::BAD_REQUEST
+            );
             send();
             return;
         }
@@ -448,8 +565,10 @@ class TaskHandler {
         // same validation pass as create — 422 if it fails
         if (auto validate = parsed->validate(); !validate) {
             core::logger::warning("engine", "task/update invalid: {}", validate.error());
-            reply(res, serde::Ser::serialize_error(accept, validate.error()),
-                  interfaces::io::types::Status::UNPROCESSABLE_CONTENT);
+            reply(
+                res, serde::Ser::serialize_error(accept, validate.error()),
+                interfaces::io::types::Status::UNPROCESSABLE_CONTENT
+            );
             send();
             return;
         }
@@ -465,16 +584,20 @@ class TaskHandler {
         m_ctx.get().get_connector().update<model::TaskDef>(
             task_def, [&res, accept, task_def, send = std::move(send)](bool oke) {
                 if (!oke) {
-                    core::logger::warning("engine", "task/update not found: '{}'",
-                                          task_def.get_name());
-                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    core::logger::warning(
+                        "engine", "task/update not found: '{}'", task_def.get_name()
+                    );
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
                 reply(res, serde::Ser::serialize(accept, task_def));
                 send();
-            });
+            }
+        );
     }
 
     /**
@@ -484,8 +607,10 @@ class TaskHandler {
      * @param req the inbound request; path supplies the name, Accept header picks the format.
      * @param res the response — 204 on success, 404 if that name wasn't found.
      */
-    void remove_definition(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                           std::function<void()> send) noexcept {
+    void remove_definition(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    ) noexcept
+    {
         // same tail-slicing move as get_definition to pull the name back out
         auto accept = req.find_header("accept");
         auto target = req.get_path();
@@ -499,8 +624,10 @@ class TaskHandler {
             name, [&res, accept, name, send = std::move(send)](bool oke) {
                 if (!oke) {
                     core::logger::warning("engine", "task/remove not found: '{}'", name);
-                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
@@ -508,7 +635,8 @@ class TaskHandler {
                 core::events::publish("engine.task_def.deleted", {{"name", name}});
                 res.set_status(interfaces::io::types::Status::NO_CONTENT);
                 send();
-            });
+            }
+        );
     }
 
     /**
@@ -526,8 +654,10 @@ class TaskHandler {
     // Not noexcept — body builds a std::format'd query filter string, serializes replies, and
     // calls into nested connector callbacks, any of which may throw. Same reasoning as
     // create_definition() above: HandlerFn doesn't require a noexcept target.
-    void poll(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-              std::function<void()> send) {
+    void poll(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto target = req.get_path();
         auto worker_type = std::string{target.substr(target.rfind('/') + 1)};
         poll_impl(req, res, std::move(send), worker_type, std::nullopt);
@@ -542,8 +672,10 @@ class TaskHandler {
      * @param req the inbound request; path supplies both the worker type and domain.
      * @param res the response — same shape as poll()'s.
      */
-    void poll_domain(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                     std::function<void()> send) {
+    void poll_domain(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto target = req.get_path();
         auto domain = std::string{target.substr(target.rfind('/') + 1)};
         auto before_domain = target.substr(0, target.rfind('/'));
@@ -552,7 +684,7 @@ class TaskHandler {
         poll_impl(req, res, std::move(send), worker_type, std::move(domain));
     }
 
-  private:
+private:
     /**
      * @brief Shared claim logic behind poll()/poll_domain() — finds the oldest SCHEDULED
      * instance whose def's worker_type (and, if given, domain) matches, flips it to
@@ -567,25 +699,33 @@ class TaskHandler {
      * unscoped behavior — unchanged, so this stays backward-compatible for every def that never
      * sets a domain at all).
      */
-    void poll_impl(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                   std::function<void()> send, std::string worker_type,
-                   std::optional<std::string> domain) {
+    void poll_impl(
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send,
+        std::string worker_type,
+        std::optional<std::string> domain
+    )
+    {
         auto accept = req.find_header("accept");
 
-        // heartbeat this worker type's poll data unconditionally — hit or miss, a poll is a poll.
-        // Fire-and-forget: a failed heartbeat write shouldn't block the actual poll response.
+        // heartbeat this worker type's poll data unconditionally — hit or miss, a poll is a
+        // poll. Fire-and-forget: a failed heartbeat write shouldn't block the actual poll
+        // response.
         model::PollData poll_data;
         poll_data.set_worker_type(worker_type);
         poll_data.set_last_poll_at(std::chrono::system_clock::now());
         m_ctx.get().get_connector().upsert<model::PollData>(poll_data, [](bool) {});
 
-        // Claim through the pluggable worker_orchestrator backend (the engine's built-in Orchestrator
-        // by default, or a resolved plugin) — it returns the claimed instance already serialized as
-        // JSON, exactly the shape a worker polls.
-        auto *orchestrator = m_ctx.get().get_orchestrator();
+        // Claim through the pluggable worker_orchestrator backend (the engine's built-in
+        // Orchestrator by default, or a resolved plugin) — it returns the claimed instance
+        // already serialized as JSON, exactly the shape a worker polls.
+        auto* orchestrator = m_ctx.get().get_orchestrator();
         if (orchestrator == nullptr) {
-            reply(res, serde::Ser::serialize_error(accept, "no orchestrator backend"),
-                  interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
+            reply(
+                res, serde::Ser::serialize_error(accept, "no orchestrator backend"),
+                interfaces::io::types::Status::INTERNAL_SERVER_ERROR
+            );
             send();
             return;
         }
@@ -601,15 +741,16 @@ class TaskHandler {
                 }
                 std::vector<std::byte> bytes;
                 bytes.reserve(claimed->size());
-                for (char character : *claimed) {
+                for (char character: *claimed) {
                     bytes.push_back(static_cast<std::byte>(character));
                 }
                 reply(res, std::move(bytes));
                 send();
-            });
+            }
+        );
     }
 
-  public:
+public:
     /**
      * @brief Handles `GET /api/v1/tasks/queue_sizes` — counts SCHEDULED instances grouped by
      * their def's worker_type, computed fresh on every call (not cached in PollData — see
@@ -617,21 +758,23 @@ class TaskHandler {
      * @param req the inbound request; only its Accept header gets read here.
      * @param res the response — the per-worker-type SCHEDULED counts.
      */
-    void queue_sizes(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                     std::function<void()> send) {
+    void queue_sizes(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         m_ctx.get().get_connector().find_all<model::TaskDef>(
             [this, &res, accept, send = std::move(send)](std::vector<model::TaskDef> defs) {
                 std::unordered_map<std::string, std::string> def_to_worker;
-                for (auto const &def : defs) {
+                for (const auto& def: defs) {
                     def_to_worker[def.get_name()] = def.get_worker_type();
                 }
                 m_ctx.get().get_connector().find_all<model::TaskInstance>(
                     [&res, accept, send = std::move(send),
-                     def_to_worker = std::move(def_to_worker)](
-                        std::vector<model::TaskInstance> instances) {
+                     def_to_worker =
+                         std::move(def_to_worker)](std::vector<model::TaskInstance> instances) {
                         std::unordered_map<std::string, std::uint32_t> counts;
-                        for (auto const &instance : instances) {
+                        for (const auto& instance: instances) {
                             if (instance.get_status() != model::TaskStatus::SCHEDULED) {
                                 continue;
                             }
@@ -643,13 +786,15 @@ class TaskHandler {
                         }
                         std::vector<QueueSize> sizes;
                         sizes.reserve(counts.size());
-                        for (auto const &[worker_type, count] : counts) {
+                        for (const auto& [worker_type, count]: counts) {
                             sizes.emplace_back(worker_type, count);
                         }
                         reply(res, serde::Ser::serialize(accept, sizes));
                         send();
-                    });
-            });
+                    }
+                );
+            }
+        );
     }
 
     /**
@@ -658,66 +803,76 @@ class TaskHandler {
      * @param req the inbound request; only its Accept header gets read here.
      * @param res the response — the full PollData list.
      */
-    void queue_polldata(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                        std::function<void()> send) noexcept {
+    void queue_polldata(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    ) noexcept
+    {
         auto accept = req.find_header("accept");
         m_ctx.get().get_connector().find_all<model::PollData>(
-            [&res, accept, send = std::move(send)](const std::vector<model::PollData> &poll_data) {
+            [&res, accept, send = std::move(send)](const std::vector<model::PollData>& poll_data) {
                 reply(res, serde::Ser::serialize(accept, poll_data));
                 send();
-            });
+            }
+        );
     }
 
     /**
      * @brief Handles `POST /api/v1/tasks/queue_requeue/:type` — force-resets every IN_PROGRESS
-     * instance of the named worker type whose deadline_at has already elapsed back to SCHEDULED,
-     * for a worker that polled a task and never called back. Reuses the same "reset for another
-     * try" shape sweep_retries() already applies, just triggered on demand instead of by a
-     * timer.
+     * instance of the named worker type whose deadline_at has already elapsed back to
+     * SCHEDULED, for a worker that polled a task and never called back. Reuses the same "reset
+     * for another try" shape sweep_retries() already applies, just triggered on demand instead
+     * of by a timer.
      * @param req the inbound request; path supplies the worker type.
      * @param res the response — 200 with the number of instances requeued.
      */
-    void queue_requeue(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                       std::function<void()> send) {
+    void queue_requeue(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto target = req.get_path();
         auto worker_type = std::string{target.substr(target.rfind('/') + 1)};
 
-        m_ctx.get().get_connector().find_all<model::TaskDef>(
-            [this, &res, accept, worker_type,
-             send = std::move(send)](std::vector<model::TaskDef> defs) {
-                std::unordered_set<std::string> matching_defs;
-                for (auto const &def : defs) {
-                    if (def.get_worker_type() == worker_type) {
-                        matching_defs.insert(def.get_name());
-                    }
+        m_ctx.get().get_connector().find_all<model::TaskDef>([this, &res, accept, worker_type,
+                                                              send = std::move(send)](
+                                                                 std::vector<model::TaskDef> defs
+                                                             ) {
+            std::unordered_set<std::string> matching_defs;
+            for (const auto& def: defs) {
+                if (def.get_worker_type() == worker_type) {
+                    matching_defs.insert(def.get_name());
                 }
-                auto now = std::chrono::system_clock::now();
-                m_ctx.get().get_connector().find_all<model::TaskInstance>(
-                    [this, &res, accept, send = std::move(send),
-                     matching_defs = std::move(matching_defs),
-                     now](std::vector<model::TaskInstance> instances) {
-                        std::uint32_t requeued = 0;
-                        for (auto &instance : instances) {
-                            if (instance.get_status() != model::TaskStatus::IN_PROGRESS ||
-                                !matching_defs.contains(instance.get_def_name())) {
-                                continue;
-                            }
-                            auto deadline = instance.get_deadline_at();
-                            if (deadline && *deadline > now) {
-                                continue;
-                            }
-                            instance.set_status(model::TaskStatus::SCHEDULED);
-                            instance.set_deadline_at(std::nullopt);
-                            m_ctx.get().get_connector().update<model::TaskInstance>(instance,
-                                                                                    [](bool) {});
-                            ++requeued;
+            }
+            auto now = std::chrono::system_clock::now();
+            m_ctx.get().get_connector().find_all<model::TaskInstance>(
+                [this, &res, accept, send = std::move(send),
+                 matching_defs = std::move(matching_defs),
+                 now](std::vector<model::TaskInstance> instances) {
+                    std::uint32_t requeued = 0;
+                    for (auto& instance: instances) {
+                        if (instance.get_status() != model::TaskStatus::IN_PROGRESS ||
+                            !matching_defs.contains(instance.get_def_name())) {
+                            continue;
                         }
-                        reply(res, serde::Ser::serialize_raw(
-                                       accept, std::format(R"({{"requeued":{}}})", requeued)));
-                        send();
-                    });
-            });
+                        auto deadline = instance.get_deadline_at();
+                        if (deadline && *deadline > now) {
+                            continue;
+                        }
+                        instance.set_status(model::TaskStatus::SCHEDULED);
+                        instance.set_deadline_at(std::nullopt);
+                        m_ctx.get().get_connector().update<model::TaskInstance>(instance, [](bool) {
+                        });
+                        ++requeued;
+                    }
+                    reply(
+                        res, serde::Ser::serialize_raw(
+                                 accept, std::format(R"({{"requeued":{}}})", requeued)
+                             )
+                    );
+                    send();
+                }
+            );
+        });
     }
 
     // POST /api/v1/tasks/:name/enqueue — create a new TaskInstance in SCHEDULED status
@@ -740,8 +895,10 @@ class TaskHandler {
      */
     // Not noexcept — body does string/JSON parsing and logging, any of which may throw. Same
     // reasoning as create_definition() above: HandlerFn doesn't require a noexcept target.
-    void enqueue_task(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                      std::function<void()> send) {
+    void enqueue_task(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
         auto target = req.get_path();
@@ -772,13 +929,15 @@ class TaskHandler {
         // (send) — never [&]-by-reference to this stack frame, which is gone by the time the
         // callback fires; `this` is captured explicitly for the nested get_connector() calls.
         m_ctx.get().get_connector().find<model::TaskDef>(
-            def_name, [this, &res, def_name, accept, input_data = std::move(input_data), seq,
-                       send = std::move(send)](
-                          const std::optional<model::TaskDef> &result) mutable {
+            def_name,
+            [this, &res, def_name, accept, input_data = std::move(input_data), seq,
+             send = std::move(send)](const std::optional<model::TaskDef>& result) mutable {
                 // no such definition — 404 before we ever try to enqueue anything against it
                 if (!result) {
-                    reply(res, serde::Ser::serialize_error(accept, "task definition not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "task definition not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
@@ -798,23 +957,33 @@ class TaskHandler {
                 m_ctx.get().get_connector().insert<model::TaskInstance>(
                     inst, [&res, def_name, accept, inst, send = std::move(send)](bool oke) {
                         if (!oke) {
-                            core::logger::error("engine", "task/enqueue insert failed for '{}'",
-                                                def_name);
-                            reply(res, serde::Ser::serialize_error(accept, "insert failed"),
-                                  interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
+                            core::logger::error(
+                                "engine", "task/enqueue insert failed for '{}'", def_name
+                            );
+                            reply(
+                                res, serde::Ser::serialize_error(accept, "insert failed"),
+                                interfaces::io::types::Status::INTERNAL_SERVER_ERROR
+                            );
                             send();
                             return;
                         }
-                        core::logger::info("engine", "task enqueued: '{}' id={}", def_name,
-                                           inst.get_task_id());
-                        core::events::publish("engine.task.enqueued",
-                                              {{"task_def_name", def_name},
-                                               {"task_id", std::format("{}", inst.get_task_id())}});
-                        reply(res, serde::Ser::serialize(accept, inst),
-                              interfaces::io::types::Status::CREATED);
+                        core::logger::info(
+                            "engine", "task enqueued: '{}' id={}", def_name, inst.get_task_id()
+                        );
+                        core::events::publish(
+                            "engine.task.enqueued",
+                            {{"task_def_name", def_name},
+                             {"task_id", std::format("{}", inst.get_task_id())}}
+                        );
+                        reply(
+                            res, serde::Ser::serialize(accept, inst),
+                            interfaces::io::types::Status::CREATED
+                        );
                         send();
-                    });
-            });
+                    }
+                );
+            }
+        );
     }
 
     /**
@@ -825,13 +994,15 @@ class TaskHandler {
      * dedicated param extraction here either.
      * @param req the inbound request; path supplies the task instance id, body is the submitted
      * result, Content-Type picks the decoder, Accept picks the reply format.
-     * @param res the response — 200 with the updated instance, 400 on a parse failure, or 404 if
-     * the instance id doesn't exist (on the initial lookup or on the follow-up update()).
+     * @param res the response — 200 with the updated instance, 400 on a parse failure, or 404
+     * if the instance id doesn't exist (on the initial lookup or on the follow-up update()).
      */
     // Not noexcept — body does string/JSON parsing and calls into nested connector callbacks
     // that log/serialize, any of which may throw. Same reasoning as create_definition() above.
-    void submit_result(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                       std::function<void()> send) {
+    void submit_result(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
         // same second-to-last-segment slicing as enqueue_task() to pull task_id out
@@ -844,8 +1015,10 @@ class TaskHandler {
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<TaskSubmitBody>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::io::types::Status::BAD_REQUEST);
+            reply(
+                res, serde::Ser::serialize_error(accept, parsed.error()),
+                interfaces::io::types::Status::BAD_REQUEST
+            );
             send();
             return;
         }
@@ -853,12 +1026,14 @@ class TaskHandler {
         // Callback formats/serializes the reply and calls into a further nested connector
         // callback, any of which may throw; not noexcept, same reasoning as above.
         m_ctx.get().get_connector().find<model::TaskInstance>(
-            task_id, [this, &res, accept, submit = std::move(*parsed), send = std::move(send)](
-                         std::optional<model::TaskInstance> found) mutable {
+            task_id, [this, &res, accept, submit = std::move(*parsed),
+                      send = std::move(send)](std::optional<model::TaskInstance> found) mutable {
                 // no instance with that id — 404, nothing to record a result against
                 if (!found) {
-                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
@@ -867,14 +1042,14 @@ class TaskHandler {
                 constexpr auto TO_STATUS =
                     [](model::TaskResult result) noexcept -> model::TaskStatus {
                     switch (result) {
-                    case model::TaskResult::SUCCESS:
-                        return model::TaskStatus::COMPLETED;
-                    case model::TaskResult::FAILURE:
-                        return model::TaskStatus::FAILED;
-                    case model::TaskResult::TIMEOUT:
-                        return model::TaskStatus::TIMED_OUT;
-                    case model::TaskResult::SKIPPED:
-                        return model::TaskStatus::SKIPPED;
+                        case model::TaskResult::SUCCESS:
+                            return model::TaskStatus::COMPLETED;
+                        case model::TaskResult::FAILURE:
+                            return model::TaskStatus::FAILED;
+                        case model::TaskResult::TIMEOUT:
+                            return model::TaskStatus::TIMED_OUT;
+                        case model::TaskResult::SKIPPED:
+                            return model::TaskStatus::SKIPPED;
                     }
                     return model::TaskStatus::FAILED;
                 };
@@ -892,37 +1067,44 @@ class TaskHandler {
                     updated,
                     [this, &res, accept, updated, send = std::move(send)](bool oke) mutable {
                         if (!oke) {
-                            reply(res, serde::Ser::serialize_error(accept, "not found"),
-                                  interfaces::io::types::Status::NOT_FOUND);
+                            reply(
+                                res, serde::Ser::serialize_error(accept, "not found"),
+                                interfaces::io::types::Status::NOT_FOUND
+                            );
                             send();
                             return;
                         }
                         reply(res, serde::Ser::serialize(accept, updated));
                         send();
-                        // Hand the now-terminal task to the workflow_orchestrator backend to advance
-                        // the DAG — it re-finds the (just-persisted) instance by id.
+                        // Hand the now-terminal task to the workflow_orchestrator backend to
+                        // advance the DAG — it re-finds the (just-persisted) instance by id.
                         m_ctx.get().get_workflow_orchestrator()->on_task_terminal(
-                            std::format("{}", updated.get_task_id()), [](bool) {});
-                    });
-            });
+                            std::format("{}", updated.get_task_id()), [](bool) {}
+                        );
+                    }
+                );
+            }
+        );
     }
 
     /**
      * @brief Handles `PATCH /api/v1/tasks/:id/heartbeat` — pushes an IN_PROGRESS instance's
-     * timeout deadline out by its TaskDef's timeout window, so a worker still actively working a
-     * long-running task doesn't get falsely swept as timed out. This is the route
+     * timeout deadline out by its TaskDef's timeout window, so a worker still actively working
+     * a long-running task doesn't get falsely swept as timed out. This is the route
      * worker/poll.cppm's ack() has called from day one — previously unregistered, a dead
      * reference until now.
-     * @warning Same rfind-twice path slicing as enqueue_task()/submit_result() to pull `task_id`
-     * out.
+     * @warning Same rfind-twice path slicing as enqueue_task()/submit_result() to pull
+     * `task_id` out.
      * @param req the inbound request; path supplies the task instance id.
      * @param res the response — 200 with the refreshed instance, or 404 if the id doesn't exist
      * or isn't currently IN_PROGRESS.
      */
     // Not noexcept — nested connector callbacks serialize replies and may throw, same reasoning
     // as submit_result() above.
-    void heartbeat(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                   std::function<void()> send) {
+    void heartbeat(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto target = req.get_path();
         auto last = target.rfind('/');
@@ -933,8 +1115,10 @@ class TaskHandler {
             task_id, [this, &res, accept,
                       send = std::move(send)](std::optional<model::TaskInstance> found) mutable {
                 if (!found || found->get_status() != model::TaskStatus::IN_PROGRESS) {
-                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                          interfaces::io::types::Status::NOT_FOUND);
+                    reply(
+                        res, serde::Ser::serialize_error(accept, "not found"),
+                        interfaces::io::types::Status::NOT_FOUND
+                    );
                     send();
                     return;
                 }
@@ -942,57 +1126,68 @@ class TaskHandler {
                     found->get_def_name(),
                     [this, &res, accept, instance = *found,
                      send = std::move(send)](std::optional<model::TaskDef> def) mutable {
-                        auto timeout_ms = def ? def->get_timeout().get_timeout_ms() : 30000U;
-                        instance.set_deadline_at(std::chrono::system_clock::now() +
-                                                 std::chrono::milliseconds{timeout_ms});
+                        auto timeout_ms = def ? def->get_timeout().get_timeout_ms() : 30'000U;
+                        instance.set_deadline_at(
+                            std::chrono::system_clock::now() + std::chrono::milliseconds{timeout_ms}
+                        );
                         auto updated = instance;
                         m_ctx.get().get_connector().update<model::TaskInstance>(
                             updated,
                             [&res, accept, updated, send = std::move(send)](bool oke) mutable {
                                 if (!oke) {
-                                    reply(res, serde::Ser::serialize_error(accept, "not found"),
-                                          interfaces::io::types::Status::NOT_FOUND);
+                                    reply(
+                                        res, serde::Ser::serialize_error(accept, "not found"),
+                                        interfaces::io::types::Status::NOT_FOUND
+                                    );
                                     send();
                                     return;
                                 }
                                 reply(res, serde::Ser::serialize(accept, updated));
                                 send();
-                            });
-                    });
-            });
+                            }
+                        );
+                    }
+                );
+            }
+        );
     }
 
     /**
      * @brief Handles `POST /api/v1/queue/update` — the generic external-signal completion
-     * endpoint, resolving `(exec_id, node_ref)` to a TaskInstance instead of an internal task_id
-     * (for callers — event actions, external systems — that only know the execution and the
-     * node reference by name). Delegates straight into Orchestrator::queue_update(), same
+     * endpoint, resolving `(exec_id, node_ref)` to a TaskInstance instead of an internal
+     * task_id (for callers — event actions, external systems — that only know the execution and
+     * the node reference by name). Delegates straight into Orchestrator::queue_update(), same
      * cascade path submit_result() uses.
      * @param req the inbound request; body is a QueueUpdateBody.
      * @param res the response — 200 on success, 400 on a parse failure, 404 if no matching
      * instance was found.
      */
-    void queue_update(interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                      std::function<void()> send) {
+    void queue_update(
+        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+    )
+    {
         auto accept = req.find_header("accept");
         auto content_type = req.find_header("content-type");
         auto body = flatten_body(req);
         auto parsed = serde::Ser::deserialize<QueueUpdateBody>(content_type, body);
         if (!parsed) {
-            reply(res, serde::Ser::serialize_error(accept, parsed.error()),
-                  interfaces::io::types::Status::BAD_REQUEST);
+            reply(
+                res, serde::Ser::serialize_error(accept, parsed.error()),
+                interfaces::io::types::Status::BAD_REQUEST
+            );
             send();
             return;
         }
         m_ctx.get().get_workflow_orchestrator()->complete_task(
             parsed->get_exec_id(), parsed->get_node_ref(),
             parsed->get_status() == model::TaskStatus::COMPLETED, parsed->get_output_data(),
-            [](bool) {});
+            [](bool) {}
+        );
         res.set_status(interfaces::io::types::Status::OK);
         send();
     }
 
-  private:
+private:
     std::reference_wrapper<EngineContext> m_ctx;
 
     /**
@@ -1002,9 +1197,12 @@ class TaskHandler {
      * @param bytes the body bytes to write.
      * @param status the status code to set, defaults to OK.
      */
-    static void
-    reply(interfaces::io::IResponse &res, std::vector<std::byte> bytes,
-          interfaces::io::types::Status status = interfaces::io::types::Status::OK) noexcept {
+    static void reply(
+        interfaces::io::IResponse& res,
+        std::vector<std::byte> bytes,
+        interfaces::io::types::Status status = interfaces::io::types::Status::OK
+    ) noexcept
+    {
         res.set_body(std::move(bytes));
         res.set_status(status);
     }
@@ -1016,12 +1214,13 @@ class TaskHandler {
      * @param req the request whose body gets flattened.
      * @return the body bytes reinterpreted as a string, same length, same order.
      */
-    static std::string flatten_body(interfaces::io::IRequest &req) noexcept {
+    static std::string flatten_body(interfaces::io::IRequest& req) noexcept
+    {
         std::string out;
-        auto &view = req.get_body();
+        auto& view = req.get_body();
         out.reserve(view.size());
         // walk the raw bytes one at a time, reinterpreting each as a char
-        for (std::byte byte : view) {
+        for (std::byte byte: view) {
             out += static_cast<char>(byte);
         }
         return out;
@@ -1035,26 +1234,37 @@ namespace engine::task_handler_tests {
 using namespace boost::ut;
 
 // Trivial synchronous in-memory ICache — Connector's write_through()/find() paths abort() via
-// active_cache() if no cache is wired in, so poll()'s unconditional PollData upsert needs one of
-// these before it can run at all.
-class FakeCache final : public interfaces::ICache {
-  public:
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "fake_cache"; }
-    void get(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+// active_cache() if no cache is wired in, so poll()'s unconditional PollData upsert needs one
+// of these before it can run at all.
+class FakeCache final : public interfaces::ICache
+{
+public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "fake_cache";
+    }
+
+    void get(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         auto found = m_store.find(std::string{key});
         result(found != m_store.end() ? std::string_view{found->second} : std::string_view{});
     }
-    void set(std::string_view key, std::string_view value,
-             shared::QueryReadFn &&result) noexcept override {
+
+    void set(
+        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+    ) noexcept override
+    {
         m_store[std::string{key}] = std::string{value};
         result("ok");
     }
-    void remove(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+
+    void remove(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         m_store.erase(std::string{key});
         result("ok");
     }
 
-  private:
+private:
     std::unordered_map<std::string, std::string> m_store;
 };
 
@@ -1069,7 +1279,9 @@ suite<"TaskHandler"> task_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/tasks/queue/echo");
         bool sent = false;
 
-        handler.poll(req, res, [&sent] { sent = true; });
+        handler.poll(req, res, [&sent] {
+            sent = true;
+        });
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
@@ -1082,7 +1294,9 @@ suite<"TaskHandler"> task_handler_suite = [] {
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.queue_polldata(req, res, [&sent] { sent = true; });
+        handler.queue_polldata(req, res, [&sent] {
+            sent = true;
+        });
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -1095,7 +1309,9 @@ suite<"TaskHandler"> task_handler_suite = [] {
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.queue_sizes(req, res, [&sent] { sent = true; });
+        handler.queue_sizes(req, res, [&sent] {
+            sent = true;
+        });
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -1119,20 +1335,26 @@ suite<"TaskHandler"> task_handler_suite = [] {
             def.set_name("garbled-echo");
             def.set_worker_type("echo");
             bool seeded = false;
-            ctx.get_connector().upsert<model::TaskDef>(def, [&seeded](bool oke) { seeded = oke; });
+            ctx.get_connector().upsert<model::TaskDef>(def, [&seeded](bool oke) {
+                seeded = oke;
+            });
             expect(seeded) << fatal;
 
             engine::TaskHandler handler{ctx};
             io::layer::http2::HttpRequest req{1};
             io::layer::http2::HttpResponse res{1};
-            req.set_header(interfaces::io::types::Token::PATH,
-                           "/api/v1/tasks/garbled-echo/enqueue");
-            std::vector<std::byte> body{std::byte{'{'}, std::byte{'n'}, std::byte{'o'},
-                                        std::byte{'p'}, std::byte{'e'}};
+            req.set_header(
+                interfaces::io::types::Token::PATH, "/api/v1/tasks/garbled-echo/enqueue"
+            );
+            std::vector<std::byte> body{
+                std::byte{'{'}, std::byte{'n'}, std::byte{'o'}, std::byte{'p'}, std::byte{'e'}
+            };
             req.set_body(std::move(body));
             bool sent = false;
 
-            handler.enqueue_task(req, res, [&sent] { sent = true; });
+            handler.enqueue_task(req, res, [&sent] {
+                sent = true;
+            });
 
             expect(sent);
             expect(res.get_status() == interfaces::io::types::Status::CREATED);

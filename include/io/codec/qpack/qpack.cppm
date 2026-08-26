@@ -11,10 +11,11 @@ static constexpr std::string COOKIE_SEPARATOR = "; ";
 
 export namespace io::codec::qpack {
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template<std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-class QPack {
-  public:
+class QPack
+{
+public:
     /**
      * @brief Spins up a QPACK codec with fresh, independently-sized encoding and decoding
      * dynamic tables — each direction gets its own table since QPACK, like HPACK, tracks
@@ -22,10 +23,14 @@ class QPack {
      * @param table_size the byte budget for both the encoding and decoding dynamic tables,
      * defaults to 4096.
      */
-    explicit QPack(std::size_t table_size = 4096)
-        : m_decoding_table{std::make_shared<QPackTable>(table_size)},
-          m_encoding_table{std::make_shared<QPackTable>(table_size)}, m_huffman{}, m_known_received_count{0},
-          m_cookie_index{nullptr} {}
+    explicit QPack(std::size_t table_size = 4'096) :
+        m_decoding_table{std::make_shared<QPackTable>(table_size)},
+        m_encoding_table{std::make_shared<QPackTable>(table_size)},
+        m_huffman{},
+        m_known_received_count{0},
+        m_cookie_index{nullptr}
+    {
+    }
 
     /**
      * @brief Spins up a QPACK codec over pre-built dynamic tables — useful when the tables need
@@ -33,10 +38,16 @@ class QPack {
      * @param decoding_table the dynamic table to use for decoding inbound headers, moved in.
      * @param encoding_table the dynamic table to use for encoding outbound headers, moved in.
      */
-    explicit QPack(std::shared_ptr<QPackTable> decoding_table, std::shared_ptr<QPackTable> encoding_table)
-        : m_decoding_table(std::move(decoding_table)), m_encoding_table(std::move(encoding_table)), m_huffman{},
-          m_known_received_count{0}, m_cookie_index{nullptr} {}
-
+    explicit QPack(
+        std::shared_ptr<QPackTable> decoding_table, std::shared_ptr<QPackTable> encoding_table
+    ) :
+        m_decoding_table(std::move(decoding_table)),
+        m_encoding_table(std::move(encoding_table)),
+        m_huffman{},
+        m_known_received_count{0},
+        m_cookie_index{nullptr}
+    {
+    }
 
     // Encode a complete field section (request/response stream).
     /**
@@ -48,17 +59,20 @@ class QPack {
      * @tparam Out an output iterator accepting std::uint8_t.
      * @param out the output iterator encoded bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode(Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode(Out out)
+    {
         UInt required_insert_count = 0;
 
         // 1. First pass: Determine RIC based on the newest dynamic entry referenced
-        for (const auto &field : m_table) {
-            shared_codec::SearchResult result = m_encoding_table->search(field->get_name(), field->get_value());
+        for (const auto& field: m_table) {
+            shared_codec::SearchResult result =
+                m_encoding_table->search(field->get_name(), field->get_value());
 
             if (result.found() && !result.is_static()) {
                 // RIC must be at least the absolute index of the largest used entry
-                required_insert_count = std::max(required_insert_count, static_cast<UInt>(result.index()));
+                required_insert_count =
+                    std::max(required_insert_count, static_cast<UInt>(result.index()));
             }
         }
 
@@ -69,16 +83,21 @@ class QPack {
         encode_field_section_prefix(required_insert_count, out);
 
         // 4. Second pass: Encode the actual instructions using the Base
-        for (const auto &field : m_table) {
-            shared_codec::SearchResult result = m_encoding_table->search(field->get_name(), field->get_value());
+        for (const auto& field: m_table) {
+            shared_codec::SearchResult result =
+                m_encoding_table->search(field->get_name(), field->get_value());
 
             // Same three-way decision as HPACK: full match goes indexed, name-only match
             // goes literal-with-indexed-name, no match goes full fresh literal.
             if (result.is_full_match()) {
-                encode_indexed_field(static_cast<UInt>(result.index()), result.is_static(), base, out);
+                encode_indexed_field(
+                    static_cast<UInt>(result.index()), result.is_static(), base, out
+                );
             } else if (result.found()) {
-                encode_indexed_name(static_cast<UInt>(result.index()), field->get_value(), result.is_static(), false,
-                                    base, out);
+                encode_indexed_name(
+                    static_cast<UInt>(result.index()), field->get_value(), result.is_static(),
+                    false, base, out
+                );
             } else {
                 encode_new_field(field->get_name(), field->get_value(), false, out);
             }
@@ -97,7 +116,8 @@ class QPack {
      * yet (stream should be treated as blocked, not decoded) or if a field line has an unknown
      * representation type.
      */
-    void decode(std::span<const std::uint8_t> data) {
+    void decode(std::span<const std::uint8_t> data)
+    {
         std::size_t pos = 0;
         // Prefix first — need RIC and Base before any field line can be interpreted.
         auto [ric, base] = decode_field_section_prefix(data, pos);
@@ -105,32 +125,36 @@ class QPack {
         // Blocking check — can't safely resolve dynamic-table references the encoder
         // assumed if this side hasn't caught up to that many inserts yet.
         if (ric > m_decoding_table->insert_count()) {
-            throw error::http::CompressionError{"Stream blocked: Required Insert Count not yet reached"};
+            throw error::http::CompressionError{
+                "Stream blocked: Required Insert Count not yet reached"
+            };
         }
 
         // Walk field lines one at a time, dispatching on each line's representation type.
         while (pos < data.size()) {
-            auto rep_type = shared_codec::detect_representation_qpack_stream(data[pos]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            auto rep_type = shared_codec::detect_representation_qpack_stream(
+                data[pos]
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             switch (rep_type) {
-            case shared_codec::PrefixHelper::HPACK_INDEXED_FIELD:
-                decode_indexed_field(data, pos, base);
-                break;
-            case shared_codec::PrefixHelper::QPACK_INDEXED_NAME:
-                decode_indexed_name(data, pos, base);
-                break;
-            case shared_codec::PrefixHelper::QPACK_NEW_FIELD:
-                decode_new_field(data, pos);
-                break;
-            case shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD:
-                decode_post_base_indexed_field(data, pos, base);
-                break;
-            case shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_NAME:
-                decode_post_base_indexed_name(data, pos, base);
-                break;
-            default:
-                // Line's high bits didn't match any known field line type.
-                throw error::http::CompressionError{"Unknown QPACK field line representation"};
+                case shared_codec::PrefixHelper::HPACK_INDEXED_FIELD:
+                    decode_indexed_field(data, pos, base);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_INDEXED_NAME:
+                    decode_indexed_name(data, pos, base);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_NEW_FIELD:
+                    decode_new_field(data, pos);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD:
+                    decode_post_base_indexed_field(data, pos, base);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_NAME:
+                    decode_post_base_indexed_name(data, pos, base);
+                    break;
+                default:
+                    // Line's high bits didn't match any known field line type.
+                    throw error::http::CompressionError{"Unknown QPACK field line representation"};
             }
         }
     }
@@ -144,20 +168,23 @@ class QPack {
      * @tparam Out an output iterator accepting std::uint8_t.
      * @param out the output iterator encoded instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_encoder_stream(Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_encoder_stream(Out out)
+    {
         // Every field gets its own instruction, picked by how much of it's already
         // sitting in the table — full match just duplicates the existing entry, a
         // name-only match reuses the name and literals the value, and a total miss
         // ships both as fresh literals.
-        for (const auto &field : m_table) {
-            shared_codec::SearchResult result = m_encoding_table->search(field->get_name(), field->get_value());
+        for (const auto& field: m_table) {
+            shared_codec::SearchResult result =
+                m_encoding_table->search(field->get_name(), field->get_value());
 
             if (result.is_full_match()) {
                 encode_duplicate(static_cast<UInt>(result.index()), result.is_static(), 0, out);
             } else if (result.found()) {
-                encode_insert_with_indexed_name(static_cast<UInt>(result.index()), result.is_static(),
-                                                field->get_value(), out);
+                encode_insert_with_indexed_name(
+                    static_cast<UInt>(result.index()), result.is_static(), field->get_value(), out
+                );
             } else {
                 encode_insert_with_literal_name(field->get_name(), field->get_value(), out);
             }
@@ -173,33 +200,37 @@ class QPack {
      * @throws error::http::CompressionError if an instruction byte doesn't match any known
      * encoder stream representation type.
      */
-    void decode_encoder_stream(std::span<const std::uint8_t> data) {
+    void decode_encoder_stream(std::span<const std::uint8_t> data)
+    {
         std::size_t pos = 0;
 
         // Instructions keep coming until the buffer's drained, each one mutating the
         // decoding table so it tracks whatever the encoder's been indexing.
         while (pos < data.size()) {
-            auto rep_type = shared_codec::detect_representation_qpack_encoder(data[pos]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            auto rep_type = shared_codec::detect_representation_qpack_encoder(
+                data[pos]
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             switch (rep_type) {
-            case shared_codec::PrefixHelper::QPACK_INSERT_INDEXED_NAME:
-                decode_inserted_with_indexed_name(data, pos);
-                break;
-            case shared_codec::PrefixHelper::QPACK_INSERT_LITERAL_NAME:
-                decode_inserted_with_literal_name(data, pos);
-                break;
-            case shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE: {
-                // Capacity change — resize right away so later instructions in this
-                // same batch see the updated budget.
-                UInt new_size = decode_table_size_update(data, pos);
-                m_decoding_table->set_max_size(new_size);
-                break;
-            }
-            case shared_codec::PrefixHelper::QPACK_DUPLICATE:
-                decode_duplicate(data, pos);
-                break;
-            default:
-                throw error::http::CompressionError{"Unknown QPACK encoder stream instruction"};
+                case shared_codec::PrefixHelper::QPACK_INSERT_INDEXED_NAME:
+                    decode_inserted_with_indexed_name(data, pos);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_INSERT_LITERAL_NAME:
+                    decode_inserted_with_literal_name(data, pos);
+                    break;
+                case shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE:
+                    {
+                        // Capacity change — resize right away so later instructions in this
+                        // same batch see the updated budget.
+                        UInt new_size = decode_table_size_update(data, pos);
+                        m_decoding_table->set_max_size(new_size);
+                        break;
+                    }
+                case shared_codec::PrefixHelper::QPACK_DUPLICATE:
+                    decode_duplicate(data, pos);
+                    break;
+                default:
+                    throw error::http::CompressionError{"Unknown QPACK encoder stream instruction"};
             }
         }
     }
@@ -214,33 +245,39 @@ class QPack {
      * @throws error::http::CompressionError if an instruction byte doesn't match any known
      * decoder stream representation type.
      */
-    void decode_decoder_stream(std::span<const std::uint8_t> data) {
+    void decode_decoder_stream(std::span<const std::uint8_t> data)
+    {
         std::size_t pos = 0;
 
         // Same drain-until-empty shape as the encoder stream, but for instructions
         // flowing back from the peer about what it's received/processed.
         while (pos < data.size()) {
-            auto rep_type = shared_codec::detect_representation_qpack_decoder(data[pos]);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            auto rep_type = shared_codec::detect_representation_qpack_decoder(
+                data[pos]
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             switch (rep_type) {
-            case shared_codec::PrefixHelper::QPACK_DEC_ACK: {
-                UInt stream_id = decode_section_acknowledgment(data, pos);
-                (void)stream_id; // TODO: track known received count per stream
-                break;
-            }
-            case shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION: {
-                UInt stream_id = decode_stream_cancellation(data, pos);
-                (void)stream_id; // TODO: free blocked stream state
-                break;
-            }
-            case shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT:
-                m_known_received_count += decode_insert_count_increment(data, pos);
-                break;
-            default:
-                throw error::http::CompressionError{"Unknown QPACK decoder stream instruction"};
+                case shared_codec::PrefixHelper::QPACK_DEC_ACK:
+                    {
+                        UInt stream_id = decode_section_acknowledgment(data, pos);
+                        (void)stream_id; // TODO: track known received count per stream
+                        break;
+                    }
+                case shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION:
+                    {
+                        UInt stream_id = decode_stream_cancellation(data, pos);
+                        (void)stream_id; // TODO: free blocked stream state
+                        break;
+                    }
+                case shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT:
+                    m_known_received_count += decode_insert_count_increment(data, pos);
+                    break;
+                default:
+                    throw error::http::CompressionError{"Unknown QPACK decoder stream instruction"};
             }
         }
     }
+
     /**
      * @brief Public-facing wrapper for emitting a Section Acknowledgment decoder stream
      * instruction — thin forward to encode_section_acknowledgment().
@@ -248,8 +285,9 @@ class QPack {
      * @param stream_id the ID of the stream whose field section is being acknowledged.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_section_ack(UInt stream_id, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_section_ack(UInt stream_id, Out out)
+    {
         encode_section_acknowledgment(stream_id, out);
     }
 
@@ -260,8 +298,9 @@ class QPack {
      * @param stream_id the ID of the stream being cancelled.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_stream_cancel(UInt stream_id, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_stream_cancel(UInt stream_id, Out out)
+    {
         encode_stream_cancellation(stream_id, out);
     }
 
@@ -272,8 +311,9 @@ class QPack {
      * @param increment how much to increment the peer's known-received-count by.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_insert_count_inc(UInt increment, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_insert_count_inc(UInt increment, Out out)
+    {
         encode_insert_count_increment(increment, out);
     }
 
@@ -282,19 +322,26 @@ class QPack {
      * simplest setter in this whole class.
      * @param field the header field to append.
      */
-    void add_field(const std::shared_ptr<interfaces::io::HeaderField<>> &field) { m_table.push_back(field); }
+    void add_field(const std::shared_ptr<interfaces::io::HeaderField<>>& field)
+    {
+        m_table.push_back(field);
+    }
 
     /**
      * @brief Replaces the entire pending field-section header list wholesale.
      * @param table the header fields to encode on the next encode() call, copied in.
      */
-    void set_table(const std::vector<std::shared_ptr<interfaces::io::HeaderField<>>> &table) { m_table = table; }
+    void set_table(const std::vector<std::shared_ptr<interfaces::io::HeaderField<>>>& table)
+    {
+        m_table = table;
+    }
 
-  private:
+private:
     // Helper
 
-    // The ToBeIndexed template parameter indicates whether the field being pushed should be added to the decoding table
-    // (true for encoder stream instructions, false for request/response stream).
+    // The ToBeIndexed template parameter indicates whether the field being pushed should be
+    // added to the decoding table (true for encoder stream instructions, false for
+    // request/response stream).
     /**
      * @brief Resolves a name-indexed field to its literal value, either inserting it into the
      * relevant dynamic table (encoder stream path) or appending it to `m_table` as a decoded
@@ -313,12 +360,13 @@ class QPack {
      * @throws error::http::InvalidIndexError if `idx` is 0.
      * @warning The non-indexable/cookie branch dereferences `m_cookie_index` (`->is_empty()`)
      * before ever checking it against nullptr. `m_cookie_index` starts life null and only gets
-     * assigned once a cookie has actually been pushed — so the very first `cookie` field seen on
-     * this instance is straight cooked: null pointer deref, no safety net. Not something this
-     * doc pass fixes, just flagging it so nobody gets caught slipping.
+     * assigned once a cookie has actually been pushed — so the very first `cookie` field seen
+     * on this instance is straight cooked: null pointer deref, no safety net. Not something
+     * this doc pass fixes, just flagging it so nobody gets caught slipping.
      */
-    template <bool IsDecoder = true, bool IsIndexable = false, bool IsIndexPostBase = false>
-    void push_helper(UInt idx, std::string_view value, bool is_static, std::size_t base) {
+    template<bool IsDecoder = true, bool IsIndexable = false, bool IsIndexPostBase = false>
+    void push_helper(UInt idx, std::string_view value, bool is_static, std::size_t base)
+    {
         // 0 is never a valid wire index — bail before touching either table.
         if (idx == 0) {
             throw error::http::InvalidIndexError{idx};
@@ -335,14 +383,18 @@ class QPack {
         }();
 
         std::visit(
-            [&](auto &&field_ptr) {
+            [&](auto&& field_ptr) {
                 if constexpr (IsIndexable) {
                     // Encoder-stream-instruction path — cache the resolved pair into
                     // the dynamic table instead of appending it to `m_table`.
                     if constexpr (IsDecoder) {
-                        m_decoding_table->insert(std::string{field_ptr->get_name()}, std::string{value});
+                        m_decoding_table->insert(
+                            std::string{field_ptr->get_name()}, std::string{value}
+                        );
                     } else {
-                        m_encoding_table->insert(std::string{field_ptr->get_name()}, std::string{value});
+                        m_encoding_table->insert(
+                            std::string{field_ptr->get_name()}, std::string{value}
+                        );
                     }
                 } else {
                     // Request/response stream path — a repeated `cookie` field folds
@@ -351,19 +403,27 @@ class QPack {
                     const auto NAME = field_ptr->get_name();
                     if (NAME == "cookie") {
                         if (!m_cookie_index->is_empty()) {
-                            m_cookie_index->set_value(m_cookie_index->get_value() + COOKIE_SEPARATOR +
-                                                      std::string{value});
+                            m_cookie_index->set_value(
+                                m_cookie_index->get_value() + COOKIE_SEPARATOR + std::string{value}
+                            );
                         } else {
-                            auto cookie_field = std::make_shared<interfaces::io::HeaderField<>>(NAME, std::string{value});
+                            auto cookie_field = std::make_shared<interfaces::io::HeaderField<>>(
+                                NAME, std::string{value}
+                            );
                             m_table.push_back(cookie_field);
                             m_cookie_index = cookie_field;
                         }
                     } else {
-                        m_table.push_back(std::make_shared<interfaces::io::HeaderField<>>(NAME, std::string{value}));
+                        m_table.push_back(
+                            std::make_shared<interfaces::io::HeaderField<>>(
+                                NAME, std::string{value}
+                            )
+                        );
                     }
                 }
             },
-            field);
+            field
+        );
     }
 
     /**
@@ -380,8 +440,9 @@ class QPack {
      * @warning Same nullptr footgun as push_helper() — the first `cookie` field decoded on a
      * fresh instance dereferences a null `m_cookie_index` before the empty check ever runs.
      */
-    template <bool IsDecoder = true, bool IsIndexable = false>
-    void push_helper_new_entry(std::string_view name, std::string_view value) {
+    template<bool IsDecoder = true, bool IsIndexable = false>
+    void push_helper_new_entry(std::string_view name, std::string_view value)
+    {
         // RFC 9204 forbids an empty header name, same as HPACK.
         if (name.empty()) {
             throw error::http::EmptyNameError{};
@@ -399,14 +460,22 @@ class QPack {
             // push_helper() above.
             if (name == "cookie") {
                 if (!m_cookie_index->is_empty()) {
-                    m_cookie_index->set_value(m_cookie_index->get_value() + COOKIE_SEPARATOR + std::string{value});
+                    m_cookie_index->set_value(
+                        m_cookie_index->get_value() + COOKIE_SEPARATOR + std::string{value}
+                    );
                 } else {
-                    auto field = std::make_shared<interfaces::io::HeaderField<>>(std::string{name}, std::string{value});
+                    auto field = std::make_shared<interfaces::io::HeaderField<>>(
+                        std::string{name}, std::string{value}
+                    );
                     m_table.push_back(field);
                     m_cookie_index = field;
                 }
             } else {
-                m_table.push_back(std::make_shared<interfaces::io::HeaderField<>>(std::string{name}, std::string{value}));
+                m_table.push_back(
+                    std::make_shared<interfaces::io::HeaderField<>>(
+                        std::string{name}, std::string{value}
+                    )
+                );
             }
         }
     }
@@ -423,8 +492,9 @@ class QPack {
      * section gets computed against.
      * @param out the output iterator the prefix bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_field_section_prefix(UInt ric, UInt base, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_field_section_prefix(UInt ric, UInt base, Out out)
+    {
         // Wrap RIC into its wire-compressed form first, then emit it.
         UInt enc_ric = m_encoding_table->encode_ric(ric);
         shared_codec::raw::Atom<UInt, Width>::encode_int(enc_ric, 8U, 0x00, out);
@@ -451,7 +521,9 @@ class QPack {
      * base >= required insert count with a zero required insert count) — a peer sending this is
      * lying about its own state, no cap.
      */
-    std::pair<UInt, UInt> decode_field_section_prefix(std::span<const std::uint8_t> data, std::size_t &pos) {
+    std::pair<UInt, UInt>
+    decode_field_section_prefix(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Read the wire-encoded RIC and reverse the compression back to the true count.
         UInt enc_ric = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 8U).value();
 
@@ -464,7 +536,8 @@ class QPack {
 
         // Sign bit lives in the delta base byte's top bit; read it before consuming
         // the integer itself.
-        bool sign_bit = (data[pos] & 0x80) != 0;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        bool sign_bit =
+            (data[pos] & 0x80) != 0; // FIXME(clang-tidy): unchecked operator[], consider .at()
         UInt delta_base = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 7U).value();
 
         UInt base = 0;
@@ -498,8 +571,9 @@ class QPack {
      * @param value the header value to encode as a literal and index.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_insert_with_indexed_name(UInt idx, bool is_static, std::string_view value, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_insert_with_indexed_name(UInt idx, bool is_static, std::string_view value, Out out)
+    {
         // Prefix is 1 (0x80), and T is the 7th bit (0x40)
         auto prefix = shared_codec::PrefixHelper::QPACK_INSERT_INDEXED_NAME;
         // Set the T-bit if it's a static entry.
@@ -528,8 +602,9 @@ class QPack {
      * @param value the header value to encode as a literal and index.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_insert_with_literal_name(std::string_view name, std::string_view value, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_insert_with_literal_name(std::string_view name, std::string_view value, Out out)
+    {
         // Both name and value go out as literal strings — no table entry to reuse.
         shared_codec::raw::Atom<UInt, Width>::encode_string(m_huffman, name, out, 6U);
         shared_codec::raw::Atom<UInt, Width>::encode_string(m_huffman, value, out);
@@ -547,16 +622,18 @@ class QPack {
      * @param idx the dynamic table index of the entry to duplicate.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_duplicate(UInt idx, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_duplicate(UInt idx, Out out)
+    {
         // We use a 5-bit prefix length because bits 3-7 are used for the integer value.
-        shared_codec::raw::Atom<UInt, Width>::encode_int(idx, 5U, shared_codec::PrefixHelper::QPACK_DUPLICATE, out);
+        shared_codec::raw::Atom<UInt, Width>::encode_int(
+            idx, 5U, shared_codec::PrefixHelper::QPACK_DUPLICATE, out
+        );
 
         // Re-insert the referenced entry at the front — refreshes its age against
         // eviction without re-sending the literal name/value.
         m_encoding_table->insert(m_encoding_table->at(idx, false));
     }
-
 
     // The pattern is 001xxxxx
     /**
@@ -567,14 +644,16 @@ class QPack {
      * @param size the new dynamic table max size in bytes.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_table_size_update(UInt size, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_table_size_update(UInt size, Out out)
+    {
         // Resize first so table and wire state never get to disagree, same pattern as
         // HPACK's size-update adaptor.
         m_encoding_table->set_max_size(size);
 
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 5U, shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE, out);
+            size, 5U, shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE, out
+        );
     }
 
     // Decode
@@ -582,14 +661,18 @@ class QPack {
     // The pattern is 1Txxxxxx
     /**
      * @brief Decodes an "Insert with Name Reference" encoder stream instruction — table-indexed
-     * name plus a literal value, inserted into the decoding table via push_helper<true, true>().
+     * name plus a literal value, inserted into the decoding table via push_helper<true,
+     * true>().
      * @param data the instruction bytes.
      * @param pos the read cursor into `data`; advanced past the instruction on return.
      */
-    void decode_inserted_with_indexed_name(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_inserted_with_indexed_name(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Table-indexed name (T-bit carried on IDX), literal value right after it.
-        const auto IDX = shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 7U);
-        const auto VALUE = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+        const auto IDX =
+            shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 7U);
+        const auto VALUE =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
 
         // Indexable — the resolved pair gets cached into the decoding table.
         push_helper<true, true>(IDX.value(), VALUE, IDX.is_static(), 0);
@@ -602,10 +685,13 @@ class QPack {
      * @param data the instruction bytes.
      * @param pos the read cursor into `data`; advanced past the instruction on return.
      */
-    void decode_inserted_with_literal_name(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_inserted_with_literal_name(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Both name and value arrive as literals.
-        const auto NAME = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos, 5U);
-        const auto VALUE = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+        const auto NAME =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos, 5U);
+        const auto VALUE =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
 
         // Index the fresh pair into the decoding table.
         push_helper_new_entry<true, true>(NAME, VALUE);
@@ -619,7 +705,8 @@ class QPack {
      * @param pos the read cursor into `data`; advanced past the instruction on return.
      * @throws error::http::InvalidIndexError if the decoded index is 0.
      */
-    void decode_duplicate(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_duplicate(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Decode the referenced index, reject the never-valid 0.
         const auto IDX = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 5U);
         if (IDX.value() == 0) {
@@ -640,7 +727,8 @@ class QPack {
      * here (see the commented-out bounds check right below) — for now any size the peer sends
      * gets applied as-is.
      */
-    void decode_table_size_update(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_table_size_update(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Pull the new capacity off the wire.
         const auto NEW_SIZE = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 5U);
         // TODO: check the specs
@@ -661,10 +749,13 @@ class QPack {
      * @param size the stream ID being acknowledged.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_section_acknowledgment(UInt size, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_section_acknowledgment(UInt size, Out out)
+    {
         // We use a 7-bit prefix length because the first bit is used for the prefix.
-        shared_codec::raw::Atom<UInt, Width>::encode_int(size, 7U, shared_codec::PrefixHelper::QPACK_DEC_ACK, out);
+        shared_codec::raw::Atom<UInt, Width>::encode_int(
+            size, 7U, shared_codec::PrefixHelper::QPACK_DEC_ACK, out
+        );
     }
 
     // The pattern is  01xxxxxx
@@ -676,11 +767,13 @@ class QPack {
      * @param size the stream ID being cancelled.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_stream_cancellation(UInt size, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_stream_cancellation(UInt size, Out out)
+    {
         // We use a 6-bit prefix length because the first bit is used for the prefix.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION, out);
+            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION, out
+        );
     }
 
     // The pattern is  00xxxxxx
@@ -692,11 +785,13 @@ class QPack {
      * @param size the increment amount.
      * @param out the output iterator the instruction bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_insert_count_increment(UInt size, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_insert_count_increment(UInt size, Out out)
+    {
         // We use a 6-bit prefix length because the first bit is used for the prefix.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT, out);
+            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT, out
+        );
     }
 
     // The pattern is 1xxxxxxx
@@ -711,23 +806,29 @@ class QPack {
      * the actual bookkeeping against `m_blocked_streams`/`m_known_received_count` is commented
      * out below (TODO), so even once it compiles this doesn't yet act on the acknowledgment.
      */
-    void decode_section_acknowledgment(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_section_acknowledgment(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Consume the stream ID off the wire — actually acting on it is still a TODO
         // below, so for now this just logs it.
-        const auto STREAM_ID = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 7U).value();
+        const auto STREAM_ID =
+            shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 7U).value();
         std::print("Decoded Section Acknowledgment for stream ID: {}\n", STREAM_ID);
 
         // if (!m_blocked_streams.contains(stream_id))
         //     throw error::http::QpackDecoderStreamError{
-        //         std::format("Section acknowledgment for unknown or unblocked stream {}", stream_id)};
+        //         std::format("Section acknowledgment for unknown or unblocked stream {}",
+        //         stream_id)};
         //
         // UInt ric = m_blocked_streams.at(stream_id);
         //
         // if (m_known_received_count < ric)
-        //     throw error::http::QpackDecoderStreamError{std::format("Section acknowledgment for stream {} premature: "
+        //     throw error::http::QpackDecoderStreamError{std::format("Section acknowledgment
+        //     for stream {} premature: "
         //                                                            "known_received_count={} <
-        //                                                            required_insert_count={}", stream_id,
-        //                                                            m_known_received_count, ric)};
+        //                                                            required_insert_count={}",
+        //                                                            stream_id,
+        //                                                            m_known_received_count,
+        //                                                            ric)};
         //
         // m_blocked_streams.erase(stream_id);
     }
@@ -743,10 +844,12 @@ class QPack {
      * stream state is also a TODO — right now this just consumes the bytes and logs (with a
      * copy-pasted "Section Acknowledgment" message, no less).
      */
-    void decode_stream_cancellation(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_stream_cancellation(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Same "consume and log" stub shape as decode_section_acknowledgment() — freeing
         // blocked stream state is still a TODO.
-        const auto STREAM_ID = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 6U).value();
+        const auto STREAM_ID =
+            shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 6U).value();
         std::print("Decoded Section Acknowledgment for stream ID: {}\n", STREAM_ID);
 
         // TODO: implement logic to free blocked stream state associated with this stream ID
@@ -770,7 +873,8 @@ class QPack {
      * double-applying the increment if it were ever coerced into compiling. Same return-type
      * mismatch pattern as decode_section_acknowledgment()/decode_stream_cancellation() above.
      */
-    void decode_insert_count_increment(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_insert_count_increment(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // RFC 9204 §4.4.3 forbids a zero increment — reject before it does anything.
         const auto SIZE = shared_codec::raw::Atom<UInt, Width>::decode_int(data, pos, 6U);
         if (SIZE.value() == 0) {
@@ -781,7 +885,9 @@ class QPack {
         // actually made — bound-check before applying.
         UInt max_increment = m_decoding_table->insert_count() - m_known_received_count;
         if (SIZE.value() > max_increment) {
-            throw error::http::CompressionError{"Insert Count Increment exceeds unacknowledged insertion count"};
+            throw error::http::CompressionError{
+                "Insert Count Increment exceeds unacknowledged insertion count"
+            };
         }
 
         m_known_received_count += SIZE.value();
@@ -807,8 +913,9 @@ class QPack {
      * Both read like unfinished refactor residue, not intentional design — flagging so it
      * doesn't get mistaken for load-bearing behavior.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_indexed_field(UInt idx, bool is_static, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_indexed_field(UInt idx, bool is_static, Out out)
+    {
         // Prefix is 1 (0x80), and T is the 7th bit (0x40)
         auto prefix = shared_codec::PrefixHelper::HPACK_INDEXED_FIELD;
         // Set the T-bit if it's a static entry.
@@ -832,11 +939,13 @@ class QPack {
      * @param idx the post-base index the field is fully found at.
      * @param out the output iterator the field line bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_post_base_indexed_field(UInt idx, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_post_base_indexed_field(UInt idx, Out out)
+    {
         // We use a 4-bit prefix length because bits 4-7 are used for the integer value.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            idx, 4U, shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD, out);
+            idx, 4U, shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD, out
+        );
 
         // Resolve using post-base interpretation and add to the outgoing field list.
         add_field(m_encoding_table->at<true>(idx.value()));
@@ -860,8 +969,11 @@ class QPack {
      * encode_indexed_field() above — `idx` here is a raw integer parameter, not a
      * DecodeIntResult, so those member calls don't exist on it as written.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_indexed_name(UInt idx, std::string_view value, bool is_static, bool is_never_indexed, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_indexed_name(
+        UInt idx, std::string_view value, bool is_static, bool is_never_indexed, Out out
+    )
+    {
         // Prefix is 1 (0x40), and N is the 6th bit (0x20), and T is the 5th bit (0x10)
         auto prefix = shared_codec::PrefixHelper::QPACK_INDEXED_NAME;
         // Set the N-bit if the filed can never be indexd.
@@ -896,8 +1008,11 @@ class QPack {
      * line unindexed too.
      * @param out the output iterator the field line bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_post_base_indexed_name(UInt idx, std::string_view value, bool is_never_indexed, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_post_base_indexed_name(
+        UInt idx, std::string_view value, bool is_never_indexed, Out out
+    )
+    {
         // Prefix is 4 bits (0x00), and N is the 4th bit (0x08)
         auto prefix = shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_NAME;
         // Set the N-bit if the filed can never be indexd.
@@ -928,8 +1043,11 @@ class QPack {
      * line unindexed too.
      * @param out the output iterator the field line bytes get written to.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    void encode_new_field(std::string_view name, std::string_view value, bool is_never_indexed, Out out) {
+    template<std::output_iterator<std::uint8_t> Out>
+    void encode_new_field(
+        std::string_view name, std::string_view value, bool is_never_indexed, Out out
+    )
+    {
         // Prefix is 1 (0x20), and N is the 5th bit (0x10)
         auto prefix = shared_codec::PrefixHelper::QPACK_NEW_FIELD;
         // Set the N-bit if the filed can never be indexd.
@@ -956,9 +1074,13 @@ class QPack {
      * @param base the field section's Base value, used to resolve dynamic-table indices.
      * @throws error::http::InvalidIndexError if the decoded index is 0.
      */
-    void decode_indexed_field(std::span<const std::uint8_t> data, std::size_t &pos, std::size_t base) {
+    void decode_indexed_field(
+        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+    )
+    {
         // Decode the index (T-bit carried on IDX) and reject the never-valid 0.
-        const auto IDX = shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 6U);
+        const auto IDX =
+            shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 6U);
         if (IDX.value() == 0) {
             throw error::http::InvalidIndexError{IDX.value()};
         }
@@ -976,9 +1098,13 @@ class QPack {
      * @param base the field section's Base value that the post-base index is counted from.
      * @throws error::http::InvalidIndexError if the decoded index is 0.
      */
-    void decode_post_base_indexed_field(std::span<const std::uint8_t> data, std::size_t &pos, std::size_t base) {
+    void decode_post_base_indexed_field(
+        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+    )
+    {
         // Decode the post-base index and reject the never-valid 0.
-        const auto IDX = shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 4U);
+        const auto IDX =
+            shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 4U);
         if (IDX.value() == 0) {
             throw error::http::InvalidIndexError{IDX.value()};
         }
@@ -996,10 +1122,13 @@ class QPack {
      * @param pos the read cursor into `data`; advanced past the field line on return.
      * @param base the field section's Base value, used to resolve dynamic-table name indices.
      */
-    void decode_indexed_name(std::span<const std::uint8_t> data, std::size_t &pos, std::size_t base) {
+    void decode_indexed_name(std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base)
+    {
         // Table-indexed name, literal value right after it.
-        const auto IDX = shared_codec::raw::Atom<UInt, Width>::template decode_int<2>(data, pos, 4U);
-        const auto VALUE = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+        const auto IDX =
+            shared_codec::raw::Atom<UInt, Width>::template decode_int<2>(data, pos, 4U);
+        const auto VALUE =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
 
         // Default template args — decoder side, not cached into the table.
         push_helper<>(IDX, VALUE, IDX.is_static(), base);
@@ -1015,10 +1144,15 @@ class QPack {
      * @param pos the read cursor into `data`; advanced past the field line on return.
      * @param base the field section's Base value that the post-base name index is counted from.
      */
-    void decode_post_base_indexed_name(std::span<const std::uint8_t> data, std::size_t &pos, std::size_t base) {
+    void decode_post_base_indexed_name(
+        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+    )
+    {
         // Post-base-indexed name, literal value right after it.
-        const auto IDX = shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 3U);
-        const auto VALUE = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+        const auto IDX =
+            shared_codec::raw::Atom<UInt, Width>::template decode_int<1>(data, pos, 3U);
+        const auto VALUE =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
 
         // Post-base interpretation forwarded through to the table lookup.
         push_helper<true, false, true>(IDX, VALUE, IDX.is_static(), base);
@@ -1032,15 +1166,17 @@ class QPack {
      * @param pos the read cursor into `data`; advanced past the field line on return.
      * @throws error::http::EmptyNameError if the decoded name is empty.
      */
-    void decode_new_field(std::span<const std::uint8_t> data, std::size_t &pos) {
+    void decode_new_field(std::span<const std::uint8_t> data, std::size_t& pos)
+    {
         // Both name and value arrive as fresh literals.
-        const auto NAME = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos, 3U);
-        const auto VALUE = shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
+        const auto NAME =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos, 3U);
+        const auto VALUE =
+            shared_codec::raw::Atom<UInt, Width>::decode_string(m_huffman, data, pos);
 
         // Default template args — decoder side, not cached into the table.
         push_helper_new_entry<>(NAME, VALUE);
     }
-
 
     std::shared_ptr<QPackTable> m_decoding_table;
     std::shared_ptr<QPackTable> m_encoding_table;

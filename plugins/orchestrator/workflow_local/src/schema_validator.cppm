@@ -16,8 +16,9 @@ export namespace engine {
  * validator library is the natural next step if this ever needs more than that — flagged, not
  * silently pretended to be complete.
  */
-class SchemaValidator {
-  public:
+class SchemaValidator
+{
+public:
     /**
      * @brief Checks that every name in `schema_json`'s top-level `"required": [...]` array is
      * present as a key in `data`.
@@ -28,10 +29,11 @@ class SchemaValidator {
      * `required` array at all), otherwise an unexpected naming the first missing key.
      */
     [[nodiscard]] static std::expected<void, std::string>
-    validate(std::string_view schema_json, const serde::Value &data) {
+    validate(std::string_view schema_json, const serde::Value& data)
+    {
         auto required = extract_required(schema_json);
         auto object = data.to_object();
-        for (auto const &key : required) {
+        for (const auto& key: required) {
             if (!object || object->count(key) == 0) {
                 return std::unexpected{std::format("missing required field '{}'", key)};
             }
@@ -39,10 +41,11 @@ class SchemaValidator {
         return {};
     }
 
-  private:
+private:
     /// @brief Pulls the string literals out of `schema_json`'s top-level `"required":[...]`
     /// array, if one exists.
-    [[nodiscard]] static std::vector<std::string> extract_required(std::string_view schema_json) {
+    [[nodiscard]] static std::vector<std::string> extract_required(std::string_view schema_json)
+    {
         std::vector<std::string> names;
         auto key_pos = schema_json.find("\"required\"");
         if (key_pos == std::string_view::npos) {
@@ -53,10 +56,11 @@ class SchemaValidator {
         // entirely because of a typo), this happily latches onto the FIRST unrelated array that
         // appears later in the document (e.g. some other field's array value) and treats its
         // string entries as required field names instead. schema_json is TaskDef::input_schema,
-        // attacker-settable unauthenticated via POST/PUT /api/v1/tasks (same reachability as the
-        // routes.cppm/lua_eval.cppm SECURITY findings), so a crafted schema can make unrelated
-        // fields spuriously "required" (denying otherwise-valid task input) or, if no later array
-        // exists at all, silently fall back to "no required fields" instead of erroring.
+        // attacker-settable unauthenticated via POST/PUT /api/v1/tasks (same reachability as
+        // the routes.cppm/lua_eval.cppm SECURITY findings), so a crafted schema can make
+        // unrelated fields spuriously "required" (denying otherwise-valid task input) or, if no
+        // later array exists at all, silently fall back to "no required fields" instead of
+        // erroring.
         auto open = schema_json.find('[', key_pos);
         if (open == std::string_view::npos) {
             return names;
@@ -90,7 +94,8 @@ class SchemaValidator {
     /// skipping over quoted-string contents — same reasoning as any other hand-rolled
     /// balanced-bracket scan in this codebase (e.g. elasticsearch_plugin's `matching_brace()`):
     /// no JSON library is linked here to lean on instead.
-    [[nodiscard]] static std::size_t matching_bracket(std::string_view text, std::size_t open) {
+    [[nodiscard]] static std::size_t matching_bracket(std::string_view text, std::size_t open)
+    {
         int depth = 0;
         bool in_string = false;
         for (std::size_t index = open; index < text.size(); ++index) {
@@ -126,9 +131,10 @@ using namespace boost::ut;
 
 /// @brief Builds an object serde::Value from a flat string map — the shape SchemaValidator's
 /// `data` param always has when driven off Orchestrator::to_value_input().
-[[nodiscard]] serde::Value make_object(std::unordered_map<std::string, std::string> const &fields) {
+[[nodiscard]] serde::Value make_object(const std::unordered_map<std::string, std::string>& fields)
+{
     serde::Value::Object object;
-    for (auto const &[key, value] : fields) {
+    for (const auto& [key, value]: fields) {
         object.emplace(key, serde::Value{value});
     }
     return serde::Value{std::move(object)};
@@ -142,14 +148,15 @@ suite<"SchemaValidator::validate happy paths"> schema_validator_happy_suite = []
 
     "every required key present passes"_test = [] {
         auto schema = R"({"required":["order_id","amount"]})";
-        auto result = SchemaValidator::validate(schema, make_object({{"order_id", "1"}, {"amount", "5"}}));
+        auto result =
+            SchemaValidator::validate(schema, make_object({{"order_id", "1"}, {"amount", "5"}}));
         expect(bool(result));
     };
 
     "extra keys beyond 'required' are fine, only presence of required ones matters"_test = [] {
         auto schema = R"({"required":["order_id"]})";
-        auto result = SchemaValidator::validate(
-            schema, make_object({{"order_id", "1"}, {"unrelated", "x"}}));
+        auto result =
+            SchemaValidator::validate(schema, make_object({{"order_id", "1"}, {"unrelated", "x"}}));
         expect(bool(result));
     };
 };
@@ -177,11 +184,12 @@ suite<"SchemaValidator::validate rejects missing fields"> schema_validator_missi
     };
 
     // Loose-check gap, matches this class's own documented scope (top-level key presence only,
-    // not real JSON-schema semantics): non-object data with an EMPTY required list still passes,
-    // since there's nothing to check presence of — validate() never confirms `data` is even an
-    // object shape at all when required is empty.
+    // not real JSON-schema semantics): non-object data with an EMPTY required list still
+    // passes, since there's nothing to check presence of — validate() never confirms `data` is
+    // even an object shape at all when required is empty.
     "non-object data with an empty required list still passes"_test = [] {
-        auto result = SchemaValidator::validate(R"({"required":[]})", serde::Value{std::int64_t{42}});
+        auto result =
+            SchemaValidator::validate(R"({"required":[]})", serde::Value{std::int64_t{42}});
         expect(bool(result));
     };
 };
@@ -212,10 +220,10 @@ suite<"SchemaValidator hand-rolled bracket scan"> schema_validator_scan_suite = 
         expect(bool(result));
     };
 
-    // BUG pin (see the `// BUG:` comment on extract_required's `find('[', key_pos)` line above):
-    // "required" here is a plain string, not an array, so there's genuinely nothing required —
-    // but the scan latches onto the unrelated "other_field" array later in the document and
-    // treats ITS entries as required field names instead.
+    // BUG pin (see the `// BUG:` comment on extract_required's `find('[', key_pos)` line
+    // above): "required" here is a plain string, not an array, so there's genuinely nothing
+    // required — but the scan latches onto the unrelated "other_field" array later in the
+    // document and treats ITS entries as required field names instead.
     "BUG: a non-array 'required' value spuriously adopts a later unrelated array's entries"_test =
         [] {
             auto schema = R"({"required": "nope", "other_field": ["x", "y"]})";

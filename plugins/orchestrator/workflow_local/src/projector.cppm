@@ -23,16 +23,21 @@ inline constexpr std::string_view TASK_SUMMARY_COLLECTION = "task_summaries";
 /// whichever ISearchProvider is currently wired into WorkflowContext, on every terminal
 /// transition — a complete no-op (not an error) when no search backend is configured, same
 /// "optional infra degrades gracefully" story as WorkflowContext's db/lua_bridge slots.
-class SummaryProjector {
-  public:
-    explicit SummaryProjector(WorkflowContext &ctx) noexcept : m_ctx{ctx} {}
+class SummaryProjector
+{
+public:
+    explicit SummaryProjector(WorkflowContext& ctx) noexcept :
+        m_ctx{ctx}
+    {
+    }
 
     /**
      * @brief Projects a just-terminated WorkflowExecution into the active search backend.
      * @param exec the execution to project — read-only, this doesn't mutate or persist it.
      */
-    void project_workflow(const model::WorkflowExecution &exec) noexcept {
-        auto *provider = m_ctx.get().get_search();
+    void project_workflow(const model::WorkflowExecution& exec) noexcept
+    {
+        auto* provider = m_ctx.get().get_search();
         if (provider == nullptr) {
             return;
         }
@@ -45,7 +50,7 @@ class SummaryProjector {
         summary.set_start_time(exec.get_timings().get_started_at());
         summary.set_end_time(exec.get_timings().get_completed_at());
         std::vector<std::string> failed_names;
-        for (auto const &instance : exec.get_task_instances()) {
+        for (const auto& instance: exec.get_task_instances()) {
             if (instance.get_status() == model::TaskStatus::FAILED ||
                 instance.get_status() == model::TaskStatus::TIMED_OUT) {
                 failed_names.push_back(instance.get_def_name());
@@ -58,13 +63,16 @@ class SummaryProjector {
         provider->index(
             WORKFLOW_SUMMARY_COLLECTION, exec_id, json, [exec_id](std::string_view result) {
                 if (result.empty()) {
-                    core::logger::warning("engine", "search index failed for workflow '{}'",
-                                          exec_id);
-                    core::events::publish("engine.search.index_failed",
-                                          {{"collection", std::string{WORKFLOW_SUMMARY_COLLECTION}},
-                                           {"id", exec_id}});
+                    core::logger::warning(
+                        "engine", "search index failed for workflow '{}'", exec_id
+                    );
+                    core::events::publish(
+                        "engine.search.index_failed",
+                        {{"collection", std::string{WORKFLOW_SUMMARY_COLLECTION}}, {"id", exec_id}}
+                    );
                 }
-            });
+            }
+        );
     }
 
     /**
@@ -72,8 +80,9 @@ class SummaryProjector {
      * @param instance the task instance to project — read-only, this doesn't mutate or persist
      * it.
      */
-    void project_task(const model::TaskInstance &instance) noexcept {
-        auto *provider = m_ctx.get().get_search();
+    void project_task(const model::TaskInstance& instance) noexcept
+    {
+        auto* provider = m_ctx.get().get_search();
         if (provider == nullptr) {
             return;
         }
@@ -82,21 +91,25 @@ class SummaryProjector {
         summary.set_task_def_name(instance.get_def_name());
         summary.set_workflow_exec_id(instance.get_workflow_exec_id());
         summary.set_status(instance.get_status());
-        auto const &timings = instance.get_timings();
+        const auto& timings = instance.get_timings();
         summary.set_scheduled_time(timings.get_scheduled_at());
         summary.set_start_time(timings.get_started_at());
         summary.set_update_time(timings.get_completed_at());
         if (timings.get_scheduled_at() && timings.get_started_at()) {
             auto wait = *timings.get_started_at() - *timings.get_scheduled_at();
-            // BUG: no check that wait is non-negative before this cast. TaskInstance::validate()
-            // (never called here — this projector runs off whatever's already persisted) is the
-            // only thing that would normally catch started_at < scheduled_at; if that ordering is
-            // ever violated (e.g. a manually-poked instance, or a future bug elsewhere), `wait` is
-            // negative and duration_cast<milliseconds>(wait).count() returns a negative
-            // std::int64_t that silently wraps around to a huge value once cast to uint64_t,
-            // instead of erroring or clamping to 0.
-            summary.set_queue_wait_time_ms(static_cast<std::uint64_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(wait).count()));
+            // BUG: no check that wait is non-negative before this cast.
+            // TaskInstance::validate() (never called here — this projector runs off whatever's
+            // already persisted) is the only thing that would normally catch started_at <
+            // scheduled_at; if that ordering is ever violated (e.g. a manually-poked instance,
+            // or a future bug elsewhere), `wait` is negative and
+            // duration_cast<milliseconds>(wait).count() returns a negative std::int64_t that
+            // silently wraps around to a huge value once cast to uint64_t, instead of erroring
+            // or clamping to 0.
+            summary.set_queue_wait_time_ms(
+                static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(wait).count()
+                )
+            );
         }
 
         auto task_id = std::format("{}", instance.get_task_id());
@@ -106,20 +119,22 @@ class SummaryProjector {
                 core::logger::warning("engine", "search index failed for task '{}'", task_id);
                 core::events::publish(
                     "engine.search.index_failed",
-                    {{"collection", std::string{TASK_SUMMARY_COLLECTION}}, {"id", task_id}});
+                    {{"collection", std::string{TASK_SUMMARY_COLLECTION}}, {"id", task_id}}
+                );
             }
         });
     }
 
-  private:
+private:
     std::reference_wrapper<WorkflowContext> m_ctx;
 
-    template <typename T>
-    [[nodiscard]] static std::string to_json(const T &value) noexcept {
+    template<typename T>
+    [[nodiscard]] static std::string to_json(const T& value) noexcept
+    {
         auto bytes = serde::Ser::serialize("application/json", value);
         std::string out;
         out.reserve(bytes.size());
-        for (std::byte byte : bytes) {
+        for (std::byte byte: bytes) {
             out += static_cast<char>(byte);
         }
         return out;
@@ -134,24 +149,41 @@ using namespace boost::ut;
 
 /// @brief ISearchProvider test double that records every index()/remove() call it receives, and
 /// lets a test script whether index() reports success ("ok") or failure ("").
-class SpySearchProvider final : public interfaces::ISearchProvider {
-  public:
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "spy_search"; }
+class SpySearchProvider final : public interfaces::ISearchProvider
+{
+public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "spy_search";
+    }
 
-    void index(std::string_view collection, std::string_view id, std::string_view document_json,
-               shared::QueryReadFn &&callback) noexcept override {
+    void index(
+        std::string_view collection,
+        std::string_view id,
+        std::string_view document_json,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         m_last_collection = std::string{collection};
         m_last_id = std::string{id};
         m_last_document_json = std::string{document_json};
         ++m_index_calls;
         callback(m_fail_next ? std::string_view{} : std::string_view{"ok"});
     }
-    void remove(std::string_view /*collection*/, std::string_view /*id*/,
-                shared::QueryReadFn &&callback) noexcept override {
+
+    void remove(
+        std::string_view /*collection*/, std::string_view /*id*/, shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         callback("ok");
     }
-    void search(std::string_view /*collection*/, const interfaces::SearchQuery & /*query*/,
-                shared::QueryReadFn &&callback) noexcept override {
+
+    void search(
+        std::string_view /*collection*/,
+        const interfaces::SearchQuery& /*query*/,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         callback("[]");
     }
 
@@ -163,24 +195,35 @@ class SpySearchProvider final : public interfaces::ISearchProvider {
 };
 
 // Minimal real ISerdeFormat — needed so to_json()'s serde::Ser::serialize() call actually
-// produces real JSON instead of the "no format plugin loaded" error payload it falls back to with
-// nothing registered, which is what made these `.contains(...)` assertions fail. Routed through
-// serde::Ser::encode_json() (rather than this file's own `#include <rfl/json.hpp>`, the recipe
-// engine's handler tests use) since a second textual inclusion of that header alongside the one
-// already pulled in by importing `serde` collides at BMI-compile time (duplicate yyjson_api_inline
-// definitions) — encode_json() exists precisely so callers don't need their own include.
-class MockJsonFormat final : public interfaces::ISerdeFormat {
-  public:
-    [[nodiscard]] std::string_view content_type() const noexcept override {
+// produces real JSON instead of the "no format plugin loaded" error payload it falls back to
+// with nothing registered, which is what made these `.contains(...)` assertions fail. Routed
+// through serde::Ser::encode_json() (rather than this file's own `#include <rfl/json.hpp>`, the
+// recipe engine's handler tests use) since a second textual inclusion of that header alongside
+// the one already pulled in by importing `serde` collides at BMI-compile time (duplicate
+// yyjson_api_inline definitions) — encode_json() exists precisely so callers don't need their
+// own include.
+class MockJsonFormat final : public interfaces::ISerdeFormat
+{
+public:
+    [[nodiscard]] std::string_view content_type() const noexcept override
+    {
         return "application/json";
     }
-    [[nodiscard]] std::string_view format_name() const noexcept override { return "mock-json"; }
+
+    [[nodiscard]] std::string_view format_name() const noexcept override
+    {
+        return "mock-json";
+    }
+
     [[nodiscard]] std::expected<std::string, std::string>
-    encode(const interfaces::Value &value) const override {
+    encode(const interfaces::Value& value) const override
+    {
         return serde::Ser::encode_json(value);
     }
+
     [[nodiscard]] std::expected<interfaces::Value, std::string>
-    decode(std::string_view /*data*/) const override {
+    decode(std::string_view /*data*/) const override
+    {
         return std::unexpected{std::string{"decode not implemented in test double"}};
     }
 };
@@ -192,7 +235,9 @@ suite<"SummaryProjector::project_workflow"> project_workflow_suite = [] {
         model::WorkflowExecution exec;
         exec.set_exec_id(model::generate_id());
 
-        expect(nothrow([&] { projector.project_workflow(exec); }));
+        expect(nothrow([&] {
+            projector.project_workflow(exec);
+        }));
     };
 
     "indexes into the workflow_summaries collection, keyed by the formatted exec_id"_test = [] {
@@ -266,7 +311,9 @@ suite<"SummaryProjector::project_workflow"> project_workflow_suite = [] {
             model::WorkflowExecution exec;
             exec.set_exec_id(model::generate_id());
 
-            expect(nothrow([&] { projector.project_workflow(exec); }));
+            expect(nothrow([&] {
+                projector.project_workflow(exec);
+            }));
             expect(provider.m_index_calls == 1);
         };
 };
@@ -278,7 +325,9 @@ suite<"SummaryProjector::project_task"> project_task_suite = [] {
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
 
-        expect(nothrow([&] { projector.project_task(instance); }));
+        expect(nothrow([&] {
+            projector.project_task(instance);
+        }));
     };
 
     "indexes into the task_summaries collection, keyed by the formatted task_id"_test = [] {
@@ -346,7 +395,8 @@ suite<"SummaryProjector::project_task"> project_task_suite = [] {
         instance.set_timings(timings);
         projector.project_task(instance);
 
-        // A sane wait would be 10000ms or clamped to 0 — instead it wraps to something enormous.
+        // A sane wait would be 10000ms or clamped to 0 — instead it wraps to something
+        // enormous.
         expect(!provider.m_last_document_json.contains(R"("queue_wait_time_ms":10000)"));
         expect(!provider.m_last_document_json.contains(R"("queue_wait_time_ms":0)"));
     };

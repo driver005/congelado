@@ -9,42 +9,93 @@ import boost.ut;
 
 export namespace model {
 
-/// @brief A cron-driven auto-start rule for a WorkflowDef — Conductor's own scheduler equivalent
-/// (a dedicated module there; here, driven off the same background sweep the orchestrator
-/// already runs, see engine::CronScheduler).
-class WorkflowSchedule {
-  public:
+/// @brief A cron-driven auto-start rule for a WorkflowDef — Conductor's own scheduler
+/// equivalent (a dedicated module there; here, driven off the same background sweep the
+/// orchestrator already runs, see engine::CronScheduler).
+class WorkflowSchedule
+{
+public:
     WorkflowSchedule() = default;
 
-    void set_name(std::string name) { m_name = std::move(name); }
-    void set_workflow_name(std::string workflow_name) { m_workflow_name = std::move(workflow_name); }
-    void set_workflow_version(std::uint32_t version) noexcept { m_workflow_version = version; }
-    void set_cron_expression(std::string cron_expression) {
+    void set_name(std::string name)
+    {
+        m_name = std::move(name);
+    }
+
+    void set_workflow_name(std::string workflow_name)
+    {
+        m_workflow_name = std::move(workflow_name);
+    }
+
+    void set_workflow_version(std::uint32_t version) noexcept
+    {
+        m_workflow_version = version;
+    }
+
+    void set_cron_expression(std::string cron_expression)
+    {
         m_cron_expression = std::move(cron_expression);
     }
-    void set_seed_variables(std::unordered_map<std::string, std::string> variables) {
+
+    void set_seed_variables(std::unordered_map<std::string, std::string> variables)
+    {
         m_seed_variables = std::move(variables);
     }
-    void set_enabled(bool enabled) noexcept { m_enabled = enabled; }
-    void set_paused(bool paused) noexcept { m_paused = paused; }
-    void set_last_fired_at(std::optional<std::chrono::system_clock::time_point> value) noexcept {
+
+    void set_enabled(bool enabled) noexcept
+    {
+        m_enabled = enabled;
+    }
+
+    void set_paused(bool paused) noexcept
+    {
+        m_paused = paused;
+    }
+
+    void set_last_fired_at(std::optional<std::chrono::system_clock::time_point> value) noexcept
+    {
         m_last_fired_at = value;
     }
 
-    [[nodiscard]] const std::string &get_name() const noexcept { return m_name; }
-    [[nodiscard]] const std::string &get_workflow_name() const noexcept { return m_workflow_name; }
-    [[nodiscard]] std::uint32_t get_workflow_version() const noexcept { return m_workflow_version; }
-    [[nodiscard]] const std::string &get_cron_expression() const noexcept {
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    [[nodiscard]] const std::string& get_workflow_name() const noexcept
+    {
+        return m_workflow_name;
+    }
+
+    [[nodiscard]] std::uint32_t get_workflow_version() const noexcept
+    {
+        return m_workflow_version;
+    }
+
+    [[nodiscard]] const std::string& get_cron_expression() const noexcept
+    {
         return m_cron_expression;
     }
-    [[nodiscard]] const std::unordered_map<std::string, std::string> &
-    get_seed_variables() const noexcept {
+
+    [[nodiscard]] const std::unordered_map<std::string, std::string>&
+    get_seed_variables() const noexcept
+    {
         return m_seed_variables;
     }
-    [[nodiscard]] bool get_enabled() const noexcept { return m_enabled; }
-    [[nodiscard]] bool get_paused() const noexcept { return m_paused; }
-    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point> &
-    get_last_fired_at() const noexcept {
+
+    [[nodiscard]] bool get_enabled() const noexcept
+    {
+        return m_enabled;
+    }
+
+    [[nodiscard]] bool get_paused() const noexcept
+    {
+        return m_paused;
+    }
+
+    [[nodiscard]] const std::optional<std::chrono::system_clock::time_point>&
+    get_last_fired_at() const noexcept
+    {
         return m_last_fired_at;
     }
 
@@ -55,7 +106,8 @@ class WorkflowSchedule {
      * @return an empty expected if everything's non-empty, otherwise an unexpected naming
      * whichever one's blank.
      */
-    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept
+    {
         if (m_name.empty()) {
             return std::unexpected{"WorkflowSchedule name must not be empty"};
         }
@@ -68,7 +120,7 @@ class WorkflowSchedule {
         return {};
     }
 
-  private:
+private:
     std::string m_name;
     std::string m_workflow_name;
     std::uint32_t m_workflow_version{1};
@@ -81,28 +133,41 @@ class WorkflowSchedule {
 
 } // namespace model
 
-template <>
-struct serde::Serializable<model::WorkflowSchedule> {
-    static constexpr std::string_view table_name() { return "workflow_schedules"; }
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<model::WorkflowSchedule>
+{
+    static constexpr std::string_view table_name()
+    {
+        return "workflow_schedules";
+    }
+
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"name", &model::WorkflowSchedule::get_name,
-                       &model::WorkflowSchedule::set_name,
-                       serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
-            serde::FieldDesc<"workflow_name", &model::WorkflowSchedule::get_workflow_name,
-                       &model::WorkflowSchedule::set_workflow_name>{},
-            serde::FieldDesc<"workflow_version", &model::WorkflowSchedule::get_workflow_version,
-                       &model::WorkflowSchedule::set_workflow_version>{},
-            serde::FieldDesc<"cron_expression", &model::WorkflowSchedule::get_cron_expression,
-                       &model::WorkflowSchedule::set_cron_expression>{},
-            serde::FieldDesc<"seed_variables", &model::WorkflowSchedule::get_seed_variables,
-                       &model::WorkflowSchedule::set_seed_variables>{},
-            serde::FieldDesc<"enabled", &model::WorkflowSchedule::get_enabled,
-                       &model::WorkflowSchedule::set_enabled>{},
-            serde::FieldDesc<"paused", &model::WorkflowSchedule::get_paused,
-                       &model::WorkflowSchedule::set_paused>{},
-            serde::FieldDesc<"last_fired_at", &model::WorkflowSchedule::get_last_fired_at,
-                       &model::WorkflowSchedule::set_last_fired_at>{},
+            serde::FieldDesc<
+                "name", &model::WorkflowSchedule::get_name, &model::WorkflowSchedule::set_name,
+                serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<
+                "workflow_name", &model::WorkflowSchedule::get_workflow_name,
+                &model::WorkflowSchedule::set_workflow_name>{},
+            serde::FieldDesc<
+                "workflow_version", &model::WorkflowSchedule::get_workflow_version,
+                &model::WorkflowSchedule::set_workflow_version>{},
+            serde::FieldDesc<
+                "cron_expression", &model::WorkflowSchedule::get_cron_expression,
+                &model::WorkflowSchedule::set_cron_expression>{},
+            serde::FieldDesc<
+                "seed_variables", &model::WorkflowSchedule::get_seed_variables,
+                &model::WorkflowSchedule::set_seed_variables>{},
+            serde::FieldDesc<
+                "enabled", &model::WorkflowSchedule::get_enabled,
+                &model::WorkflowSchedule::set_enabled>{},
+            serde::FieldDesc<
+                "paused", &model::WorkflowSchedule::get_paused,
+                &model::WorkflowSchedule::set_paused>{},
+            serde::FieldDesc<
+                "last_fired_at", &model::WorkflowSchedule::get_last_fired_at,
+                &model::WorkflowSchedule::set_last_fired_at>{},
         };
     }
 };

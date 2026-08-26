@@ -15,9 +15,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/numeric_types.h"
 #include "tensorflow/core/platform/types.h"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 export module cc_tmp:types_register_types_traits;
 
@@ -26,76 +26,94 @@ import cc_abi;
 
 export {
 
-// This file is used by cuda code and must remain compilable by nvcc.
+    // This file is used by cuda code and must remain compilable by nvcc.
 
-typedef Eigen::ThreadPoolDevice CPUDevice;
-typedef Eigen::GpuDevice GPUDevice;
+    typedef Eigen::ThreadPoolDevice CPUDevice;
+    typedef Eigen::GpuDevice GPUDevice;
 
+    namespace tensorflow {
 
+        // Remap POD types by size to equivalent proxy types. This works
+        // since all we are doing is copying data around.
+        struct UnusableProxyType;
 
-namespace tensorflow {
+        template<typename Device, int size>
+        struct proxy_type_pod
+        {
+            typedef UnusableProxyType type;
+        };
 
-// Remap POD types by size to equivalent proxy types. This works
-// since all we are doing is copying data around.
-struct UnusableProxyType;
-template <typename Device, int size>
-struct proxy_type_pod {
-  typedef UnusableProxyType type;
-};
-template <>
-struct proxy_type_pod<CPUDevice, 16> {
-  typedef ::tensorflow::complex128 type;
-};
-template <>
-struct proxy_type_pod<CPUDevice, 8> {
-  typedef ::int64_t type;
-};
-template <>
-struct proxy_type_pod<CPUDevice, 4> {
-  typedef ::tensorflow::int32 type;
-};
-template <>
-struct proxy_type_pod<CPUDevice, 2> {
-  typedef ::tensorflow::int16 type;
-};
-template <>
-struct proxy_type_pod<CPUDevice, 1> {
-  typedef ::tensorflow::int8 type;
-};
-template <>
-struct proxy_type_pod<GPUDevice, 8> {
-  typedef double type;
-};
-template <>
-struct proxy_type_pod<GPUDevice, 4> {
-  typedef float type;
-};
-template <>
-struct proxy_type_pod<GPUDevice, 2> {
-  typedef Eigen::half type;
-};
-template <>
-struct proxy_type_pod<GPUDevice, 1> {
-  typedef ::tensorflow::int8 type;
-};
+        template<>
+        struct proxy_type_pod<CPUDevice, 16>
+        {
+            typedef ::tensorflow::complex128 type;
+        };
 
+        template<>
+        struct proxy_type_pod<CPUDevice, 8>
+        {
+            typedef ::int64_t type;
+        };
 
-/// If POD we use proxy_type_pod, otherwise this maps to identity.
-template <typename Device, typename T>
-struct proxy_type {
-  typedef typename std::conditional<
-      std::is_arithmetic<T>::value,
-      typename proxy_type_pod<Device, sizeof(T)>::type, T>::type type;
-  static_assert(sizeof(type) == sizeof(T), "proxy_type_pod is not valid");
-};
+        template<>
+        struct proxy_type_pod<CPUDevice, 4>
+        {
+            typedef ::tensorflow::int32 type;
+        };
+
+        template<>
+        struct proxy_type_pod<CPUDevice, 2>
+        {
+            typedef ::tensorflow::int16 type;
+        };
+
+        template<>
+        struct proxy_type_pod<CPUDevice, 1>
+        {
+            typedef ::tensorflow::int8 type;
+        };
+
+        template<>
+        struct proxy_type_pod<GPUDevice, 8>
+        {
+            typedef double type;
+        };
+
+        template<>
+        struct proxy_type_pod<GPUDevice, 4>
+        {
+            typedef float type;
+        };
+
+        template<>
+        struct proxy_type_pod<GPUDevice, 2>
+        {
+            typedef Eigen::half type;
+        };
+
+        template<>
+        struct proxy_type_pod<GPUDevice, 1>
+        {
+            typedef ::tensorflow::int8 type;
+        };
+
+        /// If POD we use proxy_type_pod, otherwise this maps to identity.
+        template<typename Device, typename T>
+        struct proxy_type
+        {
+            typedef typename std::conditional<
+                std::is_arithmetic<T>::value,
+                typename proxy_type_pod<Device, sizeof(T)>::type,
+                T>::type type;
+            static_assert(sizeof(type) == sizeof(T), "proxy_type_pod is not valid");
+        };
 
 /// The active proxy types
-#define TF_CALL_CPU_PROXY_TYPES(m)                                     \
-  TF_CALL_int64(m) TF_CALL_int32(m) TF_CALL_uint16(m) TF_CALL_int16(m) \
-      TF_CALL_int8(m) TF_CALL_complex128(m)
-#define TF_CALL_GPU_PROXY_TYPES(m)                                    \
-  TF_CALL_double(m) TF_CALL_float(m) TF_CALL_half(m) TF_CALL_int32(m) \
-      TF_CALL_int8(m)
-}  // namespace tensorflow
+#define TF_CALL_CPU_PROXY_TYPES(m)                                                                 \
+    TF_CALL_int64(m) TF_CALL_int32(m) TF_CALL_uint16(m) TF_CALL_int16(m) TF_CALL_int8(m)           \
+        TF_CALL_complex128(m)
+#define TF_CALL_GPU_PROXY_TYPES(m)                                                                 \
+    TF_CALL_double(m) TF_CALL_float(m) TF_CALL_half(m) TF_CALL_int32(m) TF_CALL_int8(m)
+    } // namespace tensorflow
 
 } // export

@@ -17,12 +17,13 @@
 
 /* ------------------- PJRT plugin entries & shared types ------------------- */
 #include "xla/pjrt/c/pjrt_c_api_cpu.h"
+#include "xla/pjrt/c/pjrt_c_api_device_event.h"
 #include "xla/pjrt/c/pjrt_c_api_gpu.h"
 #include "xla/pjrt/c/pjrt_c_api_tpu.h"
 #include "xla/pjrt/c/pjrt_c_api_tpu_constants.h"
-#include "xla/pjrt/c/pjrt_c_api_device_event.h"
 
 /* ---------------------------- PJRT extensions ----------------------------- */
+#include "xla/backends/profiler/plugin/profiler_c_api.h"
 #include "xla/pjrt/c/pjrt_c_api_abi_version_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_callback_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_collectives_extension.h"
@@ -34,7 +35,6 @@
 #include "xla/pjrt/c/pjrt_c_api_memory_descriptions_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_multi_slice_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_phase_compile_extension.h"
-#include "xla/backends/profiler/plugin/profiler_c_api.h"
 #include "xla/pjrt/c/pjrt_c_api_profiler_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_raw_buffer_extension.h"
 #include "xla/pjrt/c/pjrt_c_api_shardings_extension.h"
@@ -50,7 +50,7 @@
 #include "xla/ffi/api/record_c_api.h"
 
 /* --------------------------- Status + shared enums ------------------------ */
-#include "xla/tsl/c/tsl_status.h"
 #include "xla/c/c_api_decl.h"
+#include "xla/tsl/c/tsl_status.h"
 
 #endif /* CONGELADO_C_XLA_XLA_H_ */

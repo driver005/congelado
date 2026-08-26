@@ -19,34 +19,38 @@ import boost.ut;
 
 export namespace io::layer::http2 {
 
-class HttpResponse : public interfaces::io::IResponse {
-  public:
+class HttpResponse : public interfaces::io::IResponse
+{
+public:
     /**
      * @brief Builds an HTTP/2 response for the given stream, static-header array starts fully
      * empty (all null shared_ptrs).
      * @param stream_id the stream this response rides on, forwarded straight to `IResponse`.
      */
-    explicit HttpResponse(std::uint32_t stream_id)
-        : interfaces::io::IResponse{stream_id}, m_static_headers{} {}
+    explicit HttpResponse(std::uint32_t stream_id) :
+        interfaces::io::IResponse{stream_id},
+        m_static_headers{}
+    {
+    }
 
     /**
      * @brief Deleted — this holds a swiss hashmap and a fixed-size array of shared header
      * pointers, copying gets messy fast, moving's the only supported way to relocate one of
      * these.
      */
-    HttpResponse(const HttpResponse &) = delete;
+    HttpResponse(const HttpResponse&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor right above.
      */
-    HttpResponse &operator=(const HttpResponse &) = delete;
+    HttpResponse& operator=(const HttpResponse&) = delete;
     /**
      * @brief Defaulted move ctor — cheap relocation, no deep header copies involved.
      */
-    constexpr HttpResponse(HttpResponse &&) noexcept = default;
+    constexpr HttpResponse(HttpResponse&&) noexcept = default;
     /**
      * @brief Defaulted move assign, matches the move ctor right above.
      */
-    constexpr HttpResponse &operator=(HttpResponse &&) noexcept = default;
+    constexpr HttpResponse& operator=(HttpResponse&&) noexcept = default;
     /**
      * @brief Defaulted destructor override — no resources of its own to release beyond what
      * `IResponse`'s virtual destructor already handles.
@@ -70,11 +74,13 @@ class HttpResponse : public interfaces::io::IResponse {
      * @throws std::bad_optional_access if given an unrecognized string name with an empty
      * value — see warning above.
      */
-    void set_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token,
-                    std::string_view value) &
-        override {
+    void set_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token,
+        std::string_view value
+    ) & override
+    {
         std::visit(
-            [this, value](auto &&name) {
+            [this, value](auto&& name) {
                 using T = std::decay_t<decltype(name)>;
 
                 // String-name overload — has to tokenize before it knows where to store this.
@@ -94,14 +100,17 @@ class HttpResponse : public interfaces::io::IResponse {
                     if (!token_opt.has_value()) {
                         if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
                             if (!value.empty()) {
-                                const auto &existing = *existing_opt;
-                                existing->set_value(existing->get_value() +
-                                                    interfaces::consts::VALUE_SEPARATOR +
-                                                    std::string(value));
+                                const auto& existing = *existing_opt;
+                                existing->set_value(
+                                    existing->get_value() + interfaces::consts::VALUE_SEPARATOR +
+                                    std::string(value)
+                                );
                             }
                         } else {
                             m_headers.insert(
-                                name, std::make_shared<interfaces::io::HeaderField<false>>(name, value));
+                                name,
+                                std::make_shared<interfaces::io::HeaderField<false>>(name, value)
+                            );
                         }
                         return;
                     }
@@ -112,31 +121,39 @@ class HttpResponse : public interfaces::io::IResponse {
                     // every other known token just recurses into the token overload below.
                     if (token == interfaces::io::types::Token::COOKIE) {
                         const auto IDX = std::to_underlying(interfaces::io::types::Token::COOKIE);
-                        if (m_static_headers[IDX] == nullptr) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
-                            m_static_headers[IDX] =  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                        if (m_static_headers[IDX] == nullptr) { // FIXME(clang-tidy): unchecked
+                                                                // operator[], consider .at()
+                            m_static_headers[IDX] = // FIXME(clang-tidy): unchecked operator[],
+                                                    // consider .at()
                                 std::make_shared<interfaces::io::HeaderField<true>>(
-                                    interfaces::io::types::Token::COOKIE, std::string(value));
+                                    interfaces::io::types::Token::COOKIE, std::string(value)
+                                );
                         } else if (!value.empty()) {
-                            m_static_headers[IDX]->set_value(m_static_headers[IDX]->get_value() +  // FIXME(clang-tidy): unchecked operator[], consider .at()
-                                                             interfaces::consts::COOKIE_SEPARATOR +
-                                                             std::string(value));
+                            m_static_headers[IDX]->set_value(
+                                m_static_headers[IDX]->get_value() + // FIXME(clang-tidy): unchecked
+                                                                     // operator[], consider .at()
+                                interfaces::consts::COOKIE_SEPARATOR + std::string(value)
+                            );
                         }
                     } else {
                         set_header(token, value);
                     }
-
                 } else if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
                     // Token overload — direct write into the static-header array slot.
                     if (name == interfaces::io::types::Token::NONE) {
                         throw std::invalid_argument("interfaces::io::types::Token cannot be None");
                     }
 
-                    m_static_headers[std::to_underlying(name)] =  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
-                        std::make_shared<interfaces::io::HeaderField<true>>(name,
-                                                                            std::string(value));
+                    m_static_headers[std::to_underlying(name)] = // FIXME(clang-tidy): unchecked
+                                                                 // operator[], consider .at();
+                                                                 // non-constant array index
+                        std::make_shared<interfaces::io::HeaderField<true>>(
+                            name, std::string(value)
+                        );
                 }
             },
-            name_or_token);
+            name_or_token
+        );
     }
 
     /**
@@ -145,25 +162,33 @@ class HttpResponse : public interfaces::io::IResponse {
      * `m_headers` hashmap.
      * @param name_or_token the header name (or token) to remove.
      */
-    void remove_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token) &
-        override {
+    void remove_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token
+    ) & override
+    {
         std::visit(
-            [&](const auto &name) {
+            [&](const auto& name) {
                 using T = std::decay_t<decltype(name)>;
                 // Direct token — clear its static slot.
                 if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
-                    m_static_headers[std::to_underlying(name)] = nullptr;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                    m_static_headers[std::to_underlying(name)] =
+                        nullptr; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                 // non-constant array index
                 } else {
-                    // String name — resolve to a static slot if possible, else erase dynamically.
+                    // String name — resolve to a static slot if possible, else erase
+                    // dynamically.
                     auto token_opt = interfaces::io::types::tokenize(name);
                     if (token_opt.has_value()) {
-                        m_static_headers[std::to_underlying(token_opt.value())] = nullptr;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                        m_static_headers[std::to_underlying(token_opt.value())] =
+                            nullptr; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                                     // non-constant array index
                     } else {
                         m_headers.erase(name);
                     }
                 }
             },
-            name_or_token);
+            name_or_token
+        );
     }
 
     /**
@@ -171,9 +196,12 @@ class HttpResponse : public interfaces::io::IResponse {
      * code enum, converting it to the string HTTP/2 wants on the wire.
      * @param status the status to set.
      */
-    void set_status(interfaces::io::types::Status status) & override {
-        set_header(interfaces::io::types::Token::STATUS,
-                   std::to_string(interfaces::io::types::status_code(status)));
+    void set_status(interfaces::io::types::Status status) & override
+    {
+        set_header(
+            interfaces::io::types::Token::STATUS,
+            std::to_string(interfaces::io::types::status_code(status))
+        );
     }
 
     /**
@@ -181,16 +209,17 @@ class HttpResponse : public interfaces::io::IResponse {
      * everything in the dynamic `m_headers` hashmap into one flat vector.
      * @return every header currently set on this response, static ones first then dynamic.
      */
-    [[nodiscard]] std::vector<interfaces::io::HeaderEntry> get_headers() const noexcept override {
+    [[nodiscard]] std::vector<interfaces::io::HeaderEntry> get_headers() const noexcept override
+    {
         std::vector<interfaces::io::HeaderEntry> result;
         // Static slots first, skipping the ones that were never set.
-        for (const auto &field : m_static_headers) {
+        for (const auto& field: m_static_headers) {
             if (field != nullptr) {
                 result.emplace_back(field);
             }
         }
         // Dynamic headers appended after, bet.
-        for (const auto &entry : m_headers) {
+        for (const auto& entry: m_headers) {
             result.emplace_back(entry.value());
         }
         return result;
@@ -208,23 +237,27 @@ class HttpResponse : public interfaces::io::IResponse {
      * frames the header block and body each need to split across.
      * @return the estimated total wire size in bytes.
      */
-    [[nodiscard]] std::size_t get_size(const std::size_t &max_frame_payload) const noexcept {
+    [[nodiscard]] std::size_t get_size(const std::size_t& max_frame_payload) const noexcept
+    {
         std::size_t total = 0;
 
         // Total up every set static header field.
         std::size_t header_block = std::ranges::fold_left(
-            m_static_headers |
-                std::views::filter([](const auto &field) noexcept { return field != nullptr; }),
-            std::size_t{0},
-            [](std::size_t acc, const auto &field) noexcept { return acc + field->size(); });
+            m_static_headers | std::views::filter([](const auto& field) noexcept {
+                return field != nullptr;
+            }),
+            std::size_t{0}, [](std::size_t acc, const auto& field) noexcept {
+                return acc + field->size();
+            }
+        );
 
         // TODO: add ranges support to my swiss hashmap
-        //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc, const
-        //  auto &entry) noexcept {
+        //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc,
+        //  const auto &entry) noexcept {
         //      return acc + entry.value()->size();
         //  });
         // Fold in the dynamic headers onto the same running total.
-        for (const auto &entry : m_headers) {
+        for (const auto& entry: m_headers) {
             header_block += entry.value()->size();
         }
 
@@ -250,18 +283,20 @@ class HttpResponse : public interfaces::io::IResponse {
     }
 
     /**
-     * @brief `IResponse::set_body()` override — adopts `body`'s buffer into a `BufferNode` (O(1)
-     * move, no byte copy) and installs it as this response's body chain.
+     * @brief `IResponse::set_body()` override — adopts `body`'s buffer into a `BufferNode`
+     * (O(1) move, no byte copy) and installs it as this response's body chain.
      * @note An empty `body` leaves `m_body` untouched (no node pushed), matching the
      * `get_body().empty()` checks in `WriteHttpResponseAdaptor`.
      * @param body the bytes to install as the response body.
      */
-    void set_body(std::vector<std::byte> body) & noexcept override {
+    void set_body(std::vector<std::byte> body) & noexcept override
+    {
         if (body.empty()) {
             return;
         }
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — ref-counted acquire()/release() owns it.
-        auto *node = new utils::buffering::BufferNode{std::move(body)};
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — ref-counted acquire()/release()
+        // owns it.
+        auto* node = new utils::buffering::BufferNode{std::move(body)};
         m_body.push_back(node, 0, node->get_written());
     }
 
@@ -270,13 +305,15 @@ class HttpResponse : public interfaces::io::IResponse {
      * `Status` enum (the enum's value is the numeric HTTP code, so it's a straight cast).
      * @return the status, or `OK` if no STATUS header is set.
      */
-    [[nodiscard]] interfaces::io::types::Status get_status() const noexcept override {
-        const auto &field =
-            m_static_headers[std::to_underlying(interfaces::io::types::Token::STATUS)];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    [[nodiscard]] interfaces::io::types::Status get_status() const noexcept override
+    {
+        const auto& field = m_static_headers[std::to_underlying(
+            interfaces::io::types::Token::STATUS
+        )]; // FIXME(clang-tidy): unchecked operator[], consider .at()
         if (field == nullptr) {
             return interfaces::io::types::Status::OK;
         }
-        const auto &value = field->get_value();
+        const auto& value = field->get_value();
         std::uint16_t code = 0;
         std::from_chars(value.data(), value.data() + value.size(), code);
         return static_cast<interfaces::io::types::Status>(code);
@@ -286,7 +323,8 @@ class HttpResponse : public interfaces::io::IResponse {
      * @brief `IResponse::is_success()` override.
      * @return true if the status is 2xx.
      */
-    [[nodiscard]] bool is_success() const noexcept override {
+    [[nodiscard]] bool is_success() const noexcept override
+    {
         const auto CODE = interfaces::io::types::status_code(get_status());
         return CODE >= 200 && CODE < 300;
     }
@@ -295,37 +333,38 @@ class HttpResponse : public interfaces::io::IResponse {
      * @brief `IResponse::get_status_text()` override — a short reason phrase for the status.
      * @return the reason phrase, or "Unknown" for statuses without one mapped here.
      */
-    [[nodiscard]] std::string_view get_status_text() const noexcept override {
+    [[nodiscard]] std::string_view get_status_text() const noexcept override
+    {
         using interfaces::io::types::Status;
         switch (get_status()) {
-        case Status::OK:
-            return "OK";
-        case Status::CREATED:
-            return "Created";
-        case Status::ACCEPTED:
-            return "Accepted";
-        case Status::NO_CONTENT:
-            return "No Content";
-        case Status::BAD_REQUEST:
-            return "Bad Request";
-        case Status::UNAUTHORIZED:
-            return "Unauthorized";
-        case Status::FORBIDDEN:
-            return "Forbidden";
-        case Status::NOT_FOUND:
-            return "Not Found";
-        case Status::NOT_ACCEPTABLE:
-            return "Not Acceptable";
-        case Status::CONFLICT:
-            return "Conflict";
-        case Status::UNPROCESSABLE_CONTENT:
-            return "Unprocessable Content";
-        case Status::INTERNAL_SERVER_ERROR:
-            return "Internal Server Error";
-        case Status::SERVICE_UNAVAILABLE:
-            return "Service Unavailable";
-        default:
-            return "Unknown";
+            case Status::OK:
+                return "OK";
+            case Status::CREATED:
+                return "Created";
+            case Status::ACCEPTED:
+                return "Accepted";
+            case Status::NO_CONTENT:
+                return "No Content";
+            case Status::BAD_REQUEST:
+                return "Bad Request";
+            case Status::UNAUTHORIZED:
+                return "Unauthorized";
+            case Status::FORBIDDEN:
+                return "Forbidden";
+            case Status::NOT_FOUND:
+                return "Not Found";
+            case Status::NOT_ACCEPTABLE:
+                return "Not Acceptable";
+            case Status::CONFLICT:
+                return "Conflict";
+            case Status::UNPROCESSABLE_CONTENT:
+                return "Unprocessable Content";
+            case Status::INTERNAL_SERVER_ERROR:
+                return "Internal Server Error";
+            case Status::SERVICE_UNAVAILABLE:
+                return "Service Unavailable";
+            default:
+                return "Unknown";
         }
     }
 
@@ -337,17 +376,22 @@ class HttpResponse : public interfaces::io::IResponse {
      */
     // FIXME(clang-tidy): bugprone-exception-escape — SwissHashMap::find isn't noexcept, but the
     // override must match IResponse::find_header()'s noexcept signature.
-    [[nodiscard]] std::string_view
-    find_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token)
-        const noexcept override {
-        if (const auto *token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
-            const auto &field = m_static_headers[std::to_underlying(*token)];  // FIXME(clang-tidy): unchecked operator[]
+    [[nodiscard]] std::string_view find_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token
+    ) const noexcept override
+    {
+        if (const auto* token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
+            const auto& field =
+                m_static_headers[std::to_underlying(*token)]; // FIXME(clang-tidy): unchecked
+                                                              // operator[]
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
-        const auto &name = *std::get_if<std::string_view>(&name_or_token);
+        const auto& name = *std::get_if<std::string_view>(&name_or_token);
         auto token_opt = interfaces::io::types::tokenize(name);
         if (token_opt.has_value()) {
-            const auto &field = m_static_headers[std::to_underlying(token_opt.value())];  // FIXME(clang-tidy): unchecked operator[]
+            const auto& field =
+                m_static_headers[std::to_underlying(token_opt.value())]; // FIXME(clang-tidy):
+                                                                         // unchecked operator[]
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
         auto result = m_headers.find(name);
@@ -358,23 +402,28 @@ class HttpResponse : public interfaces::io::IResponse {
      * @brief `IResponse::get_content_type()` override — reads the CONTENT_TYPE header.
      * @return the content-type value, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_content_type() const noexcept override {
-        const auto &field =
-            m_static_headers[std::to_underlying(interfaces::io::types::Token::CONTENT_TYPE)];  // FIXME(clang-tidy): unchecked operator[]
+    [[nodiscard]] std::string_view get_content_type() const noexcept override
+    {
+        const auto& field = m_static_headers[std::to_underlying(
+            interfaces::io::types::Token::CONTENT_TYPE
+        )]; // FIXME(clang-tidy): unchecked operator[]
         return field ? std::string_view{field->get_value()} : std::string_view{};
     }
 
     /**
-     * @brief `IResponse::get_content_length()` override — reads and parses the CONTENT_LENGTH header.
+     * @brief `IResponse::get_content_length()` override — reads and parses the CONTENT_LENGTH
+     * header.
      * @return the content length, or 0 if unset/unparsable.
      */
-    [[nodiscard]] std::size_t get_content_length() const noexcept override {
-        const auto &field =
-            m_static_headers[std::to_underlying(interfaces::io::types::Token::CONTENT_LENGTH)];  // FIXME(clang-tidy): unchecked operator[]
+    [[nodiscard]] std::size_t get_content_length() const noexcept override
+    {
+        const auto& field = m_static_headers[std::to_underlying(
+            interfaces::io::types::Token::CONTENT_LENGTH
+        )]; // FIXME(clang-tidy): unchecked operator[]
         if (field == nullptr) {
             return 0;
         }
-        const auto &value = field->get_value();
+        const auto& value = field->get_value();
         std::size_t length = 0;
         std::from_chars(value.data(), value.data() + value.size(), length);
         return length;
@@ -384,17 +433,21 @@ class HttpResponse : public interfaces::io::IResponse {
      * @brief `IResponse::get_body()` override — mutable access.
      * @return a mutable `BufferView` over the body bytes.
      */
-    [[nodiscard]] utils::buffering::BufferView &get_body() noexcept override { return m_body; }
+    [[nodiscard]] utils::buffering::BufferView& get_body() noexcept override
+    {
+        return m_body;
+    }
 
     /**
      * @brief `IResponse::get_body()` const override — read-only access.
      * @return a read-only `BufferView` over the body bytes.
      */
-    [[nodiscard]] const utils::buffering::BufferView &get_body() const noexcept override {
+    [[nodiscard]] const utils::buffering::BufferView& get_body() const noexcept override
+    {
         return m_body;
     }
 
-  private:
+private:
     /**
      * @brief Alternate ctor that seeds the STATUS header straight from a `Status` enum.
      * @warning Doesn't forward to `IResponse{stream_id}` or the public
@@ -407,9 +460,12 @@ class HttpResponse : public interfaces::io::IResponse {
      * would be a real L.
      * @param status the status to seed the STATUS header with.
      */
-    HttpResponse(interfaces::io::types::Status status) {
-        set_header(interfaces::io::types::Token::STATUS,
-                   std::to_string(interfaces::io::types::status_code(status)));
+    HttpResponse(interfaces::io::types::Status status)
+    {
+        set_header(
+            interfaces::io::types::Token::STATUS,
+            std::to_string(interfaces::io::types::status_code(status))
+        );
     }
 
     /**
@@ -419,21 +475,26 @@ class HttpResponse : public interfaces::io::IResponse {
      * @return the header field shared_ptr for that slot, or `nullptr` if unset.
      */
     std::shared_ptr<interfaces::io::HeaderField<true>>
-    get_static(const interfaces::io::types::Token &token) {
-        return m_static_headers[std::to_underlying(token)];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+    get_static(const interfaces::io::types::Token& token)
+    {
+        return m_static_headers[std::to_underlying(
+            token
+        )]; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
     }
 
     // TODO: make length a constant
-    std::array<std::shared_ptr<interfaces::io::HeaderField<true>>,
-               std::to_underlying(interfaces::io::types::Token::WWW_AUTHENTICATE) + 1>
+    std::array<
+        std::shared_ptr<interfaces::io::HeaderField<true>>,
+        std::to_underlying(interfaces::io::types::Token::WWW_AUTHENTICATE) + 1>
         m_static_headers{};
-    hashmap::swiss::SwissHashMap<std::string_view,
-                                 std::shared_ptr<interfaces::io::HeaderField<false>>>
-        m_headers;
+    hashmap::swiss::
+        SwissHashMap<std::string_view, std::shared_ptr<interfaces::io::HeaderField<false>>>
+            m_headers;
     utils::buffering::BufferView m_body;
 };
 
-struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpResponseAdaptor> {
+struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpResponseAdaptor>
+{
     /**
      * @brief Range adaptor closure ctor — stashes the response to encode, the HPACK table to
      * encode headers against, and the frame-chunking config.
@@ -443,9 +504,18 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
      * to.
      * @param flags base flags applied to the DATA frame(s) when the body's non-empty.
      */
-    explicit constexpr WriteHttpResponseAdaptor(HttpResponse &res, codec::hpack::HPackTable &table,
-                                                std::size_t max_frame_size, std::uint8_t flags = 0)
-        : m_res{res}, m_table{table}, m_max_frame_size{max_frame_size}, m_flags{flags} {}
+    explicit constexpr WriteHttpResponseAdaptor(
+        HttpResponse& res,
+        codec::hpack::HPackTable& table,
+        std::size_t max_frame_size,
+        std::uint8_t flags = 0
+    ) :
+        m_res{res},
+        m_table{table},
+        m_max_frame_size{max_frame_size},
+        m_flags{flags}
+    {
+    }
 
     /**
      * @brief Encodes the full response onto `output` — HPACK-encodes the headers into one or
@@ -461,11 +531,13 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
      * @tparam R a viewable range this appends the encoded response bytes onto.
      * @param output the range to append the encoded response onto — mutated in place.
      */
-    // FIXME(clang-tidy): cppcoreguidelines-missing-std-forward — `output` is mutated in place via
-    // append_range() throughout this function, never forwarded on to another function, so
+    // FIXME(clang-tidy): cppcoreguidelines-missing-std-forward — `output` is mutated in place
+    // via append_range() throughout this function, never forwarded on to another function, so
     // std::forward would be a no-op here.
-    template <std::ranges::viewable_range R>
-    auto operator()(R &&output) const {  // NOLINT(cppcoreguidelines-missing-std-forward) — signature must match every override for virtual dispatch
+    template<std::ranges::viewable_range R>
+    auto operator()(R&& output) const
+    { // NOLINT(cppcoreguidelines-missing-std-forward) — signature must match every override for
+      // virtual dispatch
         const auto STREAM_ID = m_res.get().get_stream_id();
         auto header_entries = m_res.get().get_headers();
 
@@ -488,11 +560,14 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
                         : std::uint8_t{0};
                 output.append_range(
                     std::views::empty<std::byte> |
-                    FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS,
-                                              STREAM_ID});
+                    FrameHeaderClosureAdaptor{
+                        static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID
+                    }
+                );
                 output.append_range(data);
                 first_frame = false;
-            }}();
+            }
+        }();
 
         // Empty body still needs to close the stream — one empty DATA frame with END_STREAM
         // instead of skipping DATA altogether.
@@ -505,14 +580,19 @@ struct WriteHttpResponseAdaptor : std::ranges::range_adaptor_closure<WriteHttpRe
                              .add_stream_id(STREAM_ID)
                              .build();
 
-            output.append_range(std::views::empty<std::byte> |
-                                WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size});
+            output.append_range(
+                std::views::empty<std::byte> |
+                WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size}
+            );
         } else {
             // Real body — hand off to WriteFrameClosureAdapter for chunking + END_STREAM on
             // the last DATA frame.
-            output.append_range(m_res.get().get_body() |
-                                WriteFrameClosureAdapter{STREAM_ID, shared_layer::FrameType::DATA,
-                                                         m_flags, m_max_frame_size});
+            output.append_range(
+                m_res.get().get_body() |
+                WriteFrameClosureAdapter{
+                    STREAM_ID, shared_layer::FrameType::DATA, m_flags, m_max_frame_size
+                }
+            );
         }
     }
 
@@ -559,27 +639,30 @@ suite<"HttpResponse"> http_response_suite = [] {
     };
     "an empty header name throws invalid_argument"_test = [] {
         HttpResponse res{1};
-        expect(throws<std::invalid_argument>([&] { res.set_header(std::string_view{}, "v"); }));
+        expect(throws<std::invalid_argument>([&] {
+            res.set_header(std::string_view{}, "v");
+        }));
     };
     "Token::NONE throws invalid_argument"_test = [] {
         HttpResponse res{1};
-        expect(throws<std::invalid_argument>(
-            [&] { res.set_header(interfaces::io::types::Token::NONE, "v"); }));
+        expect(throws<std::invalid_argument>([&] {
+            res.set_header(interfaces::io::types::Token::NONE, "v");
+        }));
     };
     "COOKIE set via the direct Token overload always overwrites (no name to tokenize with)"_test =
         [] {
-        HttpResponse res{1};
-        res.set_header(interfaces::io::types::Token::COOKIE, "a=1");
-        res.set_header(interfaces::io::types::Token::COOKIE, "b=2");
-        expect(res.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
-    };
+            HttpResponse res{1};
+            res.set_header(interfaces::io::types::Token::COOKIE, "a=1");
+            res.set_header(interfaces::io::types::Token::COOKIE, "b=2");
+            expect(res.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
+        };
     "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test =
         [] {
-        HttpResponse res{1};
-        res.set_header(std::string_view{"cookie"}, "a=1");
-        res.set_header(std::string_view{"cookie"}, "b=2");
-        expect(res.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
-    };
+            HttpResponse res{1};
+            res.set_header(std::string_view{"cookie"}, "a=1");
+            res.set_header(std::string_view{"cookie"}, "b=2");
+            expect(res.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
+        };
     "remove_header clears a known token slot"_test = [] {
         HttpResponse res{1};
         res.set_header(interfaces::io::types::Token::CONTENT_TYPE, "text/plain");
@@ -609,7 +692,7 @@ suite<"HttpResponse"> http_response_suite = [] {
     "get_size accounts for at least the mandatory empty-body DATA frame"_test = [] {
         HttpResponse res{1};
         res.set_status(interfaces::io::types::Status::OK);
-        expect(res.get_size(16384) > 0);
+        expect(res.get_size(16'384) > 0);
     };
     "get_headers collects both static and dynamic entries"_test = [] {
         HttpResponse res{1};

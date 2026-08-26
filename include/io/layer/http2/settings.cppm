@@ -1,5 +1,6 @@
 module;
-// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing me
+// TODO: Remove if std module is fixed i can not switch to libc++ for now so this is really killing
+// me
 #include <ranges>
 
 export module io_layer_http2:settings;
@@ -18,19 +19,28 @@ import boost.ut;
 
 export namespace io::layer::http2 {
 
-enum class SettingsState : std::uint8_t { UNACKNOWLEDGED = 0, ACKNOWLEDGED = 1, IMPLEMENTED = 2 };
+enum class SettingsState : std::uint8_t
+{
+    UNACKNOWLEDGED = 0,
+    ACKNOWLEDGED = 1,
+    IMPLEMENTED = 2
+};
 
-}
+} // namespace io::layer::http2
 
-template <>
-struct std::formatter<io::layer::http2::SettingsState> {
+template<>
+struct std::formatter<io::layer::http2::SettingsState>
+{
     /**
      * @brief No-op format-spec parser — this formatter doesn't support any `{:...}` spec
      * options, just accepts whatever's there and moves on.
      * @param ctx the parse context.
      * @return an iterator right at the start of `ctx`, unmoved — no spec characters consumed.
      */
-    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    static constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return ctx.begin();
+    }
 
     /**
      * @brief Formats a `SettingsState` as its enumerator name (`"UNACKNOWLEDGED"` etc), falling
@@ -41,21 +51,22 @@ struct std::formatter<io::layer::http2::SettingsState> {
      * @param ctx the format context to write into.
      * @return an output iterator past the written text.
      */
-    template <typename FormatContext>
-    auto format(io::layer::http2::SettingsState state, FormatContext &ctx) const {
+    template<typename FormatContext>
+    auto format(io::layer::http2::SettingsState state, FormatContext& ctx) const
+    {
         std::string_view name = "UNKNOWN";
         // Map each known enumerator to its name; anything unrecognized keeps the "UNKNOWN" default.
         switch (state) {
             using enum io::layer::http2::SettingsState;
-        case UNACKNOWLEDGED:
-            name = "UNACKNOWLEDGED";
-            break;
-        case ACKNOWLEDGED:
-            name = "ACKNOWLEDGED";
-            break;
-        case IMPLEMENTED:
-            name = "IMPLEMENTED";
-            break;
+            case UNACKNOWLEDGED:
+                name = "UNACKNOWLEDGED";
+                break;
+            case ACKNOWLEDGED:
+                name = "ACKNOWLEDGED";
+                break;
+            case IMPLEMENTED:
+                name = "IMPLEMENTED";
+                break;
         }
         return std::format_to(ctx.out(), "{}", name);
     }
@@ -63,16 +74,18 @@ struct std::formatter<io::layer::http2::SettingsState> {
 
 export namespace io::layer::http2 {
 
-class Settings {
-  public:
+class Settings
+{
+public:
     /**
      * @brief Builds a settings set at RFC 9113 spec defaults — 4096-byte header table, push
      * enabled, 100 max concurrent streams (RFC says "initially infinite" but 100's the
      * practical cap advertised here, bet), 65535 initial window, minimum 16384 frame size,
      * unlimited header list size.
      */
-    explicit Settings()
-        : m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()} {
+    explicit Settings() :
+        m_max_header_list_size{std::numeric_limits<std::uint32_t>::max()}
+    {
         core::logger::debug("http2/settings", "init state={}", m_state);
     }
 
@@ -90,73 +103,90 @@ class Settings {
      * exceeds `MAX_INITIAL_WINDOW_SIZE`, or MAX_FRAME_SIZE is outside `[MIN_FRAME_SIZE,
      * MAX_FRAME_SIZE]`.
      */
-    void apply(std::uint16_t setting_id, std::uint32_t value) {
+    void apply(std::uint16_t setting_id, std::uint32_t value)
+    {
         // Only ids 0x1-0x6 are recognized; anything else falls through to the default arm
         // per RFC 9113 §6.5.2 — unknown settings get ignored for negotiation, not rejected,
         // but are still recorded for extension hooks to observe.
         switch (setting_id) {
-        case 0x1: {
-            core::logger::debug("http2/settings", "HEADER_TABLE_SIZE={}", value);
-            m_header_table_size = value;
-            return;
-        }
-        case 0x2: {
-            // Spec-mandated: ENABLE_PUSH is strictly boolean on the wire.
-            if (value > 1) {
-                throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                                   "SETTINGS_ENABLE_PUSH must be 0 or 1"};
-            }
-            core::logger::debug("http2/settings", "ENABLE_PUSH={}", value);
-            m_enable_push = (value == 1);
-            return;
-        }
-        case 0x3: {
-            core::logger::debug("http2/settings", "MAX_CONCURRENT_STREAMS={}", value);
-            m_max_concurrent_streams = value;
-            return;
-        }
-        case 0x4: {
-            // Capped at 2^31-1 — anything past that overflows the signed window math elsewhere.
-            if (value > MAX_INITIAL_WINDOW_SIZE) {
-                throw error::http::ConnectionError{error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
-                                                   "SETTINGS_INITIAL_WINDOW_SIZE exceeds 2^31-1"};
-            }
-            core::logger::debug("http2/settings", "INITIAL_WINDOW_SIZE={}", value);
-            m_initial_window_size = value;
-            return;
-        }
-        case 0x5: {
-            // Must stay inside the spec-defined [16384, 2^24-1] frame-size range.
-            if (value < MIN_FRAME_SIZE || value > MAX_FRAME_SIZE) {
-                throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                                   "SETTINGS_MAX_FRAME_SIZE must be in [16384, 2^24-1]"};
-            }
-            core::logger::debug("http2/settings", "MAX_FRAME_SIZE={}", value);
-            m_max_frame_size = value;
-            return;
-        }
-        case 0x6: {
-            core::logger::debug("http2/settings", "MAX_HEADER_LIST_SIZE={}", value);
-            m_max_header_list_size = value;
-            return;
-        }
-        default:
-            core::logger::debug("http2/settings", "unrecognized setting id={} value={}", setting_id,
-                                value);
-            m_vendor_settings.emplace_back(setting_id, value);
-            return;
+            case 0x1:
+                {
+                    core::logger::debug("http2/settings", "HEADER_TABLE_SIZE={}", value);
+                    m_header_table_size = value;
+                    return;
+                }
+            case 0x2:
+                {
+                    // Spec-mandated: ENABLE_PUSH is strictly boolean on the wire.
+                    if (value > 1) {
+                        throw error::http::ConnectionError{
+                            error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                            "SETTINGS_ENABLE_PUSH must be 0 or 1"
+                        };
+                    }
+                    core::logger::debug("http2/settings", "ENABLE_PUSH={}", value);
+                    m_enable_push = (value == 1);
+                    return;
+                }
+            case 0x3:
+                {
+                    core::logger::debug("http2/settings", "MAX_CONCURRENT_STREAMS={}", value);
+                    m_max_concurrent_streams = value;
+                    return;
+                }
+            case 0x4:
+                {
+                    // Capped at 2^31-1 — anything past that overflows the signed window math
+                    // elsewhere.
+                    if (value > MAX_INITIAL_WINDOW_SIZE) {
+                        throw error::http::ConnectionError{
+                            error::http::Http2ErrorCode::FLOW_CONTROL_ERROR,
+                            "SETTINGS_INITIAL_WINDOW_SIZE exceeds 2^31-1"
+                        };
+                    }
+                    core::logger::debug("http2/settings", "INITIAL_WINDOW_SIZE={}", value);
+                    m_initial_window_size = value;
+                    return;
+                }
+            case 0x5:
+                {
+                    // Must stay inside the spec-defined [16384, 2^24-1] frame-size range.
+                    if (value < MIN_FRAME_SIZE || value > MAX_FRAME_SIZE) {
+                        throw error::http::ConnectionError{
+                            error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                            "SETTINGS_MAX_FRAME_SIZE must be in [16384, 2^24-1]"
+                        };
+                    }
+                    core::logger::debug("http2/settings", "MAX_FRAME_SIZE={}", value);
+                    m_max_frame_size = value;
+                    return;
+                }
+            case 0x6:
+                {
+                    core::logger::debug("http2/settings", "MAX_HEADER_LIST_SIZE={}", value);
+                    m_max_header_list_size = value;
+                    return;
+                }
+            default:
+                core::logger::debug(
+                    "http2/settings", "unrecognized setting id={} value={}", setting_id, value
+                );
+                m_vendor_settings.emplace_back(setting_id, value);
+                return;
         }
     }
 
     /**
      * @brief Copies the six negotiable SETTINGS fields (header table size, enable push, max
      * concurrent streams, initial window size, max frame size, max header list size) from
-     * `other` onto `*this`. Deliberately leaves `m_state`, `m_last_stream_id`, `m_ping_tracker`,
-     * and `m_delta_window_on_settings` untouched — those track connection lifecycle, not
-     * wire-negotiated values, and must survive across repeated SETTINGS exchanges.
+     * `other` onto `*this`. Deliberately leaves `m_state`, `m_last_stream_id`,
+     * `m_ping_tracker`, and `m_delta_window_on_settings` untouched — those track connection
+     * lifecycle, not wire-negotiated values, and must survive across repeated SETTINGS
+     * exchanges.
      * @param other the decoded settings to copy the six negotiable fields from.
      */
-    void apply_all(const Settings &other) {
+    void apply_all(const Settings& other)
+    {
         core::logger::debug("http2/settings", "apply_all from decoded settings");
 
         m_header_table_size = other.m_header_table_size;
@@ -178,7 +208,8 @@ class Settings {
      * @param setting_id the vendor/extension setting id.
      * @param value the value for it.
      */
-    void add_local_setting_override(std::uint16_t setting_id, std::uint32_t value) {
+    void add_local_setting_override(std::uint16_t setting_id, std::uint32_t value)
+    {
         core::logger::debug("http2/settings", "vendor setting id={} value={}", setting_id, value);
 
         m_vendor_settings.emplace_back(setting_id, value);
@@ -187,13 +218,15 @@ class Settings {
     /**
      * @brief Grabs every vendor/extension setting id/value pair attached to this instance —
      * one list serving both directions since no single `Settings` instance is ever both: on a
-     * decoded remote instance it holds the ids `apply()` didn't recognize (ids outside 0x1-0x6),
-     * on the local instance it holds `add_local_setting_override()` entries. `on_remote_settings`
-     * reads it on the remote side; `WriteSettingsAdaptor` reads it on the local side.
+     * decoded remote instance it holds the ids `apply()` didn't recognize (ids outside
+     * 0x1-0x6), on the local instance it holds `add_local_setting_override()` entries.
+     * `on_remote_settings` reads it on the remote side; `WriteSettingsAdaptor` reads it on the
+     * local side.
      * @return the vendor id/value pairs on this instance.
      */
     [[nodiscard]] std::span<const std::pair<std::uint16_t, std::uint32_t>>
-    get_vendor_settings() const noexcept {
+    get_vendor_settings() const noexcept
+    {
         return m_vendor_settings;
     }
 
@@ -202,7 +235,8 @@ class Settings {
      * payload, the standard reply motion for an incoming non-ACK SETTINGS frame.
      * @return a ready-to-send SETTINGS ACK frame.
      */
-    static FrameBuilder<shared_layer::FrameRole::SENDER> generate_ack() {
+    static FrameBuilder<shared_layer::FrameRole::SENDER> generate_ack()
+    {
         core::logger::debug("http2/settings", "ACK frame");
         return FrameBuilder<shared_layer::FrameRole::SENDER>{}
             .add_type(shared_layer::FrameType::SETTINGS)
@@ -216,12 +250,12 @@ class Settings {
      * advertised.
      * @param stream_id the stream id to store.
      */
-    void set_last_stream_id(const std::uint32_t &stream_id) noexcept {
+    void set_last_stream_id(const std::uint32_t& stream_id) noexcept
+    {
         core::logger::debug("http2/settings", "last_stream_id={}", stream_id);
 
         m_last_stream_id = stream_id;
     }
-
 
     /**
      * @brief Records the pending send-window delta produced by an INITIAL_WINDOW_SIZE change,
@@ -229,7 +263,8 @@ class Settings {
      * (see `Session::receive()`).
      * @param delta the signed window delta to store — can be negative if the window shrank.
      */
-    void set_delta_window_on_settings(const std::int32_t &delta) noexcept {
+    void set_delta_window_on_settings(const std::int32_t& delta) noexcept
+    {
         core::logger::debug("http2/settings", "delta_window={}", delta);
 
         m_delta_window_on_settings = delta;
@@ -239,7 +274,8 @@ class Settings {
      * @brief Sets the settings-exchange state.
      * @param state the state to store.
      */
-    void set_state(const SettingsState &state) noexcept {
+    void set_state(const SettingsState& state) noexcept
+    {
         core::logger::debug("http2/settings", "state={}", state);
 
         m_state = state;
@@ -253,7 +289,8 @@ class Settings {
      * stream-creation path for outgoing client requests.
      * @return the newly bumped stream id.
      */
-    std::uint32_t next_stream_id() noexcept {
+    std::uint32_t next_stream_id() noexcept
+    {
         core::logger::debug("http2/settings", "next stream id={}", m_last_stream_id + 2);
 
         return m_last_stream_id += 2;
@@ -264,61 +301,103 @@ class Settings {
      * ACKed and window deltas applied).
      * @return true if state is IMPLEMENTED.
      */
-    [[nodiscard]] bool is_finished() const noexcept { return m_state == SettingsState::IMPLEMENTED; }
+    [[nodiscard]] bool is_finished() const noexcept
+    {
+        return m_state == SettingsState::IMPLEMENTED;
+    }
+
     /**
      * @brief Checks whether the peer's SETTINGS has been ACKed but not yet fully implemented
      * (window deltas not yet propagated to streams).
      * @return true if state is ACKNOWLEDGED.
      */
-    [[nodiscard]] bool is_acknowledged() const noexcept { return m_state == SettingsState::ACKNOWLEDGED; }
+    [[nodiscard]] bool is_acknowledged() const noexcept
+    {
+        return m_state == SettingsState::ACKNOWLEDGED;
+    }
 
     /**
      * @brief Grabs SETTINGS_HEADER_TABLE_SIZE.
      * @return the HPACK dynamic table size this side is willing to use.
      */
-    [[nodiscard]] const std::uint32_t &get_header_table_size()    const noexcept { return m_header_table_size; }
+    [[nodiscard]] const std::uint32_t& get_header_table_size() const noexcept
+    {
+        return m_header_table_size;
+    }
+
     /**
      * @brief Grabs SETTINGS_ENABLE_PUSH.
      * @return true if server push is enabled.
      */
-    [[nodiscard]] const bool          &get_enable_push()           const noexcept { return m_enable_push; }
+    [[nodiscard]] const bool& get_enable_push() const noexcept
+    {
+        return m_enable_push;
+    }
+
     /**
      * @brief Grabs SETTINGS_MAX_CONCURRENT_STREAMS.
      * @return the max number of streams the remote may open simultaneously.
      */
-    [[nodiscard]] const std::uint32_t &get_max_concurrent_streams() const noexcept { return m_max_concurrent_streams; }
+    [[nodiscard]] const std::uint32_t& get_max_concurrent_streams() const noexcept
+    {
+        return m_max_concurrent_streams;
+    }
+
     /**
      * @brief Grabs SETTINGS_INITIAL_WINDOW_SIZE.
      * @return the initial flow-control window for new streams.
      */
-    [[nodiscard]] const std::uint32_t &get_initial_window_size()  const noexcept { return m_initial_window_size; }
+    [[nodiscard]] const std::uint32_t& get_initial_window_size() const noexcept
+    {
+        return m_initial_window_size;
+    }
+
     /**
      * @brief Grabs SETTINGS_MAX_FRAME_SIZE.
      * @return the max frame payload size this side accepts.
      */
-    [[nodiscard]] const std::uint32_t &get_max_frame_size()       const noexcept { return m_max_frame_size; }
+    [[nodiscard]] const std::uint32_t& get_max_frame_size() const noexcept
+    {
+        return m_max_frame_size;
+    }
+
     /**
      * @brief Grabs SETTINGS_MAX_HEADER_LIST_SIZE.
      * @return the advisory max total header field size this side accepts.
      */
-    [[nodiscard]] const std::uint32_t &get_max_header_list_size() const noexcept { return m_max_header_list_size; }
+    [[nodiscard]] const std::uint32_t& get_max_header_list_size() const noexcept
+    {
+        return m_max_header_list_size;
+    }
+
     /**
      * @brief Grabs the recorded last stream id (GOAWAY threshold).
      * @return the last stream id.
      */
-    [[nodiscard]] const std::uint32_t &get_last_stream_id()       const noexcept { return m_last_stream_id; }
+    [[nodiscard]] const std::uint32_t& get_last_stream_id() const noexcept
+    {
+        return m_last_stream_id;
+    }
+
     /**
      * @brief Grabs mutable access to the PING round-trip tracker.
      * @return the ping tracker.
      */
-    shared_layer::ping::PingTracker   &get_ping_tracker()          noexcept { return m_ping_tracker; }
+    shared_layer::ping::PingTracker& get_ping_tracker() noexcept
+    {
+        return m_ping_tracker;
+    }
+
     /**
      * @brief Grabs the pending window delta from an unapplied INITIAL_WINDOW_SIZE change.
      * @return the delta — zero once it's been consumed and applied to open streams.
      */
-    [[nodiscard]] const std::int32_t  &get_delta_window_on_settings() const noexcept { return m_delta_window_on_settings; }
+    [[nodiscard]] const std::int32_t& get_delta_window_on_settings() const noexcept
+    {
+        return m_delta_window_on_settings;
+    }
 
-  private:
+private:
     // SETTINGS_HEADER_TABLE_SIZE (0x1)
     // Maximum size of the HPACK dynamic table the sender is willing to use.
     // Default: 4096.  No upper bound specified by the RFC.
@@ -366,8 +445,8 @@ class Settings {
     std::vector<std::pair<std::uint16_t, std::uint32_t>> m_vendor_settings;
 };
 
-
-struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdaptor> {
+struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdaptor>
+{
     /**
      * @brief Defaulted, stateless — nothing to configure for reading settings off the wire.
      */
@@ -383,52 +462,62 @@ struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdap
      * @throws error::http::ConnectionError if any decoded pair fails `Settings::apply()`'s
      * validation (see that method for the specific per-setting rules).
      */
-    template <std::ranges::viewable_range R>
-    Settings operator()(R &&data) const {
+    template<std::ranges::viewable_range R>
+    Settings operator()(R&& data) const
+    {
         // Slice into 6-byte pairs, drop any trailing partial chunk, decode each into
         // (id, value), then fold every pair onto a fresh Settings via apply().
         return std::ranges::fold_left(
-            std::forward<R>(data) | std::views::chunk(6) | std::views::filter([](auto &&chunk) {
+            std::forward<R>(data) | std::views::chunk(6) | std::views::filter([](auto&& chunk) {
                 return std::ranges::distance(chunk) == 6;
-            }) | std::views::transform([](auto &&chunk) {
-                return std::pair{chunk | std::views::take(2) | utils::codec::ReadBigEndianAdaptor<std::uint16_t>{},
-                                 chunk | std::views::drop(2) | std::views::take(4) |
-                                     utils::codec::ReadBigEndianAdaptor<>{}};
+            }) | std::views::transform([](auto&& chunk) {
+                return std::pair{
+                    chunk | std::views::take(2) |
+                        utils::codec::ReadBigEndianAdaptor<std::uint16_t>{},
+                    chunk | std::views::drop(2) | std::views::take(4) |
+                        utils::codec::ReadBigEndianAdaptor<>{}
+                };
             }),
-            Settings{}, [](Settings acc, auto &&pair) {
+            Settings{}, [](Settings acc, auto&& pair) {
                 acc.apply(pair.first, pair.second);
                 return acc;
-            });
+            }
+        );
     }
 };
 
-
-struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAdaptor> {
+struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAdaptor>
+{
     /**
      * @brief Range adaptor closure ctor — stashes the settings instance to encode. Bet, that's
      * it, that's the whole ctor.
      * @param settings the settings to encode. Stored by reference, must outlive this adaptor.
      */
-    explicit constexpr WriteSettingsAdaptor(Settings &settings) : m_settings{settings} {}
+    explicit constexpr WriteSettingsAdaptor(Settings& settings) :
+        m_settings{settings}
+    {
+    }
 
     /**
      * @brief Encodes only the settings that differ from spec defaults — each non-default value
-     * gets emitted as a 6-byte id/value pair, defaults are skipped entirely to keep the SETTINGS
-     * frame lean.
+     * gets emitted as a 6-byte id/value pair, defaults are skipped entirely to keep the
+     * SETTINGS frame lean.
      * @note ENABLE_PUSH is the odd one out: it only gets emitted when *disabled*, since `true`
      * is the default. Every other field compares against its numeric default the normal way.
      * @tparam R a viewable range this appends the encoded settings bytes onto.
      * @param range the range to append the encoded settings onto.
      * @return `range` followed by the encoded non-default settings, concatenated.
      */
-    template <std::ranges::viewable_range R>
-    auto operator()(R &&range) const {
+    template<std::ranges::viewable_range R>
+    auto operator()(R&& range) const
+    {
         std::vector<std::byte> settings_bytes;
 
         // Small local helper, lowkey does all the heavy lifting — encodes one id/value pair and
         // appends it to the running buffer.
         auto emit = [&](const std::uint16_t SETTING_ID, const std::uint32_t VALUE) {
-            auto entry = std::views::empty<std::byte> | utils::codec::WriteBigEndianAdaptor<std::uint16_t>{SETTING_ID} |
+            auto entry = std::views::empty<std::byte> |
+                         utils::codec::WriteBigEndianAdaptor<std::uint16_t>{SETTING_ID} |
                          utils::codec::WriteBigEndianAdaptor<std::uint32_t>{VALUE} |
                          std::ranges::to<std::vector<std::byte>>();
 
@@ -446,7 +535,8 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
             emit(0x2, 0);
         }
 
-        if (m_settings.get().get_max_concurrent_streams() != std::numeric_limits<std::uint32_t>::max()) {
+        if (m_settings.get().get_max_concurrent_streams() !=
+            std::numeric_limits<std::uint32_t>::max()) {
             emit(0x3, m_settings.get().get_max_concurrent_streams());
         }
 
@@ -458,21 +548,22 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
             emit(0x5, m_settings.get().get_max_frame_size());
         }
 
-        if (m_settings.get().get_max_header_list_size() != std::numeric_limits<std::uint32_t>::max()) {
+        if (m_settings.get().get_max_header_list_size() !=
+            std::numeric_limits<std::uint32_t>::max()) {
             emit(0x6, m_settings.get().get_max_header_list_size());
         }
 
         // Vendor/extension overrides registered via add_local_setting_override() go out after
         // the six spec fields — this is how an extension's on_local_settings() mutation (e.g.
         // RFC 8441's SETTINGS_ENABLE_CONNECT_PROTOCOL) actually reaches the wire.
-        for (const auto &[setting_id, value] : m_settings.get().get_vendor_settings()) {
+        for (const auto& [setting_id, value]: m_settings.get().get_vendor_settings()) {
             emit(setting_id, value);
         }
 
         return std::views::concat(std::forward<R>(range), std::move(settings_bytes));
     }
 
-  private:
+private:
     std::reference_wrapper<Settings> m_settings;
 };
 
@@ -502,38 +593,49 @@ suite<"Settings::apply"> settings_apply_suite = [] {
     "applies every recognized setting id to its matching field"_test = [] {
         Settings settings;
 
-        settings.apply(0x1, 8192);
+        settings.apply(0x1, 8'192);
         settings.apply(0x2, 0);
         settings.apply(0x3, 50);
-        settings.apply(0x4, 1000);
-        settings.apply(0x5, 20000);
-        settings.apply(0x6, 4000);
+        settings.apply(0x4, 1'000);
+        settings.apply(0x5, 20'000);
+        settings.apply(0x6, 4'000);
 
-        expect(settings.get_header_table_size() == 8192U);
+        expect(settings.get_header_table_size() == 8'192U);
         expect(not settings.get_enable_push());
         expect(settings.get_max_concurrent_streams() == 50U);
-        expect(settings.get_initial_window_size() == 1000U);
-        expect(settings.get_max_frame_size() == 20000U);
-        expect(settings.get_max_header_list_size() == 4000U);
+        expect(settings.get_initial_window_size() == 1'000U);
+        expect(settings.get_max_frame_size() == 20'000U);
+        expect(settings.get_max_header_list_size() == 4'000U);
     };
 
     "rejects ENABLE_PUSH values other than 0 or 1"_test = [] {
         Settings settings;
-        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x2, 2); }));
+        expect(throws<error::http::ConnectionError>([&] {
+            settings.apply(0x2, 2);
+        }));
     };
 
     "rejects INITIAL_WINDOW_SIZE past 2^31-1"_test = [] {
         Settings settings;
-        expect(throws<error::http::ConnectionError>(
-            [&] { settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE + 1); }));
-        expect(nothrow([&] { settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE); }));
+        expect(throws<error::http::ConnectionError>([&] {
+            settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE + 1);
+        }));
+        expect(nothrow([&] {
+            settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE);
+        }));
     };
 
     "rejects MAX_FRAME_SIZE outside [16384, 2^24-1]"_test = [] {
         Settings settings;
-        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x5, MIN_FRAME_SIZE - 1); }));
-        expect(throws<error::http::ConnectionError>([&] { settings.apply(0x5, MAX_FRAME_SIZE + 1); }));
-        expect(nothrow([&] { settings.apply(0x5, MIN_FRAME_SIZE); }));
+        expect(throws<error::http::ConnectionError>([&] {
+            settings.apply(0x5, MIN_FRAME_SIZE - 1);
+        }));
+        expect(throws<error::http::ConnectionError>([&] {
+            settings.apply(0x5, MAX_FRAME_SIZE + 1);
+        }));
+        expect(nothrow([&] {
+            settings.apply(0x5, MIN_FRAME_SIZE);
+        }));
     };
 
     "records unknown setting ids as vendor settings instead of rejecting"_test = [] {
@@ -550,7 +652,7 @@ suite<"Settings::apply_all"> settings_apply_all_suite = [] {
     "copies the six negotiable fields and vendor settings, leaving lifecycle state untouched"_test =
         [] {
             Settings source;
-            source.apply(0x1, 8192);
+            source.apply(0x1, 8'192);
             source.apply(0x3, 10);
             source.apply(0x9, 42);
 
@@ -561,7 +663,7 @@ suite<"Settings::apply_all"> settings_apply_all_suite = [] {
 
             target.apply_all(source);
 
-            expect(target.get_header_table_size() == 8192U);
+            expect(target.get_header_table_size() == 8'192U);
             expect(target.get_max_concurrent_streams() == 10U);
             expect(target.get_vendor_settings().size() == 1U);
             expect(target.get_vendor_settings()[0].first == 0x9);
@@ -579,7 +681,9 @@ suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
         settings.add_local_setting_override(0x8, 1);
 
         expect(settings.get_vendor_settings().size() == 1U);
-        expect(settings.get_vendor_settings()[0] == std::pair<std::uint16_t, std::uint32_t>{0x8, 1});
+        expect(
+            settings.get_vendor_settings()[0] == std::pair<std::uint16_t, std::uint32_t>{0x8, 1}
+        );
     };
 
     "set_last_stream_id / get_last_stream_id round-trip"_test = [] {
@@ -645,20 +749,20 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
 
         auto append_pair = [&](std::uint16_t setting_id, std::uint32_t value) {
             auto entry = std::views::empty<std::byte> |
-                        utils::codec::WriteBigEndianAdaptor<std::uint16_t>{setting_id} |
-                        utils::codec::WriteBigEndianAdaptor<std::uint32_t>{value} |
-                        std::ranges::to<std::vector<std::byte>>();
+                         utils::codec::WriteBigEndianAdaptor<std::uint16_t>{setting_id} |
+                         utils::codec::WriteBigEndianAdaptor<std::uint32_t>{value} |
+                         std::ranges::to<std::vector<std::byte>>();
             bytes.insert(bytes.end(), entry.begin(), entry.end());
         };
 
-        append_pair(0x1, 8192);
+        append_pair(0x1, 8'192);
         append_pair(0x3, 10);
         // Trailing partial chunk (3 bytes) — dropped, not decoded.
         bytes.insert(bytes.end(), 3, std::byte{0});
 
         auto decoded = bytes | ReadSettingsAdaptor{};
 
-        expect(decoded.get_header_table_size() == 8192U);
+        expect(decoded.get_header_table_size() == 8'192U);
         expect(decoded.get_max_concurrent_streams() == 10U);
     };
 
@@ -668,9 +772,9 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
         auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
                      std::ranges::to<std::vector<std::byte>>();
 
-        // MAX_CONCURRENT_STREAMS and MAX_FRAME_SIZE always get emitted per the adaptor's own
-        // comparison logic (see WriteSettingsAdaptor::operator() in this file) — two 6-byte
-        // entries even for an otherwise-default Settings.
+        // MAX_CONCURRENT_STREAMS and MAX_FRAME_SIZE always get emitted per the adaptor's
+        // own comparison logic (see WriteSettingsAdaptor::operator() in this file) — two
+        // 6-byte entries even for an otherwise-default Settings.
         expect(bytes.size() == 12U);
 
         auto decoded = bytes | ReadSettingsAdaptor{};
@@ -680,14 +784,14 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
 
     "emits a changed HEADER_TABLE_SIZE and disabled ENABLE_PUSH"_test = [] {
         Settings settings;
-        settings.apply(0x1, 8192);
+        settings.apply(0x1, 8'192);
         settings.apply(0x2, 0);
 
         auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
                      std::ranges::to<std::vector<std::byte>>();
 
         auto decoded = bytes | ReadSettingsAdaptor{};
-        expect(decoded.get_header_table_size() == 8192U);
+        expect(decoded.get_header_table_size() == 8'192U);
         expect(not decoded.get_enable_push());
     };
 

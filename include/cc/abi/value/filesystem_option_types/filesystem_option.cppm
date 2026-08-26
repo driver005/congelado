@@ -7,7 +7,8 @@ import std;
 export namespace ice {
 
 // Option struct wrapper
-struct FilesystemOption {
+struct FilesystemOption
+{
     std::string name;
     std::string description;
     bool per_file{};

@@ -7,8 +7,8 @@ import boost.ut;
 
 export namespace core::router {
 
-inline constexpr std::uint16_t NO_CHILDREN = 0xFFFF;
-inline constexpr std::size_t HANDLER_MASK = 0xFFFFFFFFFFFFFFFF;
+inline constexpr std::uint16_t NO_CHILDREN = 0xFF'FF;
+inline constexpr std::size_t HANDLER_MASK = 0xFF'FF'FF'FF'FF'FF'FF'FF;
 
 } // namespace core::router
 
@@ -18,8 +18,8 @@ using namespace boost::ut;
 
 suite<"router_consts"> router_consts_suite = [] {
     "NO_CHILDREN and HANDLER_MASK are all-bits-set sentinels for their width"_test = [] {
-        expect(NO_CHILDREN == 0xFFFF);
-        expect(HANDLER_MASK == 0xFFFFFFFFFFFFFFFFULL);
+        expect(NO_CHILDREN == 0xFF'FF);
+        expect(HANDLER_MASK == 0xFF'FF'FF'FF'FF'FF'FF'FFULL);
     };
 };
 

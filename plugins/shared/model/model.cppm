@@ -29,8 +29,15 @@ export namespace model {
 /// @brief Every persisted model type, in baseline/migration creation order — single source of
 /// truth for both the engine's baseline migration and the schema-diff migration generator, so
 /// they can never drift apart from each other.
-using AllModels = std::tuple<WorkflowDef, TaskDef, WorkflowExecution, TaskInstance, WorkflowEvent,
-                             EventHandler, WorkflowSchedule, PollData>;
+using AllModels = std::tuple<
+    WorkflowDef,
+    TaskDef,
+    WorkflowExecution,
+    TaskInstance,
+    WorkflowEvent,
+    EventHandler,
+    WorkflowSchedule,
+    PollData>;
 
 } // namespace model
 

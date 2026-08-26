@@ -7,7 +7,8 @@ import boost.ut;
 
 export namespace interfaces {
 
-enum class Status : std::uint16_t {
+enum class Status : std::uint16_t
+{
     // 1xx Informational
     CONTINUE = 100,
     SWITCHING_PROTOCOLS = 101,
@@ -59,7 +60,8 @@ enum class Status : std::uint16_t {
     HTTP_VERSION_NOT_SUPPORTED = 505,
 };
 
-[[nodiscard]] constexpr std::uint16_t status_code(Status status) noexcept {
+[[nodiscard]] constexpr std::uint16_t status_code(Status status) noexcept
+{
     return std::to_underlying(status);
 }
 

@@ -9,7 +9,8 @@ export namespace interfaces {
 /// string, paginated. Shape mirrors Conductor's own search query params
 /// (query/freeText/start/size/sort) — `query`'s grammar is left up to whichever backend is
 /// actually active (SQL `WHERE`-style for postgres, Lucene-style for Elasticsearch).
-struct SearchQuery {
+struct SearchQuery
+{
     std::string query;
     std::string free_text;
     std::uint32_t start{0};
@@ -25,18 +26,19 @@ struct SearchQuery {
 /// for SQL text. `collection` names WHICH set of documents an operation applies to (e.g. an
 /// engine plugin might use "workflow_summaries"/"task_summaries") — this interface has no
 /// concept of workflows or tasks at all, so any plugin can reuse it for any kind of document.
-class ISearchProvider {
-  public:
+class ISearchProvider
+{
+public:
     /**
      * @brief Virtual dtor, default's good — polymorphic search backends clean up fine through
      * the base pointer, no extra motion needed.
      */
     virtual ~ISearchProvider() = default;
     ISearchProvider() = default;
-    ISearchProvider(const ISearchProvider &) = delete;
-    ISearchProvider &operator=(const ISearchProvider &) = delete;
-    ISearchProvider(ISearchProvider &&) = delete;
-    ISearchProvider &operator=(ISearchProvider &&) = delete;
+    ISearchProvider(const ISearchProvider&) = delete;
+    ISearchProvider& operator=(const ISearchProvider&) = delete;
+    ISearchProvider(ISearchProvider&&) = delete;
+    ISearchProvider& operator=(ISearchProvider&&) = delete;
 
     /**
      * @brief Tells you which search backend is actually running the show behind this interface
@@ -53,16 +55,21 @@ class ISearchProvider {
      * @param document_json the document, already JSON-encoded by the caller.
      * @param callback gets `"ok"` on success, `""` on failure.
      */
-    virtual void index(std::string_view collection, std::string_view id,
-                       std::string_view document_json, shared::QueryReadFn &&callback) noexcept = 0;
+    virtual void index(
+        std::string_view collection,
+        std::string_view id,
+        std::string_view document_json,
+        shared::QueryReadFn&& callback
+    ) noexcept = 0;
     /**
      * @brief Removes a document from the index.
      * @param collection which set of documents this belongs to.
      * @param id the document's id within `collection`.
      * @param callback gets `"ok"` on success, `""` on failure.
      */
-    virtual void remove(std::string_view collection, std::string_view id,
-                        shared::QueryReadFn &&callback) noexcept = 0;
+    virtual void remove(
+        std::string_view collection, std::string_view id, shared::QueryReadFn&& callback
+    ) noexcept = 0;
     /**
      * @brief Searches documents within one collection.
      * @param collection which set of documents to search.
@@ -70,8 +77,9 @@ class ISearchProvider {
      * @param callback gets a JSON array of matched documents (`"[]"` for zero hits), or `""` on
      * failure.
      */
-    virtual void search(std::string_view collection, const SearchQuery &query,
-                        shared::QueryReadFn &&callback) noexcept = 0;
+    virtual void search(
+        std::string_view collection, const SearchQuery& query, shared::QueryReadFn&& callback
+    ) noexcept = 0;
 };
 
 } // namespace interfaces

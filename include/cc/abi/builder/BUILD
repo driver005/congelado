@@ -6,7 +6,7 @@ congelado_module_library(
     primary_interface = "cache.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -15,7 +15,7 @@ congelado_module_library(
     primary_interface = "cron.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -24,7 +24,7 @@ congelado_module_library(
     primary_interface = "database.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -33,7 +33,7 @@ congelado_module_library(
     primary_interface = "events.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -42,7 +42,7 @@ congelado_module_library(
     primary_interface = "logger.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -51,7 +51,7 @@ congelado_module_library(
     primary_interface = "manager.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -60,7 +60,7 @@ congelado_module_library(
     primary_interface = "orchestrator.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -87,7 +87,7 @@ congelado_module_library(
     primary_interface = "protocol.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -96,7 +96,7 @@ congelado_module_library(
     primary_interface = "python.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -105,7 +105,7 @@ congelado_module_library(
     primary_interface = "search.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -114,7 +114,7 @@ congelado_module_library(
     primary_interface = "serde.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -123,7 +123,7 @@ congelado_module_library(
     primary_interface = "worker.cppm",
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
 )
 
@@ -154,6 +154,7 @@ congelado_module_library(
     deps = [
         # Subdirectory modules (each is a complete module with its own partitions)
         "//include/cc/abi/builder/intern:cc_abi_builder_intern",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
         "//include/cc/abi/builder/otel:cc_abi_builder_otel",
         "//include/cc/abi/builder/io:cc_abi_builder_io",
         "//include/cc/abi/builder/filesystem:cc_abi_builder_filesystem",

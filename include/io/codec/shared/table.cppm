@@ -11,43 +11,65 @@ import boost.ut;
 
 namespace io::shared_codec::table {
 
-template <typename... Ts>
-struct Overloaded : Ts... {
+template<typename... Ts>
+struct Overloaded : Ts...
+{
     using Ts::operator()...;
 };
 
-enum class HeaderKeyType : bool { NAME_ONLY = false, FULL_MATCH = true };
+enum class HeaderKeyType : bool
+{
+    NAME_ONLY = false,
+    FULL_MATCH = true
+};
 
-class HeaderKey {
-  public:
+class HeaderKey
+{
+public:
     /**
      * @brief Builds a key from a plain string name — for headers that don't have a static-table
      * token (custom/non-standard header names).
      * @param name the header name; borrowed as a string_view, so it must outlive this key.
      * @param value optional header value; only matters when `type` is FULL_MATCH.
-     * @param type NAME_ONLY (default) ignores `value` for equality/hashing, FULL_MATCH includes it.
+     * @param type NAME_ONLY (default) ignores `value` for equality/hashing, FULL_MATCH includes
+     * it.
      * @throws std::runtime_error if `name` is empty — an empty header name is never valid, no
      * exceptions carved out.
      */
-    HeaderKey(std::string_view name, std::string_view value = {},
-              HeaderKeyType type = HeaderKeyType::NAME_ONLY)
-        : m_name(name), m_value(value), m_type(type) {
+    HeaderKey(
+        std::string_view name,
+        std::string_view value = {},
+        HeaderKeyType type = HeaderKeyType::NAME_ONLY
+    ) :
+        m_name(name),
+        m_value(value),
+        m_type(type)
+    {
         // Guard clause — an empty string-name key is never valid, straight throw.
         if (std::holds_alternative<std::string_view>(m_name) &&
             std::get<std::string_view>(m_name).empty()) {
             throw std::runtime_error("Header name cannot be empty");
         }
     }
+
     /**
      * @brief Builds a key from a well-known header Token — the fast path for static-table
      * headers, no string comparison needed for the name half.
      * @param token the header's interned Token.
      * @param value optional header value; only matters when `type` is FULL_MATCH.
-     * @param type NAME_ONLY (default) ignores `value` for equality/hashing, FULL_MATCH includes it.
+     * @param type NAME_ONLY (default) ignores `value` for equality/hashing, FULL_MATCH includes
+     * it.
      */
-    HeaderKey(interfaces::io::types::Token token, std::string_view value = {},
-              HeaderKeyType type = HeaderKeyType::NAME_ONLY)
-        : m_name(token), m_value(value), m_type(type) {}
+    HeaderKey(
+        interfaces::io::types::Token token,
+        std::string_view value = {},
+        HeaderKeyType type = HeaderKeyType::NAME_ONLY
+    ) :
+        m_name(token),
+        m_value(value),
+        m_type(type)
+    {
+    }
 
     /**
      * @brief Full equality: same name variant, same type, and (for FULL_MATCH) same value.
@@ -59,15 +81,16 @@ class HeaderKey {
     // (defensive, unreachable-here) valueless_by_exception() check that throws; std::get_if has
     // no throwing path at all, so dispatching manually on index() + get_if sidesteps the escape
     // entirely instead of just asserting it away.
-    bool operator==(const HeaderKey &other) const noexcept {
+    bool operator==(const HeaderKey& other) const noexcept
+    {
         if (m_name.index() != other.m_name.index()) {
             return false;
         }
 
         bool name_equal = false;
-        if (const auto *lhs = std::get_if<interfaces::io::types::Token>(&m_name)) {
+        if (const auto* lhs = std::get_if<interfaces::io::types::Token>(&m_name)) {
             name_equal = (*lhs == *std::get_if<interfaces::io::types::Token>(&other.m_name));
-        } else if (const auto *lhs_view = std::get_if<std::string_view>(&m_name)) {
+        } else if (const auto* lhs_view = std::get_if<std::string_view>(&m_name)) {
             name_equal = (*lhs_view == *std::get_if<std::string_view>(&other.m_name));
         }
 
@@ -88,8 +111,9 @@ class HeaderKey {
     // lowers to a jump table with an unconditional (defensive, unreachable-here)
     // __throw_bad_variant_access fallback for the "no alternative matched" case; std::get_if
     // never throws, so manual index()-driven dispatch removes the throwing path outright.
-    [[nodiscard]] bool is_equal(std::string_view name, std::string_view value,
-                                HeaderKeyType type) const noexcept {
+    [[nodiscard]] bool
+    is_equal(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept
+    {
         // Type mismatch is an instant false — no point comparing name/value at all.
         if (m_type != type) {
             return false;
@@ -98,16 +122,17 @@ class HeaderKey {
         // Dispatch on whichever variant alternative this key's name actually holds —
         // Token gets stringified for comparison, string_view compares directly.
         bool name_match = false;
-        if (const auto *token = std::get_if<interfaces::io::types::Token>(&m_name)) {
+        if (const auto* token = std::get_if<interfaces::io::types::Token>(&m_name)) {
             name_match = interfaces::io::types::token_to_string(*token) == name;
-        } else if (const auto *view = std::get_if<std::string_view>(&m_name)) {
+        } else if (const auto* view = std::get_if<std::string_view>(&m_name)) {
             name_match = (*view == name);
         }
 
         if (!name_match) {
             return false;
         }
-        // Name matched — for NAME_ONLY that's the whole answer, FULL_MATCH also needs the value.
+        // Name matched — for NAME_ONLY that's the whole answer, FULL_MATCH also needs the
+        // value.
         return (m_type == HeaderKeyType::NAME_ONLY) || (m_value == value);
     }
 
@@ -122,8 +147,10 @@ class HeaderKey {
      */
     // Same std::get_if-based dispatch as the string_view overload of is_equal() above — see
     // that overload's comment for why this avoids std::visit's internal throwing fallback.
-    [[nodiscard]] bool is_equal(interfaces::io::types::Token token, std::string_view value,
-                                HeaderKeyType type) const noexcept {
+    [[nodiscard]] bool is_equal(
+        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+    ) const noexcept
+    {
         // Same shape as the string_view overload — type mismatch bails immediately.
         if (m_type != type) {
             return false;
@@ -132,9 +159,9 @@ class HeaderKey {
         // Token-keyed sibling of the dispatch above: Token compares directly, string_view gets
         // the token stringified for comparison.
         bool name_match = false;
-        if (const auto *stored_token = std::get_if<interfaces::io::types::Token>(&m_name)) {
+        if (const auto* stored_token = std::get_if<interfaces::io::types::Token>(&m_name)) {
             name_match = (*stored_token == token);
-        } else if (const auto *view = std::get_if<std::string_view>(&m_name)) {
+        } else if (const auto* view = std::get_if<std::string_view>(&m_name)) {
             name_match = (*view == interfaces::io::types::token_to_string(token));
         }
 
@@ -151,27 +178,37 @@ class HeaderKey {
      * @return the stored name variant.
      */
     [[nodiscard]] constexpr std::variant<interfaces::io::types::Token, std::string_view>
-    get_name() const noexcept {
+    get_name() const noexcept
+    {
         return m_name;
     }
+
     /**
      * @brief Gets the stored value.
      * @return the header value (meaningless unless getType() is FULL_MATCH).
      */
-    [[nodiscard]] constexpr std::string_view get_value() const noexcept { return m_value; }
+    [[nodiscard]] constexpr std::string_view get_value() const noexcept
+    {
+        return m_value;
+    }
+
     /**
      * @brief Gets whether this key does name-only or full name+value matching.
      * @return the key's HeaderKeyType.
      */
-    [[nodiscard]] constexpr HeaderKeyType get_type() const noexcept { return m_type; }
+    [[nodiscard]] constexpr HeaderKeyType get_type() const noexcept
+    {
+        return m_type;
+    }
 
-  private:
+private:
     std::variant<interfaces::io::types::Token, std::string_view> m_name;
     std::string_view m_value;
     HeaderKeyType m_type;
 };
 
-struct HeaderEqual {
+struct HeaderEqual
+{
     using is_transparent = void;
 
     /**
@@ -181,21 +218,24 @@ struct HeaderEqual {
      * @param rhs right-hand key.
      * @return true if the two keys are equal.
      */
-    bool operator()(const HeaderKey &lhs, const HeaderKey &rhs) const noexcept {
+    bool operator()(const HeaderKey& lhs, const HeaderKey& rhs) const noexcept
+    {
         return lhs == rhs;
     }
 
     /**
-     * @brief Transparent comparator overload — lets a heterogeneous lookup (name/value/type) skip
-     * building a HeaderKey just to compare it.
+     * @brief Transparent comparator overload — lets a heterogeneous lookup (name/value/type)
+     * skip building a HeaderKey just to compare it.
      * @param key the map's stored key.
      * @param name the raw name to compare.
      * @param value the raw value to compare.
      * @param type the type to compare.
      * @return true if `key` matches the given name/value/type.
      */
-    bool operator()(const HeaderKey &key, std::string_view name, std::string_view value,
-                    HeaderKeyType type) const noexcept {
+    bool operator()(
+        const HeaderKey& key, std::string_view name, std::string_view value, HeaderKeyType type
+    ) const noexcept
+    {
         return key.is_equal(name, value, type);
     }
 
@@ -207,13 +247,19 @@ struct HeaderEqual {
      * @param type the type to compare.
      * @return true if `key` matches the given token/value/type.
      */
-    bool operator()(const HeaderKey &key, interfaces::io::types::Token token,
-                    std::string_view value, HeaderKeyType type) const noexcept {
+    bool operator()(
+        const HeaderKey& key,
+        interfaces::io::types::Token token,
+        std::string_view value,
+        HeaderKeyType type
+    ) const noexcept
+    {
         return key.is_equal(token, value, type);
     }
 };
 
-struct HeaderHasher {
+struct HeaderHasher
+{
     using is_transparent = void;
 
     /**
@@ -224,9 +270,10 @@ struct HeaderHasher {
      */
     // Same std::get_if-based dispatch rationale as HeaderKey::is_equal() above — avoids
     // std::visit's internal throwing fallback rather than just asserting it unreachable.
-    std::size_t operator()(const HeaderKey &key) const noexcept {
+    std::size_t operator()(const HeaderKey& key) const noexcept
+    {
         const auto NAME = key.get_name();
-        if (const auto *token = std::get_if<interfaces::io::types::Token>(&NAME)) {
+        if (const auto* token = std::get_if<interfaces::io::types::Token>(&NAME)) {
             return hash_impl(*token, key.get_value(), key.get_type());
         }
         return hash_impl(*std::get_if<std::string_view>(&NAME), key.get_value(), key.get_type());
@@ -240,8 +287,9 @@ struct HeaderHasher {
      * @param type the match type.
      * @return the combined hash.
      */
-    std::size_t operator()(std::string_view name, std::string_view value,
-                           HeaderKeyType type) const noexcept {
+    std::size_t
+    operator()(std::string_view name, std::string_view value, HeaderKeyType type) const noexcept
+    {
         return hash_impl(name, value, type);
     }
 
@@ -252,21 +300,24 @@ struct HeaderHasher {
      * @param type the match type.
      * @return the combined hash.
      */
-    std::size_t operator()(interfaces::io::types::Token token, std::string_view value,
-                           HeaderKeyType type) const noexcept {
+    std::size_t operator()(
+        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+    ) const noexcept
+    {
         return hash_impl(token, value, type);
     }
 
-  private:
+private:
     // Helper: Combines bits using the Golden Ratio to prevent collisions
     /**
-     * @brief Folds `value` into `seed` using the classic golden-ratio mix — keeps combined hashes
-     * from clustering.
+     * @brief Folds `value` into `seed` using the classic golden-ratio mix — keeps combined
+     * hashes from clustering.
      * @param seed the running hash, updated in place.
      * @param value the next component's hash to fold in.
      */
-    static void hash_combine(std::size_t &seed, std::size_t value) noexcept {
-        seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    static void hash_combine(std::size_t& seed, std::size_t value) noexcept
+    {
+        seed ^= value + 0x9E'37'79'B9 + (seed << 6) + (seed >> 2);
     }
 
     /**
@@ -278,8 +329,9 @@ struct HeaderHasher {
      * @param type the match type.
      * @return the combined hash.
      */
-    static std::size_t hash_impl(std::string_view name, std::string_view value,
-                                 HeaderKeyType type) noexcept {
+    static std::size_t
+    hash_impl(std::string_view name, std::string_view value, HeaderKeyType type) noexcept
+    {
         // Name always contributes; value only folds in for FULL_MATCH so NAME_ONLY keys don't
         // pay for a value hash they don't use.
         std::size_t hash = std::hash<std::string_view>{}(name);
@@ -300,8 +352,10 @@ struct HeaderHasher {
      * @param type the match type.
      * @return the combined hash.
      */
-    static std::size_t hash_impl(interfaces::io::types::Token token, std::string_view value,
-                                 HeaderKeyType type) noexcept {
+    static std::size_t hash_impl(
+        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+    ) noexcept
+    {
         // Same shape as the string overload, just hashing the Token's underlying integer.
         std::size_t hash = std::hash<std::uint32_t>{}(std::to_underlying(token));
         if (type == HeaderKeyType::FULL_MATCH) {
@@ -312,12 +366,11 @@ struct HeaderHasher {
     }
 };
 
-
-template <typename T>
+template<typename T>
 concept StaticHeaderTable = requires(T table) {
     { std::size(table) } -> std::convertible_to<std::size_t>;
-    requires std::same_as<std::decay_t<decltype(table[0])>,
-                          std::shared_ptr<interfaces::io::HeaderField<true>>>;
+    requires std::same_as<
+        std::decay_t<decltype(table[0])>, std::shared_ptr<interfaces::io::HeaderField<true>>>;
 };
 
 using QpackMap = hashmap::swiss::SwissHashMap<HeaderKey, std::size_t, HeaderHasher, HeaderEqual>;
@@ -326,10 +379,11 @@ using QpackMap = hashmap::swiss::SwissHashMap<HeaderKey, std::size_t, HeaderHash
 
 export namespace io::shared_codec::table {
 
-template <const auto &Table>
+template<const auto& Table>
     requires StaticHeaderTable<decltype(Table)>
-class StaticTable {
-  public:
+class StaticTable
+{
+public:
     static constexpr std::size_t STATIC_SIZE = std::size(Table);
 
     /**
@@ -338,26 +392,29 @@ class StaticTable {
      * @return the entry at `idx`, or `std::nullopt` if `idx` is out of range.
      */
     static std::optional<std::shared_ptr<interfaces::io::HeaderField<true>>>
-    at(std::size_t idx) noexcept {
+    at(std::size_t idx) noexcept
+    {
         if (idx >= STATIC_SIZE) {
             return std::nullopt;
         }
         // Returns the shared_ptr from the static array
-        return Table[idx];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        return Table[idx]; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                           // non-constant array index
     }
 
     /**
-     * @brief Searches the static table, trying a full name+value match first and falling back to
-     * name-only.
-     * @tparam Calc HPACK vs. QPACK index numbering — HPACK indices are 1-based, QPACK 0-based, so
-     * the offset math differs.
+     * @brief Searches the static table, trying a full name+value match first and falling back
+     * to name-only.
+     * @tparam Calc HPACK vs. QPACK index numbering — HPACK indices are 1-based, QPACK 0-based,
+     * so the offset math differs.
      * @param name the header name to search for.
      * @param value the header value to search for.
-     * @return a found SearchResult (full or name-only match), or SearchResult::none() if neither
-     * hit.
+     * @return a found SearchResult (full or name-only match), or SearchResult::none() if
+     * neither hit.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    static SearchResult search(std::string_view name, std::string_view value) noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    static SearchResult search(std::string_view name, std::string_view value) noexcept
+    {
         // Try the tighter full name+value match first, only fall back to name-only if that
         // whiffs.
         if (auto result = search_full_match<Calc>(name, value); result.found()) {
@@ -379,8 +436,9 @@ class StaticTable {
      * @param value the header value to search for.
      * @return a found SearchResult if both matched, SearchResult::none() otherwise.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    static SearchResult search_full_match(std::string_view name, std::string_view value) noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    static SearchResult search_full_match(std::string_view name, std::string_view value) noexcept
+    {
         // HPACK indices are 1-based, QPACK 0-based — that +1 is the whole difference.
         if (auto positon = get_map().find(name, value, HeaderKeyType::FULL_MATCH)) {
             return SearchResult{*positon + (Calc == IndexCalculation::H_PACK), true, true};
@@ -395,8 +453,9 @@ class StaticTable {
      * @param name the header name to search for.
      * @return a found SearchResult if the name matched, SearchResult::none() otherwise.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    static SearchResult search_name_only(std::string_view name) noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    static SearchResult search_name_only(std::string_view name) noexcept
+    {
         // Empty value passed to find() since NAME_ONLY entries never look at it anyway.
         if (auto positon = get_map().find(name, "", HeaderKeyType::NAME_ONLY)) {
             return SearchResult{*positon + (Calc == IndexCalculation::H_PACK), true, false};
@@ -405,35 +464,43 @@ class StaticTable {
         return SearchResult::none();
     }
 
-    /** @brief Gets the static table's entry count. @return `STATIC_SIZE`, fixed at compile time. */
-    static constexpr std::size_t size() noexcept { return STATIC_SIZE; }
+    /** @brief Gets the static table's entry count. @return `STATIC_SIZE`, fixed at compile
+     * time. */
+    static constexpr std::size_t size() noexcept
+    {
+        return STATIC_SIZE;
+    }
 
-  private:
-    // Lazily built on first use (C++11 magic-statics, thread-safe) rather than a static-duration
-    // member initialized at load time — the build below calls upsert(), which can throw (e.g.
-    // std::bad_alloc); this way that throw happens on first real use instead of during static
-    // initialization, where it can't be caught. Private implementation detail of this class only,
-    // so unlike STATIC_TABLE above it's never used as a non-type template argument anywhere.
+private:
+    // Lazily built on first use (C++11 magic-statics, thread-safe) rather than a
+    // static-duration member initialized at load time — the build below calls upsert(), which
+    // can throw (e.g. std::bad_alloc); this way that throw happens on first real use instead of
+    // during static initialization, where it can't be caught. Private implementation detail of
+    // this class only, so unlike STATIC_TABLE above it's never used as a non-type template
+    // argument anywhere.
     // FIXME(clang-tidy): bugprone-exception-escape — noexcept: search_full_match()/
     // search_name_only() above are noexcept and call this on every lookup, so this can't have a
     // narrower contract than they do. In practice only the very first call can throw (building
     // the map); same "no safe fallback for a table this codebase needs to work at all" risk
     // tolerance already accepted for STATIC_TABLE above — a failed build here is as fatal as a
     // failed static init would have been, just deferred to first use.
-    static const QpackMap &get_map() noexcept {
+    static const QpackMap& get_map() noexcept
+    {
         static const QpackMap MAP = [] {
             QpackMap built;
 
             // TODO: We can optimize by adding reserve support to out our map
             // m.reserve(STATIC_SIZE * 2);
 
-            // Every static-table entry gets indexed twice — once under a full name+value key for
-            // exact matches, once under a name-only key for the fallback lookup.
+            // Every static-table entry gets indexed twice — once under a full name+value key
+            // for exact matches, once under a name-only key for the fallback lookup.
             for (std::size_t i = 0; i < STATIC_SIZE; ++i) {
-                const auto &field = Table[i];  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                const auto& field = Table[i]; // FIXME(clang-tidy): unchecked operator[],
+                                              // consider .at(); non-constant array index
 
                 built.upsert(
-                    HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH}, i);
+                    HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH}, i
+                );
                 built.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NAME_ONLY}, i);
             }
             return built;
@@ -442,19 +509,22 @@ class StaticTable {
     }
 };
 
-class DynamicTable {
-  public:
+class DynamicTable
+{
+public:
     /**
      * @brief Builds an empty dynamic table capped at `max_size` bytes.
-     * @param max_size the eviction budget, in bytes (RFC 7541 §4.1 accounting: entry size = name
+     * @param max_size the eviction budget, in bytes (RFC 7541 §4.1 accounting: entry size =
+     * name
      * + value + `ENTRY_OVERHEAD`); defaults to 4096.
      */
-    explicit DynamicTable(std::size_t max_size = 4096)
-        : m_max_size{max_size} {
-        // TODO: add reserve support to our map and set an initial capacity based on max_size and
-        // average entry size m_map.reserve(128); // Initial capacity to reduce early collisions
+    explicit DynamicTable(std::size_t max_size = 4'096) :
+        m_max_size{max_size}
+    {
+        // TODO: add reserve support to our map and set an initial capacity based on max_size
+        // and average entry size m_map.reserve(128); // Initial capacity to reduce early
+        // collisions
     }
-
 
     /**
      * @brief Builds a field from a raw name/value pair and inserts it — straightforward motion,
@@ -462,11 +532,12 @@ class DynamicTable {
      * @tparam Calc HPACK vs. QPACK index numbering for the returned index.
      * @param name the header name.
      * @param value the header value.
-     * @return the new entry's generation (QPACK) or position (HPACK) — see the `insert` overload
-     * below for the full eviction/indexing contract.
+     * @return the new entry's generation (QPACK) or position (HPACK) — see the `insert`
+     * overload below for the full eviction/indexing contract.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    std::size_t insert(std::string_view name, std::string_view value) {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    std::size_t insert(std::string_view name, std::string_view value)
+    {
         auto field = std::make_shared<interfaces::io::HeaderField<false>>(name, value);
         return insert<Calc>(std::move(field));
     }
@@ -478,8 +549,9 @@ class DynamicTable {
      * @param value the header value.
      * @return the new entry's generation (QPACK) or position (HPACK).
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    std::size_t insert(interfaces::io::types::Token token, std::string_view value) {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    std::size_t insert(interfaces::io::types::Token token, std::string_view value)
+    {
         auto field = std::make_shared<interfaces::io::HeaderField<true>>(token, value);
         return insert<Calc>(std::move(field));
     }
@@ -488,9 +560,9 @@ class DynamicTable {
      * @brief Inserts an already-built field, evicting oldest entries first if it doesn't fit
      * within `m_max_size`.
      * @warning If `field` alone is bigger than `m_max_size`, this evicts the *entire* table
-     * (evict_all()) and returns 0 without inserting anything — the entry never makes it in. Don't
-     * assume a non-throwing insert() means the header actually landed in the table; check the
-     * return.
+     * (evict_all()) and returns 0 without inserting anything — the entry never makes it in.
+     * Don't assume a non-throwing insert() means the header actually landed in the table; check
+     * the return.
      * @tparam Calc QPACK indices are generation numbers (monotonically increasing, never
      * reused); HPACK indices are positions (relative, shift as entries evict) — pick based on
      * which protocol's calling this.
@@ -500,8 +572,9 @@ class DynamicTable {
      * @return the new entry's generation (QPACK) or position (HPACK), or 0 if it got evicted
      * instead of inserted.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK, bool IsStatic>
-    std::size_t insert(std::shared_ptr<interfaces::io::HeaderField<IsStatic>> field) {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK, bool IsStatic>
+    std::size_t insert(std::shared_ptr<interfaces::io::HeaderField<IsStatic>> field)
+    {
         // Entry alone blows the whole budget — wipe the table instead of trying to make room,
         // and report it as a non-insert.
         const std::size_t ENTRY_SIZE = field->size();
@@ -522,8 +595,10 @@ class DynamicTable {
 
         // Same double-index motion as the static table: full match key plus name-only key,
         // both pointing at this generation.
-        m_map.upsert(HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH},
-                     m_generation);
+        m_map.upsert(
+            HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH},
+            m_generation
+        );
         m_map.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NAME_ONLY}, m_generation);
 
         m_deque.push_front(std::move(field));
@@ -543,12 +618,12 @@ class DynamicTable {
      * @tparam Calc HPACK vs. QPACK index numbering.
      * @param name the header name to search for.
      * @param value the header value to search for.
-     * @return a found SearchResult (full or name-only match), or SearchResult::none() if neither
-     * hit.
+     * @return a found SearchResult (full or name-only match), or SearchResult::none() if
+     * neither hit.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    [[nodiscard]] SearchResult search(std::string_view name,
-                                      std::string_view value) const noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult search(std::string_view name, std::string_view value) const noexcept
+    {
         // Same full-match-then-name-only fallback pattern as StaticTable::search().
         if (auto result = search_full_match<Calc>(name, value); result.found()) {
             return result;
@@ -569,9 +644,10 @@ class DynamicTable {
      * @param value the header value to search for.
      * @return a found SearchResult if both matched, SearchResult::none() otherwise.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    [[nodiscard]] SearchResult search_full_match(std::string_view name,
-                                                 std::string_view value) const noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult
+    search_full_match(std::string_view name, std::string_view value) const noexcept
+    {
         // Map stores raw generations — QPACK wants that as-is, HPACK needs it converted to a
         // live relative position first.
         if (auto generation = m_map.find(name, value, HeaderKeyType::FULL_MATCH)) {
@@ -591,8 +667,9 @@ class DynamicTable {
      * @param name the header name to search for.
      * @return a found SearchResult if the name matched, SearchResult::none() otherwise.
      */
-    template <IndexCalculation Calc = IndexCalculation::Q_PACK>
-    [[nodiscard]] SearchResult search_name_only(std::string_view name) const noexcept {
+    template<IndexCalculation Calc = IndexCalculation::Q_PACK>
+    [[nodiscard]] SearchResult search_name_only(std::string_view name) const noexcept
+    {
         // Same QPACK-vs-HPACK conversion split as search_full_match() above.
         if (auto generation = m_map.find(name, "", HeaderKeyType::NAME_ONLY)) {
             if constexpr (Calc == IndexCalculation::Q_PACK) {
@@ -611,8 +688,11 @@ class DynamicTable {
      * @return the entry at `pos`, or `std::nullopt` if `pos` is out of range.
      */
     [[nodiscard]] std::optional<interfaces::io::HeaderEntry>
-    at_positon(std::size_t pos) const noexcept {
-        return (pos < m_deque.size()) ? std::optional{m_deque[pos]} : std::nullopt;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    at_positon(std::size_t pos) const noexcept
+    {
+        return (pos < m_deque.size())
+                   ? std::optional{m_deque[pos]}
+                   : std::nullopt; // FIXME(clang-tidy): unchecked operator[], consider .at()
     }
 
     /**
@@ -623,9 +703,12 @@ class DynamicTable {
      * never inserted.
      */
     [[nodiscard]] std::optional<interfaces::io::HeaderEntry>
-    at_generation(std::size_t gen) const noexcept {
+    at_generation(std::size_t gen) const noexcept
+    {
         const std::size_t POS = generation_to_position(gen);
-        return (POS != SearchResult::NPOS) ? std::optional{m_deque[POS]} : std::nullopt;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        return (POS != SearchResult::NPOS)
+                   ? std::optional{m_deque[POS]}
+                   : std::nullopt; // FIXME(clang-tidy): unchecked operator[], consider .at()
     }
 
     /**
@@ -633,10 +716,11 @@ class DynamicTable {
      * `m_deque` — the bridge between the two indexing schemes, lowkey the trickiest bit of math
      * in this whole class.
      * @param gen the generation to convert.
-     * @return the live position, or `SearchResult::NPOS` if `gen` is 0, was never issued, or has
-     * already aged out of the table via eviction.
+     * @return the live position, or `SearchResult::NPOS` if `gen` is 0, was never issued, or
+     * has already aged out of the table via eviction.
      */
-    [[nodiscard]] std::size_t generation_to_position(std::size_t gen) const noexcept {
+    [[nodiscard]] std::size_t generation_to_position(std::size_t gen) const noexcept
+    {
         // Generation 0 was never issued, and anything past the current counter or with an
         // empty table can't possibly be live.
         if (gen == 0 || gen > m_generation || m_deque.empty()) {
@@ -657,59 +741,82 @@ class DynamicTable {
      * new cap is smaller than what's currently stored.
      * @param new_max the new byte budget.
      */
-    void set_max_size(std::size_t new_max) {
+    void set_max_size(std::size_t new_max)
+    {
         m_max_size = new_max;
-        // Shrinking below current usage means evicting oldest-first until it fits again; growing
-        // is a no-op since the loop condition's already false.
+        // Shrinking below current usage means evicting oldest-first until it fits again;
+        // growing is a no-op since the loop condition's already false.
         while (!m_deque.empty() && m_current_size > m_max_size) {
             evict_oldest();
         }
     }
 
     /** @brief Gets how many entries are currently in the table. @return live entry count. */
-    [[nodiscard]] std::size_t get_size() const noexcept { return m_deque.size(); }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return m_deque.size();
+    }
+
     /**
      * @brief Gets how many bytes of the budget are currently used.
      * @return current byte usage per RFC 7541 accounting.
      */
-    [[nodiscard]] std::size_t get_current_size() const noexcept { return m_current_size; }
+    [[nodiscard]] std::size_t get_current_size() const noexcept
+    {
+        return m_current_size;
+    }
+
     /**
      * @brief Gets the total number of inserts ever done, evicted or not.
      * @return the current generation counter.
      */
-    [[nodiscard]] std::size_t get_insert_count() const noexcept { return m_generation; }
-    /** @brief Gets the configured eviction budget. @return max size in bytes. */
-    [[nodiscard]] std::size_t get_max_size() const noexcept { return m_max_size; }
+    [[nodiscard]] std::size_t get_insert_count() const noexcept
+    {
+        return m_generation;
+    }
 
-  private:
+    /** @brief Gets the configured eviction budget. @return max size in bytes. */
+    [[nodiscard]] std::size_t get_max_size() const noexcept
+    {
+        return m_max_size;
+    }
+
+private:
     /**
      * @brief Evicts the single oldest entry: removes it from `m_deque`, unwinds its byte cost
      * from `m_current_size`, and cleans up its map entries — including the tricky bit where the
-     * NAME_ONLY map entry only gets erased if it still points at the generation being evicted (a
-     * newer entry with the same name may have already claimed that slot).
+     * NAME_ONLY map entry only gets erased if it still points at the generation being evicted
+     * (a newer entry with the same name may have already claimed that slot).
      */
-    void evict_oldest() {
+    void evict_oldest()
+    {
         if (m_deque.empty()) {
             return;
         }
         // Deque's ordered newest-to-oldest (push_front on insert), so the tail is the eviction
         // target.
-        const auto &field = m_deque.back();
+        const auto& field = m_deque.back();
         const std::size_t OLDEST_GEN = m_generation - (m_deque.size() - 1);
 
         // Materialize the name/value as owned strings — Token-backed fields need stringifying
         // first, string-backed ones just get copied.
         const auto [name, value] = std::visit(
-            [](const auto &field) -> std::pair<std::string, std::string> {
-                if constexpr (std::is_same_v<std::decay_t<decltype(field)>,
-                                             std::shared_ptr<interfaces::io::HeaderField<true>>>) {
-                    return {std::string(interfaces::io::types::token_to_string(field->get_name())),
-                            std::string(field->get_value())};
+            [](const auto& field) -> std::pair<std::string, std::string> {
+                if constexpr (
+                    std::is_same_v<
+                        std::decay_t<decltype(field)>,
+                        std::shared_ptr<interfaces::io::HeaderField<true>>>
+                ) {
+                    return {
+                        std::string(interfaces::io::types::token_to_string(field->get_name())),
+                        std::string(field->get_value())
+                    };
                 } else {
                     return {std::string(field->get_name()), std::string(field->get_value())};
                 }
             },
-            field);
+            field
+        );
 
         // FULL_MATCH entry always belonged solely to this generation — safe to erase outright.
         m_map.erase(name, value, HeaderKeyType::FULL_MATCH);
@@ -724,13 +831,13 @@ class DynamicTable {
         m_deque.pop_back();
     }
 
-
     /**
      * @brief Nukes the whole table, no cap — clears the map, the deque, and resets the byte
      * counter. Used when a single incoming entry is too big to ever fit, so the rest of the
      * table gets wiped alongside it rather than left in a half-consistent state.
      */
-    void evict_all() {
+    void evict_all()
+    {
         m_map.clear();
         m_deque.clear();
         m_current_size = 0;
@@ -756,7 +863,7 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(dyn_table.get_size() == 0U);
         expect(dyn_table.get_current_size() == 0U);
         expect(dyn_table.get_insert_count() == 0U);
-        expect(dyn_table.get_max_size() == 4096U);
+        expect(dyn_table.get_max_size() == 4'096U);
     };
 
     "custom max_size is stored"_test = [] {
@@ -765,7 +872,7 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
     };
 
     "insert then search finds a full match and a name-only match"_test = [] {
-        DynamicTable dyn_table{10000};
+        DynamicTable dyn_table{10'000};
         dyn_table.insert("content-type", "text/plain");
 
         auto full = dyn_table.search_full_match("content-type", "text/plain");
@@ -780,7 +887,7 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
     };
 
     "QPACK generations increase monotonically per insert"_test = [] {
-        DynamicTable dyn_table{10000};
+        DynamicTable dyn_table{10'000};
 
         expect(dyn_table.insert("a", "1") == 1U);
         expect(dyn_table.insert("b", "2") == 2U);
@@ -789,7 +896,7 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
     };
 
     "HPACK indexing returns a live position instead of a raw generation"_test = [] {
-        DynamicTable dyn_table{10000};
+        DynamicTable dyn_table{10'000};
 
         expect((dyn_table.insert<IndexCalculation::H_PACK>("a", "1")) == 0U);
         expect((dyn_table.insert<IndexCalculation::H_PACK>("b", "2")) == 0U);
@@ -823,13 +930,25 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
 
         auto by_generation = dyn_table.at_generation(3);
         expect(by_generation.has_value());
-        expect(std::visit([](const auto &field) { return field->get_value(); }, *by_generation) ==
-               std::string{"3"});
+        expect(
+            std::visit(
+                [](const auto& field) {
+                    return field->get_value();
+                },
+                *by_generation
+            ) == std::string{"3"}
+        );
 
         auto by_position = dyn_table.at_positon(0);
         expect(by_position.has_value());
-        expect(std::visit([](const auto &field) { return field->get_value(); }, *by_position) ==
-               std::string{"3"});
+        expect(
+            std::visit(
+                [](const auto& field) {
+                    return field->get_value();
+                },
+                *by_position
+            ) == std::string{"3"}
+        );
 
         expect(not dyn_table.at_positon(2).has_value());
     };

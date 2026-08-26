@@ -1,26 +1,26 @@
 module;
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <winsock2.h>
+#    include <ws2tcpip.h>
 // break
-#include <cerrno>
-#include <ctime>
-#include <mswsock.h>
-#include <windows.h>
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "mswsock.lib")
+#    include <cerrno>
+#    include <ctime>
+#    include <mswsock.h>
+#    include <windows.h>
+#    pragma comment(lib, "ws2_32.lib")
+#    pragma comment(lib, "mswsock.lib")
 
 #else
-#include <cerrno>
-#include <linux/time_types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
-#include <unistd.h>
+#    include <cerrno>
+#    include <linux/time_types.h>
+#    include <sys/socket.h>
+#    include <sys/stat.h>
+#    include <sys/uio.h>
+#    include <unistd.h>
 #endif
 
 export module io_base_leverage:types;
@@ -33,7 +33,8 @@ import shared;
 
 export namespace io::base::leverage {
 
-enum class op_type : std::uint8_t {
+enum class op_type : std::uint8_t
+{
     READ,
     WRITE,
     READV,
@@ -74,13 +75,15 @@ constexpr socket_t INVALID_SOCKET_VALUE = -1;
 
 #ifdef _WIN32
 
-struct iovec {
-    void *iov_base;
+struct iovec
+{
+    void* iov_base;
     size_t iov_len;
 };
 
 // statx compatibility
-struct statx {
+struct statx
+{
     std::uint32_t stx_mask;
     std::uint32_t stx_blksize;
     std::uint64_t stx_attributes;
@@ -105,18 +108,20 @@ struct statx {
 };
 
 // timespec for Windows
-struct __kernel_timespec {
+struct __kernel_timespec
+{
     long long tv_sec;
     long long tv_nsec;
 };
 
 // sockaddr compatibility (already in winsock)
-struct msghdr {
-    void *msg_name;           // Optional address
+struct msghdr
+{
+    void* msg_name;           // Optional address
     unsigned int msg_namelen; // Size of address
-    struct iovec *msg_iov;    // Scatter/gather array
+    struct iovec* msg_iov;    // Scatter/gather array
     size_t msg_iovlen;        // # elements in msg_iov
-    void *msg_control;        // Ancillary data
+    void* msg_control;        // Ancillary data
     size_t msg_controllen;    // Ancillary data buffer len
     int msg_flags;            // Flags on received message
 };
@@ -126,14 +131,14 @@ using ::socklen_t;
 
 // File flags
 constexpr int AT_FDCWD = -100;
-constexpr int O_RDONLY = 0x0000;
-constexpr int O_WRONLY = 0x0001;
-constexpr int O_RDWR = 0x0002;
-constexpr int O_CREAT = 0x0100;
-constexpr int O_TRUNC = 0x0200;
-constexpr int O_APPEND = 0x0400;
-constexpr int O_NONBLOCK = 0x1000;
-constexpr int O_CLOEXEC = 0x2000;
+constexpr int O_RDONLY = 0x00'00;
+constexpr int O_WRONLY = 0x00'01;
+constexpr int O_RDWR = 0x00'02;
+constexpr int O_CREAT = 0x01'00;
+constexpr int O_TRUNC = 0x02'00;
+constexpr int O_APPEND = 0x04'00;
+constexpr int O_NONBLOCK = 0x10'00;
+constexpr int O_CLOEXEC = 0x20'00;
 
 // Mode flags
 using mode_t = unsigned int;
@@ -172,23 +177,23 @@ constexpr unsigned SYNC_FILE_RANGE_WRITE = 2;
 constexpr unsigned SYNC_FILE_RANGE_WAIT_AFTER = 4;
 
 // Statx flags
-constexpr int AT_SYMLINK_NOFOLLOW = 0x100;
-constexpr int AT_NO_AUTOMOUNT = 0x200;
-constexpr int AT_EMPTY_PATH = 0x400;
-constexpr unsigned STATX_TYPE = 0x0001;
-constexpr unsigned STATX_MODE = 0x0002;
-constexpr unsigned STATX_NLINK = 0x0004;
-constexpr unsigned STATX_UID = 0x0008;
-constexpr unsigned STATX_GID = 0x0010;
-constexpr unsigned STATX_ATIME = 0x0020;
-constexpr unsigned STATX_MTIME = 0x0040;
-constexpr unsigned STATX_CTIME = 0x0080;
-constexpr unsigned STATX_INO = 0x0100;
-constexpr unsigned STATX_SIZE = 0x0200;
-constexpr unsigned STATX_BLOCKS = 0x0400;
-constexpr unsigned STATX_BASIC_STATS = 0x07ff;
-constexpr unsigned STATX_BTIME = 0x0800;
-constexpr unsigned STATX_ALL = 0x0fff;
+constexpr int AT_SYMLINK_NOFOLLOW = 0x1'00;
+constexpr int AT_NO_AUTOMOUNT = 0x2'00;
+constexpr int AT_EMPTY_PATH = 0x4'00;
+constexpr unsigned STATX_TYPE = 0x00'01;
+constexpr unsigned STATX_MODE = 0x00'02;
+constexpr unsigned STATX_NLINK = 0x00'04;
+constexpr unsigned STATX_UID = 0x00'08;
+constexpr unsigned STATX_GID = 0x00'10;
+constexpr unsigned STATX_ATIME = 0x00'20;
+constexpr unsigned STATX_MTIME = 0x00'40;
+constexpr unsigned STATX_CTIME = 0x00'80;
+constexpr unsigned STATX_INO = 0x01'00;
+constexpr unsigned STATX_SIZE = 0x02'00;
+constexpr unsigned STATX_BLOCKS = 0x04'00;
+constexpr unsigned STATX_BASIC_STATS = 0x07'FF;
+constexpr unsigned STATX_BTIME = 0x08'00;
+constexpr unsigned STATX_ALL = 0x0F'FF;
 
 // Splice flags
 constexpr unsigned SPLICE_F_MOVE = 1;
@@ -202,10 +207,10 @@ constexpr unsigned RENAME_EXCHANGE = 2;
 constexpr unsigned RENAME_WHITEOUT = 4;
 
 // Unlink flags
-constexpr unsigned AT_REMOVEDIR = 0x200;
+constexpr unsigned AT_REMOVEDIR = 0x2'00;
 
 // Link flags
-constexpr int AT_SYMLINK_FOLLOW = 0x400;
+constexpr int AT_SYMLINK_FOLLOW = 0x4'00;
 
 // Socket flags
 // constexpr int SOCK_STREAM = 1;
@@ -240,7 +245,8 @@ using loff_t = long long;
 using ssize_t = long long;
 
 // timespec
-struct timespec {
+struct timespec
+{
     long long tv_sec;
     long long tv_nsec;
 };
@@ -249,22 +255,30 @@ struct timespec {
 
 using completion_callback = std::move_only_function<void(int)>;
 
-consteval bool verbose_enabled() { return false; }
+consteval bool verbose_enabled()
+{
+    return false;
+}
 
-template <typename... Args>
-constexpr void verbose_print(std::string_view fmt, Args &&...args) {
+template<typename... Args>
+constexpr void verbose_print(std::string_view fmt, Args&&... args)
+{
     if constexpr (verbose_enabled()) {
         std::println(fmt, std::forward<Args>(args)...);
     }
 }
 
 // Error handling
-[[noreturn]] inline void panic(std::string_view msg, int err,
-                               std::source_location loc = std::source_location::current()) {
-    throw std::system_error(err, std::system_category(), std::format("{} at {}:{}", msg, loc.file_name(), loc.line()));
+[[noreturn]] inline void
+panic(std::string_view msg, int err, std::source_location loc = std::source_location::current())
+{
+    throw std::system_error(
+        err, std::system_category(), std::format("{} at {}:{}", msg, loc.file_name(), loc.line())
+    );
 }
 
-inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = false) {
+inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = false)
+{
     // negative ret means a syscall failure — unless the caller opted to shrug off EAGAIN/
     // EWOULDBLOCK specifically (the "not ready yet, not a real error" case), panic
     if (ret < 0 && (!ignore_eagain ||
@@ -273,53 +287,66 @@ inline void panic_on_err(std::string_view msg, int ret, bool ignore_eagain = fal
 #else
                     ret != -EAGAIN
 #endif
-                    )) {
+                    ))
+        {
         panic(msg, -ret);
     }
 }
 
-template <typename SharedContext>
-class Leverager : public shared::HandlerBase {
-  public:
+template<typename SharedContext>
+class Leverager : public shared::HandlerBase
+{
+public:
     /**
-     * @brief Spins up the backing async I/O context — io_uring on posix, IOCP on win32, whichever
-     * `SharedContext` specialization gets linked in. The primary template has no body; every
-     * real implementation lives in an explicit specialization over on `Context`
-     * (`leverage/posix.cppm` or `leverage/win32.cppm`), so this signature is a contract, not code.
+     * @brief Spins up the backing async I/O context — io_uring on posix, IOCP on win32,
+     * whichever `SharedContext` specialization gets linked in. The primary template has no
+     * body; every real implementation lives in an explicit specialization over on `Context`
+     * (`leverage/posix.cppm` or `leverage/win32.cppm`), so this signature is a contract, not
+     * code.
      * @param entries submission queue depth to reserve (posix io_uring) — ignored on win32.
      * @param flags io_uring setup flags — ignored on win32.
-     * @param wq_fd shared async worker-queue descriptor to attach to (io_uring `IORING_SETUP_ATTACH_WQ`)
-     * — ignored on win32.
+     * @param wq_fd shared async worker-queue descriptor to attach to (io_uring
+     * `IORING_SETUP_ATTACH_WQ`) — ignored on win32.
      */
     Leverager(int entries = 64, std::uint32_t flags = 0, std::uint32_t wq_fd = 0);
 
     /**
-     * @brief Tears down `m_context` — actual ring/IOCP teardown is on the platform specialization.
+     * @brief Tears down `m_context` — actual ring/IOCP teardown is on the platform
+     * specialization.
      */
     ~Leverager() noexcept override;
 
-    /** @brief Deleted — copying an owning ring/IOCP handle would double-close it, straight cooked. */
-    Leverager(const Leverager &) = delete;
+    /** @brief Deleted — copying an owning ring/IOCP handle would double-close it, straight
+     * cooked. */
+    Leverager(const Leverager&) = delete;
     /** @brief Deleted — same reasoning as the copy ctor, no aliasing the underlying handle. */
-    Leverager &operator=(const Leverager &) = delete;
-    /** @brief Deleted — no move either, downstream code holds refs/pointers into this instance. */
-    Leverager(Leverager &&) = delete;
+    Leverager& operator=(const Leverager&) = delete;
+    /** @brief Deleted — no move either, downstream code holds refs/pointers into this instance.
+     */
+    Leverager(Leverager&&) = delete;
     /** @brief Deleted — mirrors the move ctor, this thing stays put once constructed. */
-    Leverager &operator=(Leverager &&) = delete;
+    Leverager& operator=(Leverager&&) = delete;
 
     // Async operation methods
     /**
      * @brief Queues a scatter-gather read (`preadv`-style) and fires `callback` once it lands.
      * @param descriptor file/socket descriptor to read from.
-     * @param iovecs scatter buffers to fill — caller owns this memory till `callback` fires, don't
-     * free it early or you're asking for a UAF.
+     * @param iovecs scatter buffers to fill — caller owns this memory till `callback` fires,
+     * don't free it early or you're asking for a UAF.
      * @param nr_vecs number of entries in `iovecs`.
      * @param offset file offset to read from.
-     * @param callback completion callback, invoked with the syscall result (bytes read, or `-errno`).
+     * @param callback completion callback, invoked with the syscall result (bytes read, or
+     * `-errno`).
      * @param iflags io_uring SQE flags (e.g. `IOSQE_IO_LINK`) — no-op on the win32 backend.
      */
-    void readv(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback callback,
-               std::uint8_t iflags = 0);
+    void readv(
+        int descriptor,
+        const iovec* iovecs,
+        unsigned nr_vecs,
+        off_t offset,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Same motion as readv() but with an extra `flags` word (`preadv2`-style, e.g.
@@ -332,20 +359,35 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void readv2(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback callback,
-                std::uint8_t iflags = 0);
+    void readv2(
+        int descriptor,
+        const iovec* iovecs,
+        unsigned nr_vecs,
+        off_t offset,
+        int flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
-     * @brief Queues a scatter-gather write (`pwritev`-style) and fires `callback` once it lands.
+     * @brief Queues a scatter-gather write (`pwritev`-style) and fires `callback` once it
+     * lands.
      * @param descriptor file/socket descriptor to write to.
      * @param iovecs scatter buffers to write out — caller-owned till `callback` fires.
      * @param nr_vecs number of entries in `iovecs`.
      * @param offset file offset to write at.
-     * @param callback completion callback, invoked with the syscall result (bytes written, or `-errno`).
+     * @param callback completion callback, invoked with the syscall result (bytes written, or
+     * `-errno`).
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void writev(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, completion_callback callback,
-                std::uint8_t iflags = 0);
+    void writev(
+        int descriptor,
+        const iovec* iovecs,
+        unsigned nr_vecs,
+        off_t offset,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Same motion as writev() but with an extra `flags` word (`pwritev2`-style).
@@ -357,8 +399,15 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void writev2(int descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags, completion_callback callback,
-                 std::uint8_t iflags = 0);
+    void writev2(
+        int descriptor,
+        const iovec* iovecs,
+        unsigned nr_vecs,
+        off_t offset,
+        int flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a single-buffer read and fires `callback` once it lands.
@@ -369,7 +418,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void read(int descriptor, void *buf, unsigned nbytes, off_t offset, completion_callback callback, std::uint8_t iflags = 0);
+    void read(
+        int descriptor,
+        void* buf,
+        unsigned nbytes,
+        off_t offset,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a single-buffer write and fires `callback` once it lands.
@@ -380,7 +436,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void write(int descriptor, const void *buf, unsigned nbytes, off_t offset, completion_callback callback, std::uint8_t iflags = 0);
+    void write(
+        int descriptor,
+        const void* buf,
+        unsigned nbytes,
+        off_t offset,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a read against a pre-registered fixed buffer (skips the usual pin/unpin
@@ -394,11 +457,19 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void read_fixed(int descriptor, void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback callback,
-                    std::uint8_t iflags = 0);
+    void read_fixed(
+        int descriptor,
+        void* buf,
+        unsigned nbytes,
+        off_t offset,
+        int buf_index,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
-     * @brief Fixed-buffer counterpart to write() — see read_fixed() for the registration caveat.
+     * @brief Fixed-buffer counterpart to write() — see read_fixed() for the registration
+     * caveat.
      * @param descriptor file/socket descriptor to write to.
      * @param buf source — must fall inside a buffer registered via register_buffers() on posix.
      * @param nbytes bytes to write from `buf`.
@@ -407,18 +478,27 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void write_fixed(int descriptor, const void *buf, unsigned nbytes, off_t offset, int buf_index, completion_callback callback,
-                     std::uint8_t iflags = 0);
+    void write_fixed(
+        int descriptor,
+        const void* buf,
+        unsigned nbytes,
+        off_t offset,
+        int buf_index,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an `fsync`/`FlushFileBuffers`-style flush for `descriptor`.
      * @param descriptor file descriptor to sync.
-     * @param fsync_flags posix fsync flags (e.g. `FSYNC_DATASYNC`) — ignored on win32, which just
-     * calls `FlushFileBuffers`.
+     * @param fsync_flags posix fsync flags (e.g. `FSYNC_DATASYNC`) — ignored on win32, which
+     * just calls `FlushFileBuffers`.
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void fsync(int descriptor, unsigned fsync_flags, completion_callback callback, std::uint8_t iflags = 0);
+    void fsync(
+        int descriptor, unsigned fsync_flags, completion_callback callback, std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a `sync_file_range`-style partial flush. No cap, this one's posix-only in
@@ -430,8 +510,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void sync_file_range(int descriptor, off64_t offset, off64_t nbytes, unsigned sync_range_flags, completion_callback callback,
-                         std::uint8_t iflags = 0);
+    void sync_file_range(
+        int descriptor,
+        off64_t offset,
+        off64_t nbytes,
+        unsigned sync_range_flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a `recvmsg`-style receive for scatter buffers + ancillary data.
@@ -442,7 +528,13 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback callback, std::uint8_t iflags = 0);
+    void recvmsg(
+        int sockfd,
+        msghdr* msg,
+        std::uint32_t flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a `sendmsg`-style send for scatter buffers + ancillary data.
@@ -453,7 +545,13 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback callback, std::uint8_t iflags = 0);
+    void sendmsg(
+        int sockfd,
+        const msghdr* msg,
+        std::uint32_t flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a single-buffer `recv`.
@@ -464,8 +562,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags, completion_callback callback,
-              std::uint8_t iflags = 0);
+    void recv(
+        int sockfd,
+        void* buf,
+        unsigned nbytes,
+        std::uint32_t flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a single-buffer `send`.
@@ -476,26 +580,35 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags, completion_callback callback,
-              std::uint8_t iflags = 0);
+    void send(
+        int sockfd,
+        const void* buf,
+        unsigned nbytes,
+        std::uint32_t flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
-     * @brief Queues a `poll`-style readiness watch on `descriptor` — fires `callback` once the requested
-     * event mask is ready, no data movement here.
+     * @brief Queues a `poll`-style readiness watch on `descriptor` — fires `callback` once the
+     * requested event mask is ready, no data movement here.
      * @warning The win32 IOCP backend has no real poll primitive, so this specialization is a
      * straight no-op stub that just calls `callback(0)` immediately — don't rely on it actually
      * watching anything there. That's an L waiting to happen if you assume parity across
      * backends.
      * @param descriptor file/socket descriptor to poll.
      * @param poll_mask event mask to wait for (e.g. `POLLIN`).
-     * @param callback completion callback, invoked once the mask is satisfied (or immediately on win32).
+     * @param callback completion callback, invoked once the mask is satisfied (or immediately
+     * on win32).
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void poll(int descriptor, short poll_mask, completion_callback callback, std::uint8_t iflags = 0);
+    void poll(
+        int descriptor, short poll_mask, completion_callback callback, std::uint8_t iflags = 0
+    );
 
     /**
-     * @brief Queues a no-op SQE purely to get a completion round-trip — bet, this is the cheapest
-     * way to yield back into the ring/loop without doing real I/O.
+     * @brief Queues a no-op SQE purely to get a completion round-trip — bet, this is the
+     * cheapest way to yield back into the ring/loop without doing real I/O.
      * @param callback completion callback, invoked once the nop lands.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
@@ -504,13 +617,22 @@ class Leverager : public shared::HandlerBase {
     /**
      * @brief Queues an async `accept` on a listening socket.
      * @param descriptor listening socket descriptor.
-     * @param addr out-param for the accepted peer's address — caller-owned till `callback` fires.
+     * @param addr out-param for the accepted peer's address — caller-owned till `callback`
+     * fires.
      * @param addrlen[in,out] in: size of `addr`'s storage; out: actual peer address length.
      * @param flags `accept4`-style flags (e.g. `SOCK_NONBLOCK`).
-     * @param callback completion callback, invoked with the new socket descriptor (or `-errno`).
+     * @param callback completion callback, invoked with the new socket descriptor (or
+     * `-errno`).
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void accept(int descriptor, sockaddr *addr, socklen_t *addrlen, int flags, completion_callback callback, std::uint8_t iflags = 0);
+    void accept(
+        int descriptor,
+        sockaddr* addr,
+        socklen_t* addrlen,
+        int flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `connect`.
@@ -520,15 +642,24 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void connect(int descriptor, sockaddr *addr, socklen_t addrlen, completion_callback callback, std::uint8_t iflags = 0);
+    void connect(
+        int descriptor,
+        sockaddr* addr,
+        socklen_t addrlen,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues a one-shot timer, `callback` fires once it expires.
-     * @param timeout_spec absolute/relative timeout spec (backend-dependent) — caller-owned till `callback` fires.
+     * @param timeout_spec absolute/relative timeout spec (backend-dependent) — caller-owned
+     * till `callback` fires.
      * @param callback completion callback, invoked once the timer fires.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void timeout(__kernel_timespec *timeout_spec, completion_callback callback, std::uint8_t iflags = 0);
+    void timeout(
+        __kernel_timespec* timeout_spec, completion_callback callback, std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `openat`.
@@ -539,7 +670,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the new descriptor (or `-errno`).
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void openat(int dfd, const char *path, int flags, mode_t mode, completion_callback callback, std::uint8_t iflags = 0);
+    void openat(
+        int dfd,
+        const char* path,
+        int flags,
+        mode_t mode,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `close` for `descriptor`.
@@ -555,26 +693,43 @@ class Leverager : public shared::HandlerBase {
      * @param path path to stat — caller-owned till `callback` fires.
      * @param flags `statx`-style flags (e.g. `AT_SYMLINK_NOFOLLOW`).
      * @param mask which stat fields to actually fill in.
-     * @param statxbuf out-param the result gets written into — caller-owned till `callback` fires.
+     * @param statxbuf out-param the result gets written into — caller-owned till `callback`
+     * fires.
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf, completion_callback callback,
-               std::uint8_t iflags = 0);
+    void statx(
+        int dfd,
+        const char* path,
+        int flags,
+        unsigned mask,
+        struct statx* statxbuf,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `splice` between two fds (zero-copy pipe move).
      * @param fd_in source descriptor.
      * @param off_in source offset, or `-1` to use/advance the descriptor's current position.
      * @param fd_out destination descriptor.
-     * @param off_out destination offset, or `-1` to use/advance the descriptor's current position.
+     * @param off_out destination offset, or `-1` to use/advance the descriptor's current
+     * position.
      * @param nbytes max bytes to move.
      * @param flags `splice`-style flags (e.g. `SPLICE_F_MOVE`).
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out, size_t nbytes, unsigned flags,
-                completion_callback callback, std::uint8_t iflags = 0);
+    void splice(
+        int fd_in,
+        loff_t off_in,
+        int fd_out,
+        loff_t off_out,
+        size_t nbytes,
+        unsigned flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `tee` — like splice() but doesn't drain the source pipe.
@@ -585,7 +740,14 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void tee(int fd_in, int fd_out, size_t nbytes, unsigned flags, completion_callback callback, std::uint8_t iflags = 0);
+    void tee(
+        int fd_in,
+        int fd_out,
+        size_t nbytes,
+        unsigned flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async socket `shutdown`.
@@ -606,8 +768,15 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void renameat(int olddfd, const char *oldpath, int newdfd, const char *newpath, unsigned flags,
-                  completion_callback callback, std::uint8_t iflags = 0);
+    void renameat(
+        int olddfd,
+        const char* oldpath,
+        int newdfd,
+        const char* newpath,
+        unsigned flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `mkdirat`.
@@ -617,7 +786,13 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback callback, std::uint8_t iflags = 0);
+    void mkdirat(
+        int dirfd,
+        const char* pathname,
+        mode_t mode,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `symlinkat`.
@@ -627,8 +802,13 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void symlinkat(const char *target, int newdirfd, const char *linkpath, completion_callback callback,
-                   std::uint8_t iflags = 0);
+    void symlinkat(
+        const char* target,
+        int newdirfd,
+        const char* linkpath,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `linkat` (hard link).
@@ -640,8 +820,15 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, completion_callback callback,
-                std::uint8_t iflags = 0);
+    void linkat(
+        int olddirfd,
+        const char* oldpath,
+        int newdirfd,
+        const char* newpath,
+        int flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Queues an async `unlinkat`.
@@ -651,20 +838,34 @@ class Leverager : public shared::HandlerBase {
      * @param callback completion callback, invoked with the syscall result.
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void unlinkat(int dfd, const char *path, unsigned flags, completion_callback callback, std::uint8_t iflags = 0);
+    void unlinkat(
+        int dfd,
+        const char* path,
+        unsigned flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
-     * @brief Queues an io_uring `msg_ring` — pokes a message/descriptor across into another ring's
-     * completion queue. Posix-only motion, the win32 backend just no-ops it out with an error.
+     * @brief Queues an io_uring `msg_ring` — pokes a message/descriptor across into another
+     * ring's completion queue. Posix-only motion, the win32 backend just no-ops it out with an
+     * error.
      * @param descriptor the target ring's descriptor to message.
      * @param len value threaded through as the target CQE's `res` field.
      * @param data value threaded through as the target CQE's `user_data`.
      * @param flags `msg_ring`-style flags.
-     * @param callback completion callback, invoked with the syscall result (on the *sending* ring).
+     * @param callback completion callback, invoked with the syscall result (on the *sending*
+     * ring).
      * @param iflags io_uring SQE flags — no-op on win32.
      */
-    void msg_ring(int descriptor, unsigned len, std::uint64_t data, unsigned flags, completion_callback callback,
-                  std::uint8_t iflags = 0);
+    void msg_ring(
+        int descriptor,
+        unsigned len,
+        std::uint64_t data,
+        unsigned flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
+    );
 
     /**
      * @brief Blocks submitting whatever's queued and waits for at least one completion, then
@@ -677,21 +878,22 @@ class Leverager : public shared::HandlerBase {
      * landed without waiting. Overloaded against run(): this one never blocks.
      */
     void poll();
-    /** @brief Flags the run loop to stop — posix backend just flips a bool; win32 also wakes the
-     * IOCP with a null completion so a blocked run() actually notices. */
+    /** @brief Flags the run loop to stop — posix backend just flips a bool; win32 also wakes
+     * the IOCP with a null completion so a blocked run() actually notices. */
     void stop();
 
     /**
-     * @brief Registers a single descriptor for fixed-file ops (cheaper repeated I/O, skips descriptor lookup per
-     * op on posix). Thin wrapper around register_files() with a one-element span.
+     * @brief Registers a single descriptor for fixed-file ops (cheaper repeated I/O, skips
+     * descriptor lookup per op on posix). Thin wrapper around register_files() with a
+     * one-element span.
      * @param descriptor descriptor to register.
      */
     void register_file(int descriptor);
     /**
-     * @brief Unregisters a single fixed file by slot, replacing it with a sentinel. Thin wrapper
-     * around register_files_update().
-     * @param descriptor the *slot index*, not a raw descriptor — mind the naming, it's a leftover from the
-     * single-descriptor convenience wrapper.
+     * @brief Unregisters a single fixed file by slot, replacing it with a sentinel. Thin
+     * wrapper around register_files_update().
+     * @param descriptor the *slot index*, not a raw descriptor — mind the naming, it's a
+     * leftover from the single-descriptor convenience wrapper.
      */
     void unregister_file(unsigned int descriptor) noexcept;
 
@@ -699,7 +901,8 @@ class Leverager : public shared::HandlerBase {
      * @brief Registers a whole batch of fds for fixed-file I/O in one shot.
      * @param fds descriptors to register — caller-owned for the duration of the call, not
      * retained after it returns.
-     * @throws std::system_error via panic_on_err() if the underlying registration syscall fails.
+     * @throws std::system_error via panic_on_err() if the underlying registration syscall
+     * fails.
      */
     void register_files(std::span<const int> fds);
     /**
@@ -719,7 +922,8 @@ class Leverager : public shared::HandlerBase {
     /**
      * @brief Registers fixed buffers for read_fixed()/write_fixed() to reference by index.
      * @param iovecs buffer descriptors to register — caller-owned for the duration of the call.
-     * @throws std::system_error via panic_on_err() if the underlying registration syscall fails.
+     * @throws std::system_error via panic_on_err() if the underlying registration syscall
+     * fails.
      */
     void register_buffers(std::span<const iovec> iovecs);
     /**
@@ -732,19 +936,29 @@ class Leverager : public shared::HandlerBase {
      * @brief Grabs the backing platform context (the io_uring ring or the IOCP wrapper).
      * @return a mutable reference to `m_context`.
      */
-    [[nodiscard]] SharedContext &context() noexcept { return m_context; }
+    [[nodiscard]] SharedContext& context() noexcept
+    {
+        return m_context;
+    }
+
     /**
      * @brief Const overload of context() — same deal, read-only view.
      * @return a const reference to `m_context`.
      */
-    [[nodiscard]] const SharedContext &context() const noexcept { return m_context; }
+    [[nodiscard]] const SharedContext& context() const noexcept
+    {
+        return m_context;
+    }
 
     /**
      * @brief HandlerBase override — this handler's registered name is always the literal string
      * `"Leverager"`.
      * @return `"Leverager"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "Leverager"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "Leverager";
+    }
 
     /**
      * @brief HandlerBase override — the work this handler does when scheduled is a single run()
@@ -752,8 +966,10 @@ class Leverager : public shared::HandlerBase {
      * into a controller.
      * @return the callable the controller invokes to do one pump-and-reschedule cycle.
      */
-    shared::WorkerFunction on_execute() override {
-        // pump one run() cycle, then re-queue this handler so it keeps getting scheduled forever
+    shared::WorkerFunction on_execute() override
+    {
+        // pump one run() cycle, then re-queue this handler so it keeps getting scheduled
+        // forever
         return [this]() {
             run();
             shared::this_handler::shedule();
@@ -765,11 +981,14 @@ class Leverager : public shared::HandlerBase {
      * released from its controller.
      * @return the release callback.
      */
-    shared::ReleaseFunction on_released() noexcept override {
-        return [this]() noexcept { stop(); };
+    shared::ReleaseFunction on_released() noexcept override
+    {
+        return [this]() noexcept {
+            stop();
+        };
     }
 
-  private:
+private:
     SharedContext m_context;
 
     bool m_running{false};
@@ -787,29 +1006,43 @@ using namespace boost::ut;
 
 suite<"leverage_panic"> panic_suite = [] {
     "panic_on_err does not throw on a non-negative result"_test = [] {
-        expect(nothrow([] { panic_on_err("op", 0); }));
-        expect(nothrow([] { panic_on_err("op", 42); }));
+        expect(nothrow([] {
+            panic_on_err("op", 0);
+        }));
+        expect(nothrow([] {
+            panic_on_err("op", 42);
+        }));
     };
 
     "panic_on_err throws std::system_error on a negative result"_test = [] {
-        expect(throws<std::system_error>([] { panic_on_err("op", -1); }));
+        expect(throws<std::system_error>([] {
+            panic_on_err("op", -1);
+        }));
     };
 
     "panic_on_err swallows EAGAIN when ignore_eagain is set"_test = [] {
-        expect(nothrow([] { panic_on_err("op", -EAGAIN, true); }));
+        expect(nothrow([] {
+            panic_on_err("op", -EAGAIN, true);
+        }));
     };
 
     "panic_on_err still throws EAGAIN when ignore_eagain is not set"_test = [] {
-        expect(throws<std::system_error>([] { panic_on_err("op", -EAGAIN, false); }));
+        expect(throws<std::system_error>([] {
+            panic_on_err("op", -EAGAIN, false);
+        }));
     };
 
     "panic() itself always throws std::system_error"_test = [] {
-        expect(throws<std::system_error>([] { panic("boom", EINVAL); }));
+        expect(throws<std::system_error>([] {
+            panic("boom", EINVAL);
+        }));
     };
 };
 
 suite<"leverage_verbose"> verbose_suite = [] {
-    "verbose_enabled is compiled off by default"_test = [] { expect(not verbose_enabled()); };
+    "verbose_enabled is compiled off by default"_test = [] {
+        expect(not verbose_enabled());
+    };
 };
 
 } // namespace io::base::leverage::tests

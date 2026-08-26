@@ -20,11 +20,17 @@ namespace io::shared::tests {
 using namespace boost::ut;
 
 suite<"shared_consts"> shared_consts_suite = [] {
-    "ENTRY_OVERHEAD is 32 bytes"_test = [] { expect(ENTRY_OVERHEAD == 32); };
+    "ENTRY_OVERHEAD is 32 bytes"_test = [] {
+        expect(ENTRY_OVERHEAD == 32);
+    };
 
-    "COOKIE_SEPARATOR is a semicolon-space"_test = [] { expect(COOKIE_SEPARATOR == "; "); };
+    "COOKIE_SEPARATOR is a semicolon-space"_test = [] {
+        expect(COOKIE_SEPARATOR == "; ");
+    };
 
-    "VALUE_SEPARATOR is a comma-space"_test = [] { expect(VALUE_SEPARATOR == ", "); };
+    "VALUE_SEPARATOR is a comma-space"_test = [] {
+        expect(VALUE_SEPARATOR == ", ");
+    };
 
     "COOKIE_SEPARATOR and VALUE_SEPARATOR are distinct"_test = [] {
         expect(COOKIE_SEPARATOR != VALUE_SEPARATOR);

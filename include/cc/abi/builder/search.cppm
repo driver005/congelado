@@ -4,58 +4,82 @@ module;
 
 export module cc_abi_builder:search;
 
-import cc_abi_builder_intern;
+import cc_abi_sonic_intern;
 
+export namespace ice::builder {
 
-export namespace ice {
-
-class SearchBuilder {
- public:
-  SearchBuilder() : m_handle{TP_SearchNew()} {}
-  ~SearchBuilder() { TP_SearchDelete(m_handle); }
-
-  SearchBuilder(const SearchBuilder&) = delete;
-  SearchBuilder& operator=(const SearchBuilder&) = delete;
-
-  SearchBuilder(SearchBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
-  SearchBuilder& operator=(SearchBuilder&& other) noexcept {
-
-    if (this != &other) {
-      TP_SearchDelete(m_handle);
-      m_handle = other.m_handle;
-      other.m_handle = nullptr;
+class SearchBuilder
+{
+public:
+    SearchBuilder() :
+        m_handle{TP_SearchNew()}
+    {
     }
-    return *this;
 
-  }
+    ~SearchBuilder()
+    {
+        TP_SearchDelete(m_handle);
+    }
 
-  SearchBuilder& set_index(TP_Search_IndexFn callback) {
+    SearchBuilder(const SearchBuilder&) = delete;
+    SearchBuilder& operator=(const SearchBuilder&) = delete;
 
-    TP_Search_SetIndexCallback(m_handle, callback);
-    return *this;
+    SearchBuilder(SearchBuilder&& other) noexcept :
+        m_handle{other.m_handle}
+    {
+        other.m_handle = nullptr;
+    }
 
-  }
-  SearchBuilder& set_remove(TP_Search_RemoveFn callback) {
+    SearchBuilder& operator=(SearchBuilder&& other) noexcept
+    {
 
-    TP_Search_SetRemoveCallback(m_handle, callback);
-    return *this;
+        if (this != &other) {
+            TP_SearchDelete(m_handle);
+            m_handle = other.m_handle;
+            other.m_handle = nullptr;
+        }
+        return *this;
+    }
 
-  }
-  SearchBuilder& set_search(TP_Search_SearchFn callback) {
+    SearchBuilder& set_index(TP_Search_IndexFn callback)
+    {
 
-    TP_Search_SetSearchCallback(m_handle, callback);
-    return *this;
+        TP_Search_SetIndexCallback(m_handle, callback);
+        return *this;
+    }
 
-  }
+    SearchBuilder& set_remove(TP_Search_RemoveFn callback)
+    {
 
-  StringBuilder get_name() { return StringBuilder{&m_handle->backend_name}; }
+        TP_Search_SetRemoveCallback(m_handle, callback);
+        return *this;
+    }
 
-  // Underlying handle — pass directly to the C ABI
-  TP_Search *get_handle() { return m_handle; }
-  const TP_Search *get_handle() const { return m_handle; }
+    SearchBuilder& set_search(TP_Search_SearchFn callback)
+    {
 
- private:
-  TP_Search* m_handle;
+        TP_Search_SetSearchCallback(m_handle, callback);
+        return *this;
+    }
+
+    ice::sonic::StringRuntime get_name()
+    {
+        return ice::sonic::StringRuntime{&m_handle->backend_name};
+    }
+
+    // Underlying handle — pass directly to the C ABI
+    TP_Search* get_handle()
+    {
+        return m_handle;
+    }
+
+    const TP_Search* get_handle() const
+    {
+        return m_handle;
+    }
+
+private:
+    TP_Search* m_handle;
 };
 
-}  // namespace ice
+} // namespace ice::builder

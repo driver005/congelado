@@ -15,9 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "tensorflow/core/platform/types.h"
+
 #include <functional>
 #include <memory>
-#include "tensorflow/core/platform/types.h"
 
 export module cc_tmp:utils_thread_factory;
 
@@ -26,25 +27,27 @@ import cc_abi;
 
 export {
 
-namespace tsl {
-class Thread;
-}  // namespace tsl
-namespace tensorflow {
-using tsl::Thread;  // NOLINT
+    namespace tsl {
+        class Thread;
+    } // namespace tsl
 
-// Virtual interface for an object that creates threads.
-class ThreadFactory {
- public:
-  virtual ~ThreadFactory() {}
+    namespace tensorflow {
+        using tsl::Thread; // NOLINT
 
-  // Runs `fn` asynchronously in a different thread. `fn` may block.
-  //
-  // NOTE: The caller is responsible for ensuring that this `ThreadFactory`
-  // outlives the returned `Thread`.
-  virtual std::unique_ptr<Thread> StartThread(const std::string& name,
-                                              std::function<void()> fn) = 0;
-};
+        // Virtual interface for an object that creates threads.
+        class ThreadFactory
+        {
+        public:
+            virtual ~ThreadFactory() {}
 
-}  // namespace tensorflow
+            // Runs `fn` asynchronously in a different thread. `fn` may block.
+            //
+            // NOTE: The caller is responsible for ensuring that this `ThreadFactory`
+            // outlives the returned `Thread`.
+            virtual std::unique_ptr<Thread>
+            StartThread(const std::string& name, std::function<void()> fn) = 0;
+        };
+
+    } // namespace tensorflow
 
 } // export

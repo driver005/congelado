@@ -6,7 +6,8 @@ export module cc_abi_value:attrtype;
 
 export namespace ice {
 
-enum class AttrType {
+enum class AttrType
+{
     String = TF_ATTR_STRING,
     Int = TF_ATTR_INT,
     Float = TF_ATTR_FLOAT,

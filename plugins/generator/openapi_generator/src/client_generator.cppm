@@ -13,9 +13,11 @@ import boost.ut;
 
 export namespace congelado::client {
 
-class Generator {
-  public:
-    /** @brief Spins up a Generator with the defaults — "client" namespace, no shared DTO module. */
+class Generator
+{
+public:
+    /** @brief Spins up a Generator with the defaults — "client" namespace, no shared DTO
+     * module. */
     Generator() = default;
 
     /**
@@ -24,33 +26,38 @@ class Generator {
      * @param value namespace name to use.
      * @return this Generator, moved, for chaining.
      */
-    Generator namespace_name(std::string_view value) && {
+    Generator namespace_name(std::string_view value) &&
+    {
         m_namespace = std::string{value};
         return std::move(*this);
     }
+
     /**
-     * @brief Fluent setter that points the generator at an already-existing DTO module instead of
-     * generating one — big W when you don't want duplicate DTOs across multiple client SDKs.
+     * @brief Fluent setter that points the generator at an already-existing DTO module instead
+     * of generating one — big W when you don't want duplicate DTOs across multiple client SDKs.
      * @param moduleName name of the pre-existing module containing the DTO types.
      * @return this Generator, moved, for chaining.
      */
-    Generator shared_models(std::string_view moduleName) && {
+    Generator shared_models(std::string_view moduleName) &&
+    {
         m_shared_models_module = std::string{moduleName};
         return std::move(*this);
     }
 
     /**
-     * @brief The main entry point — loads an OpenAPI document, parses its schemas and operations,
-     * then writes out `dto.cppm` (unless a shared models module was configured) and `routes.cppm`
-     * into `output_dir`. This is the whole pipeline in one call, no cap.
+     * @brief The main entry point — loads an OpenAPI document, parses its schemas and
+     * operations, then writes out `dto.cppm` (unless a shared models module was configured) and
+     * `routes.cppm` into `output_dir`. This is the whole pipeline in one call, no cap.
      * @param openapi_path path to the OpenAPI document to load.
-     * @param output_dir directory the generated `dto.cppm`/`routes.cppm` files get written into.
+     * @param output_dir directory the generated `dto.cppm`/`routes.cppm` files get written
+     * into.
      * @return nothing on success, or an error string describing whatever step failed (document
      * load, schema/operation parsing, DTO/route generation, or file write).
      */
-    [[nodiscard]] std::expected<void, std::string>
-    generate(const std::filesystem::path &openapi_path,
-             const std::filesystem::path &output_dir) const {
+    [[nodiscard]] std::expected<void, std::string> generate(
+        const std::filesystem::path& openapi_path, const std::filesystem::path& output_dir
+    ) const
+    {
         // Load the OpenAPI document first — nothing downstream can happen without it.
         auto document = Document::load(openapi_path);
         if (!document) {
@@ -99,7 +106,7 @@ class Generator {
         return {};
     }
 
-  private:
+private:
     /**
      * @brief Pulls every named schema out of `components.schemas` and parses each one into a
      * SchemaType. A document with no `components.schemas` at all? Still a W — that's a valid,
@@ -108,7 +115,8 @@ class Generator {
      * @return every named schema, keyed by name, or an error if a schema fails to parse.
      */
     [[nodiscard]] static std::expected<std::unordered_map<std::string, SchemaType>, std::string>
-    parse_components(const serde::Value &document) {
+    parse_components(const serde::Value& document)
+    {
         std::unordered_map<std::string, SchemaType> schemas;
         auto named = Document::at(document, {"components", "schemas"});
         if (!named) {
@@ -120,7 +128,7 @@ class Generator {
         }
         // Parse every named schema — first failure bails the whole call out with a
         // schema-qualified error so it's obvious which one's cooked.
-        for (auto &[name, value] : *object) {
+        for (auto& [name, value]: *object) {
             SchemaType schema;
             if (auto result = schema.parse(value); !result) {
                 return std::unexpected{std::format("schema '{}': {}", name, result.error())};
@@ -131,16 +139,17 @@ class Generator {
     }
 
     /**
-     * @brief Scans an operation's `responses` object for the first 2xx status and, if it carries
-     * a JSON schema, parses and attaches it to `operation` — only one response shape rides per
-     * operation, so the first 2xx found wins and the scan stops there.
+     * @brief Scans an operation's `responses` object for the first 2xx status and, if it
+     * carries a JSON schema, parses and attaches it to `operation` — only one response shape
+     * rides per operation, so the first 2xx found wins and the scan stops there.
      * @param operation the operation being built; mutated in place on a match.
      * @param operation_element the raw OpenAPI operation object (`paths.<path>.<method>`).
      * @return nothing on success (including "no 2xx response" — that's not an error), or an
      * error if the matched response's schema fails to parse.
      */
     [[nodiscard]] static std::expected<void, std::string>
-    parse_operation_response(OperationInfo &operation, const serde::Value &operation_element) {
+    parse_operation_response(OperationInfo& operation, const serde::Value& operation_element)
+    {
         auto responses_value = Document::at(operation_element, {"responses"});
         if (!responses_value) {
             return {};
@@ -149,12 +158,12 @@ class Generator {
         if (!responses) {
             return {};
         }
-        for (auto &[status, response_element] : *responses) {
+        for (auto& [status, response_element]: *responses) {
             if (status.empty() || status.front() != '2') {
                 continue;
             }
-            if (auto response_schema = Document::at(
-                    response_element, {"content", "application/json", "schema"})) {
+            if (auto response_schema =
+                    Document::at(response_element, {"content", "application/json", "schema"})) {
                 SchemaType schema;
                 if (auto result = schema.parse(*response_schema); !result) {
                     return std::unexpected{result.error()};
@@ -168,16 +177,17 @@ class Generator {
 
     /**
      * @brief Builds one OperationInfo for a single path+method pair — grabs the JSON request
-     * body schema (if any) via parse_operation_response()'s sibling inline check, then delegates
-     * the response side to parse_operation_response().
+     * body schema (if any) via parse_operation_response()'s sibling inline check, then
+     * delegates the response side to parse_operation_response().
      * @param path the OpenAPI path this operation lives under.
      * @param method the HTTP method this operation responds to.
      * @param operation_element the raw OpenAPI operation object (`paths.<path>.<method>`).
      * @return the parsed operation, or an error if the request/response schema fails to parse.
      */
-    [[nodiscard]] static std::expected<OperationInfo, std::string>
-    parse_operation(const std::string &path, const std::string &method,
-                    const serde::Value &operation_element) {
+    [[nodiscard]] static std::expected<OperationInfo, std::string> parse_operation(
+        const std::string& path, const std::string& method, const serde::Value& operation_element
+    )
+    {
         OperationInfo operation;
         operation.set_path(path);
         operation.set_method(method);
@@ -185,7 +195,8 @@ class Generator {
         // Request body schema is optional — only grab it if the JSON content type actually
         // shows up under requestBody.
         if (auto request_schema = Document::at(
-                operation_element, {"requestBody", "content", "application/json", "schema"})) {
+                operation_element, {"requestBody", "content", "application/json", "schema"}
+            )) {
             SchemaType schema;
             if (auto result = schema.parse(*request_schema); !result) {
                 return std::unexpected{result.error()};
@@ -208,7 +219,8 @@ class Generator {
      * response schema fails to parse.
      */
     [[nodiscard]] static std::expected<std::vector<OperationInfo>, std::string>
-    parse_operations(const serde::Value &document) {
+    parse_operations(const serde::Value& document)
+    {
         std::vector<OperationInfo> operations;
         // "paths" is mandatory and must be an object — no fallback here, this is the whole
         // point of an OpenAPI doc.
@@ -220,13 +232,13 @@ class Generator {
         if (!paths) {
             return std::unexpected{"'paths' must be an object"};
         }
-        for (auto &[path, methods_element] : *paths) {
+        for (auto& [path, methods_element]: *paths) {
             auto methods = methods_element.to_object();
             if (!methods) {
                 continue;
             }
             // One OperationInfo per path+method pair.
-            for (auto &[method, operation_element] : *methods) {
+            for (auto& [method, operation_element]: *methods) {
                 auto op = parse_operation(path, method, operation_element);
                 if (!op) {
                     return std::unexpected{op.error()};
@@ -271,34 +283,35 @@ suite<"Generator"> client_generator_suite = [] {
 
     "generate(): an existing file still fails at the parse step (no format plugin loaded)"_test =
         [] {
-        auto path = std::filesystem::temp_directory_path() / "congelado_client_generator_test.json";
-        {
-            std::ofstream out{path};
-            out << R"({"paths": {}})";
-        }
-        Generator generator;
+            auto path =
+                std::filesystem::temp_directory_path() / "congelado_client_generator_test.json";
+            {
+                std::ofstream out{path};
+                out << R"({"paths": {}})";
+            }
+            Generator generator;
 
-        auto result = generator.generate(path, std::filesystem::temp_directory_path());
+            auto result = generator.generate(path, std::filesystem::temp_directory_path());
 
-        expect(not result.has_value()) << fatal;
-        expect(result.error().contains("failed to parse"));
-        expect(result.error().contains("no format plugin loaded for 'application/json'"));
+            expect(not result.has_value()) << fatal;
+            expect(result.error().contains("failed to parse"));
+            expect(result.error().contains("no format plugin loaded for 'application/json'"));
 
-        std::filesystem::remove(path);
-    };
+            std::filesystem::remove(path);
+        };
 
     "namespace_name()/shared_models() fluent chain builds without crashing or double-moving"_test =
         [] {
-        auto generator = Generator{}.namespace_name("my_client").shared_models("shared_dto");
+            auto generator = Generator{}.namespace_name("my_client").shared_models("shared_dto");
 
-        // Still fails the same way -- generate() bails at Document::load() before ever
-        // touching m_namespace/m_shared_models_module -- this just confirms the chained,
-        // moved-through Generator is otherwise usable (no crash, no UB from the moves).
-        auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
+            // Still fails the same way -- generate() bails at Document::load() before ever
+            // touching m_namespace/m_shared_models_module -- this just confirms the chained,
+            // moved-through Generator is otherwise usable (no crash, no UB from the moves).
+            auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
 
-        expect(not result.has_value()) << fatal;
-        expect(result.error().contains("failed to open"));
-    };
+            expect(not result.has_value()) << fatal;
+            expect(result.error().contains("failed to open"));
+        };
 
     "namespace_name() alone (no shared_models) also builds and behaves the same way"_test = [] {
         auto generator = Generator{}.namespace_name("solo_client");

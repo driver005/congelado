@@ -15,9 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <type_traits>
-#include "Eigen/Core"  // from @eigen_archive
+#include "Eigen/Core" // from @eigen_archive
 #include "tensorflow/core/platform/macros.h"
+
+#include <type_traits>
 
 export module cc_tmp:types_bounds_check;
 
@@ -26,34 +27,37 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Check that 0 <= index < limit using a single comparison, assuming
-// that 0 <= limit if Index is signed.  Intended for use in performance
-// critical contexts where 0 <= index < limit is almost always true.
-template <typename Ta, typename Tb>
-EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC bool FastBoundsCheck(const Ta index,
-                                                           const Tb limit) {
-  static_assert(std::is_integral<Ta>::value && std::is_integral<Tb>::value,
-                "FastBoundsCheck can only be used on integer types.");
-  typedef typename std::make_unsigned<decltype(index + limit)>::type UIndex;
-  return TF_PREDICT_TRUE(static_cast<UIndex>(index) <
-                         static_cast<UIndex>(limit));
-}
+        // Check that 0 <= index < limit using a single comparison, assuming
+        // that 0 <= limit if Index is signed.  Intended for use in performance
+        // critical contexts where 0 <= index < limit is almost always true.
+        template<typename Ta, typename Tb>
+        EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC bool FastBoundsCheck(const Ta index, const Tb limit)
+        {
+            static_assert(
+                std::is_integral<Ta>::value && std::is_integral<Tb>::value,
+                "FastBoundsCheck can only be used on integer types."
+            );
+            typedef typename std::make_unsigned<decltype(index + limit)>::type UIndex;
+            return TF_PREDICT_TRUE(static_cast<UIndex>(index) < static_cast<UIndex>(limit));
+        }
 
-namespace internal {
-// Ensure that the compiler cannot elide a copy into a local, for
-// bounds checking on source tensors that might be updated asynchronously.
-// This function may only be used on primitive integral types (int32, int64,
-// etc).  It does not guarantee any atomicity or barriers.
-template <typename T>
-EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC const T SubtleMustCopy(const T &x) {
-  static_assert(std::is_integral<T>::value,
-                "SubtleMustCopy can only be used on integer types.");
-  auto *to_x = reinterpret_cast<const volatile T *>(&x);
-  return *to_x;
-}
-}  // namespace internal
-}  // namespace tensorflow
+        namespace internal {
+            // Ensure that the compiler cannot elide a copy into a local, for
+            // bounds checking on source tensors that might be updated asynchronously.
+            // This function may only be used on primitive integral types (int32, int64,
+            // etc).  It does not guarantee any atomicity or barriers.
+            template<typename T>
+            EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC const T SubtleMustCopy(const T& x)
+            {
+                static_assert(
+                    std::is_integral<T>::value, "SubtleMustCopy can only be used on integer types."
+                );
+                auto* to_x = reinterpret_cast<const volatile T*>(&x);
+                return *to_x;
+            }
+        } // namespace internal
+    } // namespace tensorflow
 
 } // export

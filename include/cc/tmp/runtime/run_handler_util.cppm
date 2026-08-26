@@ -15,13 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <cmath>
 #include "tensorflow/core/lib/strings/numbers.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/str_util.h"
+
+#include <cmath>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 export module cc_tmp:runtime_run_handler_util;
 
@@ -30,226 +31,245 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Assign thread ranges to requests.
-// Requests are numbered 0...num_active_requests-1, and
-// threads are numbered 0...num_threads-1.
-// On return, the range [start_vec->at(i), end_vec->at(i))
-// indicates the subrange of the threads available to request i.
-// The ranges given to different requests may overlap.
-// Lower numbered requests will tend to be assigned more threads.
-// Thus, a client might associate older requests with lower
-// array indices so they receive access to more threads.
-// However, the routine ensures that each request is given access
-// to at least min(min_threads_per_request, num_threads)  threads.
-// Every thread will be assigned to at least one request range,
-// assuming there is at least one request.
-void ComputeInterOpSchedulingRanges(int num_active_requests, int num_threads,
-                                    int min_threads_per_request,
-                                    std::vector<std::uint_fast32_t>* start_vec,
-                                    std::vector<std::uint_fast32_t>* end_vec);
+        // Assign thread ranges to requests.
+        // Requests are numbered 0...num_active_requests-1, and
+        // threads are numbered 0...num_threads-1.
+        // On return, the range [start_vec->at(i), end_vec->at(i))
+        // indicates the subrange of the threads available to request i.
+        // The ranges given to different requests may overlap.
+        // Lower numbered requests will tend to be assigned more threads.
+        // Thus, a client might associate older requests with lower
+        // array indices so they receive access to more threads.
+        // However, the routine ensures that each request is given access
+        // to at least min(min_threads_per_request, num_threads)  threads.
+        // Every thread will be assigned to at least one request range,
+        // assuming there is at least one request.
+        void ComputeInterOpSchedulingRanges(
+            int num_active_requests,
+            int num_threads,
+            int min_threads_per_request,
+            std::vector<std::uint_fast32_t>* start_vec,
+            std::vector<std::uint_fast32_t>* end_vec
+        );
 
-// Assign thread steal ranges to threads.Threads are numbered 0...num_threads-1.
-// On return, the range [start_vec->at(i), end_vec->at(i)) indicates the steal
-// range of the thread i. The ranges given to different threads may overlap.
-void ComputeInterOpStealingRanges(int num_threads, int min_threads_per_domain,
-                                  std::vector<std::uint_fast32_t>* start_vec,
-                                  std::vector<std::uint_fast32_t>* end_vec);
+        // Assign thread steal ranges to threads.Threads are numbered 0...num_threads-1.
+        // On return, the range [start_vec->at(i), end_vec->at(i)) indicates the steal
+        // range of the thread i. The ranges given to different threads may overlap.
+        void ComputeInterOpStealingRanges(
+            int num_threads,
+            int min_threads_per_domain,
+            std::vector<std::uint_fast32_t>* start_vec,
+            std::vector<std::uint_fast32_t>* end_vec
+        );
 
-// For each of the num_threads determine the index of the active_request whose
-// work queue should be attempted first by that the thread. Return a vector of
-// size num_threads which represents how threads should be distributed across
-// requests.
-std::vector<int> ChooseRequestsWithExponentialDistribution(
-    int num_active_requests, int num_threads);
+        // For each of the num_threads determine the index of the active_request whose
+        // work queue should be attempted first by that the thread. Return a vector of
+        // size num_threads which represents how threads should be distributed across
+        // requests.
+        std::vector<int>
+        ChooseRequestsWithExponentialDistribution(int num_active_requests, int num_threads);
 
-// Look up environment variable named 'var_name' and return the value if it
-// exist and can be parsed. Return 'default_value' otherwise.
-double ParamFromEnvWithDefault(const char* var_name, double default_value);
+        // Look up environment variable named 'var_name' and return the value if it
+        // exist and can be parsed. Return 'default_value' otherwise.
+        double ParamFromEnvWithDefault(const char* var_name, double default_value);
 
-// Look up environment variable named 'var_name' and return the value if it
-// exist and can be parsed. The value must be in format val1,val2... Return
-// 'default_value' otherwise.
-std::vector<double> ParamFromEnvWithDefault(const char* var_name,
-                                            std::vector<double> default_value);
+        // Look up environment variable named 'var_name' and return the value if it
+        // exist and can be parsed. The value must be in format val1,val2... Return
+        // 'default_value' otherwise.
+        std::vector<double>
+        ParamFromEnvWithDefault(const char* var_name, std::vector<double> default_value);
 
-// Look up environment variable named 'var_name' and return the value if it
-// exist and can be parsed. The value must be in format val1,val2... Return
-// 'default_value' otherwise.
-std::vector<int> ParamFromEnvWithDefault(const char* var_name,
-                                         std::vector<int> default_value);
+        // Look up environment variable named 'var_name' and return the value if it
+        // exist and can be parsed. The value must be in format val1,val2... Return
+        // 'default_value' otherwise.
+        std::vector<int>
+        ParamFromEnvWithDefault(const char* var_name, std::vector<int> default_value);
 
-// Look up environment variable named 'var_name' and return the value if it
-// exist and can be parsed. Return 'default_value' otherwise.
-bool ParamFromEnvBoolWithDefault(const char* var_name, bool default_value);
+        // Look up environment variable named 'var_name' and return the value if it
+        // exist and can be parsed. Return 'default_value' otherwise.
+        bool ParamFromEnvBoolWithDefault(const char* var_name, bool default_value);
 
-}  // end namespace tensorflow
+    } // end namespace tensorflow
 
-// ==================================================================
-// Implementation: run_handler_util.cc
-// ==================================================================
+    // ==================================================================
+    // Implementation: run_handler_util.cc
+    // ==================================================================
 
-namespace tensorflow {
+    namespace tensorflow {
 
-double ParamFromEnvWithDefault(const char* var_name, double default_value) {
-  const char* val = std::getenv(var_name);
-  double num;
-  return (val && strings::safe_strtod(val, &num)) ? num : default_value;
-}
+        double ParamFromEnvWithDefault(const char* var_name, double default_value)
+        {
+            const char* val = std::getenv(var_name);
+            double num;
+            return (val && strings::safe_strtod(val, &num)) ? num : default_value;
+        }
 
-std::vector<double> ParamFromEnvWithDefault(const char* var_name,
-                                            std::vector<double> default_value) {
-  const char* val = std::getenv(var_name);
-  if (!val) {
-    return default_value;
-  }
-  std::vector<string> splits = str_util::Split(val, ",");
-  std::vector<double> result;
-  result.reserve(splits.size());
-  for (auto& split : splits) {
-    double num;
-    if (strings::safe_strtod(split, &num)) {
-      result.push_back(num);
-    } else {
-      LOG(ERROR) << "Wrong format for " << var_name << ". Use default value.";
-      return default_value;
-    }
-  }
-  return result;
-}
+        std::vector<double>
+        ParamFromEnvWithDefault(const char* var_name, std::vector<double> default_value)
+        {
+            const char* val = std::getenv(var_name);
+            if (!val) {
+                return default_value;
+            }
+            std::vector<string> splits = str_util::Split(val, ",");
+            std::vector<double> result;
+            result.reserve(splits.size());
+            for (auto& split: splits) {
+                double num;
+                if (strings::safe_strtod(split, &num)) {
+                    result.push_back(num);
+                } else {
+                    LOG(ERROR) << "Wrong format for " << var_name << ". Use default value.";
+                    return default_value;
+                }
+            }
+            return result;
+        }
 
-std::vector<int> ParamFromEnvWithDefault(const char* var_name,
-                                         std::vector<int> default_value) {
-  const char* val = std::getenv(var_name);
-  if (!val) {
-    return default_value;
-  }
-  std::vector<string> splits = str_util::Split(val, ",");
-  std::vector<int> result;
-  result.reserve(splits.size());
-  for (auto& split : splits) {
-    int num;
-    if (strings::safe_strto32(split, &num)) {
-      result.push_back(num);
-    } else {
-      LOG(ERROR) << "Wrong format for " << var_name << ". Use default value.";
-      return default_value;
-    }
-  }
-  return result;
-}
+        std::vector<int>
+        ParamFromEnvWithDefault(const char* var_name, std::vector<int> default_value)
+        {
+            const char* val = std::getenv(var_name);
+            if (!val) {
+                return default_value;
+            }
+            std::vector<string> splits = str_util::Split(val, ",");
+            std::vector<int> result;
+            result.reserve(splits.size());
+            for (auto& split: splits) {
+                int num;
+                if (strings::safe_strto32(split, &num)) {
+                    result.push_back(num);
+                } else {
+                    LOG(ERROR) << "Wrong format for " << var_name << ". Use default value.";
+                    return default_value;
+                }
+            }
+            return result;
+        }
 
-bool ParamFromEnvBoolWithDefault(const char* var_name, bool default_value) {
-  const char* val = std::getenv(var_name);
-  return (val) ? str_util::Lowercase(val) == "true" : default_value;
-}
+        bool ParamFromEnvBoolWithDefault(const char* var_name, bool default_value)
+        {
+            const char* val = std::getenv(var_name);
+            return (val) ? str_util::Lowercase(val) == "true" : default_value;
+        }
 
-void ComputeInterOpSchedulingRanges(int num_active_requests, int num_threads,
-                                    int min_threads_per_request,
-                                    std::vector<std::uint_fast32_t>* start_vec,
-                                    std::vector<std::uint_fast32_t>* end_vec) {
-  // Each request is expected to have weight W[i] = num_active_requests - i.
-  // Therefore, total_weight = sum of all request weights.
-  float total_weight = 0.5f * num_active_requests * (num_active_requests + 1);
-  float demand_factor = static_cast<float>(num_threads) / total_weight;
-  float last_cumulative_weight = 0.0;
-  min_threads_per_request = std::max(1, min_threads_per_request);
-  for (int i = 0; i != num_active_requests; i++) {
-    float cumulative_weight =
-        static_cast<float>(i + 1) *
-        (num_active_requests - static_cast<float>(i) * 0.5f);
-    float weight = cumulative_weight - last_cumulative_weight;
-    // Quantize thread_demand by rounding up, and also satisfying
-    // `min_threads_per_request` constraint.
-    // Note: We subtract a small epsilon (0.00001) to prevent ceil(..) from
-    // rounding weights like 4.0 to 5.
-    int demand = std::max(
-        min_threads_per_request,
-        static_cast<int>(std::ceil(weight * demand_factor - 0.00001f)));
-    // For the quantized range [start, end); compute the floor of real start,
-    // and expand downwards from there with length `demand` and adjust for
-    // boundary conditions.
-    int start = last_cumulative_weight * demand_factor;
-    int end = std::min(num_threads, start + demand);
-    start = std::max(0, std::min(start, end - demand));
-    start_vec->at(i) = start;
-    end_vec->at(i) = end;
-    last_cumulative_weight = cumulative_weight;
-  }
-}
+        void ComputeInterOpSchedulingRanges(
+            int num_active_requests,
+            int num_threads,
+            int min_threads_per_request,
+            std::vector<std::uint_fast32_t>* start_vec,
+            std::vector<std::uint_fast32_t>* end_vec
+        )
+        {
+            // Each request is expected to have weight W[i] = num_active_requests - i.
+            // Therefore, total_weight = sum of all request weights.
+            float total_weight = 0.5f * num_active_requests * (num_active_requests + 1);
+            float demand_factor = static_cast<float>(num_threads) / total_weight;
+            float last_cumulative_weight = 0.0;
+            min_threads_per_request = std::max(1, min_threads_per_request);
+            for (int i = 0; i != num_active_requests; i++) {
+                float cumulative_weight = static_cast<float>(i + 1) *
+                                          (num_active_requests - static_cast<float>(i) * 0.5f);
+                float weight = cumulative_weight - last_cumulative_weight;
+                // Quantize thread_demand by rounding up, and also satisfying
+                // `min_threads_per_request` constraint.
+                // Note: We subtract a small epsilon (0.00001) to prevent ceil(..) from
+                // rounding weights like 4.0 to 5.
+                int demand = std::max(
+                    min_threads_per_request,
+                    static_cast<int>(std::ceil(weight * demand_factor - 0.00001f))
+                );
+                // For the quantized range [start, end); compute the floor of real start,
+                // and expand downwards from there with length `demand` and adjust for
+                // boundary conditions.
+                int start = last_cumulative_weight * demand_factor;
+                int end = std::min(num_threads, start + demand);
+                start = std::max(0, std::min(start, end - demand));
+                start_vec->at(i) = start;
+                end_vec->at(i) = end;
+                last_cumulative_weight = cumulative_weight;
+            }
+        }
 
-void ComputeInterOpStealingRanges(int num_threads, int min_threads_per_domain,
-                                  std::vector<std::uint_fast32_t>* start_vec,
-                                  std::vector<std::uint_fast32_t>* end_vec) {
-  int steal_domain_size = std::min(min_threads_per_domain, num_threads);
-  unsigned steal_start = 0, steal_end = steal_domain_size;
-  for (int i = 0; i < num_threads; ++i) {
-    if (i >= steal_end) {
-      if (steal_end + steal_domain_size < num_threads) {
-        steal_start = steal_end;
-        steal_end += steal_domain_size;
-      } else {
-        steal_end = num_threads;
-        steal_start = steal_end - steal_domain_size;
-      }
-    }
-    start_vec->at(i) = steal_start;
-    end_vec->at(i) = steal_end;
-  }
-}
+        void ComputeInterOpStealingRanges(
+            int num_threads,
+            int min_threads_per_domain,
+            std::vector<std::uint_fast32_t>* start_vec,
+            std::vector<std::uint_fast32_t>* end_vec
+        )
+        {
+            int steal_domain_size = std::min(min_threads_per_domain, num_threads);
+            unsigned steal_start = 0, steal_end = steal_domain_size;
+            for (int i = 0; i < num_threads; ++i) {
+                if (i >= steal_end) {
+                    if (steal_end + steal_domain_size < num_threads) {
+                        steal_start = steal_end;
+                        steal_end += steal_domain_size;
+                    } else {
+                        steal_end = num_threads;
+                        steal_start = steal_end - steal_domain_size;
+                    }
+                }
+                start_vec->at(i) = steal_start;
+                end_vec->at(i) = steal_end;
+            }
+        }
 
-std::vector<int> ChooseRequestsWithExponentialDistribution(
-    int num_active_requests, int num_threads) {
-  // Fraction of the total threads that will be evenly distributed across
-  // requests. The rest of threads will be exponentially distributed across
-  // requests.
-  static const double kCapacityFractionForEvenDistribution =
-      ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_EVEN_FRACTION", 0.5);
+        std::vector<int>
+        ChooseRequestsWithExponentialDistribution(int num_active_requests, int num_threads)
+        {
+            // Fraction of the total threads that will be evenly distributed across
+            // requests. The rest of threads will be exponentially distributed across
+            // requests.
+            static const double kCapacityFractionForEvenDistribution =
+                ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_EVEN_FRACTION", 0.5);
 
-  // For the threads that will be exponentially distributed across requests,
-  // a request will get allocated (kPowerBase - 1) times as much threads as
-  // threads allocated to all requests that arrive after it. For example, the
-  // oldest request will be allocated num_threads*(kPowerBase-1)/kPowerBase
-  // number of threads.
-  static const double kPowerBase =
-      ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_POWER_BASE", 2.0);
+            // For the threads that will be exponentially distributed across requests,
+            // a request will get allocated (kPowerBase - 1) times as much threads as
+            // threads allocated to all requests that arrive after it. For example, the
+            // oldest request will be allocated num_threads*(kPowerBase-1)/kPowerBase
+            // number of threads.
+            static const double kPowerBase =
+                ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_POWER_BASE", 2.0);
 
-  static const int kMinEvenThreadsFromEnv = static_cast<int>(
-      ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_MIN_EVEN_THREADS", 1));
-  static const int kMaxEvenThreadsFromEnv = static_cast<int>(
-      ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_MAX_EVEN_THREADS", 3));
+            static const int kMinEvenThreadsFromEnv = static_cast<int>(
+                ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_MIN_EVEN_THREADS", 1)
+            );
+            static const int kMaxEvenThreadsFromEnv = static_cast<int>(
+                ParamFromEnvWithDefault("TF_RUN_HANDLER_EXP_DIST_MAX_EVEN_THREADS", 3)
+            );
 
-  std::vector<int> request_idx_list;
-  request_idx_list.resize(num_threads);
-  // Each request gets at least this number of threads that steal from it first.
-  int min_threads_per_request =
-      num_threads * kCapacityFractionForEvenDistribution / num_active_requests;
-  min_threads_per_request =
-      std::max(kMinEvenThreadsFromEnv, min_threads_per_request);
-  min_threads_per_request =
-      std::min(kMaxEvenThreadsFromEnv, min_threads_per_request);
+            std::vector<int> request_idx_list;
+            request_idx_list.resize(num_threads);
+            // Each request gets at least this number of threads that steal from it first.
+            int min_threads_per_request =
+                num_threads * kCapacityFractionForEvenDistribution / num_active_requests;
+            min_threads_per_request = std::max(kMinEvenThreadsFromEnv, min_threads_per_request);
+            min_threads_per_request = std::min(kMaxEvenThreadsFromEnv, min_threads_per_request);
 
-  int num_remaining_threads =
-      std::max(0, num_threads - num_active_requests * min_threads_per_request);
-  int request_idx = -1;
-  int num_threads_next_request = 0;
+            int num_remaining_threads =
+                std::max(0, num_threads - num_active_requests * min_threads_per_request);
+            int request_idx = -1;
+            int num_threads_next_request = 0;
 
-  for (int tid = 0; tid < num_threads; ++tid) {
-    if (num_threads_next_request <= 0) {
-      request_idx = std::min(num_active_requests - 1, request_idx + 1);
-      int num_extra_threads_next_request =
-          std::ceil(num_remaining_threads * (kPowerBase - 1.0) / kPowerBase);
-      num_remaining_threads -= num_extra_threads_next_request;
-      num_threads_next_request =
-          num_extra_threads_next_request + min_threads_per_request;
-    }
-    num_threads_next_request--;
-    request_idx_list[tid] = request_idx;
-  }
-  return request_idx_list;
-}
+            for (int tid = 0; tid < num_threads; ++tid) {
+                if (num_threads_next_request <= 0) {
+                    request_idx = std::min(num_active_requests - 1, request_idx + 1);
+                    int num_extra_threads_next_request =
+                        std::ceil(num_remaining_threads * (kPowerBase - 1.0) / kPowerBase);
+                    num_remaining_threads -= num_extra_threads_next_request;
+                    num_threads_next_request =
+                        num_extra_threads_next_request + min_threads_per_request;
+                }
+                num_threads_next_request--;
+                request_idx_list[tid] = request_idx;
+            }
+            return request_idx_list;
+        }
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

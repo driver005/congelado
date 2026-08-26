@@ -11,8 +11,9 @@ export namespace core::generator {
 // Renders either as a full block-style function/method (own line, braced body, blank line
 // after — used for free functions) or, with set_inline(), as a single-line body (used for
 // the terse setter/getter accessor idiom: "void setX(T value) { m_x = ...; }").
-class Function {
-  public:
+class Function
+{
+public:
     /**
      * @brief Starts building a generated function/method with the given return type and
      * name — no params, no body, no modifiers yet.
@@ -20,64 +21,79 @@ class Function {
      * `"const std::string &"`).
      * @param name the function's name, emitted verbatim.
      */
-    Function(std::string returnType, std::string name)
-        : m_return_type(std::move(returnType)), m_name(std::move(name)) {}
+    Function(std::string returnType, std::string name) :
+        m_return_type(std::move(returnType)),
+        m_name(std::move(name))
+    {
+    }
 
     /**
      * @brief Appends one parameter to the end of the parameter list, in call order.
      * @param param the parameter to append.
      * @return reference to this function for chaining.
      */
-    Function &add_param(Param param) {
+    Function& add_param(Param param)
+    {
         m_params.push_back(std::move(param));
         return *this;
     }
+
     /**
      * @brief Appends one statement to the function body, in emission order.
      * @param statement the statement to append.
      * @return reference to this function for chaining.
      */
-    Function &add_statement(Stmt statement) {
+    Function& add_statement(Stmt statement)
+    {
         m_statements.push_back(std::move(statement));
         return *this;
     }
+
     /**
      * @brief Toggles the `static` keyword on the rendered declaration.
      * @param value true to render `static`, false to drop it. Defaults to true so a bare
      * `.set_static()` call flips it on — that's the motion.
      * @return reference to this function for chaining.
      */
-    Function &set_static(bool value = true) noexcept {
+    Function& set_static(bool value = true) noexcept
+    {
         m_is_static = value;
         return *this;
     }
+
     /**
      * @brief Toggles the trailing `const` qualifier on the rendered declaration.
      * @param value true to render `const`, false to drop it.
      * @return reference to this function for chaining.
      */
-    Function &set_const(bool value = true) noexcept {
+    Function& set_const(bool value = true) noexcept
+    {
         m_is_const = value;
         return *this;
     }
+
     /**
      * @brief Toggles the trailing `noexcept` qualifier on the rendered declaration.
      * @param value true to render `noexcept`, false to drop it.
      * @return reference to this function for chaining.
      */
-    Function &set_noexcept(bool value = true) noexcept {
+    Function& set_noexcept(bool value = true) noexcept
+    {
         m_is_noexcept = value;
         return *this;
     }
+
     /**
      * @brief Toggles the leading `[[nodiscard]]` attribute on the rendered declaration.
      * @param value true to render `[[nodiscard]]`, false to drop it.
      * @return reference to this function for chaining.
      */
-    Function &set_nodiscard(bool value = true) noexcept {
+    Function& set_nodiscard(bool value = true) noexcept
+    {
         m_is_nodiscard = value;
         return *this;
     }
+
     /**
      * @brief Switches rendering between full block-style (own braces, blank line after) and
      * single-line inline body — the terse getter/setter idiom this codebase leans on hard:
@@ -86,7 +102,8 @@ class Function {
      * whole reason this class exists is to spit out that exact accessor shape.
      * @return reference to this function for chaining.
      */
-    Function &set_inline(bool value = true) noexcept {
+    Function& set_inline(bool value = true) noexcept
+    {
         m_is_inline = value;
         return *this;
     }
@@ -95,17 +112,28 @@ class Function {
      * @brief Gets the function's name.
      * @return the name this function renders as.
      */
-    [[nodiscard]] const std::string &get_name() const noexcept { return m_name; }
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
     /**
      * @brief Gets the function's return type.
      * @return the return type this function renders as, verbatim as it was handed in.
      */
-    [[nodiscard]] const std::string &get_return_type() const noexcept { return m_return_type; }
+    [[nodiscard]] const std::string& get_return_type() const noexcept
+    {
+        return m_return_type;
+    }
+
     /**
      * @brief Checks whether the trailing `const` qualifier is set.
      * @return true if `set_const()` left this function marked const.
      */
-    [[nodiscard]] bool is_const() const noexcept { return m_is_const; }
+    [[nodiscard]] bool is_const() const noexcept
+    {
+        return m_is_const;
+    }
 
     /**
      * @brief Renders the full function/method: attributes, qualifiers, params, and body, in
@@ -120,7 +148,8 @@ class Function {
      * @return the rendered declaration plus body, always ending in at least one trailing
      * newline (block form ends in a blank line).
      */
-    [[nodiscard]] std::string render(std::size_t indent) const {
+    [[nodiscard]] std::string render(std::size_t indent) const
+    {
         std::string pad(indent, ' ');
         // Join every param's own render() with ", " — comma only goes between entries,
         // never trailing, so the loop tracks index instead of just appending blindly.
@@ -129,7 +158,8 @@ class Function {
             if (i > 0) {
                 params += ", ";
             }
-            params += m_params[i].render();  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            params +=
+                m_params[i].render(); // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
 
         // Build the declaration line: leading attributes/qualifiers first, in the order
@@ -142,7 +172,8 @@ class Function {
             decl += "static ";
         }
         // Reference/pointer return types already end in their own spacing char, so skip
-        // the extra space before the name — otherwise you'd get "T & name" instead of "T &name".
+        // the extra space before the name — otherwise you'd get "T & name" instead of "T
+        // &name".
         char last = m_return_type.empty() ? ' ' : m_return_type.back();
         std::string_view separator = (last == '&' || last == '*') ? "" : " ";
         decl += std::format("{}{}{}({})", m_return_type, separator, m_name, params);
@@ -160,7 +191,7 @@ class Function {
         // see the @warning above.
         if (m_is_inline) {
             std::string body;
-            for (const auto &statement : m_statements) {
+            for (const auto& statement: m_statements) {
                 auto line = statement.render(0);
                 if (!line.empty() && line.back() == '\n') {
                     line.pop_back();
@@ -178,14 +209,14 @@ class Function {
         // level deeper, blank line after the closing brace to separate from whatever
         // follows.
         std::string out = decl + " {\n";
-        for (const auto &statement : m_statements) {
+        for (const auto& statement: m_statements) {
             out += statement.render(indent + 4);
         }
         out += pad + "}\n\n";
         return out;
     }
 
-  private:
+private:
     std::string m_return_type;
     std::string m_name;
     std::vector<Param> m_params;

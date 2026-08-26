@@ -20,8 +20,9 @@ namespace serde {
  * @param value the field value to stringify.
  * @return the string form of `value`, used to build primary-key strings for cache keys.
  */
-template <typename VT>
-std::string field_value_to_string(const VT &value) {
+template<typename VT>
+std::string field_value_to_string(const VT& value)
+{
     using RflType = FieldConverter<VT>::rfl_type;
     RflType rfl_value = FieldConverter<VT>::to_rfl(value);
     // Already a string? Hand it back as-is — otherwise std::format does the stringify work.
@@ -36,8 +37,9 @@ std::string field_value_to_string(const VT &value) {
 
 export namespace serde {
 
-class Cache {
-  public:
+class Cache
+{
+public:
     /**
      * @brief Extracts the string form of `value`'s primary-key field by walking every
      * reflected field and matching on `options.m_db.m_primary_key` — lowkey a linear scan
@@ -49,20 +51,24 @@ class Cache {
      * type that forgot to mark a PK.
      * @return the primary key's value, stringified.
      */
-    template <IConnectable T>
-    [[nodiscard]] static std::string pk_string(const T &value) {
+    template<IConnectable T>
+    [[nodiscard]] static std::string pk_string(const T& value)
+    {
         std::string result;
         // Fold over every reflected field — whichever one's flagged primary_key wins, lowkey a
         // linear scan wearing a fold-expression trenchcoat.
         std::apply(
             [&](auto... fields) {
-                ([&](auto field) {
-                    if constexpr (decltype(field)::options.m_db.m_primary_key) {
-                        result = field_value_to_string((value.*decltype(field)::getter)());
-                    }
-                }(fields), ...);
+                (
+                    [&](auto field) {
+                        if constexpr (decltype(field)::options.m_db.m_primary_key) {
+                            result = field_value_to_string((value.*decltype(field)::getter)());
+                        }
+                    }(fields),
+                    ...);
             },
-            Serializable<T>::fields());
+            Serializable<T>::fields()
+        );
         return result;
     }
 
@@ -72,8 +78,9 @@ class Cache {
      * @param value the instance to key.
      * @return the `table:pk` cache key, ready to hand to whatever cache backend's in play.
      */
-    template <IConnectable T>
-    [[nodiscard]] static std::string cache_key(const T &value) {
+    template<IConnectable T>
+    [[nodiscard]] static std::string cache_key(const T& value)
+    {
         return std::format("{}:{}", Serializable<T>::table_name(), pk_string(value));
     }
 
@@ -84,8 +91,9 @@ class Cache {
      * @param pk_value the already-known primary-key value.
      * @return the `table:pk` cache key.
      */
-    template <IConnectable T>
-    [[nodiscard]] static std::string cache_key(std::string_view pk_value) {
+    template<IConnectable T>
+    [[nodiscard]] static std::string cache_key(std::string_view pk_value)
+    {
         return std::format("{}:{}", Serializable<T>::table_name(), pk_value);
     }
 
@@ -96,8 +104,9 @@ class Cache {
      * @param value the instance to serialize.
      * @return the JSON-encoded cache payload.
      */
-    template <IConnectable T>
-    [[nodiscard]] static std::string cache_value(const T &value) {
+    template<IConnectable T>
+    [[nodiscard]] static std::string cache_value(const T& value)
+    {
         return rfl::json::write(value);
     }
 };

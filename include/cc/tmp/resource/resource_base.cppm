@@ -15,12 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <cstdint>
-#include <string>
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "tensorflow/core/lib/core/refcount.h"
 #include "tensorflow/core/platform/errors.h"
+
+#include <cstdint>
+#include <string>
 
 export module cc_tmp:resource_resource_base;
 
@@ -29,42 +30,49 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Forward declaration to avoid introducing a dependency on headers in
-// "tensorflow/core/graph/...".
-class GraphDefBuilder;
-class Node;
+        // Forward declaration to avoid introducing a dependency on headers in
+        // "tensorflow/core/graph/...".
+        class GraphDefBuilder;
+        class Node;
 
-// This is the base class of all resource classes. Each resource must be
-// represented as a sub-class of ResourceBase (which is reference counted) to be
-// able to work with resource facilities such ResourceHandle and ResourceMgr.
-class ResourceBase : public core::WeakRefCounted {
- public:
-  // Returns a debug string for *this.
-  virtual std::string DebugString() const = 0;
+        // This is the base class of all resource classes. Each resource must be
+        // represented as a sub-class of ResourceBase (which is reference counted) to be
+        // able to work with resource facilities such ResourceHandle and ResourceMgr.
+        class ResourceBase : public core::WeakRefCounted
+        {
+        public:
+            // Returns a debug string for *this.
+            virtual std::string DebugString() const = 0;
 
-  // Returns a name for ref-counting handles.
-  virtual std::string MakeRefCountingHandleName(int64_t resource_id) const {
-    return absl::StrFormat("Resource-%d-at-%p", resource_id, this);
-  }
+            // Returns a name for ref-counting handles.
+            virtual std::string MakeRefCountingHandleName(int64_t resource_id) const
+            {
+                return absl::StrFormat("Resource-%d-at-%p", resource_id, this);
+            }
 
-  // Returns memory used by this resource.
-  virtual int64_t MemoryUsed() const { return 0; }
+            // Returns memory used by this resource.
+            virtual int64_t MemoryUsed() const
+            {
+                return 0;
+            }
 
-  // Writes a representation of this resource into `builder`, so that executing
-  // `*out` will recreate this resource. The lifetime of the created resource
-  // should not be tied to the graph that created it, since the graph may be
-  // destroyed before the resource is used. To avoid this lifetime issue, you
-  // can usually set a unique `shared_name` attribute for the resource.
-  virtual absl::Status AsGraphDef(GraphDefBuilder* builder, Node** out) const {
-    return absl::UnimplementedError(absl::StrCat(
-        "AsGraphDef not implemented for resource ", DebugString()));
-  }
+            // Writes a representation of this resource into `builder`, so that executing
+            // `*out` will recreate this resource. The lifetime of the created resource
+            // should not be tied to the graph that created it, since the graph may be
+            // destroyed before the resource is used. To avoid this lifetime issue, you
+            // can usually set a unique `shared_name` attribute for the resource.
+            virtual absl::Status AsGraphDef(GraphDefBuilder* builder, Node** out) const
+            {
+                return absl::UnimplementedError(
+                    absl::StrCat("AsGraphDef not implemented for resource ", DebugString())
+                );
+            }
 
-  // Releases temporary resources held by this resource created during warmup.
-  virtual void Finalize() {}
-};
-}  //  end namespace tensorflow
+            // Releases temporary resources held by this resource created during warmup.
+            virtual void Finalize() {}
+        };
+    } //  end namespace tensorflow
 
 } // export

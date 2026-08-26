@@ -7,25 +7,27 @@ import std;
 import boost.ut;
 #endif
 
-export struct FnContext {
-    std::any m_invoke;  // std::function<Value(std::span<const Value>)>
+export struct FnContext
+{
+    std::any m_invoke; // std::function<Value(std::span<const Value>)>
     std::string m_key;
 };
 
 export namespace interfaces {
 
-class IBridge {
-  public:
+class IBridge
+{
+public:
     /**
      * @brief Virtual dtor, default's fine — bridges clean up fine through the base pointer, no
      * extra cleanup motion required.
      */
     virtual ~IBridge() = default;
     IBridge() = default;
-    IBridge(const IBridge &) = delete;
-    IBridge &operator=(const IBridge &) = delete;
-    IBridge(IBridge &&) = delete;
-    IBridge &operator=(IBridge &&) = delete;
+    IBridge(const IBridge&) = delete;
+    IBridge& operator=(const IBridge&) = delete;
+    IBridge(IBridge&&) = delete;
+    IBridge& operator=(IBridge&&) = delete;
 
     /**
      * @brief Wraps a raw native pointer into a `CongeladoAny` so the plugin ABI can pass it
@@ -34,14 +36,14 @@ class IBridge {
      * @param native_obj raw pointer coming from the native (host language) side.
      * @return a `CongeladoAny` wrapping that pointer for cross-boundary use.
      */
-    [[nodiscard]] virtual CongeladoAny from_native(void *native_obj) = 0;
+    [[nodiscard]] virtual CongeladoAny from_native(void* native_obj) = 0;
     /**
      * @brief Unwraps a `CongeladoAny` back down to the raw native pointer it came from — the
      * exact inverse of from_native(), gotta stay symmetric with it or things get cooked fast.
      * @param value the wrapped value to unwrap.
      * @return the raw native pointer underneath.
      */
-    virtual void *to_native(const CongeladoAny &value) = 0;
+    virtual void* to_native(const CongeladoAny& value) = 0;
     /**
      * @brief Registers a method so it's callable from the target language, keyed by `lang_name`
      * — this is how a plugin actually exposes its motion to whatever language is on the other
@@ -49,7 +51,7 @@ class IBridge {
      * @param ctx the function context (the callable plus its key) to install.
      * @param lang_name the name the method gets exposed as on the target-language side.
      */
-    virtual void install_method(std::unique_ptr<FnContext> ctx, const std::string &lang_name) = 0;
+    virtual void install_method(std::unique_ptr<FnContext> ctx, const std::string& lang_name) = 0;
 
     /**
      * @brief Gets this bridge's underlying native interpreter handle, if it has one crossing
@@ -60,7 +62,10 @@ class IBridge {
      * per-bridge handle to hand back.
      * @return the native handle, or `nullptr` if this bridge doesn't expose one.
      */
-    [[nodiscard]] virtual void *native_handle() noexcept { return nullptr; }
+    [[nodiscard]] virtual void* native_handle() noexcept
+    {
+        return nullptr;
+    }
 
     /**
      * @brief The runtime this bridge implements (e.g. `"python"`, `"lua"`, or any other
@@ -98,19 +103,38 @@ namespace interfaces::plugin_bridge_tests {
 
 // Minimal IBridge fixture — every pure virtual gets a trivial body so native_handle()'s
 // default implementation can be exercised in isolation.
-class MockBridge final : public interfaces::IBridge {
-  public:
-    [[nodiscard]] CongeladoAny from_native(void *native_obj) override {
+class MockBridge final : public interfaces::IBridge
+{
+public:
+    [[nodiscard]] CongeladoAny from_native(void* native_obj) override
+    {
         CongeladoAny any{};
         any.type_index = CG_PTR;
         any.v_ptr = native_obj;
         return any;
     }
-    void *to_native(const CongeladoAny &value) override { return value.v_ptr; }
-    void install_method(std::unique_ptr<FnContext>, const std::string &) override {}
-    [[nodiscard]] std::string_view runtime_name() const noexcept override { return "mock"; }
-    [[nodiscard]] std::string_view script_extension() const noexcept override { return ".mock"; }
-    [[nodiscard]] int run_script(std::string_view) override { return 0; }
+
+    void* to_native(const CongeladoAny& value) override
+    {
+        return value.v_ptr;
+    }
+
+    void install_method(std::unique_ptr<FnContext>, const std::string&) override {}
+
+    [[nodiscard]] std::string_view runtime_name() const noexcept override
+    {
+        return "mock";
+    }
+
+    [[nodiscard]] std::string_view script_extension() const noexcept override
+    {
+        return ".mock";
+    }
+
+    [[nodiscard]] int run_script(std::string_view) override
+    {
+        return 0;
+    }
 };
 
 using namespace boost::ut;

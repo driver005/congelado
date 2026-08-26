@@ -11,13 +11,13 @@ constexpr std::size_t PRIME = 31;
 
 constexpr std::size_t ENTRY_OVERHEAD = 32;
 
-constexpr std::size_t DEFAULT_MAX_TABLE_SIZE = 4096;
+constexpr std::size_t DEFAULT_MAX_TABLE_SIZE = 4'096;
 
-// On 64-bit SIZE_MAX = 0xFFFF'FFFF'FFFF'FFFF — same sentinel trick, two tag bits stolen from the top, index lives in
-// the remaining 62 bits.
-constexpr std::size_t SIZE_MAX = 0xFFFF'FFFF'FFFF'FFFF;
+// On 64-bit SIZE_MAX = 0xFFFF'FFFF'FFFF'FFFF — same sentinel trick, two tag bits stolen from
+// the top, index lives in the remaining 62 bits.
+constexpr std::size_t SIZE_MAX = 0xFF'FF'FF'FF'FF'FF'FF'FF;
 
-} // namespace codec::shared
+} // namespace io::shared_codec
 
 #ifdef CONGELADO_TEST
 namespace io::shared_codec::tests {
@@ -29,7 +29,7 @@ suite<"shared_codec_consts"> shared_codec_consts_suite = [] {
     };
     "ENTRY_OVERHEAD and DEFAULT_MAX_TABLE_SIZE hold their documented values"_test = [] {
         expect(ENTRY_OVERHEAD == 32);
-        expect(DEFAULT_MAX_TABLE_SIZE == 4096);
+        expect(DEFAULT_MAX_TABLE_SIZE == 4'096);
     };
 };
 

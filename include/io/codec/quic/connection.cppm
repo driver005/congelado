@@ -25,9 +25,11 @@ import boost.ut;
 
 namespace quic {
 
-export class Connection {
-  public:
-    using StreamDataFn = std::function<void(std::uint64_t stream_id, std::vector<std::byte> data, bool fin)>;
+export class Connection
+{
+public:
+    using StreamDataFn =
+        std::function<void(std::uint64_t stream_id, std::vector<std::byte> data, bool fin)>;
 
     // Takes ownership of a connection SSL* from SSL_accept_connection().
     /**
@@ -39,17 +41,21 @@ export class Connection {
      * @param on_stream_data callback fired with each stream's data as it arrives; optional, can
      * also be wired later via on_stream().
      */
-    explicit Connection(SSL *conn_ssl, StreamDataFn on_stream_data = {})
-        : m_ssl(conn_ssl), m_on_stream_data(std::move(on_stream_data)) {}
+    explicit Connection(SSL* conn_ssl, StreamDataFn on_stream_data = {}) :
+        m_ssl(conn_ssl),
+        m_on_stream_data(std::move(on_stream_data))
+    {
+    }
 
     /**
-     * @brief Frees every open stream SSL* still tracked in `m_streams`, then the connection SSL*
-     * itself — full teardown, no leaks.
+     * @brief Frees every open stream SSL* still tracked in `m_streams`, then the connection
+     * SSL* itself — full teardown, no leaks.
      */
-    ~Connection() {
+    ~Connection()
+    {
         // Free every tracked stream first, then the connection itself — streams don't outlive
         // their parent connection SSL*.
-        for (auto &[id, ssl] : m_streams) {
+        for (auto& [id, ssl]: m_streams) {
             ::SSL_free(ssl);
         }
         if (m_ssl != nullptr) {
@@ -58,29 +64,34 @@ export class Connection {
     }
 
     /** @brief Copying's a straight L here — SSL* ownership can't be shared, so it's deleted. */
-    Connection(const Connection &) = delete;
+    Connection(const Connection&) = delete;
     /** @brief Same deal as the copy ctor — SSL* ownership can't be shared, deleted. */
-    Connection &operator=(const Connection &) = delete;
+    Connection& operator=(const Connection&) = delete;
 
     /**
-     * @brief Steals the SSL* and all stream/state from `other`, leaving it null so its destructor
-     * is a no-op.
+     * @brief Steals the SSL* and all stream/state from `other`, leaving it null so its
+     * destructor is a no-op.
      * @param other the connection being moved from; left in a null/empty state after this runs.
      */
-    Connection(Connection &&other) noexcept
-        : m_ssl(std::exchange(other.m_ssl, nullptr)), m_on_stream_data(std::move(other.m_on_stream_data)),
-          m_streams(std::move(other.m_streams)), m_state(other.m_state),
-          m_handshake_done(other.m_handshake_done) {}
+    Connection(Connection&& other) noexcept :
+        m_ssl(std::exchange(other.m_ssl, nullptr)),
+        m_on_stream_data(std::move(other.m_on_stream_data)),
+        m_streams(std::move(other.m_streams)),
+        m_state(other.m_state),
+        m_handshake_done(other.m_handshake_done)
+    {
+    }
 
     /**
-     * @brief Steals the SSL* and all stream/state from `other`, freeing whatever this connection
-     * already held first, then leaves `other` null so its destructor is a no-op.
+     * @brief Steals the SSL* and all stream/state from `other`, freeing whatever this
+     * connection already held first, then leaves `other` null so its destructor is a no-op.
      * @param other the connection being moved from; left in a null/empty state after this runs.
      * @return *this.
      */
-    Connection &operator=(Connection &&other) noexcept {
+    Connection& operator=(Connection&& other) noexcept
+    {
         if (this != &other) {
-            for (auto &[id, ssl] : m_streams) {
+            for (auto& [id, ssl]: m_streams) {
                 ::SSL_free(ssl);
             }
             if (m_ssl != nullptr) {
@@ -101,13 +112,14 @@ export class Connection {
      * @brief Pumps the QUIC engine one tick — drains OpenSSL's internal events, drives the
      * handshake to completion if it isn't done yet, then polls streams once connected.
      * @note Call this whenever `SSL_get_event_timeout` fires, or right after new UDP data lands
-     * on the fd. Skipping ticks stalls the whole connection — no events, no handshake progress, no
-     * stream reads.
+     * on the fd. Skipping ticks stalls the whole connection — no events, no handshake progress,
+     * no stream reads.
      * @warning Handshake failure (any `SSL_get_error` other than WANT_READ/WANT_WRITE) flips
      * state straight to Closed with no retry — that's terminal for this connection, not a
      * transient hiccup.
      */
-    void tick() {
+    void tick()
+    {
         // Always drain OpenSSL's internal event queue first, handshake or not.
         ::SSL_handle_events(m_ssl);
 
@@ -123,8 +135,8 @@ export class Connection {
                     m_on_connected();
                 }
             } else {
-                // Anything other than WANT_READ/WANT_WRITE is a hard failure — no retry, straight
-                // to Closed.
+                // Anything other than WANT_READ/WANT_WRITE is a hard failure — no retry,
+                // straight to Closed.
                 const int ERR = ::SSL_get_error(m_ssl, RC);
                 if (ERR != SSL_ERROR_WANT_READ && ERR != SSL_ERROR_WANT_WRITE) {
                     m_state = ConnState::Closed;
@@ -151,15 +163,16 @@ export class Connection {
      * stays alive across ticks — this is the motion for long-lived streams like the H3 control
      * stream.
      * @param unidirectional true for a uni stream, false (default) for bidi.
-     * @return the new stream's QUIC stream id, or `UINT64_MAX` if the connection isn't Connected
-     * yet or `SSL_new_stream` came back null.
+     * @return the new stream's QUIC stream id, or `UINT64_MAX` if the connection isn't
+     * Connected yet or `SSL_new_stream` came back null.
      */
-    std::uint64_t open_stream(bool unidirectional = false) {
+    std::uint64_t open_stream(bool unidirectional = false)
+    {
         // Can't open streams before the handshake's landed.
         if (m_state != ConnState::Connected) {
             return UINT64_MAX;
         }
-        SSL *stream_ssl = ::SSL_new_stream(m_ssl, unidirectional ? SSL_STREAM_FLAG_UNI : 0);
+        SSL* stream_ssl = ::SSL_new_stream(m_ssl, unidirectional ? SSL_STREAM_FLAG_UNI : 0);
         if (stream_ssl == nullptr) {
             return UINT64_MAX;
         }
@@ -178,16 +191,17 @@ export class Connection {
      * @param fin true (default) closes the stream right after writing; false keeps it alive in
      * `m_streams` under its id for further writes via write_stream().
      * @param unidirectional true for a uni stream, false (default) for bidi.
-     * @return true if the connection was Connected, stream creation succeeded, and every byte of
-     * `data` got written; false otherwise. No partial-write recovery — check the return, don't
-     * assume it landed.
+     * @return true if the connection was Connected, stream creation succeeded, and every byte
+     * of `data` got written; false otherwise. No partial-write recovery — check the return,
+     * don't assume it landed.
      */
-    bool send_stream(std::span<const std::byte> data, bool fin = true, bool unidirectional = false) {
+    bool send_stream(std::span<const std::byte> data, bool fin = true, bool unidirectional = false)
+    {
         // Same connected-state and stream-creation guards as open_stream().
         if (m_state != ConnState::Connected) {
             return false;
         }
-        SSL *stream_ssl = ::SSL_new_stream(m_ssl, unidirectional ? SSL_STREAM_FLAG_UNI : 0);
+        SSL* stream_ssl = ::SSL_new_stream(m_ssl, unidirectional ? SSL_STREAM_FLAG_UNI : 0);
         if (stream_ssl == nullptr) {
             return false;
         }
@@ -217,7 +231,8 @@ export class Connection {
      * @return true if `stream_id` was found and every byte of `data` got written; false
      * otherwise.
      */
-    bool write_stream(std::uint64_t stream_id, std::span<const std::byte> data, bool fin = false) {
+    bool write_stream(std::uint64_t stream_id, std::span<const std::byte> data, bool fin = false)
+    {
         // Unknown id is a plain L, no throw — just report failure.
         auto it = m_streams.find(stream_id);
         if (it == m_streams.end()) {
@@ -239,16 +254,23 @@ export class Connection {
     /**
      * @brief Wires up the callback fired once, right when the handshake completes — the hook
      * point for opening server-initiated streams before any peer data shows up.
-     * @param callback the callback to run on connect; replaces whatever was set before, no motion if
-     * left default-constructed.
+     * @param callback the callback to run on connect; replaces whatever was set before, no
+     * motion if left default-constructed.
      */
-    void on_connected(std::function<void()> callback) { m_on_connected = std::move(callback); }
+    void on_connected(std::function<void()> callback)
+    {
+        m_on_connected = std::move(callback);
+    }
+
     /**
      * @brief Wires up the callback fired per-stream as data arrives — same slot as the ctor
      * param, this just lets you set/replace it after construction.
      * @param callback the callback to run for each chunk of stream data.
      */
-    void on_stream(StreamDataFn callback) { m_on_stream_data = std::move(callback); }
+    void on_stream(StreamDataFn callback)
+    {
+        m_on_stream_data = std::move(callback);
+    }
 
     // Needed by quic::Server to schedule SSL_get_event_timeout.
     /**
@@ -258,22 +280,33 @@ export class Connection {
      * this Connection lives." Don't stash it past that, don't free it yourself.
      * @return the connection's native SSL* handle.
      */
-    [[nodiscard]] SSL *native() const noexcept { return m_ssl; }
+    [[nodiscard]] SSL* native() const noexcept
+    {
+        return m_ssl;
+    }
+
     /**
      * @brief Gets where this connection is at in the handshake/closing lifecycle.
      * @return the current ConnState.
      */
-    [[nodiscard]] ConnState state() const noexcept { return m_state; }
+    [[nodiscard]] ConnState state() const noexcept
+    {
+        return m_state;
+    }
+
     /**
      * @brief Checks if the connection made it through the handshake and is live.
      * @return true if state is Connected.
      */
-    [[nodiscard]] bool connected() const noexcept { return m_state == ConnState::Connected; }
+    [[nodiscard]] bool connected() const noexcept
+    {
+        return m_state == ConnState::Connected;
+    }
 
-  private:
+private:
     /**
-     * @brief Drains newly-accepted streams into `m_streams`, then walks every tracked stream and
-     * reads whatever's available, firing `m_on_stream_data` and cleaning up finished/reset
+     * @brief Drains newly-accepted streams into `m_streams`, then walks every tracked stream
+     * and reads whatever's available, firing `m_on_stream_data` and cleaning up finished/reset
      * streams as it goes. This is the whole read side of the connection, no cap.
      * @note Read state gets checked per-stream via `SSL_get_stream_read_state` — NONE gets
      * skipped, RESET_* and CONN_CLOSED get discarded immediately, OK/FINISHED get drained then
@@ -282,15 +315,16 @@ export class Connection {
      * a stream that keeps producing exactly-buffer-sized chunks could, in theory, keep growing
      * that allocation. Not bounded here, just flagging the shape of it.
      */
-    void poll_streams() {
+    void poll_streams()
+    {
         // Drain the accept queue — non-blocking.
-        SSL *incoming = nullptr;
+        SSL* incoming = nullptr;
         while ((incoming = ::SSL_accept_stream(m_ssl, SSL_ACCEPT_STREAM_NO_BLOCK)) != nullptr) {
             m_streams[::SSL_get_stream_id(incoming)] = incoming;
         }
 
         for (auto it = m_streams.begin(); it != m_streams.end();) {
-            SSL *stream_ssl = it->second;
+            SSL* stream_ssl = it->second;
             const int RS = ::SSL_get_stream_read_state(stream_ssl);
 
             // Skip streams with nothing to read yet.
@@ -308,11 +342,13 @@ export class Connection {
             }
 
             // SSL_STREAM_STATE_OK or SSL_STREAM_STATE_FINISHED — read all data.
-            std::vector<std::byte> buf(65536);
+            std::vector<std::byte> buf(65'536);
             std::size_t total = 0;
             for (;;) {
                 std::size_t read_count = 0;
-                if (::SSL_read_ex(stream_ssl, buf.data() + total, buf.size() - total, &read_count) != 1) {
+                if (::SSL_read_ex(
+                        stream_ssl, buf.data() + total, buf.size() - total, &read_count
+                    ) != 1) {
                     break;
                 }
                 total += read_count;
@@ -324,7 +360,7 @@ export class Connection {
             // Re-check read state after the drain loop too — FIN can show up mid-read, not just
             // as the state we walked in with.
             const bool FIN = (RS == SSL_STREAM_STATE_FINISHED) ||
-                              (::SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED);
+                             (::SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED);
 
             // Only fire the callback if something actually got read.
             if (total > 0) {
@@ -334,8 +370,8 @@ export class Connection {
                 }
             }
 
-            // FIN means this stream's done — free it and drop it from tracking; otherwise move on
-            // to the next stream, this one stays open.
+            // FIN means this stream's done — free it and drop it from tracking; otherwise move
+            // on to the next stream, this one stays open.
             if (FIN) {
                 ::SSL_free(stream_ssl);
                 it = m_streams.erase(it);
@@ -345,10 +381,10 @@ export class Connection {
         }
     }
 
-    SSL *m_ssl{nullptr};
+    SSL* m_ssl{nullptr};
     std::function<void()> m_on_connected;
     StreamDataFn m_on_stream_data;
-    std::unordered_map<std::uint64_t, SSL *> m_streams;
+    std::unordered_map<std::uint64_t, SSL*> m_streams;
     ConnState m_state{ConnState::Handshaking};
     bool m_handshake_done{false};
 };
@@ -384,13 +420,15 @@ suite<"Connection"> connection_suite = [] {
     };
     "on_connected/on_stream just replace the stored callbacks, no invocation without a tick"_test =
         [] {
-        Connection conn{nullptr};
-        bool connected_fired = false;
-        conn.on_connected([&connected_fired] { connected_fired = true; });
-        conn.on_stream([](std::uint64_t, std::vector<std::byte>, bool) {});
+            Connection conn{nullptr};
+            bool connected_fired = false;
+            conn.on_connected([&connected_fired] {
+                connected_fired = true;
+            });
+            conn.on_stream([](std::uint64_t, std::vector<std::byte>, bool) {});
 
-        expect(not connected_fired);
-    };
+            expect(not connected_fired);
+        };
 };
 
 } // namespace quic::tests

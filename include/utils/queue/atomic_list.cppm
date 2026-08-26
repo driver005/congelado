@@ -9,8 +9,9 @@ import boost.ut;
 #endif
 
 
-export class AtomicList {
-  public:
+export class AtomicList
+{
+public:
     /**
      * @brief Lock-free pop off the freelist — this is the whole ABA-proofing trick from
      * moodycamel's concurrentqueue: bump a node's refcount before trying to unlink it, so if
@@ -24,10 +25,11 @@ export class AtomicList {
      * contention, not exactly a fun one to chase down.
      * @return a node pulled off the freelist, or nullptr if the list was empty.
      */
-    Node *try_get() noexcept {
-        auto *head = m_head.load(std::memory_order_acquire);
+    Node* try_get() noexcept
+    {
+        auto* head = m_head.load(std::memory_order_acquire);
         while (head != nullptr) {
-            auto *prev_head = head;
+            auto* prev_head = head;
             // Try to bump the observed head's refcount before touching anything else, lowkey the
             // whole ABA-proofing trick — a zero-refcount head means it's already being reclaimed
             // elsewhere, and a failed CAS means someone else raced us to it. Either way, reload
@@ -41,21 +43,24 @@ export class AtomicList {
 
             // assert(head->m_refs.load(std::memory_order_relaxed) == 2);
 
-            // Good, reference count has been incremented (it wasn't at zero), which means we can read the
-            // next and not worry about it changing between now and the time we do the CAS
-            auto *next = head->m_next.load(std::memory_order_relaxed);
-            if (m_head.compare_exchange_strong(head, next, std::memory_order_acquire, std::memory_order_relaxed)) {
-                // Yay, got the node. This means it was on the list, which means shouldBeOnAtomicList must be false no
-                // matter the refcount (because nobody else knows it's been taken off yet, it can't have been put back
-                // on). assert((head->m_refs.load(std::memory_order_relaxed) & SHOULD_BE_ON_LIST) == 0); Decrease
-                // refcount twice, once for our ref, and once for the list's ref
+            // Good, reference count has been incremented (it wasn't at zero), which means we can
+            // read the next and not worry about it changing between now and the time we do the CAS
+            auto* next = head->m_next.load(std::memory_order_relaxed);
+            if (m_head.compare_exchange_strong(
+                    head, next, std::memory_order_acquire, std::memory_order_relaxed
+                )) {
+                // Yay, got the node. This means it was on the list, which means
+                // shouldBeOnAtomicList must be false no matter the refcount (because nobody else
+                // knows it's been taken off yet, it can't have been put back on).
+                // assert((head->m_refs.load(std::memory_order_relaxed) & SHOULD_BE_ON_LIST) == 0);
+                // Decrease refcount twice, once for our ref, and once for the list's ref
                 head->m_refs.fetch_sub(2, std::memory_order_release);
                 return head;
             }
 
-            // OK, the head must have changed on us, but we still need to decrease the refcount we increased.
-            // Note that we don't need to release any memory effects, but we do need to ensure that the reference
-            // count decrement happens-after the CAS on the head.
+            // OK, the head must have changed on us, but we still need to decrease the refcount we
+            // increased. Note that we don't need to release any memory effects, but we do need to
+            // ensure that the reference count decrement happens-after the CAS on the head.
             refs = prev_head->m_refs.fetch_sub(1, std::memory_order_acq_rel);
             if (refs == SHOULD_BE_ON_LIST + 1) {
                 // assert(refs == SHOULD_BE_ON_LIST + 1);
@@ -73,7 +78,8 @@ export class AtomicList {
      * no cap.
      * @param node the node to return to the freelist.
      */
-    void add(Node *node) noexcept {
+    void add(Node* node) noexcept
+    {
         // We know that the should-be-on-freelist bit is 0 at this point, so it's safe to
         // set it using a fetch_add
         if (node->m_refs.fetch_add(SHOULD_BE_ON_LIST, std::memory_order_acq_rel) == 0) {
@@ -91,9 +97,12 @@ export class AtomicList {
      * "the node I now own." Straight vibes-based, no ownership guarantee attached.
      * @return the current head node, or nullptr if the list is empty.
      */
-    [[nodiscard]] Node *get_head() const noexcept { return m_head.load(std::memory_order_relaxed); }
+    [[nodiscard]] Node* get_head() const noexcept
+    {
+        return m_head.load(std::memory_order_relaxed);
+    }
 
-  private:
+private:
     /**
      * @brief The actual freelist push — CAS-loops `node` onto the head, and if it loses the race,
      * retries by walking the refcount back down until it's safe to try again. Straightforward
@@ -101,17 +110,22 @@ export class AtomicList {
      * @param node the node to push, must already have its should-be-on-list bit set by the
      * caller.
      */
-    void add_internal(Node *node) noexcept {
-        auto *head = m_head.load(std::memory_order_relaxed);
+    void add_internal(Node* node) noexcept
+    {
+        auto* head = m_head.load(std::memory_order_relaxed);
         while (true) {
             // Stage `node` in front of the last-observed head and reset its refcount to 1 (just
             // the list's own ownership) before attempting the CAS that actually splices it in.
             node->m_next.store(head, std::memory_order_relaxed);
             node->m_refs.store(1, std::memory_order_release);
-            if (!m_head.compare_exchange_strong(head, node, std::memory_order_release, std::memory_order_relaxed)) {
-                // Hmm, the add failed, but we can only try again when the refcount goes back to zero
+            if (!m_head.compare_exchange_strong(
+                    head, node, std::memory_order_release, std::memory_order_relaxed
+                )) {
+                // Hmm, the add failed, but we can only try again when the refcount goes back to
+                // zero
                 if (node->m_refs.fetch_add(SHOULD_BE_ON_LIST - 1, std::memory_order_acq_rel) == 1) {
-                    // assert(node->m_refs.load(std::memory_order_relaxed) == SHOULD_BE_ON_LIST - 1);
+                    // assert(node->m_refs.load(std::memory_order_relaxed) == SHOULD_BE_ON_LIST -
+                    // 1);
                     continue;
                 }
             }
@@ -121,7 +135,7 @@ export class AtomicList {
         }
     }
 
-    std::atomic<Node *> m_head{nullptr};
+    std::atomic<Node*> m_head{nullptr};
 };
 
 #ifdef CONGELADO_TEST
@@ -141,7 +155,7 @@ suite<"AtomicList"> atomic_list_suite = [] {
         list.add(&node);
         expect(list.get_head() == &node);
 
-        auto *got = list.try_get();
+        auto* got = list.try_get();
         expect(got == &node);
         expect(list.get_head() == nullptr);
     };
@@ -163,7 +177,7 @@ suite<"AtomicList"> atomic_list_suite = [] {
         Node node;
 
         list.add(&node);
-        auto *got = list.try_get();
+        auto* got = list.try_get();
         expect(got == &node);
 
         list.add(got);

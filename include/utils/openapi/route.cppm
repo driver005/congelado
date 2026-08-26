@@ -16,14 +16,18 @@ export namespace utils::openapi {
 // per-method OpenAPI metadata (summary/description/tags/body/response). The wrapped
 // route and the accumulated metadata are handed off together once consumed by
 // ApiRouter::add_route().
-class ApiRoute {
-  public:
+class ApiRoute
+{
+public:
     /**
      * @brief Wraps a fresh core::router::Route<> at `path` — starts with zero operations,
      * metadata only starts accumulating once get()/post()/etc. picks a method to track.
      * @param path the route's path.
      */
-    explicit ApiRoute(std::string_view path) : m_route{path} {}
+    explicit ApiRoute(std::string_view path) :
+        m_route{path}
+    {
+    }
 
     /**
      * @brief Builder chain — registers `handler` as this route's GET handler and starts
@@ -31,60 +35,72 @@ class ApiRoute {
      * @param handler the request handler to install.
      * @return `*this`, moved, so the metadata chain (summary()/tags()/etc.) keeps going.
      */
-    ApiRoute get(interfaces::HandlerFn handler) {
+    ApiRoute get(interfaces::HandlerFn handler)
+    {
         m_route = m_route.get(std::move(handler));
         return with_method(interfaces::io::types::Method::GET);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's POST handler and starts
      * tracking OpenAPI metadata for POST.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute post(interfaces::HandlerFn handler) {
+    ApiRoute post(interfaces::HandlerFn handler)
+    {
         m_route = m_route.post(std::move(handler));
         return with_method(interfaces::io::types::Method::POST);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's PUT handler and starts
      * tracking OpenAPI metadata for PUT.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute put(interfaces::HandlerFn handler) {
+    ApiRoute put(interfaces::HandlerFn handler)
+    {
         m_route = m_route.put(std::move(handler));
         return with_method(interfaces::io::types::Method::PUT);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's PATCH handler and starts
      * tracking OpenAPI metadata for PATCH.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute patch(interfaces::HandlerFn handler) {
+    ApiRoute patch(interfaces::HandlerFn handler)
+    {
         m_route = m_route.patch(std::move(handler));
         return with_method(interfaces::io::types::Method::PATCH);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's DELETE handler. Named `delt`
      * since `delete` is a reserved keyword — same naming dodge core::router::Route uses.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute delt(interfaces::HandlerFn handler) {
+    ApiRoute delt(interfaces::HandlerFn handler)
+    {
         m_route = m_route.delt(std::move(handler));
         return with_method(interfaces::io::types::Method::DELETE);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's HEAD handler and starts
      * tracking OpenAPI metadata for HEAD.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute head(interfaces::HandlerFn handler) {
+    ApiRoute head(interfaces::HandlerFn handler)
+    {
         m_route = m_route.head(std::move(handler));
         return with_method(interfaces::io::types::Method::HEAD);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this route's OPTIONS handler and starts
      * tracking OpenAPI metadata for OPTIONS. Last method in the crew, same pattern all the way
@@ -92,7 +108,8 @@ class ApiRoute {
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute options(interfaces::HandlerFn handler) {
+    ApiRoute options(interfaces::HandlerFn handler)
+    {
         m_route = m_route.options(std::move(handler));
         return with_method(interfaces::io::types::Method::OPTIONS);
     }
@@ -103,32 +120,38 @@ class ApiRoute {
      * @param value the summary text.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute summary(std::string_view value) {
+    ApiRoute summary(std::string_view value)
+    {
         current_operation().set_summary(std::string{value});
         return std::move(*this);
     }
+
     /**
      * @brief Builder chain — sets the longer-form description on the current method's
      * operation.
      * @param value the description text.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute description(std::string_view value) {
+    ApiRoute description(std::string_view value)
+    {
         current_operation().set_description(std::string{value});
         return std::move(*this);
     }
+
     /**
      * @brief Builder chain — tags the current method's operation with every value in `values`.
      * @param values the tags to add.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRoute tags(std::initializer_list<std::string_view> values) {
+    ApiRoute tags(std::initializer_list<std::string_view> values)
+    {
         // Every value in `values` lands on the current method's operation, no dedup here.
-        for (auto value : values) {
+        for (auto value: values) {
             current_operation().add_tag(std::string{value});
         }
         return std::move(*this);
     }
+
     /**
      * @brief Builder chain — marks the current method's request body as required and derives
      * its schema from T via build_schema<T>(). application/json only, that's the one
@@ -136,8 +159,9 @@ class ApiRoute {
      * @tparam T the C++ type whose schema describes the request body.
      * @return `*this`, moved, so the chain keeps going.
      */
-    template <typename T>
-    ApiRoute body() {
+    template<typename T>
+    ApiRoute body()
+    {
         // Derive T's schema once, wrap it as the sole "application/json" media-type
         // entry, then attach the whole thing as the current method's request body.
         RequestBody request_body;
@@ -148,6 +172,7 @@ class ApiRoute {
         current_operation().set_request_body(std::move(request_body));
         return std::move(*this);
     }
+
     /**
      * @brief Builder chain — registers a response entry for `status` on the current method,
      * schema derived from T via build_schema<T>().
@@ -156,8 +181,9 @@ class ApiRoute {
      * @param description human-readable blurb for this response, defaults to "OK".
      * @return `*this`, moved, so the chain keeps going.
      */
-    template <typename T>
-    ApiRoute response(int status = 200, std::string_view description = "OK") {
+    template<typename T>
+    ApiRoute response(int status = 200, std::string_view description = "OK")
+    {
         // Same media-type-wrapping motion as body() above, then register the whole
         // response keyed by its status code (as a string — that's the OpenAPI shape).
         Response response_obj;
@@ -173,36 +199,50 @@ class ApiRoute {
      * @brief Grabs the wrapped route's path, straight up.
      * @return the route's path.
      */
-    [[nodiscard]] std::string_view getPath() const noexcept { return m_route.get_path(); }  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    [[nodiscard]] std::string_view getPath() const noexcept
+    {
+        return m_route.get_path();
+    } // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
+
     /**
      * @brief Terminal call — hands off ownership of the wrapped core::router::Route<>, stripped
      * of all the OpenAPI metadata tracking that lived alongside it.
      * @warning Moves out of `*this` — don't touch this ApiRoute after calling it, it's cooked.
      * @return the wrapped route, moved out.
      */
-    [[nodiscard]] core::router::Route<> &&into_route() && { return std::move(m_route); }
+    [[nodiscard]] core::router::Route<>&& into_route() &&
+    {
+        return std::move(m_route);
+    }
+
     /**
      * @brief Terminal call — hands off the accumulated per-method operation metadata.
-     * @warning Moves out of `*this`, same deal as into_route() — don't reuse this ApiRoute after.
+     * @warning Moves out of `*this`, same deal as into_route() — don't reuse this ApiRoute
+     * after.
      * @return every operation this ApiRoute built up, keyed by method's underlying value.
      */
-    [[nodiscard]] std::unordered_map<std::uint8_t, Operation> &&into_operations() && {
+    [[nodiscard]] std::unordered_map<std::uint8_t, Operation>&& into_operations() &&
+    {
         return std::move(m_operations);
     }
+
     /**
      * @brief Terminal call — hands off both the wrapped route and the accumulated per-method
      * operation metadata in a single move, so callers never need two separate rvalue-qualified
-     * extractions off the same object (that pattern reads as a use-after-move to static analysis
-     * even though into_route()/into_operations() touch disjoint members).
+     * extractions off the same object (that pattern reads as a use-after-move to static
+     * analysis even though into_route()/into_operations() touch disjoint members).
      * @warning Moves out of `*this`, same deal as into_route()/into_operations().
      * @return a pair of {wrapped route, accumulated operations}, both moved out.
      */
     [[nodiscard]] std::pair<core::router::Route<>, std::unordered_map<std::uint8_t, Operation>>
-    into_parts() && {
+    into_parts() &&
+    {
         return {std::move(m_route), std::move(m_operations)};
     }
 
-  private:
+private:
     /**
      * @brief Switches the "current method" pointer and seeds a blank Operation for it — every
      * summary()/description()/tags()/body()/response() call after this lands on that operation
@@ -210,7 +250,8 @@ class ApiRoute {
      * @param method the HTTP method becoming current.
      * @return `*this`, moved.
      */
-    ApiRoute with_method(interfaces::io::types::Method method) {
+    ApiRoute with_method(interfaces::io::types::Method method)
+    {
         // Point "current" at the new method, bet, then seed a blank operation for it so
         // current_operation() has something to find right after.
         m_current_method = std::to_underlying(method);
@@ -226,7 +267,10 @@ class ApiRoute {
      * @return mutable reference to the current method's operation.
      * @throws std::out_of_range if no operation's registered for the current method.
      */
-    Operation &current_operation() { return m_operations.at(m_current_method); }
+    Operation& current_operation()
+    {
+        return m_operations.at(m_current_method);
+    }
 
     core::router::Route<> m_route;
     std::unordered_map<std::uint8_t, Operation> m_operations;
@@ -237,17 +281,21 @@ class ApiRoute {
 // its own node (and any directly-mounted method handlers) into the process-wide
 // Registry singleton, so nested ApiRouter/ApiRoute path segments can be reconstructed
 // by Generator later.
-class ApiRouter {
-  public:
+class ApiRouter
+{
+public:
     /**
      * @brief Wraps a fresh core::router::RouterContext<> node at `path` and immediately
      * registers itself into the process-wide Registry — that registration happens right here
      * in the ctor, not lazily, so every ApiRouter that gets constructed shows up in Generator's
-     * walk even if it ends up with zero operations. No cap, no ApiRouter slips through unnoticed.
+     * walk even if it ends up with zero operations. No cap, no ApiRouter slips through
+     * unnoticed.
      * @param context the router context this node's built under.
      * @param path this router's own path segment.
      */
-    ApiRouter(core::router::RouterContext<> &context, std::string_view path) : m_router{context, path} {
+    ApiRouter(core::router::RouterContext<>& context, std::string_view path) :
+        m_router{context, path}
+    {
         // Build this node's RouteMeta from the (normalized) path and the freshly wrapped
         // router's own number, then register it eagerly — no lazy-init here, every
         // ApiRouter shows up in Registry the moment it's constructed.
@@ -263,47 +311,56 @@ class ApiRouter {
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter get(interfaces::HandlerFn handler) && {
+    ApiRouter get(interfaces::HandlerFn handler) &&
+    {
         m_router = std::move(m_router).get(std::move(handler));
         return with_method(interfaces::io::types::Method::GET);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this router's POST handler and starts
      * tracking OpenAPI metadata for POST.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter post(interfaces::HandlerFn handler) && {
+    ApiRouter post(interfaces::HandlerFn handler) &&
+    {
         m_router = std::move(m_router).post(std::move(handler));
         return with_method(interfaces::io::types::Method::POST);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this router's PUT handler and starts
      * tracking OpenAPI metadata for PUT.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter put(interfaces::HandlerFn handler) && {
+    ApiRouter put(interfaces::HandlerFn handler) &&
+    {
         m_router = std::move(m_router).put(std::move(handler));
         return with_method(interfaces::io::types::Method::PUT);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this router's PATCH handler and starts
      * tracking OpenAPI metadata for PATCH.
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter patch(interfaces::HandlerFn handler) && {
+    ApiRouter patch(interfaces::HandlerFn handler) &&
+    {
         m_router = std::move(m_router).patch(std::move(handler));
         return with_method(interfaces::io::types::Method::PATCH);
     }
+
     /**
      * @brief Builder chain — registers `handler` as this router's DELETE handler. Named `delt`
      * for the same reserved-keyword reason as ApiRoute::delt().
      * @param handler the request handler to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter delt(interfaces::HandlerFn handler) && {
+    ApiRouter delt(interfaces::HandlerFn handler) &&
+    {
         m_router = std::move(m_router).delt(std::move(handler));
         return with_method(interfaces::io::types::Method::DELETE);
     }
@@ -313,40 +370,47 @@ class ApiRouter {
      * @param value the summary text.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter summary(std::string_view value) && {
+    ApiRouter summary(std::string_view value) &&
+    {
         current_operation().set_summary(std::string{value});
         return *this;
     }
+
     /**
      * @brief Builder chain — sets the longer-form description on the current method's
      * operation.
      * @param value the description text.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter description(std::string_view value) && {
+    ApiRouter description(std::string_view value) &&
+    {
         current_operation().set_description(std::string{value});
         return *this;
     }
+
     /**
      * @brief Builder chain — tags the current method's operation with every value in `values`.
      * @param values the tags to add.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter tags(std::initializer_list<std::string_view> values) && {
+    ApiRouter tags(std::initializer_list<std::string_view> values) &&
+    {
         // Every value in `values` lands on the current method's operation, no dedup here.
-        for (auto value : values) {
+        for (auto value: values) {
             current_operation().add_tag(std::string{value});
         }
         return *this;
     }
+
     /**
      * @brief Builder chain — marks the current method's request body as required and derives
      * its schema from T via build_schema<T>().
      * @tparam T the C++ type whose schema describes the request body.
      * @return `*this`, moved, so the chain keeps going.
      */
-    template <typename T>
-    ApiRouter body() && {
+    template<typename T>
+    ApiRouter body() &&
+    {
         // Derive T's schema once, wrap it as the sole "application/json" media-type
         // entry, then attach the whole thing as the current method's request body.
         RequestBody request_body;
@@ -357,6 +421,7 @@ class ApiRouter {
         current_operation().set_request_body(std::move(request_body));
         return *this;
     }
+
     /**
      * @brief Builder chain — registers a response entry for `status` on the current method,
      * schema derived from T via build_schema<T>().
@@ -365,8 +430,9 @@ class ApiRouter {
      * @param description human-readable blurb for this response, defaults to "OK".
      * @return `*this`, moved, so the chain keeps going.
      */
-    template <typename T>
-    ApiRouter response(int status = 200, std::string_view description = "OK") && {
+    template<typename T>
+    ApiRouter response(int status = 200, std::string_view description = "OK") &&
+    {
         // Same media-type-wrapping motion as body() above, then register the whole
         // response keyed by its status code (as a string — that's the OpenAPI shape).
         Response response_obj;
@@ -385,7 +451,8 @@ class ApiRouter {
      * @param child_router the child router to mount, consumed.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter add_router(ApiRouter child_router) && {
+    ApiRouter add_router(ApiRouter child_router) &&
+    {
         // Stash the child's registry slot before it gets consumed below, then mount it
         // into the underlying router tree — big W once that's done — and finally patch
         // that slot's base_router now that the nesting relationship is actually known.
@@ -394,6 +461,7 @@ class ApiRouter {
         Registry::at(child_registry_index).set_base_router(m_router.get_router_number());
         return *this;
     }
+
     /**
      * @brief Builder chain — mounts `child_route` under this router, both in the underlying
      * tree and in the Registry (a fresh RouteMeta gets built from the child's path and
@@ -401,7 +469,8 @@ class ApiRouter {
      * @param child_route the child route to mount, consumed.
      * @return `*this`, moved, so the chain keeps going.
      */
-    ApiRouter add_route(ApiRoute child_route) && {
+    ApiRouter add_route(ApiRoute child_route) &&
+    {
         // Grab the child's path first (no move needed), then hand off the route and its
         // accumulated operations together via into_parts() — a single move of child_route
         // rather than two separate rvalue-qualified extractions off the same object (which
@@ -417,7 +486,7 @@ class ApiRouter {
         RouteMeta meta;
         meta.set_path(std::move(path));
         meta.set_base_router(m_router.get_router_number());
-        for (auto &[method, operation] : operations) {
+        for (auto& [method, operation]: operations) {
             meta.add_operation(method, std::move(operation));
         }
         Registry::add_route(std::move(meta));
@@ -431,16 +500,23 @@ class ApiRouter {
      * gets called.
      * @return the wrapped router, moved out.
      */
-    [[nodiscard]] core::router::Router<> &&into_router() && { return std::move(m_router); }
+    [[nodiscard]] core::router::Router<>&& into_router() &&
+    {
+        return std::move(m_router);
+    }
+
     /**
      * @brief Grabs the wrapped router's own router number.
      * @return the router number.
      */
-    [[nodiscard]] std::size_t getRouterNumber() const noexcept {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    [[nodiscard]] std::size_t getRouterNumber() const noexcept
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         return m_router.get_router_number();
     }
 
-  private:
+private:
     /**
      * @brief Strips a leading '/' off `path` (unless it's just "/" on its own) — Registry
      * stores bare segments, and this keeps the ctor from double-slashing when it builds the
@@ -448,7 +524,8 @@ class ApiRouter {
      * @param path the raw path to normalize.
      * @return the normalized (leading-slash-stripped) path.
      */
-    static std::string_view normalize_path(std::string_view path) noexcept {
+    static std::string_view normalize_path(std::string_view path) noexcept
+    {
         return path.size() > 1 && path.starts_with('/') ? path.substr(1) : path;
     }
 
@@ -458,7 +535,8 @@ class ApiRouter {
      * @param method the HTTP method becoming current.
      * @return `*this`, moved.
      */
-    ApiRouter with_method(interfaces::io::types::Method method) {
+    ApiRouter with_method(interfaces::io::types::Method method)
+    {
         // Point "current" at the new method, then seed a blank operation for it directly
         // in the Registry entry — unlike ApiRoute, there's no local map to seed here.
         m_current_method = std::to_underlying(method);
@@ -475,7 +553,8 @@ class ApiRouter {
      * @return mutable reference to the current method's operation.
      * @throws std::out_of_range if no operation's registered for the current method.
      */
-    [[nodiscard]] Operation &current_operation() const {
+    [[nodiscard]] Operation& current_operation() const
+    {
         return Registry::at(m_registry_index).get_operation(m_current_method);
     }
 
@@ -492,8 +571,9 @@ using namespace boost::ut;
 
 // static: internal linkage so this doesn't collide with the same-named test helpers other
 // modules' test blocks define in their own tests namespaces.
-static interfaces::HandlerFn noop_handler() {
-    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, std::function<void()>) {};
+static interfaces::HandlerFn noop_handler()
+{
+    return [](interfaces::io::IRequest&, interfaces::io::IResponse&, std::function<void()>) {};
 }
 
 using Method = interfaces::io::types::Method;
@@ -547,12 +627,12 @@ suite<"ApiRoute verb builders"> api_route_verb_suite = [] {
 suite<"ApiRoute metadata builders"> api_route_metadata_suite = [] {
     "summary/description/tags land on the current method's operation"_test = [] {
         auto operations = ApiRoute{"/x"}
-                               .get(noop_handler())
-                               .summary("List things")
-                               .description("Returns every thing")
-                               .tags({"a", "b"})
-                               .into_operations();
-        auto &op = operations.at(std::to_underlying(Method::GET));
+                              .get(noop_handler())
+                              .summary("List things")
+                              .description("Returns every thing")
+                              .tags({"a", "b"})
+                              .into_operations();
+        auto& op = operations.at(std::to_underlying(Method::GET));
 
         expect(op.get_summary() == "List things");
         expect(op.get_description() == "Returns every thing");
@@ -563,11 +643,11 @@ suite<"ApiRoute metadata builders"> api_route_metadata_suite = [] {
 
     "switching methods mid-chain starts a fresh operation per method"_test = [] {
         auto operations = ApiRoute{"/x"}
-                               .get(noop_handler())
-                               .summary("Get summary")
-                               .post(noop_handler())
-                               .summary("Post summary")
-                               .into_operations();
+                              .get(noop_handler())
+                              .summary("Get summary")
+                              .post(noop_handler())
+                              .summary("Post summary")
+                              .into_operations();
 
         expect(operations.at(std::to_underlying(Method::GET)).get_summary() == "Get summary");
         expect(operations.at(std::to_underlying(Method::POST)).get_summary() == "Post summary");
@@ -575,29 +655,37 @@ suite<"ApiRoute metadata builders"> api_route_metadata_suite = [] {
 
     "body<T>() attaches a required application/json request body derived from T"_test = [] {
         auto operations = ApiRoute{"/x"}.post(noop_handler()).body<int>().into_operations();
-        auto &op = operations.at(std::to_underlying(Method::POST));
+        auto& op = operations.at(std::to_underlying(Method::POST));
 
         expect(op.get_request_body() != nullptr) << fatal;
         expect(op.get_request_body()->get_required());
         expect(op.get_request_body()->get_content().contains("application/json"));
-        expect(op.get_request_body()->get_content().at("application/json").get_schema().get_type() ==
-               "integer");
+        expect(
+            op.get_request_body()->get_content().at("application/json").get_schema().get_type() ==
+            "integer"
+        );
     };
 
     "response<T>() defaults to status 200 / description OK"_test = [] {
         auto operations = ApiRoute{"/x"}.get(noop_handler()).response<int>().into_operations();
-        auto &op = operations.at(std::to_underlying(Method::GET));
+        auto& op = operations.at(std::to_underlying(Method::GET));
 
         expect(op.get_responses().contains("200"));
         expect(op.get_responses().at("200").get_description() == "OK");
-        expect(op.get_responses().at("200").get_content().at("application/json").get_schema().get_type() ==
-               "integer");
+        expect(
+            op.get_responses()
+                .at("200")
+                .get_content()
+                .at("application/json")
+                .get_schema()
+                .get_type() == "integer"
+        );
     };
 
     "response<T>() honors an explicit status and description"_test = [] {
         auto operations =
             ApiRoute{"/x"}.get(noop_handler()).response<int>(404, "Not Found").into_operations();
-        auto &op = operations.at(std::to_underlying(Method::GET));
+        auto& op = operations.at(std::to_underlying(Method::GET));
 
         expect(op.get_responses().contains("404"));
         expect(op.get_responses().at("404").get_description() == "Not Found");
@@ -617,8 +705,7 @@ suite<"ApiRoute path and terminal moves"> api_route_terminal_suite = [] {
     };
 
     "into_operations hands off the accumulated per-method operation metadata"_test = [] {
-        auto operations =
-            ApiRoute{"/tasks"}.get(noop_handler()).summary("List").into_operations();
+        auto operations = ApiRoute{"/tasks"}.get(noop_handler()).summary("List").into_operations();
         expect(operations.size() == 1U);
         expect(operations.at(std::to_underlying(Method::GET)).get_summary() == "List");
     };
@@ -679,9 +766,9 @@ suite<"ApiRouter metadata builders"> api_router_metadata_suite = [] {
                                .description("desc")
                                .tags({"a", "b"});
 
-        auto &meta = Registry::at(index_before);
+        auto& meta = Registry::at(index_before);
         expect(meta.get_path() == "r-meta");
-        auto &op = meta.get_operation(std::to_underlying(Method::GET));
+        auto& op = meta.get_operation(std::to_underlying(Method::GET));
         expect(op.get_summary() == "List");
         expect(op.get_description() == "desc");
         expect(op.get_tags().size() == 2U);
@@ -695,8 +782,8 @@ suite<"ApiRouter metadata builders"> api_router_metadata_suite = [] {
 
         ApiRouter router = ApiRouter{ctx, "/r-body"}.post(noop_handler()).body<int>();
 
-        auto &meta = Registry::at(index_before);
-        auto &op = meta.get_operation(std::to_underlying(Method::POST));
+        auto& meta = Registry::at(index_before);
+        auto& op = meta.get_operation(std::to_underlying(Method::POST));
         expect(op.get_request_body() != nullptr) << fatal;
         expect(op.get_request_body()->get_required());
         expect(op.get_request_body()->get_content().contains("application/json"));
@@ -706,10 +793,11 @@ suite<"ApiRouter metadata builders"> api_router_metadata_suite = [] {
         core::router::RouterContext<> ctx;
         auto index_before = Registry::get_routes().size();
 
-        ApiRouter router = ApiRouter{ctx, "/r-resp"}.get(noop_handler()).response<int>(404, "Not Found");
+        ApiRouter router =
+            ApiRouter{ctx, "/r-resp"}.get(noop_handler()).response<int>(404, "Not Found");
 
-        auto &meta = Registry::at(index_before);
-        auto &op = meta.get_operation(std::to_underlying(Method::GET));
+        auto& meta = Registry::at(index_before);
+        auto& op = meta.get_operation(std::to_underlying(Method::GET));
         expect(op.get_responses().contains("404"));
         expect(op.get_responses().at("404").get_description() == "Not Found");
     };
@@ -753,11 +841,12 @@ suite<"ApiRouter nesting and terminal moves"> api_router_nesting_suite = [] {
             ApiRoute child_route = ApiRoute{"/items"}.get(noop_handler()).summary("List items");
             ApiRouter combined = std::move(parent).add_route(std::move(child_route));
 
-            auto &meta = Registry::at(route_index);
+            auto& meta = Registry::at(route_index);
             expect(meta.get_path() == "items");
             expect(meta.get_base_router() == combined.getRouterNumber());
-            expect(meta.get_operation(std::to_underlying(Method::GET)).get_summary() ==
-                   "List items");
+            expect(
+                meta.get_operation(std::to_underlying(Method::GET)).get_summary() == "List items"
+            );
         };
 };
 

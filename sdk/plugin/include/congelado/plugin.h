@@ -1,7 +1,7 @@
 // NOLINTBEGIN
 #pragma once
-#include <congelado/mode.h>
 #include <congelado/abi.h>
+#include <congelado/mode.h>
 // Plugin SDK macro header.
 // Use 'import congelado_plugin;' for C++ types (Plugin, free functions).
 // Include this header for CONGELADO_PLUGIN(T) and CONGELADO_CAP_* macros.
@@ -9,24 +9,24 @@
 #include <string_view>
 
 // ── Capability bitmask ───────────────────────────────────────────────────────
-#define CONGELADO_CAP_LOGGER   1u
-#define CONGELADO_CAP_PROTOCOL 2u
-#define CONGELADO_CAP_STORAGE  4u
-#define CONGELADO_CAP_CUSTOM   8u
-#define CONGELADO_CAP_SERDE    16u
-#define CONGELADO_CAP_BRIDGE   32u
-#define CONGELADO_CAP_OTEL     64u
-#define CONGELADO_CAP_OPENAPI  128u
-#define CONGELADO_CAP_SEARCH   256u
-#define CONGELADO_CAP_EVENTS   512u
-#define CONGELADO_CAP_CACHE    1024u
-#define CONGELADO_CAP_CRON     2048u
-#define CONGELADO_CAP_WORKER_MANAGER 4096u
-#define CONGELADO_CAP_WORKER   8192u
-#define CONGELADO_CAP_APP_DEFS 16384u
-#define CONGELADO_CAP_WORKER_ORCHESTRATOR 32768u
-#define CONGELADO_CAP_WORKFLOW_ORCHESTRATOR 65536u
-#define CONGELADO_CAP_PAYLOAD_STORAGE 131072u
+#define CONGELADO_CAP_LOGGER                1u
+#define CONGELADO_CAP_PROTOCOL              2u
+#define CONGELADO_CAP_STORAGE               4u
+#define CONGELADO_CAP_CUSTOM                8u
+#define CONGELADO_CAP_SERDE                 16u
+#define CONGELADO_CAP_BRIDGE                32u
+#define CONGELADO_CAP_OTEL                  64u
+#define CONGELADO_CAP_OPENAPI               128u
+#define CONGELADO_CAP_SEARCH                256u
+#define CONGELADO_CAP_EVENTS                512u
+#define CONGELADO_CAP_CACHE                 1'024u
+#define CONGELADO_CAP_CRON                  2'048u
+#define CONGELADO_CAP_WORKER_MANAGER        4'096u
+#define CONGELADO_CAP_WORKER                8'192u
+#define CONGELADO_CAP_APP_DEFS              16'384u
+#define CONGELADO_CAP_WORKER_ORCHESTRATOR   32'768u
+#define CONGELADO_CAP_WORKFLOW_ORCHESTRATOR 65'536u
+#define CONGELADO_CAP_PAYLOAD_STORAGE       131'072u
 
 // ── CONGELADO_PLUGIN(T) ───────────────────────────────────────────────────────
 // Generates all C dlsym symbols from a congelado::Plugin subclass.
@@ -34,12 +34,13 @@
 // Drop exactly once at the bottom of your plugin .cc, after the class definition.
 #ifdef CONGELADO_GUEST
 
-#if defined(CONGELADO_TASK_USED)
-#error "CONGELADO_PLUGIN cannot be used in the same translation unit as CONGELADO_TASK; move plugin definitions to a separate file."
-#endif
+#    if defined(CONGELADO_TASK_USED)
+#        error                                                                                     \
+            "CONGELADO_PLUGIN cannot be used in the same translation unit as CONGELADO_TASK; move plugin definitions to a separate file."
+#    endif
 
-#ifndef CONGELADO_PLUGIN_USED
-#define CONGELADO_PLUGIN_USED
+#    ifndef CONGELADO_PLUGIN_USED
+#        define CONGELADO_PLUGIN_USED
 
 /**
  * @def CONGELADO_PLUGIN(T)
@@ -81,109 +82,146 @@
  *   for `T::get_load_before_types()`
  * @param T the `congelado::Plugin` subclass to bridge — must be default-constructible.
  */
-#define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                                  \
-    static T *s_plugin = nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */       \
-    extern "C" const char *congelado_plugin_name() noexcept {                                            \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->get_name().data();                                                               \
-    }                                                                                                     \
-    extern "C" const char *congelado_plugin_version() noexcept {                                         \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->get_version().data();                                                                \
-    }                                                                                                     \
-    extern "C" uint32_t congelado_capabilities() noexcept {                                              \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->capabilities();                                                                  \
-    }                                                                                                     \
-    extern "C" int congelado_init(const CongeladoHostCallbacks *host,                                \
-                                  const CongeladoConfigView *cfg) noexcept {                         \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                 \
-        try {                                                                                        \
-            s_plugin->on_load(host ? *host : CongeladoHostCallbacks{},                               \
-                              cfg ? *cfg : CongeladoConfigView{});                                   \
-        } catch (...) {                                                                              \
-            return -1;                                                                               \
-        }                                                                                            \
-        return 0;                                                                                    \
-    }                                                                                                \
-    extern "C" const char *congelado_type() noexcept {                                               \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                 \
-        return s_plugin->get_type().data();                                                          \
-    }                                                                                                \
-    extern "C" const char *congelado_worker_type() noexcept {                                        \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                 \
-        return s_plugin->get_worker_type().data();                                                   \
-    }                                                                                                \
-    extern "C" CongeladoConfigView congelado_worker_execute(                                          \
-                                      const CongeladoConfigView *input) noexcept {                    \
-        if (s_plugin == nullptr) return {};                                                          \
-        return s_plugin->execute_worker(input);                                                      \
-    }                                                                                                     \
-    /* Lifecycle: expose standardized shared names (no _plugin suffix) */                                 \
-    extern "C" void congelado_on_unload() noexcept {                                                   \
-        if (s_plugin != nullptr) {                                                                        \
-            s_plugin->on_unload();                                                                        \
-            delete s_plugin; /* NOLINT(cppcoreguidelines-owning-memory) */                               \
-            s_plugin = nullptr;                                                                           \
-        }                                                                                                 \
-    }                                                                                                     \
-    extern "C" void congelado_on_ready() noexcept {                                                    \
-        if (s_plugin != nullptr)                                                                          \
-            s_plugin->on_ready();                                                                         \
-    }                                                                                                     \
-    extern "C" void congelado_on_shutdown() noexcept {                                                  \
-        if (s_plugin != nullptr)                                                                          \
-            s_plugin->on_shutdown_requested();                                                             \
-    }                                                                                                     \
-    extern "C" int congelado_on_reload_requested() noexcept {                                            \
-        return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;                           \
-    }                                                                                                     \
-    extern "C" CongeladoAny congelado_call(CongeladoRunType type, CongeladoRunAction action,               \
-                                           const CongeladoAny *args, size_t args_count) noexcept {         \
-        if (s_plugin == nullptr) return CongeladoAny{};                                                    \
-        return ::congelado::_cap_dispatch::call(s_plugin, type, action, args, args_count);                 \
-    }                                                                                                     \
-    extern "C" const char *congelado_unique_type() noexcept {                                            \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->get_unique_type().data();                                                        \
-    }                                                                                                     \
-    extern "C" const char *const *congelado_requires() noexcept {                                        \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        static std::vector<std::string> s_strs;        /* NOLINT */                                     \
-        static std::vector<const char *> s_ptrs;       /* NOLINT */                                     \
-        static bool s_cache_built = false;              /* NOLINT */                                     \
-        if (!s_cache_built) {                                                                             \
-            for (auto sv : s_plugin->get_requires()) {                                                   \
-                s_strs.emplace_back(sv);                                                                 \
-                s_ptrs.push_back(s_strs.back().c_str());                                                 \
-            }                                                                                             \
-            s_cache_built = true;                                                                         \
-        }                                                                                                 \
-        return s_ptrs.data();                                                                             \
-    }                                                                                                     \
-    extern "C" std::size_t congelado_requires_count() noexcept {                                         \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->get_requires().size();                                                           \
-    }                                                                                                     \
-    extern "C" const char *const *congelado_load_before_types() noexcept {                               \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        static std::vector<std::string> s_strs;        /* NOLINT */                                     \
-        static std::vector<const char *> s_ptrs;       /* NOLINT */                                     \
-        static bool s_cache_built = false;              /* NOLINT */                                     \
-        if (!s_cache_built) {                                                                             \
-            for (auto sv : s_plugin->get_load_before_types()) {                                         \
-                s_strs.emplace_back(sv);                                                                 \
-                s_ptrs.push_back(s_strs.back().c_str());                                                 \
-            }                                                                                             \
-            s_cache_built = true;                                                                         \
-        }                                                                                                 \
-        return s_ptrs.data();                                                                             \
-    }                                                                                                     \
-    extern "C" std::size_t congelado_load_before_types_count() noexcept {                                \
-        if (s_plugin == nullptr) s_plugin = new T{};                                                     \
-        return s_plugin->get_load_before_types().size();                                                  \
-    }
-#endif // CONGELADO_PLUGIN_USED
+#        define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                    \
+            static T* s_plugin =                                                                   \
+                nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */          \
+            extern "C" const char* congelado_plugin_name() noexcept                                \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_name().data();                                                \
+            }                                                                                      \
+            extern "C" const char* congelado_plugin_version() noexcept                             \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_version().data();                                             \
+            }                                                                                      \
+            extern "C" uint32_t congelado_capabilities() noexcept                                  \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->capabilities();                                                   \
+            }                                                                                      \
+            extern "C" int congelado_init(                                                         \
+                const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg                 \
+            ) noexcept                                                                             \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                try {                                                                              \
+                    s_plugin->on_load(                                                             \
+                        host ? *host : CongeladoHostCallbacks{},                                   \
+                        cfg ? *cfg : CongeladoConfigView{}                                         \
+                    );                                                                             \
+                } catch (...) {                                                                    \
+                    return -1;                                                                     \
+                }                                                                                  \
+                return 0;                                                                          \
+            }                                                                                      \
+            extern "C" const char* congelado_type() noexcept                                       \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_type().data();                                                \
+            }                                                                                      \
+            extern "C" const char* congelado_worker_type() noexcept                                \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_worker_type().data();                                         \
+            }                                                                                      \
+            extern "C" CongeladoConfigView congelado_worker_execute(                               \
+                const CongeladoConfigView* input                                                   \
+            ) noexcept                                                                             \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    return {};                                                                     \
+                return s_plugin->execute_worker(input);                                            \
+            }                                                                                      \
+            /* Lifecycle: expose standardized shared names (no _plugin suffix) */                  \
+            extern "C" void congelado_on_unload() noexcept                                         \
+            {                                                                                      \
+                if (s_plugin != nullptr) {                                                         \
+                    s_plugin->on_unload();                                                         \
+                    delete s_plugin; /* NOLINT(cppcoreguidelines-owning-memory) */                 \
+                    s_plugin = nullptr;                                                            \
+                }                                                                                  \
+            }                                                                                      \
+            extern "C" void congelado_on_ready() noexcept                                          \
+            {                                                                                      \
+                if (s_plugin != nullptr)                                                           \
+                    s_plugin->on_ready();                                                          \
+            }                                                                                      \
+            extern "C" void congelado_on_shutdown() noexcept                                       \
+            {                                                                                      \
+                if (s_plugin != nullptr)                                                           \
+                    s_plugin->on_shutdown_requested();                                             \
+            }                                                                                      \
+            extern "C" int congelado_on_reload_requested() noexcept                                \
+            {                                                                                      \
+                return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;             \
+            }                                                                                      \
+            extern "C" CongeladoAny congelado_call(                                                \
+                CongeladoRunType type, CongeladoRunAction action, const CongeladoAny* args,        \
+                size_t args_count                                                                  \
+            ) noexcept                                                                             \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    return CongeladoAny{};                                                         \
+                return ::congelado::_cap_dispatch::call(s_plugin, type, action, args, args_count); \
+            }                                                                                      \
+            extern "C" const char* congelado_unique_type() noexcept                                \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_unique_type().data();                                         \
+            }                                                                                      \
+            extern "C" const char* const* congelado_requires() noexcept                            \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                static std::vector<std::string> s_strs; /* NOLINT */                               \
+                static std::vector<const char*> s_ptrs; /* NOLINT */                               \
+                static bool s_cache_built = false;      /* NOLINT */                               \
+                if (!s_cache_built) {                                                              \
+                    for (auto sv: s_plugin->get_requires()) {                                      \
+                        s_strs.emplace_back(sv);                                                   \
+                        s_ptrs.push_back(s_strs.back().c_str());                                   \
+                    }                                                                              \
+                    s_cache_built = true;                                                          \
+                }                                                                                  \
+                return s_ptrs.data();                                                              \
+            }                                                                                      \
+            extern "C" std::size_t congelado_requires_count() noexcept                             \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_requires().size();                                            \
+            }                                                                                      \
+            extern "C" const char* const* congelado_load_before_types() noexcept                   \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                static std::vector<std::string> s_strs; /* NOLINT */                               \
+                static std::vector<const char*> s_ptrs; /* NOLINT */                               \
+                static bool s_cache_built = false;      /* NOLINT */                               \
+                if (!s_cache_built) {                                                              \
+                    for (auto sv: s_plugin->get_load_before_types()) {                             \
+                        s_strs.emplace_back(sv);                                                   \
+                        s_ptrs.push_back(s_strs.back().c_str());                                   \
+                    }                                                                              \
+                    s_cache_built = true;                                                          \
+                }                                                                                  \
+                return s_ptrs.data();                                                              \
+            }                                                                                      \
+            extern "C" std::size_t congelado_load_before_types_count() noexcept                    \
+            {                                                                                      \
+                if (s_plugin == nullptr)                                                           \
+                    s_plugin = new T{};                                                            \
+                return s_plugin->get_load_before_types().size();                                   \
+            }
+#    endif // CONGELADO_PLUGIN_USED
 
 #endif // CONGELADO_GUEST
 

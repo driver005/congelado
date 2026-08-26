@@ -15,23 +15,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <functional>
-#include <vector>
+#include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/attr_value_util.h"
 #include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_def.pb.h"
+#include "tensorflow/core/framework/op_def_util.h"
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/graph/graph_node_util.h"
+#include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
-#include "tensorflow/core/lib/strings/strcat.h"
-#include "tensorflow/core/framework/attr_value.pb.h"
-#include "tensorflow/core/framework/op_def_util.h"
-#include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/lib/strings/strcat.h"
+
+#include <functional>
+#include <vector>
 
 export module cc_tmp:graph_node_def_builder;
 
@@ -40,486 +41,561 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class NodeDefBuilder;
-typedef std::function<absl::Status(const OpDef&, int, const NodeDef&,
-                                   NodeDefBuilder*)>
-    FakeInputFunctor;
+        class NodeDefBuilder;
+        typedef std::function<absl::Status(const OpDef&, int, const NodeDef&, NodeDefBuilder*)>
+            FakeInputFunctor;
 
-// This is a helper for creating a NodeDef.  Automatically sets attrs
-// that can be inferred from the inputs, and uses default values
-// (where they exist) for unspecified attrs.  Example usage:
-//
-//  NodeDef node_def;
-//  Status status = NodeDefBuilder(node_name, op_name)
-//                           .Input(...)
-//                           .Attr(...)
-//                           .Finalize(&node_def);
-//  if (!status.ok()) return status;
-//  // Use node_def here.
-class NodeDefBuilder {
- public:
-  // To specify an output to be consumed by one of the Input() methods below.
-  struct NodeOut {
-    NodeOut(absl::string_view n, int i, DataType dt);
-    NodeOut();  // uninitialized, call Reset() before use.
-    void Reset(absl::string_view n, int i, DataType dt);
-    std::string node;
-    int index;
-    DataType data_type;
-  };
+        // This is a helper for creating a NodeDef.  Automatically sets attrs
+        // that can be inferred from the inputs, and uses default values
+        // (where they exist) for unspecified attrs.  Example usage:
+        //
+        //  NodeDef node_def;
+        //  Status status = NodeDefBuilder(node_name, op_name)
+        //                           .Input(...)
+        //                           .Attr(...)
+        //                           .Finalize(&node_def);
+        //  if (!status.ok()) return status;
+        //  // Use node_def here.
+        class NodeDefBuilder
+        {
+        public:
+            // To specify an output to be consumed by one of the Input() methods below.
+            struct NodeOut
+            {
+                NodeOut(absl::string_view n, int i, DataType dt);
+                NodeOut(); // uninitialized, call Reset() before use.
+                void Reset(absl::string_view n, int i, DataType dt);
+                std::string node;
+                int index;
+                DataType data_type;
+            };
 
-  // Specify the name and the Op (either via an OpDef or the name of
-  // the Op plus a registry) for the NodeDef.  Other fields are
-  // specified by calling the methods below.
-  // REQUIRES: The OpDef must satisfy ValidateOpDef().
-  NodeDefBuilder(absl::string_view name, absl::string_view op_name,
-                 const OpRegistryInterface* op_registry = OpRegistry::Global(),
-                 const NodeDebugInfo* debug = nullptr);
-  NodeDefBuilder(absl::string_view name, absl::string_view op_name,
-                 const NodeDebugInfo& debug);
-  // REQUIRES: in addition, *op_def must outlive *this.
-  NodeDefBuilder(absl::string_view name, const OpDef* op_def);
+            // Specify the name and the Op (either via an OpDef or the name of
+            // the Op plus a registry) for the NodeDef.  Other fields are
+            // specified by calling the methods below.
+            // REQUIRES: The OpDef must satisfy ValidateOpDef().
+            NodeDefBuilder(
+                absl::string_view name,
+                absl::string_view op_name,
+                const OpRegistryInterface* op_registry = OpRegistry::Global(),
+                const NodeDebugInfo* debug = nullptr
+            );
+            NodeDefBuilder(
+                absl::string_view name, absl::string_view op_name, const NodeDebugInfo& debug
+            );
+            // REQUIRES: in addition, *op_def must outlive *this.
+            NodeDefBuilder(absl::string_view name, const OpDef* op_def);
 
-  // You must call one Input() function per input_arg in the Op,
-  // *and in the same order as the input_args appear in the OpDef.*
+            // You must call one Input() function per input_arg in the Op,
+            // *and in the same order as the input_args appear in the OpDef.*
 
-  // For inputs that take a single tensor.
-  NodeDefBuilder& Input(absl::string_view src_node, int src_index, DataType dt);
-  NodeDefBuilder& Input(const NodeOut& src);
+            // For inputs that take a single tensor.
+            NodeDefBuilder& Input(absl::string_view src_node, int src_index, DataType dt);
+            NodeDefBuilder& Input(const NodeOut& src);
 
-  // For inputs that take a list of tensors.
-  NodeDefBuilder& Input(absl::Span<const NodeOut> src_list);
+            // For inputs that take a list of tensors.
+            NodeDefBuilder& Input(absl::Span<const NodeOut> src_list);
 
-  // To create inputs in tests, see fake_input.h.
-  NodeDefBuilder& Input(FakeInputFunctor fake_input);
+            // To create inputs in tests, see fake_input.h.
+            NodeDefBuilder& Input(FakeInputFunctor fake_input);
 
-  // Specify that this node must only run after src_node.
-  NodeDefBuilder& ControlInput(absl::string_view src_node);
+            // Specify that this node must only run after src_node.
+            NodeDefBuilder& ControlInput(absl::string_view src_node);
 
-  // Constrains what devices this node may be scheduled on.
-  NodeDefBuilder& Device(absl::string_view device_spec);
+            // Constrains what devices this node may be scheduled on.
+            NodeDefBuilder& Device(absl::string_view device_spec);
 
-  // Sets the attr, if not already set.  If already set with a different
-  // value, an error will be returned from Finalize().
-  NodeDefBuilder& Attr(absl::string_view name, const AttrValue& value);
-  NodeDefBuilder& Attr(absl::string_view name, AttrValue&& value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::string_view value);
-  NodeDefBuilder& Attr(absl::string_view name, const char* value);
-  NodeDefBuilder& Attr(absl::string_view name, int32_t value);
-  NodeDefBuilder& Attr(absl::string_view name, int64_t value);
-  NodeDefBuilder& Attr(absl::string_view name, float value);
-  NodeDefBuilder& Attr(absl::string_view name, double value);
-  NodeDefBuilder& Attr(absl::string_view name, bool value);
-  NodeDefBuilder& Attr(absl::string_view name, DataType value);
-  NodeDefBuilder& Attr(absl::string_view name, const PartialTensorShape& value);
-  NodeDefBuilder& Attr(absl::string_view name, const Tensor& value);
-  NodeDefBuilder& Attr(absl::string_view name, const TensorProto& value);
-  NodeDefBuilder& Attr(absl::string_view name, const NameAttrList& value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const absl::string_view> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const char* const> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const std::string> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const tstring> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const int32_t> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const int64_t> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const float> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const bool> value);
-  NodeDefBuilder& Attr(absl::string_view name, const std::vector<bool>& value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const DataType> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const TensorShape> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const PartialTensorShape> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const TensorShapeProto> value);
-  NodeDefBuilder& Attr(absl::string_view name, absl::Span<const Tensor> value);
-  NodeDefBuilder& Attr(absl::string_view name,
-                       absl::Span<const NameAttrList> value);
+            // Sets the attr, if not already set.  If already set with a different
+            // value, an error will be returned from Finalize().
+            NodeDefBuilder& Attr(absl::string_view name, const AttrValue& value);
+            NodeDefBuilder& Attr(absl::string_view name, AttrValue&& value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::string_view value);
+            NodeDefBuilder& Attr(absl::string_view name, const char* value);
+            NodeDefBuilder& Attr(absl::string_view name, int32_t value);
+            NodeDefBuilder& Attr(absl::string_view name, int64_t value);
+            NodeDefBuilder& Attr(absl::string_view name, float value);
+            NodeDefBuilder& Attr(absl::string_view name, double value);
+            NodeDefBuilder& Attr(absl::string_view name, bool value);
+            NodeDefBuilder& Attr(absl::string_view name, DataType value);
+            NodeDefBuilder& Attr(absl::string_view name, const PartialTensorShape& value);
+            NodeDefBuilder& Attr(absl::string_view name, const Tensor& value);
+            NodeDefBuilder& Attr(absl::string_view name, const TensorProto& value);
+            NodeDefBuilder& Attr(absl::string_view name, const NameAttrList& value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const absl::string_view> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const char* const> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const std::string> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const tstring> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const int32_t> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const int64_t> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const float> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const bool> value);
+            NodeDefBuilder& Attr(absl::string_view name, const std::vector<bool>& value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const DataType> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const TensorShape> value);
+            NodeDefBuilder&
+            Attr(absl::string_view name, absl::Span<const PartialTensorShape> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const TensorShapeProto> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const Tensor> value);
+            NodeDefBuilder& Attr(absl::string_view name, absl::Span<const NameAttrList> value);
 
-  template <class T>
-  NodeDefBuilder& Attr(absl::string_view name, std::initializer_list<T> value) {
-    return Attr(name, gtl::ArraySlice<T>(value));
-  }
+            template<class T>
+            NodeDefBuilder& Attr(absl::string_view name, std::initializer_list<T> value)
+            {
+                return Attr(name, gtl::ArraySlice<T>(value));
+            }
 
-  // Finish building the NodeDef, returning any errors or setting
-  // *node_def if none.
-  // If `consume` is true, the builder state will be moved into `node_def`,
-  // and the builder will be left in an undefined state.
-  // WARNING: Not all problems are detected!  The resulting NodeDef may
-  // not be valid!  Call ValidateNodeDef() from node_def_utils to be sure.
-  absl::Status Finalize(NodeDef* node_def, bool consume = false);
+            // Finish building the NodeDef, returning any errors or setting
+            // *node_def if none.
+            // If `consume` is true, the builder state will be moved into `node_def`,
+            // and the builder will be left in an undefined state.
+            // WARNING: Not all problems are detected!  The resulting NodeDef may
+            // not be valid!  Call ValidateNodeDef() from node_def_utils to be sure.
+            absl::Status Finalize(NodeDef* node_def, bool consume = false);
 
-  // Accessors for the values set in the constructor.
-  const std::string& node_name() const { return node_def_.name(); }
-  const OpDef& op_def() const { return *op_def_; }
+            // Accessors for the values set in the constructor.
+            const std::string& node_name() const
+            {
+                return node_def_.name();
+            }
 
- private:
-  // Called in the constructors.
-  void Initialize();
+            const OpDef& op_def() const
+            {
+                return *op_def_;
+            }
 
-  // Get the current ArgDef and advance to the next one. Returns nullptr
-  // if no more inputs are available.
-  const OpDef::ArgDef* NextArgDef();
+        private:
+            // Called in the constructors.
+            void Initialize();
 
-  // Returns true if there is still an input_arg available in *op_def_,
-  // otherwise adds to error_ and returns false.
-  bool NextArgAvailable();
+            // Get the current ArgDef and advance to the next one. Returns nullptr
+            // if no more inputs are available.
+            const OpDef::ArgDef* NextArgDef();
 
-  // These do the main work of the Input() methods.
-  void SingleInput(const OpDef::ArgDef* input_arg, absl::string_view src_node,
-                   int src_index, DataType dt);
-  void ListInput(const OpDef::ArgDef* input_arg,
-                 absl::Span<const NodeOut> src_list);
+            // Returns true if there is still an input_arg available in *op_def_,
+            // otherwise adds to error_ and returns false.
+            bool NextArgAvailable();
 
-  // Add "src_node:src_index" to the list of inputs in the node_def_.
-  void AddInput(absl::string_view src_node, int src_index);
+            // These do the main work of the Input() methods.
+            void SingleInput(
+                const OpDef::ArgDef* input_arg,
+                absl::string_view src_node,
+                int src_index,
+                DataType dt
+            );
+            void ListInput(const OpDef::ArgDef* input_arg, absl::Span<const NodeOut> src_list);
 
-  // Generate an error if you can't pass dt when expected is expected.
-  void VerifyInputType(const OpDef::ArgDef* input_arg, DataType expected,
-                       DataType dt);
+            // Add "src_node:src_index" to the list of inputs in the node_def_.
+            void AddInput(absl::string_view src_node, int src_index);
 
-  // If input_arg->is_ref() is true, generate an error if dt is not a ref.
-  void VerifyInputRef(const OpDef::ArgDef* input_arg, DataType dt);
+            // Generate an error if you can't pass dt when expected is expected.
+            void VerifyInputType(const OpDef::ArgDef* input_arg, DataType expected, DataType dt);
 
-  // Makes dt a ref type if that is what the input_arg specifies.
-  DataType MaybeAddRef(const OpDef::ArgDef* input_arg, DataType dt) {
-    return input_arg->is_ref() ? MakeRefType(dt) : dt;
-  }
+            // If input_arg->is_ref() is true, generate an error if dt is not a ref.
+            void VerifyInputRef(const OpDef::ArgDef* input_arg, DataType dt);
 
-  // Returns true if an attr named `name` is already present in the node_def_.
-  // If such an attr is already present and `value` is not equal to the present
-  // value, an error is generated.
-  bool AttrValueAlreadyPresent(absl::string_view name, const AttrValue& value);
+            // Makes dt a ref type if that is what the input_arg specifies.
+            DataType MaybeAddRef(const OpDef::ArgDef* input_arg, DataType dt)
+            {
+                return input_arg->is_ref() ? MakeRefType(dt) : dt;
+            }
 
-  const OpDef* op_def_;
-  NodeDef node_def_;
-  int inputs_specified_;
-  std::vector<std::string> control_inputs_;
-  std::vector<std::string> errors_;
-};
+            // Returns true if an attr named `name` is already present in the node_def_.
+            // If such an attr is already present and `value` is not equal to the present
+            // value, an error is generated.
+            bool AttrValueAlreadyPresent(absl::string_view name, const AttrValue& value);
 
-}  // namespace tensorflow
+            const OpDef* op_def_;
+            NodeDef node_def_;
+            int inputs_specified_;
+            std::vector<std::string> control_inputs_;
+            std::vector<std::string> errors_;
+        };
 
-// ==================================================================
-// Implementation: node_def_builder.cc
-// ==================================================================
+    } // namespace tensorflow
 
-namespace tensorflow {
+    // ==================================================================
+    // Implementation: node_def_builder.cc
+    // ==================================================================
 
-NodeDefBuilder::NodeOut::NodeOut(absl::string_view n, int i, DataType dt)
-    : node(n), index(i), data_type(dt) {}
+    namespace tensorflow {
 
-NodeDefBuilder::NodeOut::NodeOut() {
-  // uninitialized, call Reset() before use.
-}
+        NodeDefBuilder::NodeOut::NodeOut(absl::string_view n, int i, DataType dt) :
+            node(n),
+            index(i),
+            data_type(dt)
+        {
+        }
 
-void NodeDefBuilder::NodeOut::Reset(absl::string_view n, int i, DataType dt) {
-  node = std::string(n);
-  index = i;
-  data_type = dt;
-}
+        NodeDefBuilder::NodeOut::NodeOut()
+        {
+            // uninitialized, call Reset() before use.
+        }
 
-NodeDefBuilder::NodeDefBuilder(absl::string_view name,
-                               absl::string_view op_name,
-                               const OpRegistryInterface* op_registry,
-                               const NodeDebugInfo* debug) {
-  node_def_.set_name(name);
-  const absl::Status status =
-      op_registry->LookUpOpDef(std::string(op_name), &op_def_);
-  if (status.ok()) {
-    Initialize();
-  } else {
-    errors_.push_back(std::string(status.message()));
-    inputs_specified_ = 0;
-  }
-  if (debug != nullptr) MergeDebugInfo(*debug, &node_def_);
-}
+        void NodeDefBuilder::NodeOut::Reset(absl::string_view n, int i, DataType dt)
+        {
+            node = std::string(n);
+            index = i;
+            data_type = dt;
+        }
 
-NodeDefBuilder::NodeDefBuilder(absl::string_view name,
-                               absl::string_view op_name,
-                               const NodeDebugInfo& debug)
-    : NodeDefBuilder(name, op_name) {
-  MergeDebugInfo(debug, &node_def_);
-}
+        NodeDefBuilder::NodeDefBuilder(
+            absl::string_view name,
+            absl::string_view op_name,
+            const OpRegistryInterface* op_registry,
+            const NodeDebugInfo* debug
+        )
+        {
+            node_def_.set_name(name);
+            const absl::Status status = op_registry->LookUpOpDef(std::string(op_name), &op_def_);
+            if (status.ok()) {
+                Initialize();
+            } else {
+                errors_.push_back(std::string(status.message()));
+                inputs_specified_ = 0;
+            }
+            if (debug != nullptr) {
+                MergeDebugInfo(*debug, &node_def_);
+            }
+        }
 
-NodeDefBuilder::NodeDefBuilder(absl::string_view name, const OpDef* op_def)
-    : op_def_(op_def) {
-  node_def_.set_name(name);
-  Initialize();
-}
+        NodeDefBuilder::NodeDefBuilder(
+            absl::string_view name, absl::string_view op_name, const NodeDebugInfo& debug
+        ) :
+            NodeDefBuilder(name, op_name)
+        {
+            MergeDebugInfo(debug, &node_def_);
+        }
 
-void NodeDefBuilder::Initialize() {
-  inputs_specified_ = 0;
-  node_def_.set_op(op_def_->name());
-}
+        NodeDefBuilder::NodeDefBuilder(absl::string_view name, const OpDef* op_def) :
+            op_def_(op_def)
+        {
+            node_def_.set_name(name);
+            Initialize();
+        }
 
-const OpDef::ArgDef* NodeDefBuilder::NextArgDef() {
-  if (!NextArgAvailable()) return nullptr;
-  return &op_def_->input_arg(inputs_specified_++);
-}
+        void NodeDefBuilder::Initialize()
+        {
+            inputs_specified_ = 0;
+            node_def_.set_op(op_def_->name());
+        }
 
-bool NodeDefBuilder::NextArgAvailable() {
-  if (op_def_ == nullptr) {
-    return false;
-  } else if (inputs_specified_ >= op_def_->input_arg_size()) {
-    errors_.push_back(absl::StrCat("More Input() calls than the ",
-                                   op_def_->input_arg_size(), " input_args"));
-    return false;
-  }
-  return true;
-}
+        const OpDef::ArgDef* NodeDefBuilder::NextArgDef()
+        {
+            if (!NextArgAvailable()) {
+                return nullptr;
+            }
+            return &op_def_->input_arg(inputs_specified_++);
+        }
 
-NodeDefBuilder& NodeDefBuilder::Input(FakeInputFunctor fake_input) {
-  if (NextArgAvailable()) {
-    absl::Status status =
-        fake_input(*op_def_, inputs_specified_, node_def_, this);
-    if (!status.ok()) errors_.push_back(std::string(status.message()));
-  }
-  return *this;
-}
+        bool NodeDefBuilder::NextArgAvailable()
+        {
+            if (op_def_ == nullptr) {
+                return false;
+            } else if (inputs_specified_ >= op_def_->input_arg_size()) {
+                errors_.push_back(
+                    absl::StrCat(
+                        "More Input() calls than the ", op_def_->input_arg_size(), " input_args"
+                    )
+                );
+                return false;
+            }
+            return true;
+        }
 
-NodeDefBuilder& NodeDefBuilder::Input(absl::string_view src_node, int src_index,
-                                      DataType dt) {
-  const OpDef::ArgDef* arg = NextArgDef();
-  if (arg != nullptr) SingleInput(arg, src_node, src_index, dt);
-  return *this;
-}
+        NodeDefBuilder& NodeDefBuilder::Input(FakeInputFunctor fake_input)
+        {
+            if (NextArgAvailable()) {
+                absl::Status status = fake_input(*op_def_, inputs_specified_, node_def_, this);
+                if (!status.ok()) {
+                    errors_.push_back(std::string(status.message()));
+                }
+            }
+            return *this;
+        }
 
-NodeDefBuilder& NodeDefBuilder::Input(const NodeOut& src) {
-  Input(src.node, src.index, src.data_type);
-  return *this;
-}
+        NodeDefBuilder&
+        NodeDefBuilder::Input(absl::string_view src_node, int src_index, DataType dt)
+        {
+            const OpDef::ArgDef* arg = NextArgDef();
+            if (arg != nullptr) {
+                SingleInput(arg, src_node, src_index, dt);
+            }
+            return *this;
+        }
 
-// For inputs that take a list of tensors.
-NodeDefBuilder& NodeDefBuilder::Input(absl::Span<const NodeOut> src_list) {
-  const OpDef::ArgDef* arg = NextArgDef();
-  if (arg != nullptr) ListInput(arg, src_list);
-  return *this;
-}
+        NodeDefBuilder& NodeDefBuilder::Input(const NodeOut& src)
+        {
+            Input(src.node, src.index, src.data_type);
+            return *this;
+        }
 
-void NodeDefBuilder::SingleInput(const OpDef::ArgDef* input_arg,
-                                 absl::string_view src_node, int src_index,
-                                 DataType dt) {
-  AddInput(src_node, src_index);
+        // For inputs that take a list of tensors.
+        NodeDefBuilder& NodeDefBuilder::Input(absl::Span<const NodeOut> src_list)
+        {
+            const OpDef::ArgDef* arg = NextArgDef();
+            if (arg != nullptr) {
+                ListInput(arg, src_list);
+            }
+            return *this;
+        }
 
-  if (!input_arg->number_attr().empty() ||
-      !input_arg->type_list_attr().empty()) {
-    errors_.push_back(absl::StrCat("Single tensor passed to '",
-                                   input_arg->name(), "', expected list"));
-    return;
-  }
+        void NodeDefBuilder::SingleInput(
+            const OpDef::ArgDef* input_arg, absl::string_view src_node, int src_index, DataType dt
+        )
+        {
+            AddInput(src_node, src_index);
 
-  if (input_arg->type() != DT_INVALID) {
-    const DataType expected = MaybeAddRef(input_arg, input_arg->type());
-    VerifyInputType(input_arg, expected, dt);
-  } else {
-    VerifyInputRef(input_arg, dt);
-    Attr(input_arg->type_attr(), BaseType(dt));
-  }
-}
+            if (!input_arg->number_attr().empty() || !input_arg->type_list_attr().empty()) {
+                errors_.push_back(
+                    absl::StrCat("Single tensor passed to '", input_arg->name(), "', expected list")
+                );
+                return;
+            }
 
-void NodeDefBuilder::ListInput(const OpDef::ArgDef* input_arg,
-                               absl::Span<const NodeOut> src_list) {
-  for (const auto& node_out : src_list) {
-    AddInput(node_out.node, node_out.index);
-  }
+            if (input_arg->type() != DT_INVALID) {
+                const DataType expected = MaybeAddRef(input_arg, input_arg->type());
+                VerifyInputType(input_arg, expected, dt);
+            } else {
+                VerifyInputRef(input_arg, dt);
+                Attr(input_arg->type_attr(), BaseType(dt));
+            }
+        }
 
-  if (!input_arg->number_attr().empty()) {
-    Attr(input_arg->number_attr(), static_cast<int64_t>(src_list.size()));
-    if (input_arg->type() != DT_INVALID) {
-      const DataType expected = MaybeAddRef(input_arg, input_arg->type());
-      for (const auto& node_out : src_list) {
-        VerifyInputType(input_arg, expected, node_out.data_type);
-      }
-    } else if (!src_list.empty()) {
-      const DataType base = BaseType(src_list[0].data_type);
-      Attr(input_arg->type_attr(), base);
-      const DataType expected = MaybeAddRef(input_arg, base);
-      for (const auto& node_out : src_list) {
-        VerifyInputType(input_arg, expected, node_out.data_type);
-      }
+        void NodeDefBuilder::ListInput(
+            const OpDef::ArgDef* input_arg, absl::Span<const NodeOut> src_list
+        )
+        {
+            for (const auto& node_out: src_list) {
+                AddInput(node_out.node, node_out.index);
+            }
+
+            if (!input_arg->number_attr().empty()) {
+                Attr(input_arg->number_attr(), static_cast<int64_t>(src_list.size()));
+                if (input_arg->type() != DT_INVALID) {
+                    const DataType expected = MaybeAddRef(input_arg, input_arg->type());
+                    for (const auto& node_out: src_list) {
+                        VerifyInputType(input_arg, expected, node_out.data_type);
+                    }
+                } else if (!src_list.empty()) {
+                    const DataType base = BaseType(src_list[0].data_type);
+                    Attr(input_arg->type_attr(), base);
+                    const DataType expected = MaybeAddRef(input_arg, base);
+                    for (const auto& node_out: src_list) {
+                        VerifyInputType(input_arg, expected, node_out.data_type);
+                    }
+                }
+            } else if (!input_arg->type_list_attr().empty()) {
+                DataTypeVector type_vec;
+                type_vec.reserve(src_list.size());
+                for (const auto& node_out: src_list) {
+                    const DataType dt = node_out.data_type;
+                    VerifyInputRef(input_arg, dt);
+                    type_vec.push_back(BaseType(dt));
+                }
+                Attr(input_arg->type_list_attr(), type_vec);
+            } else {
+                errors_.push_back(
+                    absl::StrCat(
+                        "List provided to input '", input_arg->name(),
+                        "' when single Tensor expected"
+                    )
+                );
+            }
+        }
+
+        void NodeDefBuilder::AddInput(absl::string_view src_node, int src_index)
+        {
+            if (src_node.empty()) {
+                errors_.push_back("Empty input node name");
+            } else if (src_node[0] == '^') {
+                errors_.push_back(absl::StrCat("Non-control input starting with ^: ", src_node));
+            } else if (src_index > 0) {
+                node_def_.add_input(absl::StrCat(src_node, ":", src_index));
+            } else {
+                node_def_.add_input(std::string(src_node));
+            }
+        }
+
+        void NodeDefBuilder::VerifyInputType(
+            const OpDef::ArgDef* input_arg, DataType expected, DataType dt
+        )
+        {
+            if (!TypesCompatible(expected, dt)) {
+                errors_.push_back(
+                    strings::StrCat(
+                        "Input '", input_arg->name(), "' passed ", DataTypeString(dt), " expected ",
+                        DataTypeString(expected)
+                    )
+                );
+            }
+        }
+
+        void NodeDefBuilder::VerifyInputRef(const OpDef::ArgDef* input_arg, DataType dt)
+        {
+            if (input_arg->is_ref() && !IsRefType(dt)) {
+                errors_.push_back(
+                    strings::StrCat(
+                        "Input '", input_arg->name(), "' passed ", DataTypeString(dt),
+                        " expected ref type"
+                    )
+                );
+            }
+        }
+
+        NodeDefBuilder& NodeDefBuilder::ControlInput(absl::string_view src_node)
+        {
+            control_inputs_.emplace_back(src_node);
+            return *this;
+        }
+
+        NodeDefBuilder& NodeDefBuilder::Device(absl::string_view device_spec)
+        {
+            node_def_.set_device(device_spec);
+            return *this;
+        }
+
+        absl::Status NodeDefBuilder::Finalize(NodeDef* node_def, bool consume)
+        {
+            const std::vector<std::string>* errors_ptr = &errors_;
+            std::vector<std::string> errors_storage;
+            if (op_def_ != nullptr && inputs_specified_ < op_def_->input_arg_size()) {
+                // Since this is a const method, to add an error, we have to make
+                // a copy of the existing errors.
+                errors_storage = errors_;
+                errors_storage.push_back(
+                    absl::StrCat(
+                        inputs_specified_, " inputs specified of ", op_def_->input_arg_size(),
+                        " inputs in Op"
+                    )
+                );
+                errors_ptr = &errors_storage;
+            }
+
+            if (!errors_ptr->empty()) {
+                if (errors_ptr->size() == 1) {
+                    if (op_def_ == nullptr) {
+                        return absl::InvalidArgumentError(
+                            absl::StrCat(
+                                (*errors_ptr)[0], " while building NodeDef '", node_def_.name(), "'"
+                            )
+                        );
+                    }
+                    return absl::InvalidArgumentError(
+                        absl::StrCat(
+                            (*errors_ptr)[0], " while building NodeDef '", node_def_.name(),
+                            "' using ", SummarizeOpDef(*op_def_)
+                        )
+                    );
+                } else {
+                    if (op_def_ == nullptr) {
+                        return absl::InvalidArgumentError(
+                            absl::StrCat(
+                                errors_ptr->size(), " errors while building NodeDef '",
+                                node_def_.name(), "':\n", absl::StrJoin(*errors_ptr, "\n")
+                            )
+                        );
+                    }
+                    return absl::InvalidArgumentError(
+                        absl::StrCat(
+                            errors_ptr->size(), " errors while building NodeDef '",
+                            node_def_.name(), "' using ", SummarizeOpDef(*op_def_), ":\n",
+                            absl::StrJoin(*errors_ptr, "\n")
+                        )
+                    );
+                }
+            } else {
+                NodeDef node_def_backup;
+                if (node_def == nullptr) {
+                    node_def = &node_def_backup;
+                }
+                if (consume) {
+                    *node_def = std::move(node_def_);
+                } else {
+                    *node_def = node_def_;
+                }
+
+                // Add control inputs after the regular inputs.
+                for (const auto& control_input: control_inputs_) {
+                    node_def->add_input(absl::StrCat("^", control_input));
+                }
+
+                // Add default values for unspecified attrs.
+                AddDefaultsToNodeDef(*op_def_, node_def);
+
+                return absl::OkStatus();
+            }
+        }
+
+        bool NodeDefBuilder::AttrValueAlreadyPresent(absl::string_view name, const AttrValue& value)
+        {
+            if (const AttrValue* found = AttrSlice(node_def_).Find(name)) {
+                if (!AreAttrValuesEqual(*found, value)) {
+                    errors_.push_back(
+                        strings::StrCat(
+                            "Inconsistent values for attr '", name, "' ",
+                            SummarizeAttrValue(*found), " vs. ", SummarizeAttrValue(value)
+                        )
+                    );
+                }
+                return true;
+            }
+            return false;
+        }
+
+        NodeDefBuilder& NodeDefBuilder::Attr(absl::string_view name, const AttrValue& value)
+        {
+            if (!AttrValueAlreadyPresent(name, value)) {
+                AddNodeAttr(name, value, &node_def_);
+            }
+            return *this;
+        }
+
+        NodeDefBuilder& NodeDefBuilder::Attr(absl::string_view name, AttrValue&& value)
+        {
+            if (!AttrValueAlreadyPresent(name, value)) {
+                AddNodeAttr(name, std::move(value), &node_def_);
+            }
+            return *this;
+        }
+
+#define ATTR(T)                                                                                    \
+    NodeDefBuilder& NodeDefBuilder::Attr(StringPiece name, T value)                                \
+    {                                                                                              \
+        AttrValue attr_value;                                                                      \
+        SetAttrValue(value, &attr_value);                                                          \
+        return Attr(name, attr_value);                                                             \
     }
-  } else if (!input_arg->type_list_attr().empty()) {
-    DataTypeVector type_vec;
-    type_vec.reserve(src_list.size());
-    for (const auto& node_out : src_list) {
-      const DataType dt = node_out.data_type;
-      VerifyInputRef(input_arg, dt);
-      type_vec.push_back(BaseType(dt));
-    }
-    Attr(input_arg->type_list_attr(), type_vec);
-  } else {
-    errors_.push_back(absl::StrCat("List provided to input '",
-                                   input_arg->name(),
-                                   "' when single Tensor expected"));
-  }
-}
-
-void NodeDefBuilder::AddInput(absl::string_view src_node, int src_index) {
-  if (src_node.empty()) {
-    errors_.push_back("Empty input node name");
-  } else if (src_node[0] == '^') {
-    errors_.push_back(
-        absl::StrCat("Non-control input starting with ^: ", src_node));
-  } else if (src_index > 0) {
-    node_def_.add_input(absl::StrCat(src_node, ":", src_index));
-  } else {
-    node_def_.add_input(std::string(src_node));
-  }
-}
-
-void NodeDefBuilder::VerifyInputType(const OpDef::ArgDef* input_arg,
-                                     DataType expected, DataType dt) {
-  if (!TypesCompatible(expected, dt)) {
-    errors_.push_back(strings::StrCat("Input '", input_arg->name(), "' passed ",
-                                      DataTypeString(dt), " expected ",
-                                      DataTypeString(expected)));
-  }
-}
-
-void NodeDefBuilder::VerifyInputRef(const OpDef::ArgDef* input_arg,
-                                    DataType dt) {
-  if (input_arg->is_ref() && !IsRefType(dt)) {
-    errors_.push_back(strings::StrCat("Input '", input_arg->name(), "' passed ",
-                                      DataTypeString(dt),
-                                      " expected ref type"));
-  }
-}
-
-NodeDefBuilder& NodeDefBuilder::ControlInput(absl::string_view src_node) {
-  control_inputs_.emplace_back(src_node);
-  return *this;
-}
-
-NodeDefBuilder& NodeDefBuilder::Device(absl::string_view device_spec) {
-  node_def_.set_device(device_spec);
-  return *this;
-}
-
-absl::Status NodeDefBuilder::Finalize(NodeDef* node_def, bool consume) {
-  const std::vector<std::string>* errors_ptr = &errors_;
-  std::vector<std::string> errors_storage;
-  if (op_def_ != nullptr && inputs_specified_ < op_def_->input_arg_size()) {
-    // Since this is a const method, to add an error, we have to make
-    // a copy of the existing errors.
-    errors_storage = errors_;
-    errors_storage.push_back(
-        absl::StrCat(inputs_specified_, " inputs specified of ",
-                     op_def_->input_arg_size(), " inputs in Op"));
-    errors_ptr = &errors_storage;
-  }
-
-  if (!errors_ptr->empty()) {
-    if (errors_ptr->size() == 1) {
-      if (op_def_ == nullptr) {
-        return absl::InvalidArgumentError(
-            absl::StrCat((*errors_ptr)[0], " while building NodeDef '",
-                         node_def_.name(), "'"));
-      }
-      return absl::InvalidArgumentError(
-          absl::StrCat((*errors_ptr)[0], " while building NodeDef '",
-                       node_def_.name(), "' using ", SummarizeOpDef(*op_def_)));
-    } else {
-      if (op_def_ == nullptr) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            errors_ptr->size(), " errors while building NodeDef '",
-            node_def_.name(), "':\n", absl::StrJoin(*errors_ptr, "\n")));
-      }
-      return absl::InvalidArgumentError(
-          absl::StrCat(errors_ptr->size(), " errors while building NodeDef '",
-                       node_def_.name(), "' using ", SummarizeOpDef(*op_def_),
-                       ":\n", absl::StrJoin(*errors_ptr, "\n")));
-    }
-  } else {
-    NodeDef node_def_backup;
-    if (node_def == nullptr) node_def = &node_def_backup;
-    if (consume) {
-      *node_def = std::move(node_def_);
-    } else {
-      *node_def = node_def_;
-    }
-
-    // Add control inputs after the regular inputs.
-    for (const auto& control_input : control_inputs_) {
-      node_def->add_input(absl::StrCat("^", control_input));
-    }
-
-    // Add default values for unspecified attrs.
-    AddDefaultsToNodeDef(*op_def_, node_def);
-
-    return absl::OkStatus();
-  }
-}
-
-bool NodeDefBuilder::AttrValueAlreadyPresent(absl::string_view name,
-                                             const AttrValue& value) {
-  if (const AttrValue* found = AttrSlice(node_def_).Find(name)) {
-    if (!AreAttrValuesEqual(*found, value)) {
-      errors_.push_back(strings::StrCat("Inconsistent values for attr '", name,
-                                        "' ", SummarizeAttrValue(*found),
-                                        " vs. ", SummarizeAttrValue(value)));
-    }
-    return true;
-  }
-  return false;
-}
-
-NodeDefBuilder& NodeDefBuilder::Attr(absl::string_view name,
-                                     const AttrValue& value) {
-  if (!AttrValueAlreadyPresent(name, value)) {
-    AddNodeAttr(name, value, &node_def_);
-  }
-  return *this;
-}
-
-NodeDefBuilder& NodeDefBuilder::Attr(absl::string_view name,
-                                     AttrValue&& value) {
-  if (!AttrValueAlreadyPresent(name, value)) {
-    AddNodeAttr(name, std::move(value), &node_def_);
-  }
-  return *this;
-}
-
-#define ATTR(T)                                                     \
-  NodeDefBuilder& NodeDefBuilder::Attr(StringPiece name, T value) { \
-    AttrValue attr_value;                                           \
-    SetAttrValue(value, &attr_value);                               \
-    return Attr(name, attr_value);                                  \
-  }
-ATTR(absl::string_view)
-ATTR(const char*)
-ATTR(int32_t)
-ATTR(int64_t)
-ATTR(float)
-ATTR(double)
-ATTR(bool)
-ATTR(DataType)
-ATTR(const PartialTensorShape&)
-ATTR(const Tensor&)
-ATTR(const TensorProto&)
-ATTR(const NameAttrList&)
-ATTR(absl::Span<const absl::string_view>)
-ATTR(absl::Span<const char* const>)
-ATTR(absl::Span<const std::string>)
-ATTR(absl::Span<const tstring>)
-ATTR(absl::Span<const int32_t>)
-ATTR(absl::Span<const int64_t>)
-ATTR(absl::Span<const float>)
-ATTR(absl::Span<const bool>)
-ATTR(const std::vector<bool>&)
-ATTR(absl::Span<const DataType>)
-ATTR(absl::Span<const TensorShape>)
-ATTR(absl::Span<const PartialTensorShape>)
-ATTR(absl::Span<const TensorShapeProto>)
-ATTR(absl::Span<const Tensor>)
-ATTR(absl::Span<const NameAttrList>)
+        ATTR(absl::string_view)
+        ATTR(const char*)
+        ATTR(int32_t)
+        ATTR(int64_t)
+        ATTR(float)
+        ATTR(double)
+        ATTR(bool)
+        ATTR(DataType)
+        ATTR(const PartialTensorShape&)
+        ATTR(const Tensor&)
+        ATTR(const TensorProto&)
+        ATTR(const NameAttrList&)
+        ATTR(absl::Span<const absl::string_view>)
+        ATTR(absl::Span<const char* const>)
+        ATTR(absl::Span<const std::string>)
+        ATTR(absl::Span<const tstring>)
+        ATTR(absl::Span<const int32_t>)
+        ATTR(absl::Span<const int64_t>)
+        ATTR(absl::Span<const float>)
+        ATTR(absl::Span<const bool>)
+        ATTR(const std::vector<bool>&)
+        ATTR(absl::Span<const DataType>)
+        ATTR(absl::Span<const TensorShape>)
+        ATTR(absl::Span<const PartialTensorShape>)
+        ATTR(absl::Span<const TensorShapeProto>)
+        ATTR(absl::Span<const Tensor>)
+        ATTR(absl::Span<const NameAttrList>)
 #undef ATTR
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

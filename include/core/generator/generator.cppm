@@ -16,20 +16,25 @@ export namespace core::generator {
 // already fully rendered elsewhere — e.g. JSON) or, constructed with a module name, a
 // facade over Module for building generated C++ source (addImport/addNamespace/addRawBlock
 // delegate to an internally owned Module, then render()/write() emit its content).
-class Generator {
-  public:
+class Generator
+{
+public:
     /**
      * @brief Default-constructs a bare generator with no owned `Module` — no cap, this
      * mode only exists for content that's already fully rendered elsewhere (e.g. JSON) and
      * just needs a `write()` to disk.
      */
     Generator() = default;
+
     /**
      * @brief Constructs a generator that owns a `Module`, ready to build a generated
      * `.cppm` file via `addImport()`/`addNamespace()`/`addRawBlock()`.
      * @param moduleName the module's name, forwarded straight to `Module`'s constructor.
      */
-    explicit Generator(std::string moduleName) : m_module(Module{std::move(moduleName)}) {}
+    explicit Generator(std::string moduleName) :
+        m_module(Module{std::move(moduleName)})
+    {
+    }
 
     /**
      * @brief Adds an import to the owned module.
@@ -39,12 +44,19 @@ class Generator {
      * empty — call this on one and it's a null `std::optional` dereference, straight L, no
      * exception thrown, just UB.
      */
-    Generator &addImport(std::string name) {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    Generator& addImport(std::string name)
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         // .value() rather than -> : a bare Generator() (no owned Module) throws
         // std::bad_optional_access here instead of silently invoking UB.
-        m_module.value().addImport(std::move(name));  // NOLINT(bugprone-unchecked-optional-access) — .value() is the deliberate check, throws instead of UB by design
+        m_module.value().addImport(
+            std::move(name)
+        ); // NOLINT(bugprone-unchecked-optional-access) — .value() is the deliberate check,
+           // throws instead of UB by design
         return *this;
     }
+
     /**
      * @brief Adds a namespace block to the owned module.
      * @param name the namespace's name.
@@ -54,8 +66,13 @@ class Generator {
      * a bare `Generator()`.
      */
     // .value() (not ->) so a bare Generator() throws std::bad_optional_access instead of UB.
-    // NOLINTNEXTLINE(readability-identifier-naming,bugprone-unchecked-optional-access) — camelCase matches project accessor convention; .value() is the deliberate check
-    Namespace &addNamespace(std::string name) { return m_module.value().addNamespace(std::move(name)); }
+    // NOLINTNEXTLINE(readability-identifier-naming,bugprone-unchecked-optional-access) —
+    // camelCase matches project accessor convention; .value() is the deliberate check
+    Namespace& addNamespace(std::string name)
+    {
+        return m_module.value().addNamespace(std::move(name));
+    }
+
     /**
      * @brief Adds a raw, already-formatted text block to the owned module — for content
      * that doesn't fit the class/function/namespace model (e.g. a top-level template
@@ -64,10 +81,16 @@ class Generator {
      * @return reference to this generator for chaining.
      * @warning Same `m_module` requirement as `addImport()`.
      */
-    Generator &addRawBlock(std::string block) {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    Generator& addRawBlock(std::string block)
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         // .value() rather than -> : a bare Generator() (no owned Module) throws
         // std::bad_optional_access here instead of silently invoking UB.
-        m_module.value().addRawBlock(std::move(block));  // NOLINT(bugprone-unchecked-optional-access) — .value() is the deliberate check, throws instead of UB by design
+        m_module.value().addRawBlock(
+            std::move(block)
+        ); // NOLINT(bugprone-unchecked-optional-access) — .value() is the deliberate check,
+           // throws instead of UB by design
         return *this;
     }
 
@@ -79,7 +102,10 @@ class Generator {
      */
     // .value() (not ->) so a bare Generator() throws std::bad_optional_access instead of UB.
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access) — .value() is the deliberate check
-    [[nodiscard]] std::string render() const { return m_module.value().render(); }
+    [[nodiscard]] std::string render() const
+    {
+        return m_module.value().render();
+    }
 
     /**
      * @brief Writes arbitrary content to disk at the given path. Unlike the other methods
@@ -92,7 +118,8 @@ class Generator {
      * open.
      */
     [[nodiscard]] static std::expected<void, std::string>
-    write(const std::filesystem::path &path, std::string_view content) {
+    write(const std::filesystem::path& path, std::string_view content)
+    {
         // Open and write in one motion — no separate existence/permission check up
         // front, the stream's fail state after the write is the only signal we get.
         std::ofstream out{path};
@@ -114,11 +141,12 @@ class Generator {
      * @warning Delegates to `render()`, so it inherits the same bare-`Generator()`
      * null-optional footgun.
      */
-    [[nodiscard]] std::expected<void, std::string> write(const std::filesystem::path &path) const {
+    [[nodiscard]] std::expected<void, std::string> write(const std::filesystem::path& path) const
+    {
         return write(path, render());
     }
 
-  private:
+private:
     std::optional<Module> m_module;
 };
 
@@ -132,7 +160,9 @@ suite<"Generator"> generator_suite = [] {
     "bare generator throws on addImport since it owns no module"_test = [] {
         Generator generator;
 
-        expect(throws<std::bad_optional_access>([&] { generator.addImport("std"); }));
+        expect(throws<std::bad_optional_access>([&] {
+            generator.addImport("std");
+        }));
     };
 
     "named generator builds and renders a module"_test = [] {

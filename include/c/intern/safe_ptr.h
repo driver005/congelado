@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_SAFE_PTR_H_
 #define TENSORFLOW_C_SAFE_PTR_H_
 
-#include <memory>
-
 #include "c/abi/api.h"
+
+#include <memory>
 
 // C++ RAII wrappers for C ABI types.
 // These connect C++ code to the C ABI by providing automatic resource cleanup.
@@ -26,19 +26,22 @@ limitations under the License.
 namespace tensorflow {
 namespace detail {
 
-struct TFTensorDeleter {
-  void operator()(TF_Tensor* p) const;
-};
+    struct TFTensorDeleter
+    {
+        void operator()(TF_Tensor* p) const;
+    };
 
-struct TFStatusDeleter {
-  void operator()(TF_Status* p) const;
-};
+    struct TFStatusDeleter
+    {
+        void operator()(TF_Status* p) const;
+    };
 
-struct TFBufferDeleter {
-  void operator()(TF_Buffer* p) const;
-};
+    struct TFBufferDeleter
+    {
+        void operator()(TF_Buffer* p) const;
+    };
 
-}  // namespace detail
+} // namespace detail
 
 // Safe container for an owned TF_Tensor. Auto-deleted on destruction.
 using Safe_TF_TensorPtr = std::unique_ptr<TF_Tensor, detail::TFTensorDeleter>;
@@ -52,6 +55,6 @@ Safe_TF_StatusPtr make_safe(TF_Status* status);
 using Safe_TF_BufferPtr = std::unique_ptr<TF_Buffer, detail::TFBufferDeleter>;
 Safe_TF_BufferPtr make_safe(TF_Buffer* buffer);
 
-}  // namespace tensorflow
+} // namespace tensorflow
 
-#endif  // TENSORFLOW_C_SAFE_PTR_H_
+#endif // TENSORFLOW_C_SAFE_PTR_H_

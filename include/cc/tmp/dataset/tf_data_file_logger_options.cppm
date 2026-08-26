@@ -25,26 +25,27 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
-namespace data {
+    namespace tensorflow {
+        namespace data {
 
-struct LogFilenamesOptions {
-  std::vector<std::string> files;
-  std::string data_service_address = "";
-};
+            struct LogFilenamesOptions
+            {
+                std::vector<std::string> files;
+                std::string data_service_address = "";
+            };
 
-inline bool operator==(const LogFilenamesOptions& lhs,
-                       const LogFilenamesOptions& rhs) {
-  return lhs.files == rhs.files &&
-         lhs.data_service_address == rhs.data_service_address;
-}
+            inline bool operator==(const LogFilenamesOptions& lhs, const LogFilenamesOptions& rhs)
+            {
+                return lhs.files == rhs.files &&
+                       lhs.data_service_address == rhs.data_service_address;
+            }
 
-inline bool operator!=(const LogFilenamesOptions& lhs,
-                       const LogFilenamesOptions& rhs) {
-  return !(lhs == rhs);
-}
+            inline bool operator!=(const LogFilenamesOptions& lhs, const LogFilenamesOptions& rhs)
+            {
+                return !(lhs == rhs);
+            }
 
-}  // namespace data
-}  // namespace tensorflow
+        } // namespace data
+    } // namespace tensorflow
 
 } // export
