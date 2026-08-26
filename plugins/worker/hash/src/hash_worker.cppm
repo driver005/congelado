@@ -15,31 +15,49 @@ import boost.ut;
 export namespace worker_hash {
 
 /// @brief Typed input for the `hash` worker, parsed from the task's dynamic input value via
-/// `serde::Ser::from_value` — see the `Serializable<HashInput>` specialization below. `algo` defaults
-/// to "sha256" via its in-class member initializer.
-class HashInput {
-  public:
-    void setData(std::string value) { m_data = std::move(value); }
-    void setAlgo(std::string value) { m_algo = std::move(value); }
+/// `serde::Ser::from_value` — see the `Serializable<HashInput>` specialization below. `algo`
+/// defaults to "sha256" via its in-class member initializer.
+class HashInput
+{
+public:
+    void setData(std::string value)
+    {
+        m_data = std::move(value);
+    }
 
-    [[nodiscard]] const std::string &getData() const noexcept { return m_data; }
-    [[nodiscard]] const std::string &getAlgo() const noexcept { return m_algo; }
+    void setAlgo(std::string value)
+    {
+        m_algo = std::move(value);
+    }
 
-  private:
+    [[nodiscard]] const std::string& getData() const noexcept
+    {
+        return m_data;
+    }
+
+    [[nodiscard]] const std::string& getAlgo() const noexcept
+    {
+        return m_algo;
+    }
+
+private:
     std::string m_data;
     // BUG: this in-class default is dead for task input parsed via `serde::Ser::from_value` —
-    // that path decodes the whole reflected NamedTuple at once, and a plain (non-`std::optional`)
-    // field with no matching key in the input Value fails the ENTIRE decode ("Field named 'algo'
-    // not found"), never reaching this default. See the pinning test in the CONGELADO_TEST block
-    // below ("BUG: from_value fails entirely when 'algo' is omitted...").
+    // that path decodes the whole reflected NamedTuple at once, and a plain
+    // (non-`std::optional`) field with no matching key in the input Value fails the ENTIRE
+    // decode ("Field named 'algo' not found"), never reaching this default. See the pinning
+    // test in the CONGELADO_TEST block below ("BUG: from_value fails entirely when 'algo' is
+    // omitted...").
     std::string m_algo{"sha256"};
 };
 
 } // namespace worker_hash
 
-template <>
-struct serde::Serializable<worker_hash::HashInput> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<worker_hash::HashInput>
+{
+    static constexpr auto fields()
+    {
         using worker_hash::HashInput;
         return std::tuple{
             serde::FieldDesc<"data", &HashInput::getData, &HashInput::setData>{},
@@ -50,23 +68,27 @@ struct serde::Serializable<worker_hash::HashInput> {
 
 export namespace worker_hash {
 
-/// @brief A "generating a digest is a worker" primitive — hashes `data` with OpenSSL's EVP digest
-/// API and returns the lowercase hex digest. Shared/reusable (lives in plugins/worker/). Reads
-/// `data` and an optional `algo` (any OpenSSL digest name, e.g. "sha256"/"sha512"/"md5"; defaults to
-/// sha256) from the input map, returns `hash` + the resolved `algo`.
-class HashWorker final : public interfaces::IWorker {
-  public:
-    [[nodiscard]] std::string_view get_task_type() const noexcept override { return "hash"; }
+/// @brief A "generating a digest is a worker" primitive — hashes `data` with OpenSSL's EVP
+/// digest API and returns the lowercase hex digest. Shared/reusable (lives in plugins/worker/).
+/// Reads `data` and an optional `algo` (any OpenSSL digest name, e.g. "sha256"/"sha512"/"md5";
+/// defaults to sha256) from the input map, returns `hash` + the resolved `algo`.
+class HashWorker final : public interfaces::IWorker
+{
+public:
+    [[nodiscard]] std::string_view get_task_type() const noexcept override
+    {
+        return "hash";
+    }
 
-    [[nodiscard]] interfaces::WorkerResult
-    execute(const serde::Value &input) override {
+    [[nodiscard]] interfaces::WorkerResult execute(const serde::Value& input) override
+    {
         auto parsed = serde::Ser::from_value<HashInput>(input);
         if (!parsed) {
             return std::unexpected{interfaces::WorkerError{parsed.error()}};
         }
         std::string algo = parsed->getAlgo();
 
-        const EVP_MD *digest = EVP_get_digestbyname(algo.c_str());
+        const EVP_MD* digest = EVP_get_digestbyname(algo.c_str());
         if (digest == nullptr) {
             digest = EVP_sha256();
             algo = "sha256";
@@ -74,8 +96,10 @@ class HashWorker final : public interfaces::IWorker {
 
         std::array<unsigned char, EVP_MAX_MD_SIZE> out{};
         unsigned int length = 0;
-        if (EVP_Digest(parsed->getData().data(), parsed->getData().size(), out.data(), &length,
-                       digest, nullptr) != 1) {
+        if (EVP_Digest(
+                parsed->getData().data(), parsed->getData().size(), out.data(), &length, digest,
+                nullptr
+            ) != 1) {
             return std::unexpected{interfaces::WorkerError{"digest failed"}};
         }
 
@@ -156,8 +180,9 @@ suite<"HashWorker"> hash_worker_suite = [] {
         expect(result.has_value()) << fatal;
         expect(result->at("hash_status") == "ok");
         expect(result->at("algo") == "sha256");
-        expect(result->at("hash") ==
-               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        expect(
+            result->at("hash") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     };
 
     "execute computes the correct md5 hex digest for a different algo"_test = [] {
@@ -174,8 +199,9 @@ suite<"HashWorker"> hash_worker_suite = [] {
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"","algo":"sha256"})").value();
         auto result = worker.execute(value);
         expect(result.has_value()) << fatal;
-        expect(result->at("hash") ==
-               "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        expect(
+            result->at("hash") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
     };
 
     "execute falls back to sha256 for an unrecognized algo name"_test = [] {
@@ -185,8 +211,9 @@ suite<"HashWorker"> hash_worker_suite = [] {
         auto result = worker.execute(value);
         expect(result.has_value()) << fatal;
         expect(result->at("algo") == "sha256");
-        expect(result->at("hash") ==
-               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        expect(
+            result->at("hash") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     };
 
     "execute falls back to sha256 for an empty algo name"_test = [] {
@@ -208,7 +235,7 @@ suite<"HashWorker"> hash_worker_suite = [] {
     // EVP_Digest — a long input exercises the digest path with no length cap in this worker.
     "execute handles a large data payload without truncation"_test = [] {
         HashWorker worker;
-        std::string large(100000, 'x');
+        std::string large(100'000, 'x');
         auto value =
             rfl::json::read<rfl::Generic>(std::format(R"({{"data":"{}","algo":"sha256"}})", large))
                 .value();

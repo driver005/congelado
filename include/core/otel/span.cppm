@@ -24,11 +24,11 @@ thread_local inline std::mt19937_64 t_rng{std::random_device{}()};
  * @param value the value to split.
  * @return the value's bytes, most-significant first.
  */
-inline std::array<std::byte, 8> to_bytes(std::uint64_t value) {
+inline std::array<std::byte, 8> to_bytes(std::uint64_t value)
+{
     std::array<std::byte, 8> out{};
     for (int i = 0; i < 8; ++i) {
-        out[static_cast<std::size_t>(i)] =
-            static_cast<std::byte>((value >> (8 * (7 - i))) & 0xFFU);
+        out[static_cast<std::size_t>(i)] = static_cast<std::byte>((value >> (8 * (7 - i))) & 0xFFU);
     }
     return out;
 }
@@ -37,7 +37,8 @@ inline std::array<std::byte, 8> to_bytes(std::uint64_t value) {
  * @brief Generates a fresh 128-bit trace id — two random 64-bit halves concatenated.
  * @return a new random trace id.
  */
-inline std::array<std::byte, 16> generate_trace_id() {
+inline std::array<std::byte, 16> generate_trace_id()
+{
     std::array<std::byte, 16> id{};
     auto hi = to_bytes(t_rng());
     auto lo = to_bytes(t_rng());
@@ -50,7 +51,10 @@ inline std::array<std::byte, 16> generate_trace_id() {
  * @brief Generates a fresh 64-bit span id.
  * @return a new random span id.
  */
-inline std::array<std::byte, 8> generate_span_id() { return to_bytes(t_rng()); }
+inline std::array<std::byte, 8> generate_span_id()
+{
+    return to_bytes(t_rng());
+}
 
 } // namespace core::otel
 
@@ -62,26 +66,31 @@ namespace core::otel::detail {
 
 /// @brief The two pieces every new span needs: its ids, and one live `ISpan` per currently
 /// registered `ITracerProvider`.
-struct NewSpan {
+struct NewSpan
+{
     interfaces::SpanContext ctx;
     std::vector<std::shared_ptr<interfaces::ISpan>> spans;
 };
 
 /**
  * @brief Shared implementation behind every span-starting entry point (`start_span()`'s two
- * overloads, `start_detached_span()`) — builds the child `SpanContext` from `parent` (or a fresh
- * trace root if `parent` is `std::nullopt`) and starts one per-provider span on every currently-
- * registered `TracerRegistry` provider. Does not touch the ambient stack — callers that want
- * ambient nesting (`ScopedSpan`) push/pop it themselves around this.
+ * overloads, `start_detached_span()`) — builds the child `SpanContext` from `parent` (or a
+ * fresh trace root if `parent` is `std::nullopt`) and starts one per-provider span on every
+ * currently- registered `TracerRegistry` provider. Does not touch the ambient stack — callers
+ * that want ambient nesting (`ScopedSpan`) push/pop it themselves around this.
  * @param name the span's operation name.
  * @param kind the span's role.
  * @param parent the parent context to derive from, or `std::nullopt` for a fresh trace root.
  * @param attrs attributes to set on the span at start time.
  * @return the new span's context and per-provider handles.
  */
-inline NewSpan build_new_span(std::string_view name, interfaces::SpanKind kind,
-                              const std::optional<interfaces::SpanContext> &parent,
-                              std::span<const interfaces::Attribute> attrs) {
+inline NewSpan build_new_span(
+    std::string_view name,
+    interfaces::SpanKind kind,
+    const std::optional<interfaces::SpanContext>& parent,
+    std::span<const interfaces::Attribute> attrs
+)
+{
     interfaces::SpanContext ctx;
     if (parent.has_value()) {
         ctx.trace_id = parent->trace_id;
@@ -95,9 +104,9 @@ inline NewSpan build_new_span(std::string_view name, interfaces::SpanKind kind,
     ctx.span_id = generate_span_id();
 
     std::vector<std::shared_ptr<interfaces::ISpan>> spans;
-    if (auto *registry = TracerRegistry::get_active(); registry != nullptr) {
+    if (auto* registry = TracerRegistry::get_active(); registry != nullptr) {
         spans.reserve(registry->get_providers().size());
-        for (const auto &provider : registry->get_providers()) {
+        for (const auto& provider: registry->get_providers()) {
             if (auto span = provider->start_span(name, kind, ctx, attrs)) {
                 spans.push_back(std::move(span));
             }
@@ -120,9 +129,12 @@ inline NewSpan build_new_span(std::string_view name, interfaces::SpanKind kind,
  * @param attrs attributes to set on the span at start time.
  * @return the new `ScopedSpan`.
  */
-ScopedSpan start_span_impl(std::string_view name, interfaces::SpanKind kind,
-                          const std::optional<interfaces::SpanContext> &parent,
-                          std::span<const interfaces::Attribute> attrs);
+ScopedSpan start_span_impl(
+    std::string_view name,
+    interfaces::SpanKind kind,
+    const std::optional<interfaces::SpanContext>& parent,
+    std::span<const interfaces::Attribute> attrs
+);
 
 } // namespace core::otel::detail
 
@@ -133,24 +145,28 @@ export namespace core::otel {
  * registered `ITracerProvider` (the fan-out itself) plus the `SpanContext` shared by all of
  * them. Forwards `set_attribute`/`add_event`/`set_status` to every held span. Ending (via
  * `end()`, or the destructor) ends every held span and pops this span back off the calling
- * thread's ambient stack — degrades to a pure context-tracking no-op (empty span list) when zero
- * providers are registered, matching the logger/serde registries' own graceful pre-registration
- * fallback.
- * @warning Expected to nest LIFO like any RAII scope guard — ending out of order (this isn't the
- * top of the calling thread's span stack when it ends) is tolerated (the stack entry matching
- * this span's id gets popped regardless of position) but is a real misuse smell worth noticing
- * if it ever happens.
+ * thread's ambient stack — degrades to a pure context-tracking no-op (empty span list) when
+ * zero providers are registered, matching the logger/serde registries' own graceful
+ * pre-registration fallback.
+ * @warning Expected to nest LIFO like any RAII scope guard — ending out of order (this isn't
+ * the top of the calling thread's span stack when it ends) is tolerated (the stack entry
+ * matching this span's id gets popped regardless of position) but is a real misuse smell worth
+ * noticing if it ever happens.
  */
-class ScopedSpan {
-  public:
+class ScopedSpan
+{
+public:
     /**
      * @brief Move ctor — steals `other`'s state and disarms it so its destructor becomes a
      * no-op.
      * @param other the span to move from.
      */
-    ScopedSpan(ScopedSpan &&other) noexcept
-        : m_context{other.m_context}, m_spans{std::move(other.m_spans)}, m_pushed{other.m_pushed},
-          m_ended{other.m_ended} {
+    ScopedSpan(ScopedSpan&& other) noexcept :
+        m_context{other.m_context},
+        m_spans{std::move(other.m_spans)},
+        m_pushed{other.m_pushed},
+        m_ended{other.m_ended}
+    {
         other.m_pushed = false;
         other.m_ended = true;
     }
@@ -161,7 +177,8 @@ class ScopedSpan {
      * @param other the span to move from.
      * @return `*this`.
      */
-    ScopedSpan &operator=(ScopedSpan &&other) noexcept {
+    ScopedSpan& operator=(ScopedSpan&& other) noexcept
+    {
         if (this != &other) {
             end();
             m_context = other.m_context;
@@ -174,21 +191,25 @@ class ScopedSpan {
         return *this;
     }
 
-    ScopedSpan(const ScopedSpan &) = delete;
-    ScopedSpan &operator=(const ScopedSpan &) = delete;
+    ScopedSpan(const ScopedSpan&) = delete;
+    ScopedSpan& operator=(const ScopedSpan&) = delete;
 
     /**
      * @brief Ends the span (if not already ended) on destruction — the normal RAII path.
      */
-    ~ScopedSpan() { end(); }
+    ~ScopedSpan()
+    {
+        end();
+    }
 
     /**
      * @brief Attaches or overwrites one attribute on every held per-provider span.
      * @param key the attribute key.
      * @param value the attribute value.
      */
-    void set_attribute(std::string_view key, const interfaces::AttributeValue &value) noexcept {
-        for (const auto &span : m_spans) {
+    void set_attribute(std::string_view key, const interfaces::AttributeValue& value) noexcept
+    {
+        for (const auto& span: m_spans) {
             span->set_attribute(key, value);
         }
     }
@@ -198,9 +219,11 @@ class ScopedSpan {
      * @param name the event name.
      * @param attrs attributes carried on the event, if any.
      */
-    void add_event(std::string_view name,
-                   std::span<const interfaces::Attribute> attrs = {}) noexcept {
-        for (const auto &span : m_spans) {
+    void add_event(
+        std::string_view name, std::span<const interfaces::Attribute> attrs = {}
+    ) noexcept
+    {
+        for (const auto& span: m_spans) {
             span->add_event(name, attrs);
         }
     }
@@ -210,8 +233,9 @@ class ScopedSpan {
      * @param status OK/ERROR/UNSET.
      * @param description optional human-readable detail.
      */
-    void set_status(interfaces::SpanStatus status, std::string_view description = "") noexcept {
-        for (const auto &span : m_spans) {
+    void set_status(interfaces::SpanStatus status, std::string_view description = "") noexcept
+    {
+        for (const auto& span: m_spans) {
             span->set_status(status, description);
         }
     }
@@ -221,21 +245,23 @@ class ScopedSpan {
      * ambient stack. Safe to call more than once (and safe to let the destructor call it again)
      * — the second call is a no-op.
      */
-    void end() noexcept {
+    void end() noexcept
+    {
         if (m_ended) {
             return;
         }
         m_ended = true;
-        for (const auto &span : m_spans) {
+        for (const auto& span: m_spans) {
             span->end();
         }
         if (m_pushed) {
-            auto &stack = t_span_stack;
+            auto& stack = t_span_stack;
             // Normal case: this span is the top of the stack, pop it. Out-of-order end (this
             // span isn't the top) is tolerated — find and erase it wherever it sits rather than
             // corrupting the stack for spans that outlive this one.
-            auto it = std::ranges::find_if(
-                stack, [this](const auto &ctx) { return ctx.span_id == m_context.span_id; });
+            auto it = std::ranges::find_if(stack, [this](const auto& ctx) {
+                return ctx.span_id == m_context.span_id;
+            });
             if (it != stack.end()) {
                 stack.erase(it);
             }
@@ -248,16 +274,29 @@ class ScopedSpan {
      * `traceparent` header, or captures across a thread hop for later reattachment.
      * @return the span's context.
      */
-    [[nodiscard]] const interfaces::SpanContext &context() const noexcept { return m_context; }
+    [[nodiscard]] const interfaces::SpanContext& context() const noexcept
+    {
+        return m_context;
+    }
 
-  private:
-    friend ScopedSpan detail::start_span_impl(std::string_view, interfaces::SpanKind,
-                                              const std::optional<interfaces::SpanContext> &,
-                                              std::span<const interfaces::Attribute>);
+private:
+    friend ScopedSpan detail::start_span_impl(
+        std::string_view,
+        interfaces::SpanKind,
+        const std::optional<interfaces::SpanContext>&,
+        std::span<const interfaces::Attribute>
+    );
 
-    ScopedSpan(interfaces::SpanContext context,
-              std::vector<std::shared_ptr<interfaces::ISpan>> spans, bool pushed)
-        : m_context{context}, m_spans{std::move(spans)}, m_pushed{pushed} {}
+    ScopedSpan(
+        interfaces::SpanContext context,
+        std::vector<std::shared_ptr<interfaces::ISpan>> spans,
+        bool pushed
+    ) :
+        m_context{context},
+        m_spans{std::move(spans)},
+        m_pushed{pushed}
+    {
+    }
 
     interfaces::SpanContext m_context;
     std::vector<std::shared_ptr<interfaces::ISpan>> m_spans;
@@ -269,10 +308,12 @@ class ScopedSpan {
  * @brief Reads the calling thread's current ambient span context without mutating anything —
  * this is what gets captured by value into a lambda at a thread-hop point (e.g.
  * `WorkerContext::call_engine`'s pending-map entry) for later reattachment via the
- * explicit-parent `start_span()` overload on whichever thread the response actually resolves on.
+ * explicit-parent `start_span()` overload on whichever thread the response actually resolves
+ * on.
  * @return the top of the calling thread's span stack, or `std::nullopt` if nothing's active.
  */
-[[nodiscard]] inline std::optional<interfaces::SpanContext> current_context() noexcept {
+[[nodiscard]] inline std::optional<interfaces::SpanContext> current_context() noexcept
+{
     if (t_span_stack.empty()) {
         return std::nullopt;
     }
@@ -284,9 +325,13 @@ class ScopedSpan {
 namespace core::otel::detail {
 
 // Out-of-line definition of the prototype declared above, now that ScopedSpan is complete.
-inline ScopedSpan start_span_impl(std::string_view name, interfaces::SpanKind kind,
-                                  const std::optional<interfaces::SpanContext> &parent,
-                                  std::span<const interfaces::Attribute> attrs) {
+inline ScopedSpan start_span_impl(
+    std::string_view name,
+    interfaces::SpanKind kind,
+    const std::optional<interfaces::SpanContext>& parent,
+    std::span<const interfaces::Attribute> attrs
+)
+{
     auto built = build_new_span(name, kind, parent, attrs);
     t_span_stack.push_back(built.ctx);
     return ScopedSpan{built.ctx, std::move(built.spans), true};
@@ -297,16 +342,19 @@ inline ScopedSpan start_span_impl(std::string_view name, interfaces::SpanKind ki
 export namespace core::otel {
 
 /**
- * @brief Starts a new span, parented to the calling thread's current ambient span if one exists,
- * or a fresh trace root otherwise.
+ * @brief Starts a new span, parented to the calling thread's current ambient span if one
+ * exists, or a fresh trace root otherwise.
  * @param name the span's operation name (e.g. `"POST /tasks/:id/result"`).
  * @param kind the span's role — defaults to `INTERNAL`.
  * @param attrs attributes to set on the span at start time.
  * @return the new `ScopedSpan`.
  */
-[[nodiscard]] inline ScopedSpan
-start_span(std::string_view name, interfaces::SpanKind kind = interfaces::SpanKind::INTERNAL,
-          std::span<const interfaces::Attribute> attrs = {}) {
+[[nodiscard]] inline ScopedSpan start_span(
+    std::string_view name,
+    interfaces::SpanKind kind = interfaces::SpanKind::INTERNAL,
+    std::span<const interfaces::Attribute> attrs = {}
+)
+{
     return detail::start_span_impl(name, kind, current_context(), attrs);
 }
 
@@ -321,9 +369,13 @@ start_span(std::string_view name, interfaces::SpanKind kind = interfaces::SpanKi
  * @param attrs attributes to set on the span at start time.
  * @return the new `ScopedSpan`.
  */
-[[nodiscard]] inline ScopedSpan start_span(std::string_view name, interfaces::SpanKind kind,
-                                           const interfaces::SpanContext &parent,
-                                           std::span<const interfaces::Attribute> attrs = {}) {
+[[nodiscard]] inline ScopedSpan start_span(
+    std::string_view name,
+    interfaces::SpanKind kind,
+    const interfaces::SpanContext& parent,
+    std::span<const interfaces::Attribute> attrs = {}
+)
+{
     return detail::start_span_impl(name, kind, parent, attrs);
 }
 
@@ -332,66 +384,85 @@ start_span(std::string_view name, interfaces::SpanKind kind = interfaces::SpanKi
  * stack — for spans whose lifetime spans a genuine async gap (started on one thread, ended when
  * a callback fires later on a possibly different thread), where "ambient nesting" doesn't make
  * sense in the first place since nothing runs "inside" it on any one thread. Used by
- * `core::client::Register::send()`/`dispatch()` for the typed-client async round-trip: the span is moved
- * into the pending-callback closure at send time and ended from inside `dispatch()` once the
- * response arrives, on whatever thread that turns out to be.
+ * `core::client::Register::send()`/`dispatch()` for the typed-client async round-trip: the span
+ * is moved into the pending-callback closure at send time and ended from inside `dispatch()`
+ * once the response arrives, on whatever thread that turns out to be.
  */
-class DetachedSpan {
-  public:
-    DetachedSpan(DetachedSpan &&) noexcept = default;
-    DetachedSpan &operator=(DetachedSpan &&) noexcept = default;
-    DetachedSpan(const DetachedSpan &) = delete;
-    DetachedSpan &operator=(const DetachedSpan &) = delete;
+class DetachedSpan
+{
+public:
+    DetachedSpan(DetachedSpan&&) noexcept = default;
+    DetachedSpan& operator=(DetachedSpan&&) noexcept = default;
+    DetachedSpan(const DetachedSpan&) = delete;
+    DetachedSpan& operator=(const DetachedSpan&) = delete;
 
     /// @brief Ends the span (if not already ended) on destruction — same RAII contract as
     /// `ScopedSpan`, minus any ambient stack involvement.
-    ~DetachedSpan() { end(); }
+    ~DetachedSpan()
+    {
+        end();
+    }
 
     /// @brief Attaches or overwrites one attribute on every held per-provider span.
-    void set_attribute(std::string_view key, const interfaces::AttributeValue &value) noexcept {
-        for (const auto &span : m_spans) {
+    void set_attribute(std::string_view key, const interfaces::AttributeValue& value) noexcept
+    {
+        for (const auto& span: m_spans) {
             span->set_attribute(key, value);
         }
     }
 
     /// @brief Records a timestamped event on every held per-provider span.
-    void add_event(std::string_view name,
-                   std::span<const interfaces::Attribute> attrs = {}) noexcept {
-        for (const auto &span : m_spans) {
+    void add_event(
+        std::string_view name, std::span<const interfaces::Attribute> attrs = {}
+    ) noexcept
+    {
+        for (const auto& span: m_spans) {
             span->add_event(name, attrs);
         }
     }
 
     /// @brief Sets this span's completion status on every held per-provider span.
-    void set_status(interfaces::SpanStatus status, std::string_view description = "") noexcept {
-        for (const auto &span : m_spans) {
+    void set_status(interfaces::SpanStatus status, std::string_view description = "") noexcept
+    {
+        for (const auto& span: m_spans) {
             span->set_status(status, description);
         }
     }
 
     /// @brief Ends every held per-provider span. Safe to call more than once.
-    void end() noexcept {
+    void end() noexcept
+    {
         if (m_ended) {
             return;
         }
         m_ended = true;
-        for (const auto &span : m_spans) {
+        for (const auto& span: m_spans) {
             span->end();
         }
     }
 
     /// @brief This span's trace/span/parent ids, e.g. for injecting into an outbound
     /// `traceparent` header before the request that owns this span is actually sent.
-    [[nodiscard]] const interfaces::SpanContext &context() const noexcept { return m_context; }
+    [[nodiscard]] const interfaces::SpanContext& context() const noexcept
+    {
+        return m_context;
+    }
 
-  private:
-    friend DetachedSpan start_detached_span(std::string_view, interfaces::SpanKind,
-                                            const std::optional<interfaces::SpanContext> &,
-                                            std::span<const interfaces::Attribute>);
+private:
+    friend DetachedSpan start_detached_span(
+        std::string_view,
+        interfaces::SpanKind,
+        const std::optional<interfaces::SpanContext>&,
+        std::span<const interfaces::Attribute>
+    );
 
-    DetachedSpan(interfaces::SpanContext context,
-                std::vector<std::shared_ptr<interfaces::ISpan>> spans)
-        : m_context{context}, m_spans{std::move(spans)} {}
+    DetachedSpan(
+        interfaces::SpanContext context, std::vector<std::shared_ptr<interfaces::ISpan>> spans
+    ) :
+        m_context{context},
+        m_spans{std::move(spans)}
+    {
+    }
 
     interfaces::SpanContext m_context;
     std::vector<std::shared_ptr<interfaces::ISpan>> m_spans;
@@ -410,10 +481,13 @@ class DetachedSpan {
  * @param attrs attributes to set on the span at start time.
  * @return the new `DetachedSpan`.
  */
-[[nodiscard]] inline DetachedSpan
-start_detached_span(std::string_view name, interfaces::SpanKind kind,
-                    const std::optional<interfaces::SpanContext> &parent = current_context(),
-                    std::span<const interfaces::Attribute> attrs = {}) {
+[[nodiscard]] inline DetachedSpan start_detached_span(
+    std::string_view name,
+    interfaces::SpanKind kind,
+    const std::optional<interfaces::SpanContext>& parent = current_context(),
+    std::span<const interfaces::Attribute> attrs = {}
+)
+{
     auto built = detail::build_new_span(name, kind, parent, attrs);
     return DetachedSpan{built.ctx, std::move(built.spans)};
 }
@@ -426,7 +500,7 @@ using namespace boost::ut;
 
 suite<"otel::ScopedSpan"> scoped_span_suite = [] {
     "start_span pushes onto the ambient stack; end() pops it back off"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
 
@@ -441,7 +515,7 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
     };
 
     "a span with no parent starts a fresh sampled trace root"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
 
         auto span = start_span("root", interfaces::SpanKind::SERVER);
@@ -456,7 +530,7 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
     };
 
     "nested spans inherit the trace id and parent from the ambient context"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
 
         auto outer = start_span("outer");
@@ -471,20 +545,22 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
     };
 
     "end() is idempotent — a second call does not double-pop the stack"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
 
         auto span = start_span("idempotent");
         span.end();
-        expect(nothrow([&] { span.end(); }));
+        expect(nothrow([&] {
+            span.end();
+        }));
         expect(current_context().has_value() == before.has_value());
 
         TracerRegistry::set_active(previous_registry);
     };
 
     "move construction disarms the source, so its destructor is a no-op"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
 
@@ -503,7 +579,7 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
 
 suite<"otel::DetachedSpan"> detached_span_suite = [] {
     "never touches the ambient stack"_test = [] {
-        auto *previous_registry = TracerRegistry::get_active();
+        auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
 
@@ -511,7 +587,9 @@ suite<"otel::DetachedSpan"> detached_span_suite = [] {
         expect(current_context().has_value() == before.has_value());
 
         span.end();
-        expect(nothrow([&] { span.end(); }));
+        expect(nothrow([&] {
+            span.end();
+        }));
 
         TracerRegistry::set_active(previous_registry);
     };

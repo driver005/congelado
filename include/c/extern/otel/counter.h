@@ -20,52 +20,62 @@ limitations under the License.
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef void (*TP_Otel_Counter_AddFn)(void* user_data, double value);
+    typedef void (*TP_Otel_Counter_AddFn)(void* user_data, double value);
 
-typedef struct TP_Otel_Counter {
-  size_t struct_size;
-  void* ext;
-  TP_Otel_Counter_AddFn add_cb;
+    typedef struct TP_Otel_Counter
+    {
+        size_t struct_size;
+        void* ext;
+        TP_Otel_Counter_AddFn add_cb;
 #define TP_OTEL_COUNTER_STRUCT_SIZE TF_OFFSET_OF_END(TP_Otel_Counter, add_cb)
-} TP_Otel_Counter;
+    } TP_Otel_Counter;
 
-// LINT.ThenChange(:otel_counter_version)
+    // LINT.ThenChange(:otel_counter_version)
 
 
+    static inline TP_Otel_Counter* TP_OtelCounterNew(void)
+    {
+        TP_Otel_Counter* ptr = (TP_Otel_Counter*)malloc(sizeof(struct TP_Otel_Counter));
+        if (!ptr) {
+            return nullptr;
+        }
+        ptr->struct_size = sizeof(struct TP_Otel_Counter);
+        ptr->ext = nullptr;
+        ptr->add_cb = nullptr;
+        return ptr;
+    }
 
-static inline TP_Otel_Counter* TP_OtelCounterNew(void) {
-  TP_Otel_Counter* ptr = (TP_Otel_Counter*)malloc(sizeof(struct TP_Otel_Counter));
-  if (!ptr) return nullptr;
-  ptr->struct_size = sizeof(struct TP_Otel_Counter);
-  ptr->ext = nullptr;
-  ptr->add_cb = nullptr;
-  return ptr;
-}
+    static inline void TP_OtelCounterDelete(TP_Otel_Counter* ptr)
+    {
+        if (!ptr) {
+            return;
+        }
+        free(ptr);
+    }
 
-static inline void TP_OtelCounterDelete(TP_Otel_Counter* ptr) {
-  if (!ptr) return;
-  free(ptr);
-}
+    static inline void TP_OtelCounter_SetStructSize(TP_Otel_Counter* builder, size_t struct_size)
+    {
+        builder->struct_size = struct_size;
+    }
 
-static inline void TP_OtelCounter_SetStructSize(TP_Otel_Counter* builder, size_t struct_size) {
-  builder->struct_size = struct_size;
-}
+    static inline void TP_OtelCounter_SetExt(TP_Otel_Counter* builder, void* ext)
+    {
+        builder->ext = ext;
+    }
 
-static inline void TP_OtelCounter_SetExt(TP_Otel_Counter* builder, void* ext) {
-  builder->ext = ext;
-}
-
-static inline void TP_OtelCounter_SetAddCallback(TP_Otel_Counter* builder, TP_Otel_Counter_AddFn add_cb) {
-  builder->add_cb = add_cb;
-}
-
+    static inline void
+    TP_OtelCounter_SetAddCallback(TP_Otel_Counter* builder, TP_Otel_Counter_AddFn add_cb)
+    {
+        builder->add_cb = add_cb;
+    }
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_OTEL_COUNTER_H_
+#endif // CONGELADO_C_OTEL_COUNTER_H_

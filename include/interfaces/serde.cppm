@@ -20,18 +20,19 @@ using Value = rfl::Generic;
 // only the Generic-to-bytes step, the part that actually differs per wire format, crosses the
 // plugin ABI boundary. This is what lets a dlopen'd .so serialize an arbitrary host-defined T
 // without ever instantiating a template across the shared-library boundary.
-class ISerdeFormat {
-  public:
+class ISerdeFormat
+{
+public:
     /**
      * @brief Virtual dtor, default's good — format backends clean up fine through the base
      * pointer, no extra motion needed.
      */
     virtual ~ISerdeFormat() = default;
     ISerdeFormat() = default;
-    ISerdeFormat(const ISerdeFormat &) = delete;
-    ISerdeFormat &operator=(const ISerdeFormat &) = delete;
-    ISerdeFormat(ISerdeFormat &&) = delete;
-    ISerdeFormat &operator=(ISerdeFormat &&) = delete;
+    ISerdeFormat(const ISerdeFormat&) = delete;
+    ISerdeFormat& operator=(const ISerdeFormat&) = delete;
+    ISerdeFormat(ISerdeFormat&&) = delete;
+    ISerdeFormat& operator=(ISerdeFormat&&) = delete;
 
     /**
      * @brief The wire content-type this format answers to (e.g. `"application/json"`) — this
@@ -51,7 +52,7 @@ class ISerdeFormat {
      * this format.
      */
     [[nodiscard]] virtual std::expected<std::string, std::string>
-    encode(const rfl::Generic &value) const = 0;
+    encode(const rfl::Generic& value) const = 0;
     /**
      * @brief Decodes wire bytes in this format into a generic reflected value.
      * @param data the raw wire text to decode.

@@ -6,10 +6,11 @@ import node;
 import atomic_list;
 import consts;
 
-export template <typename T>
-struct ThreadNode : Node {
+export template<typename T>
+struct ThreadNode : Node
+{
     std::size_t m_slot_id;
-    Pager<T> *m_pager;
+    Pager<T>* m_pager;
 
     /**
      * @brief Builds a per-thread queue node — tags it with `slot` and spins up a fresh `Pager<T>`
@@ -23,20 +24,28 @@ struct ThreadNode : Node {
      * @param slot the thread slot id to tag this node with.
      * @param recycle_list the shared page recycle list this node's pager draws from.
      */
-    explicit ThreadNode(std::size_t slot, AtomicList *recycle_list)
-        : Node{}, m_slot_id{slot}, m_pager{new Pager<T>{recycle_list}} {}
+    explicit ThreadNode(std::size_t slot, AtomicList* recycle_list) :
+        Node{},
+        m_slot_id{slot},
+        m_pager{new Pager<T>{recycle_list}}
+    {
+    }
 };
 
-export template <typename T>
-class ConcurrentQueue {
-  public:
+export template<typename T>
+class ConcurrentQueue
+{
+public:
     /**
      * @brief Binds this queue to its shared thread-registry list and page-recycle list.
      * @param queue_list the list of registered `ThreadNode`s (producers/consumers).
      * @param recycle_list the shared freelist of pages available for reuse.
      */
-    explicit ConcurrentQueue(AtomicList *queue_list, AtomicList *recycle_list)
-        : m_queue_list(queue_list), m_recycle_list(recycle_list) {}
+    explicit ConcurrentQueue(AtomicList* queue_list, AtomicList* recycle_list) :
+        m_queue_list(queue_list),
+        m_recycle_list(recycle_list)
+    {
+    }
 
     /**
      * @brief Supposed to enqueue `item` onto `node`'s pager, allowing allocation if a fresh page's
@@ -55,7 +64,8 @@ class ConcurrentQueue {
      * @return intended to report success/failure, but see the warning — nothing's actually
      * returned.
      */
-    bool enqueue(ThreadNode<T> const &node, T *item) {
+    bool enqueue(const ThreadNode<T>& node, T* item)
+    {
         node.m_pager->template enqueue<AllocationMode::CAN_ALLOC>(item);
     }
 
@@ -70,7 +80,8 @@ class ConcurrentQueue {
      * @param count how many items to enqueue.
      * @return intended to report success/failure, but see the warning.
      */
-    bool enqueue_bulk(ThreadNode<T> const &node, T **items, std::size_t count) {
+    bool enqueue_bulk(const ThreadNode<T>& node, T** items, std::size_t count)
+    {
         node.m_pager->template enqueue_bulk<AllocationMode::CAN_ALLOC>(items, count);
     };
 
@@ -81,7 +92,8 @@ class ConcurrentQueue {
      * @param item the item to enqueue.
      * @return intended to report success/failure, but see the warning.
      */
-    bool try_enqueue(ThreadNode<T> const &node, T *item) {
+    bool try_enqueue(const ThreadNode<T>& node, T* item)
+    {
         node.m_pager->template enqueue<AllocationMode::CANNOT_ALLOC>(item);
     };
 
@@ -93,7 +105,8 @@ class ConcurrentQueue {
      * @param count how many items to enqueue.
      * @return intended to report success/failure, but see the warning.
      */
-    bool try_enqueue_bulk(ThreadNode<T> const &node, T **items, std::size_t count) {
+    bool try_enqueue_bulk(const ThreadNode<T>& node, T** items, std::size_t count)
+    {
         node.m_pager->template enqueue_bulk<AllocationMode::CANNOT_ALLOC>(items, count);
     };
 
@@ -114,9 +127,10 @@ class ConcurrentQueue {
      * @return intended to report whether an element was found, but see the warning — the logic
      * can't actually run as written.
      */
-    bool try_dequeue(T *&item) {
+    bool try_dequeue(T*& item)
+    {
         // Start the scan at the registry's head, remembering its pager as the current best guess.
-        auto head = static_cast<ThreadNode<T> *>(m_recycle_list->get_head());
+        auto head = static_cast<ThreadNode<T>*>(m_recycle_list->get_head());
         auto start_head = head;
         auto winner = head->m_pager;
 
@@ -157,10 +171,11 @@ class ConcurrentQueue {
      * @param max the maximum number of elements to dequeue.
      * @return intended to report how many elements were dequeued, but see the warning.
      */
-    std::size_t try_dequeue_bulk(T **items, std::size_t max) {
+    std::size_t try_dequeue_bulk(T** items, std::size_t max)
+    {
         // Same busiest-pager scan as try_dequeue() — walk the ring, track the biggest pager seen,
         // and stop early the moment a full page turns up.
-        auto head = static_cast<ThreadNode<T> *>(m_recycle_list->get_head());
+        auto head = static_cast<ThreadNode<T>*>(m_recycle_list->get_head());
         auto start_head = head;
         auto winner = head->m_pager;
 
@@ -195,10 +210,11 @@ class ConcurrentQueue {
      * (same gap noted in try_dequeue()). Doesn't compile as written.
      * @return intended to be the approximate total element count, but see the warning.
      */
-    std::size_t size_approx() {
+    std::size_t size_approx()
+    {
         // Walk every registered thread node and fold its pager's size into the running total.
         std::size_t count = 0;
-        auto *node = m_queue_list->get_head();
+        auto* node = m_queue_list->get_head();
         while (node != nullptr) {
             count += static_cast<Pager<T>>(node).size();
             node = node->m_next.load(std::memory_order_relaxed);
@@ -215,7 +231,10 @@ class ConcurrentQueue {
      * @brief Derives a slot id for the calling thread by hashing its `std::thread::id`.
      * @return a hash-derived slot id for the current thread.
      */
-    std::size_t thread_slot() { return std::hash<std::thread::id>{}(std::this_thread::get_id()); }
+    std::size_t thread_slot()
+    {
+        return std::hash<std::thread::id>{}(std::this_thread::get_id());
+    }
 
     /**
      * @brief Registers the calling thread with a fresh `ThreadNode`, linking it onto the shared
@@ -231,10 +250,15 @@ class ConcurrentQueue {
      * independent reasons it can't build as written.
      * @return intended to be the newly-registered node, but see the warning.
      */
-    ThreadNode<T> register_thread() {
+    ThreadNode<T> register_thread()
+    {
         // Build a fresh node for the calling thread, link it onto the shared registry, then hand
         // it back to the caller.
-        auto *node = new ThreadNode<T>{m_recycle_list, thread_slot()};  // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need gsl::owner<ThreadNode<T> *>, but this codebase has no GSL dependency; not a mechanical fix
+        auto* node = new ThreadNode<T>{
+            m_recycle_list, thread_slot()
+        }; // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need
+           // gsl::owner<ThreadNode<T> *>, but this codebase has no GSL dependency; not a mechanical
+           // fix
         m_queue_list->add(node);
         return *node;
     }
@@ -245,11 +269,13 @@ class ConcurrentQueue {
      * @param work the per-iteration producer callback, invoked with the thread's own
      * `ThreadNode`.
      */
-    void add_producer(std::function<void(ThreadNode<T> &)> work) {
+    void add_producer(std::function<void(ThreadNode<T>&)> work)
+    {
         // Lock just long enough to grow the producer vector — the thread itself registers and
         // loops entirely on its own, outside the lock.
         std::scoped_lock lock(m_threads_mu);
-        m_producers.emplace_back([this, work_callback = std::move(work)](const std::stop_token &stop_token) {
+        m_producers.emplace_back([this, work_callback =
+                                            std::move(work)](const std::stop_token& stop_token) {
             auto node = register_thread();
             while (!stop_token.stop_requested()) {
                 work_callback(node);
@@ -261,11 +287,13 @@ class ConcurrentQueue {
      * @brief Spins up a consumer thread that repeatedly calls `work` until stopped.
      * @param work the per-iteration consumer callback.
      */
-    void add_consumer(std::function<void()> work) {
+    void add_consumer(std::function<void()> work)
+    {
         // Same deal as add_producer() — lock only for the vector growth, the loop itself runs
         // unlocked on its own thread.
         std::scoped_lock lock(m_threads_mu);
-        m_consumers.emplace_back([this, work_callback = std::move(work)](const std::stop_token &stop_token) {
+        m_consumers.emplace_back([this, work_callback =
+                                            std::move(work)](const std::stop_token& stop_token) {
             while (!stop_token.stop_requested()) {
                 work_callback();
             }
@@ -276,21 +304,22 @@ class ConcurrentQueue {
      * @brief Requests a stop on every producer and consumer thread this queue owns. Doesn't join
      * them — that's `std::jthread`'s job on destruction.
      */
-    void stop_all() {
+    void stop_all()
+    {
         // Signal every producer and every consumer to stop — joining them is std::jthread's job
         // on destruction, not this method's.
         std::scoped_lock lock(m_threads_mu);
-        for (auto &producer : m_producers) {
+        for (auto& producer: m_producers) {
             producer.request_stop();
         }
-        for (auto &consumer : m_consumers) {
+        for (auto& consumer: m_consumers) {
             consumer.request_stop();
         }
     }
 
-  private:
-    AtomicList *m_queue_list;
-    AtomicList *m_recycle_list;
+private:
+    AtomicList* m_queue_list;
+    AtomicList* m_recycle_list;
 
     std::mutex m_threads_mu; // guards vectors only, not hot path
     std::vector<std::jthread> m_producers;

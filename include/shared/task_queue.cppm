@@ -8,24 +8,36 @@ import boost.ut;
 
 export namespace shared {
 
-/// @brief One dedicated, long-lived contract that drains a local queue of jobs one at a time — the
-/// generic dispatch mechanism for anything that wants its own contract instead of running inline on
-/// the caller's (same `create`/`set_wake` idiom as `connector::Connector`/`core::router::RouterExecutor`).
-/// `push()` queues a job and wakes the contract if it's currently parked. A job that throws is logged
-/// and dropped — never left to kill this queue's contract.
-class TaskQueue final : public HandlerBase {
-  public:
-    explicit TaskQueue(std::string name) : m_name{std::move(name)} {}
+/// @brief One dedicated, long-lived contract that drains a local queue of jobs one at a time —
+/// the generic dispatch mechanism for anything that wants its own contract instead of running
+/// inline on the caller's (same `create`/`set_wake` idiom as
+/// `connector::Connector`/`core::router::RouterExecutor`). `push()` queues a job and wakes the
+/// contract if it's currently parked. A job that throws is logged and dropped — never left to
+/// kill this queue's contract.
+class TaskQueue final : public HandlerBase
+{
+public:
+    explicit TaskQueue(std::string name) :
+        m_name{std::move(name)}
+    {
+    }
 
-    [[nodiscard]] std::string_view get_name() const noexcept override { return m_name; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return m_name;
+    }
 
     /// @brief Installs the resume callback — same shape as `Connector::set_wake`, wire it right
     /// after `create()`.
-    void set_wake(std::move_only_function<void()> wake) { m_wake = std::move(wake); }
+    void set_wake(std::move_only_function<void()> wake)
+    {
+        m_wake = std::move(wake);
+    }
 
     /// @brief Queues one job to run on this queue's own dedicated contract — never the caller's
     /// thread. Wakes the contract if it's currently parked.
-    void push(std::move_only_function<void()> job) {
+    void push(std::move_only_function<void()> job)
+    {
         bool need_wake = false;
         {
             std::lock_guard lock{m_mutex};
@@ -37,7 +49,8 @@ class TaskQueue final : public HandlerBase {
         }
     }
 
-    WorkerFunction on_execute() override {
+    WorkerFunction on_execute() override
+    {
         return [this] {
             std::move_only_function<void()> job;
             {
@@ -59,8 +72,9 @@ class TaskQueue final : public HandlerBase {
         };
     }
 
-  private:
-    void wake() {
+private:
+    void wake()
+    {
         if (m_wake) {
             m_wake();
         }
@@ -78,11 +92,23 @@ class TaskQueue final : public HandlerBase {
 #ifdef CONGELADO_TEST
 namespace shared::task_queue_tests {
 
-class MockHandlerInterface final : public HandlerInterface {
-  public:
-    void schedule(std::uint32_t) override { ++m_schedule_count; }
-    void deschedule(std::uint32_t) override { ++m_deschedule_count; }
-    void release(std::uint32_t) override { ++m_release_count; }
+class MockHandlerInterface final : public HandlerInterface
+{
+public:
+    void schedule(std::uint32_t) override
+    {
+        ++m_schedule_count;
+    }
+
+    void deschedule(std::uint32_t) override
+    {
+        ++m_deschedule_count;
+    }
+
+    void release(std::uint32_t) override
+    {
+        ++m_release_count;
+    }
 
     int m_schedule_count{0};
     int m_deschedule_count{0};
@@ -100,7 +126,9 @@ suite<"TaskQueue"> task_queue_suite = [] {
     "push on an idle queue wakes it; push while running does not"_test = [] {
         TaskQueue queue{"wake-test"};
         int wake_count = 0;
-        queue.set_wake([&] { ++wake_count; });
+        queue.set_wake([&] {
+            ++wake_count;
+        });
 
         queue.push([] {}); // idle -> running is still false, so this wakes.
         expect(wake_count == 1);
@@ -113,7 +141,9 @@ suite<"TaskQueue"> task_queue_suite = [] {
 
         TaskQueue queue{"run-test"};
         bool job_ran = false;
-        queue.push([&] { job_ran = true; });
+        queue.push([&] {
+            job_ran = true;
+        });
 
         auto worker = queue.on_execute();
         worker();
@@ -127,7 +157,9 @@ suite<"TaskQueue"> task_queue_suite = [] {
     "on_execute with an empty queue parks without touching this_handler"_test = [] {
         TaskQueue queue{"empty-test"};
         auto worker = queue.on_execute();
-        expect(nothrow([&] { worker(); }));
+        expect(nothrow([&] {
+            worker();
+        }));
     };
 
     "a job that throws is swallowed, not propagated"_test = [] {
@@ -136,10 +168,14 @@ suite<"TaskQueue"> task_queue_suite = [] {
         this_handler::current_id = 1;
 
         TaskQueue queue{"throw-test"};
-        queue.push([] { throw std::runtime_error{"boom"}; });
+        queue.push([] {
+            throw std::runtime_error{"boom"};
+        });
 
         auto worker = queue.on_execute();
-        expect(nothrow([&] { worker(); }));
+        expect(nothrow([&] {
+            worker();
+        }));
 
         this_handler::current = nullptr;
     };

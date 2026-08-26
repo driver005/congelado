@@ -16,54 +16,69 @@ import boost.ut;
 
 namespace quic::crypto {
 
-export struct CryptoError : std::runtime_error {
+export struct CryptoError : std::runtime_error
+{
     /**
      * @brief Builds a runtime_error whose message is `ctx` plus whatever OpenSSL's error queue
      * says went down — pulls the top error off the queue at construction time, so build this
      * right after the failing call, no motion in between.
      * @param ctx short label for what operation failed (e.g. "RAND_bytes").
      */
-    explicit CryptoError(std::string_view ctx) : std::runtime_error(std::string(ctx) + ": " + ssl_error()) {}
+    explicit CryptoError(std::string_view ctx) :
+        std::runtime_error(std::string(ctx) + ": " + ssl_error())
+    {
+    }
 
-  private:
+private:
     /**
      * @brief Pops the most recent OpenSSL error off the thread-local error queue and renders it
      * as a human-readable string.
      * @return the formatted OpenSSL error string.
      */
-    static std::string ssl_error() {
+    static std::string ssl_error()
+    {
         // Pop the top error off OpenSSL's queue and render it into a fixed buffer.
         char buf[256];
-        ERR_error_string_n(ERR_get_error(), buf, sizeof(buf));  // FIXME(clang-tidy): array-to-pointer decay
-        return buf;  // FIXME(clang-tidy): array-to-pointer decay
+        ERR_error_string_n(
+            ERR_get_error(), buf, sizeof(buf)
+        );          // FIXME(clang-tidy): array-to-pointer decay
+        return buf; // FIXME(clang-tidy): array-to-pointer decay
     }
 };
 
-export void random_bytes(std::span<std::byte> out) {
+export void random_bytes(std::span<std::byte> out)
+{
     // RAND_bytes returns 1 on success — anything else means the CSPRNG came up short, no cap,
     // straight throw instead of handing back weak/partial randomness.
-    if (RAND_bytes(reinterpret_cast<unsigned char *>(out.data()), static_cast<int>(out.size())) != 1) {  // FIXME(clang-tidy): reinterpret_cast usage
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(out.data()), static_cast<int>(out.size())) !=
+        1) { // FIXME(clang-tidy): reinterpret_cast usage
         throw CryptoError("RAND_bytes");
     }
 }
 
-export template <std::size_t Len = CID_DEFAULT_LEN>
-ConnectionId generate_cid() {
+export template<std::size_t Len = CID_DEFAULT_LEN>
+ConnectionId generate_cid()
+{
     static_assert(Len <= CID_MAX_LEN);
     // Stamp the length up front, then fill the CID's own storage with fresh random bytes.
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(Len);
-    random_bytes(std::span{reinterpret_cast<std::byte *>(cid.data), Len});  // FIXME(clang-tidy): reinterpret_cast usage
+    random_bytes(
+        std::span{reinterpret_cast<std::byte*>(cid.data), Len}
+    ); // FIXME(clang-tidy): reinterpret_cast usage
     return cid;
 }
 
-export ConnectionId generate_cid(std::size_t len) {
+export ConnectionId generate_cid(std::size_t len)
+{
     assert(len <= CID_MAX_LEN);
     // Runtime-length sibling of the template above — same motion, just `len` isn't known
     // at compile time here.
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(len);
-    random_bytes(std::span{reinterpret_cast<std::byte *>(cid.data), len});  // FIXME(clang-tidy): reinterpret_cast usage
+    random_bytes(
+        std::span{reinterpret_cast<std::byte*>(cid.data), len}
+    ); // FIXME(clang-tidy): reinterpret_cast usage
     return cid;
 }
 

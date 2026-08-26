@@ -1,7 +1,7 @@
 module;
 
 #ifdef _WIN32
-#include <malloc.h>
+#    include <malloc.h>
 #endif
 
 export module helper;
@@ -11,8 +11,9 @@ import std;
 import boost.ut;
 #endif
 
-export template <typename T>
-struct AlignedManager {
+export template<typename T>
+struct AlignedManager
+{
     /**
      * @brief Allocates `size` bytes, routing through an alignment-aware allocator only when `T`
      * actually needs more alignment than `std::max_align_t` already guarantees — otherwise it's
@@ -28,7 +29,8 @@ struct AlignedManager {
      * @throws std::bad_alloc if the underlying allocator returns null.
      * @return a pointer to the allocated (and possibly over-aligned) memory.
      */
-    static void *operator new(std::size_t size) {
+    static void* operator new(std::size_t size)
+    {
         constexpr std::size_t ALIGNMENT = alignof(T);
         constexpr bool NEEDS_ALIGNMENT = ALIGNMENT > alignof(std::max_align_t);
         if constexpr (NEEDS_ALIGNMENT) {
@@ -37,11 +39,14 @@ struct AlignedManager {
             // allocator.
             std::size_t aligned_size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
 
-            void *ptr = nullptr;
+            void* ptr = nullptr;
 #ifdef _WIN32
             ptr = _aligned_malloc(aligned_size, ALIGNMENT);
 #else
-            ptr = std::aligned_alloc(ALIGNMENT, aligned_size);  // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no GSL dependency in this codebase
+            ptr = std::aligned_alloc(
+                ALIGNMENT, aligned_size
+            ); // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no
+               // GSL dependency in this codebase
 #endif
 
             if (ptr == nullptr) {
@@ -51,7 +56,11 @@ struct AlignedManager {
             return ptr;
         } else {
             // Default alignment is plenty — plain malloc does the job, no cap.
-            void *ptr = std::malloc(size);  // NOLINT(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc) — would need gsl::owner<> annotation; no GSL dependency in this codebase, and this class *is* the low-level allocator
+            void* ptr = std::malloc(
+                size
+            ); // NOLINT(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc)
+               // — would need gsl::owner<> annotation; no GSL dependency in
+               // this codebase, and this class *is* the low-level allocator
             if (ptr == nullptr) {
                 throw std::bad_alloc{};
             }
@@ -68,11 +77,14 @@ struct AlignedManager {
      * `std::aligned_alloc()` hands back too.
      * @param ptr the pointer to free.
      */
-    static void operator delete(void *ptr) noexcept {
+    static void operator delete(void* ptr) noexcept
+    {
 #ifdef _WIN32
         _aligned_free(ptr);
 #else
-        std::free(ptr);  // NOLINT(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc) — would need gsl::owner<> annotation; no GSL dependency in this codebase, and this class *is* the low-level allocator
+        std::free(ptr); // NOLINT(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc) —
+                        // would need gsl::owner<> annotation; no GSL dependency in this codebase,
+                        // and this class *is* the low-level allocator
 #endif
     }
 
@@ -82,40 +94,48 @@ struct AlignedManager {
      * @param address the address to "allocate" at.
      * @return `address`, unchanged.
      */
-    static void *operator new([[maybe_unused]] std::size_t size, void *address) noexcept { return address; }
+    static void* operator new([[maybe_unused]] std::size_t size, void* address) noexcept
+    {
+        return address;
+    }
+
     /**
      * @brief Placement-delete counterpart — no-op, since placement new never actually owned
      * anything to free. Only ever invoked by the compiler if the matching placement-new's
      * constructor throws.
      */
-    static void operator delete([[maybe_unused]] void *pointer, [[maybe_unused]] void *address) noexcept {}
+    static void
+    operator delete([[maybe_unused]] void* pointer, [[maybe_unused]] void* address) noexcept
+    {
+    }
 };
 
 #ifdef CONGELADO_TEST
 namespace tests {
 using namespace boost::ut;
 
-struct alignas(64) OverAligned {
+struct alignas(64) OverAligned
+{
     std::byte data[64];
 };
 
 suite<"AlignedManager"> aligned_manager_suite = [] {
     "over-aligned type allocates memory aligned to its own requirement"_test = [] {
-        void *ptr = AlignedManager<OverAligned>::operator new(sizeof(OverAligned));
+        void* ptr = AlignedManager<OverAligned>::operator new(sizeof(OverAligned));
         expect(ptr != nullptr);
         expect((reinterpret_cast<std::uintptr_t>(ptr) % alignof(OverAligned)) == 0);
         AlignedManager<OverAligned>::operator delete(ptr);
     };
     "default-aligned type still allocates usable memory"_test = [] {
-        void *ptr = AlignedManager<int>::operator new(sizeof(int));
+        void* ptr = AlignedManager<int>::operator new(sizeof(int));
         expect(ptr != nullptr);
         AlignedManager<int>::operator delete(ptr);
     };
     "placement new is a passthrough, placement delete is a no-op"_test = [] {
         alignas(int) std::byte storage[sizeof(int)];
-        void *ptr = AlignedManager<int>::operator new(sizeof(int), static_cast<void *>(storage));
-        expect(ptr == static_cast<void *>(storage));
-        AlignedManager<int>::operator delete(ptr, static_cast<void *>(storage));
+        void* ptr = AlignedManager<int>::operator new(sizeof(int), static_cast<void*>(storage));
+        expect(ptr == static_cast<void*>(storage));
+        AlignedManager<int>::operator delete(ptr, static_cast<void*>(storage));
     };
 };
 

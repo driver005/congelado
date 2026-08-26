@@ -16,29 +16,29 @@ limitations under the License.
 #ifndef CONGELADO_C_GENERATOR_ATTRIBUTE_H_
 #define CONGELADO_C_GENERATOR_ATTRIBUTE_H_
 
-#include <stdbool.h>
-
 #include "c/abi/macros.h"
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_Generator_Attribute TF_Generator_Attribute;
+    typedef struct TF_Generator_Attribute TF_Generator_Attribute;
 
-TF_CAPI_EXPORT extern const char* TF_Generator_Attribute_GetName(
-    const TF_Generator_Attribute* attr);
-TF_CAPI_EXPORT extern const char* TF_Generator_Attribute_GetDescription(
-    const TF_Generator_Attribute* attr);
-TF_CAPI_EXPORT extern const char* TF_Generator_Attribute_GetFullType(
-    const TF_Generator_Attribute* attr);
-TF_CAPI_EXPORT extern const char* TF_Generator_Attribute_GetBaseType(
-    const TF_Generator_Attribute* attr);
-TF_CAPI_EXPORT extern bool TF_Generator_Attribute_IsList(
-    const TF_Generator_Attribute* attr);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Attribute_GetName(const TF_Generator_Attribute* attr);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Attribute_GetDescription(const TF_Generator_Attribute* attr);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Attribute_GetFullType(const TF_Generator_Attribute* attr);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Attribute_GetBaseType(const TF_Generator_Attribute* attr);
+    TF_CAPI_EXPORT extern bool TF_Generator_Attribute_IsList(const TF_Generator_Attribute* attr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_GENERATOR_ATTRIBUTE_H_
+#endif // CONGELADO_C_GENERATOR_ATTRIBUTE_H_

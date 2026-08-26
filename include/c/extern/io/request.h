@@ -16,85 +16,103 @@ limitations under the License.
 #ifndef CONGELADO_C_IO_REQUEST_H_
 #define CONGELADO_C_IO_REQUEST_H_
 
+#include "c/extern/io/enums.h"
+#include "c/intern/tf_status.h"
+#include "c/intern/tf_tstring.h"
+
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "c/intern/tf_tstring.h"
-#include "c/intern/tf_status.h"
-#include "c/extern/io/enums.h"
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-struct TP_IO_Response;
+    struct TP_IO_Response;
 
-typedef TF_IO_Method (*TP_IO_Request_GetMethodFn)(void* user_data);
-typedef const TF_TString* (*TP_IO_Request_GetPathFn)(void* user_data);
-typedef void (*TP_IO_Request_SetHeaderFn)(void* user_data,
-    const TF_TString* name, const TF_TString* value);
-typedef void (*TP_IO_Request_SetBodyFn)(void* user_data,
-    const TF_TString* body);
+    typedef TF_IO_Method (*TP_IO_Request_GetMethodFn)(void* user_data);
+    typedef const TF_TString* (*TP_IO_Request_GetPathFn)(void* user_data);
+    typedef void (*TP_IO_Request_SetHeaderFn)(
+        void* user_data, const TF_TString* name, const TF_TString* value
+    );
+    typedef void (*TP_IO_Request_SetBodyFn)(void* user_data, const TF_TString* body);
 
-typedef struct TP_IO_Request {
-  size_t struct_size;
-  void* ext;
-  TP_IO_Request_GetMethodFn get_method_cb;
-  TP_IO_Request_GetPathFn get_path_cb;
-  TP_IO_Request_SetHeaderFn set_header_cb;
-  TP_IO_Request_SetBodyFn set_body_cb;
+    typedef struct TP_IO_Request
+    {
+        size_t struct_size;
+        void* ext;
+        TP_IO_Request_GetMethodFn get_method_cb;
+        TP_IO_Request_GetPathFn get_path_cb;
+        TP_IO_Request_SetHeaderFn set_header_cb;
+        TP_IO_Request_SetBodyFn set_body_cb;
 #define TP_IO_REQUEST_STRUCT_SIZE TF_OFFSET_OF_END(TP_IO_Request, set_body_cb)
-} TP_IO_Request;
+    } TP_IO_Request;
 
-// LINT.ThenChange(:io_request_version)
+    // LINT.ThenChange(:io_request_version)
 
 
+    static inline TP_IO_Request* TP_IORequestNew(void)
+    {
+        TP_IO_Request* ptr = (TP_IO_Request*)malloc(sizeof(struct TP_IO_Request));
+        if (!ptr) {
+            return nullptr;
+        }
+        ptr->struct_size = sizeof(struct TP_IO_Request);
+        ptr->ext = nullptr;
+        ptr->get_method_cb = nullptr;
+        ptr->get_path_cb = nullptr;
+        ptr->set_header_cb = nullptr;
+        ptr->set_body_cb = nullptr;
+        return ptr;
+    }
 
-static inline TP_IO_Request* TP_IORequestNew(void) {
-  TP_IO_Request* ptr = (TP_IO_Request*)malloc(sizeof(struct TP_IO_Request));
-  if (!ptr) return nullptr;
-  ptr->struct_size = sizeof(struct TP_IO_Request);
-  ptr->ext = nullptr;
-  ptr->get_method_cb = nullptr;
-  ptr->get_path_cb = nullptr;
-  ptr->set_header_cb = nullptr;
-  ptr->set_body_cb = nullptr;
-  return ptr;
-}
+    static inline void TP_IORequestDelete(TP_IO_Request* ptr)
+    {
+        if (!ptr) {
+            return;
+        }
+        free(ptr);
+    }
 
-static inline void TP_IORequestDelete(TP_IO_Request* ptr) {
-  if (!ptr) return;
-  free(ptr);
-}
+    static inline void TP_IORequest_SetStructSize(TP_IO_Request* builder, size_t struct_size)
+    {
+        builder->struct_size = struct_size;
+    }
 
-static inline void TP_IORequest_SetStructSize(TP_IO_Request* builder, size_t struct_size) {
-  builder->struct_size = struct_size;
-}
+    static inline void TP_IORequest_SetExt(TP_IO_Request* builder, void* ext)
+    {
+        builder->ext = ext;
+    }
 
-static inline void TP_IORequest_SetExt(TP_IO_Request* builder, void* ext) {
-  builder->ext = ext;
-}
+    static inline void TP_IORequest_SetGetMethodCallback(
+        TP_IO_Request* builder, TP_IO_Request_GetMethodFn get_method_cb
+    )
+    {
+        builder->get_method_cb = get_method_cb;
+    }
 
-static inline void TP_IORequest_SetGetMethodCallback(TP_IO_Request* builder, TP_IO_Request_GetMethodFn get_method_cb) {
-  builder->get_method_cb = get_method_cb;
-}
+    static inline void
+    TP_IORequest_SetGetPathCallback(TP_IO_Request* builder, TP_IO_Request_GetPathFn get_path_cb)
+    {
+        builder->get_path_cb = get_path_cb;
+    }
 
-static inline void TP_IORequest_SetGetPathCallback(TP_IO_Request* builder, TP_IO_Request_GetPathFn get_path_cb) {
-  builder->get_path_cb = get_path_cb;
-}
+    static inline void TP_IORequest_SetSetHeaderCallback(
+        TP_IO_Request* builder, TP_IO_Request_SetHeaderFn set_header_cb
+    )
+    {
+        builder->set_header_cb = set_header_cb;
+    }
 
-static inline void TP_IORequest_SetSetHeaderCallback(TP_IO_Request* builder, TP_IO_Request_SetHeaderFn set_header_cb) {
-  builder->set_header_cb = set_header_cb;
-}
-
-static inline void TP_IORequest_SetSetBodyCallback(TP_IO_Request* builder, TP_IO_Request_SetBodyFn set_body_cb) {
-  builder->set_body_cb = set_body_cb;
-}
-
+    static inline void
+    TP_IORequest_SetSetBodyCallback(TP_IO_Request* builder, TP_IO_Request_SetBodyFn set_body_cb)
+    {
+        builder->set_body_cb = set_body_cb;
+    }
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_IO_REQUEST_H_
+#endif // CONGELADO_C_IO_REQUEST_H_

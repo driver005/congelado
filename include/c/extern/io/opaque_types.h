@@ -20,19 +20,20 @@ limitations under the License.
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// Forward declarations only — TP_IO and its New/Delete/Set* inlines live in
-// registration.h (full struct definition there); TP_IO_Request in request.h;
-// TP_IO_Response in response.h.
+    // Forward declarations only — TP_IO and its New/Delete/Set* inlines live in
+    // registration.h (full struct definition there); TP_IO_Request in request.h;
+    // TP_IO_Response in response.h.
 
-struct TP_IO_Request;
-struct TP_IO_Response;
-struct TP_IO;
+    struct TP_IO_Request;
+    struct TP_IO_Response;
+    struct TP_IO;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_IO_OPAQUE_TYPES_H_
+#endif // CONGELADO_C_IO_OPAQUE_TYPES_H_

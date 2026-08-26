@@ -13,7 +13,8 @@ export namespace liburing {
 
 // FIXME(clang-tidy): readability-identifier-naming — 'enomem' can't be uppercased to 'ENOMEM',
 // that would collide with the <errno.h> macro of the same name.
-inline constexpr int enomem = ENOMEM;  // NOLINT(readability-identifier-naming) — ENOMEM is an errno.h macro, can't rename to match
+inline constexpr int enomem = ENOMEM; // NOLINT(readability-identifier-naming) — ENOMEM is an
+                                      // errno.h macro, can't rename to match
 inline constexpr int OP_SYNC_FILE_RANGE = IORING_OP_SYNC_FILE_RANGE;
 inline constexpr int OP_READ = IORING_OP_READ;
 inline constexpr int OP_WRITE = IORING_OP_WRITE;
@@ -72,16 +73,22 @@ using ::io_uring_unregister_buffers;
 using ::io_uring_unregister_files;
 using ::io_uring_wait_cqe;
 
-template <typename Func>
-void for_each_cqe(io_uring *ring, Func &&func) {  // NOLINT(cppcoreguidelines-missing-std-forward) — func is called once per cqe in a loop; forwarding it would use-after-move on the second call
-    io_uring_cqe *cqe = nullptr;
+template<typename Func>
+void for_each_cqe(io_uring* ring, Func&& func)
+{ // NOLINT(cppcoreguidelines-missing-std-forward) — func is called once per cqe in a loop;
+  // forwarding it would use-after-move on the second call
+    io_uring_cqe* cqe = nullptr;
     unsigned head = 0;
 
     // walk every cqe that's currently ready on the ring and hand each one off to func — head
     // is just the macro's internal iterator slot, nothing callers need to touch. func is
     // invoked once per cqe, so it must be called as an lvalue each time rather than forwarded
-    // (forwarding a forwarding-reference repeatedly in a loop is a genuine use-after-move risk).
-    io_uring_for_each_cqe(ring, head, cqe) { func(cqe); }
+    // (forwarding a forwarding-reference repeatedly in a loop is a genuine use-after-move
+    // risk).
+    io_uring_for_each_cqe(ring, head, cqe)
+    {
+        func(cqe);
+    }
 }
 
 } // namespace liburing
@@ -91,7 +98,9 @@ namespace liburing::leverage_uring_tests {
 using namespace boost::ut;
 
 suite<"liburing constants"> constants_suite = [] {
-    "enomem mirrors the ENOMEM errno macro"_test = [] { expect(liburing::enomem == ENOMEM); };
+    "enomem mirrors the ENOMEM errno macro"_test = [] {
+        expect(liburing::enomem == ENOMEM);
+    };
 
     "opcode constants mirror their IORING_OP_* macros"_test = [] {
         expect(liburing::OP_READ == IORING_OP_READ);
@@ -103,8 +112,8 @@ suite<"liburing constants"> constants_suite = [] {
 // for_each_cqe() drives the io_uring_for_each_cqe macro purely off ring->cq's head/tail/mask/
 // cqes pointers — none of that needs a live kernel ring, so a hand-built io_uring struct with
 // stack-backed cq storage exercises the real iteration logic without a single syscall (a live
-// ring, per Leverager's own test-skip note in include/io/base/leverage/types.cppm, is off-limits
-// in this shared test binary).
+// ring, per Leverager's own test-skip note in include/io/base/leverage/types.cppm, is
+// off-limits in this shared test binary).
 suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
     "walks every ready cqe from head to tail"_test = [] {
         std::array<io_uring_cqe, 4> cqes{};
@@ -121,7 +130,9 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         std::vector<int> seen;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe *cqe) { seen.push_back(cqe->res); });
+        liburing::for_each_cqe(&ring, [&](io_uring_cqe* cqe) {
+            seen.push_back(cqe->res);
+        });
 
         expect(seen.size() == 3) << fatal;
         expect(seen[0] == 10);
@@ -140,7 +151,9 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         int calls = 0;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe *) { ++calls; });
+        liburing::for_each_cqe(&ring, [&](io_uring_cqe*) {
+            ++calls;
+        });
 
         expect(calls == 0);
     };
@@ -158,7 +171,9 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         std::vector<int> seen;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe *cqe) { seen.push_back(cqe->res); });
+        liburing::for_each_cqe(&ring, [&](io_uring_cqe* cqe) {
+            seen.push_back(cqe->res);
+        });
 
         expect(seen.size() == 1) << fatal;
         expect(seen[0] == 77);

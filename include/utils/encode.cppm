@@ -9,18 +9,20 @@ export namespace utils::encode {
 
 /**
  * @brief Percent-encodes a byte range for safe embedding in a URL — unreserved characters
- * (`A-Za-z0-9-._~`) pass through literal, everything else gets `%XX`-escaped. Standard motion for
- * query params/path segments carrying bytes a URL can't just swallow raw.
- * @note This is a free function sitting directly in `namespace utils::encode`, not a class static
- * method — flagging it since the rest of this codebase's convention is class-only, no free
- * functions. Leaving it as-is per this pass's comment-only scope, not touching the structure.
+ * (`A-Za-z0-9-._~`) pass through literal, everything else gets `%XX`-escaped. Standard motion
+ * for query params/path segments carrying bytes a URL can't just swallow raw.
+ * @note This is a free function sitting directly in `namespace utils::encode`, not a class
+ * static method — flagging it since the rest of this codebase's convention is class-only, no
+ * free functions. Leaving it as-is per this pass's comment-only scope, not touching the
+ * structure.
  * @tparam Range an input range whose elements convert to `unsigned char`.
  * @param range the bytes to encode.
  * @return the percent-encoded string.
  */
-template <std::ranges::input_range Range>
+template<std::ranges::input_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, unsigned char>
-[[nodiscard]] std::string url_encode(Range &&range) {
+[[nodiscard]] std::string url_encode(Range&& range)
+{
     static constexpr std::string_view HEX = "0123456789ABCDEF";
     std::string out;
     // Reserve up front when the range knows its own size, saves a few reallocs.
@@ -29,16 +31,17 @@ template <std::ranges::input_range Range>
     }
     // Walk every byte — unreserved characters pass through as-is, everything else gets
     // `%`-escaped as two hex digits.
-    for (auto elem : std::forward<Range>(range)) {
+    for (auto elem: std::forward<Range>(range)) {
         const auto BYTE = static_cast<unsigned char>(elem);
         if ((BYTE >= 'A' && BYTE <= 'Z') || (BYTE >= 'a' && BYTE <= 'z') ||
-            (BYTE >= '0' && BYTE <= '9') || BYTE == '-' || BYTE == '.' ||
-            BYTE == '_' || BYTE == '~') {
+            (BYTE >= '0' && BYTE <= '9') || BYTE == '-' || BYTE == '.' || BYTE == '_' ||
+            BYTE == '~') {
             out += static_cast<char>(BYTE);
         } else {
             out += '%';
-            out += HEX[(BYTE >> 4) & 0xF];  // FIXME(clang-tidy): unchecked operator[], consider .at()
-            out += HEX[BYTE & 0xF];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            out +=
+                HEX[(BYTE >> 4) & 0xF]; // FIXME(clang-tidy): unchecked operator[], consider .at()
+            out += HEX[BYTE & 0xF];     // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
     }
     return out;
@@ -54,9 +57,10 @@ template <std::ranges::input_range Range>
  * @param range the bytes to encode.
  * @return the base64-encoded string.
  */
-template <std::ranges::input_range Range>
+template<std::ranges::input_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, unsigned char>
-[[nodiscard]] std::string base64_encode(Range &&range) {
+[[nodiscard]] std::string base64_encode(Range&& range)
+{
     static constexpr std::string_view TABLE =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string out;
@@ -67,19 +71,21 @@ template <std::ranges::input_range Range>
     int bits = 0;
     // Buffer incoming bytes 8 bits at a time into `val`, draining 6-bit groups out into base64
     // characters as soon as there's enough accumulated to do so.
-    for (auto elem : std::forward<Range>(range)) {
+    for (auto elem: std::forward<Range>(range)) {
         const auto BYTE = static_cast<unsigned char>(elem);
         val = (val << 8) | BYTE;
         bits += 8;
         while (bits >= 6) {
             bits -= 6;
-            out += TABLE[(val >> bits) & 0x3F];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            out += TABLE[(val >> bits) & 0x3F]; // FIXME(clang-tidy): unchecked operator[],
+                                                // consider .at()
         }
     }
     // Leftover bits (1 or 2 bytes' worth) still need to go out as one more character, then pad
     // with `=` up to a multiple of 4.
     if (bits > 0) {
-        out += TABLE[(val << (6 - bits)) & 0x3F];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        out += TABLE[(val << (6 - bits)) & 0x3F]; // FIXME(clang-tidy): unchecked operator[],
+                                                  // consider .at()
         while (out.size() % 4 != 0) {
             out += '=';
         }

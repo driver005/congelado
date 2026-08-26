@@ -6,7 +6,6 @@ congelado_module_library(
     partitions = [
         "buffer.cppm",
         "shape.cppm",
-        "string.cppm",
         "tensor.cppm",
     ],
     deps = [

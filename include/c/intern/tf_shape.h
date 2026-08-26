@@ -16,44 +16,50 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_SHAPE_H_
 #define TENSORFLOW_C_TF_SHAPE_H_
 
+#include "c/abi/macros.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "c/abi/macros.h"
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// TF_Shape is a C API for TensorFlow shapes.
-typedef struct TF_Shape {
-  size_t struct_size;
-  int64_t* dims;
-  int num_dims;
-} TF_Shape;
+    // TF_Shape is a C API for TensorFlow shapes.
+    typedef struct TF_Shape
+    {
+        size_t struct_size;
+        int64_t* dims;
+        int num_dims;
+    } TF_Shape;
 
 #define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape, num_dims)
 
-static inline void TF_ShapeInit(TF_Shape* shape) {
-  shape->struct_size = TF_SHAPE_STRUCT_SIZE;
-  shape->dims = nullptr;
-  shape->num_dims = 0;
-}
+    static inline void TF_ShapeInit(TF_Shape* shape)
+    {
+        shape->struct_size = TF_SHAPE_STRUCT_SIZE;
+        shape->dims = nullptr;
+        shape->num_dims = 0;
+    }
 
-static inline void TF_ShapeDealloc(TF_Shape* shape) {
-  if (!shape) return;
-  free(shape->dims);
-  free(shape);
-}
+    static inline void TF_ShapeDealloc(TF_Shape* shape)
+    {
+        if (!shape) {
+            return;
+        }
+        free(shape->dims);
+        free(shape);
+    }
 
-TF_CAPI_EXPORT extern TF_Shape* TF_NewShape(const int64_t* dims, int num_dims);
-TF_CAPI_EXPORT extern void TF_DeleteShape(TF_Shape* shape);
-TF_CAPI_EXPORT extern int TF_ShapeNumDims(const TF_Shape* shape);
-TF_CAPI_EXPORT extern int64_t TF_ShapeDim(const TF_Shape* shape, int index);
+    TF_CAPI_EXPORT extern TF_Shape* TF_NewShape(const int64_t* dims, int num_dims);
+    TF_CAPI_EXPORT extern void TF_DeleteShape(TF_Shape* shape);
+    TF_CAPI_EXPORT extern int TF_ShapeNumDims(const TF_Shape* shape);
+    TF_CAPI_EXPORT extern int64_t TF_ShapeDim(const TF_Shape* shape, int index);
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_TF_SHAPE_H_
+#endif // TENSORFLOW_C_TF_SHAPE_H_

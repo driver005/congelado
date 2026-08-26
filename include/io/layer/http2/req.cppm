@@ -18,15 +18,19 @@ import boost.ut;
 
 export namespace io::layer::http2 {
 
-class HttpRequest : public interfaces::io::IRequest {
-  public:
+class HttpRequest : public interfaces::io::IRequest
+{
+public:
     /**
      * @brief Builds an HTTP/2 request for the given stream, static-header array starts fully
      * empty (all null shared_ptrs).
      * @param stream_id the stream this request rides on, forwarded straight to `IRequest`.
      */
-    explicit HttpRequest(std::uint32_t stream_id)
-        : interfaces::io::IRequest{stream_id}, m_static_headers{} {}
+    explicit HttpRequest(std::uint32_t stream_id) :
+        interfaces::io::IRequest{stream_id},
+        m_static_headers{}
+    {
+    }
 
     // // --- Builder methods ---
     // HttpRequest &&with_method(shared::http::HttpMethod method) && {
@@ -53,7 +57,8 @@ class HttpRequest : public interfaces::io::IRequest {
     //     add_header(name, value);
     //     return std::move(*this);
     // }
-    // HttpRequest &&with_header(interfaces::io::types::Token token, std::string_view value) && {
+    // HttpRequest &&with_header(interfaces::io::types::Token token, std::string_view value) &&
+    // {
     //     add_header(token, value);
     //     return std::move(*this);
     // }
@@ -73,8 +78,8 @@ class HttpRequest : public interfaces::io::IRequest {
     // }
     //
     // HttpRequest &&with_bearer_auth(std::string_view token) && {
-    //     add_header(interfaces::io::types::Token::AUTHORIZATION, "Bearer " + std::string(token));
-    //     return std::move(*this);
+    //     add_header(interfaces::io::types::Token::AUTHORIZATION, "Bearer " +
+    //     std::string(token)); return std::move(*this);
     // }
     //
     // HttpRequest &&with_basic_auth(std::string_view user, std::string_view password) && {
@@ -106,19 +111,19 @@ class HttpRequest : public interfaces::io::IRequest {
      * pointers, copying gets messy fast, moving's the only supported way to relocate one of
      * these.
      */
-    HttpRequest(const HttpRequest &) = delete;
+    HttpRequest(const HttpRequest&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor right above.
      */
-    HttpRequest &operator=(const HttpRequest &) = delete;
+    HttpRequest& operator=(const HttpRequest&) = delete;
     /**
      * @brief Defaulted move ctor — cheap relocation, no deep header copies involved.
      */
-    constexpr HttpRequest(HttpRequest &&) noexcept = default;
+    constexpr HttpRequest(HttpRequest&&) noexcept = default;
     /**
      * @brief Defaulted move assign, matches the move ctor right above.
      */
-    constexpr HttpRequest &operator=(HttpRequest &&) noexcept = default;
+    constexpr HttpRequest& operator=(HttpRequest&&) noexcept = default;
     /**
      * @brief Defaulted destructor — overrides `IRequest`'s virtual destructor, no extra
      * teardown logic needed beyond the members' own destructors.
@@ -145,11 +150,13 @@ class HttpRequest : public interfaces::io::IRequest {
      * @throws std::bad_optional_access if given an unrecognized string name with an empty
      * value — see warning above.
      */
-    void set_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token,
-                    std::string_view value) &
-        override {
+    void set_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token,
+        std::string_view value
+    ) & override
+    {
         std::visit(
-            [this, value](auto &&name) {
+            [this, value](auto&& name) {
                 using T = std::decay_t<decltype(name)>;
 
                 // String-name path — needs to tokenize first to figure out where it lands.
@@ -169,14 +176,17 @@ class HttpRequest : public interfaces::io::IRequest {
                     if (!token_opt.has_value()) {
                         if (auto existing_opt = m_headers.find(name); existing_opt.has_value()) {
                             if (!value.empty()) {
-                                const auto &existing = *existing_opt;
-                                existing->set_value(existing->get_value() +
-                                                    interfaces::consts::VALUE_SEPARATOR +
-                                                    std::string(value));
+                                const auto& existing = *existing_opt;
+                                existing->set_value(
+                                    existing->get_value() + interfaces::consts::VALUE_SEPARATOR +
+                                    std::string(value)
+                                );
                             }
                         } else {
                             m_headers.insert(
-                                name, std::make_shared<interfaces::io::HeaderField<false>>(name, value));
+                                name,
+                                std::make_shared<interfaces::io::HeaderField<false>>(name, value)
+                            );
                         }
                         return;
                     }
@@ -188,36 +198,39 @@ class HttpRequest : public interfaces::io::IRequest {
                     // everything else just recurses into the token overload below.
                     if (token == interfaces::io::types::Token::COOKIE) {
                         const auto IDX = std::to_underlying(interfaces::io::types::Token::COOKIE);
-                        if (m_static_headers[IDX] ==
-                            nullptr) { // FIXME(clang-tidy): unchecked operator[], consider .at()
+                        if (m_static_headers[IDX] == nullptr) { // FIXME(clang-tidy): unchecked
+                                                                // operator[], consider .at()
                             m_static_headers[IDX] = // FIXME(clang-tidy): unchecked operator[],
                                                     // consider .at()
                                 std::make_shared<interfaces::io::HeaderField<true>>(
-                                    interfaces::io::types::Token::COOKIE, std::string(value));
+                                    interfaces::io::types::Token::COOKIE, std::string(value)
+                                );
                         } else if (!value.empty()) {
                             m_static_headers[IDX]->set_value(
                                 m_static_headers[IDX]->get_value() + // FIXME(clang-tidy): unchecked
                                                                      // operator[], consider .at()
-                                interfaces::consts::COOKIE_SEPARATOR + std::string(value));
+                                interfaces::consts::COOKIE_SEPARATOR + std::string(value)
+                            );
                         }
                     } else {
                         set_header(token, value);
                     }
-
                 } else if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
                     // Token path — straight write into the matching static-header slot.
                     if (name == interfaces::io::types::Token::NONE) {
                         throw std::invalid_argument("interfaces::io::types::Token cannot be None");
                     }
 
-                    m_static_headers[std::to_underlying(
-                        name)] = // FIXME(clang-tidy): unchecked operator[], consider .at();
-                                 // non-constant array index
-                        std::make_shared<interfaces::io::HeaderField<true>>(name,
-                                                                            std::string(value));
+                    m_static_headers[std::to_underlying(name)] = // FIXME(clang-tidy): unchecked
+                                                                 // operator[], consider .at();
+                                                                 // non-constant array index
+                        std::make_shared<interfaces::io::HeaderField<true>>(
+                            name, std::string(value)
+                        );
                 }
             },
-            name_or_token);
+            name_or_token
+        );
     }
 
     /**
@@ -226,10 +239,12 @@ class HttpRequest : public interfaces::io::IRequest {
      * `m_headers` hashmap.
      * @param name_or_token the header name (or token) to remove.
      */
-    void remove_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token) &
-        override {
+    void remove_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token
+    ) & override
+    {
         std::visit(
-            [&](const auto &name) {
+            [&](const auto& name) {
                 using T = std::decay_t<decltype(name)>;
                 // Direct token — null out its static-header slot.
                 if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
@@ -249,7 +264,8 @@ class HttpRequest : public interfaces::io::IRequest {
                     }
                 }
             },
-            name_or_token);
+            name_or_token
+        );
     }
 
     /**
@@ -265,15 +281,19 @@ class HttpRequest : public interfaces::io::IRequest {
      * frames the header block and body each need to split across.
      * @return the estimated total wire size in bytes.
      */
-    [[nodiscard]] std::size_t get_size(std::size_t max_frame_payload) const noexcept {
+    [[nodiscard]] std::size_t get_size(std::size_t max_frame_payload) const noexcept
+    {
         std::size_t total = 0;
 
         // Sum up every set static header field's size first.
         std::size_t header_block = std::ranges::fold_left(
-            m_static_headers |
-                std::views::filter([](const auto &field) noexcept { return field != nullptr; }),
-            std::size_t{0},
-            [](std::size_t acc, const auto &field) noexcept { return acc + field->size(); });
+            m_static_headers | std::views::filter([](const auto& field) noexcept {
+                return field != nullptr;
+            }),
+            std::size_t{0}, [](std::size_t acc, const auto& field) noexcept {
+                return acc + field->size();
+            }
+        );
 
         // TODO: add ranges support to my swiss hashmap
         //  header_block = std::ranges::fold_left(m_headers, header_block, [](std::size_t acc,
@@ -281,7 +301,7 @@ class HttpRequest : public interfaces::io::IRequest {
         //      return acc + entry.value()->size();
         //  });
         // Then fold in every dynamic header too, same running total.
-        for (const auto &entry : m_headers) {
+        for (const auto& entry: m_headers) {
             header_block += entry.value()->size();
         }
 
@@ -316,31 +336,34 @@ class HttpRequest : public interfaces::io::IRequest {
      */
     // FIXME(clang-tidy): bugprone-exception-escape — the std::visit-internal throw path is gone
     // (dispatch below is manual get_if, not std::visit), but m_headers.find() (SwissHashMap) is
-    // not itself noexcept — its hash/equality functor calls can in theory throw — and `noexcept`
-    // here is required to match IRequest::find_header()'s noexcept virtual signature; can't drop
-    // it without breaking the override.
-    [[nodiscard]] std::string_view
-    find_header(std::variant<std::string_view, interfaces::io::types::Token> name_or_token)
-        const noexcept override {
-        // Manual index()/get_if dispatch instead of std::visit — libstdc++'s std::get<>() (which
-        // std::visit uses internally) has an unconditional valueless_by_exception() throw check
-        // that trips bugprone-exception-escape even though this variant is never valueless;
-        // get_if() has no such check.
-        if (const auto *token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
-            const auto &field = m_static_headers[std::to_underlying(
-                *token)]; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
-                          // array index
+    // not itself noexcept — its hash/equality functor calls can in theory throw — and
+    // `noexcept` here is required to match IRequest::find_header()'s noexcept virtual
+    // signature; can't drop it without breaking the override.
+    [[nodiscard]] std::string_view find_header(
+        std::variant<std::string_view, interfaces::io::types::Token> name_or_token
+    ) const noexcept override
+    {
+        // Manual index()/get_if dispatch instead of std::visit — libstdc++'s std::get<>()
+        // (which std::visit uses internally) has an unconditional valueless_by_exception()
+        // throw check that trips bugprone-exception-escape even though this variant is never
+        // valueless; get_if() has no such check.
+        if (const auto* token = std::get_if<interfaces::io::types::Token>(&name_or_token)) {
+            const auto& field =
+                m_static_headers[std::to_underlying(*token)]; // FIXME(clang-tidy): unchecked
+                                                              // operator[], consider .at();
+                                                              // non-constant array index
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
 
-        const auto &name = *std::get_if<std::string_view>(&name_or_token);
+        const auto& name = *std::get_if<std::string_view>(&name_or_token);
 
         // String name — check if it tokenizes to a known static slot first...
         auto token_opt = interfaces::io::types::tokenize(name);
         if (token_opt.has_value()) {
-            const auto &field = m_static_headers[std::to_underlying(
-                token_opt.value())]; // FIXME(clang-tidy): unchecked operator[], consider .at();
-                                     // non-constant array index
+            const auto& field = m_static_headers[std::to_underlying(
+                token_opt.value()
+            )]; // FIXME(clang-tidy): unchecked operator[], consider .at();
+                // non-constant array index
             return field ? std::string_view{field->get_value()} : std::string_view{};
         }
 
@@ -357,7 +380,8 @@ class HttpRequest : public interfaces::io::IRequest {
      * sitting in the HPACK dynamic table for this stream. Anyone calling this expecting a clean
      * slate is getting cooked — the headers are all still there afterward, silently.
      */
-    void clear_headers() & noexcept override {
+    void clear_headers() & noexcept override
+    {
         // TODO: add clear functions in qpack else this gets bad fix after compiles
     }
 
@@ -366,16 +390,17 @@ class HttpRequest : public interfaces::io::IRequest {
      * everything in the dynamic `m_headers` hashmap into one flat vector.
      * @return every header currently set on this request, static ones first then dynamic.
      */
-    [[nodiscard]] std::vector<interfaces::io::HeaderEntry> get_headers() const noexcept override {
+    [[nodiscard]] std::vector<interfaces::io::HeaderEntry> get_headers() const noexcept override
+    {
         std::vector<interfaces::io::HeaderEntry> result;
         // Static headers first — skip the empty (unset) slots.
-        for (const auto &field : m_static_headers) {
+        for (const auto& field: m_static_headers) {
             if (field != nullptr) {
                 result.emplace_back(field);
             }
         }
         // Then every dynamic header on top.
-        for (const auto &entry : m_headers) {
+        for (const auto& entry: m_headers) {
             result.emplace_back(entry.value());
         }
         return result;
@@ -385,13 +410,17 @@ class HttpRequest : public interfaces::io::IRequest {
      * @brief `IRequest::get_body()` override — mutable access.
      * @return a mutable `BufferView` over the body bytes.
      */
-    [[nodiscard]] utils::buffering::BufferView &get_body() noexcept override { return m_body; }
+    [[nodiscard]] utils::buffering::BufferView& get_body() noexcept override
+    {
+        return m_body;
+    }
 
     /**
      * @brief `IRequest::get_body()` const override — read-only access.
      * @return a read-only `BufferView` over the body bytes.
      */
-    [[nodiscard]] const utils::buffering::BufferView &get_body() const noexcept override {
+    [[nodiscard]] const utils::buffering::BufferView& get_body() const noexcept override
+    {
         return m_body;
     }
 
@@ -404,14 +433,15 @@ class HttpRequest : public interfaces::io::IRequest {
      * empty-DATA-frame path.
      * @param body the bytes to install as the request body.
      */
-    void set_body(std::vector<std::byte> &&body) & override {
+    void set_body(std::vector<std::byte>&& body) & override
+    {
         if (body.empty()) {
             return;
         }
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) — same raw-`new`-into-`push_back()`
         // pattern `BufferWriter::acquire()` uses elsewhere in this buffering subsystem; the
         // chain's ref-counted acquire()/release() owns it from here.
-        auto *node = new utils::buffering::BufferNode{std::from_range, std::move(body)};
+        auto* node = new utils::buffering::BufferNode{std::from_range, std::move(body)};
         m_body.push_back(node, 0, node->get_written());
     }
 
@@ -427,10 +457,11 @@ class HttpRequest : public interfaces::io::IRequest {
      * @param addr the address to set as the AUTHORITY header.
      */
     // FIXME(clang-tidy): bugprone-exception-escape — set_header() is documented to throw
-    // (std::invalid_argument, std::bad_optional_access) but `noexcept` here is required to match
-    // `IRequest::set_addr()`'s noexcept virtual signature; can't drop it without breaking the
-    // override.
-    void set_addr(std::string_view addr) & noexcept override {
+    // (std::invalid_argument, std::bad_optional_access) but `noexcept` here is required to
+    // match `IRequest::set_addr()`'s noexcept virtual signature; can't drop it without breaking
+    // the override.
+    void set_addr(std::string_view addr) & noexcept override
+    {
         set_header(interfaces::io::types::Token::AUTHORITY, addr);
     }
 
@@ -438,69 +469,87 @@ class HttpRequest : public interfaces::io::IRequest {
      * @brief `IRequest::get_method()` override.
      * @return the method string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_method() const noexcept override {
+    [[nodiscard]] std::string_view get_method() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::METHOD);
     }
+
     /**
      * @brief `IRequest::get_path()` override.
      * @return the path string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_path() const noexcept override {
+    [[nodiscard]] std::string_view get_path() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::PATH);
     }
+
     /**
      * @brief `IRequest::get_host()` override.
      * @return the host string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_host() const noexcept override {
+    [[nodiscard]] std::string_view get_host() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::HOST);
     }
+
     /**
      * @brief `IRequest::get_scheme()` override.
      * @return the scheme string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_scheme() const noexcept override {
+    [[nodiscard]] std::string_view get_scheme() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::SCHEME);
     }
+
     /**
      * @brief `IRequest::get_authority()` override.
      * @return the authority string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_authority() const noexcept override {
+    [[nodiscard]] std::string_view get_authority() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::AUTHORITY);
     }
+
     /**
      * @brief `IRequest::get_content_type()` override.
      * @return the content-type string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_content_type() const noexcept override {
+    [[nodiscard]] std::string_view get_content_type() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::CONTENT_TYPE);
     }
+
     /**
      * @brief `IRequest::get_accept()` override.
      * @return the accept string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_accept() const noexcept override {
+    [[nodiscard]] std::string_view get_accept() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::ACCEPT);
     }
+
     /**
      * @brief `IRequest::get_user_agent()` override.
      * @return the user-agent string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_user_agent() const noexcept override {
+    [[nodiscard]] std::string_view get_user_agent() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::USER_AGENT);
     }
+
     /**
      * @brief `IRequest::get_authorization()` override.
      * @return the authorization string, or empty if unset.
      */
-    [[nodiscard]] std::string_view get_authorization() const noexcept override {
+    [[nodiscard]] std::string_view get_authorization() const noexcept override
+    {
         return find_header(interfaces::io::types::Token::AUTHORIZATION);
     }
 
 
-  private:
-    struct FactoryTag {};
+private:
+    struct FactoryTag
+    {};
 
     /**
      * @brief Tag-dispatched factory ctor — builds a request pre-loaded with METHOD and PATH in
@@ -510,9 +559,14 @@ class HttpRequest : public interfaces::io::IRequest {
      * @param method the HTTP method to set.
      * @param path the request path to set.
      */
-    HttpRequest(FactoryTag tag, std::uint32_t stream_id, interfaces::io::types::Method method,
-                std::string_view path)
-        : HttpRequest{stream_id} {
+    HttpRequest(
+        FactoryTag tag,
+        std::uint32_t stream_id,
+        interfaces::io::types::Method method,
+        std::string_view path
+    ) :
+        HttpRequest{stream_id}
+    {
         // Pre-load the two headers every request needs — method first, then path.
         set_header(interfaces::io::types::Token::METHOD, method_str(method));
         set_header(interfaces::io::types::Token::PATH, path);
@@ -525,26 +579,29 @@ class HttpRequest : public interfaces::io::IRequest {
      * @return the header field shared_ptr for that slot, or `nullptr` if unset.
      */
     std::shared_ptr<interfaces::io::HeaderField<true>>
-    get_static(const interfaces::io::types::Token &token) {
-        return m_static_headers[std::to_underlying(
-            token)]; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array
-                     // index
+    get_static(const interfaces::io::types::Token& token)
+    {
+        return m_static_headers[std::to_underlying(token)]; // FIXME(clang-tidy): unchecked
+                                                            // operator[], consider .at();
+                                                            // non-constant array index
     }
 
     std::uint32_t m_stream_id{0};
     // TODO: make length a constant
-    std::array<std::shared_ptr<interfaces::io::HeaderField<true>>,
-               std::to_underlying(interfaces::io::types::Token::WWW_AUTHENTICATE) + 1>
+    std::array<
+        std::shared_ptr<interfaces::io::HeaderField<true>>,
+        std::to_underlying(interfaces::io::types::Token::WWW_AUTHENTICATE) + 1>
         m_static_headers{};
 
-    hashmap::swiss::SwissHashMap<std::string_view,
-                                 std::shared_ptr<interfaces::io::HeaderField<false>>>
-        m_headers;
+    hashmap::swiss::
+        SwissHashMap<std::string_view, std::shared_ptr<interfaces::io::HeaderField<false>>>
+            m_headers;
 
     utils::buffering::BufferView m_body;
 };
 
-struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpRequestAdaptor> {
+struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpRequestAdaptor>
+{
     /**
      * @brief Range adaptor closure ctor — stashes the request to encode, the HPACK table to
      * encode headers against, and the frame-chunking config.
@@ -554,9 +611,18 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
      * to.
      * @param flags base flags applied to the DATA frame(s) when the body's non-empty.
      */
-    explicit constexpr WriteHttpRequestAdaptor(HttpRequest &req, codec::hpack::HPackTable &table,
-                                               std::size_t max_frame_size, std::uint8_t flags = 0)
-        : m_req{req}, m_table{table}, m_max_frame_size{max_frame_size}, m_flags{flags} {}
+    explicit constexpr WriteHttpRequestAdaptor(
+        HttpRequest& req,
+        codec::hpack::HPackTable& table,
+        std::size_t max_frame_size,
+        std::uint8_t flags = 0
+    ) :
+        m_req{req},
+        m_table{table},
+        m_max_frame_size{max_frame_size},
+        m_flags{flags}
+    {
+    }
 
     /**
      * @brief Encodes the full request onto `output` — HPACK-encodes the headers into one or
@@ -573,11 +639,12 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
      * @tparam R a viewable range this appends the encoded request bytes onto.
      * @param output the range to append the encoded request onto — mutated in place.
      */
-    template <std::ranges::viewable_range R>
-    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — output is mutated via append_range()
-    // across multiple flush-callback invocations; forwarding it would use-after-move after the
-    // first call
-    auto operator()(R &&output) const {
+    template<std::ranges::viewable_range R>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — output is mutated via
+    // append_range() across multiple flush-callback invocations; forwarding it would
+    // use-after-move after the first call
+    auto operator()(R&& output) const
+    {
         const auto STREAM_ID = m_req.get().get_stream_id();
         auto header_entries = m_req.get().get_headers();
 
@@ -593,7 +660,8 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
             [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
                 const auto TYPE = first_frame ? shared_layer::FrameType::HEADERS
                                               : shared_layer::FrameType::CONTINUATION;
-                // END_HEADERS only lands on the final chunk — the encoder tells us via `reason`.
+                // END_HEADERS only lands on the final chunk — the encoder tells us via
+                // `reason`.
                 const std::uint8_t FLAGS =
                     (reason == codec::hpack::HpackFlushReason::END)
                         ? static_cast<std::uint8_t>(shared_layer::Flags::END_HEADERS)
@@ -604,11 +672,14 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
                 // after the first a use-after-move.
                 output.append_range(
                     std::views::empty<std::byte> |
-                    FrameHeaderClosureAdaptor{static_cast<std::uint32_t>(data.size()), TYPE, FLAGS,
-                                              STREAM_ID});
+                    FrameHeaderClosureAdaptor{
+                        static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID
+                    }
+                );
                 output.append_range(data);
                 first_frame = false;
-            }}();
+            }
+        }();
 
         // No body — still gotta close the stream, so emit a single empty DATA frame carrying
         // END_STREAM rather than skipping DATA entirely.
@@ -621,14 +692,19 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
                              .add_stream_id(STREAM_ID)
                              .build();
 
-            output.append_range(std::views::empty<std::byte> |
-                                WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size});
+            output.append_range(
+                std::views::empty<std::byte> |
+                WriteFrameBuilderAdaptor{std::move(frame), m_max_frame_size}
+            );
         } else {
             // Real body — let WriteFrameClosureAdapter handle the chunking and END_STREAM
             // placement on the last DATA frame.
-            output.append_range(m_req.get().get_body() |
-                                WriteFrameClosureAdapter{STREAM_ID, shared_layer::FrameType::DATA,
-                                                         m_flags, m_max_frame_size});
+            output.append_range(
+                m_req.get().get_body() |
+                WriteFrameClosureAdapter{
+                    STREAM_ID, shared_layer::FrameType::DATA, m_flags, m_max_frame_size
+                }
+            );
         }
     }
 
@@ -675,27 +751,30 @@ suite<"HttpRequest"> http_request_suite = [] {
     };
     "an empty header name throws invalid_argument"_test = [] {
         HttpRequest req{1};
-        expect(throws<std::invalid_argument>([&] { req.set_header(std::string_view{}, "v"); }));
+        expect(throws<std::invalid_argument>([&] {
+            req.set_header(std::string_view{}, "v");
+        }));
     };
     "Token::NONE throws invalid_argument"_test = [] {
         HttpRequest req{1};
-        expect(throws<std::invalid_argument>(
-            [&] { req.set_header(interfaces::io::types::Token::NONE, "v"); }));
+        expect(throws<std::invalid_argument>([&] {
+            req.set_header(interfaces::io::types::Token::NONE, "v");
+        }));
     };
     "COOKIE set via the direct Token overload always overwrites (no name to tokenize with)"_test =
         [] {
-        HttpRequest req{1};
-        req.set_header(interfaces::io::types::Token::COOKIE, "a=1");
-        req.set_header(interfaces::io::types::Token::COOKIE, "b=2");
-        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
-    };
+            HttpRequest req{1};
+            req.set_header(interfaces::io::types::Token::COOKIE, "a=1");
+            req.set_header(interfaces::io::types::Token::COOKIE, "b=2");
+            expect(req.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
+        };
     "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test =
         [] {
-        HttpRequest req{1};
-        req.set_header(std::string_view{"cookie"}, "a=1");
-        req.set_header(std::string_view{"cookie"}, "b=2");
-        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
-    };
+            HttpRequest req{1};
+            req.set_header(std::string_view{"cookie"}, "a=1");
+            req.set_header(std::string_view{"cookie"}, "b=2");
+            expect(req.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
+        };
     "remove_header clears a known token slot"_test = [] {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
@@ -722,7 +801,7 @@ suite<"HttpRequest"> http_request_suite = [] {
     "get_size accounts for at least the mandatory empty-body DATA frame"_test = [] {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
-        expect(req.get_size(16384) > 0);
+        expect(req.get_size(16'384) > 0);
     };
     "get_headers collects both static and dynamic entries"_test = [] {
         HttpRequest req{1};

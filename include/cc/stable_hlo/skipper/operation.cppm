@@ -1,0 +1,269 @@
+module;
+
+export module cc_stable_hlo:operation;
+
+import std;
+import cc_abi_builder_generator;
+import cc_abi_sonic_intern;
+import :dtype;
+import :shape;
+import :error;
+import :parameter_view;
+import :schema_attribute_view;
+
+export namespace cc::stable_hlo {
+
+// One built op call — opcode, bound operands, bound attrs, bound results — OR an unbound schema
+// entry describing an op KIND (placeholder operands/results, real attr metadata, no value).
+// Structurally the same shape as a ice::builder::generator::Definition (name/inputs/outputs/
+// attrs) either way, so this implements that interface directly rather than being two separate
+// StableHLO-only types (a bound Operation plus a schema-side Definition) with no relation to it. The
+// compiled-in op schema table (schema/table.cppm) is a vector<Operation> of never-finalized-with-real-
+// operands entries, built the same append_parameter/append_attr/append_result way a normal
+// caller builds a real Operation — see build.cc — just with placeholder Shapes and no bound attr
+// values, and never appended to a Function or rendered (check() only ever runs from inside
+// render(), see there).
+class Operation : public ice::builder::generator::Definition
+{
+public:
+    // `summary` defaults empty — every bound op has one (Operation::get_summary() always returned
+    // empty before this class also covered the schema-entry case); only schema entries built by
+    // build.cc's generated table supply a real one.
+    Operation(std::string opcode, std::string category, std::string summary = {}) :
+        m_opcode{std::move(opcode)},
+        m_category{std::move(category)},
+        m_summary{std::move(summary)}
+    {
+    }
+
+    void append_parameter(const Parameter& operand)
+    {
+        m_parameters.push_back(operand);
+    }
+
+    // Takes an already-built Attribute (name/cpp_type/optional/list, plus whatever value the
+    // caller attached via Attribute::append_value) and copies it in — same construct-then-
+    // append concept as append_parameter/append_result: the caller builds the Attribute, this
+    // only appends it, so const& (copies in).
+    void append_attr(const Attribute& attribute)
+    {
+        m_attrs.push_back(attribute);
+    }
+
+    // Appends one already-computed result Parameter — shape inference (what a result's shape/
+    // id should be) is the caller's job, done before this Operation is handed to Function::add_op.
+    void append_result(const Parameter& result)
+    {
+        m_results.push_back(result);
+    }
+
+    // --- ice::builder::generator::Definition ---
+    ice::sonic::StringRuntime get_name() const override
+    {
+        return ice::sonic::StringRuntime{m_opcode};
+    }
+
+    ice::sonic::StringRuntime get_summary() const override
+    {
+        return ice::sonic::StringRuntime{m_summary};
+    }
+
+    ice::sonic::StringRuntime get_description() const override
+    {
+        return ice::sonic::StringRuntime{"category:" + m_category};
+    }
+
+    std::size_t get_input_count() const override
+    {
+        return m_parameters.size();
+    }
+
+    std::unique_ptr<ice::builder::generator::Parameter> get_input(std::size_t index) const override
+    {
+        if (index >= m_parameters.size()) {
+            return nullptr;
+        }
+        return std::make_unique<Parameter>(
+            m_parameters[index].with_context(static_cast<int>(index), true)
+        );
+    }
+
+    std::size_t get_output_count() const override
+    {
+        return m_results.size();
+    }
+
+    std::unique_ptr<ice::builder::generator::Parameter> get_output(std::size_t index) const override
+    {
+        if (index >= m_results.size()) {
+            return nullptr;
+        }
+        return std::make_unique<Parameter>(
+            m_results[index].with_context(static_cast<int>(index), false)
+        );
+    }
+
+    std::size_t get_attr_count() const override
+    {
+        return m_attrs.size();
+    }
+
+    std::unique_ptr<ice::builder::generator::Attribute> get_attr(std::size_t index) const override
+    {
+        if (index >= m_attrs.size()) {
+            return nullptr;
+        }
+        return std::make_unique<Attribute>(m_attrs[index]);
+    }
+
+    // --- StableHLO-specific ---
+
+    const Parameter& get_operand(std::size_t index) const
+    {
+        return m_parameters.at(index);
+    }
+
+    const Parameter& get_result(std::size_t index) const
+    {
+        return m_results.at(index);
+    }
+
+    // A view over m_results — safe to hand out even across further add_op() calls on the
+    // owning Function: m_results is this Operation's own independently-heap-allocated vector, so
+    // moving the Operation itself (e.g. Function::m_ops reallocating) relocates the 3 pointer/size/
+    // capacity words of m_results via its move constructor, not the Parameter array m_results
+    // itself owns — the data this span points at doesn't move.
+    [[nodiscard]] std::span<const Parameter> get_results() const
+    {
+        return m_results;
+    }
+
+    [[nodiscard]] std::expected<ice::sonic::StringRuntime, Error> render(int indent_level) const
+    {
+        auto checked = check();
+        if (!checked) {
+            return std::unexpected{checked.error()};
+        }
+
+        std::string result_ids;
+        for (std::size_t i = 0; i < m_results.size(); ++i) {
+            if (i > 0) {
+                result_ids += ", ";
+            }
+            result_ids += m_results[i].get_id();
+        }
+
+        std::string prefix(static_cast<std::size_t>(indent_level) * 4, ' ');
+        ice::sonic::StringHive hive;
+        hive.append(ice::sonic::StringRuntime{prefix});
+
+        if (m_category == "unary") {
+            hive.append(ice::sonic::StringRuntime{std::format(
+                "{} = stablehlo.{} {} : {}", result_ids, m_opcode, m_parameters[0].get_id(),
+                m_parameters[0].get_shape()
+            )});
+        } else if (m_category == "binary") {
+            hive.append(ice::sonic::StringRuntime{std::format(
+                "{} = stablehlo.{} {}, {} : {}", result_ids, m_opcode, m_parameters[0].get_id(),
+                m_parameters[1].get_id(), m_parameters[0].get_shape()
+            )});
+        } else if (m_category == "comparison") {
+            std::string suffix =
+                m_attrs.empty() || !m_attrs[0].get_value() ? std::string{} : *m_attrs[0].get_value();
+            hive.append(ice::sonic::StringRuntime{std::format(
+                "{} = stablehlo.compare {}, {}, {} : ({}, {}) -> {}", result_ids,
+                m_parameters[0].get_id(), m_parameters[1].get_id(), suffix,
+                m_parameters[0].get_shape(), m_parameters[1].get_shape(), m_results[0].get_shape()
+            )});
+        } else {
+            std::string operand_ids;
+            std::string operand_types;
+            for (std::size_t i = 0; i < m_parameters.size(); ++i) {
+                if (i > 0) {
+                    operand_ids += ", ";
+                    operand_types += ", ";
+                }
+                operand_ids += m_parameters[i].get_id();
+                operand_types += std::format("{}", m_parameters[i].get_shape());
+            }
+            std::string attr_text;
+            for (std::size_t i = 0; i < m_attrs.size(); ++i) {
+                if (i > 0) {
+                    attr_text += ", ";
+                }
+                attr_text += std::format(
+                    "{} = {}", m_attrs[i].get_name().to_std_string(),
+                    m_attrs[i].get_value().value_or(std::string{})
+                );
+            }
+            std::string attr_block =
+                attr_text.empty() ? std::string{} : std::format(" {{{}}}", attr_text);
+            std::string result_types;
+            for (std::size_t i = 0; i < m_results.size(); ++i) {
+                if (i > 0) {
+                    result_types += ", ";
+                }
+                result_types += std::format("{}", m_results[i].get_shape());
+            }
+            std::string result_type_text =
+                m_results.size() == 1 ? result_types : std::format("({})", result_types);
+            hive.append(ice::sonic::StringRuntime{std::format(
+                "{} = \"stablehlo.{}\"({}){} : ({}) -> {}", result_ids, m_opcode, operand_ids,
+                attr_block, operand_types, result_type_text
+            )});
+        }
+
+        hive.append_newline();
+        return hive.get();
+    }
+
+private:
+    // Pure completeness check — no computation, no mutation: does this Operation have the right number
+    // of parameters/attrs/results for its own category? All the actual shape inference (a
+    // result's shape/id, operand-shape compatibility) is the caller's job, done via
+    // append_parameter()/append_attr()/append_result() before this Operation is ever appended anywhere
+    // (see Function::add_op). Private — only render() calls it, at render time, not append time.
+    [[nodiscard]] std::expected<void, Error> check() const
+    {
+        if (m_category == "unary" && m_parameters.size() != 1) {
+            return std::unexpected{Error{std::format(
+                "{}: unary op requires 1 operand, got {}", m_opcode, m_parameters.size()
+            )}};
+        }
+        if (m_category == "binary" && m_parameters.size() != 2) {
+            return std::unexpected{Error{std::format(
+                "{}: binary op requires 2 operands, got {}", m_opcode, m_parameters.size()
+            )}};
+        }
+        if (m_category == "comparison") {
+            if (m_parameters.size() != 2) {
+                return std::unexpected{Error{std::format(
+                    "compare: requires 2 operands, got {}", m_parameters.size()
+                )}};
+            }
+            bool has_direction = std::ranges::any_of(m_attrs, [](const Attribute& attr) {
+
+                return attr.get_name().to_std_string() == "comparison_direction";
+
+            });
+            if (!has_direction) {
+                return std::unexpected{Error{"compare: comparison_direction attr required"}};
+            }
+        }
+        if (m_results.empty()) {
+            return std::unexpected{
+                Error{std::format("{}: at least one result is required", m_opcode)}
+            };
+        }
+        return {};
+    }
+
+    std::string m_opcode;
+    std::string m_category;
+    std::string m_summary;
+    std::vector<Parameter> m_parameters;
+    std::vector<Attribute> m_attrs;
+    std::vector<Parameter> m_results;
+};
+
+} // namespace cc::stable_hlo

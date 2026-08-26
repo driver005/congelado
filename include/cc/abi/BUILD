@@ -5,7 +5,7 @@ congelado_module_library(
     primary_interface = "abi.cppm",
     deps = [
         "//include/cc/abi/builder:cc_abi_builder",
-        "//include/cc/abi/runtime:cc_abi_runtime",
+        "//include/cc/abi/sonic:cc_abi_sonic",
         "//include/cc/abi/value:cc_abi_value",
     ],
     visibility = ["//visibility:public"],

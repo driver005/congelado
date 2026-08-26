@@ -16,13 +16,16 @@ namespace core::logger {
 
 // Never throws. Falls back to stderr before any logger is registered.
 // After registration, fans out to all registered loggers.
-inline void write_to_plugin(interfaces::LogLevel level, std::string_view message) noexcept {
+inline void write_to_plugin(interfaces::LogLevel level, std::string_view message) noexcept
+{
     try {
         // No active registry, or nothing registered in it yet — fall back to stderr so
-        // the message isn't just lost, then bail early since there's no fan-out target to reach.
-        auto *active_registry = LoggerRegistry::get_active();
+        // the message isn't just lost, then bail early since there's no fan-out target to
+        // reach.
+        auto* active_registry = LoggerRegistry::get_active();
         static const std::vector<std::shared_ptr<interfaces::ILogger>> EMPTY_LOGGERS;
-        const auto &all_loggers = active_registry != nullptr ? active_registry->get_loggers() : EMPTY_LOGGERS;
+        const auto& all_loggers =
+            active_registry != nullptr ? active_registry->get_loggers() : EMPTY_LOGGERS;
         if (all_loggers.empty()) {
             std::println(stderr, "[pre-logger] {}", message);
             if (level == interfaces::LogLevel::FATAL) {
@@ -32,7 +35,7 @@ inline void write_to_plugin(interfaces::LogLevel level, std::string_view message
         }
         // Fan the message out to every registered logger, lowkey a broadcast — Error
         // and Fatal both route through the error() path, everything else through write().
-        for (const auto &logger : all_loggers) {
+        for (const auto& logger: all_loggers) {
             if (level == interfaces::LogLevel::ERROR || level == interfaces::LogLevel::FATAL) {
                 logger->error(message);
             } else {
@@ -55,9 +58,10 @@ inline void write_to_plugin(interfaces::LogLevel level, std::string_view message
 
 export namespace core::logger {
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void log(interfaces::LogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void log(interfaces::LogLevel level, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
         write_to_plugin(level, std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
@@ -65,61 +69,73 @@ void log(interfaces::LogLevel level, std::format_string<Args...> fmt, Args &&...
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void info(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void info(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::INFO, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::INFO, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void debug(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void debug(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::DEBUG, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::DEBUG, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void important(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void important(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::IMPORTANT, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::IMPORTANT, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void warning(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void warning(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::WARNING, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::WARNING, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void error(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void error(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::ERROR, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::ERROR, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void fatal(std::string_view name, std::format_string<Args...> fmt, Args &&...args) noexcept {
+void fatal(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     try {
-        log(interfaces::LogLevel::FATAL, "|{}| {}", name, std::format(fmt, std::forward<Args>(args)...));
+        log(interfaces::LogLevel::FATAL, "|{}| {}", name,
+            std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
     }
@@ -129,39 +145,45 @@ void fatal(std::string_view name, std::format_string<Args...> fmt, Args &&...arg
 
 export namespace core::logger::unnamed {
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void info(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void info(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::INFO, fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void debug(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void debug(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::DEBUG, fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void important(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void important(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::IMPORTANT, fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void warning(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void warning(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::WARNING, fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void error(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void error(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::ERROR, fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args>
+template<typename... Args>
     requires(std::formattable<Args, char> && ...)
-void fatal(std::format_string<Args...> fmt, Args &&...args) noexcept {
+void fatal(std::format_string<Args...> fmt, Args&&... args) noexcept
+{
     log(interfaces::LogLevel::FATAL, fmt, std::forward<Args>(args)...);
 }
 
@@ -175,15 +197,23 @@ using namespace core::logger;
 namespace core::logger::tests {
 using namespace boost::ut;
 
-class LoggerFacadeFakeLogger : public interfaces::ILogger {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "fake"; }
-    void write(interfaces::LogLevel level, std::string_view message) noexcept override {
+class LoggerFacadeFakeLogger : public interfaces::ILogger
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "fake";
+    }
+
+    void write(interfaces::LogLevel level, std::string_view message) noexcept override
+    {
         m_last_level = level;
         m_last_message = std::string{message};
         ++m_write_count;
     }
-    void error(std::string_view message) noexcept override {
+
+    void error(std::string_view message) noexcept override
+    {
         m_last_message = std::string{message};
         ++m_error_count;
     }
@@ -196,7 +226,7 @@ class LoggerFacadeFakeLogger : public interfaces::ILogger {
 
 suite<"logger facade"> facade_suite = [] {
     "info routes through write() with a |name| prefix"_test = [] {
-        auto *previous = LoggerRegistry::get_active();
+        auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();
         registry.add_logger(logger);
@@ -213,7 +243,7 @@ suite<"logger facade"> facade_suite = [] {
     };
 
     "error routes through error(), not write()"_test = [] {
-        auto *previous = LoggerRegistry::get_active();
+        auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();
         registry.add_logger(logger);
@@ -229,7 +259,7 @@ suite<"logger facade"> facade_suite = [] {
     };
 
     "every registered logger receives the message, fan-out style"_test = [] {
-        auto *previous = LoggerRegistry::get_active();
+        auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto first = std::make_shared<LoggerFacadeFakeLogger>();
         auto second = std::make_shared<LoggerFacadeFakeLogger>();
@@ -246,16 +276,18 @@ suite<"logger facade"> facade_suite = [] {
     };
 
     "logging with no active registry falls back to stderr without throwing"_test = [] {
-        auto *previous = LoggerRegistry::get_active();
+        auto* previous = LoggerRegistry::get_active();
         LoggerRegistry::set_active(nullptr);
 
-        expect(nothrow([] { core::logger::debug("engine", "no sink around"); }));
+        expect(nothrow([] {
+            core::logger::debug("engine", "no sink around");
+        }));
 
         LoggerRegistry::set_active(previous);
     };
 
     "unnamed::info skips the |name| prefix"_test = [] {
-        auto *previous = LoggerRegistry::get_active();
+        auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();
         registry.add_logger(logger);

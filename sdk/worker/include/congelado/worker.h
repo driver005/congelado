@@ -24,12 +24,13 @@
    - Cannot coexist with CONGELADO_PLUGIN in the same TU.
 */
 
-#if defined(CONGELADO_PLUGIN_USED)
-#error "CONGELADO_TASK cannot be used in the same translation unit as CONGELADO_PLUGIN; move task definitions to a separate file."
-#endif
+#    if defined(CONGELADO_PLUGIN_USED)
+#        error                                                                                     \
+            "CONGELADO_TASK cannot be used in the same translation unit as CONGELADO_PLUGIN; move task definitions to a separate file."
+#    endif
 
-#ifndef CONGELADO_TASK_USED
-#define CONGELADO_TASK_USED
+#    ifndef CONGELADO_TASK_USED
+#        define CONGELADO_TASK_USED
 /**
  * @def CONGELADO_TASK(T)
  * @brief Drops a lazily-constructed, TU-local `static T *s_inst` (inside an anonymous
@@ -54,39 +55,50 @@
  * `CongeladoConfigView execute_worker(const CongeladoConfigView *input)`, per the requirements
  * documented above.
  */
-#define CONGELADO_TASK(T)                                                                          \
-    namespace {                                                                                    \
-    static T *s_inst = nullptr;                                                                    \
-    }                                                                                             \
-    extern "C" const char *congelado_type() noexcept {                                            \
-        return "worker";                                                                           \
-    }                                                                                             \
-    extern "C" const char *congelado_worker_type() noexcept {                                     \
-        if (s_inst == nullptr) s_inst = new T{};                                                  \
-        return s_inst->get_worker_type().data();                                                  \
-    }                                                                                             \
-    extern "C" CongeladoConfigView congelado_worker_execute(                                      \
-        const CongeladoConfigView *input) noexcept {                                              \
-        if (s_inst == nullptr) return {};                                                         \
-        return s_inst->execute_worker(input);                                                     \
-    }                                                                                             \
-    extern "C" int congelado_init(const CongeladoHostCallbacks *host,                             \
-                                   const CongeladoConfigView *cfg) noexcept {                     \
-        (void)host; (void)cfg;                                                                     \
-        try {                                                                                      \
-            if (s_inst == nullptr) s_inst = new T{};                                              \
-        } catch (...) {                                                                            \
-            return -1;                                                                             \
-        }                                                                                          \
-        return 0;                                                                                  \
-    }                                                                                             \
-    extern "C" void congelado_on_unload() noexcept {                                              \
-        delete s_inst;                                                                            \
-        s_inst = nullptr;                                                                         \
-    }
-#else
-#error "Only one CONGELADO_TASK macro invocation is allowed per translation unit."
-#endif // CONGELADO_TASK_USED
+#        define CONGELADO_TASK(T)                                                                  \
+            namespace {                                                                            \
+            static T* s_inst = nullptr;                                                            \
+            }                                                                                      \
+            extern "C" const char* congelado_type() noexcept                                       \
+            {                                                                                      \
+                return "worker";                                                                   \
+            }                                                                                      \
+            extern "C" const char* congelado_worker_type() noexcept                                \
+            {                                                                                      \
+                if (s_inst == nullptr)                                                             \
+                    s_inst = new T{};                                                              \
+                return s_inst->get_worker_type().data();                                           \
+            }                                                                                      \
+            extern "C" CongeladoConfigView congelado_worker_execute(                               \
+                const CongeladoConfigView* input                                                   \
+            ) noexcept                                                                             \
+            {                                                                                      \
+                if (s_inst == nullptr)                                                             \
+                    return {};                                                                     \
+                return s_inst->execute_worker(input);                                              \
+            }                                                                                      \
+            extern "C" int congelado_init(                                                         \
+                const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg                 \
+            ) noexcept                                                                             \
+            {                                                                                      \
+                (void)host;                                                                        \
+                (void)cfg;                                                                         \
+                try {                                                                              \
+                    if (s_inst == nullptr)                                                         \
+                        s_inst = new T{};                                                          \
+                } catch (...) {                                                                    \
+                    return -1;                                                                     \
+                }                                                                                  \
+                return 0;                                                                          \
+            }                                                                                      \
+            extern "C" void congelado_on_unload() noexcept                                         \
+            {                                                                                      \
+                delete s_inst;                                                                     \
+                s_inst = nullptr;                                                                  \
+            }
+#    else
+#        error "Only one CONGELADO_TASK macro invocation is allowed per translation unit."
+#    endif // CONGELADO_TASK_USED
 
 #endif // __cplusplus
 // NOLINTEND

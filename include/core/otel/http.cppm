@@ -12,7 +12,8 @@ namespace core::otel::detail {
 /**
  * @brief Encodes one nibble (0-15) as its lowercase hex digit character.
  */
-inline char to_hex_digit(std::uint8_t nibble) noexcept {
+inline char to_hex_digit(std::uint8_t nibble) noexcept
+{
     return nibble < 10 ? static_cast<char>('0' + nibble) : static_cast<char>('a' + (nibble - 10));
 }
 
@@ -20,11 +21,12 @@ inline char to_hex_digit(std::uint8_t nibble) noexcept {
  * @brief Hex-encodes a fixed-size byte array, lowercase, no separators — the exact shape a W3C
  * `traceparent` field expects for its trace-id/span-id/flags segments.
  */
-template <std::size_t N>
-std::string to_hex(const std::array<std::byte, N> &bytes) {
+template<std::size_t N>
+std::string to_hex(const std::array<std::byte, N>& bytes)
+{
     std::string out;
     out.reserve(N * 2);
-    for (auto byte : bytes) {
+    for (auto byte: bytes) {
         auto value = std::to_integer<std::uint8_t>(byte);
         out.push_back(to_hex_digit(static_cast<std::uint8_t>(value >> 4)));
         out.push_back(to_hex_digit(static_cast<std::uint8_t>(value & 0x0FU)));
@@ -36,7 +38,8 @@ std::string to_hex(const std::array<std::byte, N> &bytes) {
  * @brief Decodes one hex digit character, case-insensitive.
  * @return the digit's value (0-15), or `std::nullopt` if `c` isn't a valid hex digit.
  */
-inline std::optional<std::uint8_t> from_hex_digit(char c) noexcept {
+inline std::optional<std::uint8_t> from_hex_digit(char c) noexcept
+{
     if (c >= '0' && c <= '9') {
         return static_cast<std::uint8_t>(c - '0');
     }
@@ -53,8 +56,9 @@ inline std::optional<std::uint8_t> from_hex_digit(char c) noexcept {
  * @brief Decodes a hex string into a fixed-size byte array.
  * @return the decoded bytes, or `std::nullopt` if `hex` isn't exactly `N * 2` valid hex digits.
  */
-template <std::size_t N>
-std::optional<std::array<std::byte, N>> from_hex(std::string_view hex) {
+template<std::size_t N>
+std::optional<std::array<std::byte, N>> from_hex(std::string_view hex)
+{
     if (hex.size() != N * 2) {
         return std::nullopt;
     }
@@ -80,9 +84,12 @@ export namespace core::otel {
  * @param ctx the context to format.
  * @return the formatted header value.
  */
-inline std::string format_traceparent(const interfaces::SpanContext &ctx) {
-    return std::format("00-{}-{}-{:02x}", detail::to_hex(ctx.trace_id), detail::to_hex(ctx.span_id),
-                       ctx.sampled ? 1 : 0);
+inline std::string format_traceparent(const interfaces::SpanContext& ctx)
+{
+    return std::format(
+        "00-{}-{}-{:02x}", detail::to_hex(ctx.trace_id), detail::to_hex(ctx.span_id),
+        ctx.sampled ? 1 : 0
+    );
 }
 
 /**
@@ -93,7 +100,8 @@ inline std::string format_traceparent(const interfaces::SpanContext &ctx) {
  * @param header the raw header value (e.g. from `IRequest::find_header("traceparent")`).
  * @return the parsed context, or `std::nullopt` if `header` isn't a valid `traceparent` value.
  */
-inline std::optional<interfaces::SpanContext> parse_traceparent(std::string_view header) {
+inline std::optional<interfaces::SpanContext> parse_traceparent(std::string_view header)
+{
     // version(2) '-' trace-id(32) '-' span-id(16) '-' flags(2) == 55 chars for version "00".
     constexpr std::size_t EXPECTED_LEN = 55;
     if (header.size() < EXPECTED_LEN || header.substr(0, 2) != "00" || header[2] != '-' ||
@@ -176,20 +184,17 @@ suite<"otel::traceparent"> traceparent_suite = [] {
     };
 
     "parse rejects an unsupported version prefix"_test = [] {
-        expect(not parse_traceparent(
-                       "01-00000000000000000000000000000000-0000000000000000-00")
+        expect(not parse_traceparent("01-00000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };
 
     "parse rejects a header with misplaced separators"_test = [] {
-        expect(not parse_traceparent(
-                       "00x00000000000000000000000000000000-0000000000000000-00")
+        expect(not parse_traceparent("00x00000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };
 
     "parse rejects invalid hex digits"_test = [] {
-        expect(not parse_traceparent(
-                       "00-zz000000000000000000000000000000-0000000000000000-00")
+        expect(not parse_traceparent("00-zz000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };
 };

@@ -15,9 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <memory>
 #include "tensorflow/core/framework/variant_tensor_data.h"
 #include "tensorflow/core/platform/logging.h"
+
+#include <memory>
 
 export module cc_tmp:variant_shared_ptr_variant;
 
@@ -26,55 +27,69 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-template <typename T>
-struct SharedPtrVariant {
-  std::shared_ptr<T> shared_ptr;
+        template<typename T>
+        struct SharedPtrVariant
+        {
+            std::shared_ptr<T> shared_ptr;
 
-  SharedPtrVariant() : shared_ptr() {}
+            SharedPtrVariant() :
+                shared_ptr()
+            {
+            }
 
-  explicit SharedPtrVariant(std::shared_ptr<T>&& ptr)
-      : shared_ptr(std::forward<decltype(ptr)>(ptr)) {
-    VLOG(3) << "Creating shared_ptr of " << shared_ptr.get()
-            << " count is: " << shared_ptr.use_count();
-  }
+            explicit SharedPtrVariant(std::shared_ptr<T>&& ptr) :
+                shared_ptr(std::forward<decltype(ptr)>(ptr))
+            {
+                VLOG(3) << "Creating shared_ptr of " << shared_ptr.get()
+                        << " count is: " << shared_ptr.use_count();
+            }
 
-  SharedPtrVariant(SharedPtrVariant&& rhs)
-      : shared_ptr(std::move(rhs.shared_ptr)) {
-    VLOG(3) << "Moving SharedPtrVariant of " << shared_ptr.get()
-            << " count is: " << shared_ptr.use_count();
-  }
+            SharedPtrVariant(SharedPtrVariant&& rhs) :
+                shared_ptr(std::move(rhs.shared_ptr))
+            {
+                VLOG(3) << "Moving SharedPtrVariant of " << shared_ptr.get()
+                        << " count is: " << shared_ptr.use_count();
+            }
 
-  SharedPtrVariant& operator=(const SharedPtrVariant& rhs) = delete;
+            SharedPtrVariant& operator=(const SharedPtrVariant& rhs) = delete;
 
-  SharedPtrVariant& operator=(SharedPtrVariant&& rhs) {
-    if (&rhs == this) return *this;
-    std::swap(shared_ptr, rhs.shared_ptr);
-    VLOG(3) << "Move-assign of SharedPtrVariant of " << shared_ptr.get()
-            << " count is: " << shared_ptr.use_count();
-    return *this;
-  }
+            SharedPtrVariant& operator=(SharedPtrVariant&& rhs)
+            {
+                if (&rhs == this) {
+                    return *this;
+                }
+                std::swap(shared_ptr, rhs.shared_ptr);
+                VLOG(3) << "Move-assign of SharedPtrVariant of " << shared_ptr.get()
+                        << " count is: " << shared_ptr.use_count();
+                return *this;
+            }
 
-  SharedPtrVariant(const SharedPtrVariant& rhs) : shared_ptr(rhs.shared_ptr) {
-    VLOG(3) << "Copying SharedPtrVariant of " << shared_ptr.get()
-            << " count is: " << shared_ptr.use_count();
-  }
+            SharedPtrVariant(const SharedPtrVariant& rhs) :
+                shared_ptr(rhs.shared_ptr)
+            {
+                VLOG(3) << "Copying SharedPtrVariant of " << shared_ptr.get()
+                        << " count is: " << shared_ptr.use_count();
+            }
 
-  ~SharedPtrVariant() {
-    VLOG(3) << "Destroying SharedPtrVariant of " << shared_ptr.get()
-            << " count is: " << shared_ptr.use_count();
-  }
+            ~SharedPtrVariant()
+            {
+                VLOG(3) << "Destroying SharedPtrVariant of " << shared_ptr.get()
+                        << " count is: " << shared_ptr.use_count();
+            }
 
-  void Encode(VariantTensorData*) const {
-    // Not supported.
-  }
+            void Encode(VariantTensorData*) const
+            {
+                // Not supported.
+            }
 
-  bool Decode(const VariantTensorData&) {
-    return false;  // Not supported.
-  }
-};
+            bool Decode(const VariantTensorData&)
+            {
+                return false; // Not supported.
+            }
+        };
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

@@ -15,9 +15,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "Eigen/Core" // from @eigen_archive
 #include "tensorflow/core/framework/numeric_types.h"
 #include "tensorflow/core/platform/types.h"
-#include "Eigen/Core"  // from @eigen_archive
 
 export module cc_tmp:types_bfloat16;
 
@@ -26,77 +26,79 @@ import cc_abi;
 
 export {
 
-// Compact 16-bit encoding of floating point numbers. This representation uses
-// 1 bit for the sign, 8 bits for the exponent and 7 bits for the mantissa.  It
-// is assumed that floats are in IEEE 754 format so the representation is just
-// bits 16-31 of a single precision float.
-//
-// NOTE: The IEEE floating point standard defines a float16 format that
-// is different than this format (it has fewer bits of exponent and more
-// bits of mantissa).  We don't use that format here because conversion
-// to/from 32-bit floats is more complex for that format, and the
-// conversion for this format is very simple.
-//
-// Because of the existing IEEE float16 type, we do not name our representation
-// "float16" but just use "uint16".
-//
-// <-----our 16bits float------->
-// s e e e e e e e e f f f f f f f f f f f f f f f f f f f f f f f
-// <------------------------------float-------------------------->
-// 3 3             2 2             1 1                           0
-// 1 0             3 2             5 4                           0
-//
-//
-// This type only supports conversion back and forth with float.
-//
-// This file must be compilable by nvcc.
-//
-// The type is defined in framework/numeric_types.h.
+    // Compact 16-bit encoding of floating point numbers. This representation uses
+    // 1 bit for the sign, 8 bits for the exponent and 7 bits for the mantissa.  It
+    // is assumed that floats are in IEEE 754 format so the representation is just
+    // bits 16-31 of a single precision float.
+    //
+    // NOTE: The IEEE floating point standard defines a float16 format that
+    // is different than this format (it has fewer bits of exponent and more
+    // bits of mantissa).  We don't use that format here because conversion
+    // to/from 32-bit floats is more complex for that format, and the
+    // conversion for this format is very simple.
+    //
+    // Because of the existing IEEE float16 type, we do not name our representation
+    // "float16" but just use "uint16".
+    //
+    // <-----our 16bits float------->
+    // s e e e e e e e e f f f f f f f f f f f f f f f f f f f f f f f
+    // <------------------------------float-------------------------->
+    // 3 3             2 2             1 1                           0
+    // 1 0             3 2             5 4                           0
+    //
+    //
+    // This type only supports conversion back and forth with float.
+    //
+    // This file must be compilable by nvcc.
+    //
+    // The type is defined in framework/numeric_types.h.
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Convert from float to bfloat16 with rounding-to-nearest-even.
-void RoundFloatToBFloat16(const float* src, bfloat16* dst, int64_t size);
-// Convert from float to bfloat16 with truncation. Notice this conversion is
-// lossy since it truncates the float to 7 mantissa bits without rounding.
-void FloatToBFloat16(const float* src, bfloat16* dst, int64_t size);
-// Convert from bfloat16 to float. This conversion is lossless.
-void BFloat16ToFloat(const bfloat16* src, float* dst, int64_t size);
+        // Convert from float to bfloat16 with rounding-to-nearest-even.
+        void RoundFloatToBFloat16(const float* src, bfloat16* dst, int64_t size);
+        // Convert from float to bfloat16 with truncation. Notice this conversion is
+        // lossy since it truncates the float to 7 mantissa bits without rounding.
+        void FloatToBFloat16(const float* src, bfloat16* dst, int64_t size);
+        // Convert from bfloat16 to float. This conversion is lossless.
+        void BFloat16ToFloat(const bfloat16* src, float* dst, int64_t size);
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
-// ==================================================================
-// Implementation: bfloat16.cc
-// ==================================================================
+    // ==================================================================
+    // Implementation: bfloat16.cc
+    // ==================================================================
 
-namespace tensorflow {
+    namespace tensorflow {
 
-void RoundFloatToBFloat16(const float* src, bfloat16* dst, int64_t size) {
-  Eigen::Map<const Eigen::ArrayXf> src_eigen(src, size);
-  Eigen::Map<Eigen::Array<bfloat16, Eigen::Dynamic, 1>> dst_eigen(dst, size);
-  dst_eigen = src_eigen.cast<bfloat16>();
-}
+        void RoundFloatToBFloat16(const float* src, bfloat16* dst, int64_t size)
+        {
+            Eigen::Map<const Eigen::ArrayXf> src_eigen(src, size);
+            Eigen::Map<Eigen::Array<bfloat16, Eigen::Dynamic, 1>> dst_eigen(dst, size);
+            dst_eigen = src_eigen.cast<bfloat16>();
+        }
 
-void FloatToBFloat16(const float* src, bfloat16* dst, int64_t size) {
-  for (; size != 0; src++, dst++, size--) {
+        void FloatToBFloat16(const float* src, bfloat16* dst, int64_t size)
+        {
+            for (; size != 0; src++, dst++, size--) {
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    memcpy(dst, src, sizeof(bfloat16));
+                memcpy(dst, src, sizeof(bfloat16));
 #else
-    memcpy(
-        dst,
-        reinterpret_cast<const char*>(src) + sizeof(float) - sizeof(bfloat16),
-        sizeof(bfloat16));
+                memcpy(
+                    dst, reinterpret_cast<const char*>(src) + sizeof(float) - sizeof(bfloat16),
+                    sizeof(bfloat16)
+                );
 #endif
-  }
-}
+            }
+        }
 
-void BFloat16ToFloat(const bfloat16* src, float* dst, int64_t size) {
-  Eigen::Map<const Eigen::Array<bfloat16, Eigen::Dynamic, 1>> src_eigen(src,
-                                                                        size);
-  Eigen::Map<Eigen::ArrayXf> dst_eigen(dst, size);
-  dst_eigen = src_eigen.cast<float>();
-}
+        void BFloat16ToFloat(const bfloat16* src, float* dst, int64_t size)
+        {
+            Eigen::Map<const Eigen::Array<bfloat16, Eigen::Dynamic, 1>> src_eigen(src, size);
+            Eigen::Map<Eigen::ArrayXf> dst_eigen(dst, size);
+            dst_eigen = src_eigen.cast<float>();
+        }
 
-}  // end namespace tensorflow
+    } // end namespace tensorflow
 
 } // export

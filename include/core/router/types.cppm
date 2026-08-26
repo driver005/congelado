@@ -7,21 +7,30 @@ import boost.ut;
 
 export namespace core::router {
 
-enum class EdgeKind : std::uint8_t { PATH = 0, PARAM = 1, WILD = 2 };
+enum class EdgeKind : std::uint8_t
+{
+    PATH = 0,
+    PARAM = 1,
+    WILD = 2
+};
 
-constexpr auto split_path(std::string_view path) noexcept {
-    return path | std::views::split('/') | std::views::transform([](auto &&rng) {
+constexpr auto split_path(std::string_view path) noexcept
+{
+    return path | std::views::split('/') | std::views::transform([](auto&& rng) {
                return std::string_view(std::ranges::begin(rng), std::ranges::end(rng));
            }) |
-           std::views::filter([](std::string_view segment) { return !segment.empty(); });
+           std::views::filter([](std::string_view segment) {
+               return !segment.empty();
+           });
 }
 
-constexpr std::uint32_t fnv1a(std::string_view text) noexcept {
+constexpr std::uint32_t fnv1a(std::string_view text) noexcept
+{
     // seed value the rolling hash starts from before any bytes get mixed in
-    std::uint32_t hash = 5381U;
+    std::uint32_t hash = 5'381U;
     // fold every byte of the string into the hash, one at a time — bet, this feeds the sibling
     // probe order in RouterNode::find_child(), so the mixing order here is load-bearing
-    for (char chr : text) {
+    for (char chr: text) {
         hash = (hash * 33U) ^ static_cast<std::uint8_t>(chr);
     }
     return hash;
@@ -36,7 +45,7 @@ using namespace boost::ut;
 suite<"router_utils_split_path"> split_path_suite = [] {
     "splits a multi-segment path"_test = [] {
         std::vector<std::string_view> segments;
-        for (auto segment : split_path("/users/42/posts")) {
+        for (auto segment: split_path("/users/42/posts")) {
             segments.emplace_back(segment);
         }
 
@@ -48,7 +57,7 @@ suite<"router_utils_split_path"> split_path_suite = [] {
 
     "collapses consecutive slashes, ignoring empty segments"_test = [] {
         std::vector<std::string_view> segments;
-        for (auto segment : split_path("//foo//bar/")) {
+        for (auto segment: split_path("//foo//bar/")) {
             segments.emplace_back(segment);
         }
 
@@ -59,7 +68,7 @@ suite<"router_utils_split_path"> split_path_suite = [] {
 
     "empty path yields no segments"_test = [] {
         std::vector<std::string_view> segments;
-        for (auto segment : split_path("")) {
+        for (auto segment: split_path("")) {
             segments.emplace_back(segment);
         }
 
@@ -69,13 +78,13 @@ suite<"router_utils_split_path"> split_path_suite = [] {
 
 suite<"router_utils_fnv1a"> fnv1a_suite = [] {
     "empty string hashes to the seed value"_test = [] {
-        expect(fnv1a("") == 5381U);
+        expect(fnv1a("") == 5'381U);
     };
 
     "known strings hash to their expected fnv1a-variant value"_test = [] {
-        expect(fnv1a("a") == 177604U);
-        expect(fnv1a("users") == 183638951U);
-        expect(fnv1a(":id") == 193366962U);
+        expect(fnv1a("a") == 177'604U);
+        expect(fnv1a("users") == 183'638'951U);
+        expect(fnv1a(":id") == 193'366'962U);
     };
 
     "hashing is deterministic"_test = [] {

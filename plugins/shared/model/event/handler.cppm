@@ -8,7 +8,8 @@ import boost.ut;
 
 export namespace model {
 
-enum class EventActionType : std::uint8_t {
+enum class EventActionType : std::uint8_t
+{
     START_WORKFLOW,
     COMPLETE_TASK,
     FAIL_TASK,
@@ -22,23 +23,35 @@ enum class EventActionType : std::uint8_t {
 /// flat key/value map whose expected keys depend on `type`:
 ///   START_WORKFLOW:            workflow_name, plus any variables to seed it with
 ///   COMPLETE_TASK/FAIL_TASK:   exec_id, task_ref, plus any output_data to attach
-///   TERMINATE_WORKFLOW:        exec_id, optional status (COMPLETED/FAILED/TIMED_OUT/TERMINATED)
-///   UPDATE_WORKFLOW_VARIABLES: exec_id, plus any variables to merge in
-class EventAction {
-  public:
+///   TERMINATE_WORKFLOW:        exec_id, optional status
+///   (COMPLETED/FAILED/TIMED_OUT/TERMINATED) UPDATE_WORKFLOW_VARIABLES: exec_id, plus any
+///   variables to merge in
+class EventAction
+{
+public:
     EventAction() = default;
 
-    void set_type(EventActionType type) noexcept { m_type = type; }
-    void set_payload(std::unordered_map<std::string, std::string> payload) {
+    void set_type(EventActionType type) noexcept
+    {
+        m_type = type;
+    }
+
+    void set_payload(std::unordered_map<std::string, std::string> payload)
+    {
         m_payload = std::move(payload);
     }
 
-    [[nodiscard]] EventActionType get_type() const noexcept { return m_type; }
-    [[nodiscard]] const std::unordered_map<std::string, std::string> &get_payload() const noexcept {
+    [[nodiscard]] EventActionType get_type() const noexcept
+    {
+        return m_type;
+    }
+
+    [[nodiscard]] const std::unordered_map<std::string, std::string>& get_payload() const noexcept
+    {
         return m_payload;
     }
 
-  private:
+private:
     EventActionType m_type{EventActionType::START_WORKFLOW};
     std::unordered_map<std::string, std::string> m_payload;
 };
@@ -46,27 +59,69 @@ class EventAction {
 /// @brief Subscribes to an internal event name (published via the EVENT task type's `event`
 /// input key, e.g. `"order_shipped"`) and fires one or more EventActions when it matches — the
 /// "react" counterpart to EVENT's "publish". Phase 5 only implements the in-process dispatch
-/// path (no external MQ-backed sinks like SQS/Kafka — see Orchestrator::publish_event()'s docs).
-class EventHandler {
-  public:
+/// path (no external MQ-backed sinks like SQS/Kafka — see Orchestrator::publish_event()'s
+/// docs).
+class EventHandler
+{
+public:
     EventHandler() = default;
 
-    void set_name(std::string name) { m_name = std::move(name); }
-    void set_event(std::string event) { m_event = std::move(event); }
+    void set_name(std::string name)
+    {
+        m_name = std::move(name);
+    }
+
+    void set_event(std::string event)
+    {
+        m_event = std::move(event);
+    }
+
     /// @brief Sets the optional Lua boolean expression gating whether this handler fires, with
     /// the published event's payload bound as Lua globals. std::nullopt always fires.
-    void set_condition(std::optional<std::string> condition) { m_condition = std::move(condition); }
-    void add_action(EventAction action) { m_actions.push_back(std::move(action)); }
-    void set_actions(std::vector<EventAction> actions) { m_actions = std::move(actions); }
-    void set_active(bool active) noexcept { m_active = active; }
+    void set_condition(std::optional<std::string> condition)
+    {
+        m_condition = std::move(condition);
+    }
 
-    [[nodiscard]] const std::string &get_name() const noexcept { return m_name; }
-    [[nodiscard]] const std::string &get_event() const noexcept { return m_event; }
-    [[nodiscard]] const std::optional<std::string> &get_condition() const noexcept {
+    void add_action(EventAction action)
+    {
+        m_actions.push_back(std::move(action));
+    }
+
+    void set_actions(std::vector<EventAction> actions)
+    {
+        m_actions = std::move(actions);
+    }
+
+    void set_active(bool active) noexcept
+    {
+        m_active = active;
+    }
+
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    [[nodiscard]] const std::string& get_event() const noexcept
+    {
+        return m_event;
+    }
+
+    [[nodiscard]] const std::optional<std::string>& get_condition() const noexcept
+    {
         return m_condition;
     }
-    [[nodiscard]] const std::vector<EventAction> &get_actions() const noexcept { return m_actions; }
-    [[nodiscard]] bool get_active() const noexcept { return m_active; }
+
+    [[nodiscard]] const std::vector<EventAction>& get_actions() const noexcept
+    {
+        return m_actions;
+    }
+
+    [[nodiscard]] bool get_active() const noexcept
+    {
+        return m_active;
+    }
 
     /**
      * @brief Checks that name/event are set — no cap, that's the whole check. Doesn't validate
@@ -75,7 +130,8 @@ class EventHandler {
      * @return an empty expected if name/event are non-empty, otherwise an unexpected naming
      * whichever one's blank.
      */
-    [[nodiscard]] std::expected<void, std::string> validate() const noexcept {
+    [[nodiscard]] std::expected<void, std::string> validate() const noexcept
+    {
         if (m_name.empty()) {
             return std::unexpected{"EventHandler name must not be empty"};
         }
@@ -85,7 +141,7 @@ class EventHandler {
         return {};
     }
 
-  private:
+private:
     std::string m_name;
     std::string m_event;
     std::optional<std::string> m_condition;
@@ -95,32 +151,43 @@ class EventHandler {
 
 } // namespace model
 
-template <>
-struct serde::Serializable<model::EventAction> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<model::EventAction>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"type", &model::EventAction::get_type, &model::EventAction::set_type>{},
-            serde::FieldDesc<"payload", &model::EventAction::get_payload,
-                       &model::EventAction::set_payload>{},
+            serde::FieldDesc<
+                "type", &model::EventAction::get_type, &model::EventAction::set_type>{},
+            serde::FieldDesc<
+                "payload", &model::EventAction::get_payload, &model::EventAction::set_payload>{},
         };
     }
 };
 
-template <>
-struct serde::Serializable<model::EventHandler> {
-    static constexpr std::string_view table_name() { return "event_handlers"; }
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<model::EventHandler>
+{
+    static constexpr std::string_view table_name()
+    {
+        return "event_handlers";
+    }
+
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"name", &model::EventHandler::get_name, &model::EventHandler::set_name,
-                         serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
-            serde::FieldDesc<"event", &model::EventHandler::get_event,
-                       &model::EventHandler::set_event>{},
-            serde::FieldDesc<"condition", &model::EventHandler::get_condition,
-                       &model::EventHandler::set_condition>{},
-            serde::FieldDesc<"actions", &model::EventHandler::get_actions,
-                       &model::EventHandler::set_actions>{},
-            serde::FieldDesc<"active", &model::EventHandler::get_active,
-                       &model::EventHandler::set_active>{},
+            serde::FieldDesc<
+                "name", &model::EventHandler::get_name, &model::EventHandler::set_name,
+                serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<
+                "event", &model::EventHandler::get_event, &model::EventHandler::set_event>{},
+            serde::FieldDesc<
+                "condition", &model::EventHandler::get_condition,
+                &model::EventHandler::set_condition>{},
+            serde::FieldDesc<
+                "actions", &model::EventHandler::get_actions, &model::EventHandler::set_actions>{},
+            serde::FieldDesc<
+                "active", &model::EventHandler::get_active, &model::EventHandler::set_active>{},
         };
     }
 };

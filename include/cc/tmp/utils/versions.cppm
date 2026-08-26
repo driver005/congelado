@@ -15,9 +15,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/framework/versions.pb.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/public/release_version.h"
 
 export module cc_tmp:utils_versions;
@@ -27,66 +27,83 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class VersionDef;
+        class VersionDef;
 
-// Check whether data with the given versions is compatible with the given
-// consumer and min producer.  upper_name and lower_name are used to form
-// error messages upon failure.  Example usage:
-//
-//   #include "tensorflow/core/public/version.h"
-//
-//   TF_RETURN_IF_ERROR(CheckVersions(versions, TF_GRAPH_DEF_VERSION,
-//                                    TF_GRAPH_DEF_VERSION_MIN_PRODUCER,
-//                                    "GraphDef", "graph"));
-absl::Status CheckVersions(const VersionDef& versions, int consumer,
-                           int min_producer, const char* upper_name,
-                           const char* lower_name);
+        // Check whether data with the given versions is compatible with the given
+        // consumer and min producer.  upper_name and lower_name are used to form
+        // error messages upon failure.  Example usage:
+        //
+        //   #include "tensorflow/core/public/version.h"
+        //
+        //   TF_RETURN_IF_ERROR(CheckVersions(versions, TF_GRAPH_DEF_VERSION,
+        //                                    TF_GRAPH_DEF_VERSION_MIN_PRODUCER,
+        //                                    "GraphDef", "graph"));
+        absl::Status CheckVersions(
+            const VersionDef& versions,
+            int consumer,
+            int min_producer,
+            const char* upper_name,
+            const char* lower_name
+        );
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
-// ==================================================================
-// Implementation: versions.cc
-// ==================================================================
+    // ==================================================================
+    // Implementation: versions.cc
+    // ==================================================================
 
-namespace tensorflow {
+    namespace tensorflow {
 
-absl::Status CheckVersions(const VersionDef& versions, int consumer,
-                           int min_producer, const char* upper_name,
-                           const char* lower_name) {
-  // Guard against the caller misordering the arguments
-  if (consumer < min_producer) {
-    return absl::InternalError(
-        absl::StrCat(upper_name, " version check has consumer ", consumer,
-                     " < min_producer ", min_producer, "."));
-  }
+        absl::Status CheckVersions(
+            const VersionDef& versions,
+            int consumer,
+            int min_producer,
+            const char* upper_name,
+            const char* lower_name
+        )
+        {
+            // Guard against the caller misordering the arguments
+            if (consumer < min_producer) {
+                return absl::InternalError(
+                    absl::StrCat(
+                        upper_name, " version check has consumer ", consumer, " < min_producer ",
+                        min_producer, "."
+                    )
+                );
+            }
 
-  // Check versions
-  if (versions.producer() < min_producer) {
-    return errors::InvalidArgument(
-        upper_name, " producer version ", versions.producer(),
-        " below min producer ", min_producer, " supported by TensorFlow ",
-        TF_VERSION_STRING, ".  Please regenerate your ", lower_name, ".");
-  }
-  if (versions.min_consumer() > consumer) {
-    return errors::InvalidArgument(
-        upper_name, " min consumer version ", versions.min_consumer(),
-        " above current version ", consumer, " for TensorFlow ",
-        TF_VERSION_STRING, ".  Please upgrade TensorFlow.");
-  }
-  for (const int bad_consumer : versions.bad_consumers()) {
-    if (bad_consumer == consumer) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          upper_name, " disallows consumer version ", bad_consumer,
-          ".  Please upgrade TensorFlow: this version is likely buggy."));
-    }
-  }
+            // Check versions
+            if (versions.producer() < min_producer) {
+                return errors::InvalidArgument(
+                    upper_name, " producer version ", versions.producer(), " below min producer ",
+                    min_producer, " supported by TensorFlow ", TF_VERSION_STRING,
+                    ".  Please regenerate your ", lower_name, "."
+                );
+            }
+            if (versions.min_consumer() > consumer) {
+                return errors::InvalidArgument(
+                    upper_name, " min consumer version ", versions.min_consumer(),
+                    " above current version ", consumer, " for TensorFlow ", TF_VERSION_STRING,
+                    ".  Please upgrade TensorFlow."
+                );
+            }
+            for (const int bad_consumer: versions.bad_consumers()) {
+                if (bad_consumer == consumer) {
+                    return absl::InvalidArgumentError(
+                        absl::StrCat(
+                            upper_name, " disallows consumer version ", bad_consumer,
+                            ".  Please upgrade TensorFlow: this version is likely buggy."
+                        )
+                    );
+                }
+            }
 
-  // All good!
-  return absl::OkStatus();
-}
+            // All good!
+            return absl::OkStatus();
+        }
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

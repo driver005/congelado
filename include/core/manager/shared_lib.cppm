@@ -16,27 +16,33 @@ import boost.ut;
 
 export namespace core::plugin {
 
-class SharedLibrary {
-  public:
+class SharedLibrary
+{
+public:
     /**
      * @brief Constructs a scanner/loader gated to one expected plugin type.
      * @param expected_type the `congelado_type()` value a shared lib must report to load
      * cleanly — mismatches abort the process in load_pluginref(), so set this right or it's
      * an instant L at load time.
      */
-    explicit SharedLibrary(std::string_view expected_type = "plugin")
-        : m_expected_type(expected_type) {}
+    explicit SharedLibrary(std::string_view expected_type = "plugin") :
+        m_expected_type(expected_type)
+    {
+    }
 
     /// @brief Deleted — a SharedLibrary owns live dlopen handles, no copying that motion.
-    SharedLibrary(const SharedLibrary &) = delete;
+    SharedLibrary(const SharedLibrary&) = delete;
     /// @brief Deleted — same reason as the copy ctor, handles can't be duplicated safely.
-    SharedLibrary &operator=(const SharedLibrary &) = delete;
+    SharedLibrary& operator=(const SharedLibrary&) = delete;
 
     /// @brief Move-constructs by stealing the other instance's scanned/opened plugin state.
-    SharedLibrary(SharedLibrary &&other) noexcept
-        : m_scanned_called{other.m_scanned_called}, m_scanned{std::move(other.m_scanned)},
-          m_runtimes{std::move(other.m_runtimes)}, m_order{std::move(other.m_order)},
-          m_expected_type{std::move(other.m_expected_type)} {
+    SharedLibrary(SharedLibrary&& other) noexcept :
+        m_scanned_called{other.m_scanned_called},
+        m_scanned{std::move(other.m_scanned)},
+        m_runtimes{std::move(other.m_runtimes)},
+        m_order{std::move(other.m_order)},
+        m_expected_type{std::move(other.m_expected_type)}
+    {
         // Everything's already stolen via the initializer list above — just leave
         // `other` in a clean, re-scannable empty state instead of a moved-from limbo.
         other.m_scanned_called = false;
@@ -46,7 +52,8 @@ class SharedLibrary {
     }
 
     /// @brief Move-assigns, closing this instance's own loaded plugins first to avoid a leak.
-    SharedLibrary &operator=(SharedLibrary &&other) noexcept {
+    SharedLibrary& operator=(SharedLibrary&& other) noexcept
+    {
         // Guard against self-move — without this, close_all() below would tear
         // down the very state we're about to steal from `other`.
         if (this != &other) {
@@ -67,7 +74,10 @@ class SharedLibrary {
     }
 
     /// @brief Destroys the instance, unloading every opened plugin in reverse order first.
-    ~SharedLibrary() { close_all(); }
+    ~SharedLibrary()
+    {
+        close_all();
+    }
 
     // ── Phase 1: discover shared libs in directory ──────────────────────
 
@@ -79,7 +89,8 @@ class SharedLibrary {
      * @param dir directory to scan for `.so`/`.dll`/`.dylib` files (platform-dependent, see
      * `types::is_shared_lib`).
      */
-    void scan(const std::filesystem::path &dir) {
+    void scan(const std::filesystem::path& dir)
+    {
         m_scanned_called = true;
         // Missing/non-directory `dir` is a silent no-op, not an error.
         if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
@@ -87,7 +98,7 @@ class SharedLibrary {
         }
         // Walk every entry, skipping anything that isn't a regular shared-lib file,
         // and catalogue what's left by a "lib"-stripped stem name.
-        for (auto const &entry : std::filesystem::directory_iterator{dir}) {
+        for (const auto& entry: std::filesystem::directory_iterator{dir}) {
             if (!entry.is_regular_file()) {
                 continue;
             }
@@ -117,7 +128,8 @@ class SharedLibrary {
      * @return success, or a PluginError describing what went wrong (not scanned yet, dlopen
      * failure, missing `congelado_init`, or a missing/failing dependency).
      */
-    [[nodiscard]] std::expected<void, types::PluginError> open(const std::filesystem::path &path) {
+    [[nodiscard]] std::expected<void, types::PluginError> open(const std::filesystem::path& path)
+    {
         // scan() has to run first — that's what populates m_scanned for dependency lookups.
         if (!m_scanned_called) {
             return std::unexpected{types::PluginError::not_found("scan() not called")};
@@ -134,10 +146,12 @@ class SharedLibrary {
         }
 
         // dlopen the actual shared object — first real failure point.
-        void *raw_handle = ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+        void* raw_handle = ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (raw_handle == nullptr) {
             return std::unexpected{
-                types::PluginError::dlopen_failed(std::format("dlopen: {}", ::dlerror()))};  // NOLINT(concurrency-mt-unsafe) — POSIX dlerror() has no thread-safe alternative in the dlfcn API
+                types::PluginError::dlopen_failed(std::format("dlopen: {}", ::dlerror()))
+            }; // NOLINT(concurrency-mt-unsafe) — POSIX dlerror() has no thread-safe alternative
+               // in the dlfcn API
         }
 
         // Resolve every known symbol off the handle — note this call aborts the
@@ -146,30 +160,35 @@ class SharedLibrary {
         auto plugin_ref = load_pluginref(std::move(handle), path.string());
         if (!plugin_ref->m_data.contains(std::string{types::PluginRef::shared_symbol_name(0)})) {
             return std::unexpected{
-                types::PluginError::dlopen_failed("missing congelado_init symbol")};
+                types::PluginError::dlopen_failed("missing congelado_init symbol")
+            };
         }
 
-        const auto &name = std::any_cast<const std::string &>(plugin_ref->m_data.at("name"));
+        const auto& name = std::any_cast<const std::string&>(plugin_ref->m_data.at("name"));
 
         // Recursively open every declared dependency before this plugin counts as
         // opened — a missing or failing dependency fails the whole open() call.
         if (auto it = plugin_ref->m_data.find("congelado_requires");
             it != plugin_ref->m_data.end()) {
-            const auto &requires_list = std::any_cast<const std::vector<std::string> &>(it->second);
-            for (const auto &dep_name : requires_list) {
+            const auto& requires_list = std::any_cast<const std::vector<std::string>&>(it->second);
+            for (const auto& dep_name: requires_list) {
                 if (m_runtimes.contains(dep_name)) {
                     continue;
                 }
                 auto dependency_iter = m_scanned.find(dep_name);
                 if (dependency_iter == m_scanned.end()) {
                     return std::unexpected{types::PluginError::not_found(
-                        std::format("dependency '{}' not found for '{}'", dep_name, name))};
+                        std::format("dependency '{}' not found for '{}'", dep_name, name)
+                    )};
                 }
                 auto result = open(dependency_iter->second);
                 if (!result) {
                     return std::unexpected{types::PluginError::not_found(
-                        std::format("dependency '{}' failed to load for '{}': {}", dep_name, name,
-                                    result.error().get_message()))};
+                        std::format(
+                            "dependency '{}' failed to load for '{}': {}", dep_name, name,
+                            result.error().get_message()
+                        )
+                    )};
                 }
             }
         }
@@ -181,7 +200,7 @@ class SharedLibrary {
         // Seed with every bridge broadcast so far — a plugin opened after a bridge plugin
         // (e.g. python_bridge) still gets it; one opened before catches up via
         // broadcast_bridge()'s own push into m_runtimes below.
-        for (const auto &bridge : m_known_bridges) {
+        for (const auto& bridge: m_known_bridges) {
             runtime->add_bridge(bridge);
         }
         m_runtimes.emplace(name, runtime);
@@ -198,10 +217,11 @@ class SharedLibrary {
      * @return success once every scanned plugin is open, or the first PluginError hit —
      * bails immediately on the first failure, doesn't try to keep going and collect more L's.
      */
-    [[nodiscard]] std::expected<void, types::PluginError> open_all() {
+    [[nodiscard]] std::expected<void, types::PluginError> open_all()
+    {
         // Walk every scanned entry, skipping ones a prior dependency resolution
         // already opened, and bail on the very first failure.
-        for (auto &[name, path] : m_scanned) {
+        for (auto& [name, path]: m_scanned) {
             if (m_runtimes.contains(name)) {
                 continue;
             }
@@ -231,9 +251,11 @@ class SharedLibrary {
      * @return success once every plugin is inited and readied, or a PluginError from scan()
      * never having run or a plugin's `congelado_init` returning non-zero.
      */
-    [[nodiscard]] std::expected<void, types::PluginError>
-    build(const CongeladoHostCallbacks &host_cb,
-          const std::unordered_map<std::string, types::GenerationConfig> &configs) {
+    [[nodiscard]] std::expected<void, types::PluginError> build(
+        const CongeladoHostCallbacks& host_cb,
+        const std::unordered_map<std::string, types::GenerationConfig>& configs
+    )
+    {
         // Same precondition as open() — no scan(), no build().
         if (!m_scanned_called) {
             return std::unexpected{types::PluginError::not_found("scan() not called")};
@@ -241,7 +263,7 @@ class SharedLibrary {
 
         // First pass: init every opened plugin in load order. A plugin that
         // returns non-zero fails the whole build(), but earlier inits don't roll back.
-        for (auto &name : m_order) {
+        for (auto& name: m_order) {
             auto it = m_runtimes.find(name);
             if (it == m_runtimes.end()) {
                 continue;
@@ -250,21 +272,25 @@ class SharedLibrary {
 
             // Fall back to a default config for any plugin with no explicit entry.
             types::GenerationConfig default_cfg;
-            const types::GenerationConfig *gen_cfg = &default_cfg;
+            const types::GenerationConfig* gen_cfg = &default_cfg;
             if (auto cfg_it = configs.find(name); cfg_it != configs.end()) {
                 gen_cfg = &cfg_it->second;
             }
 
             // Flatten the resolved config into a flat key/value view crossing the ABI.
             types::ConfigViewBuilder cfg_view;
-            cfg_view.add("runtimes", std::views::join_with(gen_cfg->get_wanted_runtimes(), ',') |
-                                          std::ranges::to<std::string>());
-            cfg_view.add("python_module",
-                         std::string{gen_cfg->get_python_config().get_module_name()});
+            cfg_view.add(
+                "runtimes", std::views::join_with(gen_cfg->get_wanted_runtimes(), ',') |
+                                std::ranges::to<std::string>()
+            );
+            cfg_view.add(
+                "python_module", std::string{gen_cfg->get_python_config().get_module_name()}
+            );
             cfg_view.add("lua_table", std::string{gen_cfg->get_lua_config().get_table_name()});
-            cfg_view.add("lua_safe_mode",
-                         gen_cfg->get_lua_config().get_safe_mode() ? "true" : "false");
-            for (const auto &[key, value] : gen_cfg->get_extra()) {
+            cfg_view.add(
+                "lua_safe_mode", gen_cfg->get_lua_config().get_safe_mode() ? "true" : "false"
+            );
+            for (const auto& [key, value]: gen_cfg->get_extra()) {
                 cfg_view.add(key, value);
             }
 
@@ -272,13 +298,14 @@ class SharedLibrary {
 
             if (runtime->init(&host_cb, &view) != 0) {
                 return std::unexpected{types::PluginError::dlopen_failed(
-                    std::format("congelado_init failed for '{}'", name))};
+                    std::format("congelado_init failed for '{}'", name)
+                )};
             }
         }
 
         // Second pass: only once every plugin is successfully inited does anyone
         // get told it's ready — keeps plugins from seeing a half-inited sibling.
-        for (auto &name : m_order) {
+        for (auto& name: m_order) {
             if (auto it = m_runtimes.find(name); it != m_runtimes.end()) {
                 it->second->on_ready();
             }
@@ -289,32 +316,34 @@ class SharedLibrary {
 
     /**
      * @brief Drops a plugin that was opened but never `build()`-ed — runs `congelado_on_unload`
-     * (to free the plugin's `s_plugin` singleton) then dlcloses its handle and forgets it. Unlike
-     * `close_all()`, this is for a plugin that never reached `congelado_init`, so its user-side
-     * `on_unload()` runs over only default-constructed state — but the singleton itself was still
-     * allocated back in `open()` (the `congelado_type` STRING_FN lazily `new T{}`s it before init
-     * ever runs), so on_unload is exactly what reclaims it; skip it and that object leaks, since
-     * `close_all()` only walks `m_order` which this erase removes from. The subsequent dlclose (via
-     * `PluginRef`'s handle going out of scope once the last `shared_ptr<FfiRuntime>` reference here
-     * drops) unmaps the `.so`. Meant for provider-filtering: a capability plugin resolved right
-     * after open() but rejected by `[providers]` should never reach `build()`'s `congelado_init`
-     * at all, not just get silently un-registered after already having connected/spun up.
+     * (to free the plugin's `s_plugin` singleton) then dlcloses its handle and forgets it.
+     * Unlike `close_all()`, this is for a plugin that never reached `congelado_init`, so its
+     * user-side `on_unload()` runs over only default-constructed state — but the singleton
+     * itself was still allocated back in `open()` (the `congelado_type` STRING_FN lazily `new
+     * T{}`s it before init ever runs), so on_unload is exactly what reclaims it; skip it and
+     * that object leaks, since `close_all()` only walks `m_order` which this erase removes
+     * from. The subsequent dlclose (via `PluginRef`'s handle going out of scope once the last
+     * `shared_ptr<FfiRuntime>` reference here drops) unmaps the `.so`. Meant for
+     * provider-filtering: a capability plugin resolved right after open() but rejected by
+     * `[providers]` should never reach `build()`'s `congelado_init` at all, not just get
+     * silently un-registered after already having connected/spun up.
      * @param name the resolved plugin name (as recorded by open(), not necessarily the file
      * stem) — a miss is a no-op.
      */
-    void discard(std::string_view name) noexcept {
+    void discard(std::string_view name) noexcept
+    {
         auto it = m_runtimes.find(std::string{name});
         if (it == m_runtimes.end()) {
             return;
         }
         // The plugin's s_plugin singleton was already allocated by the STRING_FN calls in
-        // load_symbols() during open() (congelado_type resolves+invokes it, index 1), even though
-        // congelado_init never ran. congelado_on_unload is the macro's only delete path for that
-        // instance — call it here so a provider-filtered plugin doesn't leak its object. This
-        // crosses into a plugin that never inited: its user on_unload() sees only default-
-        // constructed state, and FfiRuntime::on_unload() is optional-symbol-guarded + try/catch-
-        // wrapped, so teardown can't crash. close_all() only walks m_order, which this erase
-        // removes from, so on_unload has to happen here or never at all.
+        // load_symbols() during open() (congelado_type resolves+invokes it, index 1), even
+        // though congelado_init never ran. congelado_on_unload is the macro's only delete path
+        // for that instance — call it here so a provider-filtered plugin doesn't leak its
+        // object. This crosses into a plugin that never inited: its user on_unload() sees only
+        // default- constructed state, and FfiRuntime::on_unload() is optional-symbol-guarded +
+        // try/catch- wrapped, so teardown can't crash. close_all() only walks m_order, which
+        // this erase removes from, so on_unload has to happen here or never at all.
         it->second->on_unload();
         m_runtimes.erase(it);
         std::erase(m_order, std::string{name});
@@ -325,16 +354,17 @@ class SharedLibrary {
      * @note Reverse order matters here — dependencies were opened before their dependents, so
      * unloading in reverse keeps a dependent from calling back into an already-torn-down dep.
      * @note This is process-exit teardown, not hot-reload — so after `on_unload()` runs, every
-     * plugin's dlopen handle gets leaked (never `dlclose()`'d) rather than actually closed. Some
-     * plugins statically link dependencies with their own `dlclose()`-time global destructors
-     * (OpenTelemetry's C++ SDK, confirmed live) that segfault when actually unloaded this way;
-     * skipping the syscall trades a harmless "the OS reclaims it on exit anyway" leak for a
-     * guaranteed-clean shutdown. See `PluginRef::leak_handle()`.
+     * plugin's dlopen handle gets leaked (never `dlclose()`'d) rather than actually closed.
+     * Some plugins statically link dependencies with their own `dlclose()`-time global
+     * destructors (OpenTelemetry's C++ SDK, confirmed live) that segfault when actually
+     * unloaded this way; skipping the syscall trades a harmless "the OS reclaims it on exit
+     * anyway" leak for a guaranteed-clean shutdown. See `PluginRef::leak_handle()`.
      */
-    void close_all() noexcept {
+    void close_all() noexcept
+    {
         // Reverse load order: dependencies opened first get unloaded last, so a
         // dependent never calls back into an already-torn-down dependency.
-        for (const auto &name : m_order | std::views::reverse) {
+        for (const auto& name: m_order | std::views::reverse) {
             if (auto runtime_iter = m_runtimes.find(name); runtime_iter != m_runtimes.end()) {
                 runtime_iter->second->on_unload();
                 if (auto plugin_ref = runtime_iter->second->get_plugin()) {
@@ -354,8 +384,9 @@ class SharedLibrary {
      * plugin is left loaded and running so it can still handle whatever another plugin's close
      * callbacks trigger on the way out. Full teardown still happens later via `close_all()`.
      */
-    void shutdown_plugins() noexcept {
-        for (const auto &name : m_order) {
+    void shutdown_plugins() noexcept
+    {
+        for (const auto& name: m_order) {
             auto runtime_iter = m_runtimes.find(name);
             if (runtime_iter == m_runtimes.end()) {
                 continue;
@@ -371,11 +402,12 @@ class SharedLibrary {
      * @tparam Callback invocable taking a `const std::shared_ptr<FfiRuntime> &`.
      * @param callback invoked once per opened runtime.
      */
-    template <typename Callback>
-    void for_each(Callback &&callback) {
+    template<typename Callback>
+    void for_each(Callback&& callback)
+    {
         // Walk names in load order, skipping any that somehow no longer resolve
         // to a live runtime (shouldn't happen outside a concurrent mutation).
-        for (auto &name : m_order) {
+        for (auto& name: m_order) {
             auto it = m_runtimes.find(name);
             if (it == m_runtimes.end()) {
                 continue;
@@ -393,11 +425,12 @@ class SharedLibrary {
      * @tparam Callback invocable taking a `const std::shared_ptr<FfiRuntime> &`.
      * @param callback invoked once per opened runtime.
      */
-    template <typename Callback>
-    void for_each(Callback &&callback) const {
+    template<typename Callback>
+    void for_each(Callback&& callback) const
+    {
         // Walk names in load order, skipping any that somehow no longer resolve
         // to a live runtime (shouldn't happen outside a concurrent mutation).
-        for (const auto &name : m_order) {
+        for (const auto& name: m_order) {
             auto it = m_runtimes.find(name);
             if (it == m_runtimes.end()) {
                 continue;
@@ -412,10 +445,12 @@ class SharedLibrary {
 
     /**
      * @brief Looks up an already-opened plugin's runtime by name.
-     * @param name plugin name to look up (the resolved `name` key, not necessarily the file stem).
+     * @param name plugin name to look up (the resolved `name` key, not necessarily the file
+     * stem).
      * @return the plugin's FfiRuntime, or null if no plugin by that name is currently opened.
      */
-    [[nodiscard]] std::shared_ptr<FfiRuntime> find(std::string_view name) noexcept {
+    [[nodiscard]] std::shared_ptr<FfiRuntime> find(std::string_view name) noexcept
+    {
         auto iter = m_runtimes.find(std::string{name});
         return iter != m_runtimes.end() ? iter->second : nullptr;
     }
@@ -429,17 +464,18 @@ class SharedLibrary {
      * is null.
      * @param bridge the bridge instance to broadcast.
      */
-    void broadcast_bridge(std::shared_ptr<interfaces::IBridge> bridge) {
+    void broadcast_bridge(std::shared_ptr<interfaces::IBridge> bridge)
+    {
         if (!bridge) {
             return;
         }
-        for (auto &[name, runtime] : m_runtimes) {
+        for (auto& [name, runtime]: m_runtimes) {
             runtime->add_bridge(bridge);
         }
         m_known_bridges.push_back(std::move(bridge));
     }
 
-  private:
+private:
     // ── Private: load-order constraint enforcement ──────────────────────
 
     /**
@@ -457,13 +493,14 @@ class SharedLibrary {
      * before the other's type) can't be satisfied — falls back to appending whatever's left in
      * its original relative order rather than looping forever.
      */
-    void apply_load_before_ordering() {
+    void apply_load_before_ordering()
+    {
         // Snapshot each opened plugin's own unique_type and load_before_types set, keyed by
         // name — both are optional exports, missing either just leaves that plugin
         // unconstrained (never gets an edge in or out).
         std::unordered_map<std::string, std::string> unique_type;
         std::unordered_map<std::string, std::vector<std::string>> load_before;
-        for (const auto &name : m_order) {
+        for (const auto& name: m_order) {
             auto runtime_iter = m_runtimes.find(name);
             if (runtime_iter == m_runtimes.end()) {
                 continue;
@@ -474,11 +511,11 @@ class SharedLibrary {
             }
             if (auto it = plugin_ref->m_data.find("congelado_unique_type");
                 it != plugin_ref->m_data.end()) {
-                unique_type[name] = std::any_cast<const std::string &>(it->second);
+                unique_type[name] = std::any_cast<const std::string&>(it->second);
             }
             if (auto it = plugin_ref->m_data.find("congelado_load_before_types");
                 it != plugin_ref->m_data.end()) {
-                load_before[name] = std::any_cast<const std::vector<std::string> &>(it->second);
+                load_before[name] = std::any_cast<const std::vector<std::string>&>(it->second);
             }
         }
 
@@ -486,12 +523,12 @@ class SharedLibrary {
         // unique_type matches one of name's declared load-before types.
         std::unordered_map<std::string, std::vector<std::string>> edges;
         std::unordered_map<std::string, int> indegree;
-        for (const auto &name : m_order) {
+        for (const auto& name: m_order) {
             indegree[name] = 0;
         }
-        for (const auto &[name, types] : load_before) {
-            for (const auto &type : types) {
-                for (const auto &other : m_order) {
+        for (const auto& [name, types]: load_before) {
+            for (const auto& type: types) {
+                for (const auto& other: m_order) {
                     if (other == name) {
                         continue;
                     }
@@ -515,14 +552,14 @@ class SharedLibrary {
                 if (placed[i]) {
                     continue;
                 }
-                const auto &name = m_order[i];
+                const auto& name = m_order[i];
                 if (indegree[name] != 0) {
                     continue;
                 }
                 ordered.push_back(name);
                 placed[i] = true;
                 progressed = true;
-                for (const auto &dependent : edges[name]) {
+                for (const auto& dependent: edges[name]) {
                     --indegree[dependent];
                 }
             }
@@ -553,13 +590,17 @@ class SharedLibrary {
      * @param name symbol name to look up.
      * @return the symbol reinterpreted as `F`, or null if dlsym() couldn't find it.
      */
-    template <typename F>
-    [[nodiscard]] F sym(void *handle, std::string_view name) const noexcept {
+    template<typename F>
+    [[nodiscard]] F sym(void* handle, std::string_view name) const noexcept
+    {
         // Every call site passes a SymbolInfo::m_name (a string_view over a string literal) or
         // a "{name}_count" built via std::string, both genuinely null-terminated — not provable
         // from the signature alone, hence the NOLINT below.
         // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-        return reinterpret_cast<F>(::dlsym(handle, name.data()));  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI dlsym() cast to an arbitrary function pointer type, no smart-pointer/GSL equivalent applies here
+        return reinterpret_cast<F>(
+            ::dlsym(handle, name.data())
+        ); // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI dlsym() cast to an arbitrary
+           // function pointer type, no smart-pointer/GSL equivalent applies here
     }
 
     /**
@@ -573,12 +614,16 @@ class SharedLibrary {
      * WORKER_SYMBOLS).
      * @param plugin_ref the PluginRef whose `m_data` map gets populated with resolved symbols.
      */
-    void load_symbols(void *handle, std::span<const types::PluginRef::SymbolInfo> symbols,
-                      std::shared_ptr<types::PluginRef> &plugin_ref) {
+    void load_symbols(
+        void* handle,
+        std::span<const types::PluginRef::SymbolInfo> symbols,
+        std::shared_ptr<types::PluginRef>& plugin_ref
+    )
+    {
         // Every symbol in the table is optional — walk them all, skip whatever isn't
         // exported, and only touch m_data for the ones actually resolved.
-        for (const auto &info : symbols) {
-            auto *symbol_ptr = sym<void *>(handle, info.m_name);
+        for (const auto& info: symbols) {
+            auto* symbol_ptr = sym<void*>(handle, info.m_name);
             if (symbol_ptr == nullptr) {
                 continue;
             }
@@ -587,44 +632,47 @@ class SharedLibrary {
             // right native representation stashed in m_data.
             switch (info.m_kind) {
 
-            case types::PluginRef::SymbolKind::FUNCTION:
-                plugin_ref->m_data[std::string{info.m_name}] = symbol_ptr;
-                break;
-
-            case types::PluginRef::SymbolKind::STRING_FN: {
-                const auto *string_value = sym<types::PluginStringFn>(handle, info.m_name)();
-                plugin_ref->m_data[std::string{info.m_name}] =
-                    std::string{string_value != nullptr ? string_value : ""};
-                break;
-            }
-
-            case types::PluginRef::SymbolKind::UINT32:
-                plugin_ref->m_data[std::string{info.m_name}] =
-                    sym<types::PluginUint32Fn>(handle, info.m_name)();
-                break;
-
-            case types::PluginRef::SymbolKind::ARRAY: {
-                // ARRAY needs both halves — the data getter and its matching
-                // "{name}_count" getter — or the whole pair gets dropped.
-                auto *data_function = sym<types::PluginArrayFn>(handle, info.m_name);
-                std::string count_name = std::string{info.m_name} + "_count";
-                auto *count_function = sym<types::PluginCountFn>(handle, count_name);
-                if (data_function == nullptr || count_function == nullptr) {
+                case types::PluginRef::SymbolKind::FUNCTION:
+                    plugin_ref->m_data[std::string{info.m_name}] = symbol_ptr;
                     break;
-                }
-                auto count = count_function();
-                const auto *items = data_function();
-                std::vector<std::string> string_list;
-                string_list.reserve(count);
-                for (std::size_t item_index = 0; item_index < count; ++item_index) {
-                    string_list.emplace_back(items[item_index]);
-                }
-                plugin_ref->m_data[std::string{info.m_name}] = std::move(string_list);
-                break;
-            }
 
-            case types::PluginRef::SymbolKind::SIZE_T:
-                break;
+                case types::PluginRef::SymbolKind::STRING_FN:
+                    {
+                        const auto* string_value =
+                            sym<types::PluginStringFn>(handle, info.m_name)();
+                        plugin_ref->m_data[std::string{info.m_name}] =
+                            std::string{string_value != nullptr ? string_value : ""};
+                        break;
+                    }
+
+                case types::PluginRef::SymbolKind::UINT32:
+                    plugin_ref->m_data[std::string{info.m_name}] =
+                        sym<types::PluginUint32Fn>(handle, info.m_name)();
+                    break;
+
+                case types::PluginRef::SymbolKind::ARRAY:
+                    {
+                        // ARRAY needs both halves — the data getter and its matching
+                        // "{name}_count" getter — or the whole pair gets dropped.
+                        auto* data_function = sym<types::PluginArrayFn>(handle, info.m_name);
+                        std::string count_name = std::string{info.m_name} + "_count";
+                        auto* count_function = sym<types::PluginCountFn>(handle, count_name);
+                        if (data_function == nullptr || count_function == nullptr) {
+                            break;
+                        }
+                        auto count = count_function();
+                        const auto* items = data_function();
+                        std::vector<std::string> string_list;
+                        string_list.reserve(count);
+                        for (std::size_t item_index = 0; item_index < count; ++item_index) {
+                            string_list.emplace_back(items[item_index]);
+                        }
+                        plugin_ref->m_data[std::string{info.m_name}] = std::move(string_list);
+                        break;
+                    }
+
+                case types::PluginRef::SymbolKind::SIZE_T:
+                    break;
             }
         }
     }
@@ -639,21 +687,22 @@ class SharedLibrary {
      * into the wrong runtime is cooked either way, but callers should know this path doesn't
      * return an error, it just ends the process. No graceful degradation here, no cap.
      * @param handle the owning dlopen handle for the freshly-opened library.
-     * @param file_path filesystem path the library was loaded from, stashed as `m_data["path"]`.
+     * @param file_path filesystem path the library was loaded from, stashed as
+     * `m_data["path"]`.
      * @return a populated PluginRef with every discoverable symbol loaded and a resolved name
      * (from `congelado_plugin_name`/`congelado_worker_type` if present, else the file stem).
      */
     [[nodiscard]] std::shared_ptr<types::PluginRef>
-    load_pluginref(std::unique_ptr<void, types::PluginRef::DlDeleter> handle,
-                   std::string file_path) {
+    load_pluginref(std::unique_ptr<void, types::PluginRef::DlDeleter> handle, std::string file_path)
+    {
         // Stand up the PluginRef and stash the handle + path before anything else,
         // since load_symbols() below needs the raw handle to resolve against.
         auto plugin_ref = std::make_shared<types::PluginRef>();
-        auto *raw_handle = handle.get();
+        auto* raw_handle = handle.get();
         plugin_ref->m_handle = std::move(handle);
         plugin_ref->m_data["path"] = std::move(file_path);
         auto library_name =
-            std::filesystem::path{std::any_cast<const std::string &>(plugin_ref->m_data["path"])}
+            std::filesystem::path{std::any_cast<const std::string&>(plugin_ref->m_data["path"])}
                 .stem()
                 .string();
         if (library_name.starts_with("lib")) {
@@ -670,13 +719,14 @@ class SharedLibrary {
         // a mismatch here is cooked for the whole process, not a returned error.
         auto type_iter =
             plugin_ref->m_data.find(std::string{types::PluginRef::shared_symbol_name(1)});
-        const auto &type = (type_iter != plugin_ref->m_data.end())
-                         ? std::any_cast<const std::string &>(type_iter->second)
-                         : EMPTY_TYPE;
+        const auto& type = (type_iter != plugin_ref->m_data.end())
+                               ? std::any_cast<const std::string&>(type_iter->second)
+                               : EMPTY_TYPE;
         if (type != m_expected_type) {
-            std::println(stderr,
-                         "[shared_lib] type mismatch: '{}' is '{}' but expected '{}' – aborting",
-                         library_name, type, m_expected_type);
+            std::println(
+                stderr, "[shared_lib] type mismatch: '{}' is '{}' but expected '{}' – aborting",
+                library_name, type, m_expected_type
+            );
             std::abort();
         }
 
@@ -736,25 +786,29 @@ suite<"SharedLibrary"> shared_library_suite = [] {
     };
     "scan() catalogs files, open() then reaches the real dlopen (and fails on a non-plugin file)"_test =
         [] {
-        auto dir = std::filesystem::temp_directory_path() / "congelado_shared_lib_test";
-        std::filesystem::remove_all(dir);
-        std::filesystem::create_directories(dir);
-        { std::ofstream{dir / "libfoo.so"}; }
+            auto dir = std::filesystem::temp_directory_path() / "congelado_shared_lib_test";
+            std::filesystem::remove_all(dir);
+            std::filesystem::create_directories(dir);
+            {
+                std::ofstream{dir / "libfoo.so"};
+            }
 
-        SharedLibrary lib;
-        lib.scan(dir);
+            SharedLibrary lib;
+            lib.scan(dir);
 
-        // Past the "scan() not called" precondition now — the empty .so fails dlopen()
-        // itself, which is enough to prove scan() actually catalogued the file.
-        auto result = lib.open(dir / "libfoo.so");
-        expect(not result.has_value());
-        expect(result.error().get_kind() == types::Kind::DLOPEN_FAILED);
+            // Past the "scan() not called" precondition now — the empty .so fails dlopen()
+            // itself, which is enough to prove scan() actually catalogued the file.
+            auto result = lib.open(dir / "libfoo.so");
+            expect(not result.has_value());
+            expect(result.error().get_kind() == types::Kind::DLOPEN_FAILED);
 
-        std::filesystem::remove_all(dir);
-    };
+            std::filesystem::remove_all(dir);
+        };
     "scan() on a missing directory is a silent no-op"_test = [] {
         SharedLibrary lib;
-        expect(nothrow([&] { lib.scan("/definitely/does/not/exist"); }));
+        expect(nothrow([&] {
+            lib.scan("/definitely/does/not/exist");
+        }));
     };
     "find() on an empty library returns nullptr"_test = [] {
         SharedLibrary lib;
@@ -771,27 +825,32 @@ suite<"SharedLibrary"> shared_library_suite = [] {
     "for_each visits nothing on an empty library"_test = [] {
         SharedLibrary lib;
         int count = 0;
-        lib.for_each([&](const std::shared_ptr<FfiRuntime> &) { ++count; });
+        lib.for_each([&](const std::shared_ptr<FfiRuntime>&) {
+            ++count;
+        });
         expect(count == 0);
     };
     "broadcast_bridge is a no-op for a null bridge"_test = [] {
         SharedLibrary lib;
-        expect(nothrow([&] { lib.broadcast_bridge(nullptr); }));
+        expect(nothrow([&] {
+            lib.broadcast_bridge(nullptr);
+        }));
     };
     "open()'s already-opened guard only covers names in m_runtimes — never-opened mutual deps aren't caught"_test =
         [] {
-        SharedLibrary lib;
-        // open()'s cycle-breaker (~line 132) is `if (m_runtimes.contains(library_name)) return
-        // {};` — per open()'s own @note, that's the ONLY thing standing between a dependency
-        // cycle and real unbounded recursion. We must never drive that recursion for real (the
-        // safety constraint on this suite), but find() performs the identical "is this name
-        // already opened" lookup against m_runtimes. For two plugins that would mutually
-        // require each other, NEITHER has been opened yet — proving the guard has nothing to
-        // catch here, and a genuine cycle among never-yet-loaded plugins would still recurse
-        // unchecked, exactly as the doc comment admits.
-        expect(lib.find("plugin_a") == nullptr);
-        expect(lib.find("plugin_b") == nullptr);
-    };
+            SharedLibrary lib;
+            // open()'s cycle-breaker (~line 132) is `if (m_runtimes.contains(library_name))
+            // return
+            // {};` — per open()'s own @note, that's the ONLY thing standing between a
+            // dependency cycle and real unbounded recursion. We must never drive that recursion
+            // for real (the safety constraint on this suite), but find() performs the identical
+            // "is this name already opened" lookup against m_runtimes. For two plugins that
+            // would mutually require each other, NEITHER has been opened yet — proving the
+            // guard has nothing to catch here, and a genuine cycle among never-yet-loaded
+            // plugins would still recurse unchecked, exactly as the doc comment admits.
+            expect(lib.find("plugin_a") == nullptr);
+            expect(lib.find("plugin_b") == nullptr);
+        };
 };
 
 } // namespace core::plugin::tests

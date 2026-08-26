@@ -20,11 +20,10 @@ limitations under the License.
 // Pure C ABI — no vtables, no C++ types, crosses DLL boundaries safely.
 // Can generate code for any language from structured definitions.
 
+#include "c/extern/generator/attribute.h"
 #include "c/extern/generator/controller.h"
 #include "c/extern/generator/definition.h"
 #include "c/extern/generator/parameter.h"
 #include "c/extern/generator/typeinfo.h"
-#include "c/extern/generator/attribute.h"
-#include "c/extern/generator/sourcecode.h"
 
-#endif  // TENSORFLOW_C_EXPERIMENTAL_GENERATOR_GENERATOR_H_
+#endif // TENSORFLOW_C_EXPERIMENTAL_GENERATOR_GENERATOR_H_

@@ -10,7 +10,7 @@ import core_logger;
 import core_otel;
 import core_plugin;
 import utils_openapi; // for interfaces::IOpenApiGenerator (see utils_openapi:generator_interface's
-                       // own doc comment for why it lives there instead of in `interfaces` itself)
+                      // own doc comment for why it lives there instead of in `interfaces` itself)
 #ifdef CONGELADO_TEST
 import boost.ut;
 #endif
@@ -23,7 +23,8 @@ using core::plugin::types::PluginRef;
 // checks a capability bit before touching anything else — this shared helper does both,
 // bailing to nullptr on any missing piece (no `congelado_capabilities` symbol, the bit unset,
 // or no `congelado_call` symbol resolved). Callers must null-check the result.
-[[nodiscard]] inline congelado_call_fn resolve_call_fn(PluginRef &ref, std::uint32_t cap_bit) {
+[[nodiscard]] inline congelado_call_fn resolve_call_fn(PluginRef& ref, std::uint32_t cap_bit)
+{
     auto cap_it = ref.m_data.find("congelado_capabilities");
     if (cap_it == ref.m_data.end()) {
         return nullptr;
@@ -36,13 +37,18 @@ using core::plugin::types::PluginRef;
     if (call_it == ref.m_data.end()) {
         return nullptr;
     }
-    auto *raw = std::any_cast<void *>(call_it->second);
-    return reinterpret_cast<congelado_call_fn>(raw);  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+    auto* raw = std::any_cast<void*>(call_it->second);
+    return reinterpret_cast<congelado_call_fn>(
+        raw
+    ); // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to
+       // its known function pointer type
 }
 
-class LoggerAdapter final : public interfaces::ILogger,
-                            public std::enable_shared_from_this<LoggerAdapter> {
-  public:
+class LoggerAdapter final :
+    public interfaces::ILogger,
+    public std::enable_shared_from_this<LoggerAdapter>
+{
+public:
     /**
      * @brief Wraps a plugin's universal `congelado_call` symbol in an ILogger so the host-side
      * registry can log through it like any other sink — bridges the ABI gap, no cap.
@@ -50,11 +56,17 @@ class LoggerAdapter final : public interfaces::ILogger,
      * @param call_fn the plugin's exported universal call symbol this adapter routes
      * LOGGER/WRITE and LOGGER/ERROR calls through.
      */
-    explicit LoggerAdapter(std::string name, congelado_call_fn call_fn)
-        : m_name{std::move(name)}, m_call{call_fn} {}
+    explicit LoggerAdapter(std::string name, congelado_call_fn call_fn) :
+        m_name{std::move(name)},
+        m_call{call_fn}
+    {
+    }
 
     /// @brief Gets this adapter's display name. @return the logger's name, motion.
-    [[nodiscard]] std::string_view get_name() const noexcept override { return m_name; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return m_name;
+    }
 
     /**
      * @brief Forwards a log line to the plugin via `congelado_call(LOGGER, WRITE, ...)`.
@@ -64,7 +76,8 @@ class LoggerAdapter final : public interfaces::ILogger,
      * @param level the severity of the line being logged.
      * @param msg the text getting logged.
      */
-    void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
+    void write(interfaces::LogLevel level, std::string_view msg) noexcept override
+    {
         std::string owned{msg};
         CongeladoAny args[2]{};
         args[0].type_index = CG_INT;
@@ -78,7 +91,8 @@ class LoggerAdapter final : public interfaces::ILogger,
      * @brief Shortcut for logging at Error severity via `congelado_call(LOGGER, ERROR, ...)`.
      * @param msg the error text getting logged.
      */
-    void error(std::string_view msg) noexcept override {
+    void error(std::string_view msg) noexcept override
+    {
         std::string owned{msg};
         CongeladoAny args[1]{};
         args[0].type_index = CG_STR;
@@ -92,7 +106,8 @@ class LoggerAdapter final : public interfaces::ILogger,
      * before this gets called, otherwise it's straight UB.
      * @param registry the (already-active) registry to add this adapter to.
      */
-    void register_logger(core::logger::LoggerRegistry &registry) {
+    void register_logger(core::logger::LoggerRegistry& registry)
+    {
         auto self = shared_from_this();
         registry.add_logger(self);
     }
@@ -104,7 +119,8 @@ class LoggerAdapter final : public interfaces::ILogger,
      * @return a live LoggerAdapter if the plugin exports the logger capability, `nullptr`
      * otherwise.
      */
-    static std::shared_ptr<LoggerAdapter> register_from(PluginRef &ref) {
+    static std::shared_ptr<LoggerAdapter> register_from(PluginRef& ref)
+    {
         auto call_fn = resolve_call_fn(ref, 1U); // CONGELADO_CAP_LOGGER
         if (call_fn == nullptr) {
             return nullptr;
@@ -113,7 +129,7 @@ class LoggerAdapter final : public interfaces::ILogger,
         // Plugin name is nice-to-have, not required — fall back to a placeholder if missing.
         std::string pname;
         if (auto name_it = ref.m_data.find("congelado_plugin_name"); name_it != ref.m_data.end()) {
-            pname = std::any_cast<const std::string &>(name_it->second);
+            pname = std::any_cast<const std::string&>(name_it->second);
         } else {
             pname = "unnamed";
         }
@@ -121,7 +137,7 @@ class LoggerAdapter final : public interfaces::ILogger,
         return std::make_shared<LoggerAdapter>(std::move(pname), call_fn);
     }
 
-  private:
+private:
     std::string m_name;
     congelado_call_fn m_call;
 };
@@ -134,7 +150,8 @@ class LoggerAdapter final : public interfaces::ILogger,
  * real instance — this wraps it with a no-op deleter, same lifetime idiom `storage_get`'s
  * caller would need), or `nullptr` if the plugin doesn't export the SERDE capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::ISerdeFormat> resolve_serde_format(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::ISerdeFormat> resolve_serde_format(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 16U); // CONGELADO_CAP_SERDE
     if (call_fn == nullptr) {
         return nullptr;
@@ -143,8 +160,8 @@ class LoggerAdapter final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *format = static_cast<interfaces::ISerdeFormat *>(result.v_ptr);
-    return std::shared_ptr<interfaces::ISerdeFormat>(format, [](interfaces::ISerdeFormat *) {});
+    auto* format = static_cast<interfaces::ISerdeFormat*>(result.v_ptr);
+    return std::shared_ptr<interfaces::ISerdeFormat>(format, [](interfaces::ISerdeFormat*) {});
 }
 
 /**
@@ -154,7 +171,8 @@ class LoggerAdapter final : public interfaces::ILogger,
  * @return a non-owning `shared_ptr<interfaces::IDatabase>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the STORAGE capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IDatabase> resolve_storage(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::IDatabase> resolve_storage(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 4U); // CONGELADO_CAP_STORAGE
     if (call_fn == nullptr) {
         return nullptr;
@@ -163,8 +181,8 @@ class LoggerAdapter final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *database = static_cast<interfaces::IDatabase *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IDatabase>(database, [](interfaces::IDatabase *) {});
+    auto* database = static_cast<interfaces::IDatabase*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IDatabase>(database, [](interfaces::IDatabase*) {});
 }
 
 /**
@@ -174,7 +192,9 @@ class LoggerAdapter final : public interfaces::ILogger,
  * @return a non-owning `shared_ptr<interfaces::ISearchProvider>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the SEARCH capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::ISearchProvider> resolve_search_provider(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::ISearchProvider>
+resolve_search_provider(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 256U); // CONGELADO_CAP_SEARCH
     if (call_fn == nullptr) {
         return nullptr;
@@ -183,8 +203,9 @@ class LoggerAdapter final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *provider = static_cast<interfaces::ISearchProvider *>(result.v_ptr);
-    return std::shared_ptr<interfaces::ISearchProvider>(provider, [](interfaces::ISearchProvider *) {});
+    auto* provider = static_cast<interfaces::ISearchProvider*>(result.v_ptr);
+    return std::shared_ptr<interfaces::ISearchProvider>(provider, [](interfaces::ISearchProvider*) {
+    });
 }
 
 /**
@@ -194,8 +215,9 @@ class LoggerAdapter final : public interfaces::ILogger,
  * @return a non-owning `shared_ptr<interfaces::ICache>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the CACHE capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::ICache> resolve_cache(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 1024U); // CONGELADO_CAP_CACHE
+[[nodiscard]] inline std::shared_ptr<interfaces::ICache> resolve_cache(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 1'024U); // CONGELADO_CAP_CACHE
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -203,8 +225,8 @@ class LoggerAdapter final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *cache = static_cast<interfaces::ICache *>(result.v_ptr);
-    return std::shared_ptr<interfaces::ICache>(cache, [](interfaces::ICache *) {});
+    auto* cache = static_cast<interfaces::ICache*>(result.v_ptr);
+    return std::shared_ptr<interfaces::ICache>(cache, [](interfaces::ICache*) {});
 }
 
 /**
@@ -214,8 +236,9 @@ class LoggerAdapter final : public interfaces::ILogger,
  * @return a non-owning `shared_ptr<interfaces::ICron>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the CRON capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::ICron> resolve_cron_provider(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 2048U); // CONGELADO_CAP_CRON
+[[nodiscard]] inline std::shared_ptr<interfaces::ICron> resolve_cron_provider(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 2'048U); // CONGELADO_CAP_CRON
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -223,8 +246,8 @@ class LoggerAdapter final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *cron = static_cast<interfaces::ICron *>(result.v_ptr);
-    return std::shared_ptr<interfaces::ICron>(cron, [](interfaces::ICron *) {});
+    auto* cron = static_cast<interfaces::ICron*>(result.v_ptr);
+    return std::shared_ptr<interfaces::ICron>(cron, [](interfaces::ICron*) {});
 }
 
 /**
@@ -232,11 +255,13 @@ class LoggerAdapter final : public interfaces::ILogger,
  * `congelado_call(WORKER_MANAGER, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.
  * @return a non-owning `shared_ptr<interfaces::IWorkerManager>` (same lifetime idiom as
- * `resolve_cron_provider`), or `nullptr` if the plugin doesn't export the WORKER_MANAGER capability.
+ * `resolve_cron_provider`), or `nullptr` if the plugin doesn't export the WORKER_MANAGER
+ * capability.
  */
 [[nodiscard]] inline std::shared_ptr<interfaces::IWorkerManager>
-resolve_worker_manager(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 4096U); // CONGELADO_CAP_WORKER_MANAGER
+resolve_worker_manager(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 4'096U); // CONGELADO_CAP_WORKER_MANAGER
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -244,8 +269,8 @@ resolve_worker_manager(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *manager = static_cast<interfaces::IWorkerManager *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IWorkerManager>(manager, [](interfaces::IWorkerManager *) {});
+    auto* manager = static_cast<interfaces::IWorkerManager*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorkerManager>(manager, [](interfaces::IWorkerManager*) {});
 }
 
 /**
@@ -257,8 +282,9 @@ resolve_worker_manager(PluginRef &ref) {
  * capability.
  */
 [[nodiscard]] inline std::shared_ptr<interfaces::IWorkerOrchestrator>
-resolve_worker_orchestrator(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 32768U); // CONGELADO_CAP_WORKER_ORCHESTRATOR
+resolve_worker_orchestrator(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 32'768U); // CONGELADO_CAP_WORKER_ORCHESTRATOR
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -266,21 +292,24 @@ resolve_worker_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *orchestrator = static_cast<interfaces::IWorkerOrchestrator *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IWorkerOrchestrator>(orchestrator,
-                                                            [](interfaces::IWorkerOrchestrator *) {});
+    auto* orchestrator = static_cast<interfaces::IWorkerOrchestrator*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorkerOrchestrator>(
+        orchestrator, [](interfaces::IWorkerOrchestrator*) {}
+    );
 }
 
 /**
  * @brief Resolves a loaded plugin's PAYLOAD_STORAGE-capability interface pointer via
  * `congelado_call(PAYLOAD_STORAGE, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.
- * @return a non-owning `shared_ptr<interfaces::IExternalPayloadStorage>` (same lifetime idiom as
- * `resolve_storage`), or `nullptr` if the plugin doesn't export the PAYLOAD_STORAGE capability.
+ * @return a non-owning `shared_ptr<interfaces::IExternalPayloadStorage>` (same lifetime idiom
+ * as `resolve_storage`), or `nullptr` if the plugin doesn't export the PAYLOAD_STORAGE
+ * capability.
  */
 [[nodiscard]] inline std::shared_ptr<interfaces::IExternalPayloadStorage>
-resolve_payload_storage(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 131072U); // CONGELADO_CAP_PAYLOAD_STORAGE
+resolve_payload_storage(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 131'072U); // CONGELADO_CAP_PAYLOAD_STORAGE
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -288,9 +317,10 @@ resolve_payload_storage(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *storage = static_cast<interfaces::IExternalPayloadStorage *>(result.v_ptr);
+    auto* storage = static_cast<interfaces::IExternalPayloadStorage*>(result.v_ptr);
     return std::shared_ptr<interfaces::IExternalPayloadStorage>(
-        storage, [](interfaces::IExternalPayloadStorage *) {});
+        storage, [](interfaces::IExternalPayloadStorage*) {}
+    );
 }
 
 /**
@@ -301,8 +331,9 @@ resolve_payload_storage(PluginRef &ref) {
  * `resolve_worker_orchestrator`), or `nullptr` if the plugin doesn't export the capability.
  */
 [[nodiscard]] inline std::shared_ptr<interfaces::IWorkflowOrchestrator>
-resolve_workflow_orchestrator(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 65536U); // CONGELADO_CAP_WORKFLOW_ORCHESTRATOR
+resolve_workflow_orchestrator(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 65'536U); // CONGELADO_CAP_WORKFLOW_ORCHESTRATOR
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -310,21 +341,23 @@ resolve_workflow_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *orchestrator = static_cast<interfaces::IWorkflowOrchestrator *>(result.v_ptr);
+    auto* orchestrator = static_cast<interfaces::IWorkflowOrchestrator*>(result.v_ptr);
     return std::shared_ptr<interfaces::IWorkflowOrchestrator>(
-        orchestrator, [](interfaces::IWorkflowOrchestrator *) {});
+        orchestrator, [](interfaces::IWorkflowOrchestrator*) {}
+    );
 }
 
 /**
  * @brief Resolves a loaded plugin's WORKER-capability interface pointer via
  * `congelado_call(WORKER, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.
- * @return a non-owning `shared_ptr<interfaces::IWorker>`, or `nullptr` if the plugin doesn't export
- * the WORKER capability. Unlike single-active capabilities, the worker host resolves this for every
- * loaded worker plugin and keys them by `IWorker::get_task_type()`.
+ * @return a non-owning `shared_ptr<interfaces::IWorker>`, or `nullptr` if the plugin doesn't
+ * export the WORKER capability. Unlike single-active capabilities, the worker host resolves
+ * this for every loaded worker plugin and keys them by `IWorker::get_task_type()`.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IWorker> resolve_worker(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 8192U); // CONGELADO_CAP_WORKER
+[[nodiscard]] inline std::shared_ptr<interfaces::IWorker> resolve_worker(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 8'192U); // CONGELADO_CAP_WORKER
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -332,20 +365,21 @@ resolve_workflow_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *worker = static_cast<interfaces::IWorker *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IWorker>(worker, [](interfaces::IWorker *) {});
+    auto* worker = static_cast<interfaces::IWorker*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IWorker>(worker, [](interfaces::IWorker*) {});
 }
 
 /**
  * @brief Resolves a loaded plugin's APP_DEFS-capability interface pointer via
  * `congelado_call(APP_DEFS, GET, ...)`, if it has one.
  * @param ref the loaded plugin's symbol table.
- * @return a non-owning `shared_ptr<interfaces::IAppDefs>`, or `nullptr` if the plugin doesn't export
- * the APP_DEFS capability. Like WORKER, the worker host resolves this for every loaded app plugin
- * and merges their code-built defs into the on-load engine registration.
+ * @return a non-owning `shared_ptr<interfaces::IAppDefs>`, or `nullptr` if the plugin doesn't
+ * export the APP_DEFS capability. Like WORKER, the worker host resolves this for every loaded
+ * app plugin and merges their code-built defs into the on-load engine registration.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IAppDefs> resolve_app_defs(PluginRef &ref) {
-    auto call_fn = resolve_call_fn(ref, 16384U); // CONGELADO_CAP_APP_DEFS
+[[nodiscard]] inline std::shared_ptr<interfaces::IAppDefs> resolve_app_defs(PluginRef& ref)
+{
+    auto call_fn = resolve_call_fn(ref, 16'384U); // CONGELADO_CAP_APP_DEFS
     if (call_fn == nullptr) {
         return nullptr;
     }
@@ -353,8 +387,8 @@ resolve_workflow_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *defs = static_cast<interfaces::IAppDefs *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IAppDefs>(defs, [](interfaces::IAppDefs *) {});
+    auto* defs = static_cast<interfaces::IAppDefs*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IAppDefs>(defs, [](interfaces::IAppDefs*) {});
 }
 
 /**
@@ -364,7 +398,8 @@ resolve_workflow_orchestrator(PluginRef &ref) {
  * @return a non-owning `shared_ptr<interfaces::IEventSink>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the EVENTS capability.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IEventSink> resolve_event_sink(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::IEventSink> resolve_event_sink(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 512U); // CONGELADO_CAP_EVENTS
     if (call_fn == nullptr) {
         return nullptr;
@@ -373,8 +408,8 @@ resolve_workflow_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *sink = static_cast<interfaces::IEventSink *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IEventSink>(sink, [](interfaces::IEventSink *) {});
+    auto* sink = static_cast<interfaces::IEventSink*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IEventSink>(sink, [](interfaces::IEventSink*) {});
 }
 
 /**
@@ -384,10 +419,12 @@ resolve_workflow_orchestrator(PluginRef &ref) {
  * @return a non-owning `shared_ptr<interfaces::IOtelProvider>` (same lifetime idiom as
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the OTEL capability. A
  * returned provider may still answer `nullptr` from any of its own `get_tracer_provider()`/
- * `get_meter_provider()`/`get_log_provider()` accessors — a plugin can support any subset of the
- * three OTel signals.
+ * `get_meter_provider()`/`get_log_provider()` accessors — a plugin can support any subset of
+ * the three OTel signals.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IOtelProvider> resolve_otel_provider(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::IOtelProvider>
+resolve_otel_provider(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 64U); // CONGELADO_CAP_OTEL
     if (call_fn == nullptr) {
         return nullptr;
@@ -396,8 +433,8 @@ resolve_workflow_orchestrator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *provider = static_cast<interfaces::IOtelProvider *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IOtelProvider>(provider, [](interfaces::IOtelProvider *) {});
+    auto* provider = static_cast<interfaces::IOtelProvider*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IOtelProvider>(provider, [](interfaces::IOtelProvider*) {});
 }
 
 /**
@@ -408,7 +445,8 @@ resolve_workflow_orchestrator(PluginRef &ref) {
  * `resolve_serde_format`), or `nullptr` if the plugin doesn't export the OPENAPI capability.
  */
 [[nodiscard]] inline std::shared_ptr<interfaces::IOpenApiGenerator>
-resolve_openapi_generator(PluginRef &ref) {
+resolve_openapi_generator(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 128U); // CONGELADO_CAP_OPENAPI
     if (call_fn == nullptr) {
         return nullptr;
@@ -417,9 +455,10 @@ resolve_openapi_generator(PluginRef &ref) {
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *generator = static_cast<interfaces::IOpenApiGenerator *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IOpenApiGenerator>(generator,
-                                                          [](interfaces::IOpenApiGenerator *) {});
+    auto* generator = static_cast<interfaces::IOpenApiGenerator*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IOpenApiGenerator>(
+        generator, [](interfaces::IOpenApiGenerator*) {}
+    );
 }
 
 /**
@@ -430,18 +469,24 @@ resolve_openapi_generator(PluginRef &ref) {
  * trace/span correlation at the moment each line is logged, then fans the resulting
  * `interfaces::LogRecord` out to every provider in `core::otel::LogRecordRegistry`.
  */
-class OtelLogBridge final : public interfaces::ILogger,
-                            public std::enable_shared_from_this<OtelLogBridge> {
-  public:
+class OtelLogBridge final :
+    public interfaces::ILogger,
+    public std::enable_shared_from_this<OtelLogBridge>
+{
+public:
     /// @brief Gets this bridge's display name. @return a fixed identifying name.
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "otel-log-bridge"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "otel-log-bridge";
+    }
 
     /**
      * @brief Forwards a log line as an OTel log record.
      * @param level the severity of the line being logged.
      * @param msg the text getting logged.
      */
-    void write(interfaces::LogLevel level, std::string_view msg) noexcept override {
+    void write(interfaces::LogLevel level, std::string_view msg) noexcept override
+    {
         emit(to_otel_severity(level), msg);
     }
 
@@ -449,7 +494,8 @@ class OtelLogBridge final : public interfaces::ILogger,
      * @brief Shortcut for logging at Error severity, matching `ILogger::error`'s contract.
      * @param msg the error text getting logged.
      */
-    void error(std::string_view msg) noexcept override {
+    void error(std::string_view msg) noexcept override
+    {
         emit(interfaces::LogSeverity::ERROR, msg);
     }
 
@@ -459,7 +505,8 @@ class OtelLogBridge final : public interfaces::ILogger,
      * before this gets called, otherwise it's straight UB.
      * @param registry the (already-active) logger registry to add this bridge to.
      */
-    void register_bridge(core::logger::LoggerRegistry &registry) {
+    void register_bridge(core::logger::LoggerRegistry& registry)
+    {
         registry.add_logger(shared_from_this());
     }
 
@@ -475,30 +522,33 @@ class OtelLogBridge final : public interfaces::ILogger,
      * how `LoggerAdapter::register_from()` above already keeps its own construction in-module.
      * @param registry the logger registry to register the new bridge into.
      */
-    static void install(core::logger::LoggerRegistry &registry) {
+    static void install(core::logger::LoggerRegistry& registry)
+    {
         std::make_shared<OtelLogBridge>()->register_bridge(registry);
     }
 
-  private:
+private:
     /**
      * @brief Maps `core::logger`'s six-level scheme onto OTel's five-level severity scheme —
-     * `IMPORTANT` (a level `interfaces::LogSeverity` has no equivalent for) collapses to `INFO`.
+     * `IMPORTANT` (a level `interfaces::LogSeverity` has no equivalent for) collapses to
+     * `INFO`.
      * @param level the logger-side level.
      * @return the closest OTel severity.
      */
-    static interfaces::LogSeverity to_otel_severity(interfaces::LogLevel level) noexcept {
+    static interfaces::LogSeverity to_otel_severity(interfaces::LogLevel level) noexcept
+    {
         switch (level) {
-        case interfaces::LogLevel::DEBUG:
-            return interfaces::LogSeverity::DEBUG;
-        case interfaces::LogLevel::INFO:
-        case interfaces::LogLevel::IMPORTANT:
-            return interfaces::LogSeverity::INFO;
-        case interfaces::LogLevel::WARNING:
-            return interfaces::LogSeverity::WARN;
-        case interfaces::LogLevel::ERROR:
-            return interfaces::LogSeverity::ERROR;
-        case interfaces::LogLevel::FATAL:
-            return interfaces::LogSeverity::FATAL;
+            case interfaces::LogLevel::DEBUG:
+                return interfaces::LogSeverity::DEBUG;
+            case interfaces::LogLevel::INFO:
+            case interfaces::LogLevel::IMPORTANT:
+                return interfaces::LogSeverity::INFO;
+            case interfaces::LogLevel::WARNING:
+                return interfaces::LogSeverity::WARN;
+            case interfaces::LogLevel::ERROR:
+                return interfaces::LogSeverity::ERROR;
+            case interfaces::LogLevel::FATAL:
+                return interfaces::LogSeverity::FATAL;
         }
         return interfaces::LogSeverity::INFO;
     }
@@ -508,26 +558,29 @@ class OtelLogBridge final : public interfaces::ILogger,
      * context, if any) and fans it out to every registered `ILogRecordProvider`. Never throws —
      * degrades to a silent no-op if no `LogRecordRegistry` is active or nothing's registered.
      * @note Never forwards a DEBUG-severity line tagged `otel*` (e.g. `otel_traces`/
-     * `otel_metrics`/`otel_logs`/`otel_sdk`/`otel_otlp` — every tag this project's own OTel plugin
-     * logs under, see `plugins/otel_otlp/src/otel_otlp_plugin.cc`). `core::logger::debug(name,
-     * ...)` bakes `name` into the message as a leading `"|name| "` (see `core_logger`'s `log()`),
-     * so checking that prefix here catches it. Without this, an OTel exporter's own routine
-     * "exporting N record(s)"/"sent N successfully" diagnostic — logged at DEBUG on every single
-     * export — would get forwarded right back into the OTel logs pipeline it's reporting on,
-     * queue as a new record, trigger another export, log itself again, forever — an unbounded
-     * feedback loop, not just noise. Scoped to DEBUG specifically so it doesn't also swallow the
-     * plugin's one-time IMPORTANT startup line or WARNING-level export-failure lines (both
-     * useful, and neither one is a routine per-export message that could compound like this) —
-     * every *other* tag, and every non-DEBUG severity of an `otel*` tag, still forwards normally.
+     * `otel_metrics`/`otel_logs`/`otel_sdk`/`otel_otlp` — every tag this project's own OTel
+     * plugin logs under, see `plugins/otel_otlp/src/otel_otlp_plugin.cc`).
+     * `core::logger::debug(name,
+     * ...)` bakes `name` into the message as a leading `"|name| "` (see `core_logger`'s
+     * `log()`), so checking that prefix here catches it. Without this, an OTel exporter's own
+     * routine "exporting N record(s)"/"sent N successfully" diagnostic — logged at DEBUG on
+     * every single export — would get forwarded right back into the OTel logs pipeline it's
+     * reporting on, queue as a new record, trigger another export, log itself again, forever —
+     * an unbounded feedback loop, not just noise. Scoped to DEBUG specifically so it doesn't
+     * also swallow the plugin's one-time IMPORTANT startup line or WARNING-level export-failure
+     * lines (both useful, and neither one is a routine per-export message that could compound
+     * like this) — every *other* tag, and every non-DEBUG severity of an `otel*` tag, still
+     * forwards normally.
      * @param severity the record's OTel severity.
      * @param msg the record's body text.
      */
-    void emit(interfaces::LogSeverity severity, std::string_view msg) noexcept {
+    void emit(interfaces::LogSeverity severity, std::string_view msg) noexcept
+    {
         try {
             if (severity == interfaces::LogSeverity::DEBUG && msg.starts_with("|otel")) {
                 return;
             }
-            auto *registry = core::otel::LogRecordRegistry::get_active();
+            auto* registry = core::otel::LogRecordRegistry::get_active();
             if (registry == nullptr || !registry->has_provider()) {
                 return;
             }
@@ -536,7 +589,7 @@ class OtelLogBridge final : public interfaces::ILogger,
                 record.trace_id = ctx->trace_id;
                 record.span_id = ctx->span_id;
             }
-            for (const auto &provider : registry->get_providers()) {
+            for (const auto& provider: registry->get_providers()) {
                 provider->emit(record);
             }
         } catch (...) {
@@ -555,7 +608,8 @@ class OtelLogBridge final : public interfaces::ILogger,
  * the caller doesn't need to guess from the plugin's own display name; see
  * `core::plugin::SharedLibrary::broadcast_bridge()`, which reads it directly off the bridge.
  */
-[[nodiscard]] inline std::shared_ptr<interfaces::IBridge> resolve_bridge(PluginRef &ref) {
+[[nodiscard]] inline std::shared_ptr<interfaces::IBridge> resolve_bridge(PluginRef& ref)
+{
     auto call_fn = resolve_call_fn(ref, 32U); // CONGELADO_CAP_BRIDGE
     if (call_fn == nullptr) {
         return nullptr;
@@ -564,8 +618,8 @@ class OtelLogBridge final : public interfaces::ILogger,
     if (result.type_index != CG_PTR || result.v_ptr == nullptr) {
         return nullptr;
     }
-    auto *bridge = static_cast<interfaces::IBridge *>(result.v_ptr);
-    return std::shared_ptr<interfaces::IBridge>(bridge, [](interfaces::IBridge *) {});
+    auto* bridge = static_cast<interfaces::IBridge*>(result.v_ptr);
+    return std::shared_ptr<interfaces::IBridge>(bridge, [](interfaces::IBridge*) {});
 }
 
 } // namespace congelado::heart
@@ -602,11 +656,12 @@ suite<"resolve_call_fn"> resolve_call_fn_suite = [] {
     "capability bit set and congelado_call present resolves non-null"_test = [] {
         PluginRef ref;
         ref.m_data["congelado_capabilities"] = std::uint32_t{1U};
-        ref.m_data["congelado_call"] = static_cast<void *>(reinterpret_cast<void *>(&dummy_call_symbol));
+        ref.m_data["congelado_call"] =
+            static_cast<void*>(reinterpret_cast<void*>(&dummy_call_symbol));
 
         auto call_fn = resolve_call_fn(ref, 1U);
         expect(call_fn != nullptr);
-        expect(reinterpret_cast<void *>(call_fn) == reinterpret_cast<void *>(&dummy_call_symbol));
+        expect(reinterpret_cast<void*>(call_fn) == reinterpret_cast<void*>(&dummy_call_symbol));
     };
 };
 

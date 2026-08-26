@@ -8,14 +8,18 @@ import helper;
 import boost.ut;
 #endif
 
-export template <typename T>
-class Page : Node, public AlignedManager<Page<T>> {
-  public:
+export template<typename T>
+class Page : Node, public AlignedManager<Page<T>>
+{
+public:
     /**
      * @brief Builds an empty page — not dynamically allocated by default, zero elements
      * dequeued.
      */
-    Page() : m_dequeued{0} {}
+    Page() :
+        m_dequeued{0}
+    {
+    }
 
     /**
      * @brief Checks whether every slot in this page has been dequeued.
@@ -24,7 +28,8 @@ class Page : Node, public AlignedManager<Page<T>> {
      * in set_empty()/set_many_empty().
      * @return true if all `BLOCK_SIZE` elements have been dequeued.
      */
-    [[nodiscard]] bool is_empty() const {
+    [[nodiscard]] bool is_empty() const
+    {
         // Every slot's been dequeued — fire the acquire fence before reporting true, so whoever
         // sees this synchronizes with the last dequeuer's writes.
         if (m_dequeued.load(std::memory_order_relaxed) == BLOCK_SIZE) {
@@ -39,7 +44,8 @@ class Page : Node, public AlignedManager<Page<T>> {
      * @return true if this call was the one that pushed the count over the edge to fully empty
      * (i.e. `BLOCK_SIZE - 1` elements were already dequeued before this call).
      */
-    bool set_empty() {
+    bool set_empty()
+    {
         // Bump the count, then report whether THIS call was the one that tipped it over into
         // fully-empty (i.e. it was one short beforehand).
         auto prev = m_dequeued.fetch_add(1, std::memory_order_acq_rel);
@@ -51,7 +57,8 @@ class Page : Node, public AlignedManager<Page<T>> {
      * @param count how many elements to mark dequeued.
      * @return true if this call pushed the page to fully empty.
      */
-    bool set_many_empty(std::size_t count) {
+    bool set_many_empty(std::size_t count)
+    {
         // Same idea as set_empty(), just bumping by `count` in one shot for bulk dequeues.
         auto prev = m_dequeued.fetch_add(count, std::memory_order_acq_rel);
         return prev + count == BLOCK_SIZE;
@@ -61,12 +68,18 @@ class Page : Node, public AlignedManager<Page<T>> {
      * @brief Force-marks the whole page as fully dequeued in one relaxed store, bypassing the
      * incremental fetch_add() path entirely.
      */
-    void set_full_empty() { m_dequeued.store(BLOCK_SIZE, std::memory_order_relaxed); }
+    void set_full_empty()
+    {
+        m_dequeued.store(BLOCK_SIZE, std::memory_order_relaxed);
+    }
 
     /**
      * @brief Resets the dequeued counter back to zero — recycling a page for reuse.
      */
-    void reset_empty() { m_dequeued.store(0, std::memory_order_relaxed); }
+    void reset_empty()
+    {
+        m_dequeued.store(0, std::memory_order_relaxed);
+    }
 
     /**
      * @brief Indexes into the page's raw element storage, wrapping `idx` down to a valid slot via
@@ -77,8 +90,9 @@ class Page : Node, public AlignedManager<Page<T>> {
      * @param idx the logical index to resolve into a slot.
      * @return a pointer to the element at the wrapped slot.
      */
-    T *operator[](std::size_t idx) noexcept {
-        return reinterpret_cast<T *>(m_elements) +  // FIXME(clang-tidy): reinterpret_cast usage
+    T* operator[](std::size_t idx) noexcept
+    {
+        return reinterpret_cast<T*>(m_elements) + // FIXME(clang-tidy): reinterpret_cast usage
                (idx & static_cast<std::size_t>(BLOCK_SIZE - 1));
     };
 
@@ -87,12 +101,13 @@ class Page : Node, public AlignedManager<Page<T>> {
      * @param idx the logical index to resolve into a slot.
      * @return a read-only pointer to the element at the wrapped slot.
      */
-    T const *operator[](std::size_t idx) const noexcept {
-        return reinterpret_cast<T const *>(m_elements) +  // FIXME(clang-tidy): reinterpret_cast usage
+    const T* operator[](std::size_t idx) const noexcept
+    {
+        return reinterpret_cast<const T*>(m_elements) + // FIXME(clang-tidy): reinterpret_cast usage
                (idx & static_cast<std::size_t>(BLOCK_SIZE - 1));
     };
 
-  private:
+private:
     alignas(T) char m_elements[sizeof(T) * BLOCK_SIZE]{};
     bool m_dynamicly_allocated{false};
     std::atomic<std::size_t> m_dequeued;

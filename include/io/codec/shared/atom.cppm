@@ -13,10 +13,11 @@ import boost.ut;
 
 export namespace io::shared_codec::raw {
 
-template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template<std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires DecodeWidth<Width>
-class Atom {
-  public:
+class Atom
+{
+public:
     // The integer is less than 2^N - 1 (N = 5):
     //   0   1   2   3   4   5   6   7
     // +---+---+---+---+---+---+---+---+
@@ -37,10 +38,11 @@ class Atom {
     // +---+---------------------------+
     /**
      * @brief HPACK/QPACK integer encoding (RFC 7541 §5.1) — writes `data` prefix-encoded into
-     * `prefix_size` bits of the first octet, spilling into continuation bytes if it doesn't fit.
+     * `prefix_size` bits of the first octet, spilling into continuation bytes if it doesn't
+     * fit.
      * @tparam Out output iterator type data gets written through.
-     * @tparam PrefixType type of `prefix_data` — must be castable to `std::uint8_t` (raw byte or
-     * a matching-width enum).
+     * @tparam PrefixType type of `prefix_data` — must be castable to `std::uint8_t` (raw byte
+     * or a matching-width enum).
      * @param data the integer value to encode.
      * @param prefix_size how many bits of the first octet belong to the prefix — must be 1-8.
      * @param prefix_data the fixed high bits to OR into the first octet alongside the prefix
@@ -48,9 +50,10 @@ class Atom {
      * @param out output iterator bytes get written to, one `*out++ =` at a time.
      * @throws std::invalid_argument if `prefix_size` is outside [1,8].
      */
-    template <std::output_iterator<std::uint8_t> Out, typename PrefixType>
+    template<std::output_iterator<std::uint8_t> Out, typename PrefixType>
         requires CastableToUint8<PrefixType>
-    static void encode_int(UInt data, std::uint8_t prefix_size, PrefixType prefix_data, Out out) {
+    static void encode_int(UInt data, std::uint8_t prefix_size, PrefixType prefix_data, Out out)
+    {
         if (prefix_size < 1 || prefix_size > 8) {
             throw std::invalid_argument("prefix must be in range [1,8] (inclusive)");
         }
@@ -72,16 +75,19 @@ class Atom {
         //             I = I / 128
         //        encode I on 8 bits
         if (data < MAX_PREFIX) {
-            // Value fits in one octet, the function to calculate the max value is:  2 ^ prefix - 1 (inclusive).
+            // Value fits in one octet, the function to calculate the max value is:  2 ^ prefix
+            // - 1 (inclusive).
             *out++ = (PREFIX & ~MASK) | static_cast<std::uint8_t>(data);
         } else {
-            // Value is exeds the limit of one octet. In the following we need to encode the value in multiple octets.
+            // Value is exeds the limit of one octet. In the following we need to encode the
+            // value in multiple octets.
 
-            // Encode the prefix as well as the max value for the prefix (all bits of prefix must be set to 1).
+            // Encode the prefix as well as the max value for the prefix (all bits of prefix
+            // must be set to 1).
             *out++ = static_cast<std::uint8_t>(PREFIX | MASK);
 
-            // Suvtract the max value of the prefix from the value, as we have already encoded that part in the first
-            // octet.
+            // Suvtract the max value of the prefix from the value, as we have already encoded
+            // that part in the first octet.
             data -= MAX_PREFIX;
 
             // while data > 127 (2 ^ 7 - 1)
@@ -98,8 +104,8 @@ class Atom {
     /**
      * @brief Inverse of encode_int(), bet — decodes an HPACK/QPACK prefix-encoded integer
      * starting at `pos`, advancing `pos` past however many octets it consumed.
-     * @tparam PrefixOffset when > 0, also captures the bits sitting before the integer prefix in
-     * the first octet (representation-type flags) into the result's metadata; 0 skips that.
+     * @tparam PrefixOffset when > 0, also captures the bits sitting before the integer prefix
+     * in the first octet (representation-type flags) into the result's metadata; 0 skips that.
      * @param data the buffer to decode from.
      * @param pos in/out cursor — read from on entry, advanced past the consumed octets on exit.
      * @param prefix_size how many bits of the first octet belong to the prefix — must be 1-8.
@@ -107,12 +113,13 @@ class Atom {
      * @throws std::invalid_argument if `prefix_size` is outside [1,8].
      * @throws error::http::TruncatedDataError if `pos` is already past the end of `data`.
      * @throws error::http::IntegerDecodeError if a continuation byte is missing (truncated
-     * stream) or the accumulated value would overflow `UInt`'s bit width — no silent wraparound,
-     * ever, this is a strict decode.
+     * stream) or the accumulated value would overflow `UInt`'s bit width — no silent
+     * wraparound, ever, this is a strict decode.
      */
-    template <std::size_t PrefixOffset = 0>
-    static DecodeIntResult<UInt> decode_int(std::span<const std::uint8_t> data, std::size_t &pos,
-                                                  std::uint8_t prefix_size) {
+    template<std::size_t PrefixOffset = 0>
+    static DecodeIntResult<UInt>
+    decode_int(std::span<const std::uint8_t> data, std::size_t& pos, std::uint8_t prefix_size)
+    {
         if (prefix_size < 1 || prefix_size > 8) {
             throw std::invalid_argument{"prefix must be in range [1,8] (inclusive)"};
         }
@@ -121,7 +128,8 @@ class Atom {
             throw error::http::TruncatedDataError{};
         }
 
-        const std::uint8_t FIRST_BYTE = data[pos++];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const std::uint8_t FIRST_BYTE =
+            data[pos++]; // FIXME(clang-tidy): unchecked operator[], consider .at()
 
         std::uint8_t prefix_metadata = 0;
         if constexpr (PrefixOffset > 0) {
@@ -162,10 +170,11 @@ class Atom {
                 throw error::http::IntegerDecodeError{"overflow"};
             }
 
-            const std::uint8_t CONTINUATION_BYTE = data[pos++];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            const std::uint8_t CONTINUATION_BYTE =
+                data[pos++]; // FIXME(clang-tidy): unchecked operator[], consider .at()
 
-            // Get data execpt for the first continuation bit. Then shift into the correct postion inside of the Uint
-            // and add to the value.
+            // Get data execpt for the first continuation bit. Then shift into the correct
+            // postion inside of the Uint and add to the value.
             const UInt SHIFTED = static_cast<UInt>(CONTINUATION_BYTE & 0x7FU) << bit_shift;
 
             // Check for overflow before adding the shifted value to the total value.
@@ -192,36 +201,41 @@ class Atom {
     // |  String Data (Length octets)  |
     // +-------------------------------+
     // H: Huffman flag (1 bit) –> 1 = Huffman-encoded | 0 = raw string
-    static constexpr std::size_t MAX_LENGTH = 65536;
+    static constexpr std::size_t MAX_LENGTH = 65'536;
 
     /**
-     * @brief HPACK/QPACK string encoding — writes the H-bit + length prefix then the string body,
-     * optionally Huffman-compressing it first. Real low-key power move when `huffman` is
+     * @brief HPACK/QPACK string encoding — writes the H-bit + length prefix then the string
+     * body, optionally Huffman-compressing it first. Real low-key power move when `huffman` is
      * non-null: smaller wire size for free.
      * @tparam Out output iterator type bytes get written through.
      * @param huffman pointer to a Huffman coder to compress `str` through, or null for raw
      * (uncompressed) encoding.
      * @param str the string to encode.
      * @param out output iterator bytes get written to.
-     * @param prefix_size how many bits of the length's first octet belong to the length prefix —
-     * defaults to 7, matching the HPACK/QPACK string-length wire format.
+     * @param prefix_size how many bits of the length's first octet belong to the length prefix
+     * — defaults to 7, matching the HPACK/QPACK string-length wire format.
      * @note Only debug-asserted, not thrown: `encoded.size()` (or `str.size()` in the raw path)
      * must fit in `UInt`'s range — a release build with a string bigger than that overflows
-     * silently instead of erroring. Don't be encoding anything near `UInt`'s max in prod without
-     * checking first.
+     * silently instead of erroring. Don't be encoding anything near `UInt`'s max in prod
+     * without checking first.
      */
-    template <std::output_iterator<std::uint8_t> Out>
-    static void encode_string(const huffman::Huffman<Width> *huffman, std::string_view str, Out out,
-                              std::uint8_t prefix_size = 7U) {
+    template<std::output_iterator<std::uint8_t> Out>
+    static void encode_string(
+        const huffman::Huffman<Width>* huffman,
+        std::string_view str,
+        Out out,
+        std::uint8_t prefix_size = 7U
+    )
+    {
         if (huffman) {
             std::vector<std::uint8_t> encoded;
             encoded.reserve(((str.size() * 5) + 7) / 8);
 
-            // TODO: implement Huffman by passing a ref via props which acts as flag isntead of using use_huffman
-            for (std::byte value : str | std::views::transform([](char character) {
-                                             return static_cast<std::byte>(character);
-                                         }) |
-                                        huffman::Huffman<Width>::encode()) {
+            // TODO: implement Huffman by passing a ref via props which acts as flag isntead of
+            // using use_huffman
+            for (std::byte value: str | std::views::transform([](char character) {
+                                      return static_cast<std::byte>(character);
+                                  }) | huffman::Huffman<Width>::encode()) {
                 encoded.push_back(static_cast<std::uint8_t>(value));
             }
 
@@ -230,7 +244,7 @@ class Atom {
             // Write length then Huffman bytes directly into out.
             encode_int<Out>(encoded.size(), prefix_size, PrefixHelper::HUFFMAN_ENABLED, out);
 
-            for (std::uint8_t byte : encoded) {
+            for (std::uint8_t byte: encoded) {
                 *out++ = byte;
             }
         } else {
@@ -240,7 +254,7 @@ class Atom {
             assert(str.size() <= std::numeric_limits<UInt>::max());
             encode_int<Out>(str.size(), prefix_size, PrefixHelper::HUFFMAN_DISABLED, out);
 
-            for (std::uint8_t ch : str) {
+            for (std::uint8_t ch: str) {
                 *out++ = ch;
             }
         }
@@ -250,23 +264,29 @@ class Atom {
      * @brief Inverse of encode_string() — reads the H-bit + length-prefixed string starting at
      * `pos`, Huffman-decoding the body if the H-bit's set, and advances `pos` past the whole
      * thing (length prefix + body).
-     * @param huffman_coder the Huffman coder to decode through, used only when the H-bit is set.
+     * @param huffman_coder the Huffman coder to decode through, used only when the H-bit is
+     * set.
      * @param data the buffer to decode from.
      * @param pos in/out cursor — read from on entry, advanced past the consumed bytes on exit.
      * @return the decoded string, plain UTF-8/ASCII bytes either way (Huffman-decoded or raw).
      * @throws error::http::TruncatedDataError if `pos` is already past the end of `data`.
      * @throws error::http::StringDecodeError if the decoded length exceeds `MAX_LENGTH` (65536)
-     * or the string body would run past the end of `data` — both are treated as hostile/malformed
-     * input, not recoverable states.
+     * or the string body would run past the end of `data` — both are treated as
+     * hostile/malformed input, not recoverable states.
      */
-    static std::string decode_string(const huffman::Huffman<Width> &huffman_coder, std::span<const std::uint8_t> data,
-                                     std::size_t &pos) {
+    static std::string decode_string(
+        const huffman::Huffman<Width>& huffman_coder,
+        std::span<const std::uint8_t> data,
+        std::size_t& pos
+    )
+    {
         if (pos >= data.size()) {
             throw error::http::TruncatedDataError{};
         }
 
         // Check the Huffman flag (H-bit) in the first byte.
-        const bool HUFFMAN_FLAG = (data[pos] & 0x80) != 0;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+        const bool HUFFMAN_FLAG =
+            (data[pos] & 0x80) != 0; // FIXME(clang-tidy): unchecked operator[], consider .at()
 
         // String length is encoded as a 7-bit prefix integer.
         const auto LENGTH = decode_int(data, pos, 7U);
@@ -285,16 +305,17 @@ class Atom {
         if (HUFFMAN_FLAG) {
             static_cast<void>(huffman_coder); // instance not needed — decode() is static, see below
             std::string decoded;
-            for (char character : body | std::views::transform([](std::uint8_t byte_value) {
-                                            return static_cast<std::byte>(byte_value);
-                                        }) |
-                                       huffman::Huffman<Width>::decode()) {
+            for (char character: body | std::views::transform([](std::uint8_t byte_value) {
+                                     return static_cast<std::byte>(byte_value);
+                                 }) | huffman::Huffman<Width>::decode()) {
                 decoded += character;
             }
             return decoded;
         }
 
-        return {reinterpret_cast<const char *>(body.data()), body.size()};  // FIXME(clang-tidy): reinterpret_cast usage
+        return {
+            reinterpret_cast<const char*>(body.data()), body.size()
+        }; // FIXME(clang-tidy): reinterpret_cast usage
     };
 };
 
@@ -319,7 +340,7 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
 
     "multi-octet value round-trips (RFC 7541 C.1.2 vector)"_test = [] {
         std::vector<std::uint8_t> bytes;
-        Atom<>::encode_int(1337U, 5U, std::uint8_t{0}, std::back_inserter(bytes));
+        Atom<>::encode_int(1'337U, 5U, std::uint8_t{0}, std::back_inserter(bytes));
 
         expect(bytes.size() == 3);
         expect(bytes[0] == 0x1F);
@@ -328,7 +349,7 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
 
         std::size_t pos = 0;
         auto result = Atom<>::decode_int(bytes, pos, 5U);
-        expect(result.value() == 1337U);
+        expect(result.value() == 1'337U);
         expect(pos == 3U);
     };
 
@@ -345,32 +366,42 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
 
     "encode_int rejects an out-of-range prefix size"_test = [] {
         std::vector<std::uint8_t> bytes;
-        expect(throws<std::invalid_argument>(
-            [&] { Atom<>::encode_int(1U, 0U, std::uint8_t{0}, std::back_inserter(bytes)); }));
-        expect(throws<std::invalid_argument>(
-            [&] { Atom<>::encode_int(1U, 9U, std::uint8_t{0}, std::back_inserter(bytes)); }));
+        expect(throws<std::invalid_argument>([&] {
+            Atom<>::encode_int(1U, 0U, std::uint8_t{0}, std::back_inserter(bytes));
+        }));
+        expect(throws<std::invalid_argument>([&] {
+            Atom<>::encode_int(1U, 9U, std::uint8_t{0}, std::back_inserter(bytes));
+        }));
     };
 
     "decode_int rejects an out-of-range prefix size"_test = [] {
         std::vector<std::uint8_t> bytes{0x00};
         std::size_t pos = 0;
-        expect(throws<std::invalid_argument>([&] { Atom<>::decode_int(bytes, pos, 0U); }));
+        expect(throws<std::invalid_argument>([&] {
+            Atom<>::decode_int(bytes, pos, 0U);
+        }));
     };
 
     "decode_int on an empty buffer throws TruncatedDataError"_test = [] {
         std::vector<std::uint8_t> bytes;
         std::size_t pos = 0;
-        expect(throws<error::http::TruncatedDataError>([&] { Atom<>::decode_int(bytes, pos, 5U); }));
+        expect(throws<error::http::TruncatedDataError>([&] {
+            Atom<>::decode_int(bytes, pos, 5U);
+        }));
     };
 
-    "decode_int on a stream with no terminal continuation byte throws IntegerDecodeError"_test = [] {
-        // prefix_size=3 (MASK=7): first octet maxes the prefix, then five continuation bytes
-        // all keep the high bit set, so the value never terminates and either overflows
-        // UInt's bit width or runs off the end of the buffer — both raise IntegerDecodeError.
-        std::vector<std::uint8_t> bytes{0x07, 0x80, 0x80, 0x80, 0x80, 0x80};
-        std::size_t pos = 0;
-        expect(throws<error::http::IntegerDecodeError>([&] { Atom<>::decode_int(bytes, pos, 3U); }));
-    };
+    "decode_int on a stream with no terminal continuation byte throws IntegerDecodeError"_test =
+        [] {
+            // prefix_size=3 (MASK=7): first octet maxes the prefix, then five continuation
+            // bytes all keep the high bit set, so the value never terminates and either
+            // overflows UInt's bit width or runs off the end of the buffer — both raise
+            // IntegerDecodeError.
+            std::vector<std::uint8_t> bytes{0x07, 0x80, 0x80, 0x80, 0x80, 0x80};
+            std::size_t pos = 0;
+            expect(throws<error::http::IntegerDecodeError>([&] {
+                Atom<>::decode_int(bytes, pos, 3U);
+            }));
+        };
 };
 
 suite<"Atom::encode_string/decode_string"> atom_string_suite = [] {
@@ -406,16 +437,20 @@ suite<"Atom::encode_string/decode_string"> atom_string_suite = [] {
         huffman::Huffman<4> coder;
         std::vector<std::uint8_t> bytes;
         std::size_t pos = 0;
-        expect(throws<error::http::TruncatedDataError>([&] { Atom<>::decode_string(coder, bytes, pos); }));
+        expect(throws<error::http::TruncatedDataError>([&] {
+            Atom<>::decode_string(coder, bytes, pos);
+        }));
     };
 
     "decode_string rejects a length exceeding MAX_LENGTH"_test = [] {
         huffman::Huffman<4> coder;
         std::vector<std::uint8_t> bytes;
-        Atom<>::encode_int(70000U, 7U, PrefixHelper::HUFFMAN_DISABLED, std::back_inserter(bytes));
+        Atom<>::encode_int(70'000U, 7U, PrefixHelper::HUFFMAN_DISABLED, std::back_inserter(bytes));
 
         std::size_t pos = 0;
-        expect(throws<error::http::StringDecodeError>([&] { Atom<>::decode_string(coder, bytes, pos); }));
+        expect(throws<error::http::StringDecodeError>([&] {
+            Atom<>::decode_string(coder, bytes, pos);
+        }));
     };
 };
 

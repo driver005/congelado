@@ -19,9 +19,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_KERNELS_TENSOR_SHAPE_UTILS_H_
 #define TENSORFLOW_C_KERNELS_TENSOR_SHAPE_UTILS_H_
 
-#include <string>
-
 #include "c/intern/tf_tensor.h"
+
+#include <string>
 
 namespace tensorflow {
 
@@ -32,6 +32,6 @@ namespace tensorflow {
 // Returns a string representation of the TF_Tensor shape.
 std::string ShapeDebugString(TF_Tensor* tensor);
 
-}  // namespace tensorflow
+} // namespace tensorflow
 
-#endif  // TENSORFLOW_C_KERNELS_TENSOR_SHAPE_UTILS_H_
+#endif // TENSORFLOW_C_KERNELS_TENSOR_SHAPE_UTILS_H_

@@ -20,31 +20,31 @@ limitations under the License.
 #include "c/intern/tf_status.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// \brief Load a dynamic library.
-//
-// Pass "library_filename" to a platform-specific mechanism for dynamically
-// loading a library. The rules for determining the exact location of the
-// library are platform-specific and are not documented here.
-//
-// On success, place OK in status and return the newly created library handle.
-// Otherwise returns nullptr and set error status.
-TF_CAPI_EXPORT extern void* TF_LoadSharedLibrary(const char* library_filename,
-                                                 TF_Status* status);
+    // \brief Load a dynamic library.
+    //
+    // Pass "library_filename" to a platform-specific mechanism for dynamically
+    // loading a library. The rules for determining the exact location of the
+    // library are platform-specific and are not documented here.
+    //
+    // On success, place OK in status and return the newly created library handle.
+    // Otherwise returns nullptr and set error status.
+    TF_CAPI_EXPORT extern void*
+    TF_LoadSharedLibrary(const char* library_filename, TF_Status* status);
 
-// \brief Get a pointer to a symbol from a dynamic library.
-//
-// "handle" should be a pointer returned from a previous call to
-// TF_LoadLibraryFromEnv. On success, place OK in status and return a pointer to
-// the located symbol. Otherwise returns nullptr and set error status.
-TF_CAPI_EXPORT extern void* TF_GetSymbolFromLibrary(void* handle,
-                                                    const char* symbol_name,
-                                                    TF_Status* status);
+    // \brief Get a pointer to a symbol from a dynamic library.
+    //
+    // "handle" should be a pointer returned from a previous call to
+    // TF_LoadLibraryFromEnv. On success, place OK in status and return a pointer to
+    // the located symbol. Otherwise returns nullptr and set error status.
+    TF_CAPI_EXPORT extern void*
+    TF_GetSymbolFromLibrary(void* handle, const char* symbol_name, TF_Status* status);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_ENV_DYNAMIC_LIBRARY_H_
+#endif // CONGELADO_C_ENV_DYNAMIC_LIBRARY_H_

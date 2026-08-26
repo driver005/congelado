@@ -9,14 +9,18 @@ import :io_types;
 
 export namespace interfaces::io {
 
-template <bool IsStatic = false>
-class HeaderField {
-  public:
+template<bool IsStatic = false>
+class HeaderField
+{
+public:
     /**
      * @brief Default ctor — empty name, empty value. Blank slate, nothing loaded in yet, just
      * vibes and zeroed-out members.
      */
-    HeaderField() : m_name{} {}
+    HeaderField() :
+        m_name{}
+    {
+    }
 
     /**
      * @brief Builds a static-flavored header field from a known `Token` — only exists when
@@ -27,7 +31,11 @@ class HeaderField {
      */
     HeaderField(types::Token name_token, std::string_view value)
         requires IsStatic
-        : m_name{name_token}, m_value{value} {}
+        :
+        m_name{name_token},
+        m_value{value}
+    {
+    }
 
     /**
      * @brief Builds a dynamic header field with an arbitrary string name — only exists when
@@ -39,7 +47,10 @@ class HeaderField {
      */
     HeaderField(std::string_view name, std::string_view value)
         requires(!IsStatic)
-        : m_name{std::string(name)}, m_value{value} {
+        :
+        m_name{std::string(name)},
+        m_value{value}
+    {
         if (name.empty()) {
             throw std::runtime_error("Empty name");
         }
@@ -51,12 +62,19 @@ class HeaderField {
      * (dynamic flavor) depending on `IsStatic` — whichever one this instantiation locked in.
      * @return the stored name, whatever type it happens to be for this instantiation.
      */
-    [[nodiscard]] const auto &get_name() const noexcept { return m_name; }
+    [[nodiscard]] const auto& get_name() const noexcept
+    {
+        return m_name;
+    }
+
     /**
      * @brief Grabs the header value, no funny business, straight from storage.
      * @return the stored value string.
      */
-    [[nodiscard]] const std::string &get_value() const noexcept { return m_value; }
+    [[nodiscard]] const std::string& get_value() const noexcept
+    {
+        return m_value;
+    }
 
     // Logic for name size
     /**
@@ -65,7 +83,8 @@ class HeaderField {
      * wire size, don't confuse the two).
      * @return the estimated byte footprint of this field.
      */
-    [[nodiscard]] std::size_t size() const noexcept {
+    [[nodiscard]] std::size_t size() const noexcept
+    {
         // Static fields carry a fixed-size Token for the name, dynamic fields carry the whole
         // string — name cost differs between the two branches, value + overhead stays the same.
         if constexpr (IsStatic) {
@@ -79,7 +98,10 @@ class HeaderField {
      * @brief Checks if the value's blank, quick vibe check before you go using it.
      * @return true if the value is empty, false if there's something actually in there.
      */
-    [[nodiscard]] bool is_empty() const noexcept { return m_value.empty(); }
+    [[nodiscard]] bool is_empty() const noexcept
+    {
+        return m_value.empty();
+    }
 
     // Setters (Only for dynamic version)
     /**
@@ -102,7 +124,10 @@ class HeaderField {
      * @brief Overwrites the value. No validation here, empty's fine, go wild.
      * @param value the new value.
      */
-    void set_value(std::string value) { m_value = std::move(value); }
+    void set_value(std::string value)
+    {
+        m_value = std::move(value);
+    }
 
     /**
      * @brief Checks two fields for equality — both name and value gotta match or it's a hard
@@ -110,12 +135,13 @@ class HeaderField {
      * @param other the field to compare against.
      * @return true if name and value are both equal, false otherwise.
      */
-    bool operator==(const HeaderField &other) const noexcept {
+    bool operator==(const HeaderField& other) const noexcept
+    {
 
         return m_name == other.m_name && m_value == other.m_value;
     };
 
-  private:
+private:
     std::conditional_t<IsStatic, types::Token, std::string> m_name;
     std::string m_value;
 };
@@ -139,7 +165,9 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
     };
 
     "ctor throws on an empty name"_test = [] {
-        expect(throws([] { HeaderField<false> field{"", "value"}; }));
+        expect(throws([] {
+            HeaderField<false> field{"", "value"};
+        }));
     };
 
     "is_empty reflects whether the value is blank"_test = [] {
@@ -153,8 +181,10 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
     "size adds name + value + entry overhead"_test = [] {
         HeaderField<false> field{"host", "example.com"};
 
-        expect(field.size() == field.get_name().size() + field.get_value().size() +
-                                    consts::ENTRY_OVERHEAD);
+        expect(
+            field.size() ==
+            field.get_name().size() + field.get_value().size() + consts::ENTRY_OVERHEAD
+        );
     };
 
     "set_name/set_value overwrite in place"_test = [] {
@@ -169,7 +199,9 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
     "set_name throws on an empty name"_test = [] {
         HeaderField<false> field{"host", "example.com"};
 
-        expect(throws([&field] { field.set_name(""); }));
+        expect(throws([&field] {
+            field.set_name("");
+        }));
     };
 
     "operator== requires both name and value to match"_test = [] {
@@ -195,8 +227,9 @@ suite<"HeaderField static"> header_field_static_suite = [] {
     "size uses the token's fixed size instead of a string length"_test = [] {
         HeaderField<true> field{types::Token::HOST, "example.com"};
 
-        expect(field.size() ==
-               sizeof(types::Token) + field.get_value().size() + consts::ENTRY_OVERHEAD);
+        expect(
+            field.size() == sizeof(types::Token) + field.get_value().size() + consts::ENTRY_OVERHEAD
+        );
     };
 };
 

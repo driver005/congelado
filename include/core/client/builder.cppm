@@ -14,8 +14,9 @@ export namespace core::client {
 // it's a CRTP base, not directly usable). Building the real concrete request is the
 // runtime IClient's own job — see IClient::create_request() — so send() asks the client
 // wired in via with_runtime() to build one rather than needing to know its type.
-class Client {
-  public:
+class Client
+{
+public:
     /**
      * @brief Deleted — no bare Client allowed, every instance has to come from one of the
      * static factories (get()/post()/etc) below so method+path are always set together.
@@ -30,66 +31,94 @@ class Client {
      * @brief Deleted — Client holds a `reference_wrapper` onto the runtime IClient, copying
      * that reference around is straight up the wrong move, so copying's off the table.
      */
-    Client(const Client &) = delete;
+    Client(const Client&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor right above.
      */
-    Client &operator=(const Client &) = delete;
+    Client& operator=(const Client&) = delete;
 
     /**
      * @brief Defaulted move ctor — moving a Client around is all good, it's only copying
      * that's banned.
      */
-    Client(Client &&) = default;
+    Client(Client&&) = default;
     /**
      * @brief Defaulted move assign, same deal as the move ctor.
      */
-    Client &operator=(Client &&) = default;
+    Client& operator=(Client&&) = default;
 
     /**
      * @brief Spins up a fresh GET Client pointed at `path`. Bet, straightforward one.
      * @param path the request path/target.
      * @return a Client pre-loaded with the GET method and `path`.
      */
-    static Client get(std::string_view path) { return {"GET", path}; }
+    static Client get(std::string_view path)
+    {
+        return {"GET", path};
+    }
+
     /**
      * @brief Spins up a fresh HEAD Client pointed at `path`.
      * @param path the request path/target.
      * @return a Client pre-loaded with the HEAD method and `path`.
      */
-    static Client head(std::string_view path) { return {"HEAD", path}; }
+    static Client head(std::string_view path)
+    {
+        return {"HEAD", path};
+    }
+
     /**
      * @brief Spins up a fresh POST Client pointed at `path`.
      * @param path the request path/target.
      * @return a Client pre-loaded with the POST method and `path`.
      */
-    static Client post(std::string_view path) { return {"POST", path}; }
+    static Client post(std::string_view path)
+    {
+        return {"POST", path};
+    }
+
     /**
      * @brief Spins up a fresh PUT Client pointed at `path`.
      * @param path the request path/target.
      * @return a Client pre-loaded with the PUT method and `path`.
      */
-    static Client put(std::string_view path) { return {"PUT", path}; }
+    static Client put(std::string_view path)
+    {
+        return {"PUT", path};
+    }
+
     /**
      * @brief Spins up a fresh DELETE Client pointed at `path`. That resource's cooked once
      * this actually gets sent.
      * @param path the request path/target.
      * @return a Client pre-loaded with the DELETE method and `path`.
      */
-    static Client del(std::string_view path) { return {"DELETE", path}; }
+    static Client del(std::string_view path)
+    {
+        return {"DELETE", path};
+    }
+
     /**
      * @brief Spins up a fresh PATCH Client pointed at `path`.
      * @param path the request path/target.
      * @return a Client pre-loaded with the PATCH method and `path`.
      */
-    static Client patch(std::string_view path) { return {"PATCH", path}; }
+    static Client patch(std::string_view path)
+    {
+        return {"PATCH", path};
+    }
+
     /**
      * @brief Spins up a fresh OPTIONS Client pointed at `path`. Last one of the crew, same
      * pattern all the way down.
      * @param path the request path/target.
      * @return a Client pre-loaded with the OPTIONS method and `path`.
      */
-    static Client options(std::string_view path) { return {"OPTIONS", path}; }
+    static Client options(std::string_view path)
+    {
+        return {"OPTIONS", path};
+    }
+
     /**
      * @brief Spins up a fresh Client for an arbitrary method string — the escape hatch for
      * runtime-determined verbs the fixed get()/post()/etc. factories above don't cover.
@@ -97,7 +126,10 @@ class Client {
      * @param path the request path/target.
      * @return a Client pre-loaded with `method` and `path`.
      */
-    static Client custom(std::string_view method, std::string_view path) { return {method, path}; }
+    static Client custom(std::string_view method, std::string_view path)
+    {
+        return {method, path};
+    }
 
     /**
      * @brief Builder chain — wires this Client up to the runtime IClient that'll actually ship
@@ -106,7 +138,8 @@ class Client {
      * happens here.
      * @return `*this`, moved, so the chain keeps going.
      */
-    Client &&with_runtime(interfaces::IClient &client) && {
+    Client&& with_runtime(interfaces::IClient& client) &&
+    {
         m_client = client;
         return std::move(*this);
     }
@@ -117,7 +150,8 @@ class Client {
      * @param stream_id the stream id to use.
      * @return `*this`, moved, so the chain keeps going.
      */
-    Client &&with_stream_id(std::uint32_t stream_id) && noexcept {
+    Client&& with_stream_id(std::uint32_t stream_id) && noexcept
+    {
         m_stream_id = stream_id;
         return std::move(*this);
     }
@@ -128,7 +162,8 @@ class Client {
      * @param func the receive-dispatch callback to install.
      * @return `*this`, moved, so the chain keeps going.
      */
-    Client &&on_receive(interfaces::io::ReceiveDispatchFn &&func) && {
+    Client&& on_receive(interfaces::io::ReceiveDispatchFn&& func) &&
+    {
         m_receive_dispatch_fn = std::move(func);
         return std::move(*this);
     }
@@ -138,19 +173,26 @@ class Client {
      * through a moved rvalue.
      * @param client the runtime client to bind.
      */
-    void set_runtime(interfaces::IClient &client) { m_client = client; }
+    void set_runtime(interfaces::IClient& client)
+    {
+        m_client = client;
+    }
 
     /**
      * @brief In-place version of with_stream_id().
      * @param stream_id the stream id to use.
      */
-    void set_stream_id(std::uint32_t stream_id) noexcept { m_stream_id = stream_id; }
+    void set_stream_id(std::uint32_t stream_id) noexcept
+    {
+        m_stream_id = stream_id;
+    }
 
     /**
      * @brief In-place version of on_receive().
      * @param func the receive-dispatch callback to install.
      */
-    void set_on_receive(interfaces::io::ReceiveDispatchFn &&func) {
+    void set_on_receive(interfaces::io::ReceiveDispatchFn&& func)
+    {
         m_receive_dispatch_fn = std::move(func);
     }
 
@@ -160,7 +202,8 @@ class Client {
      * @param key the header name.
      * @param value the header value.
      */
-    void add_header(std::string_view key, std::string_view value) {
+    void add_header(std::string_view key, std::string_view value)
+    {
         m_headers.emplace_back(std::string{key}, std::string{value});
     }
 
@@ -170,7 +213,8 @@ class Client {
      * @param token the header's token.
      * @param value the header value.
      */
-    void add_header(interfaces::io::types::Token token, std::string_view value) {
+    void add_header(interfaces::io::types::Token token, std::string_view value)
+    {
         m_headers.emplace_back(token, std::string{value});
     }
 
@@ -179,23 +223,31 @@ class Client {
      * request — same reasoning as add_header(), nothing to write onto yet.
      * @param body the bytes to append.
      */
-    void add_body(std::string_view body) { m_body.append(body); }
+    void add_body(std::string_view body)
+    {
+        m_body.append(body);
+    }
 
     /**
-     * @brief Asks `client` to build the real concrete request (via IClient::create_request(), so
-     * this class never has to name the concrete type itself) and stamps method/path/headers/body
-     * onto it. Does NOT send — hand the result to `Register::send()` for correlated dispatch, or
-     * call `send()` for fire-and-forget.
+     * @brief Asks `client` to build the real concrete request (via IClient::create_request(),
+     * so this class never has to name the concrete type itself) and stamps
+     * method/path/headers/body onto it. Does NOT send — hand the result to `Register::send()`
+     * for correlated dispatch, or call `send()` for fire-and-forget.
      * @param client the runtime client whose concrete request type gets built.
      * @return the fully-stamped request, ready to send.
      */
-    [[nodiscard]] std::unique_ptr<interfaces::io::IRequest>
-    build(interfaces::IClient &client) const {
+    [[nodiscard]] std::unique_ptr<interfaces::io::IRequest> build(interfaces::IClient& client) const
+    {
         auto request = client.create_request(m_stream_id);
         request->set_header(interfaces::io::types::Token::METHOD, m_method);
         request->set_header(interfaces::io::types::Token::PATH, m_path);
-        for (const auto &[name_or_token, value] : m_headers) {
-            std::visit([&](const auto &name) { request->set_header(name, value); }, name_or_token);
+        for (const auto& [name_or_token, value]: m_headers) {
+            std::visit(
+                [&](const auto& name) {
+                    request->set_header(name, value);
+                },
+                name_or_token
+            );
         }
 
         if (!m_body.empty()) {
@@ -205,8 +257,10 @@ class Client {
             // gsl::owner<BufferNode *>, but this codebase has no GSL dependency; the buffering
             // subsystem's push_back()/acquire() are all noexcept, raw-pointer, terminate-on-OOM
             // by convention.
-            auto *node = new utils::buffering::BufferNode(m_body.size());  // NOLINT(cppcoreguidelines-owning-memory)
-            for (char character : m_body) {
+            auto* node = new utils::buffering::BufferNode(
+                m_body.size()
+            ); // NOLINT(cppcoreguidelines-owning-memory)
+            for (char character: m_body) {
                 node->push_back(static_cast<std::byte>(character));
             }
             request->get_body().push_back(node, 0, m_body.size());
@@ -219,24 +273,28 @@ class Client {
      * correlation. Use `Register::send()` when the response needs to be routed back.
      * @throws std::runtime_error if no runtime client was ever set.
      */
-    void send() {
+    void send()
+    {
         if (!m_client.has_value()) {
             throw std::runtime_error("Please set runtime first");
         }
-        auto &client = m_client.value().get();
+        auto& client = m_client.value().get();
         auto request = build(client);
         client.send(*request);
     }
 
-  private:
+private:
     /**
      * @brief Real ctor behind every static factory — stashes method and path for send() to
      * stamp onto the real request once it's actually built.
      * @param method the HTTP method string (GET/POST/etc).
      * @param path the request path/target.
      */
-    Client(std::string_view method, std::string_view path)
-        : m_method{method}, m_path{path} {}
+    Client(std::string_view method, std::string_view path) :
+        m_method{method},
+        m_path{path}
+    {
+    }
 
     std::string m_method;
     std::string m_path;
@@ -262,17 +320,33 @@ using namespace boost::ut;
 suite<"Client"> client_suite = [] {
     "send() throws when no runtime has been bound"_test = [] {
         Client client = Client::get("/foo");
-        expect(throws<std::runtime_error>([&] { client.send(); }));
+        expect(throws<std::runtime_error>([&] {
+            client.send();
+        }));
     };
 
     "every verb factory produces a usable Client that still needs a runtime to send"_test = [] {
-        expect(throws<std::runtime_error>([] { Client::post("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::put("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::del("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::patch("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::head("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::options("/x").send(); }));
-        expect(throws<std::runtime_error>([] { Client::custom("TRACE", "/x").send(); }));
+        expect(throws<std::runtime_error>([] {
+            Client::post("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::put("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::del("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::patch("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::head("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::options("/x").send();
+        }));
+        expect(throws<std::runtime_error>([] {
+            Client::custom("TRACE", "/x").send();
+        }));
     };
 };
 

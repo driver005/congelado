@@ -11,66 +11,88 @@ import :tensor_tensor;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class TensorReference {
-public:
-    TensorReference() : m_buf{nullptr} {}
-    explicit TensorReference(const Tensor& tensor) : m_buf{tensor.buffer()} {
-        if (m_buf) {
-            m_buf->Ref();
-        }
-    }
+        class TensorReference
+        {
+        public:
+            TensorReference() :
+                m_buf{nullptr}
+            {
+            }
 
-    ~TensorReference() {
-        if (m_buf) {
-            m_buf->Unref();
-        }
-    }
+            explicit TensorReference(const Tensor& tensor) :
+                m_buf{tensor.buffer()}
+            {
+                if (m_buf) {
+                    m_buf->Ref();
+                }
+            }
 
-    TensorReference(const TensorReference& other) : m_buf{other.m_buf} {
-        if (m_buf) {
-            m_buf->Ref();
-        }
-    }
+            ~TensorReference()
+            {
+                if (m_buf) {
+                    m_buf->Unref();
+                }
+            }
 
-    TensorReference& operator=(const TensorReference& other) {
-        if (this != &other) {
-            if (other.m_buf) other.m_buf->Ref();
-            if (m_buf) m_buf->Unref();
-            m_buf = other.m_buf;
-        }
-        return *this;
-    }
+            TensorReference(const TensorReference& other) :
+                m_buf{other.m_buf}
+            {
+                if (m_buf) {
+                    m_buf->Ref();
+                }
+            }
 
-    TensorReference(TensorReference&& other) noexcept : m_buf{other.m_buf} {
-        other.m_buf = nullptr;
-    }
+            TensorReference& operator=(const TensorReference& other)
+            {
+                if (this != &other) {
+                    if (other.m_buf) {
+                        other.m_buf->Ref();
+                    }
+                    if (m_buf) {
+                        m_buf->Unref();
+                    }
+                    m_buf = other.m_buf;
+                }
+                return *this;
+            }
 
-    TensorReference& operator=(TensorReference&& other) noexcept {
-        if (this != &other) {
-            if (m_buf) m_buf->Unref();
-            m_buf = other.m_buf;
-            other.m_buf = nullptr;
-        }
-        return *this;
-    }
+            TensorReference(TensorReference&& other) noexcept :
+                m_buf{other.m_buf}
+            {
+                other.m_buf = nullptr;
+            }
 
-    void Unref() {
-        if (m_buf) {
-            m_buf->Unref();
-            m_buf = nullptr;
-        }
-    }
+            TensorReference& operator=(TensorReference&& other) noexcept
+            {
+                if (this != &other) {
+                    if (m_buf) {
+                        m_buf->Unref();
+                    }
+                    m_buf = other.m_buf;
+                    other.m_buf = nullptr;
+                }
+                return *this;
+            }
 
-    bool SharesBufferWith(const Tensor& tensor) const {
-        return m_buf != nullptr && m_buf == tensor.buffer();
-    }
+            void Unref()
+            {
+                if (m_buf) {
+                    m_buf->Unref();
+                    m_buf = nullptr;
+                }
+            }
 
-private:
-    TensorBuffer* m_buf;
-};
+            bool SharesBufferWith(const Tensor& tensor) const
+            {
+                return m_buf != nullptr && m_buf == tensor.buffer();
+            }
 
-} // namespace tensorflow
+        private:
+            TensorBuffer* m_buf;
+        };
+
+    } // namespace tensorflow
 
 } // export

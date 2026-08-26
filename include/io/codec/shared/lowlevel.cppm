@@ -15,10 +15,12 @@ import boost.ut;
 
 export namespace io::shared_codec::lowlevel {
 
-template <std::unsigned_integral UInt = std::uint32_t>
-class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
-  public:
-    struct Iterator {
+template<std::unsigned_integral UInt = std::uint32_t>
+class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>>
+{
+public:
+    struct Iterator
+    {
         using iterator_category = std::forward_iterator_tag;
         using iterator_concept = std::forward_iterator_tag;
         using value_type = std::byte;
@@ -34,11 +36,16 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
          * @param data the integer value being encoded.
          * @param prefix_size how many bits of the first octet are prefix bits.
          * @param prefix the fixed high bits to OR into the first octet.
-         * @param pos which octet this iterator currently points at (0 = begin(), size() = end()).
+         * @param pos which octet this iterator currently points at (0 = begin(), size() =
+         * end()).
          */
-        Iterator(UInt data, std::uint8_t prefix_size, std::uint8_t prefix, std::size_t pos = 0)
-            : m_data{data}, m_max_prefix{static_cast<UInt>((1U << prefix_size) - 1U)},
-              m_prefix{prefix}, m_pos{pos} {}
+        Iterator(UInt data, std::uint8_t prefix_size, std::uint8_t prefix, std::size_t pos = 0) :
+            m_data{data},
+            m_max_prefix{static_cast<UInt>((1U << prefix_size) - 1U)},
+            m_prefix{prefix},
+            m_pos{pos}
+        {
+        }
 
         /**
          * @brief Computes and returns the octet at the current position — first octet holds the
@@ -46,15 +53,17 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
          * with the high bit set unless it's the last one.
          * @return the computed byte at `m_pos`.
          */
-        reference operator*() const noexcept {
+        reference operator*() const noexcept
+        {
             const auto MASK = static_cast<std::uint8_t>(m_max_prefix);
             // First octet is special — either the value fits inline alongside the prefix bits,
             // or (if not) the octet is just the prefix maxed out, with the value's overflow
             // spilling into continuation octets.
             if (m_pos == 0) {
                 if (m_data < m_max_prefix) {
-                    return static_cast<std::byte>((m_prefix & ~MASK) |
-                                                  static_cast<std::uint8_t>(m_data));
+                    return static_cast<std::byte>(
+                        (m_prefix & ~MASK) | static_cast<std::uint8_t>(m_data)
+                    );
                 }
                 return static_cast<std::byte>(m_prefix | MASK);
             }
@@ -68,29 +77,37 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
                         : static_cast<std::byte>(remainder & 0x7FU);
         }
 
-        /** @brief Advances to the next octet position. @return `*this`, one octet further along. */
-        Iterator &operator++() noexcept {
+        /** @brief Advances to the next octet position. @return `*this`, one octet further
+         * along. */
+        Iterator& operator++() noexcept
+        {
             ++m_pos;
             return *this;
         }
+
         /**
          * @brief Postfix increment — returns a copy of the pre-increment state.
          * @return the iterator's prior position.
          */
-        Iterator operator++(int) noexcept {
+        Iterator operator++(int) noexcept
+        {
             auto old = *this;
             ++*this;
             return old;
         }
+
         /**
          * @brief Position equality — only `m_pos` matters since both iterators share the same
          * fixed encoding parameters.
          * @param other the iterator to compare against.
          * @return true if both point at the same octet index.
          */
-        bool operator==(const Iterator &other) const noexcept { return m_pos == other.m_pos; }
+        bool operator==(const Iterator& other) const noexcept
+        {
+            return m_pos == other.m_pos;
+        }
 
-      private:
+    private:
         UInt m_data;
         UInt m_max_prefix;
         std::uint8_t m_prefix{};
@@ -98,22 +115,26 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
     };
 
     /**
-     * @brief Builds a lazy view over the prefix-int encoding of `data` — no bytes get materialized
-     * up front, `begin()`/`end()` just hand out an Iterator that computes octets on demand.
+     * @brief Builds a lazy view over the prefix-int encoding of `data` — no bytes get
+     * materialized up front, `begin()`/`end()` just hand out an Iterator that computes octets
+     * on demand.
      * @tparam PrefixType type of `prefix_data` — must be castable to `std::uint8_t`.
      * @param data the integer value to encode.
      * @param prefix_size how many bits of the first octet belong to the prefix — must be 1-8.
      * @param prefix_data the fixed high bits to OR into the first octet.
      * @throws std::invalid_argument if `prefix_size` is outside [1,8].
      */
-    template <typename PrefixType>
+    template<typename PrefixType>
         requires CastableToUint8<PrefixType>
-    explicit EncodeIntView(UInt data, std::uint8_t prefix_size, PrefixType prefix_data)
-        : m_data{data}, m_prefix_size{prefix_size},
-          m_prefix{std::is_same_v<PrefixType, std::uint8_t>
-                       ? prefix_data
-                       : static_cast<std::uint8_t>(prefix_data)},
-          m_size{compute_size(data, prefix_size)} {
+    explicit EncodeIntView(UInt data, std::uint8_t prefix_size, PrefixType prefix_data) :
+        m_data{data},
+        m_prefix_size{prefix_size},
+        m_prefix{
+            std::is_same_v<PrefixType, std::uint8_t> ? prefix_data
+                                                     : static_cast<std::uint8_t>(prefix_data)
+        },
+        m_size{compute_size(data, prefix_size)}
+    {
         if (prefix_size < 1 || 8 < prefix_size) {
             throw std::invalid_argument{"prefix must be in range [1,8] (inclusive)"};
         }
@@ -123,21 +144,30 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
      * @brief Gets an iterator at the first (prefix) octet.
      * @return an Iterator positioned at octet 0.
      */
-    [[nodiscard]] Iterator begin() const noexcept { return {m_data, m_prefix_size, m_prefix, 0}; }
+    [[nodiscard]] Iterator begin() const noexcept
+    {
+        return {m_data, m_prefix_size, m_prefix, 0};
+    }
+
     /**
      * @brief Gets the end iterator, positioned one past the last computed octet.
      * @return an Iterator at `m_size`.
      */
-    [[nodiscard]] Iterator end() const noexcept {
+    [[nodiscard]] Iterator end() const noexcept
+    {
         return {m_data, m_prefix_size, m_prefix, m_size};
     }
+
     /**
      * @brief Gets the total encoded length, precomputed at construction.
      * @return octet count of the full encoding.
      */
-    [[nodiscard]] std::size_t size() const noexcept { return m_size; }
+    [[nodiscard]] std::size_t size() const noexcept
+    {
+        return m_size;
+    }
 
-  private:
+private:
     UInt m_data;
     std::uint8_t m_prefix_size;
     std::uint8_t m_prefix;
@@ -148,10 +178,11 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
      * actually encoding it — same math as encode_int(), just counting instead of writing.
      * @param data the value being sized up.
      * @param prefix_size how many bits of the first octet belong to the prefix.
-     * @return total octet count of the encoding: 1 if `data` fits the prefix outright, otherwise
-     * 1 + however many 7-bit continuation octets the remainder needs.
+     * @return total octet count of the encoding: 1 if `data` fits the prefix outright,
+     * otherwise 1 + however many 7-bit continuation octets the remainder needs.
      */
-    static constexpr std::size_t compute_size(UInt data, std::uint8_t prefix_size) noexcept {
+    static constexpr std::size_t compute_size(UInt data, std::uint8_t prefix_size) noexcept
+    {
         const UInt MAX_PREFIX = static_cast<UInt>((1U << prefix_size) - 1U);
         // Fits entirely in the prefix octet — one byte, done.
         if (data < MAX_PREFIX) {
@@ -187,9 +218,10 @@ class EncodeIntView : public std::ranges::view_interface<EncodeIntView<UInt>> {
 // +---+---------------------------+
 // | 0 |    Value-(2^N-1) MSB      |
 // +---+---------------------------+
-template <std::unsigned_integral UInt = std::uint32_t>
-class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdaptor<UInt>> {
-  public:
+template<std::unsigned_integral UInt = std::uint32_t>
+class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdaptor<UInt>>
+{
+public:
     /**
      * @brief Stashes the prefix params so `operator()` can be reused across multiple values —
      * bet, one adaptor, many pipes.
@@ -197,21 +229,25 @@ class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdap
      * @param prefix_size how many bits of the first octet belong to the prefix.
      * @param prefix_data the fixed high bits to OR into the first octet.
      */
-    template <typename PrefixType>
+    template<typename PrefixType>
         requires CastableToUint8<PrefixType>
-    explicit constexpr EncodeIntAdaptor(std::uint8_t prefix_size, PrefixType prefix_data) noexcept
-        : m_prefix_size{prefix_size}, m_prefix{static_cast<std::uint8_t>(prefix_data)} {}
+    explicit constexpr EncodeIntAdaptor(std::uint8_t prefix_size, PrefixType prefix_data) noexcept :
+        m_prefix_size{prefix_size},
+        m_prefix{static_cast<std::uint8_t>(prefix_data)}
+    {
+    }
 
     /**
      * @brief Pipe-adaptor call: turns `data | EncodeIntAdaptor{...}` into a lazy EncodeIntView.
      * @param data the value to encode.
      * @return an EncodeIntView over `data` with this adaptor's stashed prefix params.
      */
-    [[nodiscard]] EncodeIntView<UInt> operator()(UInt data) const {
+    [[nodiscard]] EncodeIntView<UInt> operator()(UInt data) const
+    {
         return EncodeIntView<UInt>{data, m_prefix_size, m_prefix};
     }
 
-  private:
+private:
     std::uint8_t m_prefix_size;
     std::uint8_t m_prefix;
 };
@@ -226,35 +262,39 @@ class EncodeIntAdaptor : public std::ranges::range_adaptor_closure<EncodeIntAdap
 //          M = M + 7
 //      while B & 128 == 128
 //      return I
-template <std::unsigned_integral UInt = std::uint32_t, std::size_t PrefixOffset = 0>
-class DecodeIntAdaptor
-    : public std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>> {
-  public:
+template<std::unsigned_integral UInt = std::uint32_t, std::size_t PrefixOffset = 0>
+class DecodeIntAdaptor :
+    public std::ranges::range_adaptor_closure<DecodeIntAdaptor<UInt, PrefixOffset>>
+{
+public:
     /**
      * @brief Stashes the prefix size so `operator()` can be reused across multiple decodes.
      * @param prefix_size how many bits of the first octet belong to the prefix.
      */
-    explicit constexpr DecodeIntAdaptor(std::uint8_t prefix_size) noexcept
-        : m_prefix_size{prefix_size} {}
+    explicit constexpr DecodeIntAdaptor(std::uint8_t prefix_size) noexcept :
+        m_prefix_size{prefix_size}
+    {
+    }
 
     /**
-     * @brief Pipe-adaptor call: turns `range | DecodeIntAdaptor<UInt, PrefixOffset>{...}` into a
-     * decoded prefix-int, no cursor needed since it works off `std::ranges` primitives instead of
-     * raw pointers.
+     * @brief Pipe-adaptor call: turns `range | DecodeIntAdaptor<UInt, PrefixOffset>{...}` into
+     * a decoded prefix-int, no cursor needed since it works off `std::ranges` primitives
+     * instead of raw pointers.
      * @tparam R the viewable range type piped in.
      * @param data the `std::byte` range to decode from — only as much as needed gets consumed.
-     * @return the decoded value, prefix metadata (if `PrefixOffset > 0`), and how many bytes were
-     * consumed.
+     * @return the decoded value, prefix metadata (if `PrefixOffset > 0`), and how many bytes
+     * were consumed.
      * @throws std::invalid_argument if `m_prefix_size` is outside [1,8].
      * @throws error::http::TruncatedDataError if `data` is empty.
      * @throws error::http::IntegerDecodeError if the continuation bytes overflow `UInt`'s bit
-     * width, or if the range runs out before a terminal byte (MSB clear) shows up — strict decode,
-     * no silent wraparound or truncation tolerance. Untrusted wire data in, hard failure on
-     * anything malformed.
+     * width, or if the range runs out before a terminal byte (MSB clear) shows up — strict
+     * decode, no silent wraparound or truncation tolerance. Untrusted wire data in, hard
+     * failure on anything malformed.
      */
-    template <std::ranges::viewable_range R>
+    template<std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] DecodeIntResult<UInt> operator()(R &&data) const {
+    [[nodiscard]] DecodeIntResult<UInt> operator()(R&& data) const
+    {
         // Guard the prefix width up front — everything below assumes it's a sane bit count.
         if (m_prefix_size < 1 || 8 < m_prefix_size) {
             throw std::invalid_argument{"prefix must be in range [1,8] (inclusive)"};
@@ -321,38 +361,44 @@ class DecodeIntAdaptor
         return {value, prefix_metadata, consumed};
     }
 
-  private:
+private:
     std::uint8_t m_prefix_size;
 };
 
-template <int Width>
-class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStringAdaptor<Width>> {
-  public:
+template<int Width>
+class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStringAdaptor<Width>>
+{
+public:
     /**
      * @brief Stashes the encoding params for reuse across multiple strings.
-     * @param huffman_encode intended to select Huffman vs. raw encoding — see the @warning below,
-     * this flag doesn't actually do anything right now.
+     * @param huffman_encode intended to select Huffman vs. raw encoding — see the @warning
+     * below, this flag doesn't actually do anything right now.
      * @param prefix_size how many bits of the length's first octet belong to the length prefix;
      * defaults to 7.
      */
-    explicit constexpr EncodeStringAdaptor(bool huffman_encode,
-                                           std::uint8_t prefix_size = 7U) noexcept
-        : m_huffman{huffman_encode}, m_prefix_size{prefix_size} {}
+    explicit constexpr EncodeStringAdaptor(
+        bool huffman_encode, std::uint8_t prefix_size = 7U
+    ) noexcept :
+        m_huffman{huffman_encode},
+        m_prefix_size{prefix_size}
+    {
+    }
 
     /**
      * @brief Pipe-adaptor call: turns `range | EncodeStringAdaptor{...}` into a length-prefixed
      * encoded view — concatenates the length prefix with the (currently always raw) body.
      * @warning The Huffman-encoding branch is commented out in the body — `m_huffman` is stored
      * but never actually checked here, so this unconditionally falls through to the raw
-     * (`HUFFMAN_DISABLED`) path no matter what was passed to the constructor. Don't rely on this
-     * for compression yet; it's a raw-only encoder in its current state.
+     * (`HUFFMAN_DISABLED`) path no matter what was passed to the constructor. Don't rely on
+     * this for compression yet; it's a raw-only encoder in its current state.
      * @tparam R the forward range type piped in.
      * @param data the char/byte range to encode.
      * @return a concatenated view: length-prefix octets followed by `data`'s raw bytes.
      */
-    template <std::ranges::forward_range R>
+    template<std::ranges::forward_range R>
         requires std::convertible_to<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] auto operator()(R &&data) const {
+    [[nodiscard]] auto operator()(R&& data) const
+    {
         // Huffman path's disabled for now — see the @warning above, m_huffman is stored but
         // never actually branched on here.
         // if (m_huffman) {
@@ -371,18 +417,19 @@ class EncodeStringAdaptor : public std::ranges::range_adaptor_closure<EncodeStri
 
         return std::views::concat(
             LEN | EncodeIntAdaptor<std::uint32_t>{m_prefix_size, PrefixHelper::HUFFMAN_DISABLED},
-            std::forward<R>(data));
+            std::forward<R>(data)
+        );
     }
 
-  private:
+private:
     bool m_huffman;
     std::uint8_t m_prefix_size;
 };
 
-
-template <int Width>
-class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStringAdaptor<Width>> {
-  public:
+template<int Width>
+class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStringAdaptor<Width>>
+{
+public:
     /**
      * @brief Stateless adaptor, defaulted ctor — nothing to configure, `Width` covers Huffman
      * decode width.
@@ -392,12 +439,12 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
     /**
      * @brief Pipe-adaptor call: turns `range | DecodeStringAdaptor<Width>{}` into a decoded
      * length-prefixed string, Huffman-decoding the body if the H-bit's set.
-     * @warning `data` gets forwarded into `all` via `std::views::all(std::forward<R>(data))`, but
-     * then `data` gets read again a few lines later (`data | std::views::take(1) | ...`) to check
-     * the H-bit. If `R` binds to an owning type where `std::forward` triggers a move (e.g. an
-     * rvalue `std::vector<std::byte>`), that second read is off an already-moved-from `data` —
-     * that's a real footgun, not a hypothetical one. Pass an lvalue/view-backed range in, not a
-     * temporary owning container, or this can read garbage.
+     * @warning `data` gets forwarded into `all` via `std::views::all(std::forward<R>(data))`,
+     * but then `data` gets read again a few lines later (`data | std::views::take(1) | ...`) to
+     * check the H-bit. If `R` binds to an owning type where `std::forward` triggers a move
+     * (e.g. an rvalue `std::vector<std::byte>`), that second read is off an already-moved-from
+     * `data` — that's a real footgun, not a hypothetical one. Pass an lvalue/view-backed range
+     * in, not a temporary owning container, or this can read garbage.
      * @tparam R the viewable range type piped in.
      * @param data the `std::byte` range to decode from.
      * @return the decoded string plus how many bytes were consumed (length prefix + body).
@@ -405,9 +452,10 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
      * @throws error::http::StringDecodeError if the decoded length exceeds `MAX_LENGTH` (65536)
      * or the body would run past the end of `data`.
      */
-    template <std::ranges::viewable_range R>
+    template<std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] std::pair<std::string, std::size_t> operator()(R &&data) const {
+    [[nodiscard]] std::pair<std::string, std::size_t> operator()(R&& data) const
+    {
         auto all = std::views::all(std::forward<R>(data));
         const auto TOTAL = static_cast<std::size_t>(std::ranges::distance(all));
 
@@ -439,19 +487,23 @@ class DecodeStringAdaptor : public std::ranges::range_adaptor_closure<DecodeStri
 
         // H-bit set means the body's Huffman-compressed — decode it through the adaptor.
         if (H_FLAG) {
-            return {body | huffman::HuffmanDecodeAdaptor<Width>{} | std::ranges::to<std::string>(),
-                    CONSUMED};
+            return {
+                body | huffman::HuffmanDecodeAdaptor<Width>{} | std::ranges::to<std::string>(),
+                CONSUMED
+            };
         }
 
         // Otherwise it's plain bytes — just reinterpret each std::byte as a char.
-        return {body | std::views::transform([](std::byte byte) noexcept {
-                    return static_cast<char>(std::to_integer<std::uint8_t>(byte));
-                }) | std::ranges::to<std::string>(),
-                CONSUMED};
+        return {
+            body | std::views::transform([](std::byte byte) noexcept {
+                return static_cast<char>(std::to_integer<std::uint8_t>(byte));
+            }) | std::ranges::to<std::string>(),
+            CONSUMED
+        };
     }
 
-  private:
-    static constexpr std::size_t MAX_LENGTH = 65536;
+private:
+    static constexpr std::size_t MAX_LENGTH = 65'536;
 };
 
 } // namespace io::shared_codec::lowlevel
@@ -474,7 +526,7 @@ suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
     };
 
     "multi-octet value matches the RFC 7541 C.1.2 known vector"_test = [] {
-        auto view = 1337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
+        auto view = 1'337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
 
         expect(view.size() == 3);
         std::vector<std::byte> bytes(view.begin(), view.end());
@@ -487,11 +539,11 @@ suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
 
 suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
     "round-trips through EncodeIntAdaptor"_test = [] {
-        auto encoded_view = 1337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
+        auto encoded_view = 1'337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
         std::vector<std::byte> bytes(encoded_view.begin(), encoded_view.end());
 
         auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U};
-        expect(result.value() == 1337U);
+        expect(result.value() == 1'337U);
         expect(result.consumed() == 3U);
     };
 
@@ -507,29 +559,36 @@ suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
 
     "rejects an out-of-range prefix size"_test = [] {
         std::vector<std::byte> bytes{std::byte{0x00}};
-        expect(throws<std::invalid_argument>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{0U}; }));
+        expect(throws<std::invalid_argument>([&] {
+            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{0U};
+        }));
     };
 
     "an empty range throws TruncatedDataError"_test = [] {
         std::vector<std::byte> bytes;
-        expect(throws<error::http::TruncatedDataError>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U}; }));
+        expect(throws<error::http::TruncatedDataError>([&] {
+            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U};
+        }));
     };
 
     "a stream with no terminal continuation byte throws IntegerDecodeError"_test = [] {
         std::vector<std::byte> bytes{std::byte{0x07}, std::byte{0x80}, std::byte{0x80},
                                      std::byte{0x80}, std::byte{0x80}, std::byte{0x80}};
-        expect(throws<error::http::IntegerDecodeError>([&] { auto result = bytes | DecodeIntAdaptor<std::uint32_t>{3U}; }));
+        expect(throws<error::http::IntegerDecodeError>([&] {
+            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{3U};
+        }));
     };
 };
 
 suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
     "raw round-trip through the pipe adaptors"_test = [] {
         std::string original = "hello";
-        auto byte_view = original | std::views::transform(
-                                        [](char character) { return static_cast<std::byte>(character); });
+        auto byte_view = original | std::views::transform([](char character) {
+                             return static_cast<std::byte>(character);
+                         });
 
         std::vector<std::byte> encoded;
-        for (std::byte value : byte_view | EncodeStringAdaptor<4>{false}) {
+        for (std::byte value: byte_view | EncodeStringAdaptor<4>{false}) {
             encoded.push_back(value);
         }
 
@@ -540,38 +599,40 @@ suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
 
     "the huffman_encode flag is currently a no-op — output is identical either way"_test = [] {
         std::string original = "hello";
-        auto byte_view = original | std::views::transform(
-                                        [](char character) { return static_cast<std::byte>(character); });
+        auto byte_view = original | std::views::transform([](char character) {
+                             return static_cast<std::byte>(character);
+                         });
 
         std::vector<std::byte> raw_encoded;
-        for (std::byte value : byte_view | EncodeStringAdaptor<4>{false}) {
+        for (std::byte value: byte_view | EncodeStringAdaptor<4>{false}) {
             raw_encoded.push_back(value);
         }
         std::vector<std::byte> flagged_encoded;
-        for (std::byte value : byte_view | EncodeStringAdaptor<4>{true}) {
+        for (std::byte value: byte_view | EncodeStringAdaptor<4>{true}) {
             flagged_encoded.push_back(value);
         }
 
-        // Plain `==` on two std::vector<std::byte> forces boost::ut's failure-diagnostic printer
-        // to instantiate operator<<(ostream&, std::byte), which doesn't exist — wrapping in
-        // std::ranges::equal() keeps the comparison a plain bool instead.
+        // Plain `==` on two std::vector<std::byte> forces boost::ut's failure-diagnostic
+        // printer to instantiate operator<<(ostream&, std::byte), which doesn't exist —
+        // wrapping in std::ranges::equal() keeps the comparison a plain bool instead.
         expect(std::ranges::equal(raw_encoded, flagged_encoded));
     };
 
     "DecodeStringAdaptor huffman-decodes the body when the H-bit is set"_test = [] {
         std::string original = "www.example.com";
-        auto byte_view = original | std::views::transform(
-                                        [](char character) { return static_cast<std::byte>(character); });
+        auto byte_view = original | std::views::transform([](char character) {
+                             return static_cast<std::byte>(character);
+                         });
 
         std::vector<std::byte> huffman_body;
-        for (std::byte value : byte_view | huffman::HuffmanEncodeAdaptor{}) {
+        for (std::byte value: byte_view | huffman::HuffmanEncodeAdaptor{}) {
             huffman_body.push_back(value);
         }
 
         std::vector<std::byte> data;
         auto length_view = static_cast<std::uint32_t>(huffman_body.size()) |
                            EncodeIntAdaptor<std::uint32_t>{7U, PrefixHelper::HUFFMAN_ENABLED};
-        for (std::byte value : length_view) {
+        for (std::byte value: length_view) {
             data.push_back(value);
         }
         data.insert(data.end(), huffman_body.begin(), huffman_body.end());
@@ -583,7 +644,9 @@ suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
 
     "an empty range throws TruncatedDataError"_test = [] {
         std::vector<std::byte> data;
-        expect(throws<error::http::TruncatedDataError>([&] { auto result = data | DecodeStringAdaptor<4>{}; }));
+        expect(throws<error::http::TruncatedDataError>([&] {
+            auto result = data | DecodeStringAdaptor<4>{};
+        }));
     };
 };
 

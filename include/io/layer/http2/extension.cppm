@@ -19,17 +19,18 @@ export namespace io::layer::http2 {
  * NOT own a write-back channel and do NOT take over streams. Every hook defaults to an inert
  * no-op, so an extension overrides only the ones it needs; `name()` is the sole pure virtual.
  */
-class IHttpExtension {
-  public:
+class IHttpExtension
+{
+public:
     /**
      * @brief Virtual dtor so concrete extensions clean up right through the base pointer.
      */
     virtual ~IHttpExtension() = default;
     IHttpExtension() = default;
-    IHttpExtension(const IHttpExtension &) = delete;
-    IHttpExtension &operator=(const IHttpExtension &) = delete;
-    IHttpExtension(IHttpExtension &&) = delete;
-    IHttpExtension &operator=(IHttpExtension &&) = delete;
+    IHttpExtension(const IHttpExtension&) = delete;
+    IHttpExtension& operator=(const IHttpExtension&) = delete;
+    IHttpExtension(IHttpExtension&&) = delete;
+    IHttpExtension& operator=(IHttpExtension&&) = delete;
 
     /**
      * @brief This extension's self-identifying name (e.g. "websocket", "grpc").
@@ -73,16 +74,17 @@ class IHttpExtension {
      * @brief The local SETTINGS are about to be sent (handshake). The extension may add its own
      * vendor/extension setting ids by mutating `local` (e.g.
      * `local.add_local_setting_override(0x8, 1)` for RFC 8441).
-     * @param local the outgoing local settings to (optionally) mutate before they're serialized.
+     * @param local the outgoing local settings to (optionally) mutate before they're
+     * serialized.
      */
-    virtual void on_local_settings(Settings &local) {}
+    virtual void on_local_settings(Settings& local) {}
 
     /**
      * @brief The peer's SETTINGS were received and applied — observe (including vendor ids via
      * `remote.get_vendor_settings()`).
      * @param remote the peer's just-applied settings.
      */
-    virtual void on_remote_settings(const Settings &remote) {}
+    virtual void on_remote_settings(const Settings& remote) {}
 
     // ── Stream lifecycle ────────────────────────────────────────────────────
 
@@ -115,8 +117,10 @@ class IHttpExtension {
      * @param name the header field name.
      * @param value the header field value.
      */
-    virtual void on_header_added(std::uint32_t stream_id, std::string_view name,
-                                 std::string_view value) {}
+    virtual void
+    on_header_added(std::uint32_t stream_id, std::string_view name, std::string_view value)
+    {
+    }
 
     /**
      * @brief A stream's first HEADERS block finished decoding into a request (server side; on
@@ -124,29 +128,30 @@ class IHttpExtension {
      * @param stream_id the stream the request arrived on.
      * @param request the decoded request.
      */
-    virtual void on_request_incoming(std::uint32_t stream_id, interfaces::io::IRequest &request) {}
+    virtual void on_request_incoming(std::uint32_t stream_id, interfaces::io::IRequest& request) {}
 
     /**
      * @brief A request is about to be framed and sent out (client side).
      * @param stream_id the stream the request is going out on.
      * @param request the request being sent (may be mutated before framing).
      */
-    virtual void on_request_outgoing(std::uint32_t stream_id, interfaces::io::IRequest &request) {}
+    virtual void on_request_outgoing(std::uint32_t stream_id, interfaces::io::IRequest& request) {}
 
     /**
      * @brief A response is about to be framed and sent out (server side).
      * @param stream_id the stream the response is going out on.
      * @param response the response being sent (may be mutated before framing).
      */
-    virtual void on_response_outgoing(std::uint32_t stream_id,
-                                      interfaces::io::IResponse &response) {}
+    virtual void on_response_outgoing(std::uint32_t stream_id, interfaces::io::IResponse& response)
+    {
+    }
 
     /**
      * @brief A stream's trailers (a second HEADERS block after DATA) finished decoding.
      * @param stream_id the stream the trailers arrived on.
      * @param trailers the decoded trailer fields.
      */
-    virtual void on_trailers(std::uint32_t stream_id, interfaces::io::IRequest &trailers) {}
+    virtual void on_trailers(std::uint32_t stream_id, interfaces::io::IRequest& trailers) {}
 
     // ── Raw frames ──────────────────────────────────────────────────────────
 
@@ -159,8 +164,15 @@ class IHttpExtension {
      * @param payload the raw frame payload — only valid for the duration of this call.
      * @param end_stream true if the frame carried END_STREAM.
      */
-    virtual void on_frame_complete(std::uint32_t stream_id, std::uint8_t type, std::uint8_t flags,
-                                   std::span<const std::byte> payload, bool end_stream) {}
+    virtual void on_frame_complete(
+        std::uint32_t stream_id,
+        std::uint8_t type,
+        std::uint8_t flags,
+        std::span<const std::byte> payload,
+        bool end_stream
+    )
+    {
+    }
 };
 
 /**
@@ -170,14 +182,16 @@ class IHttpExtension {
  * itself; the registry keeps no dispatch logic of its own. Empty registry (no extension plugin
  * configured) ⇒ every hook loop is a zero-iteration no-op, identical to the pre-extension path.
  */
-class HttpExtensionRegistry {
-  public:
+class HttpExtensionRegistry
+{
+public:
     /**
      * @brief Registers an extension so it starts receiving hook calls.
      * @note No-op if `extension` is null. Once registered there's no unregister.
      * @param extension the extension instance to add.
      */
-    void add_extension(std::shared_ptr<IHttpExtension> extension) {
+    void add_extension(std::shared_ptr<IHttpExtension> extension)
+    {
         if (extension) {
             m_extensions.push_back(std::move(extension));
         }
@@ -187,14 +201,18 @@ class HttpExtensionRegistry {
      * @brief Checks whether any extension is registered.
      * @return true if at least one extension is registered.
      */
-    [[nodiscard]] bool has_extensions() const noexcept { return !m_extensions.empty(); }
+    [[nodiscard]] bool has_extensions() const noexcept
+    {
+        return !m_extensions.empty();
+    }
 
     /**
      * @brief Gets every registered extension, in registration order.
      * @return the registered extensions.
      */
-    [[nodiscard]] const std::vector<std::shared_ptr<IHttpExtension>> &
-    get_extensions() const noexcept {
+    [[nodiscard]] const std::vector<std::shared_ptr<IHttpExtension>>&
+    get_extensions() const noexcept
+    {
         return m_extensions;
     }
 
@@ -206,14 +224,15 @@ class HttpExtensionRegistry {
      * @tparam Fn a callable taking the registered `std::shared_ptr<IHttpExtension>` (by ref).
      * @param fn the functor to run against each extension.
      */
-    template <typename Fn>
-    void for_each(Fn &&fn) const {
-        for (const auto &extension : m_extensions) {
+    template<typename Fn>
+    void for_each(Fn&& fn) const
+    {
+        for (const auto& extension: m_extensions) {
             fn(extension);
         }
     }
 
-  private:
+private:
     std::vector<std::shared_ptr<IHttpExtension>> m_extensions;
 };
 
@@ -225,21 +244,40 @@ using namespace boost::ut;
 
 // Minimal concrete extension used purely to exercise HttpExtensionRegistry's fan-out —
 // records how many times each hook of interest fired and its own name.
-class RecordingExtension final : public IHttpExtension {
-  public:
-    explicit RecordingExtension(std::string name) : m_name{std::move(name)} {}
+class RecordingExtension final : public IHttpExtension
+{
+public:
+    explicit RecordingExtension(std::string name) :
+        m_name{std::move(name)}
+    {
+    }
 
-    [[nodiscard]] std::string_view name() const noexcept override { return m_name; }
+    [[nodiscard]] std::string_view name() const noexcept override
+    {
+        return m_name;
+    }
 
-    void on_connection_open() override { ++m_connection_open_count; }
-    void on_stream_open(std::uint32_t stream_id) override { m_last_stream_opened = stream_id; }
+    void on_connection_open() override
+    {
+        ++m_connection_open_count;
+    }
 
-    [[nodiscard]] int get_connection_open_count() const noexcept { return m_connection_open_count; }
-    [[nodiscard]] std::uint32_t get_last_stream_opened() const noexcept {
+    void on_stream_open(std::uint32_t stream_id) override
+    {
+        m_last_stream_opened = stream_id;
+    }
+
+    [[nodiscard]] int get_connection_open_count() const noexcept
+    {
+        return m_connection_open_count;
+    }
+
+    [[nodiscard]] std::uint32_t get_last_stream_opened() const noexcept
+    {
         return m_last_stream_opened;
     }
 
-  private:
+private:
     std::string m_name;
     int m_connection_open_count{0};
     std::uint32_t m_last_stream_opened{0};
@@ -271,8 +309,9 @@ suite<"HttpExtensionRegistry"> http_extension_registry_suite = [] {
         registry.add_extension(std::make_shared<RecordingExtension>("b"));
 
         std::vector<std::string> visited;
-        registry.for_each(
-            [&](auto &extension) { visited.emplace_back(extension->name()); });
+        registry.for_each([&](auto& extension) {
+            visited.emplace_back(extension->name());
+        });
 
         expect(visited.size() == 2U);
         expect(visited[0] == "a");
@@ -283,7 +322,9 @@ suite<"HttpExtensionRegistry"> http_extension_registry_suite = [] {
         HttpExtensionRegistry registry;
 
         int calls = 0;
-        registry.for_each([&](auto &) { ++calls; });
+        registry.for_each([&](auto&) {
+            ++calls;
+        });
 
         expect(calls == 0);
     };
@@ -293,8 +334,12 @@ suite<"HttpExtensionRegistry"> http_extension_registry_suite = [] {
         auto extension = std::make_shared<RecordingExtension>("tracker");
         registry.add_extension(extension);
 
-        registry.for_each([](auto &ext) { ext->on_connection_open(); });
-        registry.for_each([](auto &ext) { ext->on_stream_open(11); });
+        registry.for_each([](auto& ext) {
+            ext->on_connection_open();
+        });
+        registry.for_each([](auto& ext) {
+            ext->on_stream_open(11);
+        });
 
         expect(extension->get_connection_open_count() == 1);
         expect(extension->get_last_stream_opened() == 11U);

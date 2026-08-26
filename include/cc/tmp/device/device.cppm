@@ -1,7 +1,7 @@
 module;
 
-#include <string>
 #include <memory>
+#include <string>
 
 export module cc_tmp:device_device;
 
@@ -11,25 +11,39 @@ import :allocator_allocator;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class Device {
-public:
-    explicit Device(ice::Device device) : m_device{std::move(device)}, m_allocator{cpu_allocator()} {}
-    virtual ~Device() = default;
+        class Device
+        {
+        public:
+            explicit Device(ice::Device device) :
+                m_device{std::move(device)},
+                m_allocator{cpu_allocator()}
+            {
+            }
 
-    Allocator* GetAllocator(const AllocatorAttributes& /*attr*/) {
-        return m_allocator;
-    }
+            virtual ~Device() = default;
 
-    ice::Device& ice_device() { return m_device; }
-    const ice::Device& ice_device() const { return m_device; }
+            Allocator* GetAllocator(const AllocatorAttributes& /*attr*/)
+            {
+                return m_allocator;
+            }
 
-private:
-    ice::Device m_device;
-    Allocator* m_allocator;
-};
+            ice::Device& ice_device()
+            {
+                return m_device;
+            }
 
-} // namespace tensorflow
+            const ice::Device& ice_device() const
+            {
+                return m_device;
+            }
+
+        private:
+            ice::Device m_device;
+            Allocator* m_allocator;
+        };
+
+    } // namespace tensorflow
 
 } // export

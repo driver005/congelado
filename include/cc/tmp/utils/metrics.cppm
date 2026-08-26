@@ -9,15 +9,17 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-class Metrics {
-public:
-    static void RecordCounter(const std::string& name, int64_t count) {
-        // Dispatches through ice::Counter / ice::Meter
-    }
-};
+        class Metrics
+        {
+        public:
+            static void RecordCounter(const std::string& name, int64_t count)
+            {
+                // Dispatches through ice::Counter / ice::Meter
+            }
+        };
 
-} // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

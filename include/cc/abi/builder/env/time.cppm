@@ -6,13 +6,25 @@ export module cc_abi_builder_env:time;
 
 import cc_abi_builder_intern;
 
-export namespace ice {
+export namespace ice::builder {
 
-class Time {
- public:
-  static uint64_t now_nanos() { return TF_NowNanos(); }
-  static uint64_t now_micros() { return TF_NowMicros(); }
-  static uint64_t now_seconds() { return TF_NowSeconds(); }
+class Time
+{
+public:
+    static uint64_t now_nanos()
+    {
+        return TF_NowNanos();
+    }
+
+    static uint64_t now_micros()
+    {
+        return TF_NowMicros();
+    }
+
+    static uint64_t now_seconds()
+    {
+        return TF_NowSeconds();
+    }
 };
 
-}  // namespace ice
+} // namespace ice::builder

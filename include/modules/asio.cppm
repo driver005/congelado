@@ -2,7 +2,7 @@ module;
 
 // 1. Critical Defines
 #ifndef ASIO_STANDALONE
-#define ASIO_STANDALONE 1
+#    define ASIO_STANDALONE 1
 #endif
 // #ifndef ASIO_SEPARATE_COMPILATION
 // #define ASIO_SEPARATE_COMPILATION 1
@@ -34,18 +34,18 @@ using ::asio::socket_base;
 using ::asio::strand;
 
 namespace ip {
-using ::asio::ip::address; // Added to fix your previous 'to_string' error
-using ::asio::ip::tcp;
-using ::asio::ip::v6_only;
+    using ::asio::ip::address; // Added to fix your previous 'to_string' error
+    using ::asio::ip::tcp;
+    using ::asio::ip::v6_only;
 } // namespace ip
 
 namespace ssl {
-using ::asio::ssl::context;
-using ::asio::ssl::stream;
-using ::asio::ssl::stream_base;
+    using ::asio::ssl::context;
+    using ::asio::ssl::stream;
+    using ::asio::ssl::stream_base;
 } // namespace ssl
 
 namespace error {
-using ::asio::error::operation_aborted;
+    using ::asio::error::operation_aborted;
 }
 } // namespace asio

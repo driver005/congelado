@@ -14,16 +14,19 @@ export namespace core::contract {
  * @brief Unified Node template that acts either as a Router or a Branch.
  * @tparam IsRouter If true, handles 8 child branches. If false, handles 64 individual bits.
  */
-template <bool IsRouter>
-class Node {
-  public:
+template<bool IsRouter>
+class Node
+{
+public:
     using ChildType = std::conditional_t<IsRouter, Node<false>, std::monostate>;
 
     /**
      * @brief Builds an empty node — zeroed atomic value, and for a router, pre-allocates and
      * default-constructs its 8 child branches.
      */
-    Node() noexcept : m_value{0} {
+    Node() noexcept :
+        m_value{0}
+    {
         // Leaves have no children — only routers need to pre-build their 8 branches.
         if constexpr (IsRouter) {
             m_children.reserve(8);
@@ -45,7 +48,9 @@ class Node {
      * relaxed ordering and moves the children vector over by hand.
      * @param other the node being moved from.
      */
-    Node(Node &&other) noexcept : m_children{std::move(other.m_children)} {
+    Node(Node&& other) noexcept :
+        m_children{std::move(other.m_children)}
+    {
         m_value.store(other.m_value.load(std::memory_order_relaxed), std::memory_order_relaxed);
     }
 
@@ -55,7 +60,8 @@ class Node {
      * @param other the node being moved from.
      * @return `*this`.
      */
-    Node &operator=(Node &&other) noexcept {
+    Node& operator=(Node&& other) noexcept
+    {
         if (this != &other) {
             m_value.store(other.m_value.load(std::memory_order_relaxed), std::memory_order_relaxed);
             m_children = std::move(other.m_children);
@@ -67,18 +73,21 @@ class Node {
      * @brief Deleted — atomics plus a vector of child nodes aren't something you want silently
      * deep-copied, so copying's off the table.
      */
-    Node(const Node &) = delete;
+    Node(const Node&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor.
      */
-    Node &operator=(const Node &) = delete;
+    Node& operator=(const Node&) = delete;
 
     /**
      * @brief Grabs this node's raw packed value — 8 branch counters for a router, or a 64-bit
      * scheduled-bit mask for a leaf.
      * @return the current packed value, loaded with acquire ordering.
      */
-    [[nodiscard]] std::uint64_t get_value() const noexcept { return m_value.load(std::memory_order_acquire); }
+    [[nodiscard]] std::uint64_t get_value() const noexcept
+    {
+        return m_value.load(std::memory_order_acquire);
+    }
 
     /**
      * @brief Marks `local_id` as scheduled. For a router, bumps the relevant branch's 8-bit
@@ -86,7 +95,8 @@ class Node {
      * branch's child; for a leaf, just flips the matching bit.
      * @param local_id the id to schedule, relative to this node's own bit-space.
      */
-    void schedule(std::uint32_t local_id) noexcept {
+    void schedule(std::uint32_t local_id) noexcept
+    {
         if constexpr (IsRouter) {
             // Which of the 8 branches owns this id.
             const auto BRANCH_IDX = static_cast<std::uint8_t>((local_id >> 6) & 0x07);
@@ -103,13 +113,16 @@ class Node {
                 std::uint64_t desired = expected & ~(0xFFULL << (BRANCH_IDX * 8));
                 desired |= (static_cast<std::uint64_t>(COUNT + 1) << (BRANCH_IDX * 8));
 
-                if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
-                                                  std::memory_order_acquire)) {
+                if (m_value.compare_exchange_weak(
+                        expected, desired, std::memory_order_acq_rel, std::memory_order_acquire
+                    )) {
                     break;
                 }
             }
             // Counter's updated — bet, now recurse into the actual branch to flip the real bit.
-            m_children[BRANCH_IDX].schedule(local_id & 0x3F);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            m_children[BRANCH_IDX].schedule(
+                local_id & 0x3F
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
         } else {
             // Leaf — no counter, just flip the matching bit directly.
             const auto BIT = static_cast<std::uint8_t>(local_id & 0x3F);
@@ -124,13 +137,16 @@ class Node {
      * pair.
      * @param local_id the id to deschedule, relative to this node's own bit-space.
      */
-    void deschedule(std::uint32_t local_id) noexcept {
+    void deschedule(std::uint32_t local_id) noexcept
+    {
         if constexpr (IsRouter) {
             const auto BRANCH_IDX = static_cast<std::uint8_t>((local_id >> 6) & 0x07);
 
             // Recurse into the branch first this time (mirror of schedule()'s order) to clear
             // the real bit before touching the counter.
-            m_children[BRANCH_IDX].deschedule(local_id & 0x3F);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            m_children[BRANCH_IDX].deschedule(
+                local_id & 0x3F
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             // CAS loop — decrement that branch's counter by one now that the bit's cleared.
             std::uint64_t expected = m_value.load(std::memory_order_acquire);
@@ -143,8 +159,9 @@ class Node {
                 std::uint64_t desired = expected & ~(0xFFULL << (BRANCH_IDX * 8));
                 desired |= (static_cast<std::uint64_t>(COUNT - 1) << (BRANCH_IDX * 8));
 
-                if (m_value.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
-                                                  std::memory_order_acquire)) {
+                if (m_value.compare_exchange_weak(
+                        expected, desired, std::memory_order_acq_rel, std::memory_order_acquire
+                    )) {
                     break;
                 }
             }
@@ -171,8 +188,10 @@ class Node {
      * @return the full scheduled id found under this node, or `std::nullopt` if nothing's
      * scheduled here.
      */
-    [[nodiscard]] std::optional<std::uint32_t> select_child_index(std::uint64_t &bias, std::uint32_t accumulator = 0,
-                                                                  std::uint64_t bias_bit = BIAS_FLAG) const noexcept {
+    [[nodiscard]] std::optional<std::uint32_t> select_child_index(
+        std::uint64_t& bias, std::uint32_t accumulator = 0, std::uint64_t bias_bit = BIAS_FLAG
+    ) const noexcept
+    {
         // Nothing scheduled anywhere under this node — dead end, nothing to find.
         const auto VAL = m_value.load(std::memory_order_acquire);
         if (VAL == 0) {
@@ -184,7 +203,9 @@ class Node {
             // Try the biased/preferred branch first.
             auto idx = calculate_bias(VAL, bias, bias_bit);
 
-            if (auto result = m_children[idx].select_child_index(bias, (accumulator << 3) | idx, bias_bit >> 1)) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+            if (auto result = m_children[idx].select_child_index(
+                    bias, (accumulator << 3) | idx, bias_bit >> 1
+                )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
                 return result;
             }
 
@@ -197,7 +218,9 @@ class Node {
 
                 auto count = static_cast<std::uint8_t>((VAL >> (i * 8)) & 0xFF);
                 if (count > 0) {
-                    if (auto result = m_children[i].select_child_index(bias, (accumulator << 3) | i, bias_bit >> 1)) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                    if (auto result = m_children[i].select_child_index(
+                            bias, (accumulator << 3) | i, bias_bit >> 1
+                        )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
                         return result;
                     }
                 }
@@ -219,7 +242,7 @@ class Node {
         return std::nullopt;
     }
 
-  private:
+private:
     /**
      * @brief Recursive halving helper for select_child_index() — walks `val` in half-sized
      * blocks, using `bias`/`bias_bit` to decide whether to prefer the right or left half at
@@ -234,8 +257,14 @@ class Node {
      * @param base_shift byte offset into `val` where the current search window starts.
      * @return the index of the chosen half/branch within this level's window.
      */
-    std::uint8_t calculate_bias(const std::uint64_t &val, std::uint64_t &bias, std::uint64_t &bias_bit,
-                                std::uint8_t blocks = 4, std::uint8_t base_shift = 0) const noexcept {
+    std::uint8_t calculate_bias(
+        const std::uint64_t& val,
+        std::uint64_t& bias,
+        std::uint64_t& bias_bit,
+        std::uint8_t blocks = 4,
+        std::uint8_t base_shift = 0
+    ) const noexcept
+    {
         // Read this level's bias bit to see which half was preferred last time, then split
         // the current window into its right/left halves.
         const bool PREFER_RIGHT = (bias & bias_bit) != 0;
@@ -295,7 +324,8 @@ class Node {
         //
         // if (blocks > 1) {
         //     auto idx =
-        //         calculate_bias(val, bias, bias_bit, blocks / 2, choose_right ? base_shift : (base_shift + blocks));
+        //         calculate_bias(val, bias, bias_bit, blocks / 2, choose_right ? base_shift :
+        //         (base_shift + blocks));
         //     if (!choose_right) {
         //         idx += blocks;
         //     }
@@ -303,16 +333,19 @@ class Node {
         // }
         // return !choose_right;
     }
+
     std::atomic<std::uint64_t> m_value;
-    [[no_unique_address]] std::conditional_t<IsRouter, std::vector<Node<false>>, std::monostate> m_children;
+    [[no_unique_address]] std::conditional_t<IsRouter, std::vector<Node<false>>, std::monostate>
+        m_children;
 };
 
-template <std::size_t MaxCapacity = 1024>
+template<std::size_t MaxCapacity = 1'024>
     requires(MaxCapacity > 0 && MaxCapacity % 512 == 0)
-class SignalTree {
+class SignalTree
+{
     static constexpr std::size_t NUM_ROUTERS = MaxCapacity / 512;
 
-  public:
+public:
     /**
      * @brief Default ctor — all routers zero-initialized, nothing scheduled yet.
      */
@@ -323,14 +356,17 @@ class SignalTree {
      * @throws std::out_of_range if `contract_id` is >= MaxCapacity.
      * @param contract_id the contract id to schedule.
      */
-    void schedule(std::uint32_t contract_id) {
+    void schedule(std::uint32_t contract_id)
+    {
         // Guard clause — an id past MaxCapacity's cooked, no router exists to route it to.
         if (contract_id >= MaxCapacity) {
             throw std::out_of_range("ID exceeds maximum capacity");
         }
         // Split into which router owns it and its local id within that router's 512-wide span.
         const std::size_t ROUTER_IDX = contract_id / 512;
-        m_routers[ROUTER_IDX].schedule(contract_id % 512);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        m_routers[ROUTER_IDX].schedule(
+            contract_id % 512
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
     }
 
     /**
@@ -338,13 +374,16 @@ class SignalTree {
      * @throws std::out_of_range if `contract_id` is >= MaxCapacity.
      * @param contract_id the contract id to deschedule.
      */
-    void deschedule(std::uint32_t contract_id) {
+    void deschedule(std::uint32_t contract_id)
+    {
         // Guard clause, same deal as schedule() above.
         if (contract_id >= MaxCapacity) {
             throw std::out_of_range("ID exceeds maximum capacity");
         }
         const std::size_t ROUTER_IDX = contract_id / 512;
-        m_routers[ROUTER_IDX].deschedule(contract_id % 512);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+        m_routers[ROUTER_IDX].deschedule(
+            contract_id % 512
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
     }
 
     /**
@@ -353,16 +392,19 @@ class SignalTree {
      * that's an L for whoever's calling create() one too many times.
      * @return a freshly claimed, previously-unused contract id.
      */
-    [[nodiscard]] std::uint32_t free_contract_id() {
+    [[nodiscard]] std::uint32_t free_contract_id()
+    {
         std::uint32_t current = m_next_id.load(std::memory_order_relaxed);
         // CAS loop — claim the current counter value and bump it, retrying if another thread
-        // beat us to it (in which case `current` gets refreshed automatically by the failed CAS).
+        // beat us to it (in which case `current` gets refreshed automatically by the failed
+        // CAS).
         while (true) {
             if (current >= MaxCapacity) {
                 throw std::runtime_error("Maximum capacity reached");
             }
-            if (m_next_id.compare_exchange_weak(current, current + 1U, std::memory_order_relaxed,
-                                                std::memory_order_relaxed)) {
+            if (m_next_id.compare_exchange_weak(
+                    current, current + 1U, std::memory_order_relaxed, std::memory_order_relaxed
+                )) {
                 return current;
             }
         }
@@ -376,14 +418,18 @@ class SignalTree {
      * flipped once a result's found so the next call favors the other side.
      * @return the next ready contract id, or `std::nullopt` if nothing's scheduled anywhere.
      */
-    [[nodiscard]] std::optional<std::uint32_t> next(std::uint64_t &bias) const {
+    [[nodiscard]] std::optional<std::uint32_t> next(std::uint64_t& bias) const
+    {
         const bool PREFER_RIGHT = (bias & BIAS_FLAG) != 0;
 
         // Walk every router, starting from whichever end the top bias bit prefers, so
         // ties don't always resolve toward the same router.
         for (std::size_t i = 0; i < NUM_ROUTERS; ++i) {
             const std::size_t IDX = PREFER_RIGHT ? (NUM_ROUTERS - 1 - i) : i;
-            if (auto result = m_routers[IDX].select_child_index(bias, IDX, BIAS_FLAG >> 1)) {  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+            if (auto result = m_routers[IDX].select_child_index(
+                    bias, IDX, BIAS_FLAG >> 1
+                )) { // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
+                     // array index
                 // Found one — flip the top bias bit so next call favors the other end.
                 bias ^= BIAS_FLAG;
                 return result;
@@ -393,7 +439,7 @@ class SignalTree {
         return std::nullopt;
     }
 
-  private:
+private:
     std::array<Node<true>, NUM_ROUTERS> m_routers{};
     std::atomic<std::uint32_t> m_next_id;
 };
@@ -459,14 +505,20 @@ suite<"SignalTree"> signal_tree_suite = [] {
             [[maybe_unused]] auto id = tree.free_contract_id();
         }
 
-        expect(throws<std::runtime_error>([&] { [[maybe_unused]] auto id = tree.free_contract_id(); }));
+        expect(throws<std::runtime_error>([&] {
+            [[maybe_unused]] auto id = tree.free_contract_id();
+        }));
     };
 
     "schedule/deschedule past capacity throws out_of_range"_test = [] {
         SignalTree<512> tree;
 
-        expect(throws<std::out_of_range>([&] { tree.schedule(512); }));
-        expect(throws<std::out_of_range>([&] { tree.deschedule(512); }));
+        expect(throws<std::out_of_range>([&] {
+            tree.schedule(512);
+        }));
+        expect(throws<std::out_of_range>([&] {
+            tree.deschedule(512);
+        }));
     };
 
     "next finds a scheduled id and nullopt once nothing remains"_test = [] {

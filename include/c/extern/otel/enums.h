@@ -17,25 +17,28 @@ limitations under the License.
 #define CONGELADO_C_OTEL_ENUMS_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef enum TF_Otel_SpanKind {
-  TF_OTEL_INTERNAL = 0,
-  TF_OTEL_SERVER = 1,
-  TF_OTEL_CLIENT = 2,
-  TF_OTEL_PRODUCER = 3,
-  TF_OTEL_CONSUMER = 4,
-} TF_Otel_SpanKind;
+    typedef enum TF_Otel_SpanKind
+    {
+        TF_OTEL_INTERNAL = 0,
+        TF_OTEL_SERVER = 1,
+        TF_OTEL_CLIENT = 2,
+        TF_OTEL_PRODUCER = 3,
+        TF_OTEL_CONSUMER = 4,
+    } TF_Otel_SpanKind;
 
-typedef enum TF_Otel_SpanStatus {
-  TF_OTEL_UNSET = 0,
-  TF_OTEL_OK = 1,
-  TF_OTEL_ERROR = 2,
-} TF_Otel_SpanStatus;
+    typedef enum TF_Otel_SpanStatus
+    {
+        TF_OTEL_UNSET = 0,
+        TF_OTEL_OK = 1,
+        TF_OTEL_ERROR = 2,
+    } TF_Otel_SpanStatus;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_OTEL_ENUMS_H_
+#endif // CONGELADO_C_OTEL_ENUMS_H_

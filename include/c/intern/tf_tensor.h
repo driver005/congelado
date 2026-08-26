@@ -16,72 +16,73 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TENSOR_H_
 #define TENSORFLOW_C_TF_TENSOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "c/abi/macros.h"
 #include "c/intern/tf_datatype.h"
 #include "c/intern/tf_status.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_Tensor TF_Tensor;
+    typedef struct TF_Tensor TF_Tensor;
 
-TF_CAPI_EXPORT extern TF_Tensor* TF_AllocateTensor(
-    TF_DataType dtype, const int64_t* dims, int num_dims, size_t len);
+    TF_CAPI_EXPORT extern TF_Tensor*
+    TF_AllocateTensor(TF_DataType dtype, const int64_t* dims, int num_dims, size_t len);
 
-TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
+    TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
 
-TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
+    TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
+    TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
+    TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
 
-TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
+    TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
+    TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern void TF_TensorBitcastFrom(
-    TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastFrom(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
-TF_CAPI_EXPORT extern void TF_TensorBitcastTo(
-    const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastTo(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
-TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
+    TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
 
-TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
+    TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
 
-TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
+    TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
+    TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
+    TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
 
-TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
+    TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
+    TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
 
-TF_CAPI_EXPORT extern void TF_TensorBitcastFrom(
-    TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastFrom(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
-TF_CAPI_EXPORT extern void TF_TensorBitcastTo(
-    const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastTo(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
-TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
+    TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
 
-TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_TF_TENSOR_H_
+#endif // TENSORFLOW_C_TF_TENSOR_H_

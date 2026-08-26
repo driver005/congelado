@@ -16,13 +16,13 @@ limitations under the License.
 #ifndef CONGELADO_C_OTEL_H_
 #define CONGELADO_C_OTEL_H_
 
-#include "c/extern/otel/enums.h"
-#include "c/extern/otel/opaque_types.h"
-#include "c/extern/otel/tracer.h"
-#include "c/extern/otel/span.h"
 #include "c/extern/otel/counter.h"
+#include "c/extern/otel/enums.h"
 #include "c/extern/otel/histogram.h"
 #include "c/extern/otel/meter.h"
+#include "c/extern/otel/opaque_types.h"
 #include "c/extern/otel/registration.h"
+#include "c/extern/otel/span.h"
+#include "c/extern/otel/tracer.h"
 
-#endif  // CONGELADO_C_OTEL_H_
+#endif // CONGELADO_C_OTEL_H_

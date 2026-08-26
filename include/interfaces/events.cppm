@@ -13,18 +13,19 @@ export namespace interfaces {
 /// publishing to more than one queue at once (e.g. an in-memory ring buffer AND RabbitMQ AND
 /// Kafka) is a genuinely common, meaningful configuration, not a coin-flip like picking one
 /// database.
-class IEventSink {
-  public:
+class IEventSink
+{
+public:
     /**
      * @brief Virtual dtor, default's good — polymorphic sinks clean up fine through the base
      * pointer, no extra motion needed.
      */
     virtual ~IEventSink() = default;
     IEventSink() = default;
-    IEventSink(const IEventSink &) = delete;
-    IEventSink &operator=(const IEventSink &) = delete;
-    IEventSink(IEventSink &&) = delete;
-    IEventSink &operator=(IEventSink &&) = delete;
+    IEventSink(const IEventSink&) = delete;
+    IEventSink& operator=(const IEventSink&) = delete;
+    IEventSink(IEventSink&&) = delete;
+    IEventSink& operator=(IEventSink&&) = delete;
 
     /**
      * @brief Tells you which sink you're actually holding onto (memory, RabbitMQ, Kafka, Redis,

@@ -11,7 +11,7 @@
 # NOTE: plain `build`/`test`/`clean` are the Bazel targets and ignore MODE.
 MODE ?= debug
 
-.PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test
+.PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
 
 # Default entry — Bazel is the authoritative build system.
 all: dev
@@ -43,6 +43,17 @@ build-prod:
 
 test:
 	bazel test //...
+
+
+format:
+	find . \
+		-not \( -path './build' -prune \) \
+		-not \( -path './.xmake' -prune \) \
+		-not \( -path './bazel-*' -prune \) \
+		-not \( -path './.bzluser' -prune \) \
+		-not \( -path './c' -prune \) \
+		\( -name '*.cpp' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \) \
+		| xargs -P $(shell nproc) clang-format -i
 
 # Just the Phase 1 proof-of-concept targets, fast sanity check.
 canary:

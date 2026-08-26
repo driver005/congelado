@@ -17,24 +17,26 @@ limitations under the License.
 #define TENSORFLOW_C_TF_ATTRTYPE_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// TF_AttrType describes the type of the value of an attribute on an operation.
-typedef enum TF_AttrType {
-  TF_ATTR_STRING = 0,
-  TF_ATTR_INT = 1,
-  TF_ATTR_FLOAT = 2,
-  TF_ATTR_BOOL = 3,
-  TF_ATTR_TYPE = 4,
-  TF_ATTR_SHAPE = 5,
-  TF_ATTR_TENSOR = 6,
-  TF_ATTR_PLACEHOLDER = 7,
-  TF_ATTR_FUNC = 8,
-} TF_AttrType;
+    // TF_AttrType describes the type of the value of an attribute on an operation.
+    typedef enum TF_AttrType
+    {
+        TF_ATTR_STRING = 0,
+        TF_ATTR_INT = 1,
+        TF_ATTR_FLOAT = 2,
+        TF_ATTR_BOOL = 3,
+        TF_ATTR_TYPE = 4,
+        TF_ATTR_SHAPE = 5,
+        TF_ATTR_TENSOR = 6,
+        TF_ATTR_PLACEHOLDER = 7,
+        TF_ATTR_FUNC = 8,
+    } TF_AttrType;
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_TF_ATTRTYPE_H_
+#endif // TENSORFLOW_C_TF_ATTRTYPE_H_

@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_ENV_H_
 #define TENSORFLOW_C_ENV_H_
 
+#include "c/extern/env/dynamic_library.h"
+#include "c/extern/env/filesystem.h"
 #include "c/extern/env/thread.h"
 #include "c/extern/env/time.h"
-#include "c/extern/env/filesystem.h"
-#include "c/extern/env/dynamic_library.h"
 
-#endif  // TENSORFLOW_C_ENV_H_
+#endif // TENSORFLOW_C_ENV_H_

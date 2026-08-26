@@ -15,60 +15,77 @@ export namespace core::client {
 /**
  * @brief Client-side request→response correlator with built-in tracing. Owns the
  * `stream_id → pending-callback` map: `send()` ships a request and remembers which callback the
- * response belongs to (keyed on the transport-assigned stream id), `dispatch()` matches an incoming
- * response back to it. Every send starts a CLIENT span (with `traceparent` propagation) that's ended
- * when the matching response lands.
+ * response belongs to (keyed on the transport-assigned stream id), `dispatch()` matches an
+ * incoming response back to it. Every send starts a CLIENT span (with `traceparent`
+ * propagation) that's ended when the matching response lands.
  */
-class Register {
-  public:
+class Register
+{
+public:
     /**
-     * @brief Binds the runtime client that actually ships requests and assigns their stream ids.
+     * @brief Binds the runtime client that actually ships requests and assigns their stream
+     * ids.
      * @param client the runtime client, kept by reference (must outlive this Register).
      */
-    void set_runtime(interfaces::IClient &client) { m_runtime = client; }
+    void set_runtime(interfaces::IClient& client)
+    {
+        m_runtime = client;
+    }
 
     /// @brief Whether a runtime client has been bound yet. @return true once set_runtime ran.
-    [[nodiscard]] bool has_runtime() const noexcept { return m_runtime.has_value(); }
+    [[nodiscard]] bool has_runtime() const noexcept
+    {
+        return m_runtime.has_value();
+    }
 
-    /// @brief The bound runtime client — for callers that need it to build a request off the same
-    /// client this Register sends through (e.g. core::client::Client::build).
+    /// @brief The bound runtime client — for callers that need it to build a request off the
+    /// same client this Register sends through (e.g. core::client::Client::build).
     /// @return the runtime IClient. @warning UB if has_runtime() is false.
-    [[nodiscard]] interfaces::IClient &runtime() const { return m_runtime.value().get(); }
+    [[nodiscard]] interfaces::IClient& runtime() const
+    {
+        return m_runtime.value().get();
+    }
 
     /**
-     * @brief Ships `request` and registers `on_response` under the transport-assigned stream id.
-     * Starts a CLIENT span named `"<method> <path>"`, injects `traceparent`, and records the
-     * response status on that span when it lands.
+     * @brief Ships `request` and registers `on_response` under the transport-assigned stream
+     * id. Starts a CLIENT span named `"<method> <path>"`, injects `traceparent`, and records
+     * the response status on that span when it lands.
      * @param request the request to send (already built, e.g. via `Client::build()`).
      * @param on_response fired with the response once `dispatch()` matches it back.
      * @return the transport-assigned stream id the response will be correlated on.
      * @throws std::runtime_error if no runtime was set.
      */
-    std::uint32_t send(std::unique_ptr<interfaces::io::IRequest> request,
-                       std::move_only_function<void(interfaces::io::IResponse &)> on_response) {
+    std::uint32_t send(
+        std::unique_ptr<interfaces::io::IRequest> request,
+        std::move_only_function<void(interfaces::io::IResponse&)> on_response
+    )
+    {
         if (!m_runtime.has_value()) {
             throw std::runtime_error("core::client::Register: no runtime set");
         }
 
         const auto METHOD = request->find_header(interfaces::io::types::Token::METHOD);
         const auto PATH = request->find_header(interfaces::io::types::Token::PATH);
-        auto span = core::otel::start_detached_span(std::format("{} {}", METHOD, PATH),
-                                                    interfaces::SpanKind::CLIENT);
+        auto span = core::otel::start_detached_span(
+            std::format("{} {}", METHOD, PATH), interfaces::SpanKind::CLIENT
+        );
         span.set_attribute("http.request.method", METHOD);
         span.set_attribute("url.path", PATH);
         request->set_header("traceparent", core::otel::format_traceparent(span.context()));
 
-        // Send first — the transport assigns the real stream id and hands it back; that's the key
-        // dispatch() correlates on (the pre-send id gets overwritten by the session).
+        // Send first — the transport assigns the real stream id and hands it back; that's the
+        // key dispatch() correlates on (the pre-send id gets overwritten by the session).
         const auto ASSIGNED = m_runtime->get().send(*request);
 
         m_pending[ASSIGNED] = [span = std::move(span), on_response = std::move(on_response)](
-                                  interfaces::io::IResponse &response) mutable {
+                                  interfaces::io::IResponse& response
+                              ) mutable {
             const auto CODE = interfaces::io::types::status_code(response.get_status());
             span.set_attribute("http.response.status_code", static_cast<std::int64_t>(CODE));
-            span.set_status(response.is_success() ? interfaces::SpanStatus::OK
-                                                  : interfaces::SpanStatus::ERROR,
-                            "");
+            span.set_status(
+                response.is_success() ? interfaces::SpanStatus::OK : interfaces::SpanStatus::ERROR,
+                ""
+            );
             span.end();
             on_response(response);
         };
@@ -76,12 +93,14 @@ class Register {
     }
 
     /**
-     * @brief Matches an incoming response back to the `send()` waiting on its stream id and fires
-     * the stored callback. A response with no matching pending callback is dropped, no drama.
+     * @brief Matches an incoming response back to the `send()` waiting on its stream id and
+     * fires the stored callback. A response with no matching pending callback is dropped, no
+     * drama.
      * @param request the request the response arrived for — read for its stream id.
      * @param response the response to hand to the stored callback.
      */
-    void dispatch(interfaces::io::IRequest &request, interfaces::io::IResponse &response) {
+    void dispatch(interfaces::io::IRequest& request, interfaces::io::IResponse& response)
+    {
         auto it = m_pending.find(request.get_stream_id());
         if (it == m_pending.end()) {
             return;
@@ -93,19 +112,23 @@ class Register {
     }
 
     /**
-     * @brief Builds the `ReceiveDispatchFn` to wire into the transport — every response it delivers
-     * routes into `dispatch()`.
+     * @brief Builds the `ReceiveDispatchFn` to wire into the transport — every response it
+     * delivers routes into `dispatch()`.
      * @return a receive-dispatch callback bound to this Register.
      */
-    [[nodiscard]] interfaces::io::ReceiveDispatchFn make_dispatch() {
-        return [this](interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                      std::function<void()> /*send*/) { dispatch(req, res); };
+    [[nodiscard]] interfaces::io::ReceiveDispatchFn make_dispatch()
+    {
+        return [this](
+                   interfaces::io::IRequest& req, interfaces::io::IResponse& res,
+                   std::function<void()> /*send*/
+               ) {
+            dispatch(req, res);
+        };
     }
 
-  private:
+private:
     std::optional<std::reference_wrapper<interfaces::IClient>> m_runtime;
-    std::unordered_map<std::uint32_t,
-                       std::move_only_function<void(interfaces::io::IResponse &)>>
+    std::unordered_map<std::uint32_t, std::move_only_function<void(interfaces::io::IResponse&)>>
         m_pending;
 };
 
@@ -120,61 +143,97 @@ class Register {
 namespace core::client::tests {
 using namespace boost::ut;
 
-class RegisterFakeClient : public interfaces::IClient {
-  public:
-    shared::ReadCallback on_connect(shared::SendCallback, shared::CloseCallback) override {
+class RegisterFakeClient : public interfaces::IClient
+{
+public:
+    shared::ReadCallback on_connect(shared::SendCallback, shared::CloseCallback) override
+    {
         return {};
     }
-    std::uint32_t send(interfaces::io::IRequest &) override { return 0; }
+
+    std::uint32_t send(interfaces::io::IRequest&) override
+    {
+        return 0;
+    }
+
     [[nodiscard]] std::unique_ptr<interfaces::io::IRequest>
-    create_request(std::uint32_t stream_id) override {
+    create_request(std::uint32_t stream_id) override
+    {
         return std::make_unique<interfaces::io::IRequest>(stream_id);
     }
 };
 
-// Base IRequest::find_header()/set_header() abort by default (see request.cppm) — send()'s success
-// path calls both, so exercising that path needs a concrete override that just hands back stub
-// values instead of crashing the shared test binary.
-class RegisterFakeRequest : public interfaces::io::IRequest {
-  public:
-    explicit RegisterFakeRequest(std::uint32_t stream_id) : interfaces::io::IRequest(stream_id) {}
+// Base IRequest::find_header()/set_header() abort by default (see request.cppm) — send()'s
+// success path calls both, so exercising that path needs a concrete override that just hands
+// back stub values instead of crashing the shared test binary.
+class RegisterFakeRequest : public interfaces::io::IRequest
+{
+public:
+    explicit RegisterFakeRequest(std::uint32_t stream_id) :
+        interfaces::io::IRequest(stream_id)
+    {
+    }
 
-    void set_header(std::variant<std::string_view, interfaces::io::types::Token>,
-                    std::string_view) & override {}
-    [[nodiscard]] std::string_view
-    find_header(std::variant<std::string_view, interfaces::io::types::Token>) const noexcept override {
+    void set_header(
+        std::variant<std::string_view, interfaces::io::types::Token>, std::string_view
+    ) & override
+    {
+    }
+
+    [[nodiscard]] std::string_view find_header(
+        std::variant<std::string_view, interfaces::io::types::Token>
+    ) const noexcept override
+    {
         return "x";
     }
 };
 
-// Base IResponse::get_status()/is_success() abort by default too — dispatch()'s matched path (the
-// wrapper Register::send() stores in m_pending) calls both on the response it's handed, so actually
-// firing a stored callback needs a concrete override here as well.
-class RegisterFakeResponse : public interfaces::io::IResponse {
-  public:
-    explicit RegisterFakeResponse(std::uint32_t stream_id) : interfaces::io::IResponse(stream_id) {}
+// Base IResponse::get_status()/is_success() abort by default too — dispatch()'s matched path
+// (the wrapper Register::send() stores in m_pending) calls both on the response it's handed, so
+// actually firing a stored callback needs a concrete override here as well.
+class RegisterFakeResponse : public interfaces::io::IResponse
+{
+public:
+    explicit RegisterFakeResponse(std::uint32_t stream_id) :
+        interfaces::io::IResponse(stream_id)
+    {
+    }
 
-    [[nodiscard]] interfaces::io::types::Status get_status() const noexcept override {
+    [[nodiscard]] interfaces::io::types::Status get_status() const noexcept override
+    {
         return interfaces::io::types::Status::OK;
     }
-    [[nodiscard]] bool is_success() const noexcept override { return true; }
+
+    [[nodiscard]] bool is_success() const noexcept override
+    {
+        return true;
+    }
 };
 
-// Stream ids are transport-assigned — real sessions hand back a fresh id per send. The fixed-return
-// RegisterFakeClient above always answers 0, which would collapse every send() in a loop onto the
-// same m_pending key; this variant counts up instead so each send() lands in its own slot.
-class RegisterIncrementingFakeClient : public interfaces::IClient {
-  public:
-    shared::ReadCallback on_connect(shared::SendCallback, shared::CloseCallback) override {
+// Stream ids are transport-assigned — real sessions hand back a fresh id per send. The
+// fixed-return RegisterFakeClient above always answers 0, which would collapse every send() in
+// a loop onto the same m_pending key; this variant counts up instead so each send() lands in
+// its own slot.
+class RegisterIncrementingFakeClient : public interfaces::IClient
+{
+public:
+    shared::ReadCallback on_connect(shared::SendCallback, shared::CloseCallback) override
+    {
         return {};
     }
-    std::uint32_t send(interfaces::io::IRequest &) override { return m_next_id++; }
+
+    std::uint32_t send(interfaces::io::IRequest&) override
+    {
+        return m_next_id++;
+    }
+
     [[nodiscard]] std::unique_ptr<interfaces::io::IRequest>
-    create_request(std::uint32_t stream_id) override {
+    create_request(std::uint32_t stream_id) override
+    {
         return std::make_unique<RegisterFakeRequest>(stream_id);
     }
 
-  private:
+private:
     std::uint32_t m_next_id{0};
 };
 
@@ -196,7 +255,7 @@ suite<"Register"> register_suite = [] {
         Register registry;
         auto request = std::make_unique<interfaces::io::IRequest>(1);
         expect(throws<std::runtime_error>([&] {
-            registry.send(std::move(request), [](interfaces::io::IResponse &) {});
+            registry.send(std::move(request), [](interfaces::io::IResponse&) {});
         }));
     };
 
@@ -216,33 +275,35 @@ suite<"Register"> register_suite = [] {
     };
 
     // m_pending is a plain stream_id -> callback map, populated by every send() and only ever
-    // shrunk by a matching dispatch() — no cap, no timeout, no eviction policy. Fire a large batch
-    // of sends with zero matching dispatches, then dispatch() the very FIRST id sent after all the
-    // others have piled in behind it: a bounded/LRU-style store would have evicted it long before
-    // slot 1000+ landed, but here it still fires, pinning that pending entries accumulate
-    // unbounded for as long as nothing ever calls dispatch() on them.
+    // shrunk by a matching dispatch() — no cap, no timeout, no eviction policy. Fire a large
+    // batch of sends with zero matching dispatches, then dispatch() the very FIRST id sent
+    // after all the others have piled in behind it: a bounded/LRU-style store would have
+    // evicted it long before slot 1000+ landed, but here it still fires, pinning that pending
+    // entries accumulate unbounded for as long as nothing ever calls dispatch() on them.
     "send with no matching dispatch accumulates pending entries with no cap or eviction"_test = [] {
         Register registry;
         RegisterIncrementingFakeClient client;
         registry.set_runtime(client);
 
-        constexpr std::uint32_t SEND_COUNT = 1000;
+        constexpr std::uint32_t SEND_COUNT = 1'000;
         bool first_fired = false;
 
         for (std::uint32_t i = 0; i < SEND_COUNT; ++i) {
             auto request = std::make_unique<RegisterFakeRequest>(0);
             if (i == 0) {
-                [[maybe_unused]] auto assigned = registry.send(
-                    std::move(request), [&first_fired](interfaces::io::IResponse &) { first_fired = true; });
+                [[maybe_unused]] auto assigned =
+                    registry.send(std::move(request), [&first_fired](interfaces::io::IResponse&) {
+                        first_fired = true;
+                    });
             } else {
                 [[maybe_unused]] auto assigned =
-                    registry.send(std::move(request), [](interfaces::io::IResponse &) {});
+                    registry.send(std::move(request), [](interfaces::io::IResponse&) {});
             }
         }
 
-        // Nothing dispatched yet — every one of the 1000 sends above stayed pending. Now resolve
-        // only stream id 0, the very first entry inserted, to prove it survived every insertion
-        // that came after it (i.e. nothing evicted it to make room).
+        // Nothing dispatched yet — every one of the 1000 sends above stayed pending. Now
+        // resolve only stream id 0, the very first entry inserted, to prove it survived
+        // every insertion that came after it (i.e. nothing evicted it to make room).
         RegisterFakeRequest first_request{0};
         RegisterFakeResponse first_response{0};
         registry.dispatch(first_request, first_response);

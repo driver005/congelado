@@ -593,12 +593,6 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_generator_sourcecode_hdrs",
-    hdrs = ["extern/generator/sourcecode.h"],
-    deps = [":c_api_macros_hdrs"],
-)
-
-cc_library(
     name = "extern_generator_controller_hdrs",
     hdrs = ["extern/generator/controller.h"],
     deps = [
@@ -628,7 +622,6 @@ cc_library(
         ":extern_generator_controller_hdrs",
         ":extern_generator_definition_hdrs",
         ":extern_generator_parameter_hdrs",
-        ":extern_generator_sourcecode_hdrs",
         ":extern_generator_typeinfo_hdrs",
     ],
 )
@@ -636,7 +629,7 @@ cc_library(
 # No backend for extern_generator_hdrs (TF_Generator_*) — declarations-only, same as every
 # other TF_CAPI_EXPORT surface under include/c/ that nothing in this repo implements. Every
 # named generator resolves in-process via cc_abi_builder_generator's GeneratorBuilderRegistry
-# (see //include/cc/abi/runtime/generator:cc_abi_runtime_generator's GeneratorRuntime, e.g.
+# (see //include/cc/abi/sonic/generator:cc_abi_sonic_generator's GeneratorRuntime, e.g.
 # StableHLO's generated generator.cppm, which builds directly via StableHloBuilder without
 # ever crossing this C ABI) — the cross-plugin fallback path in GeneratorRuntime only needs
 # these declarations to compile, not a linked implementation, unless something actually

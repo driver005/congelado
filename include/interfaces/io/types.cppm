@@ -7,7 +7,8 @@ import boost.ut;
 
 export namespace interfaces::io::types {
 
-enum class Status : std::uint16_t {
+enum class Status : std::uint16_t
+{
     // 1xx Informational
     CONTINUE = 100,
     SWITCHING_PROTOCOLS = 101,
@@ -59,11 +60,13 @@ enum class Status : std::uint16_t {
     HTTP_VERSION_NOT_SUPPORTED = 505,
 };
 
-[[nodiscard]] constexpr std::uint16_t status_code(Status status) noexcept {
+[[nodiscard]] constexpr std::uint16_t status_code(Status status) noexcept
+{
     return std::to_underlying(status);
 }
 
-enum class Method : std::uint8_t {
+enum class Method : std::uint8_t
+{
     GET = 0,
     POST = 1,
     PUT = 2,
@@ -76,32 +79,34 @@ enum class Method : std::uint8_t {
     UNKNOWN = 9
 };
 
-[[nodiscard]] constexpr std::string_view method_str(Method method) noexcept {
+[[nodiscard]] constexpr std::string_view method_str(Method method) noexcept
+{
     switch (method) {
-    case Method::GET:
-        return "GET";
-    case Method::HEAD:
-        return "HEAD";
-    case Method::POST:
-        return "POST";
-    case Method::PUT:
-        return "PUT";
-    case Method::DELETE:
-        return "DELETE";
-    case Method::CONNECT:
-        return "CONNECT";
-    case Method::OPTIONS:
-        return "OPTIONS";
-    case Method::TRACE:
-        return "TRACE";
-    case Method::PATCH:
-        return "PATCH";
-    default:
-        return "";
+        case Method::GET:
+            return "GET";
+        case Method::HEAD:
+            return "HEAD";
+        case Method::POST:
+            return "POST";
+        case Method::PUT:
+            return "PUT";
+        case Method::DELETE:
+            return "DELETE";
+        case Method::CONNECT:
+            return "CONNECT";
+        case Method::OPTIONS:
+            return "OPTIONS";
+        case Method::TRACE:
+            return "TRACE";
+        case Method::PATCH:
+            return "PATCH";
+        default:
+            return "";
     }
 }
 
-[[nodiscard]] inline Method parse_method(std::string_view view) noexcept {
+[[nodiscard]] inline Method parse_method(std::string_view view) noexcept
+{
     // Empty string can't be a method, no cap — straight to unknown, nothing left to check.
     if (view.empty()) [[unlikely]] {
         return Method::UNKNOWN;
@@ -109,69 +114,70 @@ enum class Method : std::uint8_t {
 
     // Dispatch off the first char first — narrows every candidate down to at most a couple
     // exact-match checks instead of testing all nine methods in sequence.
-    switch (view[0]) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
-    case 'G':
-        if (view == "GET") {
-            return Method::GET;
-        }
-        break;
-    case 'H':
-        if (view == "HEAD") {
-            return Method::HEAD;
-        }
-        break;
-    case 'P':
-        // G/H/D/C/O/T only ever match one method apiece, but P covers three (POST/PUT/PATCH),
-        // so length breaks the tie before the string compare even runs.
-        switch (view.size()) {
-        case 4:
-            if (view == "POST") {
-                return Method::POST;
+    switch (view[0]) { // FIXME(clang-tidy): unchecked operator[], consider .at()
+        case 'G':
+            if (view == "GET") {
+                return Method::GET;
             }
             break;
-        case 3:
-            if (view == "PUT") {
-                return Method::PUT;
+        case 'H':
+            if (view == "HEAD") {
+                return Method::HEAD;
             }
             break;
-        case 5:
-            if (view == "PATCH") {
-                return Method::PATCH;
+        case 'P':
+            // G/H/D/C/O/T only ever match one method apiece, but P covers three
+            // (POST/PUT/PATCH), so length breaks the tie before the string compare even runs.
+            switch (view.size()) {
+                case 4:
+                    if (view == "POST") {
+                        return Method::POST;
+                    }
+                    break;
+                case 3:
+                    if (view == "PUT") {
+                        return Method::PUT;
+                    }
+                    break;
+                case 5:
+                    if (view == "PATCH") {
+                        return Method::PATCH;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case 'D':
+            if (view == "DELETE") {
+                return Method::DELETE;
+            }
+            break;
+        case 'C':
+            if (view == "CONNECT") {
+                return Method::CONNECT;
+            }
+            break;
+        case 'O':
+            if (view == "OPTIONS") {
+                return Method::OPTIONS;
+            }
+            break;
+        case 'T':
+            if (view == "TRACE") {
+                return Method::TRACE;
             }
             break;
         default:
             break;
-        }
-        break;
-    case 'D':
-        if (view == "DELETE") {
-            return Method::DELETE;
-        }
-        break;
-    case 'C':
-        if (view == "CONNECT") {
-            return Method::CONNECT;
-        }
-        break;
-    case 'O':
-        if (view == "OPTIONS") {
-            return Method::OPTIONS;
-        }
-        break;
-    case 'T':
-        if (view == "TRACE") {
-            return Method::TRACE;
-        }
-        break;
-    default:
-        break;
     }
 
     return Method::UNKNOWN;
 }
 
 
-enum class Token : std::uint8_t {
+enum class Token : std::uint8_t
+{
     NONE = 0,
     AUTHORITY = 1,
     METHOD = 2,
@@ -254,7 +260,8 @@ enum class Token : std::uint8_t {
 // inside the outer switch) without changing which names match or the order they're checked in.
 namespace interfaces::io::types {
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_3(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_3(std::string_view name) noexcept
+{
     if (name == "age") {
         return Token::AGE;
     }
@@ -264,7 +271,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_4(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_4(std::string_view name) noexcept
+{
     if (name == "date") {
         return Token::DATE;
     }
@@ -286,7 +294,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_5(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_5(std::string_view name) noexcept
+{
     if (name == ":path") {
         return Token::PATH;
     }
@@ -299,7 +308,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_6(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_6(std::string_view name) noexcept
+{
     if (name == "accept") {
         return Token::ACCEPT;
     }
@@ -318,7 +328,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_7(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_7(std::string_view name) noexcept
+{
     if (name == ":method") {
         return Token::METHOD;
     }
@@ -346,7 +357,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_8(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_8(std::string_view name) noexcept
+{
     if (name == "if-match") {
         return Token::IF_MATCH;
     }
@@ -359,7 +371,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_9(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_9(std::string_view name) noexcept
+{
     if (name == "expect-ct") {
         return Token::EXPECT_CT;
     }
@@ -369,7 +382,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_10(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_10(std::string_view name) noexcept
+{
     if (name == ":authority") {
         return Token::AUTHORITY;
     }
@@ -385,14 +399,16 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_11(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_11(std::string_view name) noexcept
+{
     if (name == "retry-after") {
         return Token::RETRY_AFTER;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_12(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_12(std::string_view name) noexcept
+{
     if (name == "accept-ranges") {
         return Token::ACCEPT_RANGES;
     }
@@ -405,7 +421,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_13(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_13(std::string_view name) noexcept
+{
     if (name == "authorization") {
         return Token::AUTHORIZATION;
     }
@@ -424,7 +441,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_14(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_14(std::string_view name) noexcept
+{
     if (name == "accept-charset") {
         return Token::ACCEPT_CHARSET;
     }
@@ -434,7 +452,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_15(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_15(std::string_view name) noexcept
+{
     if (name == "accept-encoding") {
         return Token::ACCEPT_ENCODING;
     }
@@ -444,7 +463,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_16(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_16(std::string_view name) noexcept
+{
     if (name == "content-encoding") {
         return Token::CONTENT_ENCODING;
     }
@@ -460,7 +480,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_17(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_17(std::string_view name) noexcept
+{
     if (name == "if-modified-since") {
         return Token::IF_MODIFIED_SINCE;
     }
@@ -470,7 +491,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_18(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_18(std::string_view name) noexcept
+{
     if (name == "proxy-authenticate") {
         return Token::PROXY_AUTHENTICATE;
     }
@@ -480,7 +502,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_19(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_19(std::string_view name) noexcept
+{
     if (name == "content-disposition") {
         return Token::CONTENT_DISPOSITION;
     }
@@ -499,28 +522,32 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_20(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_20(std::string_view name) noexcept
+{
     if (name == "x-forwarded-for") {
         return Token::X_FORWARDED_FOR;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_22(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_22(std::string_view name) noexcept
+{
     if (name == "x-content-type-options") {
         return Token::X_CONTENT_TYPE_OPTIONS;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_23(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_23(std::string_view name) noexcept
+{
     if (name == "content-security-policy") {
         return Token::CONTENT_SECURITY_POLICY;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_25(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_25(std::string_view name) noexcept
+{
     if (name == "strict-transport-security") {
         return Token::STRICT_TRANSPORT_SECURITY;
     }
@@ -530,14 +557,16 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_27(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_27(std::string_view name) noexcept
+{
     if (name == "access-control-allow-origin") {
         return Token::ACCESS_CONTROL_ALLOW_ORIGIN;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_28(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_28(std::string_view name) noexcept
+{
     if (name == "access-control-allow-headers") {
         return Token::ACCESS_CONTROL_ALLOW_HEADERS;
     }
@@ -547,7 +576,8 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_29(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_29(std::string_view name) noexcept
+{
     if (name == "access-control-expose-headers") {
         return Token::ACCESS_CONTROL_EXPOSE_HEADERS;
     }
@@ -557,14 +587,16 @@ namespace interfaces::io::types {
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_30(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_30(std::string_view name) noexcept
+{
     if (name == "access-control-request-headers") {
         return Token::ACCESS_CONTROL_REQUEST_HEADERS;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] constexpr std::optional<Token> tokenize_length_32(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize_length_32(std::string_view name) noexcept
+{
     if (name == "access-control-allow-credentials") {
         return Token::ACCESS_CONTROL_ALLOW_CREDENTIALS;
     }
@@ -575,215 +607,217 @@ namespace interfaces::io::types {
 
 export namespace interfaces::io::types {
 
-[[nodiscard]] constexpr std::optional<Token> tokenize(std::string_view name) noexcept {
+[[nodiscard]] constexpr std::optional<Token> tokenize(std::string_view name) noexcept
+{
     // Bucket by string length first — most header names don't collide on anything else, so this
     // shrinks the actual string comparisons down to just the handful sharing that exact length.
     // Each bucket's string compares live in tokenize_length_N() above; dispatch here is a flat
     // switch with one call per case, so this function itself carries no branching complexity.
     switch (name.length()) {
-    case 3:
-        return tokenize_length_3(name);
-    case 4:
-        return tokenize_length_4(name);
-    case 5:
-        return tokenize_length_5(name);
-    case 6:
-        return tokenize_length_6(name);
-    case 7:
-        return tokenize_length_7(name);
-    case 8:
-        return tokenize_length_8(name);
-    case 9:
-        return tokenize_length_9(name);
-    case 10:
-        return tokenize_length_10(name);
-    case 11:
-        return tokenize_length_11(name);
-    case 12:
-        return tokenize_length_12(name);
-    case 13:
-        return tokenize_length_13(name);
-    case 14:
-        return tokenize_length_14(name);
-    case 15:
-        return tokenize_length_15(name);
-    case 16:
-        return tokenize_length_16(name);
-    case 17:
-        return tokenize_length_17(name);
-    case 18:
-        return tokenize_length_18(name);
-    case 19:
-        return tokenize_length_19(name);
-    case 20:
-        return tokenize_length_20(name);
-    case 22:
-        return tokenize_length_22(name);
-    case 23:
-        return tokenize_length_23(name);
-    case 25:
-        return tokenize_length_25(name);
-    case 27:
-        return tokenize_length_27(name);
-    case 28:
-        return tokenize_length_28(name);
-    case 29:
-        return tokenize_length_29(name);
-    case 30:
-        return tokenize_length_30(name);
-    case 32:
-        return tokenize_length_32(name);
-    default:
-        return std::nullopt;
+        case 3:
+            return tokenize_length_3(name);
+        case 4:
+            return tokenize_length_4(name);
+        case 5:
+            return tokenize_length_5(name);
+        case 6:
+            return tokenize_length_6(name);
+        case 7:
+            return tokenize_length_7(name);
+        case 8:
+            return tokenize_length_8(name);
+        case 9:
+            return tokenize_length_9(name);
+        case 10:
+            return tokenize_length_10(name);
+        case 11:
+            return tokenize_length_11(name);
+        case 12:
+            return tokenize_length_12(name);
+        case 13:
+            return tokenize_length_13(name);
+        case 14:
+            return tokenize_length_14(name);
+        case 15:
+            return tokenize_length_15(name);
+        case 16:
+            return tokenize_length_16(name);
+        case 17:
+            return tokenize_length_17(name);
+        case 18:
+            return tokenize_length_18(name);
+        case 19:
+            return tokenize_length_19(name);
+        case 20:
+            return tokenize_length_20(name);
+        case 22:
+            return tokenize_length_22(name);
+        case 23:
+            return tokenize_length_23(name);
+        case 25:
+            return tokenize_length_25(name);
+        case 27:
+            return tokenize_length_27(name);
+        case 28:
+            return tokenize_length_28(name);
+        case 29:
+            return tokenize_length_29(name);
+        case 30:
+            return tokenize_length_30(name);
+        case 32:
+            return tokenize_length_32(name);
+        default:
+            return std::nullopt;
     }
 }
 
-constexpr std::string_view token_to_string(const Token &tkst) noexcept {
+constexpr std::string_view token_to_string(const Token& tkst) noexcept
+{
     switch (tkst) {
-    case Token::AUTHORITY:
-        return ":authority";
-    case Token::METHOD:
-        return ":method";
-    case Token::PATH:
-        return ":path";
-    case Token::SCHEME:
-        return ":scheme";
-    case Token::STATUS:
-        return ":status";
-    case Token::ACCEPT_CHARSET:
-        return "accept-charset";
-    case Token::ACCEPT_ENCODING:
-        return "accept-encoding";
-    case Token::ACCEPT_LANGUAGE:
-        return "accept-language";
-    case Token::ACCEPT_RANGES:
-        return "accept-ranges";
-    case Token::ACCEPT:
-        return "accept";
-    case Token::ACCESS_CONTROL_ALLOW_ORIGIN:
-        return "access-control-allow-origin";
-    case Token::AGE:
-        return "age";
-    case Token::ALLOW:
-        return "allow";
-    case Token::AUTHORIZATION:
-        return "authorization";
-    case Token::CACHE_CONTROL:
-        return "cache-control";
-    case Token::CONTENT_DISPOSITION:
-        return "content-disposition";
-    case Token::CONTENT_ENCODING:
-        return "content-encoding";
-    case Token::CONTENT_LANGUAGE:
-        return "content-language";
-    case Token::CONTENT_LENGTH:
-        return "content-length";
-    case Token::CONTENT_LOCATION:
-        return "content-location";
-    case Token::CONTENT_RANGE:
-        return "content-range";
-    case Token::CONTENT_TYPE:
-        return "content-type";
-    case Token::COOKIE:
-        return "cookie";
-    case Token::DATE:
-        return "date";
-    case Token::E_TAG:
-        return "etag";
-    case Token::EXPECT:
-        return "expect";
-    case Token::EXPIRES:
-        return "expires";
-    case Token::FROM:
-        return "from";
-    case Token::HOST:
-        return "host";
-    case Token::IF_MATCH:
-        return "if-match";
-    case Token::IF_MODIFIED_SINCE:
-        return "if-modified-since";
-    case Token::IF_NONE_MATCH:
-        return "if-none-match";
-    case Token::IF_RANGE:
-        return "if-range";
-    case Token::IF_UNMODIFIED_SINCE:
-        return "if-unmodified-since";
-    case Token::LAST_MODIFIED:
-        return "last-modified";
-    case Token::LINK:
-        return "link";
-    case Token::LOCATION:
-        return "location";
-    case Token::MAX_FORWARDS:
-        return "max-forwards";
-    case Token::PROXY_AUTHENTICATE:
-        return "proxy-authenticate";
-    case Token::PROXY_AUTHORIZATION:
-        return "proxy-authorization";
-    case Token::RANGE:
-        return "range";
-    case Token::REFERER:
-        return "referer";
-    case Token::REFRESH:
-        return "refresh";
-    case Token::RETRY_AFTER:
-        return "retry-after";
-    case Token::SERVER:
-        return "server";
-    case Token::SET_COOKIE:
-        return "set-cookie";
-    case Token::STRICT_TRANSPORT_SECURITY:
-        return "strict-transport-security";
-    case Token::TRANSFER_ENCODING:
-        return "transfer-encoding";
-    case Token::USER_AGENT:
-        return "user-agent";
-    case Token::VARY:
-        return "vary";
-    case Token::VIA:
-        return "via";
-    case Token::WWW_AUTHENTICATE:
-        return "www-authenticate";
-    case Token::ACCESS_CONTROL_ALLOW_CREDENTIALS:
-        return "access-control-allow-credentials";
-    case Token::ACCESS_CONTROL_ALLOW_HEADERS:
-        return "access-control-allow-headers";
-    case Token::ACCESS_CONTROL_ALLOW_METHODS:
-        return "access-control-allow-methods";
-    case Token::ACCESS_CONTROL_EXPOSE_HEADERS:
-        return "access-control-expose-headers";
-    case Token::ACCESS_CONTROL_REQUEST_HEADERS:
-        return "access-control-request-headers";
-    case Token::ACCESS_CONTROL_REQUEST_METHOD:
-        return "access-control-request-method";
-    case Token::ALT_SVC:
-        return "alt-svc";
-    case Token::CONTENT_SECURITY_POLICY:
-        return "content-security-policy";
-    case Token::EARLY_DATA:
-        return "early-data";
-    case Token::EXPECT_CT:
-        return "expect-ct";
-    case Token::FORWARDED:
-        return "forwarded";
-    case Token::ORIGIN:
-        return "origin";
-    case Token::PURPOSE:
-        return "purpose";
-    case Token::TIMING_ALLOW_ORIGIN:
-        return "timing-allow-origin";
-    case Token::UPGRADE_INSECURE_REQUESTS:
-        return "upgrade-insecure-requests";
-    case Token::X_CONTENT_TYPE_OPTIONS:
-        return "x-content-type-options";
-    case Token::X_FORWARDED_FOR:
-        return "x-forwarded-for";
-    case Token::X_FRAME_OPTIONS:
-        return "x-frame-options";
-    case Token::X_XSS_PROTECTION:
-        return "x-xss-protection";
-    case Token::NONE:
-        return "";
+        case Token::AUTHORITY:
+            return ":authority";
+        case Token::METHOD:
+            return ":method";
+        case Token::PATH:
+            return ":path";
+        case Token::SCHEME:
+            return ":scheme";
+        case Token::STATUS:
+            return ":status";
+        case Token::ACCEPT_CHARSET:
+            return "accept-charset";
+        case Token::ACCEPT_ENCODING:
+            return "accept-encoding";
+        case Token::ACCEPT_LANGUAGE:
+            return "accept-language";
+        case Token::ACCEPT_RANGES:
+            return "accept-ranges";
+        case Token::ACCEPT:
+            return "accept";
+        case Token::ACCESS_CONTROL_ALLOW_ORIGIN:
+            return "access-control-allow-origin";
+        case Token::AGE:
+            return "age";
+        case Token::ALLOW:
+            return "allow";
+        case Token::AUTHORIZATION:
+            return "authorization";
+        case Token::CACHE_CONTROL:
+            return "cache-control";
+        case Token::CONTENT_DISPOSITION:
+            return "content-disposition";
+        case Token::CONTENT_ENCODING:
+            return "content-encoding";
+        case Token::CONTENT_LANGUAGE:
+            return "content-language";
+        case Token::CONTENT_LENGTH:
+            return "content-length";
+        case Token::CONTENT_LOCATION:
+            return "content-location";
+        case Token::CONTENT_RANGE:
+            return "content-range";
+        case Token::CONTENT_TYPE:
+            return "content-type";
+        case Token::COOKIE:
+            return "cookie";
+        case Token::DATE:
+            return "date";
+        case Token::E_TAG:
+            return "etag";
+        case Token::EXPECT:
+            return "expect";
+        case Token::EXPIRES:
+            return "expires";
+        case Token::FROM:
+            return "from";
+        case Token::HOST:
+            return "host";
+        case Token::IF_MATCH:
+            return "if-match";
+        case Token::IF_MODIFIED_SINCE:
+            return "if-modified-since";
+        case Token::IF_NONE_MATCH:
+            return "if-none-match";
+        case Token::IF_RANGE:
+            return "if-range";
+        case Token::IF_UNMODIFIED_SINCE:
+            return "if-unmodified-since";
+        case Token::LAST_MODIFIED:
+            return "last-modified";
+        case Token::LINK:
+            return "link";
+        case Token::LOCATION:
+            return "location";
+        case Token::MAX_FORWARDS:
+            return "max-forwards";
+        case Token::PROXY_AUTHENTICATE:
+            return "proxy-authenticate";
+        case Token::PROXY_AUTHORIZATION:
+            return "proxy-authorization";
+        case Token::RANGE:
+            return "range";
+        case Token::REFERER:
+            return "referer";
+        case Token::REFRESH:
+            return "refresh";
+        case Token::RETRY_AFTER:
+            return "retry-after";
+        case Token::SERVER:
+            return "server";
+        case Token::SET_COOKIE:
+            return "set-cookie";
+        case Token::STRICT_TRANSPORT_SECURITY:
+            return "strict-transport-security";
+        case Token::TRANSFER_ENCODING:
+            return "transfer-encoding";
+        case Token::USER_AGENT:
+            return "user-agent";
+        case Token::VARY:
+            return "vary";
+        case Token::VIA:
+            return "via";
+        case Token::WWW_AUTHENTICATE:
+            return "www-authenticate";
+        case Token::ACCESS_CONTROL_ALLOW_CREDENTIALS:
+            return "access-control-allow-credentials";
+        case Token::ACCESS_CONTROL_ALLOW_HEADERS:
+            return "access-control-allow-headers";
+        case Token::ACCESS_CONTROL_ALLOW_METHODS:
+            return "access-control-allow-methods";
+        case Token::ACCESS_CONTROL_EXPOSE_HEADERS:
+            return "access-control-expose-headers";
+        case Token::ACCESS_CONTROL_REQUEST_HEADERS:
+            return "access-control-request-headers";
+        case Token::ACCESS_CONTROL_REQUEST_METHOD:
+            return "access-control-request-method";
+        case Token::ALT_SVC:
+            return "alt-svc";
+        case Token::CONTENT_SECURITY_POLICY:
+            return "content-security-policy";
+        case Token::EARLY_DATA:
+            return "early-data";
+        case Token::EXPECT_CT:
+            return "expect-ct";
+        case Token::FORWARDED:
+            return "forwarded";
+        case Token::ORIGIN:
+            return "origin";
+        case Token::PURPOSE:
+            return "purpose";
+        case Token::TIMING_ALLOW_ORIGIN:
+            return "timing-allow-origin";
+        case Token::UPGRADE_INSECURE_REQUESTS:
+            return "upgrade-insecure-requests";
+        case Token::X_CONTENT_TYPE_OPTIONS:
+            return "x-content-type-options";
+        case Token::X_FORWARDED_FOR:
+            return "x-forwarded-for";
+        case Token::X_FRAME_OPTIONS:
+            return "x-frame-options";
+        case Token::X_XSS_PROTECTION:
+            return "x-xss-protection";
+        case Token::NONE:
+            return "";
     }
 }
 
@@ -814,7 +848,9 @@ suite<"method_str"> method_str_suite = [] {
         expect(method_str(Method::TRACE) == "TRACE");
     };
 
-    "method_str returns empty for UNKNOWN"_test = [] { expect(method_str(Method::UNKNOWN).empty()); };
+    "method_str returns empty for UNKNOWN"_test = [] {
+        expect(method_str(Method::UNKNOWN).empty());
+    };
 };
 
 suite<"parse_method"> parse_method_suite = [] {
@@ -838,8 +874,9 @@ suite<"parse_method"> parse_method_suite = [] {
     };
 
     "parse_method and method_str round-trip for every method"_test = [] {
-        for (auto method : {Method::GET, Method::HEAD, Method::POST, Method::PUT, Method::DELETE,
-                            Method::PATCH, Method::CONNECT, Method::OPTIONS, Method::TRACE}) {
+        for (auto method:
+             {Method::GET, Method::HEAD, Method::POST, Method::PUT, Method::DELETE, Method::PATCH,
+              Method::CONNECT, Method::OPTIONS, Method::TRACE}) {
             expect(parse_method(method_str(method)) == method);
         }
     };
@@ -856,8 +893,9 @@ suite<"tokenize"> tokenize_suite = [] {
         expect(tokenize("content-length") == Token::CONTENT_LENGTH);
         expect(tokenize("cookie") == Token::COOKIE);
         expect(tokenize("set-cookie") == Token::SET_COOKIE);
-        expect(tokenize("access-control-allow-credentials") ==
-               Token::ACCESS_CONTROL_ALLOW_CREDENTIALS);
+        expect(
+            tokenize("access-control-allow-credentials") == Token::ACCESS_CONTROL_ALLOW_CREDENTIALS
+        );
     };
 
     "tokenize returns nullopt for names it doesn't recognize, even at a known length"_test = [] {
@@ -868,10 +906,10 @@ suite<"tokenize"> tokenize_suite = [] {
     };
 
     "tokenize and token_to_string round-trip for every named token"_test = [] {
-        for (auto token : {Token::AUTHORITY, Token::METHOD, Token::PATH, Token::SCHEME,
-                           Token::STATUS, Token::CONTENT_TYPE, Token::CONTENT_LENGTH,
-                           Token::COOKIE, Token::SET_COOKIE, Token::USER_AGENT, Token::HOST,
-                           Token::VIA, Token::AGE}) {
+        for (auto token:
+             {Token::AUTHORITY, Token::METHOD, Token::PATH, Token::SCHEME, Token::STATUS,
+              Token::CONTENT_TYPE, Token::CONTENT_LENGTH, Token::COOKIE, Token::SET_COOKIE,
+              Token::USER_AGENT, Token::HOST, Token::VIA, Token::AGE}) {
             expect(tokenize(token_to_string(token)) == token);
         }
     };

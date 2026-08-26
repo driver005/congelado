@@ -12,21 +12,21 @@ import boost.ut;
 
 namespace utils::openapi::detail {
 
-template <typename T>
+template<typename T>
 constexpr bool IS_OPTIONAL_V = false;
-template <typename T>
+template<typename T>
 constexpr bool IS_OPTIONAL_V<std::optional<T>> = true;
 
-template <typename T>
+template<typename T>
 constexpr bool IS_VECTOR_V = false;
-template <typename T>
+template<typename T>
 constexpr bool IS_VECTOR_V<std::vector<T>> = true;
 
-template <typename T>
+template<typename T>
 constexpr bool IS_STRING_MAP_V = false;
-template <typename T>
+template<typename T>
 constexpr bool IS_STRING_MAP_V<std::unordered_map<std::string, T>> = true;
-template <typename T>
+template<typename T>
 constexpr bool IS_STRING_MAP_V<std::map<std::string, T>> = true;
 
 /**
@@ -36,12 +36,12 @@ constexpr bool IS_STRING_MAP_V<std::map<std::string, T>> = true;
  * @tparam T the type whose name gets resolved via rfl reflection.
  * @return the bare (unqualified) type name.
  */
-template <typename T>
-[[nodiscard]] std::string bare_type_name() {
+template<typename T>
+[[nodiscard]] std::string bare_type_name()
+{
     auto full_name = rfl::type_name_t<T>().str();
     auto separator_pos = full_name.rfind("::");
-    return separator_pos == std::string::npos ? full_name
-                                              : full_name.substr(separator_pos + 2);
+    return separator_pos == std::string::npos ? full_name : full_name.substr(separator_pos + 2);
 }
 
 } // namespace utils::openapi::detail
@@ -52,8 +52,9 @@ export namespace utils::openapi {
 // utils::openapi::Registry. Populated as a side effect of build_schema<T>() the first
 // time each ISerializable T is encountered (which happens naturally whenever a route
 // declares .body<T>()/.response<T>(), since those already call build_schema<T>()).
-class SchemaRegistry {
-  public:
+class SchemaRegistry
+{
+public:
     /**
      * @brief Registers (or overwrites) a named schema in the process-wide collector.
      * @param name the schema's name, used as its components.schemas key.
@@ -62,7 +63,10 @@ class SchemaRegistry {
     // FIXME(clang-tidy): readability-identifier-naming — addSchema/hasSchema/getSchemas are
     // called from include/utils/openapi/generator.cppm, which is out of scope for this pass;
     // renaming here without updating that call site would break the build.
-    static void addSchema(std::string name, SchemaObject schema) {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    static void addSchema(std::string name, SchemaObject schema)
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         m_schemas.insert_or_assign(std::move(name), std::move(schema));
     }
 
@@ -71,7 +75,10 @@ class SchemaRegistry {
      * @param name the schema name to look up.
      * @return true if it's already registered, false otherwise.
      */
-    [[nodiscard]] static bool hasSchema(const std::string &name) noexcept {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    [[nodiscard]] static bool hasSchema(const std::string& name) noexcept
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         return m_schemas.contains(name);
     }
 
@@ -79,12 +86,14 @@ class SchemaRegistry {
      * @brief Grabs every registered schema.
      * @return all named schemas collected so far, keyed by name.
      */
-    [[nodiscard]] static const std::unordered_map<std::string, SchemaObject> &
-    getSchemas() noexcept {  // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor naming convention (camelCase after prefix), not a real naming defect — the shared clang-tidy config has no accessor exception
+    [[nodiscard]] static const std::unordered_map<std::string, SchemaObject>& getSchemas() noexcept
+    { // NOLINT(readability-identifier-naming) — matches this project's get/set/add accessor
+      // naming convention (camelCase after prefix), not a real naming defect — the shared
+      // clang-tidy config has no accessor exception
         return m_schemas;
     }
 
-  private:
+private:
     static inline std::unordered_map<std::string, SchemaObject> m_schemas;
 };
 
@@ -98,8 +107,9 @@ class SchemaRegistry {
  * @tparam T the C++ type to derive a schema from.
  * @return the derived schema — a $ref for object types, an inline schema for everything else.
  */
-template <typename T>
-[[nodiscard]] SchemaObject build_schema() {
+template<typename T>
+[[nodiscard]] SchemaObject build_schema()
+{
     using Decayed = std::remove_cvref_t<T>;
     SchemaObject schema;
 
@@ -119,10 +129,12 @@ template <typename T>
                 [&](auto... fields) {
                     (object_schema.add_property(
                          std::string{decltype(fields)::name.string_view()},
-                         build_schema<typename decltype(fields)::ValueType>()),
+                         build_schema<typename decltype(fields)::ValueType>()
+                     ),
                      ...);
                 },
-                serde::Serializable<Decayed>::fields());
+                serde::Serializable<Decayed>::fields()
+            );
             SchemaRegistry::addSchema(name, std::move(object_schema));
         }
         schema.set_ref(std::format("#/components/schemas/{}", name));
@@ -145,8 +157,9 @@ template <typename T>
     } else if constexpr (std::integral<Decayed>) {
         schema.set_type("integer");
     } else {
-        // Fallback: std::string, enums, and anything else unhandled all map to "string" — merged
-        // into one branch to avoid bugprone-branch-clone (was separate identical branches).
+        // Fallback: std::string, enums, and anything else unhandled all map to "string" —
+        // merged into one branch to avoid bugprone-branch-clone (was separate identical
+        // branches).
         schema.set_type("string");
     }
 
@@ -165,7 +178,9 @@ namespace utils::openapi::tests {
 using namespace boost::ut;
 
 suite<"build_schema primitives"> build_schema_primitives_suite = [] {
-    "bool maps to boolean"_test = [] { expect(build_schema<bool>().get_type() == "boolean"); };
+    "bool maps to boolean"_test = [] {
+        expect(build_schema<bool>().get_type() == "boolean");
+    };
     "integral types map to integer"_test = [] {
         expect(build_schema<int>().get_type() == "integer");
         expect(build_schema<std::uint64_t>().get_type() == "integer");

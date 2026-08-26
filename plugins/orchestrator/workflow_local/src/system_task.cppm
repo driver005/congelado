@@ -1,7 +1,8 @@
 module;
 #ifdef CONGELADO_TEST
-#include <lua.hpp>
-#include "core/manager/abi.h"
+#    include "core/manager/abi.h"
+
+#    include <lua.hpp>
 #endif
 
 export module workflow_engine:system_task;
@@ -21,7 +22,8 @@ export namespace engine {
 
 /// @brief What a system task produced: output data for its own TaskInstance, plus (TERMINATE
 /// only) a request to end the owning WorkflowExecution outright.
-struct SystemTaskOutcome {
+struct SystemTaskOutcome
+{
     std::unordered_map<std::string, std::string> output_data;
     bool terminate_workflow{false};
     model::WorkflowStatus terminate_status{model::WorkflowStatus::COMPLETED};
@@ -33,27 +35,32 @@ struct SystemTaskOutcome {
 /// SET_VARIABLE/NOOP/LAMBDA/INLINE/JSON_JQ_TRANSFORM system tasks; JOIN/FORK are also routed
 /// here as pure passthrough markers — their real control-flow semantics live in Orchestrator's
 /// join_on handling and static-edge fan-out, not in any per-instance work.
-class SystemTaskExecutor {
-  public:
-    /// @param lua_bridge the resolved "lua" IBridge*, or nullptr — forwarded straight to LuaEval,
-    /// which already degrades safely when there's no bridge.
-    explicit SystemTaskExecutor(interfaces::IBridge *lua_bridge) noexcept : m_lua{lua_bridge} {}
+class SystemTaskExecutor
+{
+public:
+    /// @param lua_bridge the resolved "lua" IBridge*, or nullptr — forwarded straight to
+    /// LuaEval, which already degrades safely when there's no bridge.
+    explicit SystemTaskExecutor(interfaces::IBridge* lua_bridge) noexcept :
+        m_lua{lua_bridge}
+    {
+    }
 
-    /// @brief Whether `type` is one this class handles in-process — the check Orchestrator makes
-    /// before ever creating a SCHEDULED instance meant for external worker pickup.
-    [[nodiscard]] static bool is_system_task(model::TaskType type) noexcept {
+    /// @brief Whether `type` is one this class handles in-process — the check Orchestrator
+    /// makes before ever creating a SCHEDULED instance meant for external worker pickup.
+    [[nodiscard]] static bool is_system_task(model::TaskType type) noexcept
+    {
         switch (type) {
-        case model::TaskType::TERMINATE:
-        case model::TaskType::SET_VARIABLE:
-        case model::TaskType::NOOP:
-        case model::TaskType::JOIN:
-        case model::TaskType::FORK:
-        case model::TaskType::LAMBDA:
-        case model::TaskType::INLINE:
-        case model::TaskType::JSON_JQ_TRANSFORM:
-            return true;
-        default:
-            return false;
+            case model::TaskType::TERMINATE:
+            case model::TaskType::SET_VARIABLE:
+            case model::TaskType::NOOP:
+            case model::TaskType::JOIN:
+            case model::TaskType::FORK:
+            case model::TaskType::LAMBDA:
+            case model::TaskType::INLINE:
+            case model::TaskType::JSON_JQ_TRANSFORM:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -67,44 +74,50 @@ class SystemTaskExecutor {
      * @return the outcome: output_data for the instance, plus (TERMINATE only) a workflow-level
      * termination request the caller applies to the owning WorkflowExecution.
      */
-    [[nodiscard]] SystemTaskOutcome
-    execute(model::TaskType type, const std::unordered_map<std::string, std::string> &input,
-           const std::unordered_map<std::string, std::string> &variables) const {
+    [[nodiscard]] SystemTaskOutcome execute(
+        model::TaskType type,
+        const std::unordered_map<std::string, std::string>& input,
+        const std::unordered_map<std::string, std::string>& variables
+    ) const
+    {
         switch (type) {
-        case model::TaskType::TERMINATE:
-            return execute_terminate(input);
-        case model::TaskType::SET_VARIABLE:
-        case model::TaskType::NOOP:
-        case model::TaskType::JOIN:
-        case model::TaskType::FORK:
-            // SET_VARIABLE's actual variable-merge happens in Orchestrator (it mutates the
-            // owning WorkflowExecution, not just this instance's own output) — here it's just a
-            // passthrough, same as NOOP/JOIN/FORK.
-            return {.output_data = input};
-        case model::TaskType::LAMBDA:
-        case model::TaskType::INLINE:
-        case model::TaskType::JSON_JQ_TRANSFORM:
-            return execute_script(input, variables);
-        default:
-            core::logger::error("engine", "system_task: unhandled type dispatched to execute()");
-            core::events::publish("engine.system_task.unhandled_type");
-            return {};
+            case model::TaskType::TERMINATE:
+                return execute_terminate(input);
+            case model::TaskType::SET_VARIABLE:
+            case model::TaskType::NOOP:
+            case model::TaskType::JOIN:
+            case model::TaskType::FORK:
+                // SET_VARIABLE's actual variable-merge happens in Orchestrator (it mutates the
+                // owning WorkflowExecution, not just this instance's own output) — here it's
+                // just a passthrough, same as NOOP/JOIN/FORK.
+                return {.output_data = input};
+            case model::TaskType::LAMBDA:
+            case model::TaskType::INLINE:
+            case model::TaskType::JSON_JQ_TRANSFORM:
+                return execute_script(input, variables);
+            default:
+                core::logger::error(
+                    "engine", "system_task: unhandled type dispatched to execute()"
+                );
+                core::events::publish("engine.system_task.unhandled_type");
+                return {};
         }
     }
 
-  private:
-    interfaces::IBridge *m_lua;
+private:
+    interfaces::IBridge* m_lua;
 
     /// @brief TERMINATE reads `status` (COMPLETED/FAILED/TIMED_OUT/TERMINATED, defaults to
     /// COMPLETED if absent or unrecognized) out of its input and requests the owning execution
     /// end with that status — every other input key becomes part of the instance's own
     /// output_data untouched.
     static SystemTaskOutcome
-    execute_terminate(const std::unordered_map<std::string, std::string> &input) {
+    execute_terminate(const std::unordered_map<std::string, std::string>& input)
+    {
         SystemTaskOutcome outcome;
         outcome.terminate_workflow = true;
         outcome.terminate_status = model::WorkflowStatus::COMPLETED;
-        for (auto const &[key, value] : input) {
+        for (const auto& [key, value]: input) {
             if (key == "status") {
                 if (value == "FAILED") {
                     outcome.terminate_status = model::WorkflowStatus::FAILED;
@@ -127,28 +140,32 @@ class SystemTaskExecutor {
     /// script do its own string/table manipulation in Lua. A genuine jq-grammar implementation
     /// is optional backlog, consistent with how the Conductor-parity plan itself deprioritizes
     /// full JQ compliance against this feature's actual cost/benefit.
-    SystemTaskOutcome
-    execute_script(const std::unordered_map<std::string, std::string> &input,
-                  const std::unordered_map<std::string, std::string> &variables) const {
+    SystemTaskOutcome execute_script(
+        const std::unordered_map<std::string, std::string>& input,
+        const std::unordered_map<std::string, std::string>& variables
+    ) const
+    {
         SystemTaskOutcome outcome;
         auto script_it = input.find("script");
         if (script_it == input.end()) {
             core::logger::warning(
-                "engine",
-                "system_task: LAMBDA/INLINE/JSON_JQ_TRANSFORM instance has no 'script' input key");
+                "engine", "system_task: LAMBDA/INLINE/JSON_JQ_TRANSFORM instance has no "
+                          "'script' input key"
+            );
             core::events::publish("engine.system_task.missing_script_input");
             return outcome;
         }
         auto bindings = serde::Value::Object{};
-        for (auto const &[key, value] : variables) {
+        for (const auto& [key, value]: variables) {
             bindings[key] = value;
         }
-        for (auto const &[key, value] : input) {
+        for (const auto& [key, value]: input) {
             if (key != "script") {
                 bindings[key] = value;
             }
         }
-        auto result = LuaEval{m_lua}.eval_value(script_it->second, serde::Value{std::move(bindings)});
+        auto result =
+            LuaEval{m_lua}.eval_value(script_it->second, serde::Value{std::move(bindings)});
         if (result) {
             outcome.output_data["result"] = *result;
         }
@@ -163,23 +180,55 @@ namespace engine::system_task_tests {
 using namespace boost::ut;
 
 /// @brief Minimal IBridge test double whose native_handle() hands back a real bare lua_State*
-/// the test owns — same construction shape as lua_eval.cppm's own MockLuaBridge, duplicated here
-/// (rather than shared) since test scaffolding stays private per-file per this codebase's
+/// the test owns — same construction shape as lua_eval.cppm's own MockLuaBridge, duplicated
+/// here (rather than shared) since test scaffolding stays private per-file per this codebase's
 /// per-partition test-namespace convention.
-class MockLuaBridge final : public interfaces::IBridge {
-  public:
-    explicit MockLuaBridge(lua_State *state) noexcept : m_state{state} {}
+class MockLuaBridge final : public interfaces::IBridge
+{
+public:
+    explicit MockLuaBridge(lua_State* state) noexcept :
+        m_state{state}
+    {
+    }
 
-    [[nodiscard]] CongeladoAny from_native(void * /*native_obj*/) override { return CongeladoAny{}; }
-    void *to_native(const CongeladoAny & /*value*/) override { return nullptr; }
-    void install_method(std::unique_ptr<FnContext> /*ctx*/, const std::string & /*lang_name*/) override {}
-    [[nodiscard]] std::string_view runtime_name() const noexcept override { return "mock_lua"; }
-    [[nodiscard]] std::string_view script_extension() const noexcept override { return ".lua"; }
-    [[nodiscard]] int run_script(std::string_view /*path*/) override { return 0; }
-    [[nodiscard]] void *native_handle() noexcept override { return m_state; }
+    [[nodiscard]] CongeladoAny from_native(void* /*native_obj*/) override
+    {
+        return CongeladoAny{};
+    }
 
-  private:
-    lua_State *m_state;
+    void* to_native(const CongeladoAny& /*value*/) override
+    {
+        return nullptr;
+    }
+
+    void install_method(
+        std::unique_ptr<FnContext> /*ctx*/, const std::string& /*lang_name*/
+    ) override
+    {
+    }
+
+    [[nodiscard]] std::string_view runtime_name() const noexcept override
+    {
+        return "mock_lua";
+    }
+
+    [[nodiscard]] std::string_view script_extension() const noexcept override
+    {
+        return ".lua";
+    }
+
+    [[nodiscard]] int run_script(std::string_view /*path*/) override
+    {
+        return 0;
+    }
+
+    [[nodiscard]] void* native_handle() noexcept override
+    {
+        return m_state;
+    }
+
+private:
+    lua_State* m_state;
 };
 
 suite<"SystemTaskExecutor::is_system_task"> is_system_task_suite = [] {
@@ -255,8 +304,9 @@ suite<"SystemTaskExecutor::execute passthrough types"> execute_passthrough_suite
         SystemTaskExecutor executor{nullptr};
         std::unordered_map<std::string, std::string> input{{"a", "1"}, {"b", "2"}};
 
-        for (auto type : {model::TaskType::SET_VARIABLE, model::TaskType::NOOP,
-                          model::TaskType::JOIN, model::TaskType::FORK}) {
+        for (auto type:
+             {model::TaskType::SET_VARIABLE, model::TaskType::NOOP, model::TaskType::JOIN,
+              model::TaskType::FORK}) {
             auto outcome = executor.execute(type, input, {});
             // boost::ut's printer can't format std::unordered_map for a failure message —
             // compare via bool{} to sidestep the printer entirely (same class of issue as the
@@ -278,15 +328,16 @@ suite<"SystemTaskExecutor::execute LAMBDA/INLINE/JSON_JQ_TRANSFORM"> execute_scr
 
     "a nullptr lua bridge fails closed even when a 'script' key is present"_test = [] {
         SystemTaskExecutor executor{nullptr};
-        auto outcome =
-            executor.execute(model::TaskType::LAMBDA, {{"script", "1 + 1"}}, {});
+        auto outcome = executor.execute(model::TaskType::LAMBDA, {{"script", "1 + 1"}}, {});
 
         expect(outcome.output_data.empty());
     };
 
     "with a real bridge, the script's result is stringified under the 'result' key, with input "
     "and variables both bound as globals"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State *raw) { lua_close(raw); }};
+        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
+                                             lua_close(raw);
+                                         }};
         MockLuaBridge bridge{state.get()};
         SystemTaskExecutor executor{&bridge};
 
@@ -294,34 +345,40 @@ suite<"SystemTaskExecutor::execute LAMBDA/INLINE/JSON_JQ_TRANSFORM"> execute_scr
         // would double up into invalid Lua and fail closed (see lua_eval.cppm). Concatenation,
         // not arithmetic: execute_script's input/variables are always string-typed, and Lua 5.4
         // only coerces strings for `+` via the string library's metatable (luaL_openlibs, never
-        // called on this bare state) — `..` concatenates the already-string operands directly, no
-        // stdlib needed.
-        auto outcome = executor.execute(model::TaskType::LAMBDA,
-                                        {{"script", "base .. offset"}, {"offset", "5"}},
-                                        {{"base", "10"}});
+        // called on this bare state) — `..` concatenates the already-string operands directly,
+        // no stdlib needed.
+        auto outcome = executor.execute(
+            model::TaskType::LAMBDA, {{"script", "base .. offset"}, {"offset", "5"}},
+            {{"base", "10"}}
+        );
 
         expect(outcome.output_data.at("result") == "105");
     };
 
-    "the 'script' input key itself is excluded from the bindings — referencing it in the script "
+    "the 'script' input key itself is excluded from the bindings — referencing it in the "
+    "script "
     "sees nil, not the script source"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State *raw) { lua_close(raw); }};
+        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
+                                             lua_close(raw);
+                                         }};
         MockLuaBridge bridge{state.get()};
         SystemTaskExecutor executor{&bridge};
 
         auto outcome = executor.execute(model::TaskType::LAMBDA, {{"script", "script"}}, {});
 
-        // `script` reads back nil (unbound), so eval_value() returns nullopt, so no "result" key.
+        // `script` reads back nil (unbound), so eval_value() returns nullopt, so no "result"
+        // key.
         expect(outcome.output_data.find("result") == outcome.output_data.end());
     };
 
     "JSON_JQ_TRANSFORM and INLINE share the exact same script-execution path as LAMBDA"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State *raw) { lua_close(raw); }};
+        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
+                                             lua_close(raw);
+                                         }};
         MockLuaBridge bridge{state.get()};
         SystemTaskExecutor executor{&bridge};
 
-        auto inline_outcome =
-            executor.execute(model::TaskType::INLINE, {{"script", "'hi'"}}, {});
+        auto inline_outcome = executor.execute(model::TaskType::INLINE, {{"script", "'hi'"}}, {});
         auto jq_outcome =
             executor.execute(model::TaskType::JSON_JQ_TRANSFORM, {{"script", "'hi'"}}, {});
 

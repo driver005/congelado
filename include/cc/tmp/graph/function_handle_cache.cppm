@@ -15,11 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <string>
 #include "tensorflow/core/framework/function.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/lib/random/random.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
+
+#include <string>
 
 export module cc_tmp:graph_function_handle_cache;
 
@@ -28,88 +29,97 @@ import cc_abi;
 
 export {
 
-namespace tensorflow {
+    namespace tensorflow {
 
-// Thread-safe data structure for caching function instantiations.
-class FunctionHandleCache {
- public:
-  explicit FunctionHandleCache(FunctionLibraryRuntime* lib);
+        // Thread-safe data structure for caching function instantiations.
+        class FunctionHandleCache
+        {
+        public:
+            explicit FunctionHandleCache(FunctionLibraryRuntime* lib);
 
-  ~FunctionHandleCache();
+            ~FunctionHandleCache();
 
-  // Looks up the function to be instantiated in the cache first. If present,
-  // returns handle from there. Otherwise, instantiates a new function
-  // and stores handle in the cache.
-  //
-  // The cache retains the ownership of the handle. In particular, the caller
-  // should not invoke `ReleaseHandle`.
-  absl::Status Instantiate(const std::string& function_name, AttrSlice attrs,
-                           FunctionLibraryRuntime::InstantiateOptions options,
-                           FunctionLibraryRuntime::Handle* handle);
+            // Looks up the function to be instantiated in the cache first. If present,
+            // returns handle from there. Otherwise, instantiates a new function
+            // and stores handle in the cache.
+            //
+            // The cache retains the ownership of the handle. In particular, the caller
+            // should not invoke `ReleaseHandle`.
+            absl::Status Instantiate(
+                const std::string& function_name,
+                AttrSlice attrs,
+                FunctionLibraryRuntime::InstantiateOptions options,
+                FunctionLibraryRuntime::Handle* handle
+            );
 
-  // Releases all the handles in the cache, clearing out the state for all
-  // functions involved.
-  absl::Status Clear();
+            // Releases all the handles in the cache, clearing out the state for all
+            // functions involved.
+            absl::Status Clear();
 
- private:
-  mutex mu_;
-  FunctionLibraryRuntime* lib_ = nullptr;  // not owned
-  const std::string state_handle_;
-  std::unordered_map<std::string, FunctionLibraryRuntime::Handle> handles_
-      TF_GUARDED_BY(mu_);
-};
+        private:
+            mutex mu_;
+            FunctionLibraryRuntime* lib_ = nullptr; // not owned
+            const std::string state_handle_;
+            std::unordered_map<std::string, FunctionLibraryRuntime::Handle>
+                handles_ TF_GUARDED_BY(mu_);
+        };
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
-// ==================================================================
-// Implementation: function_handle_cache.cc
-// ==================================================================
+    // ==================================================================
+    // Implementation: function_handle_cache.cc
+    // ==================================================================
 
-namespace tensorflow {
+    namespace tensorflow {
 
-FunctionHandleCache::FunctionHandleCache(FunctionLibraryRuntime* lib)
-    : lib_(lib),
-      state_handle_(
-          absl::StrFormat("%lld", static_cast<long long>(random::New64()))) {}
+        FunctionHandleCache::FunctionHandleCache(FunctionLibraryRuntime* lib) :
+            lib_(lib),
+            state_handle_(absl::StrFormat("%lld", static_cast<long long>(random::New64())))
+        {
+        }
 
-FunctionHandleCache::~FunctionHandleCache() {
-  absl::Status s = Clear();
-  if (!s.ok()) {
-    LOG(ERROR) << "Failed to clear function handle cache: " << s.ToString();
-  }
-}
+        FunctionHandleCache::~FunctionHandleCache()
+        {
+            absl::Status s = Clear();
+            if (!s.ok()) {
+                LOG(ERROR) << "Failed to clear function handle cache: " << s.ToString();
+            }
+        }
 
-absl::Status FunctionHandleCache::Instantiate(
-    const std::string& function_name, AttrSlice attrs,
-    FunctionLibraryRuntime::InstantiateOptions options,
-    FunctionLibraryRuntime::Handle* handle) {
-  std::string key = Canonicalize(function_name, attrs, options);
-  FunctionLibraryRuntime::Handle h;
-  {
-    tf_shared_lock l(mu_);
-    h = gtl::FindWithDefault(handles_, key, kInvalidHandle);
-  }
-  if (h == kInvalidHandle) {
-    options.state_handle = state_handle_;
-    TF_RETURN_IF_ERROR(
-        lib_->Instantiate(function_name, attrs, options, handle));
-    mutex_lock l(mu_);
-    handles_[key] = *handle;
-  } else {
-    *handle = h;
-  }
-  return absl::OkStatus();
-}
+        absl::Status FunctionHandleCache::Instantiate(
+            const std::string& function_name,
+            AttrSlice attrs,
+            FunctionLibraryRuntime::InstantiateOptions options,
+            FunctionLibraryRuntime::Handle* handle
+        )
+        {
+            std::string key = Canonicalize(function_name, attrs, options);
+            FunctionLibraryRuntime::Handle h;
+            {
+                tf_shared_lock l(mu_);
+                h = gtl::FindWithDefault(handles_, key, kInvalidHandle);
+            }
+            if (h == kInvalidHandle) {
+                options.state_handle = state_handle_;
+                TF_RETURN_IF_ERROR(lib_->Instantiate(function_name, attrs, options, handle));
+                mutex_lock l(mu_);
+                handles_[key] = *handle;
+            } else {
+                *handle = h;
+            }
+            return absl::OkStatus();
+        }
 
-absl::Status FunctionHandleCache::Clear() {
-  mutex_lock l(mu_);
-  for (const auto& entry : handles_) {
-    TF_RETURN_IF_ERROR(lib_->ReleaseHandle(entry.second));
-  }
-  handles_.clear();
-  return absl::OkStatus();
-}
+        absl::Status FunctionHandleCache::Clear()
+        {
+            mutex_lock l(mu_);
+            for (const auto& entry: handles_) {
+                TF_RETURN_IF_ERROR(lib_->ReleaseHandle(entry.second));
+            }
+            handles_.clear();
+            return absl::OkStatus();
+        }
 
-}  // namespace tensorflow
+    } // namespace tensorflow
 
 } // export

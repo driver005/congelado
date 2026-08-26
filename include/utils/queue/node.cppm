@@ -5,8 +5,9 @@ import std;
 import boost.ut;
 #endif
 
-export struct Node {
-    std::atomic<Node *> m_next;
+export struct Node
+{
+    std::atomic<Node*> m_next;
     std::atomic<std::size_t> m_refs;
 
     // Use the Initializer List for direct construction
@@ -14,17 +15,21 @@ export struct Node {
      * @brief Builds a node with no next link and a zeroed refcount, ready to get slotted into an
      * `AtomicList`.
      */
-    Node() : m_next(nullptr), m_refs(0) {}
+    Node() :
+        m_next(nullptr),
+        m_refs(0)
+    {
+    }
 
     // Nodes live inside a lock-free freelist/list and are linked via `m_next`, which other
     // threads may be racing to read through `std::atomic`. Copying or moving a `Node` would
     // duplicate or invalidate that linkage out from under concurrent readers, and `std::atomic`
     // itself isn't copyable or movable anyway — so all four are explicitly deleted rather than
     // left to an implicit (and misleading) default.
-    Node(Node const &) = delete;
-    Node &operator=(Node const &) = delete;
-    Node(Node &&) = delete;
-    Node &operator=(Node &&) = delete;
+    Node(const Node&) = delete;
+    Node& operator=(const Node&) = delete;
+    Node(Node&&) = delete;
+    Node& operator=(Node&&) = delete;
 
     // WARNING: virtual ~Node() adds a VTABLE pointer to the struct.
     // This increases the size by 8 bytes and breaks cache-line alignment.

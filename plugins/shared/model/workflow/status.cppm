@@ -7,7 +7,8 @@ import boost.ut;
 
 export namespace model {
 
-enum class WorkflowStatus : std::uint8_t {
+enum class WorkflowStatus : std::uint8_t
+{
     RUNNING,
     COMPLETED,
     FAILED,
@@ -16,7 +17,8 @@ enum class WorkflowStatus : std::uint8_t {
     TERMINATED,
 };
 
-[[nodiscard]] constexpr bool is_terminal(WorkflowStatus status) noexcept {
+[[nodiscard]] constexpr bool is_terminal(WorkflowStatus status) noexcept
+{
     return status == WorkflowStatus::COMPLETED || status == WorkflowStatus::FAILED ||
            status == WorkflowStatus::TIMED_OUT || status == WorkflowStatus::TERMINATED;
 }

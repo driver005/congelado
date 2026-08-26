@@ -6,7 +6,8 @@ export module cc_abi_value:datatype;
 
 export namespace ice {
 
-enum class DataType {
+enum class DataType
+{
     Float = TF_FLOAT,
     Double = TF_DOUBLE,
     Int32 = TF_INT32,
@@ -32,6 +33,9 @@ enum class DataType {
     Uint64 = TF_UINT64,
 };
 
-inline size_t DataTypeSize(DataType dt) { return TF_DataTypeSize(static_cast<TF_DataType>(dt)); }
+inline size_t DataTypeSize(DataType dt)
+{
+    return TF_DataTypeSize(static_cast<TF_DataType>(dt));
+}
 
 } // namespace ice

@@ -7,30 +7,40 @@ import boost.ut;
 
 export namespace interfaces {
 
-enum class LogLevel : std::uint8_t { DEBUG, INFO, IMPORTANT, WARNING, ERROR, FATAL };
+enum class LogLevel : std::uint8_t
+{
+    DEBUG,
+    INFO,
+    IMPORTANT,
+    WARNING,
+    ERROR,
+    FATAL
+};
 
-constexpr std::string_view to_string(LogLevel level) {
+constexpr std::string_view to_string(LogLevel level)
+{
     switch (level) {
-    case LogLevel::DEBUG:
-        return "DEBUG";
-    case LogLevel::INFO:
-        return "INFO";
-    case LogLevel::IMPORTANT:
-        return "IMPORTANT";
-    case LogLevel::WARNING:
-        return "WARNING";
-    case LogLevel::ERROR:
-        return "ERROR";
-    case LogLevel::FATAL:
-        return "FATAL";
+        case LogLevel::DEBUG:
+            return "DEBUG";
+        case LogLevel::INFO:
+            return "INFO";
+        case LogLevel::IMPORTANT:
+            return "IMPORTANT";
+        case LogLevel::WARNING:
+            return "WARNING";
+        case LogLevel::ERROR:
+            return "ERROR";
+        case LogLevel::FATAL:
+            return "FATAL";
     }
     // Switch is exhaustive over every LogLevel value, so this only ever fires if something cast
     // in a bogus/out-of-range level from outside the enum — defensive fallback, not dead code.
     return "UNKNOWN";
 }
 
-class ILogger {
-  public:
+class ILogger
+{
+public:
     /// @brief Default ctor — kept explicit since declaring the copy/move members below would
     /// otherwise suppress it, and derived loggers (e.g. Plugin, LoggerAdapter) rely on default
     /// constructing this base.
@@ -43,22 +53,22 @@ class ILogger {
     virtual ~ILogger() = default;
 
     /**
-     * @brief Copy ctor, defaulted — no data members of its own, so member-wise copy is trivially
-     * correct.
+     * @brief Copy ctor, defaulted — no data members of its own, so member-wise copy is
+     * trivially correct.
      */
-    ILogger(const ILogger &) = default;
+    ILogger(const ILogger&) = default;
     /**
      * @brief Copy assignment, defaulted alongside the copy ctor for the same reason.
      */
-    ILogger &operator=(const ILogger &) = default;
+    ILogger& operator=(const ILogger&) = default;
     /**
      * @brief Move ctor, defaulted — same story, nothing owned that needs special handling.
      */
-    ILogger(ILogger &&) = default;
+    ILogger(ILogger&&) = default;
     /**
      * @brief Move assignment, defaulted to round out the set.
      */
-    ILogger &operator=(ILogger &&) = default;
+    ILogger& operator=(ILogger&&) = default;
 
     /**
      * @brief Tells you which logger you're actually holding onto (console, file, whatever sink

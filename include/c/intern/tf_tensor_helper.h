@@ -16,27 +16,28 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TENSOR_HELPER_H_
 #define TENSORFLOW_C_TF_TENSOR_HELPER_H_
 
+#include "c/abi/macros.h"
+#include "c/intern/tf_datatype.h"
+#include "c/intern/tf_tensor.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
-#include "c/abi/macros.h"
-#include "c/intern/tf_tensor.h"
-#include "c/intern/tf_datatype.h"
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// TF_TensorBitcastFrom changes the data type of a tensor without copying data.
-TF_CAPI_EXPORT extern void TF_TensorBitcastFrom(
-    TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    // TF_TensorBitcastFrom changes the data type of a tensor without copying data.
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastFrom(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
-// TF_TensorBitcastTo changes the data type of a tensor without copying data.
-TF_CAPI_EXPORT extern void TF_TensorBitcastTo(
-    const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    // TF_TensorBitcastTo changes the data type of a tensor without copying data.
+    TF_CAPI_EXPORT extern void
+    TF_TensorBitcastTo(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_TF_TENSOR_HELPER_H_
+#endif // TENSORFLOW_C_TF_TENSOR_HELPER_H_

@@ -12,20 +12,28 @@ export namespace core::ffi {
 // Structural NTTP wrapper so string literals can be template parameters — same trick as
 // serde::StringLiteral (include/serde/core.cppm), duplicated here (not imported from serde)
 // so core_ffi stays standalone, no cross-dependency on the serde module.
-template <std::size_t N>
-struct StringLiteral {
+template<std::size_t N>
+struct StringLiteral
+{
     /**
      * @brief Copies a string literal's characters (including the trailing NUL) into `value`
      * at compile time — this is the whole trick that lets a literal ride along as a template
      * parameter.
      * @param source the string literal being wrapped, e.g. `"has_task_type"`.
      */
-    consteval StringLiteral(const char (&source)[N]) noexcept { std::copy_n(source, N, m_value); }
+    consteval StringLiteral(const char (&source)[N]) noexcept
+    {
+        std::copy_n(source, N, m_value);
+    }
+
     char m_value[N]{};
 
     /// @brief Gets a view over the literal, trailing NUL excluded.
     /// @return a `string_view` of length `N - 1` over `m_value`.
-    [[nodiscard]] constexpr std::string_view string_view() const noexcept { return {m_value, N - 1}; }
+    [[nodiscard]] constexpr std::string_view string_view() const noexcept
+    {
+        return {m_value, N - 1};
+    }
 };
 
 // ─── MethodDesc / Exported<T> ─────────────────────────────────────────────────
@@ -53,8 +61,9 @@ struct StringLiteral {
 /// @tparam Name the name this method is exposed under (used to build both the internal
 /// registered key and the Python/Lua-facing name).
 /// @tparam MemFn the pointer-to-member-function being exported.
-template <StringLiteral Name, auto MemFn>
-struct MethodDesc {
+template<StringLiteral Name, auto MemFn>
+struct MethodDesc
+{
     static constexpr auto name = Name;
     static constexpr auto member = MemFn;
 };
@@ -68,14 +77,14 @@ struct MethodDesc {
 ///   exported method against (typically a function-local static — this is what makes
 ///   build-time auto-discovery of exported types possible without needing per-type
 ///   construction logic wired in by hand at the call site).
-template <typename T>
+template<typename T>
 struct Exported;
 
 /// @brief Checks whether `T` has opted into FFI export via an `Exported<T>` specialization.
-template <typename T>
+template<typename T>
 concept IsExported = requires {
     { Exported<T>::methods() };
-    { Exported<T>::instance() } -> std::same_as<T &>;
+    { Exported<T>::instance() } -> std::same_as<T&>;
 };
 
 } // namespace core::ffi
@@ -83,12 +92,17 @@ concept IsExported = requires {
 #ifdef CONGELADO_TEST
 namespace core::ffi::tests {
 
-class FfiTestTarget {
-  public:
-    [[nodiscard]] int add_one(int value) const noexcept { return value + 1; }
+class FfiTestTarget
+{
+public:
+    [[nodiscard]] int add_one(int value) const noexcept
+    {
+        return value + 1;
+    }
 };
 
-class FfiUnexportedTarget {};
+class FfiUnexportedTarget
+{};
 
 } // namespace core::ffi::tests
 
@@ -96,12 +110,16 @@ namespace core::ffi {
 
 // Explicit specialization must live in a namespace enclosing core::ffi::Exported's own
 // namespace — hence this sits directly in core::ffi rather than core::ffi::tests.
-template <>
-struct Exported<tests::FfiTestTarget> {
-    static constexpr auto methods() {
+template<>
+struct Exported<tests::FfiTestTarget>
+{
+    static constexpr auto methods()
+    {
         return std::tuple{MethodDesc<"add_one", &tests::FfiTestTarget::add_one>{}};
     }
-    static tests::FfiTestTarget &instance() {
+
+    static tests::FfiTestTarget& instance()
+    {
         static tests::FfiTestTarget target;
         return target;
     }

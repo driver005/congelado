@@ -7,7 +7,11 @@ import boost.ut;
 
 export namespace io::shared {
 
-enum class Role : std::uint8_t { SENDER = 0, RECEIVER = 1 };
+enum class Role : std::uint8_t
+{
+    SENDER = 0,
+    RECEIVER = 1
+};
 
 } // namespace io::shared
 
@@ -21,7 +25,9 @@ suite<"Role"> role_suite = [] {
         expect(std::to_underlying(Role::RECEIVER) == 1);
     };
 
-    "SENDER and RECEIVER are distinct"_test = [] { expect(Role::SENDER != Role::RECEIVER); };
+    "SENDER and RECEIVER are distinct"_test = [] {
+        expect(Role::SENDER != Role::RECEIVER);
+    };
 };
 
 } // namespace io::shared::tests

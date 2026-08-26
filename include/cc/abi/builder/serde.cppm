@@ -4,53 +4,80 @@ module;
 
 export module cc_abi_builder:serde;
 
-import cc_abi_builder_intern;
+import cc_abi_sonic_intern;
 
+export namespace ice::builder {
 
-export namespace ice {
-
-class SerdeBuilder {
- public:
-  SerdeBuilder() : m_handle{TP_SerdeNew()} {}
-  ~SerdeBuilder() { TP_SerdeDelete(m_handle); }
-
-  SerdeBuilder(const SerdeBuilder&) = delete;
-  SerdeBuilder& operator=(const SerdeBuilder&) = delete;
-
-  SerdeBuilder(SerdeBuilder&& other) noexcept : m_handle{other.m_handle} { other.m_handle = nullptr; }
-  SerdeBuilder& operator=(SerdeBuilder&& other) noexcept {
-
-    if (this != &other) {
-      TP_SerdeDelete(m_handle);
-      m_handle = other.m_handle;
-      other.m_handle = nullptr;
+class SerdeBuilder
+{
+public:
+    SerdeBuilder() :
+        m_handle{TP_SerdeNew()}
+    {
     }
-    return *this;
 
-  }
+    ~SerdeBuilder()
+    {
+        TP_SerdeDelete(m_handle);
+    }
 
-  SerdeBuilder& set_encode(TP_Serde_EncodeFn callback) {
+    SerdeBuilder(const SerdeBuilder&) = delete;
+    SerdeBuilder& operator=(const SerdeBuilder&) = delete;
 
-    TP_Serde_SetEncodeCallback(m_handle, callback);
-    return *this;
+    SerdeBuilder(SerdeBuilder&& other) noexcept :
+        m_handle{other.m_handle}
+    {
+        other.m_handle = nullptr;
+    }
 
-  }
-  SerdeBuilder& set_decode(TP_Serde_DecodeFn callback) {
+    SerdeBuilder& operator=(SerdeBuilder&& other) noexcept
+    {
 
-    TP_Serde_SetDecodeCallback(m_handle, callback);
-    return *this;
+        if (this != &other) {
+            TP_SerdeDelete(m_handle);
+            m_handle = other.m_handle;
+            other.m_handle = nullptr;
+        }
+        return *this;
+    }
 
-  }
+    SerdeBuilder& set_encode(TP_Serde_EncodeFn callback)
+    {
 
-  StringBuilder get_content_type() { return StringBuilder{&m_handle->content_type}; }
-  StringBuilder get_format_name() { return StringBuilder{&m_handle->format_name}; }
+        TP_Serde_SetEncodeCallback(m_handle, callback);
+        return *this;
+    }
 
-  // Underlying handle — pass directly to the C ABI
-  TP_Serde *get_handle() { return m_handle; }
-  const TP_Serde *get_handle() const { return m_handle; }
+    SerdeBuilder& set_decode(TP_Serde_DecodeFn callback)
+    {
 
- private:
-  TP_Serde* m_handle;
+        TP_Serde_SetDecodeCallback(m_handle, callback);
+        return *this;
+    }
+
+    ice::sonic::StringRuntime get_content_type()
+    {
+        return ice::sonic::StringRuntime{&m_handle->content_type};
+    }
+
+    ice::sonic::StringRuntime get_format_name()
+    {
+        return ice::sonic::StringRuntime{&m_handle->format_name};
+    }
+
+    // Underlying handle — pass directly to the C ABI
+    TP_Serde* get_handle()
+    {
+        return m_handle;
+    }
+
+    const TP_Serde* get_handle() const
+    {
+        return m_handle;
+    }
+
+private:
+    TP_Serde* m_handle;
 };
 
-}  // namespace ice
+} // namespace ice::builder

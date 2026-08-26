@@ -27,10 +27,15 @@ import boost.ut;
 export namespace io::layer::http2 {
 
 /// @brief Which end of the connection a `Session` represents — decides inbound decode/routing.
-enum class Role : bool { SERVER = false, CLIENT = true };
+enum class Role : bool
+{
+    SERVER = false,
+    CLIENT = true
+};
 
-class Session {
-  public:
+class Session
+{
+public:
     /**
      * @brief Spins up a fresh HTTP/2 session — local/remote `Settings` both start at spec
      * defaults, `m_last_client_stream_id` starts at 1 so the first client-initiated stream
@@ -42,28 +47,38 @@ class Session {
      * @param extension_registry the process's one `HttpExtensionRegistry` — stored by reference
      * (must outlive this session) and handed down to every `Stream`/`Handshake` call that needs
      * to check for a registered `IHttpExtension`. An empty registry (no extension plugin
-     * configured) makes every one of those calls a no-op, same as before this mechanism existed.
+     * configured) makes every one of those calls a no-op, same as before this mechanism
+     * existed.
      * @param role `Role::CLIENT` for a client session (it initiates streams and receives
      * responses), `Role::SERVER` for a server session (it receives requests) — drives inbound
      * decode target and received-stream routing.
      * @param dispatch request/response dispatch hook, fired once a stream's remote side is
      * done sending.
      */
-    explicit Session(::shared::SendCallback send_callback, ::shared::CloseCallback close_callback,
-                     HttpExtensionRegistry &extension_registry, Role role,
-                     interfaces::io::ReceiveDispatchFn dispatch = {})
-        : m_connection_stream{m_local_settings, m_remote_settings},
-          m_submiter{std::move(send_callback)}, m_closer{std::move(close_callback)},
-          m_safe_header{std::nullopt}, m_dispatch{std::move(dispatch)},
-          m_extension_registry{extension_registry}, m_role{role} {
+    explicit Session(
+        ::shared::SendCallback send_callback,
+        ::shared::CloseCallback close_callback,
+        HttpExtensionRegistry& extension_registry,
+        Role role,
+        interfaces::io::ReceiveDispatchFn dispatch = {}
+    ) :
+        m_connection_stream{m_local_settings, m_remote_settings},
+        m_submiter{std::move(send_callback)},
+        m_closer{std::move(close_callback)},
+        m_safe_header{std::nullopt},
+        m_dispatch{std::move(dispatch)},
+        m_extension_registry{extension_registry},
+        m_role{role}
+    {
         // Client hands out odd stream ids from 1; server starts at 0 and tracks the highest
         // received client id (see get_or_create_stream).
         m_last_client_stream_id = role == Role::CLIENT ? 1 : 0;
         core::logger::info("http2/session", "session created");
 
         // A new connection just opened — notify every extension.
-        m_extension_registry.get().for_each(
-            [](auto &extension) { extension->on_connection_open(); });
+        m_extension_registry.get().for_each([](auto& extension) {
+            extension->on_connection_open();
+        });
     }
 
     /**
@@ -72,7 +87,8 @@ class Session {
      * `Handshake` doesn't own or construct one itself.
      * @return the extension registry.
      */
-    [[nodiscard]] HttpExtensionRegistry &get_extension_registry() noexcept {
+    [[nodiscard]] HttpExtensionRegistry& get_extension_registry() noexcept
+    {
         return m_extension_registry;
     }
 
@@ -87,24 +103,27 @@ class Session {
      * @param request the request to send. Gets its stream id overwritten by this call.
      * @return the stream id assigned to this request — the key the response is correlated on.
      */
-    std::uint32_t send(HttpRequest &request) {
+    std::uint32_t send(HttpRequest& request)
+    {
         // Grab a fresh odd client stream id and tag the request with it.
-        auto &stream = next_client_stream();
+        auto& stream = next_client_stream();
         const auto SID = stream.get_stream_id();
 
         request.set_stream_id(SID);
 
         // Let every extension observe (and optionally mutate) the request before it's framed.
-        m_extension_registry.get().for_each(
-            [&](auto &extension) { extension->on_request_outgoing(SID, request); });
+        m_extension_registry.get().for_each([&](auto& extension) {
+            extension->on_request_outgoing(SID, request);
+        });
 
         // Pre-size the buffer node up front from the estimated wire size, then encode straight
         // into it.
         auto node =
             utils::buffering::BufferNode{request.get_size(m_local_settings.get_max_frame_size())};
 
-        node | WriteHttpRequestAdaptor{request, m_encoding_table,
-                                       m_local_settings.get_max_frame_size()};
+        node | WriteHttpRequestAdaptor{
+                   request, m_encoding_table, m_local_settings.get_max_frame_size()
+               };
 
         core::logger::debug("http2/session", "HEADERS frame size={}", node.get_written());
 
@@ -113,21 +132,26 @@ class Session {
             std::string hex;
             const std::size_t LIMIT = std::min<std::size_t>(node.get_written(), 48);
             for (std::size_t i = 0; i < LIMIT; ++i) {
-                hex += std::format("{:02x} ", static_cast<unsigned>(std::to_integer<std::uint8_t>(
-                                                  node.get_data()[i])));
+                hex += std::format(
+                    "{:02x} ",
+                    static_cast<unsigned>(std::to_integer<std::uint8_t>(node.get_data()[i]))
+                );
             }
-            core::logger::warning("WIREDUMP", "worker-outbound written={} bytes[{}]: {}",
-                                  node.get_written(), LIMIT, hex);
+            core::logger::warning(
+                "WIREDUMP", "worker-outbound written={} bytes[{}]: {}", node.get_written(), LIMIT,
+                hex
+            );
         }
 
-        // Drive the stream state machine forward for the send side before actually shipping bytes.
-        // is_local=true — this is our own outgoing request, so END_STREAM half-closes the LOCAL
-        // side (leaving the remote open to send the response). Omitting it defaulted to false,
-        // which wrongly marked the stream half-closed-REMOTE and made the inbound response get
-        // rejected as "DATA/HEADERS on half-closed (remote) stream". Mirrors the server response
-        // path's explicit `true`.
-        stream.advance_send(shared_layer::FrameType::HEADERS, shared_layer::Flags::END_STREAM,
-                            true);
+        // Drive the stream state machine forward for the send side before actually shipping
+        // bytes. is_local=true — this is our own outgoing request, so END_STREAM half-closes
+        // the LOCAL side (leaving the remote open to send the response). Omitting it defaulted
+        // to false, which wrongly marked the stream half-closed-REMOTE and made the inbound
+        // response get rejected as "DATA/HEADERS on half-closed (remote) stream". Mirrors the
+        // server response path's explicit `true`.
+        stream.advance_send(
+            shared_layer::FrameType::HEADERS, shared_layer::Flags::END_STREAM, true
+        );
 
         send_node(std::move(node));
         return SID;
@@ -139,13 +163,13 @@ class Session {
      * pending remote-settings window deltas once ACKed, then routes the frame to either the
      * connection-level stream (id 0) or a per-stream `Stream<>`, kicking off `response()` if
      * the peer's done sending on that stream.
-     * @warning This is a genuine multi-call state machine, not a one-shot parse. `m_safe_header`
-     * holds a parsed-but-not-yet-fully-payload-available header across calls — if you're
-     * tracing through this expecting one `receive()` call to always fully consume one frame,
-     * that's wrong for split reads, which is the entire point of the buffering in the first
-     * place. Two early-return points (incomplete header, incomplete payload) are `return`s
-     * with zero side effects other than logging, that's expected steady-state, not an error
-     * path.
+     * @warning This is a genuine multi-call state machine, not a one-shot parse.
+     * `m_safe_header` holds a parsed-but-not-yet-fully-payload-available header across calls —
+     * if you're tracing through this expecting one `receive()` call to always fully consume one
+     * frame, that's wrong for split reads, which is the entire point of the buffering in the
+     * first place. Two early-return points (incomplete header, incomplete payload) are
+     * `return`s with zero side effects other than logging, that's expected steady-state, not an
+     * error path.
      * @warning `ConnectionError` and `StreamError` get handled very differently here:
      * `ConnectionError` calls `close()`, which tears down the *entire* session (GOAWAY, kills
      * every stream past the given id, invokes `m_closer`). `StreamError` instead sends a
@@ -156,7 +180,8 @@ class Session {
      * @param reader the bytes received off the wire so far — gets consumed incrementally as
      * frames are fully parsed off the front.
      */
-    void receive(utils::buffering::BufferReader &reader) {
+    void receive(utils::buffering::BufferReader& reader)
+    {
         try {
             // No header buffered from a previous partial call — try to parse a fresh one.
             if (!m_safe_header.has_value()) {
@@ -174,24 +199,29 @@ class Session {
                     throw error::http::ConnectionError{
                         error::http::Http2ErrorCode::PROTOCOL_ERROR,
                         "Received frame for stream ID above GOAWAY threshold",
-                        m_remote_settings.get_last_stream_id()};
+                        m_remote_settings.get_last_stream_id()
+                    };
                 }
 
                 // Remote settings just got ACKed — apply any pending initial-window delta to
                 // every live stream's send window, then flip settings to IMPLEMENTED.
                 if (m_remote_settings.is_acknowledged()) {
                     if (m_remote_settings.get_delta_window_on_settings() > 0) {
-                        for (auto &[id, stream] : m_streams) {
-                            core::logger::debug("http2/session", "stream {} send_window +{}", id,
-                                                m_remote_settings.get_delta_window_on_settings());
+                        for (auto& [id, stream]: m_streams) {
+                            core::logger::debug(
+                                "http2/session", "stream {} send_window +{}", id,
+                                m_remote_settings.get_delta_window_on_settings()
+                            );
 
                             stream->update_send_window(
-                                m_remote_settings.get_delta_window_on_settings());
+                                m_remote_settings.get_delta_window_on_settings()
+                            );
                         }
 
                         m_remote_settings.set_delta_window_on_settings(0);
-                        core::logger::debug("http2/session",
-                                            "remote settings ACK, windows updated");
+                        core::logger::debug(
+                            "http2/session", "remote settings ACK, windows updated"
+                        );
                     }
 
                     m_remote_settings.set_state(SettingsState::IMPLEMENTED);
@@ -214,8 +244,10 @@ class Session {
 
             auto stream_id = header.get_stream_id();
 
-            core::logger::debug("http2/session", "frame type={} stream={} len={}",
-                                header.get_type(), stream_id, header.get_length());
+            core::logger::debug(
+                "http2/session", "frame type={} stream={} len={}", header.get_type(), stream_id,
+                header.get_length()
+            );
 
             // Stream 0 is connection-level (SETTINGS, PING, GOAWAY, ...); anything else routes
             // to its own per-stream Stream<>, kicking off the response once the peer's done
@@ -226,26 +258,26 @@ class Session {
                     frm.has_value()) {
                     send_frame(frm.value());
                 }
-                // A received GOAWAY is recorded by the connection stream (no echo, RFC 9113 §6.8);
-                // the connection-level teardown is the session's job — run it once.
+                // A received GOAWAY is recorded by the connection stream (no echo, RFC 9113
+                // §6.8); the connection-level teardown is the session's job — run it once.
                 if (m_connection_stream.got_goaway() && !m_goaway_received) {
                     handle_goaway();
                 }
             } else {
-                auto &stream = get_or_create_stream(stream_id);
+                auto& stream = get_or_create_stream(stream_id);
                 stream.receive(header, reader, m_extension_registry.get());
 
                 if (stream.is_remote_done()) {
                     response(stream.get_stream_id());
                 }
             }
-        } catch (const error::http::ConnectionError &e) {
+        } catch (const error::http::ConnectionError& e) {
             // Connection-wide violation — tear the whole session down via close()/GOAWAY.
             core::logger::warning("http2/session", "connection error: {}", e.what());
             core::events::publish("http2.session.connection_error", {{"error", e.what()}});
 
             close(e.get_code(), e.get_last_stream_id());
-        } catch (const error::http::StreamError &e) {
+        } catch (const error::http::StreamError& e) {
             // Scoped to one stream — send a targeted RST_STREAM and close just that stream,
             // the rest of the connection keeps running.
             std::array<std::byte, 4> payload{};
@@ -259,11 +291,13 @@ class Session {
                              .add_payload(payload)
                              .build();
 
-            core::logger::warning("http2/session", "stream {} error: {}", e.get_stream_id(),
-                                  e.what());
+            core::logger::warning(
+                "http2/session", "stream {} error: {}", e.get_stream_id(), e.what()
+            );
             core::events::publish(
                 "http2.session.stream_error",
-                {{"stream_id", std::to_string(e.get_stream_id())}, {"error", e.what()}});
+                {{"stream_id", std::to_string(e.get_stream_id())}, {"error", e.what()}}
+            );
 
             send_frame(frame);
             mark_stream_closed(e.get_stream_id());
@@ -276,15 +310,20 @@ class Session {
      * the same `m_submiter` call directly).
      * @param node the pre-encoded bytes to submit.
      */
-    void send_node(utils::buffering::BufferNode &&node) { m_submiter(std::move(node)); }
+    void send_node(utils::buffering::BufferNode&& node)
+    {
+        m_submiter(std::move(node));
+    }
 
     /**
      * @brief Encodes a `FrameBuilder` (header + payload, single frame — no chunking, unlike the
      * `WriteFrameClosureAdapter` path used for HEADERS/DATA) and ships it out.
      * @param frame the built frame to encode and send.
      */
-    void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER> &frame) {
-        // Encode header + payload into a single node, no chunking, then hand it to the transport.
+    void send_frame(const FrameBuilder<shared_layer::FrameRole::SENDER>& frame)
+    {
+        // Encode header + payload into a single node, no chunking, then hand it to the
+        // transport.
         auto size = frame.get_size();
         auto node = std::views::empty<std::byte> |
                     WriteFrameBuilderAdaptor{frame, m_local_settings.get_max_frame_size()} |
@@ -307,8 +346,8 @@ class Session {
      * @param graceful when true, skip the close callback so the transport stays open — lets the
      * queued GOAWAY (and any pending responses) flush before the socket is torn down elsewhere.
      */
-    void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0,
-               bool graceful = false) {
+    void close(error::http::Http2ErrorCode code, std::uint32_t stream_id = 0, bool graceful = false)
+    {
         // GOAWAY is going out — refuse any new streams from here on (see get_or_create_stream).
         m_closed = true;
 
@@ -320,19 +359,22 @@ class Session {
 
         // Notify every extension the connection is going down (seam for releasing any
         // per-connection state). No-op if no extensions are registered.
-        m_extension_registry.get().for_each(
-            [&](auto &extension) { extension->on_connection_close(std::to_underlying(code)); });
+        m_extension_registry.get().for_each([&](auto& extension) {
+            extension->on_connection_close(std::to_underlying(code));
+        });
 
         send_goaway(code, stream_id);
 
         // Prune every stream past the announced last-stream-id; streams at or below it are
         // deliberately kept, per RFC 9113 §6.8 they may still get a response.
-        std::erase_if(m_streams,
-                      [stream_id](const auto &entry) { return entry.first > stream_id; });
+        std::erase_if(m_streams, [stream_id](const auto& entry) {
+            return entry.first > stream_id;
+        });
 
-        // Graceful shutdown leaves the socket open (still reading) so the sender can flush and any
-        // in-flight partial header can still finish parsing; teardown happens later (drain then
-        // hard close). A hard close drops the partial header and fires the close callback now.
+        // Graceful shutdown leaves the socket open (still reading) so the sender can flush and
+        // any in-flight partial header can still finish parsing; teardown happens later (drain
+        // then hard close). A hard close drops the partial header and fires the close callback
+        // now.
         if (!graceful) {
             m_safe_header.reset();
             m_closer();
@@ -343,13 +385,17 @@ class Session {
      * @brief Checks whether every stream on this session has finished.
      * @return true if no active streams remain.
      */
-    [[nodiscard]] bool is_idle() const noexcept { return m_streams.empty(); }
+    [[nodiscard]] bool is_idle() const noexcept
+    {
+        return m_streams.empty();
+    }
 
     /**
      * @brief Grabs the most recently assigned client-initiated stream id. Bet, plain getter.
      * @return the last client stream id handed out by `next_client_stream()`.
      */
-    [[nodiscard]] std::uint32_t get_last_client_stream_id() const noexcept {
+    [[nodiscard]] std::uint32_t get_last_client_stream_id() const noexcept
+    {
         return m_last_client_stream_id;
     }
 
@@ -357,21 +403,29 @@ class Session {
      * @brief Grabs the local settings, read-only. Lowkey just a getter.
      * @return the local `Settings`.
      */
-    [[nodiscard]] const Settings &get_local_settings() const noexcept { return m_local_settings; }
+    [[nodiscard]] const Settings& get_local_settings() const noexcept
+    {
+        return m_local_settings;
+    }
+
     /**
      * @brief Grabs the local settings, mutable — used by `Handshake` to read the max frame size
      * while wiring up the initial SETTINGS exchange.
      * @return the local `Settings`.
      */
-    Settings &get_local_settings() noexcept { return m_local_settings; }
+    Settings& get_local_settings() noexcept
+    {
+        return m_local_settings;
+    }
 
-  private:
+private:
     /**
-     * @brief Handles a stream whose remote side is done sending. For a stream WE initiated (client)
-     * this is the awaited response — its body is handed to `m_dispatch` to resolve the pending
-     * request, no reply sent. For a peer-initiated stream (server) it runs the registered handler,
-     * defaulting the response to NOT_FOUND up front so an unhandled route/exception still gets a
-     * real HTTP status, then encodes and sends what the handler produced.
+     * @brief Handles a stream whose remote side is done sending. For a stream WE initiated
+     * (client) this is the awaited response — its body is handed to `m_dispatch` to resolve the
+     * pending request, no reply sent. For a peer-initiated stream (server) it runs the
+     * registered handler, defaulting the response to NOT_FOUND up front so an unhandled
+     * route/exception still gets a real HTTP status, then encodes and sends what the handler
+     * produced.
      * @warning Any exception the dispatch handler throws gets caught and downgraded to a plain
      * INTERNAL_SERVER_ERROR status — the actual exception details only make it as far as the
      * logger, never back to the peer. If you're debugging a handler that's misbehaving, check
@@ -379,10 +433,11 @@ class Session {
      * @param stream_id the stream to respond on — must already exist in `m_streams`, this uses
      * `.at()` which throws `std::out_of_range` on a bad id (uncaught here).
      */
-    void response(std::uint32_t stream_id) {
-        auto &stream = *m_streams.at(stream_id);
-        auto &req = stream.get_request();
-        auto &res = stream.get_response();
+    void response(std::uint32_t stream_id)
+    {
+        auto& stream = *m_streams.at(stream_id);
+        auto& req = stream.get_request();
+        auto& res = stream.get_response();
 
         try {
             // Client: this completed stream is a response we awaited — headers/status/body all
@@ -403,7 +458,7 @@ class Session {
                 };
                 m_dispatch(req, res, std::move(send));
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             core::logger::error("http2/session", "handler threw: {}", e.what());
             core::events::publish("http2.session.handler_exception", {{"error", e.what()}});
             res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
@@ -416,13 +471,15 @@ class Session {
      * handler's send callback or from the exception fallback path.
      * @param stream_id the stream whose response should be framed and sent.
      */
-    void send_response(std::uint32_t stream_id) {
-        auto &stream = *m_streams.at(stream_id);
-        auto &res = stream.get_response();
+    void send_response(std::uint32_t stream_id)
+    {
+        auto& stream = *m_streams.at(stream_id);
+        auto& res = stream.get_response();
 
         // Let every extension observe (and optionally mutate) the response before it's framed.
-        m_extension_registry.get().for_each(
-            [&](auto &extension) { extension->on_response_outgoing(stream_id, res); });
+        m_extension_registry.get().for_each([&](auto& extension) {
+            extension->on_response_outgoing(stream_id, res);
+        });
 
         // Encode whatever the handler (or the NOT_FOUND/500 fallback) produced and ship it.
         auto node =
@@ -449,7 +506,8 @@ class Session {
      * it's never handed out through this path — first assignable id is 3.
      * @return the freshly created stream for the next client id.
      */
-    Stream<> &next_client_stream() {
+    Stream<>& next_client_stream()
+    {
         // Odd client stream ids only, always +2 from the last one handed out.
         m_last_client_stream_id += 2;
         return get_or_create_stream(m_last_client_stream_id);
@@ -468,19 +526,23 @@ class Session {
      * @throws error::http::ConnectionError if `stream_id` is 0, or if it maps to a
      * previously-closed (nulled) entry.
      */
-    Stream<> &get_or_create_stream(const std::uint32_t &stream_id) {
+    Stream<>& get_or_create_stream(const std::uint32_t& stream_id)
+    {
         // Guard — stream 0 is reserved for connection-level frames, never a real per-request
         // stream.
         if (stream_id == 0) {
-            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Stream ID 0 is reserved"};
+            throw error::http::ConnectionError{
+                error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"
+            };
         }
 
         // Finished stream — reject instead of silently re-opening a closed id.
         if (m_closed_streams.contains(stream_id)) {
-            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               std::format("Stream ID {} is closed", stream_id),
-                                               m_remote_settings.get_last_stream_id()};
+            throw error::http::ConnectionError{
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                std::format("Stream ID {} is closed", stream_id),
+                m_remote_settings.get_last_stream_id()
+            };
         }
 
         // Already tracked — return the live stream.
@@ -494,17 +556,20 @@ class Session {
             throw error::http::ConnectionError{
                 error::http::Http2ErrorCode::PROTOCOL_ERROR,
                 std::format("Stream ID {} refused — connection is shutting down", stream_id),
-                m_remote_settings.get_last_stream_id()};
+                m_remote_settings.get_last_stream_id()
+            };
         }
 
         // First time seeing this id — spin up a fresh stream wired to the shared connection
         // stream, HPACK tables, and settings. Role decides the inbound decode target.
-        auto stream = std::make_unique<Stream<>>(stream_id, m_connection_stream, m_decoding_table,
-                                                 m_encoding_table, m_local_settings,
-                                                 m_remote_settings, true, m_role == Role::SERVER);
+        auto stream = std::make_unique<Stream<>>(
+            stream_id, m_connection_stream, m_decoding_table, m_encoding_table, m_local_settings,
+            m_remote_settings, true, m_role == Role::SERVER
+        );
 
-        // Track the highest client-initiated (odd) stream id seen — spec-compliant last-stream-id
-        // for GOAWAY and monotonic-open validation. max() keeps it correct on the client too.
+        // Track the highest client-initiated (odd) stream id seen — spec-compliant
+        // last-stream-id for GOAWAY and monotonic-open validation. max() keeps it correct on
+        // the client too.
         if ((stream_id & 1U) == 1U) {
             m_last_client_stream_id = std::max(m_last_client_stream_id, stream_id);
         }
@@ -512,8 +577,9 @@ class Session {
         auto [new_it, inserted] = m_streams.emplace(stream_id, std::move(stream));
         if (inserted) {
             // A brand-new stream just opened — notify every extension.
-            m_extension_registry.get().for_each(
-                [&](auto &extension) { extension->on_stream_open(stream_id); });
+            m_extension_registry.get().for_each([&](auto& extension) {
+                extension->on_stream_open(stream_id);
+            });
         }
         return *(new_it->second);
     }
@@ -524,11 +590,13 @@ class Session {
      * @param code the GOAWAY error code.
      * @param stream_id the last processed stream id.
      */
-    void send_goaway(error::http::Http2ErrorCode code, std::uint32_t stream_id) {
+    void send_goaway(error::http::Http2ErrorCode code, std::uint32_t stream_id)
+    {
         auto payload = std::views::empty<std::byte> |
                        utils::codec::WriteBigEndianAdaptor<std::uint32_t>{stream_id} |
                        utils::codec::WriteBigEndianAdaptor<std::uint32_t>{
-                           static_cast<std::uint32_t>(std::to_underlying(code))} |
+                           static_cast<std::uint32_t>(std::to_underlying(code))
+                       } |
                        std::ranges::to<std::vector<std::byte>>();
 
         auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
@@ -552,11 +620,13 @@ class Session {
      * retry.
      */
     std::optional<FrameHeader<shared_layer::FrameRole::RECEIVER>>
-    receive_header(utils::buffering::BufferReader &target) {
+    receive_header(utils::buffering::BufferReader& target)
+    {
         // Not enough bytes buffered yet for a full fixed-size header — caller retries later.
         if (target.size() < HEADER_SIZE) {
-            core::logger::debug("http2/session", "incomplete header expected={} got={}",
-                                HEADER_SIZE, target.size());
+            core::logger::debug(
+                "http2/session", "incomplete header expected={} got={}", HEADER_SIZE, target.size()
+            );
 
             return std::nullopt;
         }
@@ -569,7 +639,6 @@ class Session {
         return header;
     }
 
-
     /**
      * @brief Marks a stream as closed without removing its map entry — resets the
      * `unique_ptr` to null rather than erasing the key, so a later lookup for this id in
@@ -580,11 +649,13 @@ class Session {
      * @throws error::http::ConnectionError if `stream_id` is 0, or if it isn't found in
      * `m_streams` at all.
      */
-    void mark_stream_closed(std::uint32_t stream_id) {
+    void mark_stream_closed(std::uint32_t stream_id)
+    {
         // Guard — same reserved-id rule as get_or_create_stream().
         if (stream_id == 0) {
-            throw error::http::ConnectionError{error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Stream ID 0 is reserved"};
+            throw error::http::ConnectionError{
+                error::http::Http2ErrorCode::PROTOCOL_ERROR, "Stream ID 0 is reserved"
+            };
         }
 
         // Remove the stream and record its id so a later lookup rejects it instead of silently
@@ -594,10 +665,12 @@ class Session {
             m_closed_streams.insert(stream_id);
 
             // Stream reached graceful teardown — notify every extension.
-            m_extension_registry.get().for_each(
-                [&](auto &extension) { extension->on_stream_close(stream_id); });
+            m_extension_registry.get().for_each([&](auto& extension) {
+                extension->on_stream_close(stream_id);
+            });
 
-            // If we're winding down after a received GOAWAY, this may have been the last survivor.
+            // If we're winding down after a received GOAWAY, this may have been the last
+            // survivor.
             close_transport_if_drained();
             return;
         }
@@ -606,17 +679,21 @@ class Session {
             error::http::Http2ErrorCode::PROTOCOL_ERROR,
             std::format(
                 "Stream with ID {} was not found and therefor could not be closed / finished",
-                stream_id),
-            m_remote_settings.get_last_stream_id()};
+                stream_id
+            ),
+            m_remote_settings.get_last_stream_id()
+        };
     }
 
     /**
-     * @brief Runs the RFC 9113 §6.8 teardown for a GOAWAY the connection stream received (recorded,
-     * never echoed): refuse new streams, drop locally-initiated streams above the peer's
-     * Last-Stream-ID (those weren't processed — retryable on a new connection), and close the
-     * transport once the survivors (<= Last-Stream-ID) finish — or immediately on an error GOAWAY.
+     * @brief Runs the RFC 9113 §6.8 teardown for a GOAWAY the connection stream received
+     * (recorded, never echoed): refuse new streams, drop locally-initiated streams above the
+     * peer's Last-Stream-ID (those weren't processed — retryable on a new connection), and
+     * close the transport once the survivors (<= Last-Stream-ID) finish — or immediately on an
+     * error GOAWAY.
      */
-    void handle_goaway() {
+    void handle_goaway()
+    {
         m_goaway_received = true;
         m_closed = true; // No new streams — get_or_create_stream() enforces this.
 
@@ -624,18 +701,23 @@ class Session {
         const auto CODE = m_connection_stream.goaway_error_code();
 
         // Streams we opened above LAST_ID were not processed by the peer — drop them.
-        std::erase_if(m_streams, [LAST_ID](const auto &entry) { return entry.first > LAST_ID; });
+        std::erase_if(m_streams, [LAST_ID](const auto& entry) {
+            return entry.first > LAST_ID;
+        });
 
         // An error GOAWAY tears the connection down now; a clean (NO_ERROR) GOAWAY lets streams
-        // <= LAST_ID finish first — close_transport_if_drained() closes once the last one's done.
+        // <= LAST_ID finish first — close_transport_if_drained() closes once the last one's
+        // done.
         if (CODE != error::http::Http2ErrorCode::NO_ERROR_CODE) {
             m_streams.clear();
         }
         close_transport_if_drained();
     }
 
-    /// @brief Closes the transport exactly once, after a received GOAWAY, when no streams remain.
-    void close_transport_if_drained() {
+    /// @brief Closes the transport exactly once, after a received GOAWAY, when no streams
+    /// remain.
+    void close_transport_if_drained()
+    {
         if (m_goaway_received && !m_transport_closed && m_streams.empty()) {
             m_transport_closed = true;
             m_closer();
@@ -671,9 +753,10 @@ using namespace boost::ut;
 
 /// @brief Builds a BufferReader wrapping exactly `bytes` — same helper shape used across this
 /// module's other partitions (see stream.cppm's make_reader).
-static utils::buffering::BufferReader make_reader(const std::vector<std::byte> &bytes) {
-    auto *node = new utils::buffering::BufferNode(bytes.size());
-    for (auto b : bytes) {
+static utils::buffering::BufferReader make_reader(const std::vector<std::byte>& bytes)
+{
+    auto* node = new utils::buffering::BufferNode(bytes.size());
+    for (auto b: bytes) {
         node->push_back(b);
     }
     utils::buffering::BufferReader reader;
@@ -682,16 +765,18 @@ static utils::buffering::BufferReader make_reader(const std::vector<std::byte> &
 }
 
 /// @brief Encodes a fully-built FrameBuilder into raw on-wire bytes (header + payload).
-static std::vector<std::byte> encode_frame(FrameBuilder<shared_layer::FrameRole::SENDER> frame,
-                                           std::uint32_t max_frame_size) {
-    return std::views::empty<std::byte> | WriteFrameBuilderAdaptor{std::move(frame), max_frame_size} |
+static std::vector<std::byte>
+encode_frame(FrameBuilder<shared_layer::FrameRole::SENDER> frame, std::uint32_t max_frame_size)
+{
+    return std::views::empty<std::byte> |
+           WriteFrameBuilderAdaptor{std::move(frame), max_frame_size} |
            std::ranges::to<std::vector<std::byte>>();
 }
 
 suite<"Session ctor / getters"> session_ctor_suite = [] {
     "server ctor starts idle with last-client-stream-id 0"_test = [] {
         HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::SERVER};
+        Session session{[](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::SERVER};
 
         expect(session.is_idle());
         expect(session.get_last_client_stream_id() == 0U);
@@ -699,7 +784,7 @@ suite<"Session ctor / getters"> session_ctor_suite = [] {
 
     "client ctor starts idle with last-client-stream-id 1 (first send() lands on 3)"_test = [] {
         HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::CLIENT};
+        Session session{[](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::CLIENT};
 
         expect(session.is_idle());
         expect(session.get_last_client_stream_id() == 1U);
@@ -707,23 +792,23 @@ suite<"Session ctor / getters"> session_ctor_suite = [] {
 
     "get_extension_registry returns the same registry this session was constructed with"_test = [] {
         HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::SERVER};
+        Session session{[](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::SERVER};
 
         expect(&session.get_extension_registry() == &registry);
     };
 
     "get_local_settings — mutable and const overloads resolve to the same underlying Settings"_test =
         [] {
-        HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::SERVER};
+            HttpExtensionRegistry registry;
+            Session session{[](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::SERVER};
 
-        auto &mutable_settings = session.get_local_settings();
-        const Session &const_session = session;
-        const auto &const_settings = const_session.get_local_settings();
+            auto& mutable_settings = session.get_local_settings();
+            const Session& const_session = session;
+            const auto& const_settings = const_session.get_local_settings();
 
-        expect(&mutable_settings == &const_settings);
-        expect(mutable_settings.get_max_frame_size() == const_settings.get_max_frame_size());
-    };
+            expect(&mutable_settings == &const_settings);
+            expect(mutable_settings.get_max_frame_size() == const_settings.get_max_frame_size());
+        };
 };
 
 suite<"Session::send_node / send_frame"> session_send_suite = [] {
@@ -732,11 +817,12 @@ suite<"Session::send_node / send_frame"> session_send_suite = [] {
         int send_calls = 0;
         HttpExtensionRegistry registry;
         Session session{
-            [&](utils::buffering::BufferNode &&node) {
+            [&](utils::buffering::BufferNode&& node) {
                 ++send_calls;
                 captured.assign(node.get_data(), node.get_data() + node.get_written());
             },
-            [] {}, registry, Role::SERVER};
+            [] {}, registry, Role::SERVER
+        };
 
         utils::buffering::BufferNode node{3};
         node.push_back(std::byte{0xAA});
@@ -755,10 +841,11 @@ suite<"Session::send_node / send_frame"> session_send_suite = [] {
         std::vector<std::byte> captured;
         HttpExtensionRegistry registry;
         Session session{
-            [&](utils::buffering::BufferNode &&node) {
+            [&](utils::buffering::BufferNode&& node) {
                 captured.assign(node.get_data(), node.get_data() + node.get_written());
             },
-            [] {}, registry, Role::SERVER};
+            [] {}, registry, Role::SERVER
+        };
 
         auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
                          .add_type(shared_layer::FrameType::PING)
@@ -780,72 +867,90 @@ suite<"Session::send_node / send_frame"> session_send_suite = [] {
 suite<"Session::close / is_idle"> session_close_suite = [] {
     "close() (hard, default) sends a GOAWAY(stream=0) and invokes the close callback exactly once"_test =
         [] {
-        std::vector<std::byte> captured;
-        int close_calls = 0;
-        HttpExtensionRegistry registry;
-        Session session{
-            [&](utils::buffering::BufferNode &&node) {
-                captured.assign(node.get_data(), node.get_data() + node.get_written());
-            },
-            [&close_calls] { ++close_calls; }, registry, Role::SERVER};
+            std::vector<std::byte> captured;
+            int close_calls = 0;
+            HttpExtensionRegistry registry;
+            Session session{
+                [&](utils::buffering::BufferNode&& node) {
+                    captured.assign(node.get_data(), node.get_data() + node.get_written());
+                },
+                [&close_calls] {
+                    ++close_calls;
+                },
+                registry, Role::SERVER
+            };
 
-        session.close(error::http::Http2ErrorCode::NO_ERROR_CODE);
+            session.close(error::http::Http2ErrorCode::NO_ERROR_CODE);
 
-        expect(close_calls == 1);
-        auto header =
-            captured | ReadFrameHeaderAdaptor{session.get_local_settings().get_max_frame_size()};
-        expect(header.get_type() == shared_layer::FrameType::GOAWAY);
-        expect(header.get_stream_id() == 0U);
-    };
+            expect(close_calls == 1);
+            auto header = captured |
+                          ReadFrameHeaderAdaptor{session.get_local_settings().get_max_frame_size()};
+            expect(header.get_type() == shared_layer::FrameType::GOAWAY);
+            expect(header.get_stream_id() == 0U);
+        };
 
     "close(graceful=true) sends GOAWAY but leaves the transport open (close callback not invoked)"_test =
         [] {
-        int close_calls = 0;
-        HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [&close_calls] { ++close_calls; },
-                        registry, Role::SERVER};
+            int close_calls = 0;
+            HttpExtensionRegistry registry;
+            Session session{
+                [](utils::buffering::BufferNode&&) {},
+                [&close_calls] {
+                    ++close_calls;
+                },
+                registry, Role::SERVER
+            };
 
-        session.close(error::http::Http2ErrorCode::NO_ERROR_CODE, 0, true);
+            session.close(error::http::Http2ErrorCode::NO_ERROR_CODE, 0, true);
 
-        expect(close_calls == 0);
-    };
+            expect(close_calls == 0);
+        };
 
     "close() (hard, default stream_id=0) drops every open client stream so is_idle() becomes true"_test =
         [] {
-        int close_calls = 0;
-        HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [&close_calls] { ++close_calls; },
-                        registry, Role::CLIENT};
+            int close_calls = 0;
+            HttpExtensionRegistry registry;
+            Session session{
+                [](utils::buffering::BufferNode&&) {},
+                [&close_calls] {
+                    ++close_calls;
+                },
+                registry, Role::CLIENT
+            };
 
-        HttpRequest first{0};
-        first.set_header(interfaces::io::types::Token::METHOD, "GET");
-        first.set_header(interfaces::io::types::Token::PATH, "/a");
+            HttpRequest first{0};
+            first.set_header(interfaces::io::types::Token::METHOD, "GET");
+            first.set_header(interfaces::io::types::Token::PATH, "/a");
 
-        // send() drives HPACK *encoding*, which is documented elsewhere in this codebase (see
-        // req.cppm's WriteHttpRequestAdaptor comment) as having pre-existing correctness gaps —
-        // guarded with nothrow rather than asserted on exact wire bytes.
-        expect(nothrow([&] { std::ignore = session.send(first); })) << fatal;
+            // send() drives HPACK *encoding*, which is documented elsewhere in this codebase
+            // (see req.cppm's WriteHttpRequestAdaptor comment) as having pre-existing
+            // correctness gaps — guarded with nothrow rather than asserted on exact wire bytes.
+            expect(nothrow([&] {
+                std::ignore = session.send(first);
+            })) << fatal;
 
-        expect(not session.is_idle());
+            expect(not session.is_idle());
 
-        session.close(error::http::Http2ErrorCode::NO_ERROR_CODE);
+            session.close(error::http::Http2ErrorCode::NO_ERROR_CODE);
 
-        expect(session.is_idle());
-        expect(close_calls == 1);
-    };
+            expect(session.is_idle());
+            expect(close_calls == 1);
+        };
 };
 
 suite<"Session::send — client-initiated stream assignment"> session_send_request_suite = [] {
     "send() assigns sequential odd client stream ids starting at 3"_test = [] {
         HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::CLIENT};
+        Session session{[](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::CLIENT};
 
         HttpRequest first{0};
         first.set_header(interfaces::io::types::Token::METHOD, "GET");
         first.set_header(interfaces::io::types::Token::PATH, "/a");
 
         std::uint32_t first_id = 0;
-        expect(nothrow([&] { first_id = session.send(first); })) << fatal;
+        expect(nothrow([&] {
+            first_id = session.send(first);
+        })) << fatal;
         expect(first_id == 3U);
         expect(first.get_stream_id() == 3U);
         expect(session.get_last_client_stream_id() == 3U);
@@ -855,7 +960,9 @@ suite<"Session::send — client-initiated stream assignment"> session_send_reque
         second.set_header(interfaces::io::types::Token::PATH, "/b");
 
         std::uint32_t second_id = 0;
-        expect(nothrow([&] { second_id = session.send(second); })) << fatal;
+        expect(nothrow([&] {
+            second_id = session.send(second);
+        })) << fatal;
         expect(second_id == 5U);
         expect(session.get_last_client_stream_id() == 5U);
     };
@@ -866,28 +973,30 @@ suite<"Session::receive"> session_receive_suite = [] {
     "dispatches it to the handler; the handler's send() then closes the stream"_test = [] {
         HttpExtensionRegistry registry;
         int dispatch_calls = 0;
-        interfaces::io::IRequest *captured_req = nullptr;
-        interfaces::io::IResponse *captured_res = nullptr;
+        interfaces::io::IRequest* captured_req = nullptr;
+        interfaces::io::IResponse* captured_res = nullptr;
         std::function<void()> stored_send;
 
-        interfaces::io::ReceiveDispatchFn dispatch =
-            [&](interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                std::function<void()> send) {
-                ++dispatch_calls;
-                captured_req = &req;
-                captured_res = &res;
-                stored_send = std::move(send);
-            };
+        interfaces::io::ReceiveDispatchFn dispatch = [&](interfaces::io::IRequest& req,
+                                                         interfaces::io::IResponse& res,
+                                                         std::function<void()> send) {
+            ++dispatch_calls;
+            captured_req = &req;
+            captured_res = &res;
+            stored_send = std::move(send);
+        };
 
-        Session session{[](utils::buffering::BufferNode &&) {}, [] {}, registry, Role::SERVER,
-                        dispatch};
+        Session session{
+            [](utils::buffering::BufferNode&&) {}, [] {}, registry, Role::SERVER, dispatch
+        };
 
-        auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
-                         .add_type(shared_layer::FrameType::HEADERS)
-                         .add_flags(shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM)
-                         .add_stream_id(3)
-                         .add_payload(std::vector<std::byte>{std::byte{0x82}}) // static idx 2: GET
-                         .build();
+        auto frame =
+            FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                .add_type(shared_layer::FrameType::HEADERS)
+                .add_flags(shared_layer::Flags::END_HEADERS | shared_layer::Flags::END_STREAM)
+                .add_stream_id(3)
+                .add_payload(std::vector<std::byte>{std::byte{0x82}}) // static idx 2: GET
+                .build();
         auto bytes =
             encode_frame(std::move(frame), session.get_local_settings().get_max_frame_size());
 
@@ -901,39 +1010,49 @@ suite<"Session::receive"> session_receive_suite = [] {
 
         // Crosses the HPACK *encoder* path on the way out (see the close-suite note above) —
         // guarded with nothrow rather than asserted on exact wire bytes.
-        expect(nothrow([&] { stored_send(); }));
+        expect(nothrow([&] {
+            stored_send();
+        }));
         expect(session.is_idle()); // send_response() -> mark_stream_closed()
     };
 
     "receive() a connection-level GOAWAY runs teardown and, with no streams open, closes the transport"_test =
         [] {
-        int close_calls = 0;
-        HttpExtensionRegistry registry;
-        Session session{[](utils::buffering::BufferNode &&) {}, [&close_calls] { ++close_calls; },
-                        registry, Role::CLIENT};
+            int close_calls = 0;
+            HttpExtensionRegistry registry;
+            Session session{
+                [](utils::buffering::BufferNode&&) {},
+                [&close_calls] {
+                    ++close_calls;
+                },
+                registry, Role::CLIENT
+            };
 
-        auto payload =
-            std::views::empty<std::byte> | utils::codec::WriteBigEndianAdaptor<std::uint32_t>{0U} |
-            utils::codec::WriteBigEndianAdaptor<std::uint32_t>{static_cast<std::uint32_t>(
-                std::to_underlying(error::http::Http2ErrorCode::NO_ERROR_CODE))} |
-            std::ranges::to<std::vector<std::byte>>();
+            auto payload =
+                std::views::empty<std::byte> |
+                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{0U} |
+                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{static_cast<std::uint32_t>(
+                    std::to_underlying(error::http::Http2ErrorCode::NO_ERROR_CODE)
+                )} |
+                std::ranges::to<std::vector<std::byte>>();
 
-        auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
-                         .add_type(shared_layer::FrameType::GOAWAY)
-                         .add_flags(0)
-                         .add_stream_id(0)
-                         .add_payload(payload)
-                         .build();
-        auto bytes =
-            encode_frame(std::move(frame), session.get_local_settings().get_max_frame_size());
+            auto frame = FrameBuilder<shared_layer::FrameRole::SENDER>{}
+                             .add_type(shared_layer::FrameType::GOAWAY)
+                             .add_flags(0)
+                             .add_stream_id(0)
+                             .add_payload(payload)
+                             .build();
+            auto bytes =
+                encode_frame(std::move(frame), session.get_local_settings().get_max_frame_size());
 
-        auto reader = make_reader(bytes);
-        session.receive(reader);
+            auto reader = make_reader(bytes);
+            session.receive(reader);
 
-        // No streams were open, so handle_goaway()'s close_transport_if_drained() fires right away.
-        expect(close_calls == 1);
-        expect(session.is_idle());
-    };
+            // No streams were open, so handle_goaway()'s close_transport_if_drained() fires
+            // right away.
+            expect(close_calls == 1);
+            expect(session.is_idle());
+        };
 };
 
 } // namespace io::layer::http2::session_tests

@@ -19,7 +19,7 @@ limitations under the License.
 // TF_Bool is the C API typedef for unsigned char, while TF_BOOL is
 // the datatype for boolean tensors.
 #ifndef TF_Bool
-#define TF_Bool unsigned char
-#endif  // TF_Bool
+#    define TF_Bool unsigned char
+#endif // TF_Bool
 
-#endif  // TENSORFLOW_C_TYPES_TF_BOOL_H_
+#endif // TENSORFLOW_C_TYPES_TF_BOOL_H_

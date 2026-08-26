@@ -15,12 +15,13 @@ import boost.ut;
 
 export namespace core::contract {
 
-template <std::size_t MaxCapacity = 1024>
+template<std::size_t MaxCapacity = 1'024>
 class ContractGroup;
 
-template <std::size_t MaxCapacity = 1024>
-class Contract {
-  public:
+template<std::size_t MaxCapacity = 1'024>
+class Contract
+{
+public:
     /**
      * @brief Wraps a handle to one contract slot inside `group`, identified by `local_id`.
      * Thin reference type — the actual state lives in the group's arrays, this is just a
@@ -28,58 +29,82 @@ class Contract {
      * @param group the owning ContractGroup this contract's state actually lives in.
      * @param local_id this contract's id/slot within `group`.
      */
-    Contract(ContractGroup<MaxCapacity> &group, std::uint32_t local_id) noexcept
-        : m_group{group}, m_local_id{local_id} {}
+    Contract(ContractGroup<MaxCapacity>& group, std::uint32_t local_id) noexcept :
+        m_group{group},
+        m_local_id{local_id}
+    {
+    }
 
     /**
      * @brief Puts this contract back on the run queue.
      */
-    void schedule() { m_group.get().schedule(m_local_id); }
+    void schedule()
+    {
+        m_group.get().schedule(m_local_id);
+    }
 
     /**
      * @brief Pulls this contract off the run queue — parked, not released.
      */
-    void deschedule() { m_group.get().deschedule(m_local_id); }
+    void deschedule()
+    {
+        m_group.get().deschedule(m_local_id);
+    }
 
     /**
      * @brief Marks this contract for teardown. No coming back from this one.
      */
-    void release() { m_group.get().release(m_local_id); }
+    void release()
+    {
+        m_group.get().release(m_local_id);
+    }
 
     /**
      * @brief Whether this contract has been marked released.
      * @return true if released.
      */
-    [[nodiscard]] bool is_released() const noexcept { return m_group.get().is_released(m_local_id); }
+    [[nodiscard]] bool is_released() const noexcept
+    {
+        return m_group.get().is_released(m_local_id);
+    }
 
     /**
      * @brief Whether this contract is fully idle — done running and released/erased (or never
      * started). Owning code polls this to know when a self-releasing contract has finished.
      * @return true if idle.
      */
-    [[nodiscard]] bool is_idle() const noexcept { return m_group.get().is_idle(m_local_id); }
+    [[nodiscard]] bool is_idle() const noexcept
+    {
+        return m_group.get().is_idle(m_local_id);
+    }
 
-  private:
+private:
     std::reference_wrapper<ContractGroup<MaxCapacity>> m_group;
     std::uint32_t m_local_id;
 };
 
-
-template <std::size_t MaxCapacity = 1024>
-class ContractGroup : shared::HandlerInterface {
-  public:
+template<std::size_t MaxCapacity = 1'024>
+class ContractGroup : shared::HandlerInterface
+{
+public:
     /**
      * @brief Default ctor — empty signal tree, empty worker/releaser/error arrays, and
      * registers this group as the current thread's handler via init().
      */
-    ContractGroup() { init(); }
+    ContractGroup()
+    {
+        init();
+    }
 
     /**
      * @brief Registers this group as the thread-local `shared::this_handler::current` handler
      * so free functions like `shared::this_handler::shedule()` route into it. Gotta be called
      * from every thread that's actually gonna touch this group, not just once globally.
      */
-    void init() { shared::this_handler::current = this; }
+    void init()
+    {
+        shared::this_handler::current = this;
+    }
 
     /**
      * @brief Registers a new worker and hands back a Contract handle for it. Straight up the
@@ -94,28 +119,34 @@ class ContractGroup : shared::HandlerInterface {
      * valid initial state to hand in.
      * @return a Contract handle bound to the newly registered worker's slot.
      */
-    Contract<MaxCapacity> create(std::string_view name, const shared::WorkerFunction &worker,
-                                 shared::ReleaseFunction releaser = nullptr,
-                                 shared::ErrorHandler error_handler = nullptr,
-                                 ContractState state = ContractState::SCHEDULED) {
+    Contract<MaxCapacity> create(
+        std::string_view name,
+        const shared::WorkerFunction& worker,
+        shared::ReleaseFunction releaser = nullptr,
+        shared::ErrorHandler error_handler = nullptr,
+        ContractState state = ContractState::SCHEDULED
+    )
+    {
         // Claim a slot first, then decide what to do with it based on the requested state.
         const std::uint32_t CONTRACT_ID =
             add_worker(Worker{worker, state}, std::move(releaser), std::move(error_handler));
         switch (state) {
-        case ContractState::SCHEDULED:
-        case ContractState::RELEASED: {
-            // Both SCHEDULED and RELEASED start life on the run queue right away.
-            m_signal_tree.schedule(CONTRACT_ID);
-            break;
-        }
-        case ContractState::IDLE:
-            // IDLE just sits there until something schedules it later.
-            break;
-        case ContractState::EXECUTING:
-            // Not a valid state to hand in at creation time — log it instead of scheduling.
-            core::logger::error("core/contract", "add_contract in EXECUTING state");
-            core::events::publish("contract.worker.invalid_state",
-                                  {{"contract_id", std::to_string(CONTRACT_ID)}});
+            case ContractState::SCHEDULED:
+            case ContractState::RELEASED:
+                {
+                    // Both SCHEDULED and RELEASED start life on the run queue right away.
+                    m_signal_tree.schedule(CONTRACT_ID);
+                    break;
+                }
+            case ContractState::IDLE:
+                // IDLE just sits there until something schedules it later.
+                break;
+            case ContractState::EXECUTING:
+                // Not a valid state to hand in at creation time — log it instead of scheduling.
+                core::logger::error("core/contract", "add_contract in EXECUTING state");
+                core::events::publish(
+                    "contract.worker.invalid_state", {{"contract_id", std::to_string(CONTRACT_ID)}}
+                );
         }
 
         return Contract<MaxCapacity>{*this, CONTRACT_ID};
@@ -126,7 +157,8 @@ class ContractGroup : shared::HandlerInterface {
      * @param contract_id the worker id to query.
      * @return true if released.
      */
-    [[nodiscard]] bool is_released(std::uint32_t contract_id) const noexcept {
+    [[nodiscard]] bool is_released(std::uint32_t contract_id) const noexcept
+    {
         return m_workers[contract_id].is_released(); // NOLINT(cppcoreguidelines-pro-bounds-*)
     }
 
@@ -135,7 +167,8 @@ class ContractGroup : shared::HandlerInterface {
      * @param contract_id the worker id to query.
      * @return true if idle.
      */
-    [[nodiscard]] bool is_idle(std::uint32_t contract_id) const noexcept {
+    [[nodiscard]] bool is_idle(std::uint32_t contract_id) const noexcept
+    {
         return m_workers[contract_id].is_idle(); // NOLINT(cppcoreguidelines-pro-bounds-*)
     }
 
@@ -146,7 +179,8 @@ class ContractGroup : shared::HandlerInterface {
      * this recovers from gracefully.
      * @param contract_id the worker's id to schedule.
      */
-    void schedule(std::uint32_t contract_id) override {
+    void schedule(std::uint32_t contract_id) override
+    {
         if (m_workers[contract_id].is_released()) { // FIXME(clang-tidy): unchecked operator[],
                                                     // consider .at(); non-constant array index
             return;
@@ -157,7 +191,8 @@ class ContractGroup : shared::HandlerInterface {
                                                      // consider .at(); non-constant array index
             core::events::publish(
                 "contract.worker.fatal",
-                {{"contract_id", std::to_string(contract_id)}, {"reason", "already_scheduled"}});
+                {{"contract_id", std::to_string(contract_id)}, {"reason", "already_scheduled"}}
+            );
             core::logger::fatal("core/contract", "worker {} already scheduled", contract_id);
             return;
         }
@@ -177,7 +212,8 @@ class ContractGroup : shared::HandlerInterface {
      * instead of quietly no-op'ing.
      * @param contract_id the worker's id to deschedule.
      */
-    void deschedule(std::uint32_t contract_id) override {
+    void deschedule(std::uint32_t contract_id) override
+    {
         if (m_workers[contract_id].is_released()) { // FIXME(clang-tidy): unchecked operator[],
                                                     // consider .at(); non-constant array index
             return;
@@ -187,15 +223,17 @@ class ContractGroup : shared::HandlerInterface {
                                                      // consider .at(); non-constant array index
             m_signal_tree.deschedule(contract_id);
             m_workers[contract_id].add_flags(
-                ContractState::IDLE); // FIXME(clang-tidy): unchecked operator[], consider .at();
-                                      // non-constant array index
+                ContractState::IDLE
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at();
+               // non-constant array index
             return;
         }
 
         // Not scheduled to begin with — nothing to pull off, log loud instead of no-op'ing.
         core::events::publish(
             "contract.worker.fatal",
-            {{"contract_id", std::to_string(contract_id)}, {"reason", "not_found_on_deschedule"}});
+            {{"contract_id", std::to_string(contract_id)}, {"reason", "not_found_on_deschedule"}}
+        );
         core::logger::fatal("core/contract", "worker {} not found on deschedule", contract_id);
     }
 
@@ -204,12 +242,14 @@ class ContractGroup : shared::HandlerInterface {
      * process_next_contract() actually gets to run its releaser.
      * @param contract_id the worker's id to release.
      */
-    void release(std::uint32_t contract_id) override {
+    void release(std::uint32_t contract_id) override
+    {
         // Mark it released first — that's the flag process_next_contract() checks to decide
         // whether to run the releaser instead of the worker.
         m_workers[contract_id].add_flags(
-            ContractState::RELEASED); // FIXME(clang-tidy): unchecked operator[], consider .at();
-                                      // non-constant array index
+            ContractState::RELEASED
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at();
+           // non-constant array index
 
         // Not already on the run queue — force it there so the release actually gets processed.
         if (!m_workers[contract_id].is_scheduled()) { // FIXME(clang-tidy): unchecked operator[],
@@ -217,7 +257,6 @@ class ContractGroup : shared::HandlerInterface {
             schedule(contract_id);
         }
     }
-
 
     /**
      * @brief Pulls the next ready contract off the signal tree and runs it — either its
@@ -231,7 +270,8 @@ class ContractGroup : shared::HandlerInterface {
      * @param bias_flags rotating bias state threaded through the signal tree's bit-scan, kept
      * across calls so scheduling stays fair instead of always favoring the same branch.
      */
-    void process_next_contract(std::uint64_t &bias_flags) {
+    void process_next_contract(std::uint64_t& bias_flags)
+    {
         // This is a fast, lock-free bit-scan.
         auto ready_id = m_signal_tree.next(bias_flags);
 
@@ -240,15 +280,16 @@ class ContractGroup : shared::HandlerInterface {
             return;
         }
 
-        auto &worker = m_workers[*ready_id]; // FIXME(clang-tidy): unchecked operator[], consider
-                                             // .at(); non-constant array index
-        auto &releaser = m_releasers[*ready_id]; // FIXME(clang-tidy): unchecked operator[],
+        auto& worker = m_workers[*ready_id];     // FIXME(clang-tidy): unchecked operator[],
                                                  // consider .at(); non-constant array index
-        auto &error = m_errors[*ready_id]; // FIXME(clang-tidy): unchecked operator[], consider
+        auto& releaser = m_releasers[*ready_id]; // FIXME(clang-tidy): unchecked operator[],
+                                                 // consider .at(); non-constant array index
+        auto& error = m_errors[*ready_id]; // FIXME(clang-tidy): unchecked operator[], consider
                                            // .at(); non-constant array index
 
         // Only proceed if this call actually wins the claim, no cap — another thread could've
-        // grabbed the same ready id first, in which case there's nothing left for us to do here.
+        // grabbed the same ready id first, in which case there's nothing left for us to do
+        // here.
         if (worker.try_claim_execution()) {
             m_signal_tree.deschedule(*ready_id);
 
@@ -266,7 +307,8 @@ class ContractGroup : shared::HandlerInterface {
                     core::logger::warning("core/contract", "released worker {} error", *ready_id);
                     core::events::publish(
                         "contract.worker.execution_failed",
-                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "released"}});
+                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "released"}}
+                    );
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -285,7 +327,8 @@ class ContractGroup : shared::HandlerInterface {
                     core::logger::warning("core/contract", "scheduled worker {} error", *ready_id);
                     core::events::publish(
                         "contract.worker.execution_failed",
-                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "executing"}});
+                        {{"contract_id", std::to_string(*ready_id)}, {"phase", "executing"}}
+                    );
                     if (error) {
                         error(std::current_exception());
                     } else {
@@ -301,7 +344,7 @@ class ContractGroup : shared::HandlerInterface {
     }
 
 
-  private:
+private:
     /**
      * @brief Grabs a free contract id off the signal tree and installs the worker/releaser/
      * error handler into their respective slot arrays.
@@ -310,45 +353,56 @@ class ContractGroup : shared::HandlerInterface {
      * @param error_handler the error handler to install.
      * @return the freshly claimed contract id.
      */
-    std::uint32_t add_worker(Worker worker, shared::ReleaseFunction releaser,
-                             shared::ErrorHandler error_handler) {
+    std::uint32_t
+    add_worker(Worker worker, shared::ReleaseFunction releaser, shared::ErrorHandler error_handler)
+    {
         // Claim a fresh id, then drop each piece into its matching slot array.
         std::uint32_t id = m_signal_tree.free_contract_id();
         m_workers[id] = std::move(worker);     // FIXME(clang-tidy): unchecked operator[], consider
                                                // .at(); non-constant array index
-        m_releasers[id] = std::move(releaser); // FIXME(clang-tidy): unchecked operator[], consider
-                                               // .at(); non-constant array index
+        m_releasers[id] = std::move(releaser); // FIXME(clang-tidy): unchecked operator[],
+                                               // consider .at(); non-constant array index
         m_errors[id] = std::move(error_handler); // FIXME(clang-tidy): unchecked operator[],
                                                  // consider .at(); non-constant array index
         return id;
     }
 
+    class AutoEraseContract
+    {
+    public:
+        AutoEraseContract(
+            std::uint32_t contract_id,
+            Worker& worker,
+            shared::ReleaseFunction& releaser,
+            shared::ErrorHandler& error,
+            SignalTree<MaxCapacity>& signal_tree
+        ) noexcept :
+            m_id{contract_id},
+            m_worker{worker},
+            m_releaser{releaser},
+            m_error{error},
+            m_signal_tree{signal_tree}
+        {
+        }
 
-    class AutoEraseContract {
-      public:
-        AutoEraseContract(std::uint32_t contract_id, Worker &worker,
-                          shared::ReleaseFunction &releaser, shared::ErrorHandler &error,
-                          SignalTree<MaxCapacity> &signal_tree) noexcept
-            : m_id{contract_id}, m_worker{worker}, m_releaser{releaser}, m_error{error},
-              m_signal_tree{signal_tree} {}
-
-        AutoEraseContract(const AutoEraseContract &) = delete;
-        AutoEraseContract &operator=(const AutoEraseContract &) = delete;
-        AutoEraseContract(AutoEraseContract &&) = delete;
-        AutoEraseContract &operator=(AutoEraseContract &&) = delete;
+        AutoEraseContract(const AutoEraseContract&) = delete;
+        AutoEraseContract& operator=(const AutoEraseContract&) = delete;
+        AutoEraseContract(AutoEraseContract&&) = delete;
+        AutoEraseContract& operator=(AutoEraseContract&&) = delete;
 
         /**
          * @brief RAII guard dtor — resets the worker/releaser/error slots back to empty once a
          * released contract finishes running, clean or thrown. Erases the slot for real, no
          * partial cleanup left hanging around.
          */
-        ~AutoEraseContract() noexcept {
+        ~AutoEraseContract() noexcept
+        {
             m_worker.get() = Worker{};
             m_releaser.get() = nullptr;
             m_error.get() = nullptr;
         }
 
-      private:
+    private:
         std::uint32_t m_id;
         std::reference_wrapper<Worker> m_worker;
         std::reference_wrapper<shared::ReleaseFunction> m_releaser;
@@ -356,23 +410,30 @@ class ContractGroup : shared::HandlerInterface {
         std::reference_wrapper<SignalTree<MaxCapacity>> m_signal_tree;
     };
 
-    class AutoClearExecuteFlag {
-      public:
-        AutoClearExecuteFlag(Worker &worker, std::uint32_t contract_id,
-                             SignalTree<MaxCapacity> &signal_tree) noexcept
-            : m_worker{worker}, m_id{contract_id}, m_signal_tree{signal_tree} {}
+    class AutoClearExecuteFlag
+    {
+    public:
+        AutoClearExecuteFlag(
+            Worker& worker, std::uint32_t contract_id, SignalTree<MaxCapacity>& signal_tree
+        ) noexcept :
+            m_worker{worker},
+            m_id{contract_id},
+            m_signal_tree{signal_tree}
+        {
+        }
 
-        AutoClearExecuteFlag(const AutoClearExecuteFlag &) = delete;
-        AutoClearExecuteFlag &operator=(const AutoClearExecuteFlag &) = delete;
-        AutoClearExecuteFlag(AutoClearExecuteFlag &&) = delete;
-        AutoClearExecuteFlag &operator=(AutoClearExecuteFlag &&) = delete;
+        AutoClearExecuteFlag(const AutoClearExecuteFlag&) = delete;
+        AutoClearExecuteFlag& operator=(const AutoClearExecuteFlag&) = delete;
+        AutoClearExecuteFlag(AutoClearExecuteFlag&&) = delete;
+        AutoClearExecuteFlag& operator=(AutoClearExecuteFlag&&) = delete;
 
         /**
          * @brief RAII guard dtor — clears the EXECUTING flag once a scheduled contract's
          * worker call returns (clean or via exception), and re-schedules it on the signal tree
          * if a SCHEDULED flag got set again while it was mid-run.
          */
-        ~AutoClearExecuteFlag() noexcept {
+        ~AutoClearExecuteFlag() noexcept
+        {
             try {
                 // Clear EXECUTING and grab the pre-clear flags in one shot.
                 auto prev = m_worker.get().fetch_and(~ContractState::EXECUTING);
@@ -384,13 +445,14 @@ class ContractGroup : shared::HandlerInterface {
                 }
             } catch (...) {
                 // Never let an exception escape a destructor — log it loud instead.
-                core::events::publish("contract.autoclear.fatal",
-                                      {{"contract_id", std::to_string(m_id)}});
+                core::events::publish(
+                    "contract.autoclear.fatal", {{"contract_id", std::to_string(m_id)}}
+                );
                 core::logger::fatal("core/contract", "exception in ~AutoClearExecuteFlag");
             }
         }
 
-      private:
+    private:
         std::reference_wrapper<Worker> m_worker;
         std::uint32_t m_id;
         std::reference_wrapper<SignalTree<MaxCapacity>> m_signal_tree;
@@ -402,9 +464,10 @@ class ContractGroup : shared::HandlerInterface {
     std::array<shared::ErrorHandler, MaxCapacity> m_errors{};
 };
 
-template <std::size_t MaxCapacity = 1024>
-class ContractThreadPool {
-  public:
+template<std::size_t MaxCapacity = 1'024>
+class ContractThreadPool
+{
+public:
     /**
      * @brief Spins up `thread_count` worker threads, each looping process_next_contract() on
      * `group` until told to stop.
@@ -412,41 +475,48 @@ class ContractThreadPool {
      * @param thread_count how many worker threads to spin up, defaults to
      * `std::thread::hardware_concurrency()`.
      */
-    explicit ContractThreadPool(ContractGroup<MaxCapacity> &group,
-                                std::size_t thread_count = std::thread::hardware_concurrency())
-        : m_group{group}, m_running{true} {
+    explicit ContractThreadPool(
+        ContractGroup<MaxCapacity>& group,
+        std::size_t thread_count = std::thread::hardware_concurrency()
+    ) :
+        m_group{group},
+        m_running{true}
+    {
         core::logger::important("core/thread_pool", "starting {} threads", thread_count);
-        core::events::publish("contract.thread_pool.started",
-                              {{"thread_count", std::to_string(thread_count)}});
+        core::events::publish(
+            "contract.thread_pool.started", {{"thread_count", std::to_string(thread_count)}}
+        );
         // Spin up each worker thread, all running the same loop against the shared group.
         for (std::size_t i = 0; i < thread_count; ++i) {
             m_workers.emplace_back(&ContractThreadPool::worker_loop, this);
         }
     }
 
-    ContractThreadPool(const ContractThreadPool &) = delete;
-    ContractThreadPool &operator=(const ContractThreadPool &) = delete;
-    ContractThreadPool(ContractThreadPool &&) = delete;
-    ContractThreadPool &operator=(ContractThreadPool &&) = delete;
+    ContractThreadPool(const ContractThreadPool&) = delete;
+    ContractThreadPool& operator=(const ContractThreadPool&) = delete;
+    ContractThreadPool(ContractThreadPool&&) = delete;
+    ContractThreadPool& operator=(ContractThreadPool&&) = delete;
 
     /**
      * @brief Flips the running flag off and joins every worker thread. Blocks until they've
      * all actually wrapped up.
      */
-    ~ContractThreadPool() {
+    ~ContractThreadPool()
+    {
         // Flip the flag first so every worker_loop() sees it and exits its own loop...
         m_running = false;
         // ...then join each thread, waiting for them to actually wrap up.
-        for (auto &worker_thread : m_workers) {
+        for (auto& worker_thread: m_workers) {
             if (worker_thread.joinable()) {
-                core::logger::debug("core/thread_pool", "joining thread {}",
-                                    worker_thread.get_id());
+                core::logger::debug(
+                    "core/thread_pool", "joining thread {}", worker_thread.get_id()
+                );
                 worker_thread.join();
             }
         }
     }
 
-  private:
+private:
     /**
      * @brief Per-thread loop — inits this thread's handler context, then repeatedly pulls and
      * runs the next ready contract with a 1s sleep between polls while `m_running` stays true.
@@ -454,7 +524,8 @@ class ContractThreadPool {
      * up to a full second of latency between a contract becoming ready and this thread
      * actually picking it up. Lowkey not great for anything latency-sensitive.
      */
-    void worker_loop() {
+    void worker_loop()
+    {
         core::logger::debug("core/thread_pool", "thread {} started", std::this_thread::get_id());
         std::uint64_t dynamic_bias = 0;
         // Ensure the ContractGroup is initialized in this thread context
@@ -464,7 +535,7 @@ class ContractThreadPool {
             m_group.get().process_next_contract(dynamic_bias);
 
             // Optional: Sleep briefly to prevent busy-waiting when no contracts are ready
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1'000));
         }
     }
 
@@ -477,30 +548,41 @@ class ContractThreadPool {
  * @brief Registry for every `Contract<>` a controller creates. Keeps handles in one place so
  * teardown can release them in bulk before the contract thread pool stops.
  */
-class ContractRegistry {
-  public:
+class ContractRegistry
+{
+public:
     /**
      * @brief Stores a contract handle. The deque is chosen so handles stay stable while the
      * registry grows; releasing is done explicitly via `release_all()`.
      * @param contract the handle to keep alive.
      */
-    void add(Contract<> contract) { m_contracts.push_back(std::move(contract)); }
+    void add(Contract<> contract)
+    {
+        m_contracts.push_back(std::move(contract));
+    }
 
     /// @brief Releases every stored contract and clears the registry. Idempotent.
-    void release_all() noexcept {
-        for (auto &contract : m_contracts) {
+    void release_all() noexcept
+    {
+        for (auto& contract: m_contracts) {
             contract.release();
         }
         m_contracts.clear();
     }
 
     /// @brief Number of currently stored contracts.
-    [[nodiscard]] std::size_t size() const noexcept { return m_contracts.size(); }
+    [[nodiscard]] std::size_t size() const noexcept
+    {
+        return m_contracts.size();
+    }
 
     /// @brief True if no contracts are currently stored.
-    [[nodiscard]] bool empty() const noexcept { return m_contracts.empty(); }
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return m_contracts.empty();
+    }
 
-  private:
+private:
     std::deque<Contract<>> m_contracts;
 };
 

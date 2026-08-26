@@ -16,39 +16,40 @@ limitations under the License.
 #ifndef CONGELADO_C_GENERATOR_DEFINITION_H_
 #define CONGELADO_C_GENERATOR_DEFINITION_H_
 
-#include <stddef.h>
-
 #include "c/abi/macros.h"
 
+#include <stddef.h>
+
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct TF_Generator_Definition TF_Generator_Definition;
-typedef struct TF_Generator_Parameter TF_Generator_Parameter;
-typedef struct TF_Generator_Attribute TF_Generator_Attribute;
+    typedef struct TF_Generator_Definition TF_Generator_Definition;
+    typedef struct TF_Generator_Parameter TF_Generator_Parameter;
+    typedef struct TF_Generator_Attribute TF_Generator_Attribute;
 
-TF_CAPI_EXPORT extern const char* TF_Generator_Definition_GetName(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern const char* TF_Generator_Definition_GetSummary(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern const char* TF_Generator_Definition_GetDescription(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern size_t TF_Generator_Definition_GetInputCount(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern const TF_Generator_Parameter*
-TF_Generator_Definition_GetInput(const TF_Generator_Definition* def, size_t index);
-TF_CAPI_EXPORT extern size_t TF_Generator_Definition_GetOutputCount(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern const TF_Generator_Parameter*
-TF_Generator_Definition_GetOutput(const TF_Generator_Definition* def, size_t index);
-TF_CAPI_EXPORT extern size_t TF_Generator_Definition_GetAttrCount(
-    const TF_Generator_Definition* def);
-TF_CAPI_EXPORT extern const TF_Generator_Attribute*
-TF_Generator_Definition_GetAttr(const TF_Generator_Definition* def, size_t index);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Definition_GetName(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Definition_GetSummary(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern const char*
+    TF_Generator_Definition_GetDescription(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern size_t
+    TF_Generator_Definition_GetInputCount(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern const TF_Generator_Parameter*
+    TF_Generator_Definition_GetInput(const TF_Generator_Definition* def, size_t index);
+    TF_CAPI_EXPORT extern size_t
+    TF_Generator_Definition_GetOutputCount(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern const TF_Generator_Parameter*
+    TF_Generator_Definition_GetOutput(const TF_Generator_Definition* def, size_t index);
+    TF_CAPI_EXPORT extern size_t
+    TF_Generator_Definition_GetAttrCount(const TF_Generator_Definition* def);
+    TF_CAPI_EXPORT extern const TF_Generator_Attribute*
+    TF_Generator_Definition_GetAttr(const TF_Generator_Definition* def, size_t index);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CONGELADO_C_GENERATOR_DEFINITION_H_
+#endif // CONGELADO_C_GENERATOR_DEFINITION_H_

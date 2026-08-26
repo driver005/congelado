@@ -17,9 +17,10 @@ export namespace interfaces {
 // Dispatch function: called by the protocol layer for each fully-received request.
 // Protocol implementations call this once per request/response pair.
 
-template <typename T>
-concept ServerConcept = requires(T server, shared::SendCallback &&send,
-                                 shared::CloseCallback &&close, void *router_ctx) {
+template<typename T>
+concept ServerConcept = requires(
+    T server, shared::SendCallback&& send, shared::CloseCallback&& close, void* router_ctx
+) {
     { server.on_connect(std::move(send), std::move(close)) } -> std::same_as<shared::ReadCallback>;
     { server.build(router_ctx) } -> std::same_as<void>;
     { server.close() } -> std::same_as<void>;
@@ -27,32 +28,35 @@ concept ServerConcept = requires(T server, shared::SendCallback &&send,
     { server.is_idle() } -> std::same_as<bool>;
 };
 
-template <typename T>
-concept ClientConcept = std::constructible_from<T, io::ReceiveDispatchFn &&> &&
-                        requires(T client, shared::SendCallback &&send,
-                                 shared::CloseCallback &&close, void *router_ctx) {
-                            {
-                                client.on_connect(std::move(send), std::move(close))
-                            } -> std::same_as<shared::ReadCallback>;
-                            { client.on_send() } -> std::same_as<io::SendDispatchFn>;
-                        };
+template<typename T>
+concept ClientConcept =
+    std::constructible_from<T, io::ReceiveDispatchFn&&> &&
+    requires(
+        T client, shared::SendCallback&& send, shared::CloseCallback&& close, void* router_ctx
+    ) {
+        {
+            client.on_connect(std::move(send), std::move(close))
+        } -> std::same_as<shared::ReadCallback>;
+        { client.on_send() } -> std::same_as<io::SendDispatchFn>;
+    };
 
 // Interface for io-layer protocol plugins.
 // Each protocol implementation controls transport binding
 // (host, port, TLS, threads) and per-connection data handling.
-template <ServerConcept Server>
-class IProtocol {
-  public:
+template<ServerConcept Server>
+class IProtocol
+{
+public:
     /**
      * @brief Virtual dtor, default's fine — protocol plugins clean up fine through the base
      * ptr, no extra teardown motion needed.
      */
     virtual ~IProtocol() = default;
     IProtocol() = default;
-    IProtocol(const IProtocol &) = delete;
-    IProtocol &operator=(const IProtocol &) = delete;
-    IProtocol(IProtocol &&) = delete;
-    IProtocol &operator=(IProtocol &&) = delete;
+    IProtocol(const IProtocol&) = delete;
+    IProtocol& operator=(const IProtocol&) = delete;
+    IProtocol(IProtocol&&) = delete;
+    IProtocol& operator=(IProtocol&&) = delete;
 
     /**
      * @brief Tells you which protocol this is (http/1.1, h2, ws, whatever it identifies as) —
@@ -91,9 +95,11 @@ class IProtocol {
      * @throws std::runtime_error if the concrete protocol never overrode this — server-side
      * support just isn't implemented here, full stop.
      */
-    [[nodiscard]] virtual std::unique_ptr<Server> get_server() {
+    [[nodiscard]] virtual std::unique_ptr<Server> get_server()
+    {
         throw std::runtime_error("IServer not implemented for this protocol");
     };
+
     /**
      * @brief Hands back a fresh `IClient` wired to dispatch received data through the given fn.
      * @warning Same deal as get_server() right above — default impl just throws if nobody
@@ -107,10 +113,9 @@ class IProtocol {
     // FIXME(clang-tidy): cppcoreguidelines-rvalue-reference-param-not-moved — default impl
     // throws and never touches `dispatch_fn`; every override's signature must match this one
     // exactly for dispatch, so the param can't be dropped or changed.
-    [[nodiscard]] virtual std::unique_ptr<IClient>
-    get_client(io::ReceiveDispatchFn
-                   &&dispatch_fn) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) —
-                                    // signature must match every override for virtual dispatch
+    [[nodiscard]] virtual std::unique_ptr<IClient> get_client(io::ReceiveDispatchFn&& dispatch_fn)
+    { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) —
+      // signature must match every override for virtual dispatch
         throw std::runtime_error("IClient not implemented for this protocol");
     };
 
@@ -125,19 +130,17 @@ class IProtocol {
      */
     // FIXME(clang-tidy): cppcoreguidelines-rvalue-reference-param-not-moved — intentional
     // default no-op; every override's signature must match this one exactly for dispatch.
-    virtual void set_dispatch(io::ReceiveDispatchFn &&dispatch_fn) {
+    virtual void set_dispatch(io::ReceiveDispatchFn&& dispatch_fn) {
     } // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) — signature must match every
       // override for virtual dispatch
 };
 
+using HandlerFn = std::function<void(io::IRequest&, io::IResponse&, std::function<void()> send)>;
 
-using HandlerFn = std::function<void(io::IRequest &, io::IResponse &, std::function<void()> send)>;
+using NextFn = std::move_only_function<
+    void(io::IRequest&, io::IResponse&, std::function<void()> send) noexcept>;
 
-using NextFn = std::move_only_function<void(io::IRequest &, io::IResponse &,
-                                                     std::function<void()> send) noexcept>;
-
-using MiddlewareFn =
-    void (*)(io::IRequest &, io::IResponse &, NextFn &&, std::function<void()> send);
+using MiddlewareFn = void (*)(io::IRequest&, io::IResponse&, NextFn&&, std::function<void()> send);
 
 } // namespace interfaces
 
@@ -145,26 +148,55 @@ using MiddlewareFn =
 namespace interfaces::protocol_tests {
 
 // Satisfies ServerConcept — no real transport, just the shape IProtocol<Server> requires.
-class MockServer {
-  public:
-    shared::ReadCallback on_connect(shared::SendCallback &&, shared::CloseCallback &&) {
-        return [](utils::buffering::BufferReader &) {};
+class MockServer
+{
+public:
+    shared::ReadCallback on_connect(shared::SendCallback&&, shared::CloseCallback&&)
+    {
+        return [](utils::buffering::BufferReader&) {};
     }
-    void build(void *) {}
+
+    void build(void*) {}
+
     void close() {}
+
     void mark_closed() {}
-    [[nodiscard]] bool is_idle() { return true; }
+
+    [[nodiscard]] bool is_idle()
+    {
+        return true;
+    }
 };
 
 // Minimal IProtocol fixture — leaves get_server()/get_client()/set_dispatch() at their
 // defaults so those default implementations can be exercised in isolation.
-class MockProtocol final : public IProtocol<MockServer> {
-  public:
-    [[nodiscard]] std::string_view get_protocol_name() const noexcept override { return "mock"; }
-    [[nodiscard]] std::string_view get_bind_host() const noexcept override { return "127.0.0.1"; }
-    [[nodiscard]] std::uint16_t get_bind_port() const noexcept override { return 0; }
-    [[nodiscard]] std::string_view get_tls_cert() const noexcept override { return ""; }
-    [[nodiscard]] std::string_view get_tls_key() const noexcept override { return ""; }
+class MockProtocol final : public IProtocol<MockServer>
+{
+public:
+    [[nodiscard]] std::string_view get_protocol_name() const noexcept override
+    {
+        return "mock";
+    }
+
+    [[nodiscard]] std::string_view get_bind_host() const noexcept override
+    {
+        return "127.0.0.1";
+    }
+
+    [[nodiscard]] std::uint16_t get_bind_port() const noexcept override
+    {
+        return 0;
+    }
+
+    [[nodiscard]] std::string_view get_tls_cert() const noexcept override
+    {
+        return "";
+    }
+
+    [[nodiscard]] std::string_view get_tls_key() const noexcept override
+    {
+        return "";
+    }
 };
 
 using namespace boost::ut;
@@ -172,13 +204,16 @@ using namespace boost::ut;
 suite<"IProtocol defaults"> protocol_suite = [] {
     "get_server() throws when not overridden"_test = [] {
         MockProtocol protocol;
-        expect(throws<std::runtime_error>([&] { std::ignore = protocol.get_server(); }));
+        expect(throws<std::runtime_error>([&] {
+            std::ignore = protocol.get_server();
+        }));
     };
 
     "get_client() throws when not overridden"_test = [] {
         MockProtocol protocol;
-        expect(throws<std::runtime_error>(
-            [&] { std::ignore = protocol.get_client(io::ReceiveDispatchFn{}); }));
+        expect(throws<std::runtime_error>([&] {
+            std::ignore = protocol.get_client(io::ReceiveDispatchFn{});
+        }));
     };
 
     "set_dispatch() defaults to a no-op"_test = [] {

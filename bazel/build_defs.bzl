@@ -52,8 +52,15 @@ def congelado_module_library(
         deps = [],
         visibility = None,
         copts = congelado_cxx26_copts(),
-        features = ["cpp_modules"]):
-    """One Bazel target per C++ module; partitions are extra module_interfaces srcs, not separate targets."""
+        features = ["cpp_modules"],
+        alwayslink = False):
+    """One Bazel target per C++ module; partitions are extra module_interfaces srcs, not separate targets.
+
+    alwayslink: pass True when this module's only externally-visible effect is a static-init
+    side effect nothing directly references (e.g. a self-registering factory, see
+    include/cc/stable_hlo/BUILD) — otherwise the linker drops that translation unit's object
+    from a static archive since nothing resolves a symbol out of it.
+    """
     interfaces = [primary_interface] + partitions
     cc_library(
         name = name,
@@ -64,6 +71,7 @@ def congelado_module_library(
         deps = deps + ["@system_libstdcxx//:std"],
         features = features,
         visibility = visibility,
+        alwayslink = alwayslink,
     )
 
 def congelado_cc_test(name, srcs, deps = [], **kwargs):
