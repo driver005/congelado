@@ -75,34 +75,19 @@ EOF
 bazel_dep(name = "rules_python", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "com_google_protobuf", version = "33.4")
 
 # Third-party deps confirmed in Bazel Central Registry
 bazel_dep(name = "simdjson", version = "4.2.4")  # matches Conan's pin
 bazel_dep(name = "tomlplusplus", version = "3.4.0")  # matches Conan's pin
 
-bazel_dep(name = "xla", version = "0.0.0")
-archive_override(
-    module_name = "xla",
-    urls = ["https://github.com/openxla/xla/archive/e5d008bb03d9b133b0881daf3d108adea8e6625b.tar.gz"],
-    sha256 = "c25a0c11ee8c593fb0b25903735e2b006d5d3e9fbeb2c36344cd0b0dcf97d768",
-    strip_prefix = "xla-e5d008bb03d9b133b0881daf3d108adea8e6625b",
-    patch_cmds = [
-        # Only keep functional code fixes, no load() injections needed
-        "find xla/tsl -name '*.bzl' -o -name 'BUILD*' | xargs sed -i '/plugin_flags =/d'",
-        # third_party/tsl/BUILD.bazel is legacy TF-vendored and lacks a cc_library
-        # load(); it's symlinked verbatim into the @tsl repo by tf_vendored()
-        # (third_party/repo.bzl), so it must be patched here, not separately.
-        "sed -i '/^cc_library(/i load(\"@rules_cc//cc:cc_library.bzl\", \"cc_library\")' third_party/tsl/BUILD.bazel",
-        # rocm/BUILD.tpl (renders @local_config_rocm//rocm:BUILD) loads
-        # bzl_library/string_flag/etc. but never cc_library/cc_import, which it
-        # also defines.
-        "sed -i '/^load(\"@local_config_rocm/a load(\"@rules_cc//cc:cc_library.bzl\", \"cc_library\")\\nload(\"@rules_cc//cc:cc_import.bzl\", \"cc_import\")' third_party/gpus/rocm/BUILD.tpl",
-    ],
-)
+
 
 # 2. Other non-BCR third-party dependencies via your extension
 third_party_deps = use_extension("//third_party:extension.bzl", "third_party_deps")
-use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_brotli", "system_cc")
+use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_brotli", "system_cc", "com_google_protobuf")
 
 # rules_cc's own auto-detected default toolchain (local_config_cc, registered
 # unconditionally by rules_cc's own MODULE.bazel) is broken under Bazel 9.2.0:
@@ -122,15 +107,4 @@ archive_override(
     urls = ["https://github.com/google-ml-infra/rules_ml_toolchain/archive/73cb731fed3ccf7551beac710bf1c5dbeb8be298.tar.gz"],
 )
 
-# org_brotli's upstream BUILD.bazel (fetched by xla's own third_party_ext
-# extension) predates Bazel 9 autoload and uses cc_binary, which is not
-# autoload-eligible (unlike cc_library/cc_test) — must be patched directly.
-# Refetch it ourselves with the load() fix and swap it in for xla's copy.
-xla_third_party_ext = use_extension("@xla//third_party/extensions:third_party.bzl", "third_party_ext")
-override_repo(xla_third_party_ext, org_brotli = "org_brotli")
 
-# Exposes the real openxla/stablehlo source (already fetched transitively by xla's own
-# third_party_ext, just not reachable as a top-level label before this) as @stablehlo, for
-# reference while writing include/cc/stable_hlo — that library takes no build-time dep on
-# it (pure string/struct implementation, zero MLIR linkage).
-use_repo(xla_third_party_ext, "stablehlo")

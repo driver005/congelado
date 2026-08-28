@@ -692,70 +692,67 @@ cc_library(
 )
 
 # =============================================================================
-# XLA C API (upstream, vendored)
+# XLA C API — commented out (XLA dependency removed)
 # =============================================================================
 
-cc_library(
-    name = "xla_pjrt_plugin_entries",
-    hdrs = [
-        "@xla//xla/pjrt/c:pjrt_c_api_cpu.h",
-        "@xla//xla/pjrt/c:pjrt_c_api_gpu.h",
-    ],
-)
+# cc_library(
+#     name = "xla_pjrt_plugin_entries",
+#     hdrs = [
+#         "@xla//xla/pjrt/c:pjrt_c_api_cpu.h",
+#         "@xla//xla/pjrt/c:pjrt_c_api_gpu.h",
+#     ],
+# )
 
-cc_library(
-    name = "xla_c_api",
-    hdrs = ["xla/xla.h"],
-    strip_include_prefix = "/include/c",
-    deps = [
-        ":xla_pjrt_plugin_entries",
-        "@xla//xla/backends/profiler/plugin:profiler_c_api_hdrs",
-        "@xla//xla/c:c_api_decl",
-        "@xla//xla/ffi/api:c_api",
-        "@xla//xla/pjrt/c:pjrt_c_api_abi_version_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_callback_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_collectives_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_custom_partitioner_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_device_event_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_ffi_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_gpu_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_layouts_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_macros",
-        "@xla//xla/pjrt/c:pjrt_c_api_megascale_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_memory_descriptions_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_multi_slice_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_phase_compile_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_profiler_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_raw_buffer_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_shardings_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_stream_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_tpu_constants",
-        "@xla//xla/pjrt/c:pjrt_c_api_tpu_executable_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_tpu_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_tpu_topology_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_triton_extension_hdrs",
-        "@xla//xla/pjrt/c:pjrt_c_api_xla_transform_extension_hdrs",
-        "@xla//xla/tsl/c:tsl_status_headers",
-    ],
-)
+# cc_library(
+#     name = "xla_c_api",
+#     hdrs = ["xla/xla.h"],
+#     strip_include_prefix = "/include/c",
+#     deps = [
+#         ":xla_pjrt_plugin_entries",
+#         "@xla//xla/backends/profiler/plugin:profiler_c_api_hdrs",
+#         "@xla//xla/c:c_api_decl",
+#         "@xla//xla/ffi/api:c_api",
+#         "@xla//xla/pjrt/c:pjrt_c_api_abi_version_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_callback_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_collectives_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_custom_partitioner_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_device_event_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_ffi_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_gpu_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_layouts_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_macros",
+#         "@xla//xla/pjrt/c:pjrt_c_api_megascale_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_memory_descriptions_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_multi_slice_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_phase_compile_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_profiler_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_raw_buffer_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_shardings_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_stream_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_tpu_constants",
+#         "@xla//xla/pjrt/c:pjrt_c_api_tpu_executable_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_tpu_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_tpu_topology_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_triton_extension_hdrs",
+#         "@xla//xla/pjrt/c:pjrt_c_api_xla_transform_extension_hdrs",
+#         "@xla//xla/tsl/c:tsl_status_headers",
+#     ],
+# )
 
-cc_binary(
-    name = "xla_c_api_smoke",
-    srcs = ["xla/smoke.cc"],
-    deps = [":xla_c_api"],
-)
+# cc_binary(
+#     name = "xla_c_api_smoke",
+#     srcs = ["xla/smoke.cc"],
+#     deps = [":xla_c_api"],
+# )
 
-# This intentionally exercises the implementation, not merely its headers:
-# it compiles and runs a vector-add XLA computation on the in-process CPU
-# backend, then transfers the result back and checks it.
-cc_test(
-    name = "xla_cpu_runtime_test",
-    srcs = ["xla/cpu_runtime_test.cc"],
-    deps = [
-        "@xla//xla/client:client_library",
-        "@xla//xla/service:cpu_plugin",
-        "@xla//xla/hlo/builder:xla_builder",
-        "@xla//xla:literal",
-    ],
-)
+# cc_test(
+#     name = "xla_cpu_runtime_test",
+#     srcs = ["xla/cpu_runtime_test.cc"],
+#     deps = [
+#         "@xla//xla/client:client_library",
+#         "@xla//xla/service:cpu_plugin",
+#         "@xla//xla/hlo/builder:xla_builder",
+#         "@xla//xla:literal",
+#     ],
+# )

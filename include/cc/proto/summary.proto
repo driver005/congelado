@@ -17,8 +17,6 @@ syntax = "proto3";
 
 package tensorflow;
 
-import public "xla/tsl/protobuf/histogram.proto";
-
 import "cc/proto/tensor.proto";
 
 option cc_enable_arenas = true;
@@ -137,7 +135,6 @@ message Summary {
       float simple_value = 2;
       bytes obsolete_old_style_histogram = 3;
       Image image = 4;
-      HistogramProto histo = 5;
       Audio audio = 6;
       TensorProto tensor = 8;
     }
