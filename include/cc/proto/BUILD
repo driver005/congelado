@@ -151,14 +151,14 @@ proto_service(
     deps = [":attr_value_proto"],
 )
 
-proto_service(
-    name = "summary",
-    srcs = ["summary.proto"],
-    deps = [
-        ":tensor_proto",
-        "@xla//xla/tsl/protobuf:histogram_proto",
-    ],
-)
+# proto_service(
+#     name = "summary",
+#     srcs = ["summary.proto"],
+#     deps = [
+#         ":tensor_proto",
+#         "@xla//xla/tsl/protobuf:histogram_proto",
+#     ],
+# )
 
 proto_service(
     name = "variable",

@@ -5,13 +5,10 @@ load("//third_party/brotli:repo.bzl", brotli_repo = "repo")
 load("//third_party/reflect_cpp:repo.bzl", reflect_cpp_repo = "repo")
 load("//third_party/stduuid:repo.bzl", stduuid_repo = "repo")
 load("//third_party/system_libstdcxx:repo.bzl", system_libstdcxx_repo = "repo")
-load("//third_party/xla:repo.bzl", xla_repo = "repo")
-
 def _third_party_impl(module_ctx):
     stduuid_repo()
     reflect_cpp_repo()
     system_libstdcxx_repo()
-    xla_repo()
     brotli_repo()
     system_cc_repo()
 
