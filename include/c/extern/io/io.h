@@ -27,37 +27,40 @@ limitations under the License.
 extern "C"
 {
 #endif
+    typedef struct TF_IO_Request TF_IO_Request;
+    typedef struct TF_IO_Response TF_IO_Response;
+
     typedef struct TF_IO
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void* (*create_request)(void* plugin_context, TF_Status* status);
-        void (*request__destroy)(void* request_context);
-        void* (*create_response)(void* plugin_context, TF_Status* status);
-        void (*response__destroy)(void* response_context);
-        TF_IO_Method (*request__get_method)(void* request_context);
-        void (*request__get_path)(void* request_context, TF_String* out);
+        TF_IO_Request* (*create_request)(void* plugin_context, TF_Status* status);
+        void (*request__destroy)(TF_IO_Request* request_context);
+        TF_IO_Response* (*create_response)(void* plugin_context, TF_Status* status);
+        void (*response__destroy)(TF_IO_Response* response_context);
+        TF_IO_Method (*request__get_method)(TF_IO_Request* request_context);
+        void (*request__get_path)(TF_IO_Request* request_context, TF_String* out);
         void (*request__set_header)(
-            void* request_context,
+            TF_IO_Request* request_context,
             const TF_TString* name,
             const TF_TString* value,
             TF_Status* status
         );
-        void (*request__set_body)(void* request_context, const TF_TString* body, TF_Status* status);
+        void (*request__set_body)(TF_IO_Request* request_context, const TF_TString* body, TF_Status* status);
         void (*response__set_status)(
-            void* response_context,
+            TF_IO_Response* response_context,
             int32_t status_code,
             TF_Status* status
         );
         void (*response__set_header)(
-            void* response_context,
+            TF_IO_Response* response_context,
             const TF_TString* name,
             const TF_TString* value,
             TF_Status* status
         );
         void (*response__set_body)(
-            void* response_context,
+            TF_IO_Response* response_context,
             const TF_TString* body,
             TF_Status* status
         );

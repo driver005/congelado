@@ -13,7 +13,7 @@ export namespace ice::sonic {
 
 // Runtime — the mainframe-facing profiler handle. Unlike ice::sonic::Cache and the
 // other domains under cc/abi/sonic, this always crosses the TF_Profiler_* C ABI — no
-// in-process RegistrationRuntime fast path. A profiler plugin is exactly the kind of
+// in-process Registration fast path. A profiler plugin is exactly the kind of
 // independently-built, possibly-different-toolchain third party this codebase needs real
 // binary compatibility with; handing a raw C++ object across that boundary and calling virtual
 // methods on it directly (the in-process shortcut every other domain used to have) isn't safe
@@ -55,15 +55,15 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes) noexcept
+    [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> collect_data_xspace() noexcept
     {
         ice::Status status;
-        m_ops->collect_data_xspace(get_handle(), buffer, size_in_bytes, status.get_handle());
+        TF_Tensor_Handle* handle =
+            m_ops->collect_data_xspace(get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
-        return {};
+        return ice::TensorHandle{handle};
     }
 };
 

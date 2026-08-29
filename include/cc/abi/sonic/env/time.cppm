@@ -13,7 +13,7 @@ export namespace ice::sonic {
 // c/extern/env/env.h's now_* vtable slots (which have no implementation anywhere); it calls
 // clock_gettime directly, same "real host implementation" choice as DynamicLibrary's
 // dlopen/dlsym.
-class TimeRuntime
+class Time
 {
 public:
     static uint64_t now_nanos() noexcept

@@ -26,53 +26,59 @@ limitations under the License.
 extern "C"
 {
 #endif
+    typedef struct TF_Otel_Tracer TF_Otel_Tracer;
+    typedef struct TF_Otel_Span TF_Otel_Span;
+    typedef struct TF_Otel_Meter TF_Otel_Meter;
+    typedef struct TF_Otel_Counter TF_Otel_Counter;
+    typedef struct TF_Otel_Histogram TF_Otel_Histogram;
+
     typedef struct TF_Otel
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void* (*get_tracer)(void* plugin_context, TF_Status* status);
-        void (*tracer__destroy)(void* tracer_context);
-        void* (*get_meter)(void* plugin_context, TF_Status* status);
-        void (*meter__destroy)(void* meter_context);
-        void* (*tracer__start_span)(
-            void* tracer_context,
+        TF_Otel_Tracer* (*create_tracer)(void* plugin_context, TF_Status* status);
+        void (*tracer__destroy)(TF_Otel_Tracer* tracer_context);
+        TF_Otel_Meter* (*create_meter)(void* plugin_context, TF_Status* status);
+        void (*meter__destroy)(TF_Otel_Meter* meter_context);
+        TF_Otel_Span* (*tracer__start_span)(
+            TF_Otel_Tracer* tracer_context,
             const TF_TString* name,
             int kind,
             TF_Status* status
         );
-        void (*span__destroy)(void* span_context);
+        void (*span__destroy)(TF_Otel_Span* span_context);
         void (*span__set_attribute)(
-            void* span_context,
+            TF_Otel_Span* span_context,
             const TF_TString* key,
             const TF_TString* value,
             TF_Status* status
         );
         void (*span__set_status)(
-            void* span_context,
+            TF_Otel_Span* span_context,
             int status_code,
             const TF_TString* description,
             TF_Status* status
         );
-        void (*span__end)(void* span_context, TF_Status* status);
-        void* (*meter__create_counter)(
-            void* meter_context,
+        void (*span__end)(TF_Otel_Span* span_context, TF_Status* status);
+        TF_Otel_Counter* (*meter__create_counter)(
+            TF_Otel_Meter* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,
             TF_Status* status
         );
-        void (*counter__destroy)(void* counter_context);
-        void (*counter__add)(void* counter_context, double value, TF_Status* status);
-        void* (*meter__create_histogram)(
-            void* meter_context,
+        void (*counter__destroy)(TF_Otel_Counter* counter_context);
+        void (*counter__add)(TF_Otel_Counter* counter_context, double value, TF_Status* status);
+        TF_Otel_Histogram* (*meter__create_histogram)(
+            TF_Otel_Meter* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,
             TF_Status* status
         );
-        void (*histogram__destroy)(void* histogram_context);
-        void (*histogram__record)(void* histogram_context, double value, TF_Status* status);
+        void (*histogram__destroy)(TF_Otel_Histogram* histogram_context);
+        void (*histogram__record)(TF_Otel_Histogram* histogram_context, double value, TF_Status* status);
     } TF_Otel;
 
 #define TF_OTEL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel, histogram__record)

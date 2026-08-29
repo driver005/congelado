@@ -15,6 +15,11 @@ class Buffer : public Runtime<Buffer, TF_Buffer>
 public:
     static constexpr std::string_view domain_name = "buffer";
 
+    explicit Buffer(TF_Buffer* ops, void* plugin_context) noexcept :
+        Runtime(ops, plugin_context)
+    {
+    }
+
     ice::String get_name() const noexcept
     {
         ice::String out;

@@ -15,7 +15,7 @@ export namespace ice::sonic {
 class Definition
 {
 public:
-    explicit Definition(TF_Generator* ops, void* handle) noexcept :
+    explicit Definition(TF_Generator* ops, TF_Generator_Definition* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -88,7 +88,7 @@ public:
 
 private:
     TF_Generator* m_ops;
-    void* m_handle;
+    TF_Generator_Definition* m_handle;
 };
 
 } // namespace ice::sonic

@@ -151,10 +151,12 @@ primitives/types.cppm.
 
 ### P19 — Sonic names mirror builder names 1:1
 A sonic adapter class mirrors its builder base's name (`ice::builder::Request` ↔ `ice::sonic::Request`,
-`ice::builder::WorkerManager` ↔ `ice::sonic::WorkerManager`, `ice::builder::ThreadView` ↔
-`ice::sonic::ThreadView`). The `Runtime` suffix is reserved for sonic-only classes with no builder
-counterpart (`TimeRuntime`, `PluginRuntime`, `RegistrationRuntime`). Every sonic class lives in
+`ice::builder::WorkerManager` ↔ `ice::sonic::WorkerManager`). The `Runtime` suffix is removed entirely —
+sonic-only classes use plain domain names (`Time`, `Registration`). Every sonic class lives in
 plain `ice::sonic` (no per-domain sub-namespaces). ✅ applied (2026-08-29 round 3).
+✅ updated (2026-08-29): `Runtime` suffix removed entirely — `TimeRuntime` → `Time`,
+`RegistrationRuntime` → `Registration`; duplicate `ThreadView`/`DynamicLibrary` classes
+consolidated to one home each (`ice::builder::ThreadView`, `ice::sonic::DynamicLibrary`).
 
 ### P20 — Fallible methods are [[nodiscard]] and mirror const-ness
 Every public method returning `std::expected<T, ice::Status>` is marked `[[nodiscard]]`; a sonic

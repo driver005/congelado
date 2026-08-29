@@ -58,7 +58,7 @@ public:
 
 // Abstract base class for an OpenTelemetry backend — pure interface, zero C-ABI/TF_* knowledge,
 // mirrors ice::builder::Generator's role. A backend implements this directly and
-// registers a factory function pointer into ice::sonic::RegistrationRuntime under type="otel".
+// registers a factory function pointer into ice::sonic::Registration under type="otel".
 class Otel
 {
 public:
@@ -74,8 +74,8 @@ public:
 
     virtual ice::String get_name() const noexcept = 0;
 
-    [[nodiscard]] virtual std::expected<std::unique_ptr<Tracer>, ice::Status> get_tracer() noexcept = 0;
-    [[nodiscard]] virtual std::expected<std::unique_ptr<Meter>, ice::Status> get_meter() noexcept = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Tracer>, ice::Status> create_tracer() noexcept = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Meter>, ice::Status> create_meter() noexcept = 0;
 
     static TF_Otel* get_generic_vtable()
     {
@@ -91,59 +91,59 @@ public:
             {
                 Otel::create(plugin_context)->get_name().to_c(out);
             },
-            .get_tracer = [](void* plugin_context, TF_Status* status) noexcept -> void*
+            .create_tracer = [](void* plugin_context, TF_Status* status) noexcept -> TF_Otel_Tracer*
             {
                 auto* self = Otel::create(plugin_context);
-                auto res = self->get_tracer();
+                auto res = self->create_tracer();
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Otel_Tracer*>(static_cast<void*>(res->release()));
             },
             .tracer__destroy =
-                [](void* tracer_context) noexcept
+                [](TF_Otel_Tracer* tracer_context) noexcept
             {
                 delete Tracer::create(tracer_context);
             },
-            .get_meter = [](void* plugin_context, TF_Status* status) noexcept -> void*
+            .create_meter = [](void* plugin_context, TF_Status* status) noexcept -> TF_Otel_Meter*
             {
                 auto* self = Otel::create(plugin_context);
-                auto res = self->get_meter();
+                auto res = self->create_meter();
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Otel_Meter*>(static_cast<void*>(res->release()));
             },
             .meter__destroy =
-                [](void* meter_context) noexcept
+                [](TF_Otel_Meter* meter_context) noexcept
             {
                 delete Meter::create(meter_context);
             },
-            .tracer__start_span = [](void* tracer_context,
+            .tracer__start_span = [](TF_Otel_Tracer* tracer_context,
                                      const TF_TString* name,
                                      int kind,
-                                     TF_Status* status) noexcept -> void*
+                                     TF_Status* status) noexcept -> TF_Otel_Span*
             {
-                auto* self = Tracer::create(tracer_context);
+                auto* self = Tracer::create(static_cast<void*>(tracer_context));
                 auto res = self->start_span(
                     ice::String::create(name),
-                    ice::span_kind_from_c(static_cast<TF_OTEL_SpanKind>(kind))
+                    ice::span_kind_from_c(static_cast<TF_Otel_SpanKind>(kind))
                 );
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Otel_Span*>(static_cast<void*>(res->release()));
             },
             .span__destroy =
-                [](void* span_context) noexcept
+                [](TF_Otel_Span* span_context) noexcept
             {
                 delete Span::create(span_context);
             },
             .span__set_attribute =
-                [](void* span_context,
+                [](TF_Otel_Span* span_context,
                    const TF_TString* key,
                    const TF_TString* value,
                    TF_Status* status) noexcept
@@ -156,14 +156,14 @@ public:
                 }
             },
             .span__set_status =
-                [](void* span_context,
+                [](TF_Otel_Span* span_context,
                    int status_code,
                    const TF_TString* description,
                    TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
                 auto res = self->set_status(
-                    ice::span_status_from_c(static_cast<TF_OTEL_SpanStatus>(status_code)),
+                    ice::span_status_from_c(static_cast<TF_Otel_SpanStatus>(status_code)),
                     ice::String::create(description)
                 );
                 if (!res) {
@@ -171,7 +171,7 @@ public:
                 }
             },
             .span__end =
-                [](void* span_context, TF_Status* status) noexcept
+                [](TF_Otel_Span* span_context, TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
                 auto res = self->end();
@@ -179,11 +179,11 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .meter__create_counter = [](void* meter_context,
+            .meter__create_counter = [](TF_Otel_Meter* meter_context,
                                         const TF_TString* name,
                                         const TF_TString* description,
                                         const TF_TString* unit,
-                                        TF_Status* status) noexcept -> void*
+                                        TF_Status* status) noexcept -> TF_Otel_Counter*
             {
                 auto* self = Meter::create(meter_context);
                 auto res = self->create_counter(
@@ -195,15 +195,15 @@ public:
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Otel_Counter*>(static_cast<void*>(res->release()));
             },
             .counter__destroy =
-                [](void* counter_context) noexcept
+                [](TF_Otel_Counter* counter_context) noexcept
             {
                 delete Counter::create(counter_context);
             },
             .counter__add =
-                [](void* counter_context, double value, TF_Status* status) noexcept
+                [](TF_Otel_Counter* counter_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Counter::create(counter_context);
                 auto res = self->add(value);
@@ -211,11 +211,11 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .meter__create_histogram = [](void* meter_context,
+            .meter__create_histogram = [](TF_Otel_Meter* meter_context,
                                           const TF_TString* name,
                                           const TF_TString* description,
                                           const TF_TString* unit,
-                                          TF_Status* status) noexcept -> void*
+                                          TF_Status* status) noexcept -> TF_Otel_Histogram*
             {
                 auto* self = Meter::create(meter_context);
                 auto res = self->create_histogram(
@@ -227,15 +227,15 @@ public:
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Otel_Histogram*>(static_cast<void*>(res->release()));
             },
             .histogram__destroy =
-                [](void* histogram_context) noexcept
+                [](TF_Otel_Histogram* histogram_context) noexcept
             {
                 delete Histogram::create(histogram_context);
             },
             .histogram__record =
-                [](void* histogram_context, double value, TF_Status* status) noexcept
+                [](TF_Otel_Histogram* histogram_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Histogram::create(histogram_context);
                 auto res = self->record(value);

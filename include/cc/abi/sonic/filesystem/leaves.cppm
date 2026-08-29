@@ -29,7 +29,7 @@ public:
     RandomAccessFile(RandomAccessFile&&) = delete;
     RandomAccessFile& operator=(RandomAccessFile&&) = delete;
 
-    explicit RandomAccessFile(TF_Filesystem* ops, void* handle) noexcept :
+    explicit RandomAccessFile(TF_Filesystem* ops, TF_RandomAccessFile* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -56,7 +56,7 @@ public:
 
 private:
     TF_Filesystem* m_ops;
-    void* m_handle;
+    TF_RandomAccessFile* m_handle;
 };
 
 class WritableFile
@@ -74,7 +74,7 @@ public:
     WritableFile(WritableFile&&) = delete;
     WritableFile& operator=(WritableFile&&) = delete;
 
-    explicit WritableFile(TF_Filesystem* ops, void* handle) noexcept :
+    explicit WritableFile(TF_Filesystem* ops, TF_WritableFile* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -83,12 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> append(const ice::String& buffer) noexcept
     {
         ice::Status status;
-        m_ops->writable_file__append(
-            m_handle,
-            buffer.get_handle(),
-            buffer.size(),
-            status.get_handle()
-        );
+        m_ops->writable_file__append(m_handle, buffer.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -137,7 +132,7 @@ public:
 
 private:
     TF_Filesystem* m_ops;
-    void* m_handle;
+    TF_WritableFile* m_handle;
 };
 
 class ReadOnlyMemoryRegion
@@ -155,7 +150,7 @@ public:
     ReadOnlyMemoryRegion(ReadOnlyMemoryRegion&&) = delete;
     ReadOnlyMemoryRegion& operator=(ReadOnlyMemoryRegion&&) = delete;
 
-    explicit ReadOnlyMemoryRegion(TF_Filesystem* ops, void* handle) noexcept :
+    explicit ReadOnlyMemoryRegion(TF_Filesystem* ops, TF_ReadOnlyMemoryRegion* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -170,7 +165,7 @@ public:
 
 private:
     TF_Filesystem* m_ops;
-    void* m_handle;
+    TF_ReadOnlyMemoryRegion* m_handle;
 };
 
 } // namespace ice::sonic

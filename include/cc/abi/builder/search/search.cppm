@@ -15,7 +15,7 @@ export namespace ice::builder {
 // Abstract base class for a search backend — pure interface, zero C-ABI/TF_*
 // knowledge, mirrors ice::builder::Generator's role. A backend implements this
 // directly and registers a factory function pointer into
-// ice::sonic::RegistrationRuntime under type="search".
+// ice::sonic::Registration under type="search".
 class Search
 {
 public:

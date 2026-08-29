@@ -35,6 +35,8 @@ extern "C"
     typedef struct TF_Env
     {
         size_t struct_size; // Size of this struct (for versioning)
+        void (*destroy)(void* plugin_context);
+        void (*get_name)(void* plugin_context, TF_String* out);
 
         // dynamic_library
         void* (*load_shared_library)(

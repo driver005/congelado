@@ -12,13 +12,13 @@ export namespace ice::sonic {
 
 // C ABI adapter for the flat TF_Generator vtable's function__* slots. Owning —
 // this wraps a real opened construction resource (the plugin released ownership
-// when enter_border_patrol returned the handle), non-copyable, destroys the
+// when create_function returned the handle), non-copyable, destroys the
 // handle in its destructor — same ownership shape as the Generator runtime
 // itself.
 class Function
 {
 public:
-    explicit Function(TF_Generator* ops, void* handle) noexcept :
+    explicit Function(TF_Generator* ops, TF_Generator_Function* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -40,7 +40,7 @@ public:
     add_parameter(const ice::String& name, const ice::String& type_text) noexcept
     {
         ice::Status status;
-        void* handle = m_ops->function__add_parameter(
+        TF_Generator_Parameter* handle = m_ops->function__add_parameter(
             m_handle,
             name.get_handle(),
             type_text.get_handle(),
@@ -56,19 +56,19 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> add_node(
-        const void* def_context,
-        ice::TensorHandle operands,
-        ice::TensorHandle attrs,
-        ice::TensorHandle out_results
+        const TF_Generator_Definition* def_context,
+        const ice::TensorHandle* operands,
+        const ice::TensorHandle* attrs,
+        ice::TensorHandle* out_results
     ) noexcept
     {
         ice::Status status;
         m_ops->function__add_node(
             m_handle,
             def_context,
-            operands.get_handle(),
-            attrs.get_handle(),
-            out_results.get_handle(),
+            operands->get_handle(),
+            attrs->get_handle(),
+            out_results->get_handle(),
             status.get_handle()
         );
         if (!status.ok()) {
@@ -77,10 +77,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> exit_border_patrol(ice::TensorHandle outputs) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> finish(ice::TensorHandle outputs) noexcept
     {
         ice::Status status;
-        m_ops->function__exit_border_patrol(m_handle, outputs.get_handle(), status.get_handle());
+        m_ops->function__finish(m_handle, outputs.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -89,7 +89,7 @@ public:
 
 private:
     TF_Generator* m_ops;
-    void* m_handle; // owning — this object destroys it
+    TF_Generator_Function* m_handle; // owning — this object destroys it
 };
 
 } // namespace ice::sonic

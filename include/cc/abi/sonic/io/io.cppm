@@ -34,7 +34,7 @@ public:
     [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Request>, ice::Status> create_request() noexcept
     {
         ice::Status status;
-        void* handle = m_ops->create_request(get_handle(), status.get_handle());
+        TF_IO_Request* handle = m_ops->create_request(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
                 m_ops->request__destroy(handle);
@@ -47,7 +47,7 @@ public:
     std::unique_ptr<ice::sonic::Response> create_response() noexcept
     {
         ice::Status status;
-        void* handle = m_ops->create_response(get_handle(), status.get_handle());
+        TF_IO_Response* handle = m_ops->create_response(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
                 m_ops->response__destroy(handle);

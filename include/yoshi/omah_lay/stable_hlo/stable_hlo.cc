@@ -1,6 +1,6 @@
 // Shared-library entry point for yoshi::core::PluginLoader — dlopen's this .so, dlsym's
 // "init_plugin", calls it with a pointer to a TF_PluginInfo the caller allocated. Registers
-// a TF_InitGenerator-shaped factory into ice::sonic::RegistrationRuntime
+// a TF_InitGenerator-shaped factory into ice::sonic::Registration
 // (type="generator", name="stablehlo") — the shared, cross-.so-safe storage that
 // ice::sonic::Generator::create looks up by name. The factory fills the flat TF_Generator
 // vtable from the Builder's get_generic_vtable() and hands the Builder back as the plugin
@@ -56,7 +56,7 @@ extern "C" void init_plugin(TF_PluginInfo* plugin_info)
 {
     plugin_info->name = "stablehlo";
     plugin_info->version = "1.0";
-    ice::sonic::RegistrationRuntime::register_value(
+    ice::sonic::Registration::register_value(
         "generator",
         "stablehlo",
         reinterpret_cast<void*>(&stable_hlo_init)

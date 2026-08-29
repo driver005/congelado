@@ -45,13 +45,13 @@ public:
     virtual ice::String get_name() const noexcept = 0;
 
     [[nodiscard]] virtual std::expected<std::unique_ptr<RandomAccessFile>, ice::Status>
-    new_random_access_file(const ice::String& path) noexcept = 0;
+    create_random_access_file(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<std::unique_ptr<WritableFile>, ice::Status>
-    new_writable_file(const ice::String& path) noexcept = 0;
+    create_writable_file(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<std::unique_ptr<WritableFile>, ice::Status>
-    new_appendable_file(const ice::String& path) noexcept = 0;
+    create_appendable_file(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<std::unique_ptr<ReadOnlyMemoryRegion>, ice::Status>
-    new_read_only_memory_region_from_file(const ice::String& path) noexcept = 0;
+    create_read_only_memory_region_from_file(const ice::String& path) noexcept = 0;
 
     [[nodiscard]] virtual std::expected<void, ice::Status>
     create_dir(const ice::String& path) noexcept = 0;
@@ -63,8 +63,7 @@ public:
     delete_dir(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> delete_recursively(
         const ice::String& path,
-        std::uint64_t* undeleted_files,
-        std::uint64_t* undeleted_dirs
+        DeleteRecursivelyResult& out
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     rename_file(const ice::String& src, const ice::String& dst) noexcept = 0;
@@ -73,8 +72,10 @@ public:
 
     [[nodiscard]] virtual std::expected<void, ice::Status>
     path_exists(const ice::String& path) noexcept = 0;
+    // paths_exist — `paths` is a 1-D string tensor (build it with make_string_tensor);
+    // the vtable adapter decodes it to the C slot's (const TF_TString*, int) shape.
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    paths_exist(const std::vector<ice::String>& paths) noexcept = 0;
+    paths_exist(ice::TensorHandle paths) noexcept = 0;
 
     // Range-first on the C++ side too: the C ABI's raw TF_FileStatistics* out-param is
     // adapted into a typed value the implementation fills.
@@ -86,30 +87,34 @@ public:
     get_file_size(const ice::String& path) noexcept = 0;
     virtual ice::String translate_name(const ice::String& uri) noexcept = 0;
 
-    [[nodiscard]] virtual std::expected<std::vector<ice::String>, ice::Status>
+    // Children/matching-path results come back as string tensors the implementation
+    // allocates through its injected tensor runtime.
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
     get_children(const ice::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<std::vector<ice::String>, ice::Status>
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
     get_matching_paths(const ice::String& glob) noexcept = 0;
 
     virtual void flush_caches() noexcept = 0;
 
-    [[nodiscard]] virtual std::expected<std::vector<TF_Filesystem_Option>, ice::Status>
+    // Configuration travels as a raw-bytes options tensor (make_options_tensor) and as
+    // FilesystemOption values on the single-option accessors.
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
     get_filesystem_configuration() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_filesystem_configuration(const std::vector<TF_Filesystem_Option>& options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<TF_Filesystem_Option, ice::Status>
+    set_filesystem_configuration(ice::TensorHandle options) noexcept = 0;
+    [[nodiscard]] virtual std::expected<ice::builder::FilesystemOption, ice::Status>
     get_filesystem_configuration_option(const ice::String& key) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_filesystem_configuration_option(const TF_Filesystem_Option& option) noexcept = 0;
-    [[nodiscard]] virtual std::expected<std::vector<ice::String>, ice::Status>
+    set_filesystem_configuration_option(const ice::builder::FilesystemOption& option) noexcept = 0;
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
     get_filesystem_configuration_keys() noexcept = 0;
 
     // Allocate a 1-D string tensor via the injected runtime and fill it from a
-    // vector of ice::String values.  Returns an ice::TensorHandle — consistent
+    // span of ice::String values.  Returns an ice::TensorHandle — consistent
     // with the rest of the builder layer. Each row is a deep copy (String::to_c),
-    // so the tensor owns its contents even after the source vector dies.
+    // so the tensor owns its contents even after the source span's storage dies.
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    make_string_tensor(const std::vector<ice::String>& strings) noexcept
+    make_string_tensor(std::span<const ice::String> strings) noexcept
     {
         int64_t count = static_cast<int64_t>(strings.size());
         auto res = m_tensor_runtime.allocate_tensor(
@@ -123,15 +128,15 @@ public:
         auto* raw = res.value();
         ice::TensorHandle handle{raw};
         auto dst = m_tensor_runtime.get_data_as<TF_TString>(raw);
-        for (int64_t i = 0; i < count; ++i) {
-            strings[static_cast<size_t>(i)].to_c(&dst[static_cast<size_t>(i)]);
+        for (size_t i = 0; i < strings.size(); ++i) {
+            strings[i].to_c(&dst[i]);
         }
         return handle;
     }
 
-    // Allocate a raw-bytes tensor and memcpy opts into it.
+    // Allocate a raw-bytes tensor and memcpy each wrapped option's C value into it.
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    make_options_tensor(const std::vector<TF_Filesystem_Option>& opts) noexcept
+    make_options_tensor(std::span<const ice::builder::FilesystemOption> opts) noexcept
     {
         int64_t count = static_cast<int64_t>(opts.size());
         size_t bytes = static_cast<size_t>(count) * sizeof(TF_Filesystem_Option);
@@ -140,7 +145,11 @@ public:
             return std::unexpected{res.error()};
         }
         auto* raw = res.value();
-        std::memcpy(m_tensor_runtime.get_data(raw), opts.data(), bytes);
+        auto* dst = static_cast<TF_Filesystem_Option*>(m_tensor_runtime.get_data(raw));
+        for (size_t i = 0; i < opts.size(); ++i) {
+            TF_Filesystem_Option c = opts[i].to_c();
+            std::memcpy(&dst[i], &c, sizeof(TF_Filesystem_Option));
+        }
         return ice::TensorHandle{raw};
     }
 
@@ -167,25 +176,25 @@ public:
             },
 
             // RandomAccessFile
-            .new_random_access_file =
+            .create_random_access_file =
                 [](void* plugin_context, const TF_TString* path, TF_Status* status) noexcept
-                -> void*
+                -> TF_RandomAccessFile*
             {
                 auto res = Filesystem::create(plugin_context)
-                               ->new_random_access_file(ice::String::create(path));
+                               ->create_random_access_file(ice::String::create(path));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res.value().release();
+                return static_cast<TF_RandomAccessFile*>(static_cast<void*>(res->release()));
             },
             .random_access_file__destroy =
-                [](void* file_context) noexcept
+                [](TF_RandomAccessFile* file_context) noexcept
             {
                 delete RandomAccessFile::create(file_context);
             },
             .random_access_file__read =
-                [](void* file_context, uint64_t offset, size_t n, char* buffer, TF_Status* status) noexcept
+                [](TF_RandomAccessFile* file_context, uint64_t offset, size_t n, char* buffer, TF_Status* status) noexcept
                 -> int64_t
             {
                 auto res = RandomAccessFile::create(file_context)
@@ -198,49 +207,45 @@ public:
             },
 
             // WritableFile
-            .new_writable_file =
+            .create_writable_file =
                 [](void* plugin_context, const TF_TString* path, TF_Status* status) noexcept
-                -> void*
+                -> TF_WritableFile*
             {
                 auto res = Filesystem::create(plugin_context)
-                               ->new_writable_file(ice::String::create(path));
+                               ->create_writable_file(ice::String::create(path));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res.value().release();
+                return static_cast<TF_WritableFile*>(static_cast<void*>(res->release()));
             },
-            .new_appendable_file =
+            .create_appendable_file =
                 [](void* plugin_context, const TF_TString* path, TF_Status* status) noexcept
-                -> void*
+                -> TF_WritableFile*
             {
                 auto res = Filesystem::create(plugin_context)
-                               ->new_appendable_file(ice::String::create(path));
+                               ->create_appendable_file(ice::String::create(path));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res.value().release();
+                return static_cast<TF_WritableFile*>(static_cast<void*>(res->release()));
             },
             .writable_file__destroy =
-                [](void* file_context) noexcept
+                [](TF_WritableFile* file_context) noexcept
             {
                 delete WritableFile::create(file_context);
             },
             .writable_file__append =
-                [](void* file_context, const TF_TString* buffer, size_t n, TF_Status* status) noexcept
+                [](TF_WritableFile* file_context, const TF_TString* buffer, TF_Status* status) noexcept
             {
-                // Honor the C contract: `buffer` points to `n` bytes (n may differ from
-                // the TF_TString's stored size).
-                const std::string_view text = buffer
-                                                  ? std::string_view{string_get_data_pointer(buffer), n}
-                                                  : std::string_view{};
-                auto res = WritableFile::create(file_context)->append(ice::String{text});
+                auto res =
+                    WritableFile::create(file_context)->append(ice::String::create(buffer));
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
-            .writable_file__tell = [](void* file_context, TF_Status* status) noexcept -> int64_t
+            .writable_file__tell = [](TF_WritableFile* file_context, TF_Status* status) noexcept -> int64_t
             {
                 auto res = WritableFile::create(file_context)->tell();
                 if (!res) {
@@ -250,7 +255,7 @@ public:
                 return res.value();
             },
             .writable_file__flush =
-                [](void* file_context, TF_Status* status) noexcept
+                [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->flush();
                 if (!res) {
@@ -258,7 +263,7 @@ public:
                 }
             },
             .writable_file__sync =
-                [](void* file_context, TF_Status* status) noexcept
+                [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->sync();
                 if (!res) {
@@ -266,7 +271,7 @@ public:
                 }
             },
             .writable_file__close =
-                [](void* file_context, TF_Status* status) noexcept
+                [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->close();
                 if (!res) {
@@ -276,28 +281,28 @@ public:
 
             // ReadOnlyMemoryRegion — the C ABI's __data/__length pair derives from the
             // C++ interface's single span.
-            .new_read_only_memory_region_from_file =
+            .create_read_only_memory_region_from_file =
                 [](void* plugin_context, const TF_TString* path, TF_Status* status) noexcept
-                -> void*
+                -> TF_ReadOnlyMemoryRegion*
             {
                 auto res = Filesystem::create(plugin_context)
-                               ->new_read_only_memory_region_from_file(ice::String::create(path));
+                               ->create_read_only_memory_region_from_file(ice::String::create(path));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res.value().release();
+                return static_cast<TF_ReadOnlyMemoryRegion*>(static_cast<void*>(res->release()));
             },
             .read_only_memory_region__destroy =
-                [](void* region_context) noexcept
+                [](TF_ReadOnlyMemoryRegion* region_context) noexcept
             {
                 delete ReadOnlyMemoryRegion::create(region_context);
             },
-            .read_only_memory_region__data = [](void* region_context) noexcept -> const void*
+            .read_only_memory_region__data = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> const void*
             {
                 return ReadOnlyMemoryRegion::create(region_context)->data().data();
             },
-            .read_only_memory_region__length = [](void* region_context) noexcept -> uint64_t
+            .read_only_memory_region__length = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> uint64_t
             {
                 return ReadOnlyMemoryRegion::create(region_context)->data().size();
             },
@@ -346,15 +351,15 @@ public:
                    uint64_t* undeleted_dirs,
                    TF_Status* status) noexcept
             {
+                ice::builder::DeleteRecursivelyResult result{};
                 auto res = Filesystem::create(plugin_context)
-                               ->delete_recursively(
-                                   ice::String::create(path),
-                                   undeleted_files,
-                                   undeleted_dirs
-                               );
+                               ->delete_recursively(ice::String::create(path), result);
                 if (!res) {
                     res.error().to_c(status);
+                    return;
                 }
+                *undeleted_files = result.undeleted_files;
+                *undeleted_dirs = result.undeleted_dirs;
             },
             .rename_file =
                 [](void* plugin_context,
@@ -393,17 +398,30 @@ public:
                 [](void* plugin_context, const TF_TString* paths, int num_paths, TF_Status* status) noexcept
             {
                 try {
-                    std::vector<ice::String> str_paths;
-                    str_paths.reserve(static_cast<size_t>(num_paths));
+                    auto* self = Filesystem::create(plugin_context);
+                    // No heap-allocated container in the ABI tier: the raw C array is
+                    // adapted into a string tensor; unique_ptr<T[]> is the only heap
+                    // allocation here.
+                    std::unique_ptr<ice::String[]> str_paths{new ice::String[num_paths]};
                     for (int i = 0; i < num_paths; ++i) {
-                        str_paths.push_back(ice::String::create(&paths[i]));
+                        str_paths[i] = ice::String::create(&paths[i]);
                     }
-                    auto res = Filesystem::create(plugin_context)->paths_exist(str_paths);
+                    auto tensor = self->make_string_tensor(
+                        {str_paths.get(), static_cast<size_t>(num_paths)}
+                    );
+                    if (!tensor) {
+                        tensor.error().to_c(status);
+                        return;
+                    }
+                    auto res = self->paths_exist(tensor.value());
+                    // The interface method consumes the tensor synchronously; the
+                    // adapter owns it and must free it with the tensor runtime.
+                    self->m_tensor_runtime.delete_tensor(tensor.value().get_handle());
                     if (!res) {
                         res.error().to_c(status);
                     }
                 } catch (const std::exception& e) {
-                    // vector allocation inside a noexcept lambda must not terminate.
+                    // unique_ptr allocation inside a noexcept lambda must not terminate.
                     ice::Status{ice::StatusCode::ResourceExhausted, e.what()}.to_c(status);
                 } catch (...) {
                     ice::Status{ice::StatusCode::ResourceExhausted, "path list allocation failed"}
@@ -458,23 +476,19 @@ public:
                     .to_c(out);
             },
 
-            // get_children — returns ice::TensorHandle unwrapped to TF_Tensor_Handle*.
+            // get_children — the implementation returns a string tensor; unwrap it to
+            // the C slot's TF_Tensor_Handle* (no re-encoding here).
             .get_children = [](void* plugin_context,
                                const TF_TString* path,
                                TF_Status* status) noexcept -> TF_Tensor_Handle*
             {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->get_children(ice::String::create(path));
+                auto res = Filesystem::create(plugin_context)
+                               ->get_children(ice::String::create(path));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                auto t = self->make_string_tensor(res.value());
-                if (!t) {
-                    t.error().to_c(status);
-                    return nullptr;
-                }
-                return t->get_handle();
+                return res->get_handle();
             },
 
             // get_matching_paths — same contract as get_children.
@@ -482,18 +496,13 @@ public:
                                      const TF_TString* glob,
                                      TF_Status* status) noexcept -> TF_Tensor_Handle*
             {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->get_matching_paths(ice::String::create(glob));
+                auto res = Filesystem::create(plugin_context)
+                               ->get_matching_paths(ice::String::create(glob));
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                auto t = self->make_string_tensor(res.value());
-                if (!t) {
-                    t.error().to_c(status);
-                    return nullptr;
-                }
-                return t->get_handle();
+                return res->get_handle();
             },
 
             .flush_caches =
@@ -502,37 +511,26 @@ public:
                 Filesystem::create(plugin_context)->flush_caches();
             },
 
-            // get_filesystem_configuration — tensor of raw TF_Filesystem_Option structs.
+            // get_filesystem_configuration — the implementation returns an options
+            // tensor (raw TF_Filesystem_Option structs); unwrap it directly.
             .get_filesystem_configuration = [](void* plugin_context,
                                                TF_Status* status) noexcept -> TF_Tensor_Handle*
             {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->get_filesystem_configuration();
+                auto res = Filesystem::create(plugin_context)->get_filesystem_configuration();
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                auto t = self->make_options_tensor(res.value());
-                if (!t) {
-                    t.error().to_c(status);
-                    return nullptr;
-                }
-                return t->get_handle();
+                return res->get_handle();
             },
 
-            // set_filesystem_configuration — tensor carries raw TF_Filesystem_Option array.
+            // set_filesystem_configuration — the options tensor is passed through
+            // opaquely; the implementation decodes it.
             .set_filesystem_configuration =
                 [](void* plugin_context, const TF_Tensor_Handle* options_handle, TF_Status* status) noexcept
             {
-                auto* self = Filesystem::create(plugin_context);
-                ice::TensorHandle h{options_handle};
-                int64_t count = self->m_tensor_runtime.get_num_dims(h.get_handle()) > 0
-                                    ? self->m_tensor_runtime.get_dim(h.get_handle(), 0)
-                                    : 0;
-                const auto* raw = static_cast<const TF_Filesystem_Option*>(
-                    self->m_tensor_runtime.get_data(h.get_handle())
-                );
-                auto res = self->set_filesystem_configuration({raw, raw + count});
+                auto res = Filesystem::create(plugin_context)
+                               ->set_filesystem_configuration(ice::TensorHandle{options_handle});
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -550,14 +548,16 @@ public:
                     res.error().to_c(status);
                     return;
                 }
-                *out_option = res.value();
+                *out_option = res.value().to_c();
             },
 
             .set_filesystem_configuration_option =
                 [](void* plugin_context, const TF_Filesystem_Option* option, TF_Status* status) noexcept
             {
                 auto res = Filesystem::create(plugin_context)
-                               ->set_filesystem_configuration_option(*option);
+                               ->set_filesystem_configuration_option(
+                                   ice::builder::FilesystemOption::create(*option)
+                               );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -567,18 +567,13 @@ public:
             .get_filesystem_configuration_keys = [](void* plugin_context,
                                                     TF_Status* status) noexcept -> TF_Tensor_Handle*
             {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->get_filesystem_configuration_keys();
+                auto res = Filesystem::create(plugin_context)
+                               ->get_filesystem_configuration_keys();
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                auto t = self->make_string_tensor(res.value());
-                if (!t) {
-                    t.error().to_c(status);
-                    return nullptr;
-                }
-                return t->get_handle();
+                return res->get_handle();
             },
         };
         return &vtable;

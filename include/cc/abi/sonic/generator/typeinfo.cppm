@@ -15,7 +15,7 @@ export namespace ice::sonic {
 class TypeInfo
 {
 public:
-    explicit TypeInfo(TF_Generator* ops, void* handle) noexcept :
+    explicit TypeInfo(TF_Generator* ops, TF_TypeInfo* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -57,7 +57,7 @@ public:
 
 private:
     TF_Generator* m_ops;
-    void* m_handle;
+    TF_TypeInfo* m_handle;
 };
 
 } // namespace ice::sonic

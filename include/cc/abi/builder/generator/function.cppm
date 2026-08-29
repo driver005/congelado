@@ -29,15 +29,18 @@ public:
     [[nodiscard]] virtual std::expected<std::unique_ptr<Parameter>, ice::Status>
     add_parameter(const ice::String& name, const ice::String& type_text) noexcept = 0;
 
+    // Handles are passed by pointer, mirroring the C slot's shape. `out_results` is an
+    // output handle: its underlying TF_Tensor_Handle* is filled by the implementation
+    // (access via out_results->get_handle()).
     [[nodiscard]] virtual std::expected<void, ice::Status> add_node(
         const Definition& def,
-        ice::TensorHandle operands,
-        ice::TensorHandle attrs,
-        ice::TensorHandle out_results
+        const ice::TensorHandle* operands,
+        const ice::TensorHandle* attrs,
+        ice::TensorHandle* out_results
     ) noexcept = 0;
 
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    exit_border_patrol(ice::TensorHandle outputs) noexcept = 0;
+    finish(ice::TensorHandle outputs) noexcept = 0;
 };
 
 } // namespace ice::builder

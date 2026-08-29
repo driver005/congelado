@@ -17,6 +17,11 @@ class DataType : public Runtime<DataType, TF_DataTypeOps>
 public:
     static constexpr std::string_view domain_name = "datatype";
 
+    explicit DataType(TF_DataTypeOps* ops, void* plugin_context) noexcept :
+        Runtime(ops, plugin_context)
+    {
+    }
+
     ice::String get_name() const
     {
         ice::String out;

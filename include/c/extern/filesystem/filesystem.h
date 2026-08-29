@@ -31,6 +31,20 @@ extern "C"
 {
 #endif
 
+    // Opaque file-handle types: implementations allocate the underlying objects and
+    // hand back pointers; the host only ever passes them back to the vtable slots.
+    typedef struct TF_RandomAccessFile TF_RandomAccessFile;
+    typedef struct TF_WritableFile TF_WritableFile;
+    typedef struct TF_ReadOnlyMemoryRegion TF_ReadOnlyMemoryRegion;
+
+    // --------------------------------------------------------------------------
+    // Error channel: TF_Status* is the sole error channel for every fallible slot.
+    // For value-returning slots (bool, int64_t, ...) the returned value is the
+    // query result and is meaningful only when status is OK; on failure the value
+    // is unspecified and the error lives in *status. Slots with no TF_Status*
+    // parameter are pure accessors that cannot fail.
+    // --------------------------------------------------------------------------
+
     // --------------------------------------------------------------------------
     // Filesystem — one instance per URI scheme.
 
@@ -44,14 +58,14 @@ extern "C"
         void (*free_options)(void* plugin_context, TF_Filesystem_Option* options, int num_options);
 
         // RandomAccessFile
-        void* (*new_random_access_file)(
+        TF_RandomAccessFile* (*create_random_access_file)(
             void* plugin_context,
             const TF_TString* path,
             TF_Status* status
         );
-        void (*random_access_file__destroy)(void* file_context);
+        void (*random_access_file__destroy)(TF_RandomAccessFile* file_context);
         int64_t (*random_access_file__read)(
-            void* file_context,
+            TF_RandomAccessFile* file_context,
             uint64_t offset,
             size_t n,
             char* buffer,
@@ -59,33 +73,32 @@ extern "C"
         );
 
         // WritableFile
-        void* (*new_writable_file)(void* plugin_context, const TF_TString* path, TF_Status* status);
-        void* (*new_appendable_file)(
+        TF_WritableFile* (*create_writable_file)(void* plugin_context, const TF_TString* path, TF_Status* status);
+        TF_WritableFile* (*create_appendable_file)(
             void* plugin_context,
             const TF_TString* path,
             TF_Status* status
         );
-        void (*writable_file__destroy)(void* file_context);
+        void (*writable_file__destroy)(TF_WritableFile* file_context);
         void (*writable_file__append)(
-            void* file_context,
-            const TF_String* buffer,
-            size_t n,
+            TF_WritableFile* file_context,
+            const TF_TString* buffer,
             TF_Status* status
         );
-        int64_t (*writable_file__tell)(void* file_context, TF_Status* status);
-        void (*writable_file__flush)(void* file_context, TF_Status* status);
-        void (*writable_file__sync)(void* file_context, TF_Status* status);
-        void (*writable_file__close)(void* file_context, TF_Status* status);
+        int64_t (*writable_file__tell)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file__flush)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file__sync)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file__close)(TF_WritableFile* file_context, TF_Status* status);
 
         // ReadOnlyMemoryRegion
-        void* (*new_read_only_memory_region_from_file)(
+        TF_ReadOnlyMemoryRegion* (*create_read_only_memory_region_from_file)(
             void* plugin_context,
             const TF_TString* path,
             TF_Status* status
         );
-        void (*read_only_memory_region__destroy)(void* region_context);
-        const void* (*read_only_memory_region__data)(void* region_context);
-        uint64_t (*read_only_memory_region__length)(void* region_context);
+        void (*read_only_memory_region__destroy)(TF_ReadOnlyMemoryRegion* region_context);
+        const void* (*read_only_memory_region__data)(TF_ReadOnlyMemoryRegion* region_context);
+        uint64_t (*read_only_memory_region__length)(TF_ReadOnlyMemoryRegion* region_context);
 
         void (*create_dir)(void* plugin_context, const TF_TString* path, TF_Status* status);
         void (*recursively_create_dir)(

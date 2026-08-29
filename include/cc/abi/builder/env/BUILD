@@ -4,7 +4,6 @@ congelado_module_library(
     name = "cc_abi_builder_env",
     primary_interface = "env.cppm",
     partitions = [
-        "dynamic_library.cppm",
         "thread_view.cppm",
     ],
     deps = [

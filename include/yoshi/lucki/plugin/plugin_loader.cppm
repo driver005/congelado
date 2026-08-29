@@ -18,7 +18,7 @@ export namespace yoshi::core {
 // types (DynamicLibrary, Symbol), which own that boundary. Every
 // successfully loaded library is kept in m_lib_handles for this PluginLoader's own lifetime —
 // DynamicLibrary dlcloses on destruction, so without this a loaded plugin (and anything
-// it registered a pointer to elsewhere, e.g. ice::sonic::RegistrationRuntime) would dangle the
+// it registered a pointer to elsewhere, e.g. ice::sonic::Registration) would dangle the
 // instant load() returned.
 class PluginLoader
 {

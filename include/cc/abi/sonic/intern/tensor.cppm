@@ -16,6 +16,11 @@ class Tensor : public Runtime<Tensor, TF_TensorOps>
 public:
     static constexpr std::string_view domain_name = "tensor";
 
+    explicit Tensor(TF_TensorOps* ops, void* plugin_context) noexcept :
+        Runtime(ops, plugin_context)
+    {
+    }
+
     ice::String get_name() const noexcept
     {
         ice::String out;
