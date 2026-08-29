@@ -12,7 +12,7 @@ export namespace ice::sonic {
 class ThreadView
 {
 public:
-    explicit ThreadView(TF_Thread* handle) :
+    explicit ThreadView(TF_Thread* handle) noexcept :
         m_handle(handle)
     {
     }
@@ -37,7 +37,7 @@ public:
         return *this;
     }
 
-    void join()
+    void join() noexcept
     {
         if (m_handle) {
             join_thread(m_handle);
@@ -45,12 +45,12 @@ public:
     }
 
     // Underlying handle — pass directly to the C ABI
-    TF_Thread* get_handle()
+    TF_Thread* get_handle() noexcept
     {
         return m_handle;
     }
 
-    const TF_Thread* get_handle() const
+    const TF_Thread* get_handle() const noexcept
     {
         return m_handle;
     }

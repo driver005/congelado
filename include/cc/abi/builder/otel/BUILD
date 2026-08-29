@@ -4,7 +4,6 @@ congelado_module_library(
     name = "cc_abi_builder_otel",
     primary_interface = "otel.cppm",
     partitions = [
-        "enums.cppm",
         "leaves.cppm",
     ],
     deps = [

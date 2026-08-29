@@ -2,6 +2,8 @@
 #pragma once
 #include <congelado/abi.h>
 
+#include <mutex>
+
 #ifdef __cplusplus
 
 /* CONGELADO_TASK(T): define a per-TU worker instance and emit C ABI symbols
@@ -58,6 +60,26 @@
 #        define CONGELADO_TASK(T)                                                                  \
             namespace {                                                                            \
             static T* s_inst = nullptr;                                                            \
+            /* Guarded accessor: thread-safe lazy construction that never lets an exception      \
+             * escape a noexcept extern "C" symbol — failed construction (OOM or a throwing       \
+             * ctor) yields nullptr and the getters degrade to ""/{} instead of terminate.       */ \
+            static T* task_instance() noexcept                                                    \
+            {                                                                                      \
+                static std::recursive_mutex m; /* NOLINT */                                       \
+                try {                                                                              \
+                    std::lock_guard<std::recursive_mutex> lock{m};                                \
+                    if (s_inst == nullptr) {                                                       \
+                        try {                                                                      \
+                            s_inst = new T{};                                                      \
+                        } catch (...) {                                                            \
+                            s_inst = nullptr;                                                      \
+                        }                                                                          \
+                    }                                                                              \
+                } catch (...) {                                                                    \
+                    return nullptr;                                                                \
+                }                                                                                  \
+                return s_inst;                                                                     \
+            }                                                                                      \
             }                                                                                      \
             extern "C" const char* congelado_type() noexcept                                       \
             {                                                                                      \
@@ -65,17 +87,22 @@
             }                                                                                      \
             extern "C" const char* congelado_worker_type() noexcept                                \
             {                                                                                      \
-                if (s_inst == nullptr)                                                             \
-                    s_inst = new T{};                                                              \
-                return s_inst->get_worker_type().data();                                           \
+                const T* p = task_instance();                                                      \
+                return p ? p->get_worker_type().data() : "";                                       \
             }                                                                                      \
             extern "C" CongeladoConfigView congelado_worker_execute(                               \
                 const CongeladoConfigView* input                                                   \
             ) noexcept                                                                             \
             {                                                                                      \
-                if (s_inst == nullptr)                                                             \
+                T* p = task_instance();                                                            \
+                if (!p) {                                                                          \
                     return {};                                                                     \
-                return s_inst->execute_worker(input);                                              \
+                }                                                                                  \
+                try {                                                                              \
+                    return p->execute_worker(input);                                               \
+                } catch (...) {                                                                    \
+                    return {};                                                                     \
+                }                                                                                  \
             }                                                                                      \
             extern "C" int congelado_init(                                                         \
                 const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg                 \
@@ -83,13 +110,7 @@
             {                                                                                      \
                 (void)host;                                                                        \
                 (void)cfg;                                                                         \
-                try {                                                                              \
-                    if (s_inst == nullptr)                                                         \
-                        s_inst = new T{};                                                          \
-                } catch (...) {                                                                    \
-                    return -1;                                                                     \
-                }                                                                                  \
-                return 0;                                                                          \
+                return task_instance() != nullptr ? 0 : -1;                                        \
             }                                                                                      \
             extern "C" void congelado_on_unload() noexcept                                         \
             {                                                                                      \

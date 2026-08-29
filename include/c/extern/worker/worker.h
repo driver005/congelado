@@ -32,6 +32,7 @@ extern "C"
     typedef struct TF_Worker
     {
         size_t struct_size;
+        void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
         void (*get_task_type)(void* plugin_context, TF_String* out, TF_Status* status);
         void (*execute)(
@@ -49,10 +50,9 @@ extern "C"
         );
         void (*on_error)(void* plugin_context, const TF_TString* message, TF_Status* status);
         void (*on_released)(void* plugin_context, TF_Status* status);
-        void (*destroy)(void* plugin_context);
     } TF_Worker;
 
-#define TF_WORKER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Worker, destroy)
+#define TF_WORKER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Worker, on_released)
 
     TF_CAPI_EXPORT void init_worker(TF_Worker** ops, void** plugin_context, TF_Status* status);
 

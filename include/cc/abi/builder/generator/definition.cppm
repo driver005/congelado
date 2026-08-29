@@ -1,5 +1,8 @@
 module;
 
+#include <cstddef>
+#include <cstdint>
+
 export module cc_abi_builder_generator:definition;
 
 import std;
@@ -51,21 +54,19 @@ public:
 
     virtual ~Definition() = default;
 
-    virtual ice::String get_name() const = 0;
-    virtual ice::String get_summary() const = 0;
-    virtual ice::String get_description() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
+    virtual ice::String get_summary() const noexcept = 0;
+    virtual ice::String get_description() const noexcept = 0;
 
-    // Each returns a TensorHandle the implementation allocates via m_tensor_runtime.
-    // The out parameter is an optional pre-allocated handle the caller may supply;
-    // implementations may ignore it and return a freshly allocated one.
-    virtual [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    get_inputs(ice::TensorHandle out) const = 0;
+    // Returns a TensorHandle the implementation allocates via m_tensor_runtime.
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
+    get_inputs() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    get_outputs(ice::TensorHandle out) const = 0;
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
+    get_outputs() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    get_attrs(ice::TensorHandle out) const = 0;
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
+    get_attrs() const noexcept = 0;
 
 protected:
     // Allocates a 1-D Uint8 tensor of `count` opaque-handle slots via m_tensor_runtime
@@ -73,13 +74,17 @@ protected:
     // data buffer (count*sizeof(void*) bytes) with its handles. Fails with a clear
     // Status when no tensor runtime is available or allocation fails.
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    make_handle_tensor(int64_t count) const
+    make_handle_tensor(int64_t count) const noexcept
     {
         if (!m_tensor_runtime) {
             return std::unexpected{ice::Status{"no tensor runtime available"}};
         }
         size_t bytes = static_cast<size_t>(count) * sizeof(void*);
-        auto res = m_tensor_runtime->allocate_tensor(ice::DataTypeEnum::Uint8, &count, 1, bytes);
+        auto res = m_tensor_runtime->allocate_tensor(
+            ice::DataTypeEnum::Uint8,
+            std::span{&count, 1},
+            bytes
+        );
         if (!res) {
             return std::unexpected{res.error()};
         }

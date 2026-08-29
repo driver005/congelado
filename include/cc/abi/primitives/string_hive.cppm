@@ -7,29 +7,39 @@ import :string;
 
 export namespace ice {
 
-// StringHive — accumulates String pieces into one shared String. append() grows
-// the shared value by rebuilding it (String has no in-place mutation) — fine for the
-// modest, render()-sized text this exists for; not meant for high-volume accumulation.
+// StringHive — accumulates String pieces into one String. append() grows the shared
+// buffer amortized O(1) per piece (std::string growth), so rendering N pieces is O(N),
+// not O(N^2) like the previous rebuild-on-every-append implementation. Every member is
+// noexcept; an allocation failure inside append() clears the buffer rather than throwing
+// (no exception may escape a noexcept function — OOM is treated as "drop the render").
 class StringHive
 {
 public:
-    void append(const String& piece)
+    void append(const String& piece) noexcept
     {
-        m_shared = String{m_shared.to_std_string() + piece.to_std_string()};
+        try {
+            m_buf.append(piece.view());
+        } catch (...) {
+            m_buf.clear();
+        }
     }
 
-    void append_newline()
+    void append_newline() noexcept
     {
-        append(String{"\n"});
+        try {
+            m_buf.push_back('\n');
+        } catch (...) {
+            m_buf.clear();
+        }
     }
 
-    [[nodiscard]] const String& get() const
+    [[nodiscard]] String get() const noexcept
     {
-        return m_shared;
+        return String{m_buf};
     }
 
 private:
-    String m_shared;
+    std::string m_buf;
 };
 
 } // namespace ice

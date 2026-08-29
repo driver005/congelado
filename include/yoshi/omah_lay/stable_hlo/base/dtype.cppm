@@ -163,8 +163,7 @@ public:
     // Returns a copy carrying the given parameter-slot context — used wherever this dtype is
     // being handed out as an actual parameter's type (e.g.
     // Parameter::get_type()), as opposed to the context-free default.
-    [[nodiscard]] constexpr DType
-    with_context(bool is_read_only, bool is_list) const noexcept
+    [[nodiscard]] constexpr DType with_context(bool is_read_only, bool is_list) const noexcept
     {
         DType copy = *this;
         copy.m_is_read_only = is_read_only;
@@ -179,44 +178,62 @@ public:
     // Kind's own internal ordering across the ABI, which would mean nothing to a caller on the
     // other side. I1 maps to TF_BOOL: StableHLO's i1 is its boolean/predicate type, not a
     // general 1-bit int, and TF_DataType_Enum has no bare "1-bit int" entry.
-    int get_data_type() const override
+    int get_data_type() const noexcept override
     {
-
         switch (m_kind) {
-            case Kind::I1: return TF_BOOL;
-            case Kind::I2: return TF_INT2;
-            case Kind::I4: return TF_INT4;
-            case Kind::I8: return TF_INT8;
-            case Kind::I16: return TF_INT16;
-            case Kind::I32: return TF_INT32;
-            case Kind::I64: return TF_INT64;
-            case Kind::UI2: return TF_UINT2;
-            case Kind::UI4: return TF_UINT4;
-            case Kind::UI8: return TF_UINT8;
-            case Kind::UI16: return TF_UINT16;
-            case Kind::UI32: return TF_UINT32;
-            case Kind::UI64: return TF_UINT64;
-            case Kind::BF16: return TF_BFLOAT16;
-            case Kind::F16: return TF_HALF;
-            case Kind::F32: return TF_FLOAT;
-            case Kind::F64: return TF_DOUBLE;
-            case Kind::COMPLEX_F32: return TF_COMPLEX64;
-            case Kind::COMPLEX_F64: return TF_COMPLEX128;
+            case Kind::I1:
+                return TF_BOOL;
+            case Kind::I2:
+                return TF_INT2;
+            case Kind::I4:
+                return TF_INT4;
+            case Kind::I8:
+                return TF_INT8;
+            case Kind::I16:
+                return TF_INT16;
+            case Kind::I32:
+                return TF_INT32;
+            case Kind::I64:
+                return TF_INT64;
+            case Kind::UI2:
+                return TF_UINT2;
+            case Kind::UI4:
+                return TF_UINT4;
+            case Kind::UI8:
+                return TF_UINT8;
+            case Kind::UI16:
+                return TF_UINT16;
+            case Kind::UI32:
+                return TF_UINT32;
+            case Kind::UI64:
+                return TF_UINT64;
+            case Kind::BF16:
+                return TF_BFLOAT16;
+            case Kind::F16:
+                return TF_HALF;
+            case Kind::F32:
+                return TF_FLOAT;
+            case Kind::F64:
+                return TF_DOUBLE;
+            case Kind::COMPLEX_F32:
+                return TF_COMPLEX64;
+            case Kind::COMPLEX_F64:
+                return TF_COMPLEX128;
         }
         return 0; // unreachable — every Kind has a mapping
     }
 
-    ice::String get_type_attr_name() const override
+    ice::String get_type_attr_name() const noexcept override
     {
-        return ice::String{std::string{"T"}};
+        return ice::String{"T"};
     }
 
-    bool is_read_only() const override
+    bool is_read_only() const noexcept override
     {
         return m_is_read_only;
     }
 
-    bool is_list() const override
+    bool is_list() const noexcept override
     {
         return m_is_list;
     }
@@ -337,8 +354,10 @@ inline std::string DType::to_string() const
 namespace cc::stable_hlo::tests {
 using namespace boost::ut;
 
-suite<"DType"> stable_hlo_dtype_suite = [] {
-    "renders integer and float spellings"_test = [] {
+suite<"DType"> stable_hlo_dtype_suite = []
+{
+    "renders integer and float spellings"_test = []
+    {
         expect(std::format("{}", DType::i1()) == "i1");
         expect(std::format("{}", DType::i32()) == "i32");
         expect(std::format("{}", DType::ui8()) == "ui8");
@@ -347,7 +366,8 @@ suite<"DType"> stable_hlo_dtype_suite = [] {
         expect(std::format("{}", DType::complex_f32()) == "complex<f32>");
     };
 
-    "equality compares by kind"_test = [] {
+    "equality compares by kind"_test = []
+    {
         expect(DType::f32() == DType::f32());
         expect(not(DType::f32() == DType::f64()));
     };

@@ -1,5 +1,8 @@
 module;
 
+#include <cstddef>
+#include <cstdint>
+
 export module yoshi_omah_lay_stable_hlo:operation;
 
 import std;
@@ -18,12 +21,12 @@ export namespace cc::stable_hlo {
 // entry describing an op KIND (placeholder operands/results, real attr metadata, no value).
 // Structurally the same shape as a ice::builder::Definition (name/inputs/outputs/
 // attrs) either way, so this implements that interface directly rather than being two separate
-// StableHLO-only types (a bound Operation plus a schema-side Definition) with no relation to it. The
-// compiled-in op schema table (schema/table.cppm) is a vector<Operation> of never-finalized-with-real-
-// operands entries, built the same append_parameter/append_attr/append_result way a normal
-// caller builds a real Operation — see build.cc — just with placeholder Shapes and no bound attr
-// values, and never appended to a Function or rendered (check() only ever runs from inside
-// render(), see there).
+// StableHLO-only types (a bound Operation plus a schema-side Definition) with no relation to it.
+// The compiled-in op schema table (schema/table.cppm) is a vector<Operation> of
+// never-finalized-with-real- operands entries, built the same
+// append_parameter/append_attr/append_result way a normal caller builds a real Operation — see
+// build.cc — just with placeholder Shapes and no bound attr values, and never appended to a
+// Function or rendered (check() only ever runs from inside render(), see there).
 class Operation : public ice::builder::Definition
 {
 public:
@@ -59,17 +62,17 @@ public:
     }
 
     // --- ice::builder::Definition ---
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_opcode};
     }
 
-    ice::String get_summary() const override
+    ice::String get_summary() const noexcept override
     {
         return ice::String{m_summary};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
         return ice::String{"category:" + m_category};
     }
@@ -79,7 +82,7 @@ public:
     // parameter-slot context applied; ownership of each transfers to the C side,
     // which frees them with parameter__destroy/attribute__destroy.
     std::expected<ice::TensorHandle, ice::Status>
-    get_inputs(ice::TensorHandle /*out*/) const override
+    get_inputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_parameters.size());
         auto handle = make_handle_tensor(count);
@@ -96,7 +99,7 @@ public:
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_outputs(ice::TensorHandle /*out*/) const override
+    get_outputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_results.size());
         auto handle = make_handle_tensor(count);
@@ -113,7 +116,7 @@ public:
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_attrs(ice::TensorHandle /*out*/) const override
+    get_attrs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_attrs.size());
         auto handle = make_handle_tensor(count);
@@ -149,8 +152,7 @@ public:
         return m_results;
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status>
-    render(int indent_level) const
+    [[nodiscard]] std::expected<ice::String, ice::Status> render(int indent_level) const
     {
         auto checked = check();
         if (!checked) {
@@ -170,23 +172,42 @@ public:
         hive.append(ice::String{prefix});
 
         if (m_category == "unary") {
-            hive.append(ice::String{std::format(
-                "{} = stablehlo.{} {} : {}", result_ids, m_opcode, m_parameters[0].get_id(),
-                m_parameters[0].get_shape()
-            )});
+            hive.append(
+                ice::String{std::format(
+                    "{} = stablehlo.{} {} : {}",
+                    result_ids,
+                    m_opcode,
+                    m_parameters[0].get_id(),
+                    m_parameters[0].get_shape()
+                )}
+            );
         } else if (m_category == "binary") {
-            hive.append(ice::String{std::format(
-                "{} = stablehlo.{} {}, {} : {}", result_ids, m_opcode, m_parameters[0].get_id(),
-                m_parameters[1].get_id(), m_parameters[0].get_shape()
-            )});
+            hive.append(
+                ice::String{std::format(
+                    "{} = stablehlo.{} {}, {} : {}",
+                    result_ids,
+                    m_opcode,
+                    m_parameters[0].get_id(),
+                    m_parameters[1].get_id(),
+                    m_parameters[0].get_shape()
+                )}
+            );
         } else if (m_category == "comparison") {
-            std::string suffix =
-                m_attrs.empty() || !m_attrs[0].get_value() ? std::string{} : *m_attrs[0].get_value();
-            hive.append(ice::String{std::format(
-                "{} = stablehlo.compare {}, {}, {} : ({}, {}) -> {}", result_ids,
-                m_parameters[0].get_id(), m_parameters[1].get_id(), suffix,
-                m_parameters[0].get_shape(), m_parameters[1].get_shape(), m_results[0].get_shape()
-            )});
+            std::string suffix = m_attrs.empty() || !m_attrs[0].get_value()
+                                     ? std::string{}
+                                     : *m_attrs[0].get_value();
+            hive.append(
+                ice::String{std::format(
+                    "{} = stablehlo.compare {}, {}, {} : ({}, {}) -> {}",
+                    result_ids,
+                    m_parameters[0].get_id(),
+                    m_parameters[1].get_id(),
+                    suffix,
+                    m_parameters[0].get_shape(),
+                    m_parameters[1].get_shape(),
+                    m_results[0].get_shape()
+                )}
+            );
         } else {
             std::string operand_ids;
             std::string operand_types;
@@ -204,7 +225,8 @@ public:
                     attr_text += ", ";
                 }
                 attr_text += std::format(
-                    "{} = {}", m_attrs[i].get_name().to_std_string(),
+                    "{} = {}",
+                    m_attrs[i].get_name().to_std_string(),
                     m_attrs[i].get_value().value_or(std::string{})
                 );
             }
@@ -219,10 +241,17 @@ public:
             }
             std::string result_type_text =
                 m_results.size() == 1 ? result_types : std::format("({})", result_types);
-            hive.append(ice::String{std::format(
-                "{} = \"stablehlo.{}\"({}){} : ({}) -> {}", result_ids, m_opcode, operand_ids,
-                attr_block, operand_types, result_type_text
-            )});
+            hive.append(
+                ice::String{std::format(
+                    "{} = \"stablehlo.{}\"({}){} : ({}) -> {}",
+                    result_ids,
+                    m_opcode,
+                    operand_ids,
+                    attr_block,
+                    operand_types,
+                    result_type_text
+                )}
+            );
         }
 
         hive.append_newline();
@@ -230,34 +259,41 @@ public:
     }
 
 private:
-    // Pure completeness check — no computation, no mutation: does this Operation have the right number
-    // of parameters/attrs/results for its own category? All the actual shape inference (a
+    // Pure completeness check — no computation, no mutation: does this Operation have the right
+    // number of parameters/attrs/results for its own category? All the actual shape inference (a
     // result's shape/id, operand-shape compatibility) is the caller's job, done via
-    // append_parameter()/append_attr()/append_result() before this Operation is ever appended anywhere
-    // (see Function::add_op). Private — only render() calls it, at render time, not append time.
+    // append_parameter()/append_attr()/append_result() before this Operation is ever appended
+    // anywhere (see Function::add_op). Private — only render() calls it, at render time, not append
+    // time.
     [[nodiscard]] std::expected<void, ice::Status> check() const
     {
         if (m_category == "unary" && m_parameters.size() != 1) {
             return std::unexpected{ice::Status{std::format(
-                "{}: unary op requires 1 operand, got {}", m_opcode, m_parameters.size()
+                "{}: unary op requires 1 operand, got {}",
+                m_opcode,
+                m_parameters.size()
             )}};
         }
         if (m_category == "binary" && m_parameters.size() != 2) {
             return std::unexpected{ice::Status{std::format(
-                "{}: binary op requires 2 operands, got {}", m_opcode, m_parameters.size()
+                "{}: binary op requires 2 operands, got {}",
+                m_opcode,
+                m_parameters.size()
             )}};
         }
         if (m_category == "comparison") {
             if (m_parameters.size() != 2) {
-                return std::unexpected{ice::Status{std::format(
-                    "compare: requires 2 operands, got {}", m_parameters.size()
-                )}};
+                return std::unexpected{ice::Status{
+                    std::format("compare: requires 2 operands, got {}", m_parameters.size())
+                }};
             }
-            bool has_direction = std::ranges::any_of(m_attrs, [](const Attribute& attr) {
-
-                return attr.get_name().to_std_string() == "comparison_direction";
-
-            });
+            bool has_direction = std::ranges::any_of(
+                m_attrs,
+                [](const Attribute& attr)
+                {
+                    return attr.get_name().to_std_string() == "comparison_direction";
+                }
+            );
             if (!has_direction) {
                 return std::unexpected{ice::Status{"compare: comparison_direction attr required"}};
             }

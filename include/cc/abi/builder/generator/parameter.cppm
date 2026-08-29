@@ -23,10 +23,10 @@ public:
 
     virtual ~Parameter() = default;
 
-    virtual ice::String get_name() const = 0;
-    virtual ice::String get_description() const = 0;
-    virtual int get_position() const = 0;
-    virtual std::unique_ptr<TypeInfo> get_type() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
+    virtual ice::String get_description() const noexcept = 0;
+    virtual int get_position() const noexcept = 0;
+    virtual std::unique_ptr<TypeInfo> get_type() const noexcept = 0;
 };
 
 } // namespace ice::builder

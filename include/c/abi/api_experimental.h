@@ -21,7 +21,14 @@ limitations under the License.
 
 #include <stddef.h>
 #include <stdint.h>
-// eager include removed - deleted
+
+// Forward declarations for the TFE_* types referenced below. The eager headers were
+// removed from this tree ("eager include removed"), but these opaque types are still
+// part of the experimental API surface, so declare them here to keep the header
+// standalone-compilable.
+typedef struct TFE_TensorHandle TFE_TensorHandle;
+typedef struct TFE_Context TFE_Context;
+typedef struct TFE_Op TFE_Op;
 
 // --------------------------------------------------------------------------
 // Experimental C API for TensorFlow.
@@ -124,7 +131,7 @@ extern "C"
     TF_CAPI_EXPORT void
     TF_EnqueueNamedTensor(TF_Session* session, int tensor_id, TF_Tensor* tensor, TF_Status* status);
     // Create a serialized tensorflow.ServerDef proto.
-    TF_Buffer* TFE_GetServerDef(const char* text_proto, TF_Status* status);
+    TF_CAPI_EXPORT TF_Buffer* TFE_GetServerDef(const char* text_proto, TF_Status* status);
 
     TF_CAPI_EXPORT void TF_MakeInternalErrorStatus(TF_Status* status, const char* errMsg);
 

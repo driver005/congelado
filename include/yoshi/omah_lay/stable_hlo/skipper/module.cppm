@@ -1,6 +1,9 @@
 module;
 
-export module yoshi_omah_lay_stable_hlo:module;
+#include <cstddef>
+#include <cstdint>
+
+export module yoshi_omah_lay_stable_hlo:hlo_module;
 
 import std;
 import cc_abi_builder_generator;
@@ -35,36 +38,36 @@ public:
     }
 
     // --- ice::builder::Definition ---
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_name};
     }
 
-    ice::String get_summary() const override
+    ice::String get_summary() const noexcept override
     {
         return ice::String{};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
         return ice::String{};
     }
 
     // A module binds no inputs, outputs, or attrs of its own — all empty handle tensors.
     std::expected<ice::TensorHandle, ice::Status>
-    get_inputs(ice::TensorHandle /*out*/) const override
+    get_inputs() const noexcept override
     {
         return make_handle_tensor(0);
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_outputs(ice::TensorHandle /*out*/) const override
+    get_outputs() const noexcept override
     {
         return make_handle_tensor(0);
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_attrs(ice::TensorHandle /*out*/) const override
+    get_attrs() const noexcept override
     {
         return make_handle_tensor(0);
     }
@@ -85,8 +88,7 @@ public:
         return m_functions.empty();
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status>
-    render(int indent_level = 0) const
+    [[nodiscard]] std::expected<ice::String, ice::Status> render(int indent_level = 0) const
     {
         auto checked = check();
         if (!checked) {

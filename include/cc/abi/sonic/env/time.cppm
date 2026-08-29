@@ -1,5 +1,6 @@
 module;
 
+#include <cstdint>
 #include <ctime>
 
 export module cc_abi_sonic_env:time;
@@ -15,7 +16,7 @@ export namespace ice::sonic {
 class TimeRuntime
 {
 public:
-    static uint64_t now_nanos()
+    static uint64_t now_nanos() noexcept
     {
         timespec ts{};
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -23,12 +24,12 @@ public:
                static_cast<uint64_t>(ts.tv_nsec);
     }
 
-    static uint64_t now_micros()
+    static uint64_t now_micros() noexcept
     {
         return now_nanos() / 1'000;
     }
 
-    static uint64_t now_seconds()
+    static uint64_t now_seconds() noexcept
     {
         return now_nanos() / 1'000'000'000ULL;
     }

@@ -25,40 +25,40 @@ public:
 
     virtual ~Database() = default;
 
-    virtual [[nodiscard]] std::expected<bool, ice::Status> is_connected() = 0;
+    [[nodiscard]] virtual std::expected<bool, ice::Status> is_connected() noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    query(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    query(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    insert(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    insert(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    update(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    update(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    remove(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    remove(const ice::String& payload, TF_Database_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Database* get_generic_vtable()
     {
         static TF_Database vtable = {
-            .struct_size = sizeof(TF_Database),
+            .struct_size = TF_DATABASE_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Database::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Database::create(plugin_context);
                 auto name = self->get_name();
 
                 name.to_c(out);
             },
-            .is_connected = [](void* plugin_context, TF_Status* status) -> TF_Bool
+            .is_connected = [](void* plugin_context, TF_Status* status) noexcept -> bool
             {
                 auto* self = Database::create(plugin_context);
                 auto res = self->is_connected();
@@ -73,7 +73,7 @@ public:
                    const TF_TString* payload,
                    TF_Database_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Database::create(plugin_context);
                 ice::String payload_str(payload);
@@ -87,7 +87,7 @@ public:
                    const TF_TString* payload,
                    TF_Database_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Database::create(plugin_context);
                 ice::String payload_str(payload);
@@ -101,7 +101,7 @@ public:
                    const TF_TString* payload,
                    TF_Database_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Database::create(plugin_context);
                 ice::String payload_str(payload);
@@ -115,7 +115,7 @@ public:
                    const TF_TString* payload,
                    TF_Database_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Database::create(plugin_context);
                 ice::String payload_str(payload);

@@ -56,7 +56,6 @@ public:
     // to just living in a plain list).
     [[nodiscard]] Parameter with_context(int position, bool is_read_only) const
     {
-
         Parameter copy = *this;
         copy.m_position = position;
         copy.m_is_read_only = is_read_only;
@@ -64,24 +63,23 @@ public:
     }
 
     // --- ice::builder::Parameter ---
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_name};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
         return ice::String{};
     }
 
-    int get_position() const override
+    int get_position() const noexcept override
     {
         return m_position;
     }
 
-    std::unique_ptr<ice::builder::TypeInfo> get_type() const override
+    std::unique_ptr<ice::builder::TypeInfo> get_type() const noexcept override
     {
-
         return std::make_unique<DType>(
             m_shape.get_dtype().with_context(m_is_read_only, m_shape.get_rank() > 0)
         );
@@ -100,8 +98,10 @@ private:
 namespace cc::stable_hlo::tests {
 using namespace boost::ut;
 
-suite<"Parameter"> stable_hlo_parameter_suite = [] {
-    "get_id/get_shape return exactly what the ctor stored"_test = [] {
+suite<"Parameter"> stable_hlo_parameter_suite = []
+{
+    "get_id/get_shape return exactly what the ctor stored"_test = []
+    {
         Parameter value{"%0", Shape::scalar(DType::f32())};
         expect(value.get_id() == "%0");
         expect(std::format("{}", value.get_shape()) == "tensor<f32>");

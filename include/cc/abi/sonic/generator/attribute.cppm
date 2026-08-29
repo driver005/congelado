@@ -14,7 +14,7 @@ export namespace ice::sonic {
 class Attribute
 {
 public:
-    explicit Attribute(TF_Generator* ops, void* handle) :
+    explicit Attribute(TF_Generator* ops, void* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -32,35 +32,35 @@ public:
     Attribute(Attribute&&) = delete;
     Attribute& operator=(Attribute&&) = delete;
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->attribute__get_name(m_handle, out.get_handle());
         return out;
     }
 
-    ice::String get_description() const
+    ice::String get_description() const noexcept
     {
         ice::String out;
         m_ops->attribute__get_description(m_handle, out.get_handle());
         return out;
     }
 
-    ice::String get_full_type() const
+    ice::String get_full_type() const noexcept
     {
         ice::String out;
         m_ops->attribute__get_full_type(m_handle, out.get_handle());
         return out;
     }
 
-    ice::String get_base_type() const
+    ice::String get_base_type() const noexcept
     {
         ice::String out;
         m_ops->attribute__get_base_type(m_handle, out.get_handle());
         return out;
     }
 
-    bool is_list() const
+    bool is_list() const noexcept
     {
         return m_ops->attribute__is_list(m_handle);
     }

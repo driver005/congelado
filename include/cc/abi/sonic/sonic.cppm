@@ -9,6 +9,7 @@ import cc_abi_sonic_otel;
 import cc_abi_sonic_io;
 import cc_abi_sonic_filesystem;
 import cc_abi_sonic_env;
+import cc_abi_sonic_plugin;
 import cc_abi_sonic_generator;
 import cc_abi_sonic_protocol;
 import cc_abi_sonic_search;

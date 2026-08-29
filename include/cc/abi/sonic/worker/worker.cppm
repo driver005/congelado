@@ -16,14 +16,14 @@ export namespace ice::sonic {
 class Worker : public ice::sonic::Runtime<Worker, TF_Worker>
 {
 public:
-    explicit Worker(TF_Worker* ops, void* plugin_context) :
+    explicit Worker(TF_Worker* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "worker";
 
-    [[nodiscard]] std::expected<ice::String, ice::Status> get_task_type()
+    [[nodiscard]] std::expected<ice::String, ice::Status> get_task_type() noexcept
     {
         ice::Status status;
         ice::String tf_task_type;
@@ -34,7 +34,7 @@ public:
         return tf_task_type;
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status> execute(const ice::String& input_json)
+    [[nodiscard]] std::expected<ice::String, ice::Status> execute(const ice::String& input_json) noexcept
     {
         ice::Status status;
         ice::String result;
@@ -54,7 +54,7 @@ public:
         const ice::String& input_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->execute_async(
@@ -70,7 +70,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> on_error(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> on_error(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->on_error(get_handle(), message.get_handle(), status.get_handle());
@@ -80,7 +80,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> on_released()
+    [[nodiscard]] std::expected<void, ice::Status> on_released() noexcept
     {
         ice::Status status;
         m_ops->on_released(get_handle(), status.get_handle());
@@ -90,7 +90,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

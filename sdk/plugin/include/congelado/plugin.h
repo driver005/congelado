@@ -6,7 +6,11 @@
 // Use 'import congelado_plugin;' for C++ types (Plugin, free functions).
 // Include this header for CONGELADO_PLUGIN(T) and CONGELADO_CAP_* macros.
 // Requires: import congelado_plugin; before use (provides congelado::Plugin, free functions).
+#include <deque>
+#include <mutex>
+#include <string>
 #include <string_view>
+#include <vector>
 
 // ── Capability bitmask ───────────────────────────────────────────────────────
 #define CONGELADO_CAP_LOGGER                1u
@@ -32,6 +36,13 @@
 // Generates all C dlsym symbols from a congelado::Plugin subclass.
 // The C ABI is internal — plugin authors write pure C++; the macro bridges to dlsym.
 // Drop exactly once at the bottom of your plugin .cc, after the class definition.
+//
+// Exception contract: every generated symbol is noexcept, and every path that can
+// allocate or call into plugin virtuals is guarded — a failed lazy construction
+// (OOM or a throwing ctor) or a throwing execute_worker/on_* degrades to a null/empty
+// result instead of std::terminate-ing the host process. The requires()/
+// load_before_types() caches use std::deque so the cached c_str() pointers stay valid
+// across growth (std::vector<std::string> reallocation + SSO would dangle them).
 #ifdef CONGELADO_GUEST
 
 #    if defined(CONGELADO_TASK_USED)
@@ -52,7 +63,7 @@
  * TU — drop it once, at the bottom of your plugin `.cc`, after `T`'s definition. Mess up either
  * rule and it's a straight compile-time L via the `#error`s guarding this block.
  * @details Generated C symbols, each lazily constructing `s_plugin` on first touch if it isn't
- * already up:
+ * already up (via the guarded `plugin_instance()` helper — thread-safe, allocation-failure-safe):
  * - `congelado_plugin_name()` → `T::get_name()`
  * - `congelado_plugin_version()` → `T::get_version()`
  * - `congelado_capabilities()` → `T::capabilities()`
@@ -60,8 +71,8 @@
  *   and returns `-1` on any exception instead of letting it escape the ABI boundary
  * - `congelado_type()` → `T::get_type()`
  * - `congelado_worker_type()` → `T::get_worker_type()`
- * - `congelado_worker_execute(input)` → `T::execute_worker(input)`; no-op `{}` if `s_plugin` was
- *   never constructed
+ * - `congelado_worker_execute(input)` → `T::execute_worker(input)`; `{}` if `s_plugin` was
+ *   never constructed or `execute_worker` throws
  * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
  * - `congelado_on_ready()` → `T::on_ready()`
  * - `congelado_on_shutdown()` → `T::on_shutdown_requested()`, a no-op if `s_plugin` was never
@@ -77,7 +88,7 @@
  *   one dlsym'd entrypoint.
  * - `congelado_unique_type()` → `T::get_unique_type()`
  * - `congelado_requires()` / `congelado_requires_count()` → caches `T::get_requires()` into a
- *   static `const char*` array on first call
+ *   static `const char*` array on first call (deque-backed, so the cached pointers stay valid)
  * - `congelado_load_before_types()` / `congelado_load_before_types_count()` → same caching deal
  *   for `T::get_load_before_types()`
  * @param T the `congelado::Plugin` subclass to bridge — must be default-constructible.
@@ -85,32 +96,52 @@
 #        define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                    \
             static T* s_plugin =                                                                   \
                 nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */          \
+            static std::recursive_mutex s_plugin_mutex; /* NOLINT */                               \
+            /* Single guarded accessor: constructs s_plugin once, thread-safely, and never lets   \
+             * an exception escape a noexcept extern "C" getter — a failed construction (OOM or   \
+             * a throwing ctor) yields nullptr and the getters degrade to ""/0/{} instead of      \
+             * std::terminate-ing the host. */                                                     \
+            static T* plugin_instance() noexcept /* NOLINT */                                      \
+            {                                                                                      \
+                try {                                                                              \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    if (s_plugin == nullptr) {                                                     \
+                        try {                                                                      \
+                            s_plugin = new T{};                                                    \
+                        } catch (...) {                                                            \
+                            s_plugin = nullptr;                                                   \
+                        }                                                                          \
+                    }                                                                              \
+                } catch (...) {                                                                    \
+                    return nullptr;                                                                \
+                }                                                                                  \
+                return s_plugin;                                                                   \
+            }                                                                                      \
             extern "C" const char* congelado_plugin_name() noexcept                                \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_name().data();                                                \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_name().data() : "";                                              \
             }                                                                                      \
             extern "C" const char* congelado_plugin_version() noexcept                             \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_version().data();                                             \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_version().data() : "";                                           \
             }                                                                                      \
             extern "C" uint32_t congelado_capabilities() noexcept                                  \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->capabilities();                                                   \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->capabilities() : 0;                                                  \
             }                                                                                      \
             extern "C" int congelado_init(                                                         \
                 const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg                 \
             ) noexcept                                                                             \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
+                    return -1;                                                                     \
+                }                                                                                  \
                 try {                                                                              \
-                    s_plugin->on_load(                                                             \
+                    p->on_load(                                                                    \
                         host ? *host : CongeladoHostCallbacks{},                                   \
                         cfg ? *cfg : CongeladoConfigView{}                                         \
                     );                                                                             \
@@ -121,105 +152,147 @@
             }                                                                                      \
             extern "C" const char* congelado_type() noexcept                                       \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_type().data();                                                \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_type().data() : "";                                              \
             }                                                                                      \
             extern "C" const char* congelado_worker_type() noexcept                                \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_worker_type().data();                                         \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_worker_type().data() : "";                                       \
             }                                                                                      \
             extern "C" CongeladoConfigView congelado_worker_execute(                               \
                 const CongeladoConfigView* input                                                   \
             ) noexcept                                                                             \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
                     return {};                                                                     \
-                return s_plugin->execute_worker(input);                                            \
+                }                                                                                  \
+                try {                                                                              \
+                    return p->execute_worker(input);                                               \
+                } catch (...) {                                                                    \
+                    return {};                                                                     \
+                }                                                                                  \
             }                                                                                      \
             /* Lifecycle: expose standardized shared names (no _plugin suffix) */                  \
             extern "C" void congelado_on_unload() noexcept                                         \
             {                                                                                      \
                 if (s_plugin != nullptr) {                                                         \
-                    s_plugin->on_unload();                                                         \
+                    try {                                                                          \
+                        s_plugin->on_unload();                                                     \
+                    } catch (...) {                                                                \
+                    }                                                                              \
                     delete s_plugin; /* NOLINT(cppcoreguidelines-owning-memory) */                 \
                     s_plugin = nullptr;                                                            \
                 }                                                                                  \
             }                                                                                      \
             extern "C" void congelado_on_ready() noexcept                                          \
             {                                                                                      \
-                if (s_plugin != nullptr)                                                           \
-                    s_plugin->on_ready();                                                          \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
+                    return;                                                                        \
+                }                                                                                  \
+                try {                                                                              \
+                    p->on_ready();                                                                 \
+                } catch (...) {                                                                    \
+                }                                                                                  \
             }                                                                                      \
             extern "C" void congelado_on_shutdown() noexcept                                       \
             {                                                                                      \
-                if (s_plugin != nullptr)                                                           \
-                    s_plugin->on_shutdown_requested();                                             \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
+                    return;                                                                        \
+                }                                                                                  \
+                try {                                                                              \
+                    p->on_shutdown_requested();                                                    \
+                } catch (...) {                                                                    \
+                }                                                                                  \
             }                                                                                      \
             extern "C" int congelado_on_reload_requested() noexcept                                \
             {                                                                                      \
-                return s_plugin != nullptr && s_plugin->on_reload_requested() ? 1 : 0;             \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
+                    return 0;                                                                      \
+                }                                                                                  \
+                try {                                                                              \
+                    return p->on_reload_requested() ? 1 : 0;                                       \
+                } catch (...) {                                                                    \
+                    return 0;                                                                      \
+                }                                                                                  \
             }                                                                                      \
             extern "C" CongeladoAny congelado_call(                                                \
                 CongeladoRunType type, CongeladoRunAction action, const CongeladoAny* args,        \
                 size_t args_count                                                                  \
             ) noexcept                                                                             \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
+                T* p = plugin_instance();                                                          \
+                if (!p) {                                                                          \
                     return CongeladoAny{};                                                         \
-                return ::congelado::_cap_dispatch::call(s_plugin, type, action, args, args_count); \
+                }                                                                                  \
+                return ::congelado::_cap_dispatch::call(p, type, action, args, args_count);        \
             }                                                                                      \
             extern "C" const char* congelado_unique_type() noexcept                                \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_unique_type().data();                                         \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_unique_type().data() : "";                                       \
             }                                                                                      \
             extern "C" const char* const* congelado_requires() noexcept                            \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                static std::vector<std::string> s_strs; /* NOLINT */                               \
+                const T* p = plugin_instance();                                                    \
+                if (!p) {                                                                          \
+                    return nullptr;                                                                \
+                }                                                                                  \
+                /* deque: push_back keeps references/pointers to existing elements valid, so      \
+                 * the cached c_str() pointers survive growth (vector<string> + SSO would not). */ \
+                static std::deque<std::string> s_strs; /* NOLINT */                                \
                 static std::vector<const char*> s_ptrs; /* NOLINT */                               \
                 static bool s_cache_built = false;      /* NOLINT */                               \
-                if (!s_cache_built) {                                                              \
-                    for (auto sv: s_plugin->get_requires()) {                                      \
-                        s_strs.emplace_back(sv);                                                   \
-                        s_ptrs.push_back(s_strs.back().c_str());                                   \
+                try {                                                                              \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    if (!s_cache_built) {                                                          \
+                        for (auto sv: p->get_requires()) {                                         \
+                            s_strs.emplace_back(sv);                                               \
+                            s_ptrs.push_back(s_strs.back().c_str());                               \
+                        }                                                                          \
+                        s_cache_built = true;                                                      \
                     }                                                                              \
-                    s_cache_built = true;                                                          \
+                } catch (...) {                                                                    \
+                    return nullptr;                                                                \
                 }                                                                                  \
                 return s_ptrs.data();                                                              \
             }                                                                                      \
             extern "C" std::size_t congelado_requires_count() noexcept                             \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_requires().size();                                            \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_requires().size() : 0;                                           \
             }                                                                                      \
             extern "C" const char* const* congelado_load_before_types() noexcept                   \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                static std::vector<std::string> s_strs; /* NOLINT */                               \
+                const T* p = plugin_instance();                                                    \
+                if (!p) {                                                                          \
+                    return nullptr;                                                                \
+                }                                                                                  \
+                static std::deque<std::string> s_strs; /* NOLINT */                                \
                 static std::vector<const char*> s_ptrs; /* NOLINT */                               \
                 static bool s_cache_built = false;      /* NOLINT */                               \
-                if (!s_cache_built) {                                                              \
-                    for (auto sv: s_plugin->get_load_before_types()) {                             \
-                        s_strs.emplace_back(sv);                                                   \
-                        s_ptrs.push_back(s_strs.back().c_str());                                   \
+                try {                                                                              \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    if (!s_cache_built) {                                                          \
+                        for (auto sv: p->get_load_before_types()) {                                \
+                            s_strs.emplace_back(sv);                                               \
+                            s_ptrs.push_back(s_strs.back().c_str());                               \
+                        }                                                                          \
+                        s_cache_built = true;                                                      \
                     }                                                                              \
-                    s_cache_built = true;                                                          \
+                } catch (...) {                                                                    \
+                    return nullptr;                                                                \
                 }                                                                                  \
                 return s_ptrs.data();                                                              \
             }                                                                                      \
             extern "C" std::size_t congelado_load_before_types_count() noexcept                    \
             {                                                                                      \
-                if (s_plugin == nullptr)                                                           \
-                    s_plugin = new T{};                                                            \
-                return s_plugin->get_load_before_types().size();                                   \
+                const T* p = plugin_instance();                                                    \
+                return p ? p->get_load_before_types().size() : 0;                                  \
             }
 #    endif // CONGELADO_PLUGIN_USED
 

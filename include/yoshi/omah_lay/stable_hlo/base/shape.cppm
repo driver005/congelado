@@ -54,17 +54,16 @@ public:
 
     [[nodiscard]] bool operator==(const Shape& other) const noexcept
     {
-
         return m_dims == other.m_dims && m_dtype == other.m_dtype;
     }
 
     // --- ice::builder::Attribute — see class comment ---
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
         return ice::String{};
     }
@@ -72,14 +71,14 @@ public:
     // Renders "tensor<...>" — declared here, defined after the formatter specialization
     // below (a use before it would instantiate std::formatter's deleted primary template,
     // same reasoning as DType::to_string()).
-    ice::String get_full_type() const override;
+    ice::String get_full_type() const noexcept override;
 
-    ice::String get_base_type() const override
+    ice::String get_base_type() const noexcept override
     {
         return ice::String{m_dtype.to_string()};
     }
 
-    bool is_list() const override
+    bool is_list() const noexcept override
     {
         return get_rank() > 0;
     }
@@ -99,7 +98,6 @@ struct std::formatter<cc::stable_hlo::Shape>
 {
     constexpr auto parse(std::format_parse_context& ctx)
     {
-
         auto it = ctx.begin();
         if (it != ctx.end() && *it != '}') {
             throw std::format_error("Shape: unsupported format specifier");
@@ -109,7 +107,6 @@ struct std::formatter<cc::stable_hlo::Shape>
 
     auto format(const cc::stable_hlo::Shape& shape, std::format_context& ctx) const
     {
-
         auto out = std::format_to(ctx.out(), "tensor<");
         for (auto dim: shape.get_dims()) {
             if (dim == cc::stable_hlo::Shape::DYNAMIC_DIM) {
@@ -125,7 +122,7 @@ struct std::formatter<cc::stable_hlo::Shape>
 
 namespace cc::stable_hlo {
 
-inline ice::String Shape::get_full_type() const
+inline ice::String Shape::get_full_type() const noexcept
 {
     return ice::String{std::format("{}", *this)};
 }
@@ -136,25 +133,30 @@ inline ice::String Shape::get_full_type() const
 namespace cc::stable_hlo::tests {
 using namespace boost::ut;
 
-suite<"Shape"> stable_hlo_shape_suite = [] {
-    "renders a rank-2 shape"_test = [] {
+suite<"Shape"> stable_hlo_shape_suite = []
+{
+    "renders a rank-2 shape"_test = []
+    {
         Shape shape{{2, 3}, DType::f32()};
         expect(std::format("{}", shape) == "tensor<2x3xf32>");
         expect(shape.get_rank() == 2_ul);
     };
 
-    "renders a scalar shape with no 'x' separators"_test = [] {
+    "renders a scalar shape with no 'x' separators"_test = []
+    {
         auto shape = Shape::scalar(DType::i32());
         expect(std::format("{}", shape) == "tensor<i32>");
         expect(shape.get_rank() == 0_ul);
     };
 
-    "renders a dynamic dimension as '?'"_test = [] {
+    "renders a dynamic dimension as '?'"_test = []
+    {
         Shape shape{{Shape::DYNAMIC_DIM, 4}, DType::f64()};
         expect(std::format("{}", shape) == "tensor<?x4xf64>");
     };
 
-    "equality compares dims and dtype"_test = [] {
+    "equality compares dims and dtype"_test = []
+    {
         Shape left{{2, 3}, DType::f32()};
         Shape right{{2, 3}, DType::f32()};
         Shape different{{2, 4}, DType::f32()};

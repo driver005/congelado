@@ -16,7 +16,7 @@ export namespace ice::sonic {
 class Parameter
 {
 public:
-    explicit Parameter(TF_Generator* ops, void* handle) :
+    explicit Parameter(TF_Generator* ops, void* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -34,26 +34,26 @@ public:
     Parameter(Parameter&&) = delete;
     Parameter& operator=(Parameter&&) = delete;
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->parameter__get_name(m_handle, out.get_handle());
         return out;
     }
 
-    ice::String get_description() const
+    ice::String get_description() const noexcept
     {
         ice::String out;
         m_ops->parameter__get_description(m_handle, out.get_handle());
         return out;
     }
 
-    int get_position() const
+    int get_position() const noexcept
     {
         return m_ops->parameter__get_position(m_handle);
     }
 
-    std::unique_ptr<ice::sonic::TypeInfo> get_type() const
+    std::unique_ptr<ice::sonic::TypeInfo> get_type() const noexcept
     {
         void* handle = m_ops->parameter__get_type(m_handle);
         if (!handle) {

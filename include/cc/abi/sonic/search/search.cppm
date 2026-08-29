@@ -19,7 +19,7 @@ export namespace ice::sonic {
 class Search : public ice::sonic::Runtime<Search, TF_Search>
 {
 public:
-    explicit Search(TF_Search* ops, void* plugin_context) :
+    explicit Search(TF_Search* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -32,7 +32,7 @@ public:
         const ice::String& document_json,
         TF_Search_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->index(
@@ -55,7 +55,7 @@ public:
         const ice::String& id,
         TF_Search_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->remove(
@@ -77,7 +77,7 @@ public:
         const ice::SearchQuery& query,
         TF_Search_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
 
@@ -109,7 +109,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

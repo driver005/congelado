@@ -32,7 +32,7 @@ extern "C"
     // ice::sonic::WorkerManager::add_worker).
 
 
-    // out_list_json — plugin-owned on success, freed via TF_WorkerManager_FreeString.
+    // out_list_json — caller-supplied TF_String, filled in by the plugin (no free needed).
 
 
     typedef struct TF_WorkerManager
@@ -49,7 +49,7 @@ extern "C"
 #define TF_WORKER_MANAGER_STRUCT_SIZE TF_OFFSET_OF_END(TF_WorkerManager, list)
 
     TF_CAPI_EXPORT void
-    init_workerManager(TF_WorkerManager** ops, void** plugin_context, TF_Status* status);
+    init_worker_manager(TF_WorkerManager** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

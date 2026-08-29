@@ -31,10 +31,6 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_RandomAccessFile_Controller TF_RandomAccessFile_Controller;
-    typedef struct TF_WritableFile_Controller TF_WritableFile_Controller;
-    typedef struct TF_ReadOnlyMemoryRegion_Controller TF_ReadOnlyMemoryRegion_Controller;
-
     // --------------------------------------------------------------------------
     // Filesystem — one instance per URI scheme.
 
@@ -43,8 +39,8 @@ extern "C"
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        // Frees an entries/options array returned by the accessors below — same
-        // "matching Free* utility" pattern as TF_Serde_FreeString/TF_Worker_FreeString.
+        // The only raw-array free here: entries arrays returned by the getters below
+        // (as TF_Tensor_Handle) are freed with the tensor runtime's delete.
         void (*free_options)(void* plugin_context, TF_Filesystem_Option* options, int num_options);
 
         // RandomAccessFile

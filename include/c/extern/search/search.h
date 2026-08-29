@@ -42,8 +42,9 @@ extern "C"
         int64_t start;
         int64_t size;
         TF_TString sort;
-#define TF_SEARCH_QUERY_STRUCT_SIZE TF_OFFSET_OF_END(TF_Search_Query, sort)
     } TF_Search_Query;
+
+#define TF_SEARCH_QUERY_STRUCT_SIZE TF_OFFSET_OF_END(TF_Search_Query, sort)
 
     typedef struct TF_Search
     {

@@ -1,5 +1,8 @@
 module;
 
+#include <cstddef>
+#include <cstdint>
+
 export module yoshi_omah_lay_stable_hlo:builder;
 
 import std;
@@ -12,14 +15,14 @@ import :shape;
 import :parameter_view;
 import :operation;
 import :function;
-import :module;
+import :hlo_module;
 
 export namespace cc::stable_hlo {
 
-// Builder ties everything together: implements ice::builder::Builder directly (it IS
+// Builder ties everything together: implements ice::builder::Generator directly (it IS
 // the generator, not a separate class beside one). Nothing under cc/abi ever imports
-// yoshi_omah_lay_stable_hlo — this is the one place this module touches cc/abi, and only downward. Only
-// implements the interface's typed-API tier (own native construction methods — append_module
+// yoshi_omah_lay_stable_hlo — this is the one place this module touches cc/abi, and only downward.
+// Only implements the interface's typed-API tier (own native construction methods — append_module
 // here, add_parameter/add_op on Function itself) — the interface's second, optional,
 // C-ABI-crossable generic construction tier (enter_border_patrol) isn't opted into, so it
 // keeps the base class's default "not supported" answer. stable_hlo.cc registers a
@@ -27,18 +30,18 @@ export namespace cc::stable_hlo {
 // ice::sonic::RegistrationRuntime under type="generator", name="stablehlo", so
 // ice::sonic::Generator can resolve it in-process without a direct cc_abi ->
 // yoshi_omah_lay_stable_hlo dependency.
-class Builder : public ice::builder::Builder
+class Builder : public ice::builder::Generator
 {
 public:
     Builder() = default;
 
     // Tensor runtime the definitions' get_inputs/outputs/attrs allocate through.
     explicit Builder(ice::sonic::Tensor& tensor_runtime) :
-        ice::builder::Builder{tensor_runtime}
+        ice::builder::Generator{tensor_runtime}
     {
     }
 
-    // --- ice::builder::Builder ---
+    // --- ice::builder::Generator ---
 
     // Module implements ice::builder::Definition too, so the modules this Builder
     // actually holds double as its definition list — no separate static schema catalog.
@@ -47,19 +50,22 @@ public:
     // side, which frees it with definition__destroy. The tensor data is an array of
     // opaque Definition* handles (the list/array-carrier contract of TF_Tensor_Handle).
     std::expected<ice::TensorHandle, ice::Status>
-    get_definitions(ice::TensorHandle /*out*/) const override
+    get_definitions() const noexcept override
     {
         if (!m_tensor_runtime) {
             return std::unexpected{ice::Status{"Builder has no tensor runtime"}};
         }
         int64_t count = static_cast<int64_t>(m_modules.size());
         size_t bytes = static_cast<size_t>(count) * sizeof(void*);
-        auto* raw = m_tensor_runtime->allocate_tensor(
-            ice::builder::DataTypeEnum::Uint8, &count, 1, bytes
+        auto res = m_tensor_runtime->allocate_tensor(
+            ice::DataTypeEnum::Uint8,
+            std::span{&count, 1},
+            bytes
         );
-        if (!raw) {
-            return std::unexpected{ice::Status{"OOM: definitions tensor"}};
+        if (!res) {
+            return std::unexpected{res.error()};
         }
+        auto* raw = res.value();
         ice::TensorHandle handle{raw};
         auto** dst = static_cast<void**>(m_tensor_runtime->get_data(raw));
         for (int64_t i = 0; i < count; ++i) {
@@ -72,12 +78,12 @@ public:
         return handle;
     }
 
-    void set_name(std::string_view name) override
+    void set_name(std::string_view name) noexcept override
     {
         m_name = name;
     }
 
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_name};
     }
@@ -93,8 +99,7 @@ public:
         m_modules.push_back(module);
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status>
-    build() const override
+    [[nodiscard]] std::expected<ice::String, ice::Status> build() const noexcept override
     {
         if (m_modules.empty()) {
             return std::unexpected{ice::Status{"Builder has no modules"}};
@@ -119,15 +124,18 @@ private:
 namespace tests {
     using namespace boost::ut;
 
-    suite<"Builder"> stable_hlo_builder_suite = [] {
-        "build() fails with no modules appended"_test = [] {
+    suite<"Builder"> stable_hlo_builder_suite = []
+    {
+        "build() fails with no modules appended"_test = []
+        {
             Builder builder;
             auto result = builder.build();
             expect(not result.has_value());
         };
 
         "build a Function with add_op(\"add\"), append it into a Module, append_module it "
-        "renders one function"_test = [] {
+        "renders one function"_test = []
+        {
             Builder builder;
             Function function{"main"};
             function.add_parameter(Shape::scalar(DType::f32()));

@@ -18,8 +18,10 @@ public:
 
     virtual ~RandomAccessFile() = default;
 
-    virtual [[nodiscard]] std::expected<std::int64_t, ice::Status>
-    read(std::uint64_t offset, std::size_t n, char* buffer) = 0;
+    // Range-first: the C ABI carries (char*, size_t) — the C++ interface takes a span
+    // (the vtable adapter is the only place the raw pair exists).
+    [[nodiscard]] virtual std::expected<std::int64_t, ice::Status>
+    read(std::uint64_t offset, std::span<char> buffer) noexcept = 0;
 };
 
 class WritableFile
@@ -35,11 +37,12 @@ public:
 
     virtual ~WritableFile() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> append(const ice::String& buffer) = 0;
-    virtual [[nodiscard]] std::expected<std::int64_t, ice::Status> tell() = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> flush() = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> sync() = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> close() = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    append(const ice::String& buffer) noexcept = 0;
+    [[nodiscard]] virtual std::expected<std::int64_t, ice::Status> tell() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> flush() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> sync() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> close() noexcept = 0;
 };
 
 class ReadOnlyMemoryRegion
@@ -55,8 +58,9 @@ public:
 
     virtual ~ReadOnlyMemoryRegion() = default;
 
-    virtual const void* data() = 0;
-    virtual std::uint64_t length() = 0;
+    // Range-first: data + length are one span instead of two split accessors; the
+    // vtable adapter derives the C ABI's __data/__length pair from it.
+    virtual std::span<const std::byte> data() noexcept = 0;
 };
 
 } // namespace ice::builder

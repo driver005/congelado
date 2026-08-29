@@ -14,7 +14,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a worker-manager backend — pure interface, zero C-ABI/TF_* knowledge,
-// mirrors ice::builder::Builder's role. A backend implements this directly and
+// mirrors ice::builder::Generator's role. A backend implements this directly and
 // registers a factory function pointer into ice::sonic::RegistrationRuntime under
 // type="manager".
 class WorkerManager
@@ -34,37 +34,37 @@ public:
     // Takes ownership of an in-process worker. Cross-plugin C-ABI callers can't support this —
     // there's no way to move a C++ Worker object across a .so boundary — see
     // ice::sonic::WorkerManager::add_worker's documented limitation.
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    add_worker(std::unique_ptr<ice::builder::Worker> worker) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    add_worker(std::unique_ptr<ice::builder::Worker> worker) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> spawn(const ice::String& spec_json) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> spawn(const ice::String& spec_json) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<bool, ice::Status> start(const ice::String& worker_id) = 0;
+    [[nodiscard]] virtual std::expected<bool, ice::Status> start(const ice::String& worker_id) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<bool, ice::Status> stop(const ice::String& worker_id) = 0;
+    [[nodiscard]] virtual std::expected<bool, ice::Status> stop(const ice::String& worker_id) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<ice::String, ice::Status> list() = 0;
+    [[nodiscard]] virtual std::expected<ice::String, ice::Status> list() noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_WorkerManager* get_generic_vtable()
     {
         static TF_WorkerManager vtable = {
-            .struct_size = sizeof(TF_WorkerManager),
+            .struct_size = TF_WORKER_MANAGER_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete WorkerManager::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = WorkerManager::create(plugin_context);
                 auto name = self->get_name();
                 name.to_c(out);
             },
             .spawn =
-                [](void* plugin_context, const TF_TString* spec_json, TF_Status* status)
+                [](void* plugin_context, const TF_TString* spec_json, TF_Status* status) noexcept
             {
                 auto* self = WorkerManager::create(plugin_context);
                 auto res = self->spawn(ice::String::create(spec_json));
@@ -73,7 +73,7 @@ public:
                 }
             },
             .start =
-                [](void* plugin_context, const TF_TString* worker_id, TF_Status* status) -> TF_Bool
+                [](void* plugin_context, const TF_TString* worker_id, TF_Status* status) noexcept -> bool
             {
                 auto* self = WorkerManager::create(plugin_context);
                 auto res = self->start(ice::String::create(worker_id));
@@ -84,7 +84,7 @@ public:
                 return *res ? 1 : 0;
             },
             .stop =
-                [](void* plugin_context, const TF_TString* worker_id, TF_Status* status) -> TF_Bool
+                [](void* plugin_context, const TF_TString* worker_id, TF_Status* status) noexcept -> bool
             {
                 auto* self = WorkerManager::create(plugin_context);
                 auto res = self->stop(ice::String::create(worker_id));
@@ -95,7 +95,7 @@ public:
                 return *res ? 1 : 0;
             },
             .list =
-                [](void* plugin_context, TF_String* out_list_json, TF_Status* status)
+                [](void* plugin_context, TF_String* out_list_json, TF_Status* status) noexcept
             {
                 auto* self = WorkerManager::create(plugin_context);
                 auto res = self->list();

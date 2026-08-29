@@ -5,7 +5,6 @@ congelado_module_library(
     primary_interface = "intern.cppm",
     partitions = [
         "allocator_attributes.cppm",
-        "attrtype.cppm",
         "buffer.cppm",
         "datatype.cppm",
         "file_statistics.cppm",

@@ -1,20 +1,21 @@
 module;
 
+#include "c/extern/plugin/registration.h"
+
 export module yoshi_lucki_plugin:plugin_loader;
 
 import std;
-import cc_abi_sonic_env;
 import cc_abi_sonic_intern;
 import cc_abi_primitives;
 import cc_abi_sonic_plugin;
 
 export namespace yoshi::core {
 
-// Loads plugin shared libraries and calls each one's TF_InitPlugin — same fixed-entry-point,
+// Loads plugin shared libraries and calls each one's init_plugin — same fixed-entry-point,
 // no-callback-into-host contract TensorFlow's real filesystem plugins use, applied to the
 // generic TF_PluginInfo (c/extern/plugin/registration.h) rather than the filesystem-specific
 // one. Never names a TF_* symbol/type/header directly — only calls into ice::sonic::* wrapper
-// types (DynamicLibrary, Symbol, PluginRuntime), which own that boundary. Every
+// types (DynamicLibrary, Symbol), which own that boundary. Every
 // successfully loaded library is kept in m_lib_handles for this PluginLoader's own lifetime —
 // DynamicLibrary dlcloses on destruction, so without this a loaded plugin (and anything
 // it registered a pointer to elsewhere, e.g. ice::sonic::RegistrationRuntime) would dangle the
@@ -27,27 +28,22 @@ public:
         close_all();
     }
 
-    [[nodiscard]] std::expected<ice::sonic::PluginRuntime, ice::Status>
-    load(const std::string& path)
+    [[nodiscard]] std::expected<TF_PluginInfo*, ice::Status> load(const std::string& path)
     {
-
         ice::sonic::DynamicLibrary library;
         auto loaded = library.on_load(ice::String{path});
         if (!loaded) {
             return std::unexpected{loaded.error()};
         }
 
-        auto symbol = library.get_symbol(
-            ice::String{std::string{"TF_InitPlugin"}}
-        );
+        auto symbol = library.get_symbol(ice::String{std::string{"init_plugin"}});
         if (!symbol) {
             return std::unexpected{symbol.error()};
         }
 
-        auto plugin_info = ice::sonic::PluginRuntime::create();
-        symbol->call(plugin_info.get_handle());
+        symbol->call(&m_plugin_info);
         m_lib_handles.emplace(path, std::move(library));
-        return plugin_info;
+        return &m_plugin_info;
     }
 
     // Closes one loaded plugin by the path it was load()ed with — erasing the map entry
@@ -64,6 +60,7 @@ public:
     }
 
 private:
+    TF_PluginInfo m_plugin_info{};
     std::unordered_map<std::string, ice::sonic::DynamicLibrary> m_lib_handles;
 };
 

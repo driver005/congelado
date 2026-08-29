@@ -22,20 +22,20 @@ public:
 
     virtual ~DataType() = default;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
-    virtual size_t data_type_size(ice::DataTypeEnum dt) = 0;
+    virtual size_t data_type_size(ice::DataTypeEnum dt) noexcept = 0;
 
     static TF_DataTypeOps* get_generic_vtable()
     {
         static TF_DataTypeOps vtable = {
-            .struct_size = sizeof(TF_DataTypeOps),
+            .struct_size = TF_DATATYPE_STRUCT_SIZE,
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 DataType::create(plugin_context)->get_name().to_c(out);
             },
-            .data_type_size = [](void* plugin_context, TF_DataType_Enum dt) -> size_t
+            .data_type_size = [](void* plugin_context, TF_DataType_Enum dt) noexcept -> size_t
             {
                 return DataType::create(plugin_context)->data_type_size(ice::data_type_from_c(dt));
             }

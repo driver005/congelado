@@ -22,33 +22,38 @@ public:
 
     virtual ~Buffer() = default;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<TF_Buffer_Handle*, ice::Status>
-    new_buffer_from_string(const void* proto, size_t proto_len) = 0;
-    virtual [[nodiscard]] std::expected<TF_Buffer_Handle*, ice::Status> new_buffer() = 0;
-    virtual void delete_buffer(TF_Buffer_Handle* buffer) = 0;
-    virtual TF_Buffer_Data get_buffer(TF_Buffer_Handle* buffer) = 0;
+    // Range-first: the C ABI carries (const void*, size_t) — the C++ interface takes a
+    // span; the vtable lambda below is the only place the raw pair exists.
+    [[nodiscard]] virtual std::expected<TF_Buffer_Handle*, ice::Status>
+    new_buffer_from_string(std::span<const std::byte> proto) noexcept = 0;
+    [[nodiscard]] virtual std::expected<TF_Buffer_Handle*, ice::Status> new_buffer() noexcept = 0;
+    virtual void delete_buffer(TF_Buffer_Handle* buffer) noexcept = 0;
+    virtual TF_Buffer_Data get_buffer(TF_Buffer_Handle* buffer) noexcept = 0;
 
     static TF_Buffer* get_generic_vtable()
     {
         static TF_Buffer vtable = {
-            .struct_size = sizeof(TF_Buffer),
+            .struct_size = TF_BUFFER_STRUCT_SIZE,
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 Buffer::create(plugin_context)->get_name().to_c(out);
             },
             .new_buffer_from_string =
-                [](void* plugin_context, const void* proto, size_t proto_len) -> TF_Buffer_Handle*
+                [](void* plugin_context, const void* proto, size_t proto_len) noexcept
+                -> TF_Buffer_Handle*
             {
-                auto res = Buffer::create(plugin_context)->new_buffer_from_string(proto, proto_len);
+                auto res = Buffer::create(plugin_context)->new_buffer_from_string(
+                    std::span{static_cast<const std::byte*>(proto), proto_len}
+                );
                 if (!res) {
                     return nullptr; // no status slot — P1 allocator contract
                 }
                 return res.value();
             },
-            .new_buffer = [](void* plugin_context) -> TF_Buffer_Handle*
+            .new_buffer = [](void* plugin_context) noexcept -> TF_Buffer_Handle*
             {
                 auto res = Buffer::create(plugin_context)->new_buffer();
                 if (!res) {
@@ -57,11 +62,12 @@ public:
                 return res.value();
             },
             .delete_buffer =
-                [](void* plugin_context, TF_Buffer_Handle* buffer)
+                [](void* plugin_context, TF_Buffer_Handle* buffer) noexcept
             {
                 Buffer::create(plugin_context)->delete_buffer(buffer);
             },
-            .get_buffer = [](void* plugin_context, TF_Buffer_Handle* buffer) -> TF_Buffer_Data
+            .get_buffer = [](void* plugin_context, TF_Buffer_Handle* buffer) noexcept
+                          -> TF_Buffer_Data
             {
                 return Buffer::create(plugin_context)->get_buffer(buffer);
             }

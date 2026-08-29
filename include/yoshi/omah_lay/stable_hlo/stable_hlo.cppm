@@ -7,7 +7,7 @@ export import :parameter_view;
 export import :schema_attribute_view;
 export import :operation;
 export import :function;
-export import :module;
+export import :hlo_module;
 export import :table;
 
 export import :builder;

@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for an events backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Builder's role. A backend implements this directly and registers a
+// ice::builder::Generator's role. A backend implements this directly and registers a
 // factory function pointer into ice::sonic::RegistrationRuntime under type="events".
 class Events
 {
@@ -28,22 +28,22 @@ public:
 
     virtual ~Events() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    publish(const ice::String& event_name, const ice::String& payload_json) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    publish(const ice::String& event_name, const ice::String& payload_json) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Events* get_generic_vtable()
     {
         static TF_Events vtable = {
-            .struct_size = sizeof(TF_Events),
+            .struct_size = TF_EVENTS_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Events::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Events::create(plugin_context);
                 auto name = self->get_name();
@@ -53,7 +53,7 @@ public:
                 [](void* plugin_context,
                    const TF_TString* event_name,
                    const TF_TString* payload_json,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Events::create(plugin_context);
                 auto res = self->publish(

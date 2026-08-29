@@ -29,7 +29,7 @@ extern "C"
 #endif
 
 
-    // Opens a new server, returning an owned handle (destroy with TF_Protocol_Server_Destroy).
+    // Opens a new server, returning an owned handle (destroy with server__destroy).
     // NULL on failure (see status).
 
 
@@ -52,15 +52,6 @@ extern "C"
 #define TF_PROTOCOL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Protocol, server__is_running)
 
     TF_CAPI_EXPORT void init_protocol(TF_Protocol** ops, void** plugin_context, TF_Status* status);
-
-    typedef struct TF_Protocol_Server
-    {
-        size_t struct_size;
-
-    } TF_Protocol_Server;
-
-    TF_CAPI_EXPORT void
-    init_protocol_Server(TF_Protocol_Server** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

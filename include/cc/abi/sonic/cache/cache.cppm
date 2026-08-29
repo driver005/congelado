@@ -17,7 +17,7 @@ export namespace ice::sonic {
 class Cache : public ice::sonic::Runtime<Cache, TF_Cache>
 {
 public:
-    explicit Cache(TF_Cache* ops, void* plugin_context) :
+    explicit Cache(TF_Cache* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -25,7 +25,7 @@ public:
     static constexpr std::string_view domain_name = "cache";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data)
+    get(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->get(get_handle(), key.get_handle(), completion, cb_user_data, status.get_handle());
@@ -39,7 +39,7 @@ public:
     set(const ice::String& key,
         const ice::String& value,
         TF_Cache_CompletionFn completion,
-        void* cb_user_data)
+        void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->set(
@@ -57,7 +57,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    remove(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data)
+    remove(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops
@@ -68,7 +68,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

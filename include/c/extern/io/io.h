@@ -27,8 +27,6 @@ limitations under the License.
 extern "C"
 {
 #endif
-    typedef struct TF_IO_Response_Controller TF_IO_Response_Controller;
-
     typedef struct TF_IO
     {
         size_t struct_size;
@@ -41,7 +39,7 @@ extern "C"
         TF_IO_Method (*request__get_method)(void* request_context);
         void (*request__get_path)(void* request_context, TF_String* out);
         void (*request__set_header)(
-            void* request,
+            void* request_context,
             const TF_TString* name,
             const TF_TString* value,
             TF_Status* status
@@ -53,7 +51,7 @@ extern "C"
             TF_Status* status
         );
         void (*response__set_header)(
-            void* response,
+            void* response_context,
             const TF_TString* name,
             const TF_TString* value,
             TF_Status* status

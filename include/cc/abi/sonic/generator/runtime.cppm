@@ -20,19 +20,19 @@ export namespace ice::sonic {
 class Generator : public ice::sonic::Runtime<Generator, TF_Generator>
 {
 public:
-    explicit Generator(TF_Generator* ops, void* plugin_context) :
+    explicit Generator(TF_Generator* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "generator";
 
-    void set_name(const ice::String& name)
+    void set_name(const ice::String& name) noexcept
     {
         m_ops->set_name(get_handle(), name.get_handle());
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());
@@ -42,7 +42,7 @@ public:
     // Definitions come back as a tensor allocated by the plugin — see the
     // TF_Generator_GetDefinitions contract (a 1-D tensor whose elements are the
     // opaque definition handles consumed by the definition__* vtable slots).
-    [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_definitions() const
+    [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_definitions() const noexcept
     {
         ice::Status status;
         TF_Tensor_Handle* handle = m_ops->get_definitions(get_handle(), status.get_handle());
@@ -52,7 +52,7 @@ public:
         return ice::TensorHandle{handle};
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status> build() const
+    [[nodiscard]] std::expected<ice::String, ice::Status> build() const noexcept
     {
         ice::Status status;
         ice::String out;
@@ -68,7 +68,7 @@ public:
     // function__destroy) before constructing the new one — same "a fresh call
     // replaces the current one" lifetime story as the rest of this interface.
     [[nodiscard]] std::expected<std::reference_wrapper<ice::sonic::Function>, ice::Status>
-    enter_border_patrol(const ice::String& name)
+    enter_border_patrol(const ice::String& name) noexcept
     {
         ice::Status status;
         void* handle =

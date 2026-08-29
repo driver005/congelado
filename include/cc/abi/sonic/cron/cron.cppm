@@ -16,14 +16,14 @@ export namespace ice::sonic {
 class Cron : public ice::sonic::Runtime<Cron, TF_Cron>
 {
 public:
-    explicit Cron(TF_Cron* ops, void* plugin_context) :
+    explicit Cron(TF_Cron* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "cron";
 
-    [[nodiscard]] std::expected<bool, ice::Status> validate(const ice::String& expression)
+    [[nodiscard]] std::expected<bool, ice::Status> validate(const ice::String& expression) noexcept
     {
         ice::Status status;
         bool result =
@@ -35,7 +35,7 @@ public:
     }
 
     [[nodiscard]] std::expected<bool, ice::Status>
-    next_after(const ice::String& expression, std::int64_t base_time_ms, std::int64_t* out_time_ms)
+    next_after(const ice::String& expression, std::int64_t base_time_ms, std::int64_t* out_time_ms) noexcept
     {
         ice::Status status;
         bool result = m_ops->next_after(
@@ -52,7 +52,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    upsert_job(const ice::String& name, const ice::String& expression)
+    upsert_job(const ice::String& name, const ice::String& expression) noexcept
     {
         ice::Status status;
         m_ops->upsert_job(
@@ -67,7 +67,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> remove_job(const ice::String& name)
+    [[nodiscard]] std::expected<void, ice::Status> remove_job(const ice::String& name) noexcept
     {
         ice::Status status;
         m_ops->remove_job(get_handle(), name.get_handle(), status.get_handle());
@@ -77,7 +77,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

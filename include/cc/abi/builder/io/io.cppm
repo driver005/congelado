@@ -14,7 +14,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for an IO backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Builder's role. A backend implements this directly and registers a
+// ice::builder::Generator's role. A backend implements this directly and registers a
 // factory function pointer into ice::sonic::RegistrationRuntime under type="io".
 class Io
 {
@@ -29,27 +29,27 @@ public:
 
     virtual ~Io() = default;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Request>, ice::Status> create_request() = 0;
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Response>, ice::Status>
-    create_response() = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Request>, ice::Status> create_request() noexcept = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Response>, ice::Status>
+    create_response() noexcept = 0;
 
     static TF_IO* get_generic_vtable()
     {
         static TF_IO vtable = {
-            .struct_size = sizeof(TF_IO),
+            .struct_size = TF_IO_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Io::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 Io::create(plugin_context)->get_name().to_c(out);
             },
-            .create_request = [](void* plugin_context, TF_Status* status) -> void*
+            .create_request = [](void* plugin_context, TF_Status* status) noexcept -> void*
             {
                 auto* self = Io::create(plugin_context);
                 auto res = self->create_request();
@@ -60,11 +60,11 @@ public:
                 return res->release();
             },
             .request__destroy =
-                [](void* request_context)
+                [](void* request_context) noexcept
             {
                 delete Request::create(request_context);
             },
-            .create_response = [](void* plugin_context, TF_Status* status) -> void*
+            .create_response = [](void* plugin_context, TF_Status* status) noexcept -> void*
             {
                 auto* self = Io::create(plugin_context);
                 auto res = self->create_response();
@@ -75,17 +75,17 @@ public:
                 return res->release();
             },
             .response__destroy =
-                [](void* response_context)
+                [](void* response_context) noexcept
             {
                 delete Response::create(response_context);
             },
-            .request__get_method = [](void* request_context) -> TF_IO_Method
+            .request__get_method = [](void* request_context) noexcept -> TF_IO_Method
             {
                 auto* self = Request::create(request_context);
                 return ice::method_to_c(self->get_method());
             },
             .request__get_path =
-                [](void* request_context, TF_String* out)
+                [](void* request_context, TF_String* out) noexcept
             {
                 auto* self = Request::create(request_context);
                 auto name = self->get_path();
@@ -95,7 +95,7 @@ public:
                 [](void* request_context,
                    const TF_TString* name,
                    const TF_TString* value,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Request::create(request_context);
                 auto res = self->set_header(ice::String::create(name), ice::String::create(value));
@@ -104,7 +104,7 @@ public:
                 }
             },
             .request__set_body =
-                [](void* request_context, const TF_TString* body, TF_Status* status)
+                [](void* request_context, const TF_TString* body, TF_Status* status) noexcept
             {
                 auto* self = Request::create(request_context);
                 auto res = self->set_body(ice::String::create(body));
@@ -113,7 +113,7 @@ public:
                 }
             },
             .response__set_status =
-                [](void* response_context, int32_t status_code, TF_Status* status)
+                [](void* response_context, int32_t status_code, TF_Status* status) noexcept
             {
                 auto* self = Response::create(response_context);
                 auto res = self->set_status(status_code);
@@ -125,7 +125,7 @@ public:
                 [](void* response_context,
                    const TF_TString* name,
                    const TF_TString* value,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Response::create(response_context);
                 auto res = self->set_header(ice::String::create(name), ice::String::create(value));
@@ -134,7 +134,7 @@ public:
                 }
             },
             .response__set_body =
-                [](void* response_context, const TF_TString* body, TF_Status* status)
+                [](void* response_context, const TF_TString* body, TF_Status* status) noexcept
             {
                 auto* self = Response::create(response_context);
                 auto res = self->set_body(ice::String::create(body));
