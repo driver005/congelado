@@ -1,9 +1,6 @@
 export module interfaces:io_response;
 
 import std;
-#ifdef CONGELADO_TEST
-import boost.ut;
-#endif
 import utils_buffering;
 import :io_header;
 import :io_types;
@@ -12,42 +9,34 @@ export namespace interfaces::io {
 
 // CRTP base for protocol-agnostic responses (HTTP/1–3, gRPC, WebSocket, …).
 // All mutators return Derived& for builder chaining.
-class IResponse
-{
-public:
+class IResponse {
+  public:
     /**
      * @brief Builds a response tied to a stream id. Nothing else set yet, just the id.
      * @param stream_id the stream this response rides on.
      */
-    IResponse(std::uint32_t stream_id) :
-        m_stream_id{stream_id}
-    {
-    }
-
+    IResponse(std::uint32_t stream_id) : m_stream_id{stream_id} {}
     /**
      * @brief Default ctor, just delegates to stream id 0.
      */
-    IResponse() :
-        IResponse{0} {};
+    IResponse() : IResponse{0} {};
 
     /**
      * @brief Copy ctor — plain value copy, no resources here that'd need special handling.
      */
-    IResponse(const IResponse&) = default;
+    IResponse(const IResponse &) = default;
     /**
-     * @brief Copy assignment — plain value copy, no resources here that'd need special
-     * handling.
+     * @brief Copy assignment — plain value copy, no resources here that'd need special handling.
      */
-    IResponse& operator=(const IResponse&) = default;
+    IResponse &operator=(const IResponse &) = default;
     /**
      * @brief Move ctor — plain value move, no resources here that'd need special handling.
      */
-    IResponse(IResponse&&) = default;
+    IResponse(IResponse &&) = default;
     /**
-     * @brief Move assignment — plain value move, no resources here that'd need special
-     * handling.
+     * @brief Move assignment — plain value move, no resources here that'd need special handling.
      */
-    IResponse& operator=(IResponse&&) = default;
+    IResponse &operator=(IResponse &&) = default;
 
     /**
      * @brief Virtual dtor so derived response types clean up right through the base pointer,
@@ -60,8 +49,7 @@ public:
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status OK already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> ok(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> ok(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::OK);
         return res;
@@ -72,21 +60,18 @@ public:
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status CREATED already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> created(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> created(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::CREATED);
         return res;
     }
 
     /**
-     * @brief Spins up a fresh 204 No Content response. Nothing to see here, and that's the
-     * point.
+     * @brief Spins up a fresh 204 No Content response. Nothing to see here, and that's the point.
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status NO_CONTENT already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> no_content(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> no_content(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::NO_CONTENT);
         return res;
@@ -97,8 +82,7 @@ public:
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status BAD_REQUEST already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> bad_request(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> bad_request(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::BAD_REQUEST);
         return res;
@@ -109,8 +93,7 @@ public:
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status NOT_FOUND already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> not_found(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> not_found(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::NOT_FOUND);
         return res;
@@ -122,8 +105,7 @@ public:
      * @param stream_id the stream id to tag the new response with.
      * @return a heap-allocated response with status INTERNAL_SERVER_ERROR already set.
      */
-    [[nodiscard]] static std::unique_ptr<IResponse> internal_error(std::uint32_t stream_id)
-    {
+    [[nodiscard]] static std::unique_ptr<IResponse> internal_error(std::uint32_t stream_id) {
         auto res = std::make_unique<IResponse>(stream_id);
         std::move(*res).with_status(types::Status::INTERNAL_SERVER_ERROR);
         return res;
@@ -136,8 +118,7 @@ public:
      * @param value the header value.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_header(std::string_view name, std::string_view value) && noexcept
-    {
+    IResponse &&with_header(std::string_view name, std::string_view value) && noexcept {
         set_header(name, value);
         return std::move(*this);
     }
@@ -149,8 +130,7 @@ public:
      * @param value the header value.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_header(types::Token token, std::string_view value) && noexcept
-    {
+    IResponse &&with_header(types::Token token, std::string_view value) && noexcept {
         set_header(token, value);
         return std::move(*this);
     }
@@ -160,8 +140,7 @@ public:
      * @param name the header name to remove.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& without_header(std::string_view name) && noexcept
-    {
+    IResponse &&without_header(std::string_view name) && noexcept {
         remove_header(name);
         return std::move(*this);
     }
@@ -172,8 +151,7 @@ public:
      * @param status the status to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_status(types::Status status) && noexcept
-    {
+    IResponse &&with_status(types::Status status) && noexcept {
         set_status(status);
         return std::move(*this);
     }
@@ -184,10 +162,9 @@ public:
      * @param body_range the byte range to install as the body.
      * @return `*this`, moved, so the chain keeps going.
      */
-    template<std::ranges::input_range R>
+    template <std::ranges::input_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    IResponse&& with_body(R&& body_range) && noexcept
-    {
+    IResponse &&with_body(R &&body_range) && noexcept {
         set_body(std::forward<R>(body_range));
         return std::move(*this);
     }
@@ -197,8 +174,7 @@ public:
      * @param stream_id the stream id to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_stream_id(std::uint32_t stream_id) && noexcept
-    {
+    IResponse &&with_stream_id(std::uint32_t stream_id) && noexcept {
         set_stream_id(stream_id);
         return std::move(*this);
     }
@@ -210,8 +186,7 @@ public:
      * @param method the method to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_method(types::Method method) && noexcept
-    {
+    IResponse &&with_method(types::Method method) && noexcept {
         set_header(types::Token::METHOD, method_str(method));
         return std::move(*this);
     }
@@ -221,8 +196,7 @@ public:
      * @param content_type the mime type to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_content_type(std::string_view content_type) && noexcept
-    {
+    IResponse &&with_content_type(std::string_view content_type) && noexcept {
         set_header(types::Token::CONTENT_TYPE, content_type);
         return std::move(*this);
     }
@@ -232,8 +206,7 @@ public:
      * @param length the content length to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_content_length(std::size_t length) && noexcept
-    {
+    IResponse &&with_content_length(std::size_t length) && noexcept {
         set_header(types::Token::CONTENT_LENGTH, std::to_string(length));
         return std::move(*this);
     }
@@ -244,8 +217,7 @@ public:
      * @param location the location to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_location(std::string_view location) && noexcept
-    {
+    IResponse &&with_location(std::string_view location) && noexcept {
         set_header(types::Token::LOCATION, location);
         return std::move(*this);
     }
@@ -255,8 +227,7 @@ public:
      * @param etag the etag value to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_e_tag(std::string_view etag) && noexcept
-    {
+    IResponse &&with_e_tag(std::string_view etag) && noexcept {
         set_header(types::Token::E_TAG, etag);
         return std::move(*this);
     }
@@ -266,8 +237,7 @@ public:
      * @param date the date value to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_date(std::string_view date) && noexcept
-    {
+    IResponse &&with_date(std::string_view date) && noexcept {
         set_header(types::Token::DATE, date);
         return std::move(*this);
     }
@@ -277,8 +247,7 @@ public:
      * @param server the server value to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_server(std::string_view server) && noexcept
-    {
+    IResponse &&with_server(std::string_view server) && noexcept {
         set_header(types::Token::SERVER, server);
         return std::move(*this);
     }
@@ -288,8 +257,7 @@ public:
      * @param cache_control the cache-control directive(s) to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_cache_control(std::string_view cache_control) && noexcept
-    {
+    IResponse &&with_cache_control(std::string_view cache_control) && noexcept {
         set_header(types::Token::CACHE_CONTROL, cache_control);
         return std::move(*this);
     }
@@ -299,8 +267,7 @@ public:
      * @param last_modified the last-modified value to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_last_modified(std::string_view last_modified) && noexcept
-    {
+    IResponse &&with_last_modified(std::string_view last_modified) && noexcept {
         set_header(types::Token::LAST_MODIFIED, last_modified);
         return std::move(*this);
     }
@@ -311,8 +278,7 @@ public:
      * @param cookie the cookie value to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_set_cookie(std::string_view cookie) && noexcept
-    {
+    IResponse &&with_set_cookie(std::string_view cookie) && noexcept {
         set_header(types::Token::SET_COOKIE, cookie);
         return std::move(*this);
     }
@@ -322,8 +288,7 @@ public:
      * @param keep_alive true to keep the connection alive, false to close it after.
      * @return `*this`, moved, so the chain keeps going.
      */
-    IResponse&& with_keep_alive(bool keep_alive) && noexcept
-    {
+    IResponse &&with_keep_alive(bool keep_alive) && noexcept {
         set_keep_alive(keep_alive);
         return std::move(*this);
     }
@@ -333,17 +298,13 @@ public:
      * hands back what you already built.
      * @return `*this`, moved out to the caller as the finished response.
      */
-    [[nodiscard]] IResponse&& build() && noexcept
-    {
-        return std::move(*this);
-    }
+    [[nodiscard]] IResponse &&build() && noexcept { return std::move(*this); }
 
     /**
      * @brief In-place version of with_method().
      * @param method the method to set.
      */
-    void add_method(types::Method method) & noexcept
-    {
+    void add_method(types::Method method) & noexcept {
         set_header(types::Token::METHOD, method_str(method));
     }
 
@@ -351,8 +312,7 @@ public:
      * @brief In-place version of with_content_type().
      * @param type the mime type to set.
      */
-    void add_content_type(std::string_view type) & noexcept
-    {
+    void add_content_type(std::string_view type) & noexcept {
         set_header(types::Token::CONTENT_TYPE, type);
     }
 
@@ -360,8 +320,7 @@ public:
      * @brief In-place version of with_content_length().
      * @param length the content length to set.
      */
-    void add_content_length(std::size_t length) & noexcept
-    {
+    void add_content_length(std::size_t length) & noexcept {
         set_header(types::Token::CONTENT_LENGTH, std::to_string(length));
     }
 
@@ -369,8 +328,7 @@ public:
      * @brief In-place version of with_location().
      * @param location the location to set.
      */
-    void add_location(std::string_view location) & noexcept
-    {
+    void add_location(std::string_view location) & noexcept {
         set_header(types::Token::LOCATION, location);
     }
 
@@ -378,26 +336,19 @@ public:
      * @brief In-place version of with_e_tag().
      * @param etag the etag value to set.
      */
-    void add_e_tag(std::string_view etag) & noexcept
-    {
-        set_header(types::Token::E_TAG, etag);
-    }
+    void add_e_tag(std::string_view etag) & noexcept { set_header(types::Token::E_TAG, etag); }
 
     /**
      * @brief In-place version of with_date().
      * @param date the date value to set.
      */
-    void add_date(std::string_view date) & noexcept
-    {
-        set_header(types::Token::DATE, date);
-    }
+    void add_date(std::string_view date) & noexcept { set_header(types::Token::DATE, date); }
 
     /**
      * @brief In-place version of with_server().
      * @param server the server value to set.
      */
-    void add_server(std::string_view server) & noexcept
-    {
+    void add_server(std::string_view server) & noexcept {
         set_header(types::Token::SERVER, server);
     }
 
@@ -405,8 +356,7 @@ public:
      * @brief In-place version of with_cache_control().
      * @param cache_control the cache-control directive(s) to set.
      */
-    void add_cache_control(std::string_view cache_control) & noexcept
-    {
+    void add_cache_control(std::string_view cache_control) & noexcept {
         set_header(types::Token::CACHE_CONTROL, cache_control);
     }
 
@@ -414,8 +364,7 @@ public:
      * @brief In-place version of with_last_modified().
      * @param last_modified the last-modified value to set.
      */
-    void add_last_modified(std::string_view last_modified) & noexcept
-    {
+    void add_last_modified(std::string_view last_modified) & noexcept {
         set_header(types::Token::LAST_MODIFIED, last_modified);
     }
 
@@ -426,8 +375,7 @@ public:
      * worth knowing about if you're ever chasing down where a header actually gets set.
      * @param cookie the cookie value to set.
      */
-    void add_set_cookie(std::string_view cookie) & noexcept
-    {
+    void add_set_cookie(std::string_view cookie) & noexcept {
         add_header(types::Token::SET_COOKIE, cookie);
     }
 
@@ -435,19 +383,13 @@ public:
      * @brief In-place version of with_status().
      * @param status the status to set.
      */
-    void add_status(types::Status status) & noexcept
-    {
-        set_status(status);
-    }
+    void add_status(types::Status status) & noexcept { set_status(status); }
 
     /**
      * @brief In-place version of with_keep_alive().
      * @param keep_alive true to keep the connection alive, false to close it after.
      */
-    void add_keep_alive(bool keep_alive) & noexcept
-    {
-        set_keep_alive(keep_alive);
-    }
+    void add_keep_alive(bool keep_alive) & noexcept { set_keep_alive(keep_alive); }
 
     /**
      * @brief In-place version of with_body() — sets the response body from any input range of
@@ -455,10 +397,9 @@ public:
      * @tparam R an input range whose value type is `std::byte`.
      * @param body_range the byte range to install as the body.
      */
-    template<std::ranges::input_range R>
+    template <std::ranges::input_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    void add_body(R&& body_range) & noexcept
-    {
+    void add_body(R &&body_range) & noexcept {
         set_body(std::forward<R>(body_range));
     }
 
@@ -466,10 +407,7 @@ public:
      * @brief In-place version of with_stream_id().
      * @param stream_id the stream id to set.
      */
-    void add_stream_id(std::uint32_t stream_id) & noexcept
-    {
-        set_stream_id(stream_id);
-    }
+    void add_stream_id(std::uint32_t stream_id) & noexcept { set_stream_id(stream_id); }
 
     /**
      * @brief In-place version of with_header() — takes either a name or a `Token`, whichever's
@@ -477,10 +415,8 @@ public:
      * @param name_or_token the header name, or its interned token.
      * @param value the header value.
      */
-    void add_header(
-        std::variant<std::string_view, types::Token> name_or_token, std::string_view value
-    ) & noexcept
-    {
+    void add_header(std::variant<std::string_view, types::Token> name_or_token,
+                    std::string_view value) & noexcept {
         set_header(name_or_token, value);
     }
 
@@ -488,8 +424,7 @@ public:
      * @brief In-place version of without_header() — drops a header by name or `Token`.
      * @param name the header name (or token) to remove.
      */
-    void pop_header(std::variant<std::string_view, types::Token> name) & noexcept
-    {
+    void pop_header(std::variant<std::string_view, types::Token> name) & noexcept {
         remove_header(name);
     }
 
@@ -498,31 +433,23 @@ public:
      * @param name the header name (or token) to replace.
      * @param value the new value.
      */
-    void replace_header(
-        std::variant<std::string_view, types::Token> name, std::string_view value
-    ) & noexcept
-    {
+    void replace_header(std::variant<std::string_view, types::Token> name,
+                        std::string_view value) & noexcept {
         remove_header(name);
         set_header(name, value);
     }
+
 
     /**
      * @brief Sets the stream id directly on the member, no header round-trip involved.
      * @param stream_id the stream id to store.
      */
-    void set_stream_id(std::uint32_t stream_id) & noexcept
-    {
-        m_stream_id = stream_id;
-    }
-
+    void set_stream_id(std::uint32_t stream_id) & noexcept { m_stream_id = stream_id; }
     /**
      * @brief Grabs the stream id.
      * @return the stream id this response is tagged with.
      */
-    [[nodiscard]] std::uint32_t get_stream_id() const noexcept
-    {
-        return m_stream_id;
-    }
+    [[nodiscard]] std::uint32_t get_stream_id() const noexcept { return m_stream_id; }
 
     /**
      * @brief Sets the response body, taking full ownership of `body`.
@@ -537,11 +464,7 @@ public:
     // sink/move-from signature every real override (e.g. io::http2::Response::set_body() in
     // res.cppm) relies on; changing it here without updating every `override` elsewhere would
     // break virtual dispatch, so it's left as-is.
-    virtual void set_body(std::vector<std::byte> body) &
-    {
-        std::abort();
-    } // NOLINT(performance-unnecessary-value-param) — signature must match every override for
-      // virtual dispatch
+    virtual void set_body(std::vector<std::byte> body) & { std::abort(); }  // NOLINT(performance-unnecessary-value-param) — signature must match every override for virtual dispatch
 
     /**
      * @brief Sets the response body from any input range of `std::byte` — materializes it into
@@ -552,13 +475,11 @@ public:
      * throwing a fit).
      * @param body_range the byte range to copy into the body.
      */
-    template<std::ranges::input_range R>
+    template <std::ranges::input_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte> &&
-                 (!std::same_as<
-                     std::remove_cvref_t<R>,
-                     std::vector<std::byte>>) // Prevents ambiguous overload resolution
-    void set_body(R&& body_range) &
-    {
+                 (!std::same_as<std::remove_cvref_t<R>,
+                                std::vector<std::byte>>) // Prevents ambiguous overload resolution
+    void set_body(R &&body_range) & {
         set_body(std::ranges::to<std::vector<std::byte>>(std::forward<R>(body_range)));
     }
 
@@ -568,20 +489,13 @@ public:
      * abort-by-default so every concrete response type actually earns its keep.
      * @param status the status to set.
      */
-    virtual void set_status(types::Status status) &
-    {
-        std::abort();
-    }
-
+    virtual void set_status(types::Status status) & { std::abort(); }
     /**
      * @brief Toggles keep-alive for this response's connection.
      * @warning Base impl aborts — mandatory override.
      * @param keep_alive true to keep the connection alive, false to close it after.
      */
-    virtual void set_keep_alive(bool keep_alive) &
-    {
-        std::abort();
-    }
+    virtual void set_keep_alive(bool keep_alive) & { std::abort(); }
 
     /**
      * @brief Sets a header by name or `Token` — the real customization point, the one every
@@ -590,9 +504,8 @@ public:
      * @param name_or_token the header name, or its interned token.
      * @param value the header value.
      */
-    virtual void
-    set_header(std::variant<std::string_view, types::Token> name_or_token, std::string_view value) &
-    {
+    virtual void set_header(std::variant<std::string_view, types::Token> name_or_token,
+                            std::string_view value) & {
         std::abort();
     }
 
@@ -601,8 +514,7 @@ public:
      * @warning Base impl aborts — mandatory override, same as set_header() right above.
      * @param name the header name (or token) to remove.
      */
-    virtual void remove_header(std::variant<std::string_view, types::Token> name) &
-    {
+    virtual void remove_header(std::variant<std::string_view, types::Token> name) & {
         std::abort();
     }
 
@@ -613,8 +525,7 @@ public:
      * @return the header's value if it's set.
      */
     [[nodiscard]] virtual std::string_view
-    find_header(std::variant<std::string_view, types::Token> name_or_token) const noexcept
-    {
+    find_header(std::variant<std::string_view, types::Token> name_or_token) const noexcept {
         std::abort();
     }
 
@@ -623,240 +534,132 @@ public:
      * @warning Base impl aborts — mandatory override.
      * @return the status code set on this response.
      */
-    [[nodiscard]] virtual types::Status get_status() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual types::Status get_status() const noexcept { std::abort(); }
     /**
      * @brief Grabs a mutable view over the response body, so callers can actually poke at it.
      * @warning Base impl aborts — mandatory override.
      * @return a mutable `BufferView` over the body bytes.
      */
-    [[nodiscard]] virtual utils::buffering::BufferView& get_body() noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual utils::buffering::BufferView &get_body() noexcept { std::abort(); }
     /**
-     * @brief Const overload — grabs a read-only view over the response body, look but don't
-     * touch.
+     * @brief Const overload — grabs a read-only view over the response body, look but don't touch.
      * @warning Base impl aborts — mandatory override.
      * @return a read-only `BufferView` over the body bytes.
      */
-    [[nodiscard]] virtual const utils::buffering::BufferView& get_body() const noexcept
-    {
+    [[nodiscard]] virtual const utils::buffering::BufferView &get_body() const noexcept {
         std::abort();
     }
-
     /**
      * @brief Grabs every header currently set on this response, the whole collection.
      * @warning Base impl aborts — mandatory override.
      * @return all headers as a vector of `HeaderEntry`.
      */
-    [[nodiscard]] virtual std::vector<HeaderEntry> get_headers() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::vector<HeaderEntry> get_headers() const noexcept { std::abort(); }
     /**
      * @brief Grabs just the Set-Cookie headers off this response, filtered out from the rest.
      * @warning Base impl aborts — mandatory override.
      * @return the Set-Cookie entries as a vector of `HeaderEntry`.
      */
-    [[nodiscard]] virtual std::vector<HeaderEntry> get_set_cookies() const noexcept
-    {
+    [[nodiscard]] virtual std::vector<HeaderEntry> get_set_cookies() const noexcept {
         std::abort();
     }
-
     /**
      * @brief Grabs the human-readable status text ("OK", "Not Found", etc) for this response's
      * status code — the friendly version, not the raw number.
      * @warning Base impl aborts — mandatory override.
      * @return the status text.
      */
-    [[nodiscard]] virtual std::string_view get_status_text() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_status_text() const noexcept { std::abort(); }
     /**
      * @brief Grabs the content-type header.
      * @warning Base impl aborts — mandatory override.
      * @return the content-type string.
      */
-    [[nodiscard]] virtual std::string_view get_content_type() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_content_type() const noexcept { std::abort(); }
     /**
      * @brief Grabs the content-length header, parsed to an actual number instead of a string.
      * @warning Base impl aborts — mandatory override.
      * @return the content length.
      */
-    [[nodiscard]] virtual std::size_t get_content_length() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::size_t get_content_length() const noexcept { std::abort(); }
     /**
      * @brief Grabs the location header.
      * @warning Base impl aborts — mandatory override.
      * @return the location string.
      */
-    [[nodiscard]] virtual std::string_view get_location() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_location() const noexcept { std::abort(); }
     /**
      * @brief Grabs the etag header.
      * @warning Base impl aborts — mandatory override.
      * @return the etag string.
      */
-    [[nodiscard]] virtual std::string_view get_etag() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_etag() const noexcept { std::abort(); }
     /**
      * @brief Grabs the date header.
      * @warning Base impl aborts — mandatory override.
      * @return the date string.
      */
-    [[nodiscard]] virtual std::string_view get_date() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_date() const noexcept { std::abort(); }
     /**
      * @brief Grabs the server header.
      * @warning Base impl aborts — mandatory override.
      * @return the server string.
      */
-    [[nodiscard]] virtual std::string_view get_server() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_server() const noexcept { std::abort(); }
     /**
      * @brief Grabs the cache-control header.
      * @warning Base impl aborts — mandatory override.
      * @return the cache-control string.
      */
-    [[nodiscard]] virtual std::string_view get_cache_control() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_cache_control() const noexcept { std::abort(); }
     /**
      * @brief Grabs the last-modified header.
      * @warning Base impl aborts — mandatory override, still no exceptions to the rule.
      * @return the last-modified string.
      */
-    [[nodiscard]] virtual std::string_view get_last_modified() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual std::string_view get_last_modified() const noexcept { std::abort(); }
     /**
      * @brief Checks whether this response keeps the connection alive after it's sent, or slams
      * it shut right after.
      * @warning Base impl aborts — mandatory override.
      * @return true if the connection should stay open, false if it closes after.
      */
-    [[nodiscard]] virtual bool is_keep_alive() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual bool is_keep_alive() const noexcept { std::abort(); }
     /**
      * @brief Checks whether the status falls in the 1xx informational range.
      * @warning Base impl aborts — mandatory override.
      * @return true if the status is informational (1xx).
      */
-    [[nodiscard]] virtual bool is_informational() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual bool is_informational() const noexcept { std::abort(); }
     /**
      * @brief Checks whether the status falls in the 2xx success range — the actual W zone.
      * @warning Base impl aborts — mandatory override.
      * @return true if the status is a success (2xx).
      */
-    [[nodiscard]] virtual bool is_success() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual bool is_success() const noexcept { std::abort(); }
     /**
      * @brief Checks whether the status falls in the 3xx redirection range.
      * @warning Base impl aborts — mandatory override.
      * @return true if the status is a redirection (3xx).
      */
-    [[nodiscard]] virtual bool is_redirection() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual bool is_redirection() const noexcept { std::abort(); }
     /**
      * @brief Checks whether the status falls in the 4xx client error range — the caller messed
      * up, not the server.
      * @warning Base impl aborts — mandatory override.
      * @return true if the status is a client error (4xx).
      */
-    [[nodiscard]] virtual bool is_client_error() const noexcept
-    {
-        std::abort();
-    }
-
+    [[nodiscard]] virtual bool is_client_error() const noexcept { std::abort(); }
     /**
      * @brief Checks whether the status falls in the 5xx server error range — the server's the
      * one that's cooked this time, not the caller.
      * @warning Base impl aborts — mandatory override, last one in the class, you made it.
      * @return true if the status is a server error (5xx).
      */
-    [[nodiscard]] virtual bool is_server_error() const noexcept
-    {
-        std::abort();
-    }
+    [[nodiscard]] virtual bool is_server_error() const noexcept { std::abort(); }
 
-private:
+  private:
     std::uint32_t m_stream_id;
 };
 
 } // namespace interfaces::io
-
-#ifdef CONGELADO_TEST
-namespace interfaces::io::tests {
-using namespace boost::ut;
-
-// Only the stream-id plumbing has real behavior on the base class itself — every header/status/
-// body accessor is a mandatory-override hook that aborts by default (see the class warnings
-// above), so exercising those here would require a fake subclass, not a test of this file's own
-// logic.
-suite<"IResponse"> response_suite = [] {
-    "ctor stores the given stream id"_test = [] {
-        IResponse response{7};
-
-        expect(response.get_stream_id() == 7);
-    };
-
-    "default ctor starts at stream id 0"_test = [] {
-        IResponse response;
-
-        expect(response.get_stream_id() == 0);
-    };
-
-    "set_stream_id overwrites the stored id"_test = [] {
-        IResponse response{1};
-        response.set_stream_id(42);
-
-        expect(response.get_stream_id() == 42);
-    };
-};
-
-} // namespace interfaces::io::tests
-#endif

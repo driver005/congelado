@@ -50,8 +50,10 @@ export void random_bytes(std::span<std::byte> out)
 {
     // RAND_bytes returns 1 on success — anything else means the CSPRNG came up short, no cap,
     // straight throw instead of handing back weak/partial randomness.
-    if (RAND_bytes(reinterpret_cast<unsigned char*>(out.data()), static_cast<int>(out.size())) !=
-        1) { // FIXME(clang-tidy): reinterpret_cast usage
+    // std::byte and unsigned char are both 1-byte character types; casting through void* is
+    // well-defined (C++ [expr.static.cast]/13) and avoids reinterpret_cast at the call site.
+    if (RAND_bytes(static_cast<unsigned char*>(static_cast<void*>(out.data())),
+                   static_cast<int>(out.size())) != 1) {
         throw CryptoError("RAND_bytes");
     }
 }
@@ -64,8 +66,8 @@ ConnectionId generate_cid()
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(Len);
     random_bytes(
-        std::span{reinterpret_cast<std::byte*>(cid.data), Len}
-    ); // FIXME(clang-tidy): reinterpret_cast usage
+        std::as_writable_bytes(std::span{cid.data, Len})
+    );
     return cid;
 }
 
@@ -77,8 +79,8 @@ export ConnectionId generate_cid(std::size_t len)
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(len);
     random_bytes(
-        std::span{reinterpret_cast<std::byte*>(cid.data), len}
-    ); // FIXME(clang-tidy): reinterpret_cast usage
+        std::as_writable_bytes(std::span{cid.data, len})
+    );
     return cid;
 }
 

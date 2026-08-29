@@ -4,11 +4,8 @@ congelado_module_library(
     name = "cc_abi_builder_otel",
     primary_interface = "otel.cppm",
     partitions = [
-        "counter.cppm",
-        "histogram.cppm",
-        "meter.cppm",
-        "span.cppm",
-        "tracer.cppm",
+        "enums.cppm",
+        "leaves.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",

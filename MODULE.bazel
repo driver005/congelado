@@ -77,7 +77,6 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
-bazel_dep(name = "com_google_protobuf", version = "33.4")
 
 # Third-party deps confirmed in Bazel Central Registry
 bazel_dep(name = "simdjson", version = "4.2.4")  # matches Conan's pin
@@ -87,7 +86,7 @@ bazel_dep(name = "tomlplusplus", version = "3.4.0")  # matches Conan's pin
 
 # 2. Other non-BCR third-party dependencies via your extension
 third_party_deps = use_extension("//third_party:extension.bzl", "third_party_deps")
-use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_brotli", "system_cc", "com_google_protobuf")
+use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_brotli", "system_cc")
 
 # rules_cc's own auto-detected default toolchain (local_config_cc, registered
 # unconditionally by rules_cc's own MODULE.bazel) is broken under Bazel 9.2.0:

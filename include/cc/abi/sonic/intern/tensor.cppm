@@ -5,69 +5,71 @@ module;
 export module cc_abi_sonic_intern:tensor;
 
 import std;
-import cc_abi_value;
+import :datatype;
+import :runtime;
+import cc_abi_builder_intern; // For ice::builder::Tensor
 
 export namespace ice::sonic {
 
-// TensorRuntime — non-owning, read-only view over a `TF_Tensor*` received from a plugin.
-// No allocation, no `release()` (that's an ownership transfer, which doesn't apply to a
-// borrowed view), no destructor cleanup.
-class TensorRuntime
+class Tensor : public Runtime<Tensor, TF_Tensor, true>
 {
 public:
-    TensorRuntime() :
-        m_tensor{nullptr}
+    static constexpr std::string_view domain_name = "tensor";
+
+    TF_Tensor_Handle* allocate_tensor(DataTypeEnum dtype, const int64_t* dims, int num_dims, size_t len)
     {
+        return m_ops->TF_AllocateTensor(m_host_context, data_type_to_c(dtype), dims, num_dims, len);
     }
 
-    explicit TensorRuntime(TF_Tensor* tensor) :
-        m_tensor{tensor}
+    void delete_tensor(TF_Tensor_Handle* tensor)
     {
+        m_ops->TF_DeleteTensor(m_host_context, tensor);
     }
 
-    bool is_valid() const
+    DataTypeEnum get_type(const TF_Tensor_Handle* tensor) const
     {
-        return m_tensor != nullptr;
+        return data_type_from_c(m_ops->TF_TensorType(m_host_context, tensor));
     }
 
-    DataType get_type() const
+    int get_num_dims(const TF_Tensor_Handle* tensor) const
     {
-        return static_cast<DataType>(TF_TensorType(m_tensor));
+        return m_ops->TF_NumDims(m_host_context, tensor);
     }
 
-    int get_num_dims() const
+    int64_t get_dim(const TF_Tensor_Handle* tensor, int dim_index) const
     {
-        return TF_NumDims(m_tensor);
+        return m_ops->TF_Dim(m_host_context, tensor, dim_index);
     }
 
-    int64_t get_dim(int index) const
+    int64_t get_num_elements(const TF_Tensor_Handle* tensor) const
     {
-        return TF_Dim(m_tensor, index);
+        return m_ops->TF_TensorElementCount(m_host_context, tensor);
     }
 
-    int64_t get_num_elements() const
+    size_t get_byte_size(const TF_Tensor_Handle* tensor) const
     {
-        return TF_TensorElementCount(m_tensor);
+        return m_ops->TF_TensorByteSize(m_host_context, tensor);
     }
 
-    size_t get_byte_size() const
+    void* get_data(const TF_Tensor_Handle* tensor) const
     {
-        return TF_TensorByteSize(m_tensor);
+        return m_ops->TF_TensorData(m_host_context, tensor);
     }
 
-    void* get_data() const
+    void bitcast_from(TF_Tensor_Handle* src, DataTypeEnum dtype, TF_Tensor_Handle** out)
     {
-        return TF_TensorData(m_tensor);
+        m_ops->TF_TensorBitcastFrom(m_host_context, src, data_type_to_c(dtype), out);
     }
 
-    // Underlying handle — pass directly to the C ABI
-    TF_Tensor* get_handle() const
+    void bitcast_to(const TF_Tensor_Handle* src, DataTypeEnum dtype, TF_Tensor_Handle** out)
     {
-        return m_tensor;
+        m_ops->TF_TensorBitcastTo(m_host_context, src, data_type_to_c(dtype), out);
     }
 
-private:
-    TF_Tensor* m_tensor;
+    void copy(TF_Tensor_Handle* src, TF_Tensor_Handle* dst)
+    {
+        m_ops->TF_TensorCopy(m_host_context, src, dst);
+    }
 };
 
 } // namespace ice::sonic

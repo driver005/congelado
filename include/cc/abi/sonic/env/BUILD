@@ -5,9 +5,10 @@ congelado_module_library(
     primary_interface = "env.cppm",
     partitions = [
         "dynamic_library.cppm",
-        "filesystem/writable_file_handle_view_runtime.cppm",
-        "filesystem/string_stream_view_runtime.cppm",
+        "filesystem/filesystem_option.cppm",
+        "filesystem/filesystem_option_value.cppm",
         "filesystem/file_system_runtime.cppm",
+        "symbol.cppm",
         "thread.cppm",
         "time.cppm",
     ],

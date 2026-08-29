@@ -5,81 +5,41 @@ module;
 export module cc_abi_builder_intern:buffer;
 
 import std;
+import :ctx;
 
 export namespace ice::builder {
 
-class BufferBuilder
+class Buffer
 {
 public:
-    BufferBuilder() :
-        m_buffer{TF_NewBuffer()}
+    virtual ~Buffer() = default;
+
+    virtual TF_Buffer_Handle* new_buffer_from_string(const void* proto, size_t proto_len) = 0;
+    virtual TF_Buffer_Handle* new_buffer() = 0;
+    virtual void delete_buffer(TF_Buffer_Handle* buffer) = 0;
+    virtual TF_Buffer_Handle get_buffer(TF_Buffer_Handle* buffer) = 0;
+
+    static TF_Buffer* get_generic_vtable()
     {
-    }
-
-    ~BufferBuilder()
-    {
-
-        if (m_buffer) {
-            TF_DeleteBuffer(m_buffer);
-        }
-    }
-
-    BufferBuilder(const BufferBuilder&) = delete;
-    BufferBuilder& operator=(const BufferBuilder&) = delete;
-
-    BufferBuilder(BufferBuilder&& other) noexcept :
-        m_buffer{other.m_buffer}
-    {
-        other.m_buffer = nullptr;
-    }
-
-    BufferBuilder& operator=(BufferBuilder&& other) noexcept
-    {
-
-        if (this != &other) {
-            if (m_buffer) {
-                TF_DeleteBuffer(m_buffer);
+        static TF_Buffer vtable = {
+            .struct_size = sizeof(TF_Buffer),
+            .TF_NewBufferFromString = [](void* ctx, const void* proto,
+                                         size_t proto_len) -> TF_Buffer_Handle* {
+                return ctx_as<Buffer>(ctx)->new_buffer_from_string(proto, proto_len);
+            },
+            .TF_NewBuffer = [](void* ctx) -> TF_Buffer_Handle* {
+                return ctx_as<Buffer>(ctx)->new_buffer();
+            },
+            .TF_DeleteBuffer =
+                [](void* ctx, TF_Buffer_Handle* buffer) {
+                    ctx_as<Buffer>(ctx)->delete_buffer(buffer);
+                },
+            .TF_GetBuffer = [](void* ctx, TF_Buffer_Handle* buffer) -> TF_Buffer_Handle {
+                return ctx_as<Buffer>(ctx)->get_buffer(buffer);
             }
-            m_buffer = other.m_buffer;
-            other.m_buffer = nullptr;
-        }
-        return *this;
+        };
+        return &vtable;
     }
-
-    bool is_valid() const
-    {
-        return m_buffer != nullptr;
-    }
-
-    const void* get_data() const
-    {
-        return m_buffer->data;
-    }
-
-    size_t get_length() const
-    {
-        return m_buffer->length;
-    }
-
-    std::string to_string() const
-    {
-
-        return std::string(reinterpret_cast<const char*>(m_buffer->data), m_buffer->length);
-    }
-
-    // Underlying handle — pass directly to the C ABI
-    TF_Buffer* get_handle()
-    {
-        return m_buffer;
-    }
-
-    const TF_Buffer* get_handle() const
-    {
-        return m_buffer;
-    }
-
-private:
-    TF_Buffer* m_buffer;
 };
 
 } // namespace ice::builder

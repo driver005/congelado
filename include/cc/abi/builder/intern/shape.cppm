@@ -5,91 +5,40 @@ module;
 export module cc_abi_builder_intern:shape;
 
 import std;
+import :ctx;
 
 export namespace ice::builder {
 
-class ShapeBuilder
+class Shape
 {
 public:
-    ShapeBuilder() :
-        m_shape{TF_NewShape(nullptr, 0)}
+    virtual ~Shape() = default;
+
+    virtual TF_Shape_Handle* new_shape(const int64_t* dims, int num_dims) = 0;
+    virtual void delete_shape(TF_Shape_Handle* shape) = 0;
+    virtual int get_num_dims(const TF_Shape_Handle* shape) const = 0;
+    virtual int64_t get_dim(const TF_Shape_Handle* shape, int index) const = 0;
+
+    static TF_Shape* get_generic_vtable()
     {
-    }
-
-    explicit ShapeBuilder(const std::vector<int64_t>& dims) :
-        m_shape{TF_NewShape(dims.data(), static_cast<int>(dims.size()))}
-    {
-    }
-
-    ~ShapeBuilder()
-    {
-
-        if (m_shape) {
-            TF_DeleteShape(m_shape);
-        }
-    }
-
-    ShapeBuilder(const ShapeBuilder&) = delete;
-    ShapeBuilder& operator=(const ShapeBuilder&) = delete;
-
-    ShapeBuilder(ShapeBuilder&& other) noexcept :
-        m_shape{other.m_shape}
-    {
-        other.m_shape = nullptr;
-    }
-
-    ShapeBuilder& operator=(ShapeBuilder&& other) noexcept
-    {
-
-        if (this != &other) {
-            if (m_shape) {
-                TF_DeleteShape(m_shape);
+        static TF_Shape vtable = {
+            .struct_size = sizeof(TF_Shape),
+            .TF_NewShape = [](void* ctx, const int64_t* dims, int num_dims) -> TF_Shape_Handle* {
+                return ctx_as<Shape>(ctx)->new_shape(dims, num_dims);
+            },
+            .TF_DeleteShape =
+                [](void* ctx, TF_Shape_Handle* shape) {
+                    ctx_as<Shape>(ctx)->delete_shape(shape);
+                },
+            .TF_ShapeNumDims = [](void* ctx, const TF_Shape_Handle* shape) -> int {
+                return ctx_as<Shape>(ctx)->get_num_dims(shape);
+            },
+            .TF_ShapeDim = [](void* ctx, const TF_Shape_Handle* shape, int index) -> int64_t {
+                return ctx_as<Shape>(ctx)->get_dim(shape, index);
             }
-            m_shape = other.m_shape;
-            other.m_shape = nullptr;
-        }
-        return *this;
+        };
+        return &vtable;
     }
-
-    bool is_valid() const
-    {
-        return m_shape != nullptr;
-    }
-
-    int get_num_dims() const
-    {
-        return TF_ShapeNumDims(m_shape);
-    }
-
-    int64_t get_dim(int index) const
-    {
-        return TF_ShapeDim(m_shape, index);
-    }
-
-    std::vector<int64_t> to_vector() const
-    {
-
-        int n = get_num_dims();
-        std::vector<int64_t> dims(n);
-        for (int i = 0; i < n; ++i) {
-            dims[i] = get_dim(i);
-        }
-        return dims;
-    }
-
-    // Underlying handle — pass directly to the C ABI
-    TF_Shape* get_handle()
-    {
-        return m_shape;
-    }
-
-    const TF_Shape* get_handle() const
-    {
-        return m_shape;
-    }
-
-private:
-    TF_Shape* m_shape;
 };
 
 } // namespace ice::builder

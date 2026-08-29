@@ -13,7 +13,7 @@ import cc_abi_builder_generator;
 import :parameter;
 import :attribute;
 
-export namespace ice::sonic::generator {
+export namespace ice::sonic {
 
 // C ABI adapter: implements ice::builder::generator::Definition by calling
 // TF_Generator_Definition_* functions.
@@ -107,4 +107,4 @@ private:
     const TF_Generator_Definition* m_handle;
 };
 
-} // namespace ice::sonic::generator
+} // namespace ice::sonic

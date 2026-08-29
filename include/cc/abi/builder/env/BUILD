@@ -5,12 +5,10 @@ congelado_module_library(
     primary_interface = "env.cppm",
     partitions = [
         "dynamic_library.cppm",
-        "filesystem/writable_file_handle_view.cppm",
-        "filesystem/string_stream_view.cppm",
         "filesystem/file_system.cppm",
-        "thread/thread_options_builder.cppm",
-        "thread/thread_view.cppm",
-        "time.cppm",
+        "filesystem/filesystem_option.cppm",
+        "filesystem/filesystem_option_value.cppm",
+        "thread_view.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",

@@ -18,12 +18,13 @@ limitations under the License.
 
 #include "c/intern/tf_status.h"
 
-namespace tensorflow {
-
 // Convenience macros for asserting and handling exceptional conditions, for
-// C structs, including `TF_OpKernelContext`, `TF_Status`, etc. This is analogus
-// to the macros in tensorflow/core/framework/op_requires.h. This is provided
+// C structs, including `TF_OpKernelContext`, `TF_Status`, etc. This is analogous
+// to the macros in tensorflow/core/framework/op_requires.h. Provided
 // for plugin OpKernel developer's convenience.
+//
+// NOTE: This header is included by both C and C++ translation units — no
+// namespace, no C++ constructs at file scope.
 
 #ifdef __GNUC__
 #    define TF_PREDICT_TRUE(x)  __builtin_expect(!!(x), 1)
@@ -55,7 +56,5 @@ namespace tensorflow {
         }                                                                                          \
         TF_DeleteStatus(_s);                                                                       \
     } while (0)
-
-} // namespace tensorflow
 
 #endif // TENSORFLOW_C_C_OP_REQUIRES_H_

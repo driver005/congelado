@@ -28,58 +28,80 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Tensor TF_Tensor;
+    // --------------------------------------------------------------------------
+    // TF_Tensor — plugin vtable for tensor operations.
+    //
+    // TF_Tensor_Handle is an opaque pointer to a plugin-owned tensor object.
+    // It doubles as the "list/array carrier" type at C ABI boundaries
+    // (e.g. filesystem paths, generator definitions).
+    typedef struct TF_Tensor_Handle TF_Tensor_Handle;
 
-    TF_CAPI_EXPORT extern TF_Tensor*
-    TF_AllocateTensor(TF_DataType dtype, const int64_t* dims, int num_dims, size_t len);
+    // For backwards compatibility, TF_Tensor is also a typedef for the handle.
+    typedef struct TF_Tensor_Handle TF_Tensor;
 
-    TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
+    // Plugin-facing vtable registered via TF_InitTensor.
+    typedef struct TF_Tensor
+    {
+        size_t struct_size;
 
-    TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
+        // Allocate a new tensor with the given dtype, shape and byte size.
+        // The returned handle must be freed with TF_DeleteTensor.
+        TF_Tensor_Handle* (*TF_AllocateTensor)(
+            void* ctx,
+            TF_DataType_Enum dtype,
+            const int64_t*   dims,
+            int              num_dims,
+            size_t           len
+        );
 
-    TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
+        // Free a handle returned by TF_AllocateTensor.
+        void (*TF_DeleteTensor)(void* ctx, TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
+        // Return the element data type of the tensor.
+        TF_DataType_Enum (*TF_TensorType)(void* ctx, const TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
+        // Return the number of dimensions.
+        int (*TF_NumDims)(void* ctx, const TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
+        // Return the size of the d-th dimension.
+        int64_t (*TF_Dim)(void* ctx, const TF_Tensor_Handle* tensor, int dim_index);
 
-    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+        // Return the total element count across all dimensions.
+        int64_t (*TF_TensorElementCount)(void* ctx, const TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern void
-    TF_TensorBitcastFrom(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+        // Return the total byte size of the data buffer.
+        size_t (*TF_TensorByteSize)(void* ctx, const TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern void
-    TF_TensorBitcastTo(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+        // Return a pointer to the raw data buffer.
+        void* (*TF_TensorData)(void* ctx, const TF_Tensor_Handle* tensor);
 
-    TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
+        // Reinterpret src's buffer as dtype and write result into *out.
+        // *out must be freed with TF_DeleteTensor.
+        void (*TF_TensorBitcastFrom)(
+            void*             ctx,
+            TF_Tensor_Handle* src,
+            TF_DataType_Enum  dtype,
+            TF_Tensor_Handle** out
+        );
 
-    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+        // Same as TF_TensorBitcastFrom but src is const.
+        void (*TF_TensorBitcastTo)(
+            void*                    ctx,
+            const TF_Tensor_Handle*  src,
+            TF_DataType_Enum         dtype,
+            TF_Tensor_Handle**       out
+        );
 
-    TF_CAPI_EXPORT extern void TF_DeleteTensor(TF_Tensor*);
+        // Deep-copy src into dst (dst must already be allocated with matching shape/type).
+        void (*TF_TensorCopy)(void* ctx, TF_Tensor_Handle* src, TF_Tensor_Handle* dst);
 
-    TF_CAPI_EXPORT extern TF_DataType TF_TensorType(const TF_Tensor*);
+    } TF_Tensor;
 
-    TF_CAPI_EXPORT extern int TF_NumDims(const TF_Tensor*);
+#define TF_TENSOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_Tensor, TF_TensorCopy)
 
-    TF_CAPI_EXPORT extern int64_t TF_Dim(const TF_Tensor*, int dim_index);
-
-    TF_CAPI_EXPORT extern int64_t TF_TensorElementCount(const TF_Tensor*);
-
-    TF_CAPI_EXPORT extern size_t TF_TensorByteSize(const TF_Tensor*);
-
-    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
-
-    TF_CAPI_EXPORT extern void
-    TF_TensorBitcastFrom(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
-
-    TF_CAPI_EXPORT extern void
-    TF_TensorBitcastTo(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
-
-    TF_CAPI_EXPORT extern void TF_TensorCopy(TF_Tensor* src, TF_Tensor* dst);
-
-    TF_CAPI_EXPORT extern void* TF_TensorData(const TF_Tensor*);
+    TF_CAPI_EXPORT extern void TF_InitTensor(
+        TF_Tensor** ops, void** plugin_context, TF_Status* status
+    );
 
 #ifdef __cplusplus
 } /* end extern "C" */

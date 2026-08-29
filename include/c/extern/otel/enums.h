@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 #ifndef CONGELADO_C_OTEL_ENUMS_H_
 #define CONGELADO_C_OTEL_ENUMS_H_
 
@@ -21,21 +20,21 @@ extern "C"
 {
 #endif
 
-    typedef enum TF_Otel_SpanKind
+    typedef enum TF_OTEL_SpanKind
     {
         TF_OTEL_INTERNAL = 0,
         TF_OTEL_SERVER = 1,
         TF_OTEL_CLIENT = 2,
         TF_OTEL_PRODUCER = 3,
         TF_OTEL_CONSUMER = 4,
-    } TF_Otel_SpanKind;
+    } TF_OTEL_SpanKind;
 
-    typedef enum TF_Otel_SpanStatus
+    typedef enum TF_OTEL_SpanStatus
     {
         TF_OTEL_UNSET = 0,
         TF_OTEL_OK = 1,
         TF_OTEL_ERROR = 2,
-    } TF_Otel_SpanStatus;
+    } TF_OTEL_SpanStatus;
 
 #ifdef __cplusplus
 }

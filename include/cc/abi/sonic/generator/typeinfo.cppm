@@ -5,13 +5,11 @@ module;
 export module cc_abi_sonic_generator:typeinfo;
 
 import cc_abi_sonic_intern;
-import cc_abi_builder_generator;
+export namespace ice::sonic {
 
-export namespace ice::sonic::generator {
-
-// C ABI adapter: implements ice::builder::generator::TypeInfo by calling
+// C ABI adapter: implements ice::builder::TypeInfo by calling
 // TF_Generator_TypeInfo_* functions.
-class TypeInfo : public ice::builder::generator::TypeInfo
+class TypeInfo : public ice::builder::TypeInfo
 {
 public:
     explicit TypeInfo(const TF_Generator_TypeInfo* handle) :
@@ -19,32 +17,32 @@ public:
     {
     }
 
-    ~TypeInfo() override = default;
+    ~TypeInfo() = default;
 
     TypeInfo(const TypeInfo&) = default;
     TypeInfo& operator=(const TypeInfo&) = default;
     TypeInfo(TypeInfo&&) = default;
     TypeInfo& operator=(TypeInfo&&) = default;
 
-    int get_data_type() const override
+    int get_data_type() const
     {
 
         return TF_Generator_TypeInfo_GetDataType(m_handle);
     }
 
-    StringRuntime get_type_attr_name() const override
+    String get_type_attr_name() const
     {
 
-        return StringRuntime(TF_Generator_TypeInfo_GetTypeAttrName(m_handle));
+        return String(TF_Generator_TypeInfo_GetTypeAttrName(m_handle));
     }
 
-    bool is_read_only() const override
+    bool is_read_only() const
     {
 
         return TF_Generator_TypeInfo_IsReadOnly(m_handle);
     }
 
-    bool is_list() const override
+    bool is_list() const
     {
 
         return TF_Generator_TypeInfo_IsList(m_handle);
@@ -59,4 +57,4 @@ private:
     const TF_Generator_TypeInfo* m_handle;
 };
 
-} // namespace ice::sonic::generator
+} // namespace ice::sonic

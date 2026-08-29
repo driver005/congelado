@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 #ifndef CONGELADO_C_IO_ENUMS_H_
 #define CONGELADO_C_IO_ENUMS_H_
 
@@ -29,9 +28,9 @@ extern "C"
         TF_IO_DELETE = 3,
         TF_IO_PATCH = 4,
         TF_IO_HEAD = 5,
-        TF_IO_OPTIONS = 5,
-        TF_IO_CONNECT = 6,
-        TF_IO_TRACE = 7,
+        TF_IO_OPTIONS = 6,
+        TF_IO_CONNECT = 7,
+        TF_IO_TRACE = 8,
     } TF_IO_Method;
 
 #ifdef __cplusplus

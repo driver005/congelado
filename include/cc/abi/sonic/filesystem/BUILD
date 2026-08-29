@@ -2,16 +2,16 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
     name = "cc_abi_sonic_filesystem",
-    primary_interface = "filesystem_module.cppm",
+    primary_interface = "filesystem.cppm",
     partitions = [
-        "filesystem_ops/filesystem_ops_runtime.cppm",
-        "filesystem_ops/filesystem_plugin_ops_runtime.cppm",
-        "filesystem_ops/filesystem_plugin_runtime.cppm",
-        "random_access_file/random_access_file_runtime.cppm",
-        "random_access_file/random_access_file_ops_runtime.cppm",
-        "read_only_memory_region.cppm",
-        "writable_file/writable_file_runtime.cppm",
-        "writable_file/writable_file_ops_runtime.cppm",
+        "leaves.cppm",
+        "leaves/random_access_file.cppm",
+        "leaves/random_access_file_runtime.cppm",
+        "leaves/read_only_memory_region.cppm",
+        "leaves/read_only_memory_region_runtime.cppm",
+        "leaves/writable_file.cppm",
+        "leaves/writable_file_runtime.cppm",
+        "registration.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",
