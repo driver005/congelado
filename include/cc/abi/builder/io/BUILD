@@ -2,12 +2,10 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
     name = "cc_abi_builder_io",
-    primary_interface = "io_module.cppm",
+    primary_interface = "io.cppm",
     partitions = [
-        "io.cppm",
-        "registration.cppm",
-        "request.cppm",
-        "response.cppm",
+        "enums.cppm",
+        "leaves.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",

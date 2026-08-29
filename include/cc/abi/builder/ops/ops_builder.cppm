@@ -4,6 +4,8 @@ module;
 
 export module cc_abi_builder:ops_builder;
 
+import std;
+import cc_abi_primitives;
 import cc_abi_sonic_intern;
 
 export namespace ice::builder {
@@ -52,23 +54,23 @@ public:
         return *this;
     }
 
-    static OpsBuilder alloc(const ice::sonic::StringRuntime& op_name)
+    static OpsBuilder alloc(const ice::String& op_name)
     {
 
         return OpsBuilder{TF_NewOpDefinitionBuilder(op_name.c_str())};
     }
 
-    void add_attr(const ice::sonic::StringRuntime& attr_spec)
+    void add_attr(const ice::String& attr_spec)
     {
         TF_OpDefinitionBuilderAddAttr(m_handle, attr_spec.c_str());
     }
 
-    void add_input(const ice::sonic::StringRuntime& input_spec)
+    void add_input(const ice::String& input_spec)
     {
         TF_OpDefinitionBuilderAddInput(m_handle, input_spec.c_str());
     }
 
-    void add_output(const ice::sonic::StringRuntime& output_spec)
+    void add_output(const ice::String& output_spec)
     {
         TF_OpDefinitionBuilderAddOutput(m_handle, output_spec.c_str());
     }
@@ -93,7 +95,7 @@ public:
         TF_OpDefinitionBuilderSetAllowsUninitializedInput(m_handle, allows);
     }
 
-    void deprecated(int version, const ice::sonic::StringRuntime& explanation)
+    void deprecated(int version, const ice::String& explanation)
     {
         TF_OpDefinitionBuilderDeprecated(m_handle, version, explanation.c_str());
     }
@@ -105,11 +107,16 @@ public:
         TF_OpDefinitionBuilderSetShapeInferenceFunction(m_handle, fn);
     }
 
-    void register_op(TF_Status* status)
+    [[nodiscard]] std::expected<void, ice::Status> register_op()
     {
 
-        TF_RegisterOpDefinition(m_handle, status);
+        ice::Status status;
+        TF_RegisterOpDefinition(m_handle, status.get_handle());
         m_handle = nullptr; // Ownership transferred
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     // Underlying handle — pass directly to the C ABI

@@ -5,57 +5,33 @@ module;
 export module cc_abi_sonic_intern:shape;
 
 import std;
-
+import :runtime_base;
 export namespace ice::sonic {
 
-// ShapeRuntime — non-owning, read-only view over a `TF_Shape*` received from a plugin.
-class ShapeRuntime
+class Shape : public Runtime<Shape, TF_Shape, true>
 {
 public:
-    ShapeRuntime() :
-        m_shape{nullptr}
+    static constexpr std::string_view domain_name = "shape";
+
+    TF_Shape_Handle* new_shape(const int64_t* dims, int num_dims)
     {
+        return m_ops->TF_NewShape(m_host_context, dims, num_dims);
     }
 
-    explicit ShapeRuntime(TF_Shape* shape) :
-        m_shape{shape}
+    void delete_shape(TF_Shape_Handle* shape)
     {
+        m_ops->TF_DeleteShape(m_host_context, shape);
     }
 
-    bool is_valid() const
+    int get_num_dims(const TF_Shape_Handle* shape) const
     {
-        return m_shape != nullptr;
+        return m_ops->TF_ShapeNumDims(m_host_context, shape);
     }
 
-    int get_num_dims() const
+    int64_t get_dim(const TF_Shape_Handle* shape, int index) const
     {
-        return TF_ShapeNumDims(m_shape);
+        return m_ops->TF_ShapeDim(m_host_context, shape, index);
     }
-
-    int64_t get_dim(int index) const
-    {
-        return TF_ShapeDim(m_shape, index);
-    }
-
-    std::vector<int64_t> to_vector() const
-    {
-
-        int n = get_num_dims();
-        std::vector<int64_t> dims(n);
-        for (int i = 0; i < n; ++i) {
-            dims[i] = get_dim(i);
-        }
-        return dims;
-    }
-
-    // Underlying handle — pass directly to the C ABI
-    TF_Shape* get_handle() const
-    {
-        return m_shape;
-    }
-
-private:
-    TF_Shape* m_shape;
 };
 
 } // namespace ice::sonic

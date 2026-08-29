@@ -5,13 +5,11 @@ module;
 export module cc_abi_sonic_generator:attribute;
 
 import cc_abi_sonic_intern;
-import cc_abi_builder_generator;
+export namespace ice::sonic {
 
-export namespace ice::sonic::generator {
-
-// C ABI adapter: implements ice::builder::generator::Attribute by calling
+// C ABI adapter: implements ice::builder::Attribute by calling
 // TF_Generator_Attribute_* functions.
-class Attribute : public ice::builder::generator::Attribute
+class Attribute : public ice::builder::Attribute
 {
 public:
     explicit Attribute(const TF_Generator_Attribute* handle) :
@@ -19,38 +17,38 @@ public:
     {
     }
 
-    ~Attribute() override = default;
+    ~Attribute() = default;
 
     Attribute(const Attribute&) = default;
     Attribute& operator=(const Attribute&) = default;
     Attribute(Attribute&&) = default;
     Attribute& operator=(Attribute&&) = default;
 
-    StringRuntime get_name() const override
+    String get_name() const
     {
 
-        return StringRuntime(TF_Generator_Attribute_GetName(m_handle));
+        return String(TF_Generator_Attribute_GetName(m_handle));
     }
 
-    StringRuntime get_description() const override
+    String get_description() const
     {
 
-        return StringRuntime(TF_Generator_Attribute_GetDescription(m_handle));
+        return String(TF_Generator_Attribute_GetDescription(m_handle));
     }
 
-    StringRuntime get_full_type() const override
+    String get_full_type() const
     {
 
-        return StringRuntime(TF_Generator_Attribute_GetFullType(m_handle));
+        return String(TF_Generator_Attribute_GetFullType(m_handle));
     }
 
-    StringRuntime get_base_type() const override
+    String get_base_type() const
     {
 
-        return StringRuntime(TF_Generator_Attribute_GetBaseType(m_handle));
+        return String(TF_Generator_Attribute_GetBaseType(m_handle));
     }
 
-    bool is_list() const override
+    bool is_list() const
     {
 
         return TF_Generator_Attribute_IsList(m_handle);
@@ -65,4 +63,4 @@ private:
     const TF_Generator_Attribute* m_handle;
 };
 
-} // namespace ice::sonic::generator
+} // namespace ice::sonic

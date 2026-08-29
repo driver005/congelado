@@ -20,17 +20,12 @@ import boost.ut;
 
 export namespace io::codec::hpack {
 
-enum class HpackFlushReason : bool
-{
-    OVERFLOW,
-    END
-};
+enum class HpackFlushReason : bool { OVERFLOW, END };
 
-template<std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt, Width>>
-{
-public:
+class HpackEncoder : public std::ranges::range_adaptor_closure<HpackEncoder<UInt, Width>> {
+  public:
     using FlushCallback = std::function<void(std::span<const std::byte>, HpackFlushReason)>;
 
     /**
@@ -49,22 +44,12 @@ public:
      * @param use_huffman when true, string literals get Huffman-coded; when false, they're
      * emitted raw.
      */
-    explicit HpackEncoder(
-        HPackTable& table,
-        std::span<const interfaces::io::HeaderEntry> headers,
-        std::size_t max_frame_size,
-        FlushCallback on_flush,
-        bool use_auto_policy = true,
-        bool use_huffman = true
-    ) noexcept :
-        m_table{table},
-        m_headers{headers},
-        m_flush_size{max_frame_size},
-        m_on_flush{std::move(on_flush)},
-        m_use_auto_policy{use_auto_policy},
-        m_use_huffman{use_huffman}
-    {
-    }
+    explicit HpackEncoder(HPackTable &table, std::span<const interfaces::io::HeaderEntry> headers,
+                          std::size_t max_frame_size, FlushCallback on_flush,
+                          bool use_auto_policy = true, bool use_huffman = true) noexcept
+        : m_table{table}, m_headers{headers}, m_flush_size{max_frame_size},
+          m_on_flush{std::move(on_flush)}, m_use_auto_policy{use_auto_policy},
+          m_use_huffman{use_huffman} {}
 
     /**
      * @brief Encodes every header entry into the internal buffer, flushing on overflow, then
@@ -72,12 +57,11 @@ public:
      * call. Straight motion, no partial-state footguns since the buffer position resets before
      * and after.
      */
-    void operator()() const
-    {
+    void operator()() const {
         // Fresh run, fresh buffer — reset the cursor before touching anything.
         m_buf_pos = 0;
         // Encode every header in order; emit() handles overflow flushes internally.
-        for (const auto& entry: m_headers) {
+        for (const auto &entry : m_headers) {
             encode_entry(entry);
         }
         // Whatever's left in the buffer goes out as the final END flush.
@@ -85,7 +69,7 @@ public:
         m_buf_pos = 0;
     }
 
-private:
+  private:
     /**
      * @brief Pushes a single encoded byte into the internal buffer, auto-flushing (with
      * HpackFlushReason::OVERFLOW) the instant the buffer hits `m_flush_size` — this is the one
@@ -94,11 +78,9 @@ private:
      * that or you're cooked.
      * @param byte the single byte to append.
      */
-    void emit(std::byte byte) const
-    {
+    void emit(std::byte byte) const {
         // Append the byte, then check if that just filled the buffer to its threshold.
-        m_buf[m_buf_pos++] = byte; // FIXME(clang-tidy): unchecked operator[], consider .at();
-                                   // non-constant array index
+        m_buf[m_buf_pos++] = byte;  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
         if (m_buf_pos == m_flush_size) {
             // Full up — flush what we've got and reset for the next batch.
             m_on_flush({m_buf.data(), m_buf_pos}, HpackFlushReason::OVERFLOW);
@@ -112,12 +94,9 @@ private:
      * @tparam R the range type; must yield std::byte elements.
      * @param range the byte range to drain into the buffer.
      */
-    template<typename R>
-    void drain(R&& range) const
-    {
-        std::ranges::for_each(std::forward<R>(range), [this](std::byte byte) {
-            emit(byte);
-        });
+    template <typename R>
+    void drain(R &&range) const {
+        std::ranges::for_each(std::forward<R>(range), [this](std::byte byte) { emit(byte); });
     }
 
     /**
@@ -126,11 +105,9 @@ private:
      * @param view the string to view as bytes.
      * @return a lazy byte range over `view`'s characters.
      */
-    [[nodiscard]] static auto string_view_to_byte(std::string_view view) noexcept
-    {
-        return view | std::views::transform([](char character) {
-                   return static_cast<std::byte>(character);
-               });
+    [[nodiscard]] static auto string_view_to_byte(std::string_view view) noexcept {
+        return view | std::views::transform(
+                          [](char character) { return static_cast<std::byte>(character); });
     }
 
     /**
@@ -143,8 +120,7 @@ private:
     // EncodeStringAdaptor pipeline; not confident every path through the adaptor's
     // construction/iteration machinery is provably noexcept without tracing std::ranges
     // internals, so not stripping the noexcept or adding a speculative try/catch here.
-    [[nodiscard]] auto encode_string(std::string_view view) const noexcept
-    {
+    [[nodiscard]] auto encode_string(std::string_view view) const noexcept {
         return string_view_to_byte(view) |
                shared_codec::lowlevel::EncodeStringAdaptor<Width>{m_use_huffman};
     }
@@ -155,13 +131,9 @@ private:
      * table.
      * @param idx the 1-based unified table index the field is fully found at.
      */
-    void encode_indexed(UInt idx) const
-    {
-        drain(
-            idx | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                      7U, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD
-                  }
-        );
+    void encode_indexed(UInt idx) const {
+        drain(idx | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                        7U, shared_codec::PrefixHelper::HPACK_INDEXED_FIELD});
     }
 
     /**
@@ -172,25 +144,16 @@ private:
      * @param idx the 1-based unified table index the name is found at.
      * @param value the header value to encode as a literal and index.
      */
-    void encode_incremental(UInt idx, std::string_view value) const
-    {
+    void encode_incremental(UInt idx, std::string_view value) const {
         // Emit the index integer (6-bit prefix) followed by the value's encoded string.
         drain(
-            std::views::concat(
-                idx |
-                    shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                        6U, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING
-                    },
-                encode_string(value)
-            )
-        );
+            std::views::concat(idx |
+                                   shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                                       6U, shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING},
+                               encode_string(value)));
         // Resolve the name behind `idx` and index the fresh pair into the dynamic table.
-        std::visit(
-            [&](const auto& ptr) {
-                m_table.get().insert(ptr->get_name(), value);
-            },
-            m_table.get().at(idx)
-        );
+        std::visit([&](const auto &ptr) { m_table.get().insert(ptr->get_name(), value); },
+                   m_table.get().at(idx));
     }
 
     /**
@@ -200,20 +163,12 @@ private:
      * @param name the header name to encode as a literal and index.
      * @param value the header value to encode as a literal and index.
      */
-    void encode_incremental_new(std::string_view name, std::string_view value) const
-    {
+    void encode_incremental_new(std::string_view name, std::string_view value) const {
         // Prefix byte, then the name and value as encoded strings — no index needed since
         // both are fresh literals.
-        drain(
-            std::views::concat(
-                std::views::single(
-                    std::byte{
-                        std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING)
-                    }
-                ),
-                encode_string(name), encode_string(value)
-            )
-        );
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING)}),
+                                 encode_string(name), encode_string(value)));
         // Cache the pair for future reuse.
         m_table.get().insert(name, value);
     }
@@ -225,17 +180,12 @@ private:
      * @param idx the 1-based unified table index the name is found at.
      * @param value the header value to encode as a literal.
      */
-    void encode_without_indexing(UInt idx, std::string_view value) const
-    {
-        drain(
-            std::views::concat(
-                idx |
-                    shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                        4U, shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING
-                    },
-                encode_string(value)
-            )
-        );
+    void encode_without_indexing(UInt idx, std::string_view value) const {
+        drain(std::views::concat(
+            idx |
+                shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                    4U, shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING},
+            encode_string(value)));
     }
 
     /**
@@ -244,18 +194,10 @@ private:
      * @param name the header name to encode as a literal.
      * @param value the header value to encode as a literal.
      */
-    void encode_without_indexing_new(std::string_view name, std::string_view value) const
-    {
-        drain(
-            std::views::concat(
-                std::views::single(
-                    std::byte{std::to_underlying(
-                        shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING
-                    )}
-                ),
-                encode_string(name), encode_string(value)
-            )
-        );
+    void encode_without_indexing_new(std::string_view name, std::string_view value) const {
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING)}),
+                                 encode_string(name), encode_string(value)));
     }
 
     /**
@@ -267,17 +209,12 @@ private:
      * @param idx the 1-based unified table index the name is found at.
      * @param value the header value to encode as a literal.
      */
-    void encode_never_indexed(UInt idx, std::string_view value) const
-    {
+    void encode_never_indexed(UInt idx, std::string_view value) const {
         drain(
-            std::views::concat(
-                idx |
-                    shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                        4U, shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED
-                    },
-                encode_string(value)
-            )
-        );
+            std::views::concat(idx |
+                                   shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
+                                       4U, shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED},
+                               encode_string(value)));
     }
 
     /**
@@ -287,18 +224,10 @@ private:
      * @param name the header name to encode as a literal.
      * @param value the header value to encode as a literal.
      */
-    void encode_never_indexed_new(std::string_view name, std::string_view value) const
-    {
-        drain(
-            std::views::concat(
-                std::views::single(
-                    std::byte{
-                        std::to_underlying(shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)
-                    }
-                ),
-                encode_string(name), encode_string(value)
-            )
-        );
+    void encode_never_indexed_new(std::string_view name, std::string_view value) const {
+        drain(std::views::concat(std::views::single(std::byte{std::to_underlying(
+                                     shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED)}),
+                                 encode_string(name), encode_string(value)));
     }
 
     /**
@@ -308,8 +237,7 @@ private:
      * to match byte-for-byte on every request. Empty crumbs get silently skipped.
      * @param value the raw, unsplit Cookie header value.
      */
-    void encode_cookies(std::string_view value) const
-    {
+    void encode_cookies(std::string_view value) const {
         static constexpr std::string_view SEP = "; ";
         // Split the raw cookie string on "; " and encode each crumb as its own field.
         std::ranges::for_each(value | std::views::split(SEP), [&](auto crumb_range) {
@@ -320,9 +248,8 @@ private:
             }
             // Always WithIndexing for crumbs — search first so a repeat crumb reuses its
             // existing table entry instead of getting re-literal'd.
-            encode_hpack_field(
-                "cookie", crumb, EncodePolicy::WITH_INDEXING, m_table.get().search("cookie", crumb)
-            );
+            encode_hpack_field("cookie", crumb, EncodePolicy::WITH_INDEXING,
+                               m_table.get().search("cookie", crumb));
         });
     }
 
@@ -338,44 +265,39 @@ private:
      * @param result the table search result for `name`/`value`, used to pick indexed vs.
      * literal forms.
      */
-    void encode_hpack_field(
-        std::string_view name,
-        std::string_view value,
-        EncodePolicy policy,
-        shared_codec::SearchResult result
-    ) const
-    {
+    void encode_hpack_field(std::string_view name, std::string_view value, EncodePolicy policy,
+                            shared_codec::SearchResult result) const {
         switch (policy) {
-            // Indexing allowed — pick the cheapest representation the search result affords.
-            case EncodePolicy::WITH_INDEXING:
-                if (result.is_full_match()) {
-                    // Both name and value already in a table — just point at it.
-                    encode_indexed(static_cast<UInt>(result.index()));
-                } else if (result.found()) {
-                    // Name's known, value's fresh — index the name, literal the value.
-                    encode_incremental(static_cast<UInt>(result.index()), value);
-                } else {
-                    // Neither half is known — both go out as fresh literals.
-                    encode_incremental_new(name, value);
-                }
-                break;
-            // Caller doesn't want this cached, but the name can still ride an existing index.
-            case EncodePolicy::WITHOUT_INDEXING:
-                if (result.found()) {
-                    encode_without_indexing(static_cast<UInt>(result.index()), value);
-                } else {
-                    encode_without_indexing_new(name, value);
-                }
-                break;
-            // Sensitive header — same shape as WithoutIndexing, but flagged so intermediaries
-            // must forward it unindexed too.
-            case EncodePolicy::NEVER_INDEXED:
-                if (result.found()) {
-                    encode_never_indexed(static_cast<UInt>(result.index()), value);
-                } else {
-                    encode_never_indexed_new(name, value);
-                }
-                break;
+        // Indexing allowed — pick the cheapest representation the search result affords.
+        case EncodePolicy::WITH_INDEXING:
+            if (result.is_full_match()) {
+                // Both name and value already in a table — just point at it.
+                encode_indexed(static_cast<UInt>(result.index()));
+            } else if (result.found()) {
+                // Name's known, value's fresh — index the name, literal the value.
+                encode_incremental(static_cast<UInt>(result.index()), value);
+            } else {
+                // Neither half is known — both go out as fresh literals.
+                encode_incremental_new(name, value);
+            }
+            break;
+        // Caller doesn't want this cached, but the name can still ride an existing index.
+        case EncodePolicy::WITHOUT_INDEXING:
+            if (result.found()) {
+                encode_without_indexing(static_cast<UInt>(result.index()), value);
+            } else {
+                encode_without_indexing_new(name, value);
+            }
+            break;
+        // Sensitive header — same shape as WithoutIndexing, but flagged so intermediaries
+        // must forward it unindexed too.
+        case EncodePolicy::NEVER_INDEXED:
+            if (result.found()) {
+                encode_never_indexed(static_cast<UInt>(result.index()), value);
+            } else {
+                encode_never_indexed_new(name, value);
+            }
+            break;
         }
     }
 
@@ -386,10 +308,9 @@ private:
      * forced WithIndexing) and hands off to encode_hpack_field().
      * @param entry the header entry (static-token or dynamic-string field) to encode.
      */
-    void encode_entry(const interfaces::io::HeaderEntry& entry) const
-    {
+    void encode_entry(const interfaces::io::HeaderEntry &entry) const {
         std::visit(
-            [&](const auto& ptr) {
+            [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
                 // Static (Token-based) fields need their name translated to a string;
                 // dynamic fields already store their name as one.
@@ -417,8 +338,7 @@ private:
                     m_use_auto_policy ? policy_for(name) : EncodePolicy::WITH_INDEXING;
                 encode_hpack_field(name, VALUE, POLICY, m_table.get().search(name, VALUE));
             },
-            entry
-        );
+            entry);
     }
 
     mutable std::reference_wrapper<HPackTable> m_table;
@@ -427,24 +347,20 @@ private:
     FlushCallback m_on_flush;
     bool m_use_auto_policy;
     bool m_use_huffman;
-    mutable std::array<std::byte, 16'384> m_buf{};
+    mutable std::array<std::byte, 16384> m_buf{};
     mutable std::size_t m_buf_pos{0};
 };
 
-template<std::unsigned_integral UInt = std::uint32_t>
-class HpackTableSizeUpdateAdaptor :
-    public std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>>
-{
-public:
+template <std::unsigned_integral UInt = std::uint32_t>
+class HpackTableSizeUpdateAdaptor
+    : public std::ranges::range_adaptor_closure<HpackTableSizeUpdateAdaptor<UInt>> {
+  public:
     /**
      * @brief Wires up a range adaptor that applies a dynamic table size update as a side
      * effect of encoding it.
      * @param table the table to resize when the adaptor is invoked.
      */
-    explicit HpackTableSizeUpdateAdaptor(HPackTable& table) noexcept :
-        m_table{table}
-    {
-    }
+    explicit HpackTableSizeUpdateAdaptor(HPackTable &table) noexcept : m_table{table} {}
 
     /**
      * @brief Resizes `m_table` to `size` and emits the corresponding Dynamic Table Size Update
@@ -453,42 +369,33 @@ public:
      * @param size the new dynamic table max size in bytes.
      * @return a lazy range of the encoded update bytes.
      */
-    [[nodiscard]] auto operator()(UInt size) const
-    {
+    [[nodiscard]] auto operator()(UInt size) const {
         // Apply the resize to the table first, then produce the matching wire bytes —
         // table and wire never get to disagree since this is the only path in.
         m_table.get().set_max_size(size);
         return size | shared_codec::lowlevel::EncodeIntAdaptor<UInt>{
-                          5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE
-                      };
+                          5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
     }
 
-private:
+  private:
     std::reference_wrapper<HPackTable> m_table;
 };
 
-template<
-    std::unsigned_integral UInt = std::uint32_t,
-    int Width = 4,
-    typename Target = interfaces::io::IRequest>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4,
+          typename Target = interfaces::io::IRequest>
     requires shared_codec::DecodeWidth<Width>
-class HpackDecoderAdapter :
-    public std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width, Target>>
-{
-public:
+class HpackDecoderAdapter
+    : public std::ranges::range_adaptor_closure<HpackDecoderAdapter<UInt, Width, Target>> {
+  public:
     /**
      * @brief Wires up an HPACK decoder over a fixed table and header sink — decoding writes
      * headers straight into `target` as it goes, no intermediate buffer of decoded fields.
      * @param table the decoding-side dynamic table, mutated in place as indexed/literal fields
      * get inserted.
-     * @param target the request or response that decoded headers get pushed into via
-     * add_header().
+     * @param target the request or response that decoded headers get pushed into via add_header().
      */
-    explicit HpackDecoderAdapter(HPackTable& table, Target& target) noexcept :
-        m_table{table},
-        m_target{target}
-    {
-    }
+    explicit HpackDecoderAdapter(HPackTable &table, Target &target) noexcept
+        : m_table{table}, m_target{target} {}
 
     /**
      * @brief Walks a byte range field-by-field, detecting each representation type and
@@ -500,10 +407,9 @@ public:
      * @throws error::http::DecodeError if a byte's high bits don't match any known HPACK
      * representation type.
      */
-    template<std::ranges::viewable_range R>
+    template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] std::size_t operator()(R&& range) const
-    {
+    [[nodiscard]] std::size_t operator()(R &&range) const {
         auto data = std::forward<R>(range);
         const auto TOTAL = static_cast<std::size_t>(std::ranges::distance(data));
         std::size_t offset = 0;
@@ -512,7 +418,7 @@ public:
         // Walking `data` byte-by-byte is just how the loop advances — the actual
         // consumption is field-at-a-time via `offset`, so most iterations are no-ops
         // once `offset` has already caught up to (or past) the current position.
-        std::ranges::for_each(data, [&](const std::byte&) {
+        std::ranges::for_each(data, [&](const std::byte &) {
             // Whole range's consumed, nothing left to decode.
             if (offset >= TOTAL) {
                 return;
@@ -526,35 +432,29 @@ public:
             // many bytes it consumed.
             offset += [&]() -> std::size_t {
                 switch (rep_type) {
-                    case shared_codec::PrefixHelper::HPACK_INDEXED_FIELD:
-                        {
-                            return decode_indexed(slice);
-                        }
+                case shared_codec::PrefixHelper::HPACK_INDEXED_FIELD: {
+                    return decode_indexed(slice);
+                }
 
-                    case shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING:
-                        {
-                            return is_new ? decode_incremental_new(slice)
-                                          : decode_incremental(slice);
-                        }
+                case shared_codec::PrefixHelper::HPACK_LITERAL_WITH_INDEXING: {
+                    return is_new ? decode_incremental_new(slice) : decode_incremental(slice);
+                }
 
-                    case shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED:
-                    case shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING:
-                        {
-                            return is_new ? decode_literal_new<false>(slice)
-                                          : decode_literal<false>(slice, 4U);
-                        }
+                case shared_codec::PrefixHelper::HPACK_LITERAL_NEVER_INDEXED:
+                case shared_codec::PrefixHelper::HPACK_LITERAL_WITHOUT_INDEXING: {
+                    return is_new ? decode_literal_new<false>(slice)
+                                  : decode_literal<false>(slice, 4U);
+                }
 
-                    case shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE:
-                        {
-                            return decode_table_size_update(slice);
-                        }
+                case shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE: {
+                    return decode_table_size_update(slice);
+                }
 
-                    default:
-                        {
-                            // High bits didn't match any known representation — peer sent
-                            // garbage, nothing to do but bail.
-                            throw error::http::DecodeError{"invalid HPACK representation type"};
-                        }
+                default: {
+                    // High bits didn't match any known representation — peer sent
+                    // garbage, nothing to do but bail.
+                    throw error::http::DecodeError{"invalid HPACK representation type"};
+                }
                 }
             }();
         });
@@ -562,7 +462,7 @@ public:
         return offset;
     }
 
-private:
+  private:
     /**
      * @brief Peeks the first byte of a field to classify its representation type and whether
      * it's the "new name" variant (literal name follows) versus the "indexed name" variant —
@@ -573,9 +473,8 @@ private:
      * @return the detected PrefixHelper representation type paired with whether it's the
      * new-name variant.
      */
-    template<std::ranges::viewable_range R>
-    [[nodiscard]] std::pair<shared_codec::PrefixHelper, bool> detect(R&& range) const
-    {
+    template <std::ranges::viewable_range R>
+    [[nodiscard]] std::pair<shared_codec::PrefixHelper, bool> detect(R &&range) const {
         // Peek the representation byte and classify its high bits.
         const auto REP = std::forward<R>(range) | std::views::take(1) |
                          utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
@@ -604,23 +503,20 @@ private:
      * @param value the decoded header value.
      * @throws error::http::InvalidIndexError<UInt> if `idx` is 0.
      */
-    template<bool Indexable = true>
-    void push_helper(UInt idx, std::string_view value) const
-    {
+    template <bool Indexable = true>
+    void push_helper(UInt idx, std::string_view value) const {
         // 0 is never a valid index on the wire — a peer sending it is straight busted.
         if (idx == 0) {
             throw error::http::InvalidIndexError<UInt>{idx};
         }
         std::visit(
-            [&](const auto& ptr) {
+            [&](const auto &ptr) {
                 if constexpr (Indexable) {
                     // Incremental indexing — insert into the dynamic table, then push
                     // the freshly-inserted entry (not the lookup we started from) so
                     // it reflects whatever ended up actually stored.
                     const auto INS_IDX = m_table.get().insert(ptr->get_name(), value);
-                    if (
-                        auto entry = m_table.get()[HPackStatic::STATIC_SIZE + 1 + INS_IDX]
-                    ) { // FIXME(clang-tidy): unchecked operator[], consider .at()
+                    if (auto entry = m_table.get()[HPackStatic::STATIC_SIZE + 1 + INS_IDX]) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
                         add_field(*entry);
                     }
                 } else {
@@ -629,8 +525,7 @@ private:
                     m_target.get().add_header(ptr->get_name(), value);
                 }
             },
-            m_table.get().at(idx)
-        );
+            m_table.get().at(idx));
     }
 
     /**
@@ -642,9 +537,8 @@ private:
      * @param value the decoded header value.
      * @throws error::http::EmptyNameError if `name` is empty.
      */
-    template<bool Indexable = true>
-    void push_helper_new(std::string_view name, std::string_view value) const
-    {
+    template <bool Indexable = true>
+    void push_helper_new(std::string_view name, std::string_view value) const {
         // RFC 7541 forbids an empty header name — no cap, straight reject it.
         if (name.empty()) {
             throw error::http::EmptyNameError{};
@@ -652,11 +546,7 @@ private:
         if constexpr (Indexable) {
             // Index the fresh pair, then push whatever actually landed in the table.
             const auto INS_IDX = m_table.get().insert(name, value);
-            if (auto entry =
-                    m_table
-                        .get()[HPackStatic::STATIC_SIZE + 1 + INS_IDX]) { // FIXME(clang-tidy):
-                                                                          // unchecked operator[],
-                                                                          // consider .at()
+            if (auto entry = m_table.get()[HPackStatic::STATIC_SIZE + 1 + INS_IDX]) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
                 add_field(*entry);
             }
         } else {
@@ -671,23 +561,20 @@ private:
      * bet, no reason to leak the Token enum past this boundary.
      * @param entry the header entry (static-token or dynamic-string field) to add.
      */
-    void add_field(const interfaces::io::HeaderEntry& entry) const
-    {
+    void add_field(const interfaces::io::HeaderEntry &entry) const {
         std::visit(
-            [&](const auto& ptr) {
+            [&](const auto &ptr) {
                 using FieldType = std::decay_t<decltype(*ptr)>;
                 // Static fields store a Token, not a string — translate it back before
                 // it reaches the sink, which only deals in strings.
                 if constexpr (std::is_same_v<FieldType, interfaces::io::HeaderField<true>>) {
                     m_target.get().add_header(
-                        interfaces::io::types::token_to_string(ptr->get_name()), ptr->get_value()
-                    );
+                        interfaces::io::types::token_to_string(ptr->get_name()), ptr->get_value());
                 } else {
                     m_target.get().add_header(ptr->get_name(), ptr->get_value());
                 }
             },
-            entry
-        );
+            entry);
     }
 
     // 1xxxxxxx
@@ -699,9 +586,8 @@ private:
      * @return the number of bytes consumed by the integer.
      * @throws error::http::InvalidIndexError<UInt> if the decoded index is 0.
      */
-    template<std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_indexed(R&& range) const
-    {
+    template <std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_indexed(R &&range) const {
         // Pull the 7-bit-prefixed integer index off the wire.
         const auto IDX =
             std::forward<R>(range) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{7U};
@@ -723,9 +609,8 @@ private:
      * @param range the byte range to decode from.
      * @return the total bytes consumed (index integer + value string).
      */
-    template<std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_incremental(R&& range) const
-    {
+    template <std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_incremental(R &&range) const {
         auto data = std::forward<R>(range);
         // Decode the name index (6-bit prefix) first — `data` is reused right after for the
         // value string, so this first pass reads it as an lvalue rather than forwarding
@@ -748,9 +633,8 @@ private:
      * @return the total bytes consumed (name string + value string, including the leading
      * prefix byte folded into the name's count).
      */
-    template<std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_incremental_new(R&& range) const
-    {
+    template <std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_incremental_new(R &&range) const {
         auto data = std::forward<R>(range);
         // Skip the single prefix byte and decode the literal name string.
         auto [name, name_size] =
@@ -781,9 +665,8 @@ private:
      * here).
      * @return the total bytes consumed (index integer + value string).
      */
-    template<bool Indexable, std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_literal(R&& range, std::uint8_t prefix_bits) const
-    {
+    template <bool Indexable, std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_literal(R &&range, std::uint8_t prefix_bits) const {
         auto data = std::forward<R>(range);
         // Decode the name index, width given by the caller (4 bits for both variants
         // that reach this helper), then the literal value string right after it.
@@ -805,9 +688,8 @@ private:
      * @param range the byte range to decode from.
      * @return the total bytes consumed (name string + value string).
      */
-    template<bool Indexable, std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_literal_new(R&& range) const
-    {
+    template <bool Indexable, std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_literal_new(R &&range) const {
         auto data = std::forward<R>(range);
         // Same prefix-byte-skip-then-decode-name shape as decode_incremental_new().
         auto [name, name_size] =
@@ -833,9 +715,8 @@ private:
      * @throws error::http::TableSizeError if the requested size exceeds the table's configured
      * maximum — the peer isn't allowed to grow past what was negotiated.
      */
-    template<std::ranges::viewable_range R>
-    [[nodiscard]] std::size_t decode_table_size_update(R&& data) const
-    {
+    template <std::ranges::viewable_range R>
+    [[nodiscard]] std::size_t decode_table_size_update(R &&data) const {
         // Decode the 5-bit-prefixed new size integer.
         const auto NEW_SIZE =
             std::forward<R>(data) | shared_codec::lowlevel::DecodeIntAdaptor<UInt>{5U};
@@ -852,11 +733,10 @@ private:
     std::reference_wrapper<Target> m_target;
 };
 
-template<std::unsigned_integral UInt = std::uint32_t, int Width = 4>
+template <std::unsigned_integral UInt = std::uint32_t, int Width = 4>
     requires shared_codec::DecodeWidth<Width>
-class Hpack
-{
-public:
+class Hpack {
+  public:
     /**
      * @brief Wires up the top-level HPACK codec facade — separate encoding/decoding tables
      * since a connection's send and receive directions each track their own dynamic table
@@ -870,22 +750,11 @@ public:
      * client session (inbound headers decode into `res`).
      * @param use_huffman when true, encoded string literals get Huffman-coded.
      */
-    explicit Hpack(
-        HPackTable& decoding_table,
-        HPackTable& encoding_table,
-        interfaces::io::IRequest& req,
-        interfaces::io::IResponse& res,
-        bool is_server,
-        bool use_huffman = true
-    ) noexcept :
-        m_encoding_table{encoding_table},
-        m_decoding_table{decoding_table},
-        m_request{req},
-        m_response{res},
-        m_is_server{is_server},
-        m_use_huffman{use_huffman}
-    {
-    }
+    explicit Hpack(HPackTable &decoding_table, HPackTable &encoding_table,
+                   interfaces::io::IRequest &req, interfaces::io::IResponse &res, bool is_server,
+                   bool use_huffman = true) noexcept
+        : m_encoding_table{encoding_table}, m_decoding_table{decoding_table}, m_request{req},
+          m_response{res}, m_is_server{is_server}, m_use_huffman{use_huffman} {}
 
     /**
      * @brief Builds an HpackEncoder over the response's current headers — call the returned
@@ -898,10 +767,9 @@ public:
      * (never-index sensitive headers); when false, everything is WithIndexing.
      * @return a configured HpackEncoder, ready to invoke.
      */
-    template<std::ranges::range R>
-    [[nodiscard]] auto
-    encode(HpackEncoder<UInt, Width>::FlushCallback&& on_flush, bool use_auto_policy = true)
-    {
+    template <std::ranges::range R>
+    [[nodiscard]] auto encode(HpackEncoder<UInt, Width>::FlushCallback &&on_flush,
+                              bool use_auto_policy = true) {
         return HpackEncoder<UInt, Width>{
             m_encoding_table, m_response.get().get_headers(), std::move(on_flush), use_auto_policy,
             m_use_huffman,
@@ -910,27 +778,23 @@ public:
 
     /**
      * @brief Decodes a full HPACK byte block into the role-appropriate sink — `m_request` on a
-     * server, `m_response` on a client — using the decoding table for index resolution and
-     * inserts.
+     * server, `m_response` on a client — using the decoding table for index resolution and inserts.
      * @tparam R a viewable range whose elements are std::byte.
      * @param data the encoded HPACK bytes to decode.
      * @return the total number of bytes consumed.
      * @throws error::http::DecodeError if a representation byte doesn't match any known type.
      */
-    template<std::ranges::viewable_range R>
+    template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] std::size_t decode(R&& data)
-    {
+    [[nodiscard]] std::size_t decode(R &&data) {
         if (m_is_server) {
             return std::views::all(std::forward<R>(data)) |
-                   HpackDecoderAdapter<UInt, Width, interfaces::io::IRequest>{
-                       m_decoding_table, m_request
-                   };
+                   HpackDecoderAdapter<UInt, Width, interfaces::io::IRequest>{m_decoding_table,
+                                                                             m_request};
         }
         return std::views::all(std::forward<R>(data)) |
-               HpackDecoderAdapter<UInt, Width, interfaces::io::IResponse>{
-                   m_decoding_table, m_response
-               };
+               HpackDecoderAdapter<UInt, Width, interfaces::io::IResponse>{m_decoding_table,
+                                                                          m_response};
     }
 
     /**
@@ -946,10 +810,9 @@ public:
      * @return the total number of bytes consumed.
      * @throws error::http::DecodeError if a representation byte doesn't match any known type.
      */
-    template<std::ranges::viewable_range R>
+    template <std::ranges::viewable_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    [[nodiscard]] std::size_t decode_into(interfaces::io::IRequest& target, R&& data)
-    {
+    [[nodiscard]] std::size_t decode_into(interfaces::io::IRequest &target, R &&data) {
         return std::views::all(std::forward<R>(data)) |
                HpackDecoderAdapter<UInt, Width>{m_decoding_table, target};
     }
@@ -960,12 +823,11 @@ public:
      * @param size the new dynamic table max size in bytes.
      * @return a lazy range of the encoded update bytes.
      */
-    [[nodiscard]] auto encode_table_size_update(UInt size)
-    {
+    [[nodiscard]] auto encode_table_size_update(UInt size) {
         return size | HpackTableSizeUpdateAdaptor<UInt>{m_encoding_table};
     }
 
-private:
+  private:
     std::reference_wrapper<HPackTable> m_encoding_table;
     std::reference_wrapper<HPackTable> m_decoding_table;
     std::reference_wrapper<interfaces::io::IRequest> m_request;
@@ -983,26 +845,20 @@ using namespace boost::ut;
 // Minimal decode target: HpackDecoderAdapter is templated on Target purely so it can be
 // unit-tested without pulling in a real io_layer_http2 request (which imports this module,
 // so a real one would be circular).
-class FakeHeaderTarget
-{
-public:
-    void add_header(std::string_view name, std::string_view value)
-    {
+class FakeHeaderTarget {
+  public:
+    void add_header(std::string_view name, std::string_view value) {
         m_headers.emplace_back(std::string(name), std::string(value));
     }
-
-    void add_header(interfaces::io::types::Token token, std::string_view value)
-    {
+    void add_header(interfaces::io::types::Token token, std::string_view value) {
         add_header(interfaces::io::types::token_to_string(token), value);
     }
 
-    [[nodiscard]] const std::vector<std::pair<std::string, std::string>>&
-    get_headers() const noexcept
-    {
+    [[nodiscard]] const std::vector<std::pair<std::string, std::string>> &get_headers() const noexcept {
         return m_headers;
     }
 
-private:
+  private:
     std::vector<std::pair<std::string, std::string>> m_headers;
 };
 
@@ -1013,16 +869,14 @@ suite<"HpackEncoder"> hpack_encoder_suite = [] {
         HPackTable table;
         std::vector<interfaces::io::HeaderEntry> headers{
             std::make_shared<interfaces::io::HeaderField<true>>(
-                interfaces::io::types::Token::METHOD, "GET"
-            )
-        };
+                interfaces::io::types::Token::METHOD, "GET")};
         std::vector<std::byte> encoded;
 
         HpackEncoder<std::uint32_t, 4> encoder{
-            table, headers, 16'384, [&](std::span<const std::byte> chunk, HpackFlushReason) {
+            table, headers, 16384,
+            [&](std::span<const std::byte> chunk, HpackFlushReason) {
                 encoded.insert(encoded.end(), chunk.begin(), chunk.end());
-            }
-        };
+            }};
         encoder();
 
         expect(encoded.size() == 1U);
@@ -1035,59 +889,19 @@ suite<"HpackEncoder"> hpack_encoder_suite = [] {
     "encoding a fresh literal header inserts it into the dynamic table"_test = [] {
         HPackTable table;
         std::vector<interfaces::io::HeaderEntry> headers{
-            std::make_shared<interfaces::io::HeaderField<false>>("x-custom", "value1")
-        };
+            std::make_shared<interfaces::io::HeaderField<false>>("x-custom", "value1")};
         std::vector<std::byte> encoded;
 
         HpackEncoder<std::uint32_t, 4> encoder{
-            table,
-            headers,
-            16'384,
+            table, headers, 16384,
             [&](std::span<const std::byte> chunk, HpackFlushReason) {
                 encoded.insert(encoded.end(), chunk.begin(), chunk.end());
             },
-            false,
-            false
-        };
+            false, false};
         encoder();
 
         expect(not encoded.empty());
         expect(table.dynamic_count() == 1U);
-    };
-
-    // Pins the exact-16384-byte flush boundary at the safe `max_frame_size` default (matching
-    // `m_buf`'s fixed capacity). A `max_frame_size` above 16384 would make the `m_buf_pos ==
-    // m_flush_size` check unreachable before `m_buf`'s array bound — a real OOB write — so that
-    // case is deliberately NOT exercised here for test-binary safety.
-    "a header block landing exactly at the 16384-byte boundary flushes right there"_test = [] {
-        HPackTable table;
-        // name="x" (2 encoded bytes: 1 length-prefix + 1 char), value is 16378 raw chars (3
-        // length-prefix bytes since 16378 - 127 needs two 7-bit continuation octets, + 16378
-        // char bytes = 16381), plus the 1 literal-with-indexing prefix byte: 1 + 2 + 16381 =
-        // 16384 exactly.
-        const std::string VALUE(16'378, 'a');
-        std::vector<interfaces::io::HeaderEntry> headers{
-            std::make_shared<interfaces::io::HeaderField<false>>("x", VALUE)
-        };
-
-        std::vector<std::pair<std::size_t, HpackFlushReason>> flushes;
-        HpackEncoder<std::uint32_t, 4> encoder{
-            table,
-            headers,
-            16'384,
-            [&](std::span<const std::byte> chunk, HpackFlushReason reason) {
-                flushes.emplace_back(chunk.size(), reason);
-            },
-            false,
-            false
-        };
-        encoder();
-
-        expect(flushes.size() == 2U) << fatal;
-        expect(flushes[0].first == 16'384U);
-        expect(flushes[0].second == HpackFlushReason::OVERFLOW);
-        expect(flushes[1].first == 0U);
-        expect(flushes[1].second == HpackFlushReason::END);
     };
 };
 
@@ -1103,15 +917,11 @@ suite<"HpackEncoder/HpackDecoderAdapter round-trip"> hpack_round_trip_suite = []
         std::vector<std::byte> encoded;
 
         HpackEncoder<std::uint32_t, 4> encoder{
-            encode_table,
-            headers,
-            16'384,
+            encode_table, headers, 16384,
             [&](std::span<const std::byte> chunk, HpackFlushReason) {
                 encoded.insert(encoded.end(), chunk.begin(), chunk.end());
             },
-            false,
-            false
-        };
+            false, false};
         encoder();
 
         FakeHeaderTarget target;
@@ -1132,21 +942,16 @@ suite<"HpackEncoder/HpackDecoderAdapter round-trip"> hpack_round_trip_suite = []
 
         std::vector<interfaces::io::HeaderEntry> headers{
             std::make_shared<interfaces::io::HeaderField<true>>(
-                interfaces::io::types::Token::COOKIE, "a=1; b=2"
-            ),
+                interfaces::io::types::Token::COOKIE, "a=1; b=2"),
         };
         std::vector<std::byte> encoded;
 
         HpackEncoder<std::uint32_t, 4> encoder{
-            encode_table,
-            headers,
-            16'384,
+            encode_table, headers, 16384,
             [&](std::span<const std::byte> chunk, HpackFlushReason) {
                 encoded.insert(encoded.end(), chunk.begin(), chunk.end());
             },
-            false,
-            false
-        };
+            false, false};
         encoder();
 
         FakeHeaderTarget target;
@@ -1168,9 +973,8 @@ suite<"HpackDecoderAdapter error paths"> hpack_decoder_error_suite = [] {
         TestDecoder decoder{table, target};
         std::vector<std::byte> encoded{std::byte{0x80}};
 
-        expect(throws<error::http::InvalidIndexError<std::uint32_t>>([&] {
-            std::ignore = decoder(encoded);
-        }));
+        expect(throws<error::http::InvalidIndexError<std::uint32_t>>(
+            [&] { std::ignore = decoder(encoded); }));
     };
 
     "decoding a table size update past the negotiated max throws"_test = [] {
@@ -1179,13 +983,10 @@ suite<"HpackDecoderAdapter error paths"> hpack_decoder_error_suite = [] {
         TestDecoder decoder{table, target};
 
         auto size_range = 200U | shared_codec::lowlevel::EncodeIntAdaptor<std::uint32_t>{
-                                     5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE
-                                 };
+                                     5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
         std::vector<std::byte> encoded(size_range.begin(), size_range.end());
 
-        expect(throws<error::http::TableSizeError>([&] {
-            std::ignore = decoder(encoded);
-        }));
+        expect(throws<error::http::TableSizeError>([&] { std::ignore = decoder(encoded); }));
     };
 
     "decoding a within-budget table size update resizes the table"_test = [] {
@@ -1194,8 +995,7 @@ suite<"HpackDecoderAdapter error paths"> hpack_decoder_error_suite = [] {
         TestDecoder decoder{table, target};
 
         auto size_range = 20U | shared_codec::lowlevel::EncodeIntAdaptor<std::uint32_t>{
-                                    5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE
-                                };
+                                    5U, shared_codec::PrefixHelper::HPACK_DYNAMIC_TABLE_SIZE_UPDATE};
         std::vector<std::byte> encoded(size_range.begin(), size_range.end());
         std::ignore = decoder(encoded);
 
@@ -1255,8 +1055,7 @@ suite<"HpackTableSizeUpdateAdaptor"> hpack_table_size_update_adaptor_suite = [] 
 //                     const auto value = ptr->get_value();
 //
 //                     const EncodePolicy policy =
-//                         use_auto_encoding_policy ? policy_for(name) :
-//                         EncodePolicy::WITH_INDEXING;
+//                         use_auto_encoding_policy ? policy_for(name) : EncodePolicy::WITH_INDEXING;
 //
 //                     shared_codec::SearchResult result = m_encoding_table.get().search(name,
 //                     value);

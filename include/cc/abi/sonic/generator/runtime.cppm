@@ -10,7 +10,7 @@ import cc_abi_builder_generator;
 import :definition;
 import :function;
 
-export namespace ice::sonic::generator {
+export namespace ice::sonic {
 
 // Runtime — the mainframe-facing generator handle. Unifies the two ways a named
 // generator can be reached:
@@ -208,4 +208,4 @@ private:
     std::optional<Function> m_open_function;
 };
 
-} // namespace ice::sonic::generator
+} // namespace ice::sonic

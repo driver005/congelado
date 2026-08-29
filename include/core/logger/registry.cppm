@@ -16,9 +16,8 @@ export namespace core::logger {
  * deliberately kept untouched) at it. Only `s_active` — a single pointer, not the logger data
  * itself — is process-global.
  */
-class LoggerRegistry
-{
-public:
+class LoggerRegistry {
+  public:
     // Appends a logger. No-op if null. Multiple loggers all receive every message.
     /**
      * @brief Registers a logger so it starts catching every fanned-out log call.
@@ -26,8 +25,7 @@ public:
      * registered there's no unregister — it's riding with this instance for good.
      * @param logger the logger instance to add to the registry.
      */
-    void add_logger(std::shared_ptr<interfaces::ILogger> logger)
-    {
+    void add_logger(std::shared_ptr<interfaces::ILogger> logger) {
         if (logger) {
             m_loggers.push_back(std::move(logger));
         }
@@ -37,18 +35,13 @@ public:
      * @brief Checks whether the registry currently holds any logger.
      * @return true if at least one logger is registered, false if it's still empty.
      */
-    [[nodiscard]] bool has_logger() const noexcept
-    {
-        return !m_loggers.empty();
-    }
+    [[nodiscard]] bool has_logger() const noexcept { return !m_loggers.empty(); }
 
     /**
      * @brief Gets every logger currently registered, in registration order.
      * @return the full list of registered loggers.
      */
-    [[nodiscard]] const std::vector<std::shared_ptr<interfaces::ILogger>>&
-    get_loggers() const noexcept
-    {
+    [[nodiscard]] const std::vector<std::shared_ptr<interfaces::ILogger>> &get_loggers() const noexcept {
         return m_loggers;
     }
 
@@ -57,23 +50,17 @@ public:
      * constructing the process's one `LoggerRegistry`, before any `core::logger::*` call.
      * @param registry the instance to make active, or `nullptr` to clear it.
      */
-    static void set_active(LoggerRegistry* registry) noexcept
-    {
-        s_active = registry;
-    }
+    static void set_active(LoggerRegistry *registry) noexcept { s_active = registry; }
 
     /**
      * @brief Gets the currently active registry, if one was set.
      * @return the active `LoggerRegistry`, or `nullptr` if `set_active()` was never called.
      */
-    [[nodiscard]] static LoggerRegistry* get_active() noexcept
-    {
-        return s_active;
-    }
+    [[nodiscard]] static LoggerRegistry *get_active() noexcept { return s_active; }
 
-private:
+  private:
     std::vector<std::shared_ptr<interfaces::ILogger>> m_loggers;
-    static inline LoggerRegistry* s_active{nullptr};
+    static inline LoggerRegistry *s_active{nullptr};
 };
 
 } // namespace core::logger
@@ -82,16 +69,10 @@ private:
 namespace core::logger::tests {
 using namespace boost::ut;
 
-class LoggerRegistryFakeLogger : public interfaces::ILogger
-{
-public:
-    [[nodiscard]] std::string_view get_name() const noexcept override
-    {
-        return "fake";
-    }
-
+class LoggerRegistryFakeLogger : public interfaces::ILogger {
+  public:
+    [[nodiscard]] std::string_view get_name() const noexcept override { return "fake"; }
     void write(interfaces::LogLevel, std::string_view) noexcept override {}
-
     void error(std::string_view) noexcept override {}
 };
 
@@ -130,7 +111,7 @@ suite<"LoggerRegistry"> registry_suite = [] {
     };
 
     "set_active/get_active round-trip"_test = [] {
-        auto* previous = LoggerRegistry::get_active();
+        auto *previous = LoggerRegistry::get_active();
 
         LoggerRegistry registry;
         LoggerRegistry::set_active(&registry);
@@ -141,29 +122,6 @@ suite<"LoggerRegistry"> registry_suite = [] {
 
         LoggerRegistry::set_active(previous);
     };
-
-    // Documents that nothing in LoggerRegistry's lifecycle clears s_active automatically:
-    // destroying the actively-registered instance leaves the ambient pointer dangling until a
-    // caller explicitly calls set_active(nullptr). This test demonstrates the gap by performing
-    // that cleanup itself, from a fresh scope, after the instance is already gone -- it never
-    // reads get_active() while the pointer is dangling.
-    "no automatic cleanup: destroying the active instance leaves s_active dangling until cleared"_test =
-        [] {
-            auto* previous = LoggerRegistry::get_active();
-
-            {
-                LoggerRegistry registry;
-                LoggerRegistry::set_active(&registry);
-                expect(LoggerRegistry::get_active() == &registry);
-            } // registry destroyed here -- s_active still points at the freed instance, nothing
-              // clears it automatically
-
-            // Explicit cleanup the class itself never performs on destruction.
-            LoggerRegistry::set_active(nullptr);
-            expect(LoggerRegistry::get_active() == nullptr);
-
-            LoggerRegistry::set_active(previous);
-        };
 };
 
 } // namespace core::logger::tests

@@ -32,7 +32,6 @@ AllowShortNamespacesOnASingleLine: false
 
 # ── Line breaking ─────────────────────────────────────────────────────────────
 ColumnLimit: 100
-AllowAllParametersOfDeclarationOnNextLine: true
 BreakAdjacentStringLiterals: true
 BreakAfterReturnType: ExceptShortType
 BreakBeforeBinaryOperators: None
@@ -44,8 +43,11 @@ BreakInheritanceList: AfterColon
 BreakStringLiterals: true
 BreakTemplateDeclarations: Yes
 AlwaysBreakBeforeMultilineStrings: false
-BinPackParameters: OnePerLine
 PackConstructorInitializers: Never
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
 
 # ── Alignment ─────────────────────────────────────────────────────────────────
 AlignAfterOpenBracket: BlockIndent

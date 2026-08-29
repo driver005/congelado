@@ -2,11 +2,11 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
     name = "cc_abi_sonic_io",
-    primary_interface = "io_module.cppm",
+    primary_interface = "io.cppm",
     partitions = [
-        "io.cppm",
-        "request.cppm",
-        "response.cppm",
+        "enums.cppm",
+        "leaves.cppm",
+        "registration.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",

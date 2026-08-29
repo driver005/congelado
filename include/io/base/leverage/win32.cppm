@@ -122,7 +122,7 @@ public:
     {
         // stash the op's own address in its OVERLAPPED so process_completions() can find its
         // way back from the completion packet alone
-        op->overlapped.hEvent = reinterpret_cast<HANDLE>(op.get());
+        op->overlapped.hEvent = std::bit_cast<HANDLE>(op.get());
         m_pending_ops.fetch_add(1);
 
         // hand ownership off to the OS/completion port — reclaimed manually later
@@ -155,7 +155,7 @@ public:
             }
 
             // walk back from the OVERLAPPED to the pending_op that submit_async() stashed it in
-            auto* op = reinterpret_cast<pending_op*>(overlapped->hEvent);
+            auto* op = std::bit_cast<pending_op*>(overlapped->hEvent);
 
             // success carries the byte count; failure carries a negative GetLastError()
             int op_result;

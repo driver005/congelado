@@ -1,0 +1,72 @@
+module;
+
+#include "c/extern/profiler/profiler.h"
+
+export module cc_abi_sonic_profiler;
+
+import std;
+import cc_abi_sonic_intern;
+import cc_abi_primitives;
+import cc_abi_sonic_registration;
+export namespace ice::sonic {
+
+// Runtime — the mainframe-facing profiler handle. Unlike ice::sonic::Cache and the
+// other domains under cc/abi/sonic, this always crosses the TF_Profiler_* C ABI — no
+// in-process RegistrationRuntime fast path. A profiler plugin is exactly the kind of
+// independently-built, possibly-different-toolchain third party this codebase needs real
+// binary compatibility with; handing a raw C++ object across that boundary and calling virtual
+// methods on it directly (the in-process shortcut every other domain used to have) isn't safe
+// for that case, so this domain never grew one.
+class Profiler : public ice::sonic::Runtime<Profiler, TF_Profiler, /*PassNameToFactory=*/true>
+{
+public:
+    static constexpr std::string_view domain_name = "profiler";
+
+    ice::String get_device_type() const
+    {
+
+        ice::String tf_device_type;
+        this->m_ops->get_device_type(this->get_handle(), tf_device_type.get_handle());
+        return std::move(tf_device_type);
+    }
+
+    std::expected<void, ice::Status> start()
+    {
+
+        ice::Status status;
+        this->m_ops->start(this->get_handle(), status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    std::expected<void, ice::Status> stop()
+    {
+
+        ice::Status status;
+        this->m_ops->stop(this->get_handle(), status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    std::expected<void, ice::Status>
+    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes)
+    {
+
+        ice::Status status;
+        this->m_ops->collect_data_xspace(this->get_handle(), buffer, size_in_bytes, status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    // Underlying handle — pass directly to the C ABI
+public:
+    explicit Profiler(TF_Profiler* ops, void* plugin_context) : Runtime(ops, plugin_context) {}
+};
+
+} // namespace ice::sonic

@@ -5,56 +5,33 @@ module;
 export module cc_abi_sonic_intern:buffer;
 
 import std;
-
+import :runtime_base;
 export namespace ice::sonic {
 
-// BufferRuntime — non-owning, read-only view over a `const TF_Buffer*` received from a
-// plugin. No allocation, no destructor cleanup.
-class BufferRuntime
+class Buffer : public Runtime<Buffer, TF_Buffer, true>
 {
 public:
-    BufferRuntime() :
-        m_buffer{nullptr}
+    static constexpr std::string_view domain_name = "buffer";
+
+    TF_Buffer_Handle* new_buffer_from_string(const void* proto, size_t proto_len)
     {
+        return m_ops->TF_NewBufferFromString(m_host_context, proto, proto_len);
     }
 
-    explicit BufferRuntime(const TF_Buffer* buffer) :
-        m_buffer{buffer}
+    TF_Buffer_Handle* new_buffer()
     {
+        return m_ops->TF_NewBuffer(m_host_context);
     }
 
-    bool is_valid() const
+    void delete_buffer(TF_Buffer_Handle* buffer)
     {
-        return m_buffer != nullptr;
+        m_ops->TF_DeleteBuffer(m_host_context, buffer);
     }
 
-    const void* get_data() const
+    TF_Buffer_Handle get_buffer(TF_Buffer_Handle* buffer)
     {
-        return m_buffer ? m_buffer->data : nullptr;
+        return m_ops->TF_GetBuffer(m_host_context, buffer);
     }
-
-    size_t get_length() const
-    {
-        return m_buffer ? m_buffer->length : 0;
-    }
-
-    std::string to_string() const
-    {
-
-        if (!m_buffer) {
-            return std::string();
-        }
-        return std::string(reinterpret_cast<const char*>(m_buffer->data), m_buffer->length);
-    }
-
-    // Underlying handle — pass directly to the C ABI
-    const TF_Buffer* get_handle() const
-    {
-        return m_buffer;
-    }
-
-private:
-    const TF_Buffer* m_buffer;
 };
 
 } // namespace ice::sonic

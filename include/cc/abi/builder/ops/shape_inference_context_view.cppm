@@ -4,8 +4,10 @@ module;
 
 export module cc_abi_builder:shape_inference_context_view;
 
+import std;
+import cc_abi_primitives;
 import cc_abi_sonic_intern;
-import cc_abi_value;
+import cc_abi_builder_intern;
 import :shape_handle;
 import :dimension_handle;
 
@@ -46,20 +48,30 @@ public:
         return TF_ShapeInferenceContextNumInputs(m_handle);
     }
 
-    ShapeHandle get_input(int i, TF_Status* status)
+    [[nodiscard]] std::expected<ShapeHandle, ice::Status> get_input(int i)
     {
 
+        ice::Status status;
         ShapeHandle handle = ShapeHandle::create();
-        TF_ShapeInferenceContextGetInput(m_handle, i, handle.get_handle(), status);
+        TF_ShapeInferenceContextGetInput(m_handle, i, handle.get_handle(), status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
         return handle;
     }
 
-    void set_output(int i, const ShapeHandle& handle, TF_Status* status)
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_output(int i, const ShapeHandle& handle)
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextSetOutput(
-            m_handle, i, const_cast<TF_ShapeHandle*>(handle.get_handle()), status
+            m_handle, i, const_cast<TF_ShapeHandle*>(handle.get_handle()), status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     ShapeHandle scalar()
@@ -72,12 +84,20 @@ public:
         return ShapeHandle(TF_ShapeInferenceContextVectorFromSize(m_handle, size));
     }
 
-    void get_attr_type(const ice::sonic::StringRuntime& attr_name, DataType* val, TF_Status* status)
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_attr_type(const ice::String& attr_name, DataTypeEnum* val)
     {
 
-        TF_DataType raw = static_cast<TF_DataType>(0);
-        TF_ShapeInferenceContext_GetAttrType(m_handle, attr_name.c_str(), &raw, status);
-        *val = static_cast<DataType>(raw);
+        ice::Status status;
+        TF_DataType_Enum raw = static_cast<TF_DataType_Enum>(0);
+        TF_ShapeInferenceContext_GetAttrType(
+            m_handle, attr_name.c_str(), &raw, status.get_handle()
+        );
+        *val = data_type_from_c(raw);
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     int64_t rank(const ShapeHandle& handle) const
@@ -94,35 +114,49 @@ public:
         );
     }
 
-    void with_rank(const ShapeHandle& handle, int64_t rank, ShapeHandle* result, TF_Status* status)
+    [[nodiscard]] std::expected<void, ice::Status>
+    with_rank(const ShapeHandle& handle, int64_t rank, ShapeHandle* result)
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextWithRank(
             m_handle, const_cast<TF_ShapeHandle*>(handle.get_handle()), rank, result->get_handle(),
-            status
+            status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
-    void with_rank_at_least(
-        const ShapeHandle& handle, int64_t rank, ShapeHandle* result, TF_Status* status
-    )
+    [[nodiscard]] std::expected<void, ice::Status>
+    with_rank_at_least(const ShapeHandle& handle, int64_t rank, ShapeHandle* result)
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextWithRankAtLeast(
             m_handle, const_cast<TF_ShapeHandle*>(handle.get_handle()), rank, result->get_handle(),
-            status
+            status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
-    void with_rank_at_most(
-        const ShapeHandle& handle, int64_t rank, ShapeHandle* result, TF_Status* status
-    )
+    [[nodiscard]] std::expected<void, ice::Status>
+    with_rank_at_most(const ShapeHandle& handle, int64_t rank, ShapeHandle* result)
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextWithRankAtMost(
             m_handle, const_cast<TF_ShapeHandle*>(handle.get_handle()), rank, result->get_handle(),
-            status
+            status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     void dim(const ShapeHandle& shape_handle, int64_t i, DimensionHandle* result)
@@ -134,24 +168,31 @@ public:
         );
     }
 
-    void subshape(
-        const ShapeHandle& shape_handle,
-        int64_t start,
-        int64_t end,
-        ShapeHandle* result,
-        TF_Status* status
+    [[nodiscard]] std::expected<void, ice::Status> subshape(
+        const ShapeHandle& shape_handle, int64_t start, int64_t end, ShapeHandle* result
     )
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextSubshape(
             m_handle, const_cast<TF_ShapeHandle*>(shape_handle.get_handle()), start, end,
-            result->get_handle(), status
+            result->get_handle(), status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
-    void set_unknown_shape(TF_Status* status)
+    [[nodiscard]] std::expected<void, ice::Status> set_unknown_shape()
     {
-        TF_ShapeInferenceContextSetUnknownShape(m_handle, status);
+
+        ice::Status status;
+        TF_ShapeInferenceContextSetUnknownShape(m_handle, status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     bool dimension_value_known(const DimensionHandle& dim_handle) const
@@ -166,15 +207,21 @@ public:
         return TF_DimensionHandleValue(const_cast<TF_DimensionHandle*>(dim_handle.get_handle()));
     }
 
-    void concatenate_shapes(
-        const ShapeHandle& first, const ShapeHandle& second, ShapeHandle* result, TF_Status* status
+    [[nodiscard]] std::expected<void, ice::Status> concatenate_shapes(
+        const ShapeHandle& first, const ShapeHandle& second, ShapeHandle* result
     )
     {
 
+        ice::Status status;
         TF_ShapeInferenceContextConcatenateShapes(
             m_handle, const_cast<TF_ShapeHandle*>(first.get_handle()),
-            const_cast<TF_ShapeHandle*>(second.get_handle()), result->get_handle(), status
+            const_cast<TF_ShapeHandle*>(second.get_handle()), result->get_handle(),
+            status.get_handle()
         );
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 
     // Underlying handle — pass directly to the C ABI

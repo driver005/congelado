@@ -4,23 +4,37 @@ module;
 
 export module cc_abi_builder_env:dynamic_library;
 
-import cc_abi_builder_intern;
+import std;
+import cc_abi_primitives;
+import cc_abi_sonic_intern;
 
 export namespace ice::builder {
 
 class DynamicLibrary
 {
 public:
-    static void* load(const char* library_filename, TF_Status* status)
+    [[nodiscard]] static std::expected<void*, ice::Status>
+    load(const ice::String& library_filename)
     {
 
-        return TF_LoadSharedLibrary(library_filename, status);
+        ice::Status status;
+        void* handle = TF_LoadSharedLibrary(library_filename.c_str(), status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return handle;
     }
 
-    static void* get_symbol(void* handle, const char* symbol_name, TF_Status* status)
+    [[nodiscard]] static std::expected<void*, ice::Status>
+    get_symbol(void* handle, const ice::String& symbol_name)
     {
 
-        return TF_GetSymbolFromLibrary(handle, symbol_name, status);
+        ice::Status status;
+        void* symbol = TF_GetSymbolFromLibrary(handle, symbol_name.c_str(), status.get_handle());
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return symbol;
     }
 };
 

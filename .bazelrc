@@ -55,7 +55,9 @@ common:windows --host_cxxopt=/std:c++20
 # ------------------------------ Performance -----------------------------------
 # Maximize job parallelism while letting Bazel detect available RAM
 build --jobs=HOST_CPUS
-build --local_resources=memory=HOST_RAM*.8
+build --local_resources=memory=HOST_RAM
+build --spawn_strategy=local
+build --worker_sandboxing=false
 
 # Default build is plain fastbuild (-O0, unstripped) for fast edit/compile/test
 # iteration. Optimized/stripped output requires --config=prod (below).

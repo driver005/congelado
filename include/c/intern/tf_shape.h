@@ -17,6 +17,7 @@ limitations under the License.
 #define TENSORFLOW_C_TF_SHAPE_H_
 
 #include "c/abi/macros.h"
+#include "c/intern/tf_status.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -27,36 +28,73 @@ extern "C"
 {
 #endif
 
-    // TF_Shape is a C API for TensorFlow shapes.
-    typedef struct TF_Shape
+    // --------------------------------------------------------------------------
+    // TF_Shape_Data — passive value type carrying a shape's dimensions.
+    typedef struct TF_Shape_Data
     {
         size_t struct_size;
         int64_t* dims;
         int num_dims;
-    } TF_Shape;
+    } TF_Shape_Data;
 
-#define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape, num_dims)
+#define TF_SHAPE_DATA_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape_Data, num_dims)
 
-    static inline void TF_ShapeInit(TF_Shape* shape)
+    // Legacy alias kept for call sites that refer to the data struct as TF_Shape.
+    typedef TF_Shape_Data TF_Shape_Value;
+
+    static inline void TF_ShapeDataInit(TF_Shape_Data* shape)
     {
-        shape->struct_size = TF_SHAPE_STRUCT_SIZE;
-        shape->dims = nullptr;
-        shape->num_dims = 0;
+        shape->struct_size = TF_SHAPE_DATA_STRUCT_SIZE;
+        shape->dims        = NULL;
+        shape->num_dims    = 0;
     }
 
-    static inline void TF_ShapeDealloc(TF_Shape* shape)
+    static inline void TF_ShapeDataDealloc(TF_Shape_Data* shape)
     {
-        if (!shape) {
-            return;
-        }
+        if (!shape) return;
         free(shape->dims);
         free(shape);
     }
 
-    TF_CAPI_EXPORT extern TF_Shape* TF_NewShape(const int64_t* dims, int num_dims);
-    TF_CAPI_EXPORT extern void TF_DeleteShape(TF_Shape* shape);
-    TF_CAPI_EXPORT extern int TF_ShapeNumDims(const TF_Shape* shape);
-    TF_CAPI_EXPORT extern int64_t TF_ShapeDim(const TF_Shape* shape, int index);
+    // Global helper functions that operate on TF_Shape_Data values.
+    TF_CAPI_EXPORT extern TF_Shape_Data* TF_NewShapeData(const int64_t* dims, int num_dims);
+    TF_CAPI_EXPORT extern void           TF_DeleteShapeData(TF_Shape_Data* shape);
+    TF_CAPI_EXPORT extern int            TF_ShapeDataNumDims(const TF_Shape_Data* shape);
+    TF_CAPI_EXPORT extern int64_t        TF_ShapeDataDim(const TF_Shape_Data* shape, int index);
+
+    // --------------------------------------------------------------------------
+    // TF_Shape — plugin vtable for shape operations.
+    //
+    // TF_Shape_Handle is an opaque pointer to a plugin-owned shape object.
+    typedef struct TF_Shape_Handle TF_Shape_Handle;
+
+    // Plugin-facing vtable registered via TF_InitShape.
+    typedef struct TF_Shape
+    {
+        size_t struct_size;
+
+        // Allocate a new shape (pass dims=NULL/num_dims=0 for scalar).
+        // Must be freed with TF_DeleteShape.
+        TF_Shape_Handle* (*TF_NewShape)(
+            void* ctx, const int64_t* dims, int num_dims
+        );
+
+        // Free a handle returned by TF_NewShape.
+        void (*TF_DeleteShape)(void* ctx, TF_Shape_Handle* shape);
+
+        // Return the number of dimensions (-1 for unknown rank).
+        int (*TF_ShapeNumDims)(void* ctx, const TF_Shape_Handle* shape);
+
+        // Return the size of the given dimension (-1 for unknown).
+        int64_t (*TF_ShapeDim)(void* ctx, const TF_Shape_Handle* shape, int index);
+
+    } TF_Shape;
+
+#define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape, TF_ShapeDim)
+
+    TF_CAPI_EXPORT extern void TF_InitShape(
+        TF_Shape** ops, void** plugin_context, TF_Status* status
+    );
 
 #ifdef __cplusplus
 } /* end extern "C" */

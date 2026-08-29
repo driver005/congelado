@@ -7,14 +7,13 @@ export module cc_abi_sonic_generator:parameter;
 
 import std;
 import cc_abi_sonic_intern;
-import cc_abi_builder_generator;
 import :typeinfo;
 
-export namespace ice::sonic::generator {
+export namespace ice::sonic {
 
-// C ABI adapter: implements ice::builder::generator::Parameter by calling
+// C ABI adapter: implements ice::builder::Parameter by calling
 // TF_Generator_Parameter_* functions.
-class Parameter : public ice::builder::generator::Parameter
+class Parameter : public ice::builder::Parameter
 {
 public:
     explicit Parameter(const TF_Generator_Parameter* handle) :
@@ -22,32 +21,32 @@ public:
     {
     }
 
-    ~Parameter() override = default;
+    ~Parameter() = default;
 
     Parameter(const Parameter&) = default;
     Parameter& operator=(const Parameter&) = default;
     Parameter(Parameter&&) = default;
     Parameter& operator=(Parameter&&) = default;
 
-    StringRuntime get_name() const override
+    String get_name() const
     {
 
-        return StringRuntime(TF_Generator_Parameter_GetName(m_handle));
+        return String(TF_Generator_Parameter_GetName(m_handle));
     }
 
-    StringRuntime get_description() const override
+    String get_description() const
     {
 
-        return StringRuntime(TF_Generator_Parameter_GetDescription(m_handle));
+        return String(TF_Generator_Parameter_GetDescription(m_handle));
     }
 
-    int get_position() const override
+    int get_position() const
     {
 
         return TF_Generator_Parameter_GetPosition(m_handle);
     }
 
-    std::unique_ptr<ice::builder::generator::TypeInfo> get_type() const override
+    std::unique_ptr<ice::builder::TypeInfo> get_type() const
     {
 
         const TF_Generator_TypeInfo* type = TF_Generator_Parameter_GetType(m_handle);
@@ -66,4 +65,4 @@ private:
     const TF_Generator_Parameter* m_handle;
 };
 
-} // namespace ice::sonic::generator
+} // namespace ice::sonic

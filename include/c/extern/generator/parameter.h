@@ -1,4 +1,4 @@
-/* Copyright 2021 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2024 The Congelado Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,11 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 #ifndef CONGELADO_C_GENERATOR_PARAMETER_H_
 #define CONGELADO_C_GENERATOR_PARAMETER_H_
 
 #include "c/abi/macros.h"
+#include "c/extern/generator/generator.h"
+#include "c/intern/tf_status.h"
+#include "c/intern/tf_tstring.h"
 
 #include <stddef.h>
 
@@ -25,17 +27,10 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator_Parameter TF_Generator_Parameter;
-    typedef struct TF_Generator_TypeInfo TF_Generator_TypeInfo;
-
-    TF_CAPI_EXPORT extern const char*
-    TF_Generator_Parameter_GetName(const TF_Generator_Parameter* param);
-    TF_CAPI_EXPORT extern const char*
-    TF_Generator_Parameter_GetDescription(const TF_Generator_Parameter* param);
-    TF_CAPI_EXPORT extern int
-    TF_Generator_Parameter_GetPosition(const TF_Generator_Parameter* param);
-    TF_CAPI_EXPORT extern const TF_Generator_TypeInfo*
-    TF_Generator_Parameter_GetType(const TF_Generator_Parameter* param);
+    TF_CAPI_EXPORT extern void TF_Generator_Parameter_GetName(void* param_context, TF_String* out);
+    TF_CAPI_EXPORT extern void TF_Generator_Parameter_GetDescription(void* param_context, TF_String* out);
+    TF_CAPI_EXPORT extern int TF_Generator_Parameter_GetPosition(void* param_context);
+    TF_CAPI_EXPORT extern const void* TF_Generator_Parameter_GetType(void* param_context);
 
 #ifdef __cplusplus
 }
