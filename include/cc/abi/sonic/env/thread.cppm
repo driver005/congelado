@@ -6,31 +6,30 @@ export module cc_abi_sonic_env:thread;
 
 export namespace ice::sonic {
 
-// ThreadViewRuntime — non-owning wrapper around a `TF_Thread*` handle. Duplicated from
+// ThreadView — non-owning wrapper around a `TF_Thread*` handle. Duplicated from
 // builder/env/thread.cppm's ThreadView for pattern uniformity — in practice `start_thread()`
 // is called and its result joined entirely plugin-side, so this has no real host caller today.
-class ThreadViewRuntime
+class ThreadView
 {
 public:
-    explicit ThreadViewRuntime(TF_Thread* handle) :
+    explicit ThreadView(TF_Thread* handle) :
         m_handle(handle)
     {
     }
 
-    ~ThreadViewRuntime() = default;
+    ~ThreadView() = default;
 
-    ThreadViewRuntime(const ThreadViewRuntime&) = delete;
-    ThreadViewRuntime& operator=(const ThreadViewRuntime&) = delete;
+    ThreadView(const ThreadView&) = delete;
+    ThreadView& operator=(const ThreadView&) = delete;
 
-    ThreadViewRuntime(ThreadViewRuntime&& other) noexcept :
+    ThreadView(ThreadView&& other) noexcept :
         m_handle(other.m_handle)
     {
         other.m_handle = nullptr;
     }
 
-    ThreadViewRuntime& operator=(ThreadViewRuntime&& other) noexcept
+    ThreadView& operator=(ThreadView&& other) noexcept
     {
-
         if (this != &other) {
             m_handle = other.m_handle;
             other.m_handle = nullptr;
@@ -41,7 +40,7 @@ public:
     void join()
     {
         if (m_handle) {
-            TF_JoinThread(m_handle);
+            join_thread(m_handle);
         }
     }
 

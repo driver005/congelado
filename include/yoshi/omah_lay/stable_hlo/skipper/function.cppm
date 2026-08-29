@@ -4,6 +4,7 @@ export module yoshi_omah_lay_stable_hlo:function;
 
 import std;
 import cc_abi_builder_generator;
+import cc_abi_builder_intern;
 import cc_abi_sonic_intern;
 import cc_abi_primitives;
 import :shape;
@@ -82,48 +83,47 @@ public:
         return ice::String{};
     }
 
-    std::size_t get_input_count() const override
+    // Tensor of opaque Parameter* handles — arguments (inputs) and returns (outputs)
+    // as heap copies with parameter-slot context; attrs are always empty (functions
+    // carry none). Ownership of each handle transfers to the C side.
+    std::expected<ice::TensorHandle, ice::Status>
+    get_inputs(ice::TensorHandle /*out*/) const override
     {
-        return m_arguments.size();
-    }
-
-    std::unique_ptr<ice::builder::Parameter>
-    get_input(std::size_t index) const override
-    {
-
-        if (index >= m_arguments.size()) {
-            return nullptr;
+        int64_t count = static_cast<int64_t>(m_arguments.size());
+        auto handle = make_handle_tensor(count);
+        if (!handle) {
+            return handle;
         }
-        return std::make_unique<Parameter>(
-            m_arguments[index].with_context(static_cast<int>(index), true)
-        );
-    }
-
-    std::size_t get_output_count() const override
-    {
-        return m_returns.size();
-    }
-
-    std::unique_ptr<ice::builder::Parameter>
-    get_output(std::size_t index) const override
-    {
-
-        if (index >= m_returns.size()) {
-            return nullptr;
+        auto** dst = static_cast<void**>(m_tensor_runtime->get_data(handle->get_handle()));
+        for (int64_t i = 0; i < count; ++i) {
+            dst[i] = new Parameter(
+                m_arguments[static_cast<size_t>(i)].with_context(static_cast<int>(i), true)
+            );
         }
-        return std::make_unique<Parameter>(
-            m_returns[index].with_context(static_cast<int>(index), false)
-        );
+        return handle;
     }
 
-    std::size_t get_attr_count() const override
+    std::expected<ice::TensorHandle, ice::Status>
+    get_outputs(ice::TensorHandle /*out*/) const override
     {
-        return 0;
+        int64_t count = static_cast<int64_t>(m_returns.size());
+        auto handle = make_handle_tensor(count);
+        if (!handle) {
+            return handle;
+        }
+        auto** dst = static_cast<void**>(m_tensor_runtime->get_data(handle->get_handle()));
+        for (int64_t i = 0; i < count; ++i) {
+            dst[i] = new Parameter(
+                m_returns[static_cast<size_t>(i)].with_context(static_cast<int>(i), false)
+            );
+        }
+        return handle;
     }
 
-    std::unique_ptr<ice::builder::Attribute> get_attr(std::size_t) const override
+    std::expected<ice::TensorHandle, ice::Status>
+    get_attrs(ice::TensorHandle /*out*/) const override
     {
-        return nullptr;
+        return make_handle_tensor(0);
     }
 
     // --- StableHLO-specific ---

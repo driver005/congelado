@@ -25,24 +25,29 @@ public:
         m_stats->mtime_nsec = mtime_nsec;
         m_stats->is_directory = is_directory ? 1 : 0;
     }
-    
-    FileStatistics(const FileStatistics& other) {
+
+    FileStatistics(const FileStatistics& other)
+    {
         m_stats = new TF_FileStatistics;
         *m_stats = *other.m_stats;
     }
-    
-    FileStatistics& operator=(const FileStatistics& other) {
+
+    FileStatistics& operator=(const FileStatistics& other)
+    {
         if (this != &other) {
             *m_stats = *other.m_stats;
         }
         return *this;
     }
-    
-    FileStatistics(FileStatistics&& other) noexcept : m_stats(other.m_stats) {
+
+    FileStatistics(FileStatistics&& other) noexcept :
+        m_stats(other.m_stats)
+    {
         other.m_stats = nullptr;
     }
-    
-    FileStatistics& operator=(FileStatistics&& other) noexcept {
+
+    FileStatistics& operator=(FileStatistics&& other) noexcept
+    {
         if (this != &other) {
             delete m_stats;
             m_stats = other.m_stats;
@@ -50,8 +55,9 @@ public:
         }
         return *this;
     }
-    
-    ~FileStatistics() {
+
+    ~FileStatistics()
+    {
         delete m_stats;
     }
 
@@ -62,7 +68,9 @@ public:
 
     void set_length(int64_t length)
     {
-        if (m_stats) m_stats->length = length;
+        if (m_stats) {
+            m_stats->length = length;
+        }
     }
 
     int64_t get_mtime_nsec() const
@@ -72,7 +80,9 @@ public:
 
     void set_mtime_nsec(int64_t t)
     {
-        if (m_stats) m_stats->mtime_nsec = t;
+        if (m_stats) {
+            m_stats->mtime_nsec = t;
+        }
     }
 
     bool get_is_directory() const
@@ -82,7 +92,9 @@ public:
 
     void set_is_directory(bool d)
     {
-        if (m_stats) m_stats->is_directory = d ? 1 : 0;
+        if (m_stats) {
+            m_stats->is_directory = d ? 1 : 0;
+        }
     }
 
     static FileStatistics create(const TF_FileStatistics* s)

@@ -16,10 +16,10 @@ limitations under the License.
 #define CONGELADO_C_MANAGER_CONTROLLER_H_
 
 #include "c/abi/macros.h"
-#include "c/intern/tf_bool.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -29,33 +29,27 @@ extern "C"
 
     // No TF_WorkerManager_AddWorker — add_worker takes ownership of a C++ Worker object, which
     // can't cross this C ABI; unsupported for cross-plugin backends (see
-    // ice::sonic::Manager::add_worker).
+    // ice::sonic::WorkerManager::add_worker).
 
-    
-    
 
-    
-
-    
-    
-    
-    
     // out_list_json — plugin-owned on success, freed via TF_WorkerManager_FreeString.
-    
 
-    
 
-    typedef struct TF_WorkerManager {
+    typedef struct TF_WorkerManager
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
         void (*spawn)(void* plugin_context, const TF_TString* spec_json, TF_Status* status);
-        TF_Bool (*start)(void* plugin_context, const TF_TString* worker_id, TF_Status* status);
-        TF_Bool (*stop)(void* plugin_context, const TF_TString* worker_id, TF_Status* status);
+        bool (*start)(void* plugin_context, const TF_TString* worker_id, TF_Status* status);
+        bool (*stop)(void* plugin_context, const TF_TString* worker_id, TF_Status* status);
         void (*list)(void* plugin_context, TF_String* out_list_json, TF_Status* status);
     } TF_WorkerManager;
 
-    TF_CAPI_EXPORT extern void TF_InitWorkerManager(TF_WorkerManager** ops, void** plugin_context, TF_Status* status);
+#define TF_WORKER_MANAGER_STRUCT_SIZE TF_OFFSET_OF_END(TF_WorkerManager, list)
+
+    TF_CAPI_EXPORT void
+    init_workerManager(TF_WorkerManager** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

@@ -31,25 +31,38 @@ extern "C"
     // user_data: opaque pointer passed through from the caller.
     typedef void (*TF_Cache_CompletionFn)(const TF_TString* result, void* user_data);
 
-    
-    
-
-    
-
-    
-    
-    
-
-    typedef struct TF_Cache {
+    typedef struct TF_Cache
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void (*get)(void* plugin_context, const TF_TString* key, TF_Cache_CompletionFn completion, void* cb_user_data, TF_Status* status);
-        void (*set)(void* plugin_context, const TF_TString* key, const TF_TString* value, TF_Cache_CompletionFn completion, void* cb_user_data, TF_Status* status);
-        void (*remove)(void* plugin_context, const TF_TString* key, TF_Cache_CompletionFn completion, void* cb_user_data, TF_Status* status);
+        void (*get)(
+            void* plugin_context,
+            const TF_TString* key,
+            TF_Cache_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
+        void (*set)(
+            void* plugin_context,
+            const TF_TString* key,
+            const TF_TString* value,
+            TF_Cache_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
+        void (*remove)(
+            void* plugin_context,
+            const TF_TString* key,
+            TF_Cache_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
     } TF_Cache;
 
-    TF_CAPI_EXPORT extern void TF_InitCache(TF_Cache** ops, void** plugin_context, TF_Status* status);
+#define TF_CACHE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Cache, remove)
+
+    TF_CAPI_EXPORT void init_cache(TF_Cache** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "c/abi/macros.h"
 #include "c/intern/tf_status.h"
+#include "c/intern/tf_tstring.h"
 
 #include <stddef.h>
 
@@ -43,10 +44,10 @@ extern "C"
     typedef TF_Buffer_Data TF_Buffer_Value;
 
     // Global helper functions that operate on TF_Buffer_Data values.
-    TF_CAPI_EXPORT extern TF_Buffer_Data* TF_NewBufferFromString(const void* proto, size_t proto_len);
-    TF_CAPI_EXPORT extern TF_Buffer_Data* TF_NewBuffer(void);
-    TF_CAPI_EXPORT extern void           TF_DeleteBuffer(TF_Buffer_Data*);
-    TF_CAPI_EXPORT extern TF_Buffer_Data TF_GetBuffer(TF_Buffer_Data* buffer);
+    TF_CAPI_EXPORT TF_Buffer_Data* new_buffer_from_string(const void* proto, size_t proto_len);
+    TF_CAPI_EXPORT TF_Buffer_Data* new_buffer(void);
+    TF_CAPI_EXPORT void delete_buffer(TF_Buffer_Data*);
+    TF_CAPI_EXPORT const TF_Buffer_Data* get_buffer(const TF_Buffer_Data* buffer);
 
     // --------------------------------------------------------------------------
     // TF_Buffer — plugin vtable for buffer operations.
@@ -54,34 +55,37 @@ extern "C"
     // TF_Buffer_Handle is an opaque pointer to a plugin-owned buffer object.
     typedef struct TF_Buffer_Handle TF_Buffer_Handle;
 
-    // Plugin-facing vtable registered via TF_InitBuffer so the mainframe can
+    // Plugin-facing vtable registered via init_buffer so the mainframe can
     // drive buffer operations across the C ABI.
     typedef struct TF_Buffer
     {
         size_t struct_size;
 
+        // Return the backend's name (e.g. "buffer") into *out.
+        void (*get_name)(void* plugin_context, TF_String* out);
+
         // Allocate a new buffer copied from proto[0..proto_len).
-        // Must be freed with the destroy field below or TF_DeleteBuffer.
-        TF_Buffer_Handle* (*TF_NewBufferFromString)(
-            void* ctx, const void* proto, size_t proto_len
+        // Must be freed with the destroy field below or delete_buffer.
+        TF_Buffer_Handle* (*new_buffer_from_string)(
+            void* plugin_context,
+            const void* proto,
+            size_t proto_len
         );
 
         // Allocate a new, empty buffer.
-        TF_Buffer_Handle* (*TF_NewBuffer)(void* ctx);
+        TF_Buffer_Handle* (*new_buffer)(void* plugin_context);
 
         // Free a handle returned by the two factory functions above.
-        void (*TF_DeleteBuffer)(void* ctx, TF_Buffer_Handle* buffer);
+        void (*delete_buffer)(void* plugin_context, TF_Buffer_Handle* buffer);
 
         // Return a non-owning TF_Buffer_Data view of the handle's contents.
-        TF_Buffer_Handle (*TF_GetBuffer)(void* ctx, TF_Buffer_Handle* buffer);
+        TF_Buffer_Data (*get_buffer)(void* plugin_context, TF_Buffer_Handle* buffer);
 
     } TF_Buffer;
 
-#define TF_BUFFER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Buffer, TF_GetBuffer)
+#define TF_BUFFER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Buffer, get_buffer)
 
-    TF_CAPI_EXPORT extern void TF_InitBuffer(
-        TF_Buffer** ops, void** plugin_context, TF_Status* status
-    );
+    TF_CAPI_EXPORT void init_buffer(TF_Buffer** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

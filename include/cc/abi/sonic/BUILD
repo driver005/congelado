@@ -3,9 +3,8 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 # Root aggregator - subdirectory module deps only
 congelado_module_library(
     name = "cc_abi_sonic",
-    primary_interface = "runtime.cppm",
+    primary_interface = "sonic.cppm",
     partitions = [
-        "ops.cppm",
         "python.cppm",
     ],
     deps = [

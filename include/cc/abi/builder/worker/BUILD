@@ -10,6 +10,8 @@ congelado_module_library(
         ],
     deps = [
         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-    ],
+    
+        "//include/cc/abi/primitives:cc_abi_primitives",
+],
     visibility = ["//visibility:public"],
 )

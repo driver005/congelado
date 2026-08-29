@@ -7,10 +7,11 @@ congelado_module_library(
     name = "cc_abi_builder_search",
     primary_interface = "search.cppm",
     partitions = [
-        "search_query.cppm",
         ],
     deps = [
         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-    ],
+    
+        "//include/cc/abi/primitives:cc_abi_primitives",
+],
     visibility = ["//visibility:public"],
 )

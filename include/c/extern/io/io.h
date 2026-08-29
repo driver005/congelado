@@ -29,41 +29,45 @@ extern "C"
 #endif
     typedef struct TF_IO_Response_Controller TF_IO_Response_Controller;
 
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-    
-    
-
-    
-    
-    
-
-    typedef struct TF_IO {
+    typedef struct TF_IO
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
+        void (*get_name)(void* plugin_context, TF_String* out);
         void* (*create_request)(void* plugin_context, TF_Status* status);
-        void (*request__destroy)(void* request);
+        void (*request__destroy)(void* request_context);
         void* (*create_response)(void* plugin_context, TF_Status* status);
-        void (*response__destroy)(void* response);
-        TF_IO_Method (*request__get_method)(void* request);
-        void (*request__get_path)(void* request, TF_String* out);
-        void (*request__set_header)(void* request, const TF_TString* name, const TF_TString* value, TF_Status* status);
-        void (*request__set_body)(void* request, const TF_TString* body, TF_Status* status);
-        void (*response__set_status)(void* response, int32_t status_code, TF_Status* status);
-        void (*response__set_header)(void* response, const TF_TString* name, const TF_TString* value, TF_Status* status);
-        void (*response__set_body)(void* response, const TF_TString* body, TF_Status* status);
+        void (*response__destroy)(void* response_context);
+        TF_IO_Method (*request__get_method)(void* request_context);
+        void (*request__get_path)(void* request_context, TF_String* out);
+        void (*request__set_header)(
+            void* request,
+            const TF_TString* name,
+            const TF_TString* value,
+            TF_Status* status
+        );
+        void (*request__set_body)(void* request_context, const TF_TString* body, TF_Status* status);
+        void (*response__set_status)(
+            void* response_context,
+            int32_t status_code,
+            TF_Status* status
+        );
+        void (*response__set_header)(
+            void* response,
+            const TF_TString* name,
+            const TF_TString* value,
+            TF_Status* status
+        );
+        void (*response__set_body)(
+            void* response_context,
+            const TF_TString* body,
+            TF_Status* status
+        );
     } TF_IO;
 
-    TF_CAPI_EXPORT extern void TF_InitIO(TF_IO** ops, void** plugin_context, TF_Status* status);
+#define TF_IO_STRUCT_SIZE TF_OFFSET_OF_END(TF_IO, response__set_body)
+
+    TF_CAPI_EXPORT void init_io(TF_IO** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

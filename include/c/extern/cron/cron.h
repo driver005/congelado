@@ -16,10 +16,10 @@ limitations under the License.
 #define CONGELADO_C_CRON_CONTROLLER_H_
 
 #include "c/abi/macros.h"
-#include "c/intern/tf_bool.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,28 +28,32 @@ extern "C"
 {
 #endif
 
-    
-    
 
-    
-
-    
-    
-    
-    
-    
-
-    typedef struct TF_Cron {
+    typedef struct TF_Cron
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        TF_Bool (*validate)(void* plugin_context, const TF_TString* expression, TF_Status* status);
-        TF_Bool (*next_after)(void* plugin_context, const TF_TString* expression, int64_t base_time_ms, int64_t* out_time_ms, TF_Status* status);
-        void (*upsert_job)(void* plugin_context, const TF_TString* name, const TF_TString* expression, TF_Status* status);
+        bool (*validate)(void* plugin_context, const TF_TString* expression, TF_Status* status);
+        bool (*next_after)(
+            void* plugin_context,
+            const TF_TString* expression,
+            int64_t base_time_ms,
+            int64_t* out_time_ms,
+            TF_Status* status
+        );
+        void (*upsert_job)(
+            void* plugin_context,
+            const TF_TString* name,
+            const TF_TString* expression,
+            TF_Status* status
+        );
         void (*remove_job)(void* plugin_context, const TF_TString* name, TF_Status* status);
     } TF_Cron;
 
-    TF_CAPI_EXPORT extern void TF_InitCron(TF_Cron** ops, void** plugin_context, TF_Status* status);
+#define TF_CRON_STRUCT_SIZE TF_OFFSET_OF_END(TF_Cron, remove_job)
+
+    TF_CAPI_EXPORT void init_cron(TF_Cron** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

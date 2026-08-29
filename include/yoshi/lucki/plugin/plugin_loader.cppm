@@ -14,9 +14,9 @@ export namespace yoshi::core {
 // no-callback-into-host contract TensorFlow's real filesystem plugins use, applied to the
 // generic TF_PluginInfo (c/extern/plugin/registration.h) rather than the filesystem-specific
 // one. Never names a TF_* symbol/type/header directly — only calls into ice::sonic::* wrapper
-// types (DynamicLibraryRuntime, Symbol, PluginRuntime), which own that boundary. Every
+// types (DynamicLibrary, Symbol, PluginRuntime), which own that boundary. Every
 // successfully loaded library is kept in m_lib_handles for this PluginLoader's own lifetime —
-// DynamicLibraryRuntime dlcloses on destruction, so without this a loaded plugin (and anything
+// DynamicLibrary dlcloses on destruction, so without this a loaded plugin (and anything
 // it registered a pointer to elsewhere, e.g. ice::sonic::RegistrationRuntime) would dangle the
 // instant load() returned.
 class PluginLoader
@@ -31,7 +31,7 @@ public:
     load(const std::string& path)
     {
 
-        ice::sonic::DynamicLibraryRuntime library;
+        ice::sonic::DynamicLibrary library;
         auto loaded = library.on_load(ice::String{path});
         if (!loaded) {
             return std::unexpected{loaded.error()};
@@ -51,7 +51,7 @@ public:
     }
 
     // Closes one loaded plugin by the path it was load()ed with — erasing the map entry
-    // destroys its DynamicLibraryRuntime, which dlcloses.
+    // destroys its DynamicLibrary, which dlcloses.
     void close(const std::string& path)
     {
         m_lib_handles.erase(path);
@@ -64,7 +64,7 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, ice::sonic::DynamicLibraryRuntime> m_lib_handles;
+    std::unordered_map<std::string, ice::sonic::DynamicLibrary> m_lib_handles;
 };
 
 } // namespace yoshi::core

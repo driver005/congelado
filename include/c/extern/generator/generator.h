@@ -3,8 +3,8 @@
 
 #include "c/abi/macros.h"
 #include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
 #include "c/intern/tf_tensor.h"
+#include "c/intern/tf_tstring.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -14,29 +14,43 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator {
+    typedef struct TF_Generator
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
-        void (*set_name)(void* plugin_context, const TF_String* name);
+        void (*set_name)(void* plugin_context, const TF_TString* name);
         void (*get_name)(void* plugin_context, TF_String* out);
+        // Returns a plugin-allocated 1-D tensor whose elements are the opaque
+        // definition handles consumed by the definition__* slots. Ownership of the
+        // returned handle transfers to the caller; release it with the tensor
+        // runtime's delete (TF_DeleteTensor via the TF_Tensor ops).
         TF_Tensor_Handle* (*get_definitions)(void* plugin_context, TF_Status* status);
-        bool (*build)(void* plugin_context, TF_String* out, TF_Status* status);
-        void* (*enter_border_patrol)(void* plugin_context, const TF_String* name, TF_Status* status);
-        
-        // Function
-        void (*function__destroy)(void* function_context);
-        void* (*function__add_parameter)(void* function_context, const TF_String* name, const TF_String* type_text, TF_Status* status);
-        bool (*function__add_node)(
-            void* function_context, 
-            const void* def_context, 
-            const TF_Tensor_Handle* operands, 
-            const TF_Tensor_Handle* attrs, 
-            TF_Tensor_Handle* out_results, 
+        void (*build)(void* plugin_context, TF_String* out, TF_Status* status);
+        void* (*enter_border_patrol)(
+            void* plugin_context,
+            const TF_String* name,
             TF_Status* status
         );
-        bool (*function__exit_border_patrol)(
-            void* function_context, 
-            const TF_Tensor_Handle* outputs, 
+
+        // Function
+        void (*function__destroy)(void* function_context);
+        void* (*function__add_parameter)(
+            void* function_context,
+            const TF_String* name,
+            const TF_String* type_text,
+            TF_Status* status
+        );
+        void (*function__add_node)(
+            void* function_context,
+            const void* def_context,
+            const TF_Tensor_Handle* operands,
+            const TF_Tensor_Handle* attrs,
+            TF_Tensor_Handle* out_results,
+            TF_Status* status
+        );
+        void (*function__exit_border_patrol)(
+            void* function_context,
+            const TF_Tensor_Handle* outputs,
             TF_Status* status
         );
 
@@ -54,7 +68,9 @@ extern "C"
         void (*parameter__get_name)(void* param_context, TF_String* out);
         void (*parameter__get_description)(void* param_context, TF_String* out);
         int (*parameter__get_position)(void* param_context);
-        const void* (*parameter__get_type)(void* param_context);
+        // Ownership of the returned type handle transfers to the caller; release
+        // it with typeinfo__destroy.
+        void* (*parameter__get_type)(void* param_context);
 
         // Attribute
         void (*attribute__destroy)(void* attr_context);
@@ -72,7 +88,10 @@ extern "C"
         bool (*typeinfo__is_list)(void* type_context);
     } TF_Generator;
 
-    TF_CAPI_EXPORT extern void TF_InitGenerator(TF_Generator** ops, void** plugin_context, TF_Status* status);
+#define TF_GENERATOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator, typeinfo__is_list)
+
+    TF_CAPI_EXPORT void
+    init_generator(TF_Generator** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

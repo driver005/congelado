@@ -4,7 +4,7 @@ module;
 
 export module cc_abi_builder_otel:enums;
 
-export namespace ice::builder::otel {
+export namespace ice::builder {
 
 enum class SpanKind
 {

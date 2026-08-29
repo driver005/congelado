@@ -1,7 +1,6 @@
 export module cc_abi_sonic;
 
 // Root-level standalone partitions (same package)
-export import :ops;
 export import :python;
 
 // Subdirectory parent modules are separate modules, imported normally

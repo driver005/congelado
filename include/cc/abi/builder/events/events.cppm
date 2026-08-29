@@ -18,38 +18,52 @@ export namespace ice::builder {
 class Events
 {
 public:
+    // Recover the Events instance from the opaque void* context slot that every
+    // C vtable callback receives.  Named accessor so the cast intent is explicit
+    // at the call site and the static_cast appears exactly once, here.
+    static Events* create(void* ctx) noexcept
+    {
+        return static_cast<Events*>(ctx);
+    }
+
     virtual ~Events() = default;
 
-    virtual std::expected<void, ice::Status>
+    virtual [[nodiscard]] std::expected<void, ice::Status>
     publish(const ice::String& event_name, const ice::String& payload_json) = 0;
 
     virtual ice::String get_name() const = 0;
 
-    TF_Events* get_generic_vtable()
+    static TF_Events* get_generic_vtable()
     {
         static TF_Events vtable = {
             .struct_size = sizeof(TF_Events),
             .destroy =
-                [](void* ctx) {
-                    delete ctx_as<Events>(ctx);
-                },
+                [](void* plugin_context)
+            {
+                delete Events::create(plugin_context);
+            },
             .get_name =
-                [](void* ctx, TF_String* out) {
-                    auto* self = ctx_as<Events>(ctx);
-                    auto name = self->get_name();
-                    name.to_c(out);
-                },
+                [](void* plugin_context, TF_String* out)
+            {
+                auto* self = Events::create(plugin_context);
+                auto name = self->get_name();
+                name.to_c(out);
+            },
             .publish =
-                [](void* ctx, const TF_TString* event_name, const TF_TString* payload_json,
-                   TF_Status* status) {
-                    auto* self = ctx_as<Events>(ctx);
-                    auto res = self->publish(
-                        ice::String::create(event_name), ice::String::create(payload_json)
-                    );
-                    if (!res) {
-                        res.error().to_c(status);
-                    }
+                [](void* plugin_context,
+                   const TF_TString* event_name,
+                   const TF_TString* payload_json,
+                   TF_Status* status)
+            {
+                auto* self = Events::create(plugin_context);
+                auto res = self->publish(
+                    ice::String::create(event_name),
+                    ice::String::create(payload_json)
+                );
+                if (!res) {
+                    res.error().to_c(status);
                 }
+            }
         };
         return &vtable;
     }

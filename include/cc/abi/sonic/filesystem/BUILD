@@ -5,16 +5,12 @@ congelado_module_library(
     primary_interface = "filesystem.cppm",
     partitions = [
         "leaves.cppm",
-        "leaves/random_access_file.cppm",
-        "leaves/random_access_file_runtime.cppm",
-        "leaves/read_only_memory_region.cppm",
-        "leaves/read_only_memory_region_runtime.cppm",
-        "leaves/writable_file.cppm",
-        "leaves/writable_file_runtime.cppm",
-        "registration.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",
+        "//include/cc/abi/primitives:cc_abi_primitives",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
+        "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",
     ],
     visibility = ["//visibility:public"],
 )

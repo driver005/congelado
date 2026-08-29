@@ -54,46 +54,49 @@ extern "C"
 
     // Callback type for iterating over payloads.
     typedef void (*TF_PayloadVisitor)(
-        const char* key, size_t key_len, const char* value, size_t value_len, void* capture
+        const char* key,
+        size_t key_len,
+        const char* value,
+        size_t value_len,
+        void* capture
     );
 
     // --------------------------------------------------------------------------
 
     // Return a new status object.
-    TF_CAPI_EXPORT extern TF_Status* TF_NewStatus(void);
+    TF_CAPI_EXPORT TF_Status* new_status(void);
 
     // Delete a previously created status object.
-    TF_CAPI_EXPORT extern void TF_DeleteStatus(TF_Status*);
+    TF_CAPI_EXPORT void delete_status(TF_Status*);
 
     // Record <code, msg> in *s.  Any previous information is lost.
-    // A common use is to clear a status: TF_SetStatus(s, TF_OK, "");
-    TF_CAPI_EXPORT extern void TF_SetStatus(TF_Status* s, TF_Code code, const char* msg);
+    // A common use is to clear a status: set_status(s, TF_OK, "");
+    TF_CAPI_EXPORT void set_status(TF_Status* s, TF_Code code, const char* msg);
 
     // Record <key, value> as a payload in *s. The previous payload having the
     // same key (if any) is overwritten. Payload will not be added if the Status
     // is OK.
-    TF_CAPI_EXPORT void TF_SetPayload(TF_Status* s, const char* key, const char* value);
+    TF_CAPI_EXPORT void set_payload(TF_Status* s, const char* key, const char* value);
 
     // Iterates over the stored payloads and calls the `visitor(key, value)`
     // callable for each one. `key` and `value` is only usable during the callback.
     // `capture` will be passed to the callback without modification.
-    TF_CAPI_EXPORT extern void
-    TF_ForEachPayload(const TF_Status* s, TF_PayloadVisitor visitor, void* capture);
+    TF_CAPI_EXPORT void
+    for_each_payload(const TF_Status* s, TF_PayloadVisitor visitor, void* capture);
 
     // Convert from an I/O error code (e.g., errno) to a TF_Status value.
-    // Any previous information is lost. Prefer to use this instead of TF_SetStatus
+    // Any previous information is lost. Prefer to use this instead of set_status
     // when the error comes from I/O operations.
-    TF_CAPI_EXPORT extern void
-    TF_SetStatusFromIOError(TF_Status* s, int error_code, const char* context);
+    TF_CAPI_EXPORT void set_statusFromIOError(TF_Status* s, int error_code, const char* context);
 
     // Return the code record in *s.
-    TF_CAPI_EXPORT extern TF_Code TF_GetCode(const TF_Status* s);
+    TF_CAPI_EXPORT TF_Code get_code(const TF_Status* s);
 
     // Return a pointer to the (null-terminated) error message in *s.  The
     // return value points to memory that is only usable until the next
-    // mutation to *s.  Always returns an empty string if TF_GetCode(s) is
+    // mutation to *s.  Always returns an empty string if get_code(s) is
     // TF_OK.
-    TF_CAPI_EXPORT extern const char* TF_Message(const TF_Status* s);
+    TF_CAPI_EXPORT const char* message(const TF_Status* s);
 
 #ifdef __cplusplus
 } /* end extern "C" */

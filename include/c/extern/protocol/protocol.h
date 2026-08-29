@@ -16,10 +16,10 @@ limitations under the License.
 #define CONGELADO_C_PROTOCOL_CONTROLLER_H_
 
 #include "c/abi/macros.h"
-#include "c/intern/tf_bool.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,25 +28,13 @@ extern "C"
 {
 #endif
 
-    
-    
-
-    
-    
-    
-    
-    
 
     // Opens a new server, returning an owned handle (destroy with TF_Protocol_Server_Destroy).
     // NULL on failure (see status).
-    
-    
 
-    
-    
-    
 
-    typedef struct TF_Protocol {
+    typedef struct TF_Protocol
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
@@ -58,17 +46,21 @@ extern "C"
         void (*server__destroy)(void* server_context);
         void (*server__start)(void* server_context, TF_Status* status);
         void (*server__stop)(void* server_context, TF_Status* status);
-        TF_Bool (*server__is_running)(void* server_context, TF_Status* status);
+        bool (*server__is_running)(void* server_context, TF_Status* status);
     } TF_Protocol;
 
-    TF_CAPI_EXPORT extern void TF_InitProtocol(TF_Protocol** ops, void** plugin_context, TF_Status* status);
+#define TF_PROTOCOL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Protocol, server__is_running)
 
-    typedef struct TF_Protocol_Server {
+    TF_CAPI_EXPORT void init_protocol(TF_Protocol** ops, void** plugin_context, TF_Status* status);
+
+    typedef struct TF_Protocol_Server
+    {
         size_t struct_size;
 
     } TF_Protocol_Server;
 
-    TF_CAPI_EXPORT extern void TF_InitProtocol_Server(TF_Protocol_Server** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void
+    init_protocol_Server(TF_Protocol_Server** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

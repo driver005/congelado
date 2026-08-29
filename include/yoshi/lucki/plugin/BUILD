@@ -7,7 +7,7 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 # filesystem plugins originally used. Its own target, not bundled into a broader yoshi/lucki
 # aggregate — one class per file:
 #   plugin_loader.cppm                 — PluginLoader (dlopen's the .so via
-#                                         ice::sonic::DynamicLibraryRuntime, resolves and calls
+#                                         ice::sonic::DynamicLibrary, resolves and calls
 #                                         TF_InitPlugin)
 congelado_module_library(
     name = "yoshi_lucki_plugin",

@@ -16,7 +16,6 @@ limitations under the License.
 #define CONGELADO_C_LOGGER_CONTROLLER_H_
 
 #include "c/abi/macros.h"
-#include "c/intern/tf_bool.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -27,7 +26,8 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Logger {
+    typedef struct TF_Logger
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
@@ -39,7 +39,9 @@ extern "C"
         void (*fatal)(void* plugin_context, const TF_TString* message, TF_Status* status);
     } TF_Logger;
 
-    TF_CAPI_EXPORT extern void TF_InitLogger(TF_Logger** ops, void** plugin_context, TF_Status* status);
+#define TF_LOGGER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Logger, fatal)
+
+    TF_CAPI_EXPORT void init_logger(TF_Logger** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

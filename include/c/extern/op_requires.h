@@ -37,24 +37,24 @@ limitations under the License.
 #define C_OPKERNELCONTEXT_REQUIRES_OK(CTX, C_STATUS, __VA_ARGS__)                                  \
     do {                                                                                           \
         TF_Status* _s = (__VA_ARGS__);                                                             \
-        if (!TF_PREDICT_TRUE(TF_GetCode(_s) == TF_OK)) {                                           \
-            TF_SetStatus(C_STATUS, TF_GetCode(_s), TF_Message(_s));                                \
+        if (!TF_PREDICT_TRUE(get_code(_s) == TF_OK)) {                                             \
+            set_status(C_STATUS, get_code(_s), message(_s));                                       \
             TF_OpKernelContext_Failure(CTX, C_STATUS);                                             \
-            TF_DeleteStatus(_s);                                                                   \
+            delete_status(_s);                                                                     \
             return;                                                                                \
         }                                                                                          \
-        TF_DeleteStatus(_s);                                                                       \
+        delete_status(_s);                                                                         \
     } while (0)
 
 #define TF_CLEANUP_AND_RETURN_IF_ERROR(C_STATUS, BUFFER, __VA_ARGS__)                              \
     do {                                                                                           \
         TF_Status* _s = (__VA_ARGS__);                                                             \
-        if (TF_PREDICT_FALSE(TF_GetCode(_s) != TF_OK)) {                                           \
-            TF_DeleteStatus(C_STATUS);                                                             \
-            TF_DeleteBuffer(BUFFER);                                                               \
+        if (TF_PREDICT_FALSE(get_code(_s) != TF_OK)) {                                             \
+            delete_status(C_STATUS);                                                               \
+            delete_buffer(BUFFER);                                                                 \
             return _s;                                                                             \
         }                                                                                          \
-        TF_DeleteStatus(_s);                                                                       \
+        delete_status(_s);                                                                         \
     } while (0)
 
 #endif // TENSORFLOW_C_C_OP_REQUIRES_H_

@@ -1,66 +1,73 @@
 module;
 
-#include "c/extern/generator/attribute.h"
+#include "c/extern/generator/generator.h"
 
 export module cc_abi_sonic_generator:attribute;
 
-import cc_abi_sonic_intern;
+import std;
+import cc_abi_primitives;
+
 export namespace ice::sonic {
 
-// C ABI adapter: implements ice::builder::Attribute by calling
-// TF_Generator_Attribute_* functions.
-class Attribute : public ice::builder::Attribute
+// C ABI adapter for the flat TF_Generator vtable's attribute__* slots. Owning —
+// destroys the handle with attribute__destroy.
+class Attribute
 {
 public:
-    explicit Attribute(const TF_Generator_Attribute* handle) :
-        m_handle(handle)
+    explicit Attribute(TF_Generator* ops, void* handle) :
+        m_ops{ops},
+        m_handle{handle}
     {
     }
 
-    ~Attribute() = default;
-
-    Attribute(const Attribute&) = default;
-    Attribute& operator=(const Attribute&) = default;
-    Attribute(Attribute&&) = default;
-    Attribute& operator=(Attribute&&) = default;
-
-    String get_name() const
+    ~Attribute()
     {
-
-        return String(TF_Generator_Attribute_GetName(m_handle));
+        if (m_ops && m_handle) {
+            m_ops->attribute__destroy(m_handle);
+        }
     }
 
-    String get_description() const
-    {
+    Attribute(const Attribute&) = delete;
+    Attribute& operator=(const Attribute&) = delete;
+    Attribute(Attribute&&) = delete;
+    Attribute& operator=(Attribute&&) = delete;
 
-        return String(TF_Generator_Attribute_GetDescription(m_handle));
+    ice::String get_name() const
+    {
+        ice::String out;
+        m_ops->attribute__get_name(m_handle, out.get_handle());
+        return out;
     }
 
-    String get_full_type() const
+    ice::String get_description() const
     {
-
-        return String(TF_Generator_Attribute_GetFullType(m_handle));
+        ice::String out;
+        m_ops->attribute__get_description(m_handle, out.get_handle());
+        return out;
     }
 
-    String get_base_type() const
+    ice::String get_full_type() const
     {
+        ice::String out;
+        m_ops->attribute__get_full_type(m_handle, out.get_handle());
+        return out;
+    }
 
-        return String(TF_Generator_Attribute_GetBaseType(m_handle));
+    ice::String get_base_type() const
+    {
+        ice::String out;
+        m_ops->attribute__get_base_type(m_handle, out.get_handle());
+        return out;
     }
 
     bool is_list() const
     {
-
-        return TF_Generator_Attribute_IsList(m_handle);
-    }
-
-    const TF_Generator_Attribute* get_handle() const
-    {
-        return m_handle;
+        return m_ops->attribute__is_list(m_handle);
     }
 
 private:
-    const TF_Generator_Attribute* m_handle;
+    TF_Generator* m_ops;
+    void* m_handle;
 };
 
 } // namespace ice::sonic

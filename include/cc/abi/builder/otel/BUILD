@@ -10,7 +10,8 @@ congelado_module_library(
     deps = [
         "//include/c:tf_c_headers",
         "//include/cc/abi/builder/intern:cc_abi_builder_intern",
-        "//include/cc/abi/value:cc_abi_value",
+        "//include/cc/abi/primitives:cc_abi_primitives",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
     visibility = ["//visibility:public"],
 )

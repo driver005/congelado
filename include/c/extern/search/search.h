@@ -45,25 +45,41 @@ extern "C"
 #define TF_SEARCH_QUERY_STRUCT_SIZE TF_OFFSET_OF_END(TF_Search_Query, sort)
     } TF_Search_Query;
 
-    
-    
-
-    
-
-    
-    
-    
-
-    typedef struct TF_Search {
+    typedef struct TF_Search
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void (*index)(void* plugin_context, const TF_TString* collection, const TF_TString* id, const TF_TString* document_json, TF_Search_CompletionFn completion, void* cb_user_data, TF_Status* status);
-        void (*remove)(void* plugin_context, const TF_TString* collection, const TF_TString* id, TF_Search_CompletionFn completion, void* cb_user_data, TF_Status* status);
-        void (*search)(void* plugin_context, const TF_TString* collection, const TF_Search_Query* query, TF_Search_CompletionFn completion, void* cb_user_data, TF_Status* status);
+        void (*index)(
+            void* plugin_context,
+            const TF_TString* collection,
+            const TF_TString* id,
+            const TF_TString* document_json,
+            TF_Search_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
+        void (*remove)(
+            void* plugin_context,
+            const TF_TString* collection,
+            const TF_TString* id,
+            TF_Search_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
+        void (*search)(
+            void* plugin_context,
+            const TF_TString* collection,
+            const TF_Search_Query* query,
+            TF_Search_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
     } TF_Search;
 
-    TF_CAPI_EXPORT extern void TF_InitSearch(TF_Search** ops, void** plugin_context, TF_Status* status);
+#define TF_SEARCH_STRUCT_SIZE TF_OFFSET_OF_END(TF_Search, search)
+
+    TF_CAPI_EXPORT void init_search(TF_Search** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

@@ -1,10 +1,6 @@
 export module cc_abi_builder;
 
 // Root-level standalone partitions (same package)
-export import :ops_builder;
-export import :shape_handle;
-export import :dimension_handle;
-export import :shape_inference_context_view;
 export import :python;
 
 // Subdirectory parent modules are separate modules, imported normally

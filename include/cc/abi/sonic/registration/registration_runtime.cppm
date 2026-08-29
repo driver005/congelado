@@ -16,15 +16,19 @@ export namespace ice::sonic {
 class RegistrationRuntime
 {
 private:
-    struct RegistryState {
+    struct RegistryState
+    {
         TF_RegistrationOps* ops = nullptr;
         void* plugin_context = nullptr;
-        RegistryState() {
-            TF_InitRegistration(&ops, &plugin_context, nullptr);
+
+        RegistryState()
+        {
+            init_registration(&ops, &plugin_context, nullptr);
         }
     };
 
-    static const RegistryState& state() {
+    static const RegistryState& state()
+    {
         static RegistryState s;
         return s;
     }

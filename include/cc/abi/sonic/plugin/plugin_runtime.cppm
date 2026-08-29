@@ -24,7 +24,6 @@ public:
 
     static PluginRuntime create()
     {
-
         static TF_PluginInfo storage{};
         return PluginRuntime{&storage};
     }

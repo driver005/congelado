@@ -27,29 +27,34 @@ extern "C"
 #endif
 
 
-
     typedef void (*TF_Worker_CompletionFn)(const TF_TString* result_json, void* user_data);
 
-    typedef struct TF_Worker {
+    typedef struct TF_Worker
+    {
         size_t struct_size;
         void (*get_name)(void* plugin_context, TF_String* out);
         void (*get_task_type)(void* plugin_context, TF_String* out, TF_Status* status);
         void (*execute)(
-            void* plugin_context, const TF_TString* input_json,
-            TF_String* out_result_json, TF_Status* status
+            void* plugin_context,
+            const TF_TString* input_json,
+            TF_String* out_result_json,
+            TF_Status* status
         );
         void (*execute_async)(
-            void* plugin_context, const TF_TString* input_json,
-            TF_Worker_CompletionFn completion, void* cb_user_data, TF_Status* status
+            void* plugin_context,
+            const TF_TString* input_json,
+            TF_Worker_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
         );
-        void (*on_error)(
-            void* plugin_context, const TF_TString* message, TF_Status* status
-        );
+        void (*on_error)(void* plugin_context, const TF_TString* message, TF_Status* status);
         void (*on_released)(void* plugin_context, TF_Status* status);
         void (*destroy)(void* plugin_context);
     } TF_Worker;
 
-    TF_CAPI_EXPORT extern void TF_InitWorker(TF_Worker** ops, void** plugin_context, TF_Status* status);
+#define TF_WORKER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Worker, destroy)
+
+    TF_CAPI_EXPORT void init_worker(TF_Worker** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

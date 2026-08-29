@@ -14,73 +14,87 @@
 #include <cstdlib>
 #include <cstring>
 
-extern "C" {
+extern "C"
+{
+    void string_init(TF_TString* t)
+    {
+        if (!t) {
+            return;
+        }
+        t->large.size = 0;
+        t->large.capacity = 0;
+        t->large.data = nullptr;
+    }
 
-void TF_StringInit(TF_TString *t) {
-    if (!t) {
-        return;
+    void string_copy(TF_TString* dst, const char* src, size_t size)
+    {
+        if (!dst) {
+            return;
+        }
+        if (dst->large.capacity > 0 && dst->large.data) {
+            std::free(dst->large.data);
+        }
+        dst->large.size = size;
+        dst->large.data = static_cast<char*>(std::malloc(size + 1));
+        if (!dst->large.data) {
+            dst->large.capacity = 0;
+            dst->large.size = 0;
+            return;
+        }
+        dst->large.capacity = size + 1;
+        if (src && size > 0) {
+            std::memcpy(dst->large.data, src, size);
+        }
+        dst->large.data[size] = '\0';
     }
-    t->large.size = 0;
-    t->large.capacity = 0;
-    t->large.data = nullptr;
-}
 
-void TF_StringCopy(TF_TString *dst, const char *src, size_t size) {
-    if (!dst) {
-        return;
-    }
-    if (dst->large.capacity > 0 && dst->large.data) {
-        std::free(dst->large.data);
-    }
-    dst->large.size = size;
-    dst->large.data = static_cast<char *>(std::malloc(size + 1));
-    if (!dst->large.data) {
+    void string_assign_view(TF_TString* dst, const char* src, size_t size)
+    {
+        if (!dst) {
+            return;
+        }
+        if (dst->large.capacity > 0 && dst->large.data) {
+            std::free(dst->large.data);
+        }
+        dst->large.size = size;
         dst->large.capacity = 0;
-        dst->large.size = 0;
-        return;
+        dst->large.data = const_cast<char*>(src);
     }
-    dst->large.capacity = size + 1;
-    if (src && size > 0) {
-        std::memcpy(dst->large.data, src, size);
-    }
-    dst->large.data[size] = '\0';
-}
 
-void TF_StringAssignView(TF_TString *dst, const char *src, size_t size) {
-    if (!dst) {
-        return;
+    const char* string_get_data_pointer(const TF_TString* tstr)
+    {
+        return tstr ? tstr->large.data : nullptr;
     }
-    if (dst->large.capacity > 0 && dst->large.data) {
-        std::free(dst->large.data);
+
+    TF_TString_Type string_get_type(const TF_TString* str)
+    {
+        if (!str) {
+            return TF_TSTR_VIEW;
+        }
+        return str->large.capacity > 0 ? TF_TSTR_LARGE : TF_TSTR_VIEW;
     }
-    dst->large.size = size;
-    dst->large.capacity = 0;
-    dst->large.data = const_cast<char *>(src);
-}
 
-const char *TF_StringGetDataPointer(const TF_TString *tstr) { return tstr ? tstr->large.data : nullptr; }
-
-TF_TString_Type TF_StringGetType(const TF_TString *str) {
-    if (!str) {
-        return TF_TSTR_VIEW;
+    size_t string_get_size(const TF_TString* tstr)
+    {
+        return tstr ? tstr->large.size : 0;
     }
-    return str->large.capacity > 0 ? TF_TSTR_LARGE : TF_TSTR_VIEW;
-}
 
-size_t TF_StringGetSize(const TF_TString *tstr) { return tstr ? tstr->large.size : 0; }
-
-size_t TF_StringGetCapacity(const TF_TString *str) { return str ? str->large.capacity : 0; }
-
-void TF_StringDealloc(TF_TString *tstr) {
-    if (!tstr) {
-        return;
+    size_t string_get_capacity(const TF_TString* str)
+    {
+        return str ? str->large.capacity : 0;
     }
-    if (tstr->large.capacity > 0 && tstr->large.data) {
-        std::free(tstr->large.data);
+
+    void string_dealloc(TF_TString* tstr)
+    {
+        if (!tstr) {
+            return;
+        }
+        if (tstr->large.capacity > 0 && tstr->large.data) {
+            std::free(tstr->large.data);
+        }
+        tstr->large.size = 0;
+        tstr->large.capacity = 0;
+        tstr->large.data = nullptr;
     }
-    tstr->large.size = 0;
-    tstr->large.capacity = 0;
-    tstr->large.data = nullptr;
-}
 
 } // extern "C"

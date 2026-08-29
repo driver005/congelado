@@ -26,18 +26,20 @@ extern "C"
 
     typedef enum TF_Filesystem_Option_Type
     {
-        TF_Filesystem_Option_Type_Int = 0,
-        TF_Filesystem_Option_Type_Real = 1,
-        TF_Filesystem_Option_Type_Buffer = 2,
+        TF_FILESYSTEM_OPTION_TYPE_INT = 0,
+        TF_FILESYSTEM_OPTION_TYPE_REAL = 1,
+        TF_FILESYSTEM_OPTION_TYPE_BUFFER = 2,
     } TF_Filesystem_Option_Type;
 
     typedef struct TF_Filesystem_Option_Value
     {
         TF_Filesystem_Option_Type type;
+
         union
         {
             int64_t int_value;
             double real_value;
+
             struct
             {
                 const char* data;

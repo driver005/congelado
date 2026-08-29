@@ -4,8 +4,6 @@ congelado_module_library(
     name = "cc_abi_builder",
     primary_interface = "builder.cppm",
     partitions = [
-        "ops/ops_builder.cppm",
-        "ops/shape_inference_context_view.cppm",
         "python.cppm",
     ],
     deps = [
@@ -31,8 +29,9 @@ congelado_module_library(
         "//include/cc/abi/builder/worker:cc_abi_builder_worker",
         # Base deps
         "//include/c:tf_c_headers",
-        "//include/cc/abi/value:cc_abi_value",
         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-    ],
+    
+        "//include/cc/abi/primitives:cc_abi_primitives",
+],
     visibility = ["//visibility:public"],
 )
