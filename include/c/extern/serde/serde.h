@@ -39,13 +39,13 @@ extern "C"
         void (*encode)(
             void* plugin_context,
             const TF_TString* value_json,
-            TF_TString* out_encoded,
+            TF_String* out_encoded,
             TF_Status* status
         );
         void (*decode)(
             void* plugin_context,
             const TF_TString* data,
-            TF_TString* out_json,
+            TF_String* out_json,
             TF_Status* status
         );
     } TF_Serde;

@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a serde (encode/decode) backend — pure interface, zero C-ABI/TF_*
-// knowledge, mirrors ice::builder::Builder's role.
+// knowledge, mirrors ice::builder::Generator's role.
 class Serde
 {
 public:
@@ -27,31 +27,31 @@ public:
 
     virtual ~Serde() = default;
 
-    virtual [[nodiscard]] std::expected<ice::String, ice::Status>
-    encode(const ice::String& value_json) = 0;
+    [[nodiscard]] virtual std::expected<ice::String, ice::Status>
+    encode(const ice::String& value_json) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<ice::String, ice::Status>
-    decode(const ice::String& data) = 0;
+    [[nodiscard]] virtual std::expected<ice::String, ice::Status>
+    decode(const ice::String& data) noexcept = 0;
 
-    virtual ice::String get_content_type() const = 0;
-    virtual ice::String get_format_name() const = 0;
+    virtual ice::String get_content_type() const noexcept = 0;
+    virtual ice::String get_format_name() const noexcept = 0;
 
     static TF_Serde* get_generic_vtable()
     {
         static TF_Serde vtable = {
-            .struct_size = sizeof(TF_Serde),
+            .struct_size = TF_SERDE_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Serde::create(plugin_context);
             },
             .get_content_type =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 Serde::create(plugin_context)->get_content_type().to_c(out);
             },
             .get_format_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 Serde::create(plugin_context)->get_format_name().to_c(out);
             },
@@ -59,7 +59,7 @@ public:
                 [](void* plugin_context,
                    const TF_TString* value_json,
                    TF_TString* out_encoded,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto res = Serde::create(plugin_context)->encode(ice::String::create(value_json));
                 if (!res) {
@@ -72,7 +72,7 @@ public:
                 [](void* plugin_context,
                    const TF_TString* data,
                    TF_TString* out_json,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto res = Serde::create(plugin_context)->decode(ice::String::create(data));
                 if (!res) {

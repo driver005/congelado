@@ -16,7 +16,7 @@ export namespace ice::sonic {
 class Serde : public ice::sonic::Runtime<Serde, TF_Serde>
 {
 public:
-    explicit Serde(TF_Serde* ops, void* plugin_context) :
+    explicit Serde(TF_Serde* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -26,37 +26,33 @@ public:
     [[nodiscard]] std::expected<ice::String, ice::Status> encode(const ice::String& value_json)
     {
         ice::Status status;
-        TF_TString* out_encoded = nullptr;
-        m_ops->encode(get_handle(), value_json.get_handle(), &out_encoded, status.get_handle());
+        ice::String result;
+        m_ops->encode(get_handle(), value_json.get_handle(), result.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
-        ice::String result{out_encoded};
-        TF_Serde_FreeString(out_encoded);
         return result;
     }
 
     [[nodiscard]] std::expected<ice::String, ice::Status> decode(const ice::String& data)
     {
         ice::Status status;
-        TF_TString* out_json = nullptr;
-        m_ops->decode(get_handle(), data.get_handle(), &out_json, status.get_handle());
+        ice::String result;
+        m_ops->decode(get_handle(), data.get_handle(), result.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
-        ice::String result{out_json};
-        TF_Serde_FreeString(out_json);
         return result;
     }
 
-    ice::String get_content_type() const
+    ice::String get_content_type() const noexcept
     {
         ice::String tf_content_type;
         m_ops->get_content_type(get_handle(), tf_content_type.get_handle());
         return tf_content_type;
     }
 
-    ice::String get_format_name() const
+    ice::String get_format_name() const noexcept
     {
         ice::String tf_format_name;
         m_ops->get_format_name(get_handle(), tf_format_name.get_handle());

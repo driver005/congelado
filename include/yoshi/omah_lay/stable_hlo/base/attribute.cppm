@@ -12,9 +12,9 @@ export namespace cc::stable_hlo {
 // Attribute — describes an attribute KIND (name + real cpp_type/optional/list metadata) from
 // the schema, AND (optionally) the bound value for that attr on a real Operation — value is nullopt
 // for a schema entry's attr (no bound value exists yet), set via append_value() for a real
-// bound Operation's attr. One class either way, no separate parallel-vector-of-values on Operation (the old
-// op/attribute.cppm — OpAttribute, a raw (name, value) pair with no type metadata — is gone,
-// folded into this same class).
+// bound Operation's attr. One class either way, no separate parallel-vector-of-values on Operation
+// (the old op/attribute.cppm — OpAttribute, a raw (name, value) pair with no type metadata — is
+// gone, folded into this same class).
 class Attribute : public ice::builder::Attribute
 {
 public:
@@ -39,30 +39,27 @@ public:
         return m_value;
     }
 
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_name};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
-
-        return ice::String{
-            std::string{m_optional ? "optional:true" : "optional:false"}
-        };
+        return ice::String{m_optional ? "optional:true" : "optional:false"};
     }
 
-    ice::String get_full_type() const override
+    ice::String get_full_type() const noexcept override
     {
         return ice::String{m_cpp_type};
     }
 
-    ice::String get_base_type() const override
+    ice::String get_base_type() const noexcept override
     {
         return ice::String{m_cpp_type};
     }
 
-    bool is_list() const override
+    bool is_list() const noexcept override
     {
         return m_list;
     }

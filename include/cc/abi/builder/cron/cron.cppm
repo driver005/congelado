@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a cron scheduler backend — pure interface, zero C-ABI/TF_* knowledge,
-// mirrors ice::builder::Builder's role. A backend implements this directly and
+// mirrors ice::builder::Generator's role. A backend implements this directly and
 // registers a factory function pointer into ice::sonic::RegistrationRuntime under type="cron".
 class Cron
 {
@@ -29,41 +29,41 @@ public:
     virtual ~Cron() = default;
 
 
-    virtual [[nodiscard]] std::expected<bool, ice::Status>
-    validate(const ice::String& expression) = 0;
+    [[nodiscard]] virtual std::expected<bool, ice::Status>
+    validate(const ice::String& expression) noexcept = 0;
 
     // out_time_ms — filled with the next fire time when the returned bool is true.
-    virtual [[nodiscard]] std::expected<bool, ice::Status> next_after(
+    [[nodiscard]] virtual std::expected<bool, ice::Status> next_after(
         const ice::String& expression,
         std::int64_t base_time_ms,
         std::int64_t* out_time_ms
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    upsert_job(const ice::String& name, const ice::String& expression) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    upsert_job(const ice::String& name, const ice::String& expression) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> remove_job(const ice::String& name) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> remove_job(const ice::String& name) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Cron* get_generic_vtable()
     {
         static TF_Cron vtable = {
-            .struct_size = sizeof(TF_Cron),
+            .struct_size = TF_CRON_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Cron::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Cron::create(plugin_context);
                 auto name = self->get_name();
                 name.to_c(out);
             },
             .validate =
-                [](void* plugin_context, const TF_TString* expression, TF_Status* status) -> TF_Bool
+                [](void* plugin_context, const TF_TString* expression, TF_Status* status) noexcept -> bool
             {
                 auto* self = Cron::create(plugin_context);
                 auto res = self->validate(ice::String::create(expression));
@@ -77,7 +77,7 @@ public:
                              const TF_TString* expression,
                              int64_t base_time_ms,
                              int64_t* out_time_ms,
-                             TF_Status* status) -> TF_Bool
+                             TF_Status* status) noexcept -> bool
             {
                 auto* self = Cron::create(plugin_context);
                 auto res =
@@ -92,7 +92,7 @@ public:
                 [](void* plugin_context,
                    const TF_TString* name,
                    const TF_TString* expression,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Cron::create(plugin_context);
                 auto res =
@@ -102,7 +102,7 @@ public:
                 }
             },
             .remove_job =
-                [](void* plugin_context, const TF_TString* name, TF_Status* status)
+                [](void* plugin_context, const TF_TString* name, TF_Status* status) noexcept
             {
                 auto* self = Cron::create(plugin_context);
                 auto res = self->remove_job(ice::String::create(name));

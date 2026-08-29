@@ -9,6 +9,7 @@ congelado_module_library(
     primary_interface = "generator.cppm",
     partitions = [
         "attribute.cppm",
+        "definition.cppm",
         "runtime.cppm",
         "function.cppm",
         "parameter.cppm",

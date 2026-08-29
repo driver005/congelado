@@ -23,7 +23,7 @@ public:
 
     virtual ~Counter() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> add(double value) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> add(double value) = 0;
 };
 
 class Histogram
@@ -39,7 +39,7 @@ public:
 
     virtual ~Histogram() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> record(double value) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> record(double value) = 0;
 };
 
 class Span
@@ -55,13 +55,13 @@ public:
 
     virtual ~Span() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::Status>
     set_attribute(const ice::String& key, const ice::String& value) = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::Status>
     set_status(ice::SpanStatus status, const ice::String& description) = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> end() = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> end() = 0;
 };
 
 } // namespace ice::builder

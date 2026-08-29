@@ -14,6 +14,7 @@ congelado_module_library(
         "//include/cc/abi/sonic/io:cc_abi_sonic_io",
         "//include/cc/abi/sonic/filesystem:cc_abi_sonic_filesystem",
         "//include/cc/abi/sonic/env:cc_abi_sonic_env",
+        "//include/cc/abi/sonic/plugin:cc_abi_sonic_plugin",
         "//include/cc/abi/sonic/generator:cc_abi_sonic_generator",
         "//include/cc/abi/sonic/cache:cc_abi_sonic_cache",
         "//include/cc/abi/sonic/cron:cc_abi_sonic_cron",

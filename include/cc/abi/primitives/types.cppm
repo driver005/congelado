@@ -167,59 +167,59 @@ inline SpanStatus span_status_from_c(TF_OTEL_SpanStatus status) noexcept
 class SearchQuery
 {
 public:
-    SearchQuery() = default;
+    SearchQuery() noexcept = default;
 
-    SearchQuery& set_query(const ice::String& value)
+    SearchQuery& set_query(const ice::String& value) noexcept
     {
         m_query = value;
         return *this;
     }
 
-    SearchQuery& set_free_text(const ice::String& value)
+    SearchQuery& set_free_text(const ice::String& value) noexcept
     {
         m_free_text = value;
         return *this;
     }
 
-    SearchQuery& set_start(std::int64_t start)
+    SearchQuery& set_start(std::int64_t start) noexcept
     {
         m_start = start;
         return *this;
     }
 
-    SearchQuery& set_size(std::int64_t size)
+    SearchQuery& set_size(std::int64_t size) noexcept
     {
         m_size = size;
         return *this;
     }
 
-    SearchQuery& set_sort(const ice::String& value)
+    SearchQuery& set_sort(const ice::String& value) noexcept
     {
         m_sort = value;
         return *this;
     }
 
-    const ice::String& get_query() const
+    const ice::String& get_query() const noexcept
     {
         return m_query;
     }
 
-    const ice::String& get_free_text() const
+    const ice::String& get_free_text() const noexcept
     {
         return m_free_text;
     }
 
-    std::int64_t get_start() const
+    std::int64_t get_start() const noexcept
     {
         return m_start;
     }
 
-    std::int64_t get_size() const
+    std::int64_t get_size() const noexcept
     {
         return m_size;
     }
 
-    const ice::String& get_sort() const
+    const ice::String& get_sort() const noexcept
     {
         return m_sort;
     }

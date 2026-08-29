@@ -16,14 +16,14 @@ export namespace ice::sonic {
 class Logger : public ice::sonic::Runtime<Logger, TF_Logger>
 {
 public:
-    explicit Logger(TF_Logger* ops, void* plugin_context) :
+    explicit Logger(TF_Logger* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "logger";
 
-    [[nodiscard]] std::expected<void, ice::Status> debug(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> debug(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->debug(get_handle(), message.get_handle(), status.get_handle());
@@ -33,7 +33,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> info(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> info(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->info(get_handle(), message.get_handle(), status.get_handle());
@@ -43,7 +43,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> important(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> important(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->important(get_handle(), message.get_handle(), status.get_handle());
@@ -53,7 +53,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> warning(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> warning(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->warning(get_handle(), message.get_handle(), status.get_handle());
@@ -63,7 +63,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> error(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> error(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->error(get_handle(), message.get_handle(), status.get_handle());
@@ -73,7 +73,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> fatal(const ice::String& message)
+    [[nodiscard]] std::expected<void, ice::Status> fatal(const ice::String& message) noexcept
     {
         ice::Status status;
         m_ops->fatal(get_handle(), message.get_handle(), status.get_handle());
@@ -83,7 +83,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

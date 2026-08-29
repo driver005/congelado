@@ -26,11 +26,6 @@ limitations under the License.
 extern "C"
 {
 #endif
-    typedef struct TF_Otel_Meter_Controller TF_Otel_Meter_Controller;
-    typedef struct TF_Otel_Span_Controller TF_Otel_Span_Controller;
-    typedef struct TF_Otel_Counter_Controller TF_Otel_Counter_Controller;
-    typedef struct TF_Otel_Histogram_Controller TF_Otel_Histogram_Controller;
-
     typedef struct TF_Otel
     {
         size_t struct_size;
@@ -41,27 +36,27 @@ extern "C"
         void* (*get_meter)(void* plugin_context, TF_Status* status);
         void (*meter__destroy)(void* meter_context);
         void* (*tracer__start_span)(
-            void* tracer,
+            void* tracer_context,
             const TF_TString* name,
             int kind,
             TF_Status* status
         );
         void (*span__destroy)(void* span_context);
         void (*span__set_attribute)(
-            void* span,
+            void* span_context,
             const TF_TString* key,
             const TF_TString* value,
             TF_Status* status
         );
         void (*span__set_status)(
-            void* span,
+            void* span_context,
             int status_code,
             const TF_TString* description,
             TF_Status* status
         );
         void (*span__end)(void* span_context, TF_Status* status);
         void* (*meter__create_counter)(
-            void* meter,
+            void* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,
@@ -70,7 +65,7 @@ extern "C"
         void (*counter__destroy)(void* counter_context);
         void (*counter__add)(void* counter_context, double value, TF_Status* status);
         void* (*meter__create_histogram)(
-            void* meter,
+            void* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,

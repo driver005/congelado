@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a payload backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Builder's role. A backend implements this directly and registers a
+// ice::builder::Generator's role. A backend implements this directly and registers a
 // factory function pointer into ice::sonic::RegistrationRuntime under type="payload".
 class Payload
 {
@@ -28,29 +28,29 @@ public:
 
     virtual ~Payload() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> write(
+    [[nodiscard]] virtual std::expected<void, ice::Status> write(
         ice::PayloadType type,
         const ice::String& data,
         TF_Payload_CompletionFn completion,
         void* cb_user_data
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    read(const ice::String& reference, TF_Payload_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    read(const ice::String& reference, TF_Payload_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Payload* get_generic_vtable()
     {
         static TF_Payload vtable = {
-            .struct_size = sizeof(TF_Payload),
+            .struct_size = TF_PAYLOAD_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Payload::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Payload::create(plugin_context);
                 auto name = self->get_name();
@@ -62,7 +62,7 @@ public:
                    const TF_TString* data,
                    TF_Payload_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Payload::create(plugin_context);
                 ice::PayloadType cpp_type = ice::payload_type_from_c(type);
@@ -77,7 +77,7 @@ public:
                    const TF_TString* reference,
                    TF_Payload_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Payload::create(plugin_context);
                 auto res = self->read(ice::String::create(reference), completion, cb_user_data);

@@ -28,13 +28,13 @@ public:
 
     virtual ~Server() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> start() = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> stop() = 0;
-    virtual [[nodiscard]] std::expected<bool, ice::Status> is_running() = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> stop() noexcept = 0;
+    [[nodiscard]] virtual std::expected<bool, ice::Status> is_running() noexcept = 0;
 };
 
 // Abstract base class for a protocol backend — pure interface, zero C-ABI/TF_* knowledge,
-// mirrors ice::builder::Builder's role. A backend implements this directly and
+// mirrors ice::builder::Generator's role. A backend implements this directly and
 // registers a factory function pointer into ice::sonic::RegistrationRuntime under
 // type="protocol".
 class Protocol
@@ -50,57 +50,57 @@ public:
 
     virtual ~Protocol() = default;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Server>, ice::Status> create_server() = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Server>, ice::Status> create_server() noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
-    virtual ice::String get_bind_host() const = 0;
-    virtual std::uint16_t get_bind_port() const = 0;
-    virtual ice::String get_tls_cert() const = 0;
-    virtual ice::String get_tls_key() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
+    virtual ice::String get_bind_host() const noexcept = 0;
+    virtual std::uint16_t get_bind_port() const noexcept = 0;
+    virtual ice::String get_tls_cert() const noexcept = 0;
+    virtual ice::String get_tls_key() const noexcept = 0;
 
     static TF_Protocol* get_generic_vtable()
     {
         static TF_Protocol vtable = {
-            .struct_size = sizeof(TF_Protocol),
+            .struct_size = TF_PROTOCOL_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Protocol::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Protocol::create(plugin_context);
                 auto name = self->get_name();
                 name.to_c(out);
             },
             .get_bind_host =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Protocol::create(plugin_context);
                 auto name = self->get_bind_host();
                 name.to_c(out);
             },
-            .get_bind_port = [](void* plugin_context) -> uint16_t
+            .get_bind_port = [](void* plugin_context) noexcept -> uint16_t
             {
                 auto* self = Protocol::create(plugin_context);
                 return self->get_bind_port();
             },
             .get_tls_cert =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Protocol::create(plugin_context);
                 auto name = self->get_tls_cert();
                 name.to_c(out);
             },
             .get_tls_key =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Protocol::create(plugin_context);
                 auto name = self->get_tls_key();
                 name.to_c(out);
             },
-            .create_server = [](void* plugin_context, TF_Status* status) -> void*
+            .create_server = [](void* plugin_context, TF_Status* status) noexcept -> void*
             {
                 auto* self = Protocol::create(plugin_context);
                 auto res = self->create_server();
@@ -111,12 +111,12 @@ public:
                 return res->release();
             },
             .server__destroy =
-                [](void* server_context)
+                [](void* server_context) noexcept
             {
                 delete Server::create(server_context);
             },
             .server__start =
-                [](void* server_context, TF_Status* status)
+                [](void* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
                 auto res = self->start();
@@ -125,7 +125,7 @@ public:
                 }
             },
             .server__stop =
-                [](void* server_context, TF_Status* status)
+                [](void* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
                 auto res = self->stop();
@@ -133,7 +133,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .server__is_running = [](void* server_context, TF_Status* status) -> TF_Bool
+            .server__is_running = [](void* server_context, TF_Status* status) noexcept -> bool
             {
                 auto* self = Server::create(server_context);
                 auto res = self->is_running();

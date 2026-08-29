@@ -23,7 +23,6 @@ public:
 
     ~DynamicLibrary()
     {
-
         if (m_handle) {
             dlclose(m_handle);
         }
@@ -40,7 +39,6 @@ public:
 
     DynamicLibrary& operator=(DynamicLibrary&& other) noexcept
     {
-
         if (this != &other) {
             if (m_handle) {
                 dlclose(m_handle);
@@ -53,7 +51,6 @@ public:
 
     [[nodiscard]] std::expected<void, ice::Status> load(const std::string& library_filename)
     {
-
         if (m_handle) {
             dlclose(m_handle);
             m_handle = nullptr;
@@ -65,10 +62,8 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void*, ice::Status>
-    get_symbol(const std::string& symbol_name) const
+    [[nodiscard]] std::expected<void*, ice::Status> get_symbol(const std::string& symbol_name) const
     {
-
         dlerror(); // clear any pending error — dlsym's own success can't otherwise be told
                    // apart from a symbol that's legitimately bound to NULL (POSIX dlsym
                    // contract)

@@ -22,11 +22,11 @@ public:
 
     virtual ~Attribute() = default;
 
-    virtual ice::String get_name() const = 0;
-    virtual ice::String get_description() const = 0;
-    virtual ice::String get_full_type() const = 0;
-    virtual ice::String get_base_type() const = 0;
-    virtual bool is_list() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
+    virtual ice::String get_description() const noexcept = 0;
+    virtual ice::String get_full_type() const noexcept = 0;
+    virtual ice::String get_base_type() const noexcept = 0;
+    virtual bool is_list() const noexcept = 0;
 };
 
 } // namespace ice::builder

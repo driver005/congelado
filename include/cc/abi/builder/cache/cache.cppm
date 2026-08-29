@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a cache backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Builder's role. A backend implements this directly and registers a
+// ice::builder::Generator's role. A backend implements this directly and registers a
 // factory function pointer into ice::sonic::RegistrationRuntime under type="cache"; this module
 // never imports any specific backend implementation.
 class Cache
@@ -29,31 +29,31 @@ public:
 
     virtual ~Cache() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    get(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::Status>
     set(const ice::String& key,
         const ice::String& value,
         TF_Cache_CompletionFn completion,
-        void* cb_user_data) = 0;
+        void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    remove(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    remove(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Cache* get_generic_vtable()
     {
         static TF_Cache vtable = {
-            .struct_size = sizeof(TF_Cache),
+            .struct_size = TF_CACHE_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Cache::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Cache::create(plugin_context);
                 auto name = self->get_name();
@@ -64,7 +64,7 @@ public:
                    const TF_TString* key,
                    TF_Cache_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Cache::create(plugin_context);
                 auto res = self->get(ice::String::create(key), completion, cb_user_data);
@@ -78,7 +78,7 @@ public:
                    const TF_TString* value,
                    TF_Cache_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Cache::create(plugin_context);
                 auto res = self->set(
@@ -96,7 +96,7 @@ public:
                    const TF_TString* key,
                    TF_Cache_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Cache::create(plugin_context);
                 auto res = self->remove(ice::String::create(key), completion, cb_user_data);

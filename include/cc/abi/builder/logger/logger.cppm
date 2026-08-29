@@ -14,7 +14,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a logger backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Builder's role. A backend implements this directly and registers a
+// ice::builder::Generator's role. A backend implements this directly and registers a
 // factory function pointer into ice::sonic::RegistrationRuntime under type="logger".
 class Logger
 {
@@ -29,35 +29,35 @@ public:
 
     virtual ~Logger() = default;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> debug(const ice::String& message) = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> info(const ice::String& message) = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    important(const ice::String& message) = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> warning(const ice::String& message) = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> error(const ice::String& message) = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> fatal(const ice::String& message) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> debug(const ice::String& message) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> info(const ice::String& message) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    important(const ice::String& message) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> warning(const ice::String& message) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> error(const ice::String& message) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> fatal(const ice::String& message) noexcept = 0;
 
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Logger* get_generic_vtable()
     {
         static TF_Logger vtable = {
-            .struct_size = sizeof(TF_Logger),
+            .struct_size = TF_LOGGER_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Logger::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Logger::create(plugin_context);
                 auto name = self->get_name();
                 name.to_c(out);
             },
             .debug =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->debug(ice::String::create(message));
                 if (!res) {
@@ -65,7 +65,7 @@ public:
                 }
             },
             .info =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->info(ice::String::create(message));
                 if (!res) {
@@ -73,7 +73,7 @@ public:
                 }
             },
             .important =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->important(ice::String::create(message));
                 if (!res) {
@@ -81,7 +81,7 @@ public:
                 }
             },
             .warning =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->warning(ice::String::create(message));
                 if (!res) {
@@ -89,7 +89,7 @@ public:
                 }
             },
             .error =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->error(ice::String::create(message));
                 if (!res) {
@@ -97,7 +97,7 @@ public:
                 }
             },
             .fatal =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto res = Logger::create(plugin_context)->fatal(ice::String::create(message));
                 if (!res) {

@@ -15,7 +15,7 @@ export namespace ice::sonic {
 class TypeInfo
 {
 public:
-    explicit TypeInfo(TF_Generator* ops, void* handle) :
+    explicit TypeInfo(TF_Generator* ops, void* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -33,24 +33,24 @@ public:
     TypeInfo(TypeInfo&&) = delete;
     TypeInfo& operator=(TypeInfo&&) = delete;
 
-    int get_data_type() const
+    int get_data_type() const noexcept
     {
         return m_ops->typeinfo__get_data_type(m_handle);
     }
 
-    ice::String get_type_attr_name() const
+    ice::String get_type_attr_name() const noexcept
     {
         ice::String out;
         m_ops->typeinfo__get_type_attr_name(m_handle, out.get_handle());
         return out;
     }
 
-    bool is_read_only() const
+    bool is_read_only() const noexcept
     {
         return m_ops->typeinfo__is_read_only(m_handle);
     }
 
-    bool is_list() const
+    bool is_list() const noexcept
     {
         return m_ops->typeinfo__is_list(m_handle);
     }

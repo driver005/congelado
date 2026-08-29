@@ -9,19 +9,19 @@ export namespace ice {
 class TensorHandle
 {
 public:
-    TensorHandle() = default;
+    TensorHandle() noexcept = default;
 
-    explicit TensorHandle(TF_Tensor_Handle* handle) :
+    explicit TensorHandle(TF_Tensor_Handle* handle) noexcept :
         m_handle(handle)
     {
     }
 
-    explicit TensorHandle(const TF_Tensor_Handle* handle) :
+    explicit TensorHandle(const TF_Tensor_Handle* handle) noexcept :
         m_handle(const_cast<TF_Tensor_Handle*>(handle))
     {
     }
 
-    TF_Tensor_Handle* get_handle() const
+    TF_Tensor_Handle* get_handle() const noexcept
     {
         return m_handle;
     }

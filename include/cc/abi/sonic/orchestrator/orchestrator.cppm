@@ -16,7 +16,7 @@ export namespace ice::sonic {
 class Orchestrator : public ice::sonic::Runtime<Orchestrator, TF_Orchestrator>
 {
 public:
-    explicit Orchestrator(TF_Orchestrator* ops, void* plugin_context) :
+    explicit Orchestrator(TF_Orchestrator* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -28,7 +28,7 @@ public:
         const ice::String& variables_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->start_workflow(
@@ -46,7 +46,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    pause(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data)
+    pause(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->pause(
@@ -63,7 +63,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    resume(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data)
+    resume(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->resume(
@@ -80,7 +80,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    terminate(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data)
+    terminate(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->terminate(
@@ -103,7 +103,7 @@ public:
         const ice::String& output_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->complete_task(
@@ -122,7 +122,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

@@ -1,10 +1,11 @@
 module;
 
+#include "c/intern/tf_tensor.h"
+
 export module cc_abi_builder_generator:function;
 
 import std;
 import cc_abi_primitives;
-#include "c/intern/tf_tensor.h"
 import cc_abi_sonic_intern;
 import :parameter;
 import :definition;
@@ -25,18 +26,18 @@ public:
 
     virtual ~Function() = default;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Parameter>, ice::Status>
-    add_parameter(const ice::String& name, const ice::String& type_text) = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Parameter>, ice::Status>
+    add_parameter(const ice::String& name, const ice::String& type_text) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> add_node(
+    [[nodiscard]] virtual std::expected<void, ice::Status> add_node(
         const Definition& def,
         ice::TensorHandle operands,
         ice::TensorHandle attrs,
         ice::TensorHandle out_results
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    exit_border_patrol(ice::TensorHandle outputs) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    exit_border_patrol(ice::TensorHandle outputs) noexcept = 0;
 };
 
 } // namespace ice::builder

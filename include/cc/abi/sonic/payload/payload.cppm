@@ -16,7 +16,7 @@ export namespace ice::sonic {
 class Payload : public ice::sonic::Runtime<Payload, TF_Payload>
 {
 public:
-    explicit Payload(TF_Payload* ops, void* plugin_context) :
+    explicit Payload(TF_Payload* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -28,7 +28,7 @@ public:
         const ice::String& data,
         TF_Payload_CompletionFn completion,
         void* cb_user_data
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->write(
@@ -46,7 +46,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    read(const ice::String& reference, TF_Payload_CompletionFn completion, void* cb_user_data)
+    read(const ice::String& reference, TF_Payload_CompletionFn completion, void* cb_user_data) noexcept
     {
         ice::Status status;
         m_ops->read(
@@ -62,7 +62,7 @@ public:
         return {};
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());

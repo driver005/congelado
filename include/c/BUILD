@@ -169,7 +169,11 @@ cc_library(
 
 cc_library(
     name = "extern_env_hdrs",
-    hdrs = ["extern/env/env.h"],
+    hdrs = [
+        "extern/env/dynamic_library.h",
+        "extern/env/env.h",
+        "extern/env/thread.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_status_hdrs",
@@ -188,7 +192,10 @@ cc_library(
 
 cc_library(
     name = "extern_filesystem_hdrs",
-    hdrs = ["extern/filesystem/filesystem.h"],
+    hdrs = [
+        "extern/filesystem/filesystem.h",
+        "extern/filesystem/option_types.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
     ],

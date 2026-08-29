@@ -61,7 +61,7 @@ genrule(
 #                                         the same append_parameter/append_attr/append_result way
 #                                         a normal caller builds a real Operation); builder.cppm
 #                                         (Builder, implements
-#                                         ice::builder::Builder's typed-API tier —
+#                                         ice::builder::Generator's typed-API tier —
 #                                         doesn't opt into the interface's second, generic/
 #                                         C-ABI-crossable tier; stable_hlo.cc registers its
 #                                         factory function pointer into
@@ -91,7 +91,7 @@ congelado_module_library(
 )
 
 # Shared-library entry point for yoshi::core::PluginLoader (include/yoshi/lucki/plugin) — a
-# TF_InitPlugin export (c/extern/plugin/registration.h) whose only job is existing as a
+# init_plugin export (c/extern/plugin/registration.h) whose only job is existing as a
 # dlsym-able symbol. Its body registers cc::stable_hlo::Builder's factory function pointer into
 # ice::sonic::RegistrationRuntime (cc_abi_sonic_registration) under type="generator" — the
 # process-wide shared storage (backed by //include/c:registration_shared, linkshared) that
@@ -103,7 +103,7 @@ congelado_cc_binary(
     deps = [
         ":yoshi_omah_lay_stable_hlo",
         "//include/c:extern_generator_hdrs",
-        "//include/c:extern_plugin_registration_hdrs",
+        "//include/c:extern_plugin_hdrs",
         "//include/cc/abi/primitives:cc_abi_primitives",
         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
         "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",

@@ -13,9 +13,12 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a worker (task executor) backend — pure interface, zero C-ABI/TF_*
-// knowledge, mirrors ice::builder::Builder's role. A backend implements this
+// knowledge, mirrors ice::builder::Generator's role. A backend implements this
 // directly and registers a factory function pointer into ice::sonic::RegistrationRuntime under
 // type="worker".
+//
+// Exception contract: every member is noexcept — the std::expected return is the only
+// failure channel; a throwing implementation fails fast at the ABI boundary.
 class Worker
 {
 public:
@@ -29,36 +32,42 @@ public:
 
     virtual ~Worker() = default;
 
-    virtual [[nodiscard]] std::expected<ice::String, ice::Status> get_task_type() = 0;
+    [[nodiscard]] virtual std::expected<ice::String, ice::Status> get_task_type() noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<ice::String, ice::Status>
-    execute(const ice::String& input_json) = 0;
+    [[nodiscard]] virtual std::expected<ice::String, ice::Status>
+    execute(const ice::String& input_json) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> execute_async(
+    [[nodiscard]] virtual std::expected<void, ice::Status> execute_async(
         const ice::String& input_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> on_error(const ice::String& message) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    on_error(const ice::String& message) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> on_released() = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> on_released() noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Worker* get_generic_vtable()
     {
         static TF_Worker vtable = {
-            .struct_size = sizeof(TF_Worker),
+            .struct_size = TF_WORKER_STRUCT_SIZE,
+            .destroy =
+                [](void* plugin_context) noexcept
+            {
+                delete Worker::create(plugin_context);
+            },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Worker::create(plugin_context);
                 auto name = self->get_name();
                 name.to_c(out);
             },
             .get_task_type =
-                [](void* plugin_context, TF_String* out, TF_Status* status)
+                [](void* plugin_context, TF_String* out, TF_Status* status) noexcept
             {
                 auto res = Worker::create(plugin_context)->get_task_type();
                 if (!res) {
@@ -71,7 +80,7 @@ public:
                 [](void* plugin_context,
                    const TF_TString* input_json,
                    TF_String* out_result_json,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto res = Worker::create(plugin_context)->execute(ice::String::create(input_json));
                 if (!res) {
@@ -85,7 +94,7 @@ public:
                    const TF_TString* input_json,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Worker::create(plugin_context);
                 auto res =
@@ -95,7 +104,7 @@ public:
                 }
             },
             .on_error =
-                [](void* plugin_context, const TF_TString* message, TF_Status* status)
+                [](void* plugin_context, const TF_TString* message, TF_Status* status) noexcept
             {
                 auto* self = Worker::create(plugin_context);
                 auto res = self->on_error(ice::String::create(message));
@@ -104,18 +113,13 @@ public:
                 }
             },
             .on_released =
-                [](void* plugin_context, TF_Status* status)
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Worker::create(plugin_context);
                 auto res = self->on_released();
                 if (!res) {
                     res.error().to_c(status);
                 }
-            },
-            .destroy =
-                [](void* plugin_context)
-            {
-                delete Worker::create(plugin_context);
             }
         };
         return &vtable;

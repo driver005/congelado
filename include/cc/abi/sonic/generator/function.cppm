@@ -18,7 +18,7 @@ export namespace ice::sonic {
 class Function
 {
 public:
-    explicit Function(TF_Generator* ops, void* handle) :
+    explicit Function(TF_Generator* ops, void* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -37,7 +37,7 @@ public:
     Function& operator=(Function&&) = delete;
 
     [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Parameter>, ice::Status>
-    add_parameter(const ice::String& name, const ice::String& type_text)
+    add_parameter(const ice::String& name, const ice::String& type_text) noexcept
     {
         ice::Status status;
         void* handle = m_ops->function__add_parameter(
@@ -60,7 +60,7 @@ public:
         ice::TensorHandle operands,
         ice::TensorHandle attrs,
         ice::TensorHandle out_results
-    )
+    ) noexcept
     {
         ice::Status status;
         m_ops->function__add_node(
@@ -77,7 +77,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> exit_border_patrol(ice::TensorHandle outputs)
+    [[nodiscard]] std::expected<void, ice::Status> exit_border_patrol(ice::TensorHandle outputs) noexcept
     {
         ice::Status status;
         m_ops->function__exit_border_patrol(m_handle, outputs.get_handle(), status.get_handle());

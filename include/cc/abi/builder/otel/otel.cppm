@@ -6,7 +6,6 @@ module;
 
 export module cc_abi_builder_otel;
 
-export import :enums;
 export import :leaves;
 import std;
 import cc_abi_primitives;
@@ -27,8 +26,8 @@ public:
 
     virtual ~Tracer() = default;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Span>, ice::Status>
-    start_span(const ice::String& name, ice::SpanKind kind) = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Span>, ice::Status>
+    start_span(const ice::String& name, ice::SpanKind kind) noexcept = 0;
 };
 
 class Meter
@@ -44,21 +43,21 @@ public:
 
     virtual ~Meter() = default;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Counter>, ice::Status> create_counter(
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Counter>, ice::Status> create_counter(
         const ice::String& name,
         const ice::String& description,
         const ice::String& unit
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Histogram>, ice::Status> create_histogram(
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Histogram>, ice::Status> create_histogram(
         const ice::String& name,
         const ice::String& description,
         const ice::String& unit
-    ) = 0;
+    ) noexcept = 0;
 };
 
 // Abstract base class for an OpenTelemetry backend — pure interface, zero C-ABI/TF_* knowledge,
-// mirrors ice::builder::Builder's role. A backend implements this directly and
+// mirrors ice::builder::Generator's role. A backend implements this directly and
 // registers a factory function pointer into ice::sonic::RegistrationRuntime under type="otel".
 class Otel
 {
@@ -73,26 +72,26 @@ public:
 
     virtual ~Otel() = default;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Tracer>, ice::Status> get_tracer() = 0;
-    virtual [[nodiscard]] std::expected<std::unique_ptr<Meter>, ice::Status> get_meter() = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Tracer>, ice::Status> get_tracer() noexcept = 0;
+    [[nodiscard]] virtual std::expected<std::unique_ptr<Meter>, ice::Status> get_meter() noexcept = 0;
 
     static TF_Otel* get_generic_vtable()
     {
         static TF_Otel vtable = {
-            .struct_size = sizeof(TF_Otel),
+            .struct_size = TF_OTEL_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Otel::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 Otel::create(plugin_context)->get_name().to_c(out);
             },
-            .get_tracer = [](void* plugin_context, TF_Status* status) -> void*
+            .get_tracer = [](void* plugin_context, TF_Status* status) noexcept -> void*
             {
                 auto* self = Otel::create(plugin_context);
                 auto res = self->get_tracer();
@@ -103,11 +102,11 @@ public:
                 return res->release();
             },
             .tracer__destroy =
-                [](void* tracer_context)
+                [](void* tracer_context) noexcept
             {
                 delete Tracer::create(tracer_context);
             },
-            .get_meter = [](void* plugin_context, TF_Status* status) -> void*
+            .get_meter = [](void* plugin_context, TF_Status* status) noexcept -> void*
             {
                 auto* self = Otel::create(plugin_context);
                 auto res = self->get_meter();
@@ -118,17 +117,20 @@ public:
                 return res->release();
             },
             .meter__destroy =
-                [](void* meter_context)
+                [](void* meter_context) noexcept
             {
                 delete Meter::create(meter_context);
             },
             .tracer__start_span = [](void* tracer_context,
                                      const TF_TString* name,
-                                     TF_OTEL_SpanKind kind,
-                                     TF_Status* status) -> void*
+                                     int kind,
+                                     TF_Status* status) noexcept -> void*
             {
                 auto* self = Tracer::create(tracer_context);
-                auto res = self->start_span(ice::String::create(name), ice::span_kind_from_c(kind));
+                auto res = self->start_span(
+                    ice::String::create(name),
+                    ice::span_kind_from_c(static_cast<TF_OTEL_SpanKind>(kind))
+                );
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
@@ -136,7 +138,7 @@ public:
                 return res->release();
             },
             .span__destroy =
-                [](void* span_context)
+                [](void* span_context) noexcept
             {
                 delete Span::create(span_context);
             },
@@ -144,7 +146,7 @@ public:
                 [](void* span_context,
                    const TF_TString* key,
                    const TF_TString* value,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
                 auto res =
@@ -155,13 +157,13 @@ public:
             },
             .span__set_status =
                 [](void* span_context,
-                   TF_OTEL_SpanStatus status_code,
+                   int status_code,
                    const TF_TString* description,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
                 auto res = self->set_status(
-                    ice::span_status_from_c(status_code),
+                    ice::span_status_from_c(static_cast<TF_OTEL_SpanStatus>(status_code)),
                     ice::String::create(description)
                 );
                 if (!res) {
@@ -169,7 +171,7 @@ public:
                 }
             },
             .span__end =
-                [](void* span_context, TF_Status* status)
+                [](void* span_context, TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
                 auto res = self->end();
@@ -181,7 +183,7 @@ public:
                                         const TF_TString* name,
                                         const TF_TString* description,
                                         const TF_TString* unit,
-                                        TF_Status* status) -> void*
+                                        TF_Status* status) noexcept -> void*
             {
                 auto* self = Meter::create(meter_context);
                 auto res = self->create_counter(
@@ -196,12 +198,12 @@ public:
                 return res->release();
             },
             .counter__destroy =
-                [](void* counter_context)
+                [](void* counter_context) noexcept
             {
                 delete Counter::create(counter_context);
             },
             .counter__add =
-                [](void* counter_context, double value, TF_Status* status)
+                [](void* counter_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Counter::create(counter_context);
                 auto res = self->add(value);
@@ -213,7 +215,7 @@ public:
                                           const TF_TString* name,
                                           const TF_TString* description,
                                           const TF_TString* unit,
-                                          TF_Status* status) -> void*
+                                          TF_Status* status) noexcept -> void*
             {
                 auto* self = Meter::create(meter_context);
                 auto res = self->create_histogram(
@@ -228,12 +230,12 @@ public:
                 return res->release();
             },
             .histogram__destroy =
-                [](void* histogram_context)
+                [](void* histogram_context) noexcept
             {
                 delete Histogram::create(histogram_context);
             },
             .histogram__record =
-                [](void* histogram_context, double value, TF_Status* status)
+                [](void* histogram_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Histogram::create(histogram_context);
                 auto res = self->record(value);

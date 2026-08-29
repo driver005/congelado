@@ -17,21 +17,21 @@ export namespace ice::sonic {
 class Io : public ice::sonic::Runtime<Io, TF_IO>
 {
 public:
-    explicit Io(TF_IO* ops, void* plugin_context) :
+    explicit Io(TF_IO* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "io";
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(get_handle(), out.get_handle());
         return out;
     }
 
-    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Request>, ice::Status> create_request()
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Request>, ice::Status> create_request() noexcept
     {
         ice::Status status;
         void* handle = m_ops->create_request(get_handle(), status.get_handle());
@@ -44,7 +44,7 @@ public:
         return std::make_unique<ice::sonic::Request>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::Response> create_response()
+    std::unique_ptr<ice::sonic::Response> create_response() noexcept
     {
         ice::Status status;
         void* handle = m_ops->create_response(get_handle(), status.get_handle());

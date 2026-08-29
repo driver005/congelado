@@ -5,6 +5,9 @@ module;
 
 export module cc_abi_sonic_registration:registration_runtime;
 
+import std;
+import cc_abi_primitives;
+
 export namespace ice::sonic {
 
 // Thin wrapper around c/extern/registration/registration.h's generic named-value registry —
@@ -13,28 +16,38 @@ export namespace ice::sonic {
 // visible to the host process. A plain in-process singleton would break here: statically
 // linking the same singleton code into both the host and a plugin .so gives each its own,
 // non-communicating copy, since neither dynamically links the other.
+//
+// All members are noexcept: the C entry points are noexcept by contract (registration.cc),
+// and ice::String's construction is malloc-backed, so no exception can escape.
 class RegistrationRuntime
 {
 private:
     struct RegistryState
     {
-        TF_RegistrationOps* ops = nullptr;
+        TF_Registration* ops = nullptr;
         void* plugin_context = nullptr;
 
-        RegistryState()
+        RegistryState() noexcept
         {
-            init_registration(&ops, &plugin_context, nullptr);
+            // Real status channel instead of nullptr: if init fails we must not silently
+            // pretend the registry is usable.
+            ice::Status status;
+            init_registration(&ops, &plugin_context, status.get_handle());
+            if (!status.ok() || !ops || ops->struct_size < sizeof(TF_Registration)) {
+                ops = nullptr;
+                plugin_context = nullptr;
+            }
         }
     };
 
-    static const RegistryState& state()
+    static const RegistryState& state() noexcept
     {
         static RegistryState s;
         return s;
     }
 
 public:
-    static void register_value(const char* type, const char* name, void* value)
+    static void register_value(const char* type, const char* name, void* value) noexcept
     {
         const auto& s = state();
         if (s.ops && s.ops->register_op) {
@@ -42,20 +55,24 @@ public:
         }
     }
 
-    static void* get(const char* type, const char* name)
+    static void* get(const char* type, const char* name) noexcept
     {
         const auto& s = state();
         if (s.ops && s.ops->get) {
-            return s.ops->get(s.plugin_context, type, name);
+            // The C ABI's get/unregister take a TF_String* name — adapt the C string at the
+            // boundary line.
+            ice::String name_str{name};
+            return s.ops->get(s.plugin_context, type, name_str.get_handle());
         }
         return nullptr;
     }
 
-    static void unregister(const char* type, const char* name)
+    static void unregister(const char* type, const char* name) noexcept
     {
         const auto& s = state();
         if (s.ops && s.ops->unregister) {
-            s.ops->unregister(s.plugin_context, type, name);
+            ice::String name_str{name};
+            s.ops->unregister(s.plugin_context, type, name_str.get_handle());
         }
     }
 };

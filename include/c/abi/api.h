@@ -27,6 +27,14 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
+// TF_SetRequireShapeInferenceFns below uses `bool`. In C, bool comes from stdbool.h; in
+// C++ it is a builtin. Include stdbool.h for C consumers so this header compiles as
+// plain C (the documented convention is unsigned char for booleans; this lone exception
+// is kept for upstream API compatibility).
+#ifndef __cplusplus
+#    include <stdbool.h>
+#endif
+
 // --------------------------------------------------------------------------
 // C API for TensorFlow.
 //
@@ -1082,7 +1090,7 @@ extern "C"
     // Either this or TF_AbortWhile() must be called after a successful
     // TF_NewWhile() call.
     TF_CAPI_EXPORT void
-    TF_FinishWhile(const TF_WhileParams* params, TF_Status* status, TF_Output* outputs);
+    TF_FinishWhile(const TF_WhileParams* params, TF_Output* outputs, TF_Status* status);
 
     // Frees `params`s resources without building a while loop. `params` is no
     // longer valid after this returns. Either this or TF_FinishWhile() must be
@@ -1117,8 +1125,8 @@ extern "C"
         TF_Output* x,
         int nx,
         TF_Output* dx,
-        TF_Status* status,
-        TF_Output* dy
+        TF_Output* dy,
+        TF_Status* status
     );
 
     // Adds operations to compute the partial derivatives of sum of `y`s w.r.t `x`s,
@@ -1150,8 +1158,8 @@ extern "C"
         TF_Output* x,
         int nx,
         TF_Output* dx,
-        TF_Status* status,
-        TF_Output* dy
+        TF_Output* dy,
+        TF_Status* status
     );
 
     // Create a TF_Function from a TF_Graph

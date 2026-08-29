@@ -14,7 +14,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a workflow-orchestrator backend — pure interface, zero C-ABI/TF_*
-// knowledge, mirrors ice::builder::Builder's role. A backend implements this
+// knowledge, mirrors ice::builder::Generator's role. A backend implements this
 // directly and registers a factory function pointer into ice::sonic::RegistrationRuntime under
 // type="orchestrator". Task completion is reported through the C-ABI
 // TF_Worker_CompletionFn callback type directly.
@@ -32,47 +32,47 @@ public:
     virtual ~Orchestrator() = default;
 
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> start_workflow(
+    [[nodiscard]] virtual std::expected<void, ice::Status> start_workflow(
         const ice::String& def_name,
         const ice::String& variables_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    pause(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    pause(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    resume(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    resume(const ice::String& exec_id, TF_Worker_CompletionFn completion, void* cb_user_data) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> terminate(
+    [[nodiscard]] virtual std::expected<void, ice::Status> terminate(
         const ice::String& exec_id,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> complete_task(
+    [[nodiscard]] virtual std::expected<void, ice::Status> complete_task(
         const ice::String& exec_id,
         const ice::String& node_ref,
         bool success,
         const ice::String& output_json,
         TF_Worker_CompletionFn completion,
         void* cb_user_data
-    ) = 0;
+    ) noexcept = 0;
 
-    virtual ice::String get_name() const = 0;
+    virtual ice::String get_name() const noexcept = 0;
 
     static TF_Orchestrator* get_generic_vtable()
     {
         static TF_Orchestrator vtable = {
-            .struct_size = sizeof(TF_Orchestrator),
+            .struct_size = TF_ORCHESTRATOR_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Orchestrator::create(plugin_context);
             },
             .get_name =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto name = self->get_name();
@@ -84,7 +84,7 @@ public:
                    const TF_TString* variables_json,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto res = self->start_workflow(
@@ -102,7 +102,7 @@ public:
                    const TF_TString* exec_id,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto res = self->pause(ice::String::create(exec_id), completion, cb_user_data);
@@ -115,7 +115,7 @@ public:
                    const TF_TString* exec_id,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto res = self->resume(ice::String::create(exec_id), completion, cb_user_data);
@@ -128,7 +128,7 @@ public:
                    const TF_TString* exec_id,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto res = self->terminate(ice::String::create(exec_id), completion, cb_user_data);
@@ -140,11 +140,11 @@ public:
                 [](void* plugin_context,
                    const TF_TString* exec_id,
                    const TF_TString* node_ref,
-                   TF_Bool success,
+                   bool success,
                    const TF_TString* output_json,
                    TF_Worker_CompletionFn completion,
                    void* cb_user_data,
-                   TF_Status* status)
+                   TF_Status* status) noexcept
             {
                 auto* self = Orchestrator::create(plugin_context);
                 auto res = self->complete_task(

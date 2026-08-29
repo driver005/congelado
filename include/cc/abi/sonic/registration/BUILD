@@ -8,6 +8,7 @@ congelado_module_library(
     ],
     deps = [
         "//include/c:tf_c_headers",
+        "//include/cc/abi/primitives:cc_abi_primitives",
     ],
     visibility = ["//visibility:public"],
 )

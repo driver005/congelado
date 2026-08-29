@@ -21,21 +21,21 @@ export namespace ice::sonic {
 class Profiler : public ice::sonic::Runtime<Profiler, TF_Profiler>
 {
 public:
-    explicit Profiler(TF_Profiler* ops, void* plugin_context) :
+    explicit Profiler(TF_Profiler* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "profiler";
 
-    ice::String get_device_type() const
+    ice::String get_device_type() const noexcept
     {
         ice::String tf_device_type;
         m_ops->get_device_type(get_handle(), tf_device_type.get_handle());
         return tf_device_type;
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> start()
+    [[nodiscard]] std::expected<void, ice::Status> start() noexcept
     {
         ice::Status status;
         m_ops->start(get_handle(), status.get_handle());
@@ -45,7 +45,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> stop()
+    [[nodiscard]] std::expected<void, ice::Status> stop() noexcept
     {
         ice::Status status;
         m_ops->stop(get_handle(), status.get_handle());
@@ -56,7 +56,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes)
+    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes) noexcept
     {
         ice::Status status;
         m_ops->collect_data_xspace(get_handle(), buffer, size_in_bytes, status.get_handle());

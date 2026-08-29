@@ -8,7 +8,7 @@ extern "C"
 {
 #endif
 
-    // A plugin's own identity, filled in by its TF_InitPlugin.
+    // A plugin's own identity, filled in by its init_plugin.
     typedef struct TF_PluginInfo
     {
         const char* name;
@@ -19,7 +19,7 @@ extern "C"
     // the library, dlsym's this symbol, and calls it, handing it a pointer to an empty
     // TF_PluginInfo the plugin fills in place. Returns nothing; the host reads the same struct
     // back afterward.
-    TF_CAPI_EXPORT void TF_InitPlugin(TF_PluginInfo* plugin_info);
+    TF_CAPI_EXPORT void init_plugin(TF_PluginInfo* plugin_info);
 
 #ifdef __cplusplus
 }

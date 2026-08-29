@@ -13,7 +13,7 @@ import cc_abi_sonic_intern;
 export namespace ice::builder {
 
 // Abstract base class for a profiler backend — pure interface, zero C-ABI/TF_* knowledge,
-// mirrors ice::builder::Builder's role. A backend implements this directly; the
+// mirrors ice::builder::Generator's role. A backend implements this directly; the
 // mainframe reaches it only through the C ABI (see ice::sonic::Profiler — no
 // in-process fast path, so an independently-built third-party profiler plugin never needs to
 // share the host's exact C++ ABI/toolchain).
@@ -30,35 +30,35 @@ public:
 
     virtual ~Profiler() = default;
 
-    virtual ice::String get_device_type() const = 0;
+    virtual ice::String get_device_type() const noexcept = 0;
 
-    virtual [[nodiscard]] std::expected<void, ice::Status> start() = 0;
-    virtual [[nodiscard]] std::expected<void, ice::Status> stop() = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> stop() noexcept = 0;
 
     // buffer == nullptr means "just report the required size in *size_in_bytes" (matches the
     // original contract — first call with a null buffer sizes it, a second call with a
     // buffer of that size fills it).
-    virtual [[nodiscard]] std::expected<void, ice::Status>
-    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes) noexcept = 0;
 
     static TF_Profiler* get_generic_vtable()
     {
         static TF_Profiler vtable = {
-            .struct_size = sizeof(TF_Profiler),
+            .struct_size = TF_PROFILER_STRUCT_SIZE,
             .destroy =
-                [](void* plugin_context)
+                [](void* plugin_context) noexcept
             {
                 delete Profiler::create(plugin_context);
             },
             .get_device_type =
-                [](void* plugin_context, TF_String* out)
+                [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto name = self->get_device_type();
                 name.to_c(out);
             },
             .start =
-                [](void* plugin_context, TF_Status* status)
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->start();
@@ -67,7 +67,7 @@ public:
                 }
             },
             .stop =
-                [](void* plugin_context, TF_Status* status)
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->stop();
@@ -76,7 +76,7 @@ public:
                 }
             },
             .collect_data_xspace =
-                [](void* plugin_context, uint8_t* buffer, size_t* size_in_bytes, TF_Status* status)
+                [](void* plugin_context, uint8_t* buffer, size_t* size_in_bytes, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->collect_data_xspace(buffer, size_in_bytes);

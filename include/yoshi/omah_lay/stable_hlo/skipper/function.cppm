@@ -1,5 +1,8 @@
 module;
 
+#include <cstddef>
+#include <cstdint>
+
 export module yoshi_omah_lay_stable_hlo:function;
 
 import std;
@@ -68,17 +71,17 @@ public:
     }
 
     // --- ice::builder::Definition ---
-    ice::String get_name() const override
+    ice::String get_name() const noexcept override
     {
         return ice::String{m_name};
     }
 
-    ice::String get_summary() const override
+    ice::String get_summary() const noexcept override
     {
         return ice::String{};
     }
 
-    ice::String get_description() const override
+    ice::String get_description() const noexcept override
     {
         return ice::String{};
     }
@@ -87,7 +90,7 @@ public:
     // as heap copies with parameter-slot context; attrs are always empty (functions
     // carry none). Ownership of each handle transfers to the C side.
     std::expected<ice::TensorHandle, ice::Status>
-    get_inputs(ice::TensorHandle /*out*/) const override
+    get_inputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_arguments.size());
         auto handle = make_handle_tensor(count);
@@ -104,7 +107,7 @@ public:
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_outputs(ice::TensorHandle /*out*/) const override
+    get_outputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_returns.size());
         auto handle = make_handle_tensor(count);
@@ -121,7 +124,7 @@ public:
     }
 
     std::expected<ice::TensorHandle, ice::Status>
-    get_attrs(ice::TensorHandle /*out*/) const override
+    get_attrs() const noexcept override
     {
         return make_handle_tensor(0);
     }
@@ -147,10 +150,8 @@ public:
         return m_returns;
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status>
-    render(int indent_level = 0) const
+    [[nodiscard]] std::expected<ice::String, ice::Status> render(int indent_level = 0) const
     {
-
         std::string params;
         for (std::size_t i = 0; i < m_arguments.size(); ++i) {
             if (i > 0) {
@@ -168,9 +169,11 @@ public:
 
         std::string prefix(static_cast<std::size_t>(indent_level) * 4, ' ');
         ice::StringHive hive;
-        hive.append(ice::String{
-            prefix + std::format("func.func @{}({}) -> ({}) {{", m_name, params, result_types)
-        });
+        hive.append(
+            ice::String{
+                prefix + std::format("func.func @{}({}) -> ({}) {{", m_name, params, result_types)
+            }
+        );
         hive.append_newline();
         for (const auto& op: m_ops) {
             auto rendered = op.render(indent_level + 1);
@@ -187,9 +190,9 @@ public:
             return_ids += m_returns[i].get_id();
         }
         std::string inner_prefix(static_cast<std::size_t>(indent_level + 1) * 4, ' ');
-        hive.append(ice::String{
-            inner_prefix + std::format("return {} : {}", return_ids, result_types)
-        });
+        hive.append(
+            ice::String{inner_prefix + std::format("return {} : {}", return_ids, result_types)}
+        );
         hive.append_newline();
         hive.append(ice::String{prefix + "}"});
         hive.append_newline();
