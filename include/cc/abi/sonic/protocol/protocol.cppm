@@ -16,7 +16,7 @@ export namespace ice::sonic {
 class Server
 {
 public:
-    explicit Server(TF_Protocol* ops, void* server_context) noexcept :
+    explicit Server(TF_Protocol* ops, TF_Protocol_Server* server_context) noexcept :
         m_ops{ops},
         m_server_context{server_context}
     {
@@ -66,7 +66,7 @@ public:
 
 private:
     TF_Protocol* m_ops;
-    void* m_server_context;
+    TF_Protocol_Server* m_server_context;
 };
 
 // Runtime — the mainframe-facing protocol handle. Same in-process/cross-plugin duality as
@@ -84,7 +84,7 @@ public:
     [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Server>, ice::Status> create_server() noexcept
     {
         ice::Status status;
-        void* handle = m_ops->create_server(get_handle(), status.get_handle());
+        TF_Protocol_Server* handle = m_ops->create_server(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
                 m_ops->server__destroy(handle);

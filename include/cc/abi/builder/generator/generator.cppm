@@ -58,7 +58,7 @@ public:
     // that opt in return a heap-allocated Function whose ownership transfers to the
     // caller (the C ABI frees it with function__destroy).
     [[nodiscard]] virtual std::expected<std::unique_ptr<Function>, ice::Status>
-    enter_border_patrol(std::string_view) noexcept
+    create_function(std::string_view) noexcept
     {
         return std::unexpected{
             ice::Status{"generic construction tier not supported by this backend"}
@@ -74,16 +74,16 @@ public:
             {
                 delete Generator::create(plugin_context);
             },
+            .get_name =
+                [](void* plugin_context, TF_String* out) noexcept
+            {
+                Generator::create(plugin_context)->get_name().to_c(out);
+            },
             .set_name =
                 [](void* plugin_context, const TF_TString* name) noexcept
             {
                 ice::String str_view(name);
                 Generator::create(plugin_context)->set_name(str_view.view());
-            },
-            .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
-            {
-                Generator::create(plugin_context)->get_name().to_c(out);
             },
             .get_definitions = [](void* plugin_context, TF_Status* status) noexcept
                                -> TF_Tensor_Handle*
@@ -105,29 +105,29 @@ public:
                 }
                 res->to_c(out);
             },
-            .enter_border_patrol =
+            .create_function =
                 [](void* plugin_context, const TF_TString* name, TF_Status* status) noexcept
-                -> void*
+                -> TF_Generator_Function*
             {
                 ice::String name_rt(name);
-                auto res = Generator::create(plugin_context)->enter_border_patrol(name_rt.view());
+                auto res = Generator::create(plugin_context)->create_function(name_rt.view());
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
                 // Ownership of the heap Function transfers to the C side; the caller
                 // frees it with function__destroy (delete).
-                return res->release();
+                return static_cast<TF_Generator_Function*>(static_cast<void*>(res->release()));
             },
             .function__destroy =
-                [](void* function_context) noexcept
+                [](TF_Generator_Function* function_context) noexcept
             {
                 delete Function::create(function_context);
             },
-            .function__add_parameter = [](void* function_context,
+            .function__add_parameter = [](TF_Generator_Function* function_context,
                                           const TF_TString* name,
                                           const TF_TString* type_text,
-                                          TF_Status* status) noexcept -> void*
+                                          TF_Status* status) noexcept -> TF_Generator_Parameter*
             {
                 ice::String name_rt(name);
                 ice::String type_rt(type_text);
@@ -136,32 +136,35 @@ public:
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Generator_Parameter*>(static_cast<void*>(res->release()));
             },
             .function__add_node =
-                [](void* function_context,
-                   const void* def_context,
+                [](TF_Generator_Function* function_context,
+                   const TF_Generator_Definition* def_context,
                    const TF_Tensor_Handle* operands,
                    const TF_Tensor_Handle* attrs,
                    TF_Tensor_Handle* out_results,
                    TF_Status* status) noexcept
             {
+                ice::TensorHandle operands_handle{operands};
+                ice::TensorHandle attrs_handle{attrs};
+                ice::TensorHandle out_results_handle{out_results};
                 auto res = Function::create(function_context)
                                ->add_node(
                                    *Definition::create(def_context),
-                                   ice::TensorHandle{operands},
-                                   ice::TensorHandle{attrs},
-                                   ice::TensorHandle{out_results}
+                                   &operands_handle,
+                                   &attrs_handle,
+                                   &out_results_handle
                                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
-            .function__exit_border_patrol =
-                [](void* function_context, const TF_Tensor_Handle* outputs, TF_Status* status) noexcept
+            .function__finish =
+                [](TF_Generator_Function* function_context, const TF_Tensor_Handle* outputs, TF_Status* status) noexcept
             {
-                auto res = Function::create(function_context)
-                               ->exit_border_patrol(ice::TensorHandle{outputs});
+                auto res = Function::create(static_cast<void*>(function_context))
+                               ->finish(ice::TensorHandle{outputs});
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -169,26 +172,26 @@ public:
 
             // Definition
             .definition__destroy =
-                [](void* def_context) noexcept
+                [](TF_Generator_Definition* def_context) noexcept
             {
                 delete Definition::create(def_context);
             },
             .definition__get_name =
-                [](void* def_context, TF_String* out) noexcept
+                [](TF_Generator_Definition* def_context, TF_String* out) noexcept
             {
                 Definition::create(def_context)->get_name().to_c(out);
             },
             .definition__get_summary =
-                [](void* def_context, TF_String* out) noexcept
+                [](TF_Generator_Definition* def_context, TF_String* out) noexcept
             {
                 Definition::create(def_context)->get_summary().to_c(out);
             },
             .definition__get_description =
-                [](void* def_context, TF_String* out) noexcept
+                [](TF_Generator_Definition* def_context, TF_String* out) noexcept
             {
                 Definition::create(def_context)->get_description().to_c(out);
             },
-            .definition__get_inputs = [](void* def_context, TF_Status* status) noexcept
+            .definition__get_inputs = [](TF_Generator_Definition* def_context, TF_Status* status) noexcept
                                       -> TF_Tensor_Handle*
             {
                 auto res = Definition::create(def_context)->get_inputs();
@@ -198,7 +201,7 @@ public:
                 }
                 return res->get_handle();
             },
-            .definition__get_outputs = [](void* def_context, TF_Status* status) noexcept
+            .definition__get_outputs = [](TF_Generator_Definition* def_context, TF_Status* status) noexcept
                                        -> TF_Tensor_Handle*
             {
                 auto res = Definition::create(def_context)->get_outputs();
@@ -208,7 +211,7 @@ public:
                 }
                 return res->get_handle();
             },
-            .definition__get_attrs = [](void* def_context, TF_Status* status) noexcept
+            .definition__get_attrs = [](TF_Generator_Definition* def_context, TF_Status* status) noexcept
                                      -> TF_Tensor_Handle*
             {
                 auto res = Definition::create(def_context)->get_attrs();
@@ -221,82 +224,84 @@ public:
 
             // Parameter
             .parameter__destroy =
-                [](void* param_context) noexcept
+                [](TF_Generator_Parameter* param_context) noexcept
             {
                 delete Parameter::create(param_context);
             },
             .parameter__get_name =
-                [](void* param_context, TF_String* out) noexcept
+                [](TF_Generator_Parameter* param_context, TF_String* out) noexcept
             {
                 Parameter::create(param_context)->get_name().to_c(out);
             },
             .parameter__get_description =
-                [](void* param_context, TF_String* out) noexcept
+                [](TF_Generator_Parameter* param_context, TF_String* out) noexcept
             {
                 Parameter::create(param_context)->get_description().to_c(out);
             },
-            .parameter__get_position = [](void* param_context) noexcept -> int
+            .parameter__get_position = [](TF_Generator_Parameter* param_context) noexcept -> int
             {
                 return Parameter::create(param_context)->get_position();
             },
-            .parameter__get_type = [](void* param_context) noexcept -> void*
+            .parameter__get_type = [](TF_Generator_Parameter* param_context) noexcept -> TF_TypeInfo*
             {
-                return Parameter::create(param_context)->get_type().release();
+                return static_cast<TF_TypeInfo*>(static_cast<void*>(
+                    Parameter::create(param_context)->get_type().release()
+                ));
             },
 
             // Attribute
             .attribute__destroy =
-                [](void* attr_context) noexcept
+                [](TF_Generator_Attribute* attr_context) noexcept
             {
                 delete Attribute::create(attr_context);
             },
             .attribute__get_name =
-                [](void* attr_context, TF_String* out) noexcept
+                [](TF_Generator_Attribute* attr_context, TF_String* out) noexcept
             {
                 Attribute::create(attr_context)->get_name().to_c(out);
             },
             .attribute__get_description =
-                [](void* attr_context, TF_String* out) noexcept
+                [](TF_Generator_Attribute* attr_context, TF_String* out) noexcept
             {
                 Attribute::create(attr_context)->get_description().to_c(out);
             },
             .attribute__get_full_type =
-                [](void* attr_context, TF_String* out) noexcept
+                [](TF_Generator_Attribute* attr_context, TF_String* out) noexcept
             {
                 Attribute::create(attr_context)->get_full_type().to_c(out);
             },
             .attribute__get_base_type =
-                [](void* attr_context, TF_String* out) noexcept
+                [](TF_Generator_Attribute* attr_context, TF_String* out) noexcept
             {
                 Attribute::create(attr_context)->get_base_type().to_c(out);
             },
-            .attribute__is_list = [](void* attr_context) noexcept -> bool
+            .attribute__is_list = [](TF_Generator_Attribute* attr_context) noexcept -> bool
             {
                 return Attribute::create(attr_context)->is_list();
             },
 
             // TypeInfo
             .typeinfo__destroy =
-                [](void* type_context) noexcept
+                [](TF_TypeInfo* type_context) noexcept
             {
-                delete TypeInfo::create(type_context);
+                delete static_cast<TypeInfo*>(static_cast<void*>(type_context));
             },
-            .typeinfo__get_data_type = [](void* type_context) noexcept -> int
+            .typeinfo__get_data_type = [](TF_TypeInfo* type_context) noexcept -> int
             {
-                return TypeInfo::create(type_context)->get_data_type();
+                return TypeInfo::create(static_cast<void*>(type_context))->get_data_type();
             },
             .typeinfo__get_type_attr_name =
-                [](void* type_context, TF_String* out) noexcept
+                [](TF_TypeInfo* type_context, TF_String* out) noexcept
             {
-                TypeInfo::create(type_context)->get_type_attr_name().to_c(out);
+                TypeInfo::create(static_cast<void*>(type_context))->get_type_attr_name().to_c(out);
             },
-            .typeinfo__is_read_only = [](void* type_context) noexcept -> bool
+            .typeinfo__is_read_only = [](TF_TypeInfo* type_context) noexcept -> bool
             {
-                return TypeInfo::create(type_context)->is_read_only();
+                return TypeInfo::create(static_cast<void*>(type_context))->is_read_only();
             },
-            .typeinfo__is_list = [](void* type_context) noexcept -> bool
+            .typeinfo__is_list = [](TF_TypeInfo* type_context) noexcept -> bool
             {
-                return TypeInfo::create(type_context)->is_list();
+                return TypeInfo::create(static_cast<void*>(type_context))->is_list();
             }
         };
         return &vtable;

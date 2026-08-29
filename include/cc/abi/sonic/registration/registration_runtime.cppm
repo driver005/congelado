@@ -19,7 +19,7 @@ export namespace ice::sonic {
 //
 // All members are noexcept: the C entry points are noexcept by contract (registration.cc),
 // and ice::String's construction is malloc-backed, so no exception can escape.
-class RegistrationRuntime
+class Registration
 {
 private:
     struct RegistryState
@@ -51,7 +51,16 @@ public:
     {
         const auto& s = state();
         if (s.ops && s.ops->register_op) {
-            s.ops->register_op(s.plugin_context, type, name, value);
+            // The C ABI's register_op takes TF_TString* type/name — adapt the C strings at
+            // the boundary line.
+            ice::String type_str{type};
+            ice::String name_str{name};
+            s.ops->register_op(
+                s.plugin_context,
+                type_str.get_handle(),
+                name_str.get_handle(),
+                value
+            );
         }
     }
 
@@ -61,8 +70,9 @@ public:
         if (s.ops && s.ops->get) {
             // The C ABI's get/unregister take a TF_String* name — adapt the C string at the
             // boundary line.
+            ice::String type_str{type};
             ice::String name_str{name};
-            return s.ops->get(s.plugin_context, type, name_str.get_handle());
+            return s.ops->get(s.plugin_context, type_str.get_handle(), name_str.get_handle());
         }
         return nullptr;
     }
@@ -71,8 +81,9 @@ public:
     {
         const auto& s = state();
         if (s.ops && s.ops->unregister) {
+            ice::String type_str{type};
             ice::String name_str{name};
-            s.ops->unregister(s.plugin_context, type, name_str.get_handle());
+            s.ops->unregister(s.plugin_context, type_str.get_handle(), name_str.get_handle());
         }
     }
 };

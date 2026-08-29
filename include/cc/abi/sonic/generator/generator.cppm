@@ -10,6 +10,6 @@ export import :function;
 export import :parameter;
 export import :typeinfo;
 
-// The unified mainframe-facing handle — resolved through ice::sonic::RegistrationRuntime
+// The unified mainframe-facing handle — resolved through ice::sonic::Registration
 // (type="generator") via init_generator, one API.
 export import :runtime;

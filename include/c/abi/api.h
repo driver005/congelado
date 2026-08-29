@@ -908,8 +908,8 @@ extern "C"
     // `outputs`. `*outputs` is owned by and has the lifetime of `results`.
     TF_CAPI_EXPORT void TF_ImportGraphDefResultsReturnOutputs(
         TF_ImportGraphDefResults* results,
-        int* num_outputs,
-        TF_Output** outputs
+        TF_Output** outputs,
+        int* num_outputs
     );
 
     // Fetches the return operations requested via
@@ -933,9 +933,9 @@ extern "C"
     // `src_names` are owned by and have the lifetime of `results`.
     TF_CAPI_EXPORT void TF_ImportGraphDefResultsMissingUnusedInputMappings(
         TF_ImportGraphDefResults* results,
-        int* num_missing_unused_input_mappings,
         const char*** src_names,
-        int** src_indexes
+        int** src_indexes,
+        int* num_missing_unused_input_mappings
     );
 
     // Deletes a results object returned by TF_GraphImportGraphDefWithResults().

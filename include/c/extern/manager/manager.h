@@ -35,6 +35,14 @@ extern "C"
     // out_list_json — caller-supplied TF_String, filled in by the plugin (no free needed).
 
 
+    // --------------------------------------------------------------------------
+    // Error channel: TF_Status* is the sole error channel for every fallible slot.
+    // For value-returning slots (bool, int64_t, ...) the returned value is the
+    // query result and is meaningful only when status is OK; on failure the value
+    // is unspecified and the error lives in *status. Slots with no TF_Status*
+    // parameter are pure accessors that cannot fail.
+    // --------------------------------------------------------------------------
+
     typedef struct TF_WorkerManager
     {
         size_t struct_size;

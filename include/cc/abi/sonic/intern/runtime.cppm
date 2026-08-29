@@ -36,7 +36,7 @@ public:
         try {
             ice::String name_str{name};
             void* factory_ptr =
-                ice::sonic::RegistrationRuntime::get(T::domain_name.data(), name_str.c_str());
+                ice::sonic::Registration::get(T::domain_name.data(), name_str.c_str());
             if (!factory_ptr) {
                 return std::unexpected{
                     ice::Status(ice::StatusCode::NotFound, "Factory not found in registry")
@@ -59,8 +59,10 @@ public:
             init_fn(&ops, &plugin_context, status.get_handle());
 
             if (!status.ok()) {
-                if (plugin_context && ops && ops->destroy) {
-                    ops->destroy(plugin_context);
+                if constexpr (requires { ops->destroy; }) {
+                    if (plugin_context && ops && ops->destroy) {
+                        ops->destroy(plugin_context);
+                    }
                 }
                 return std::unexpected{status};
             }
@@ -70,8 +72,10 @@ public:
             // (offset-of-end of its fields); reject undersized/absent vtables before
             // calling through them.
             if (!ops || ops->struct_size < sizeof(OpsStruct)) {
-                if (plugin_context && ops && ops->destroy) {
-                    ops->destroy(plugin_context);
+                if constexpr (requires { ops->destroy; }) {
+                    if (plugin_context && ops && ops->destroy) {
+                        ops->destroy(plugin_context);
+                    }
                 }
                 return std::unexpected{
                     ice::Status(ice::StatusCode::Internal, "plugin vtable missing or undersized")

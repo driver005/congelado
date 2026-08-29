@@ -35,11 +35,9 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> stop() noexcept = 0;
 
-    // buffer == nullptr means "just report the required size in *size_in_bytes" (matches the
-    // original contract — first call with a null buffer sizes it, a second call with a
-    // buffer of that size fills it).
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    collect_data_xspace(std::uint8_t* buffer, std::size_t* size_in_bytes) noexcept = 0;
+    // Returns a plugin-allocated 1-D Uint8 tensor of the collected xspace data;
+    // ownership transfers to the caller (release with the tensor runtime's delete).
+    [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status> collect_data_xspace() noexcept = 0;
 
     static TF_Profiler* get_generic_vtable()
     {
@@ -76,13 +74,15 @@ public:
                 }
             },
             .collect_data_xspace =
-                [](void* plugin_context, uint8_t* buffer, size_t* size_in_bytes, TF_Status* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept -> TF_Tensor_Handle*
             {
                 auto* self = Profiler::create(plugin_context);
-                auto res = self->collect_data_xspace(buffer, size_in_bytes);
+                auto res = self->collect_data_xspace();
                 if (!res) {
                     res.error().to_c(status);
+                    return nullptr;
                 }
+                return res->get_handle();
             }
         };
         return &vtable;

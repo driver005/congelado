@@ -9,7 +9,7 @@ export namespace ice::builder {
 
 // Request/Response — produced by Io::create_request/create_response, no independent existence
 // outside their producing Io (mirrors ice::builder::Function's relationship to
-// Builder::enter_border_patrol). get_method/get_path are plain accessors (no expected wrapper —
+// Generator::create_function). get_method/get_path are plain accessors (no expected wrapper —
 // the underlying C ABI never had a failure channel for them either).
 
 class Request

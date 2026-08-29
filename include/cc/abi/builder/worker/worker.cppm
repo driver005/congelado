@@ -14,7 +14,7 @@ export namespace ice::builder {
 
 // Abstract base class for a worker (task executor) backend — pure interface, zero C-ABI/TF_*
 // knowledge, mirrors ice::builder::Generator's role. A backend implements this
-// directly and registers a factory function pointer into ice::sonic::RegistrationRuntime under
+// directly and registers a factory function pointer into ice::sonic::Registration under
 // type="worker".
 //
 // Exception contract: every member is noexcept — the std::expected return is the only

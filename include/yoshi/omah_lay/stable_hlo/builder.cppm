@@ -24,10 +24,10 @@ export namespace cc::stable_hlo {
 // yoshi_omah_lay_stable_hlo — this is the one place this module touches cc/abi, and only downward.
 // Only implements the interface's typed-API tier (own native construction methods — append_module
 // here, add_parameter/add_op on Function itself) — the interface's second, optional,
-// C-ABI-crossable generic construction tier (enter_border_patrol) isn't opted into, so it
+// C-ABI-crossable generic construction tier (create_function) isn't opted into, so it
 // keeps the base class's default "not supported" answer. stable_hlo.cc registers a
 // TF_InitGenerator-style factory that constructs this class into
-// ice::sonic::RegistrationRuntime under type="generator", name="stablehlo", so
+// ice::sonic::Registration under type="generator", name="stablehlo", so
 // ice::sonic::Generator can resolve it in-process without a direct cc_abi ->
 // yoshi_omah_lay_stable_hlo dependency.
 class Builder : public ice::builder::Generator

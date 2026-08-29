@@ -8,7 +8,7 @@ export namespace ice::builder {
 
 // Counter/Histogram/Span — produced by Meter::create_counter/create_histogram and
 // Tracer::start_span respectively, no independent existence outside their producing type
-// (mirrors ice::builder::Function's relationship to Builder::enter_border_patrol).
+// (mirrors ice::builder::Function's relationship to Generator::create_function).
 
 class Counter
 {

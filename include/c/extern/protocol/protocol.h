@@ -33,6 +33,16 @@ extern "C"
     // NULL on failure (see status).
 
 
+    // --------------------------------------------------------------------------
+    // Error channel: TF_Status* is the sole error channel for every fallible slot.
+    // For value-returning slots (bool, ...) the returned value is the query result
+    // and is meaningful only when status is OK; on failure the value is unspecified
+    // and the error lives in *status. Slots with no TF_Status* parameter are pure
+    // accessors that cannot fail.
+    // --------------------------------------------------------------------------
+
+    typedef struct TF_Protocol_Server TF_Protocol_Server;
+
     typedef struct TF_Protocol
     {
         size_t struct_size;
@@ -42,11 +52,11 @@ extern "C"
         uint16_t (*get_bind_port)(void* plugin_context);
         void (*get_tls_cert)(void* plugin_context, TF_String* out);
         void (*get_tls_key)(void* plugin_context, TF_String* out);
-        void* (*create_server)(void* plugin_context, TF_Status* status);
-        void (*server__destroy)(void* server_context);
-        void (*server__start)(void* server_context, TF_Status* status);
-        void (*server__stop)(void* server_context, TF_Status* status);
-        bool (*server__is_running)(void* server_context, TF_Status* status);
+        TF_Protocol_Server* (*create_server)(void* plugin_context, TF_Status* status);
+        void (*server__destroy)(TF_Protocol_Server* server_context);
+        void (*server__start)(TF_Protocol_Server* server_context, TF_Status* status);
+        void (*server__stop)(TF_Protocol_Server* server_context, TF_Status* status);
+        bool (*server__is_running)(TF_Protocol_Server* server_context, TF_Status* status);
     } TF_Protocol;
 
 #define TF_PROTOCOL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Protocol, server__is_running)

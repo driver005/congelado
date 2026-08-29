@@ -14,78 +14,84 @@ extern "C"
 {
 #endif
 
+    typedef struct TF_TypeInfo TF_TypeInfo;
+    typedef struct TF_Generator_Function TF_Generator_Function;
+    typedef struct TF_Generator_Definition TF_Generator_Definition;
+    typedef struct TF_Generator_Parameter TF_Generator_Parameter;
+    typedef struct TF_Generator_Attribute TF_Generator_Attribute;
+
     typedef struct TF_Generator
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
-        void (*set_name)(void* plugin_context, const TF_TString* name);
         void (*get_name)(void* plugin_context, TF_String* out);
+        void (*set_name)(void* plugin_context, const TF_TString* name);
         // Returns a plugin-allocated 1-D tensor whose elements are the opaque
         // definition handles consumed by the definition__* slots. Ownership of the
         // returned handle transfers to the caller; release it with the tensor
         // runtime's delete (TF_DeleteTensor via the TF_Tensor ops).
         TF_Tensor_Handle* (*get_definitions)(void* plugin_context, TF_Status* status);
         void (*build)(void* plugin_context, TF_String* out, TF_Status* status);
-        void* (*enter_border_patrol)(
+        TF_Generator_Function* (*create_function)(
             void* plugin_context,
-            const TF_String* name,
+            const TF_TString* name,
             TF_Status* status
         );
 
         // Function
-        void (*function__destroy)(void* function_context);
-        void* (*function__add_parameter)(
-            void* function_context,
-            const TF_String* name,
-            const TF_String* type_text,
+        void (*function__destroy)(TF_Generator_Function* function_context);
+        TF_Generator_Parameter* (*function__add_parameter)(
+            TF_Generator_Function* function_context,
+            const TF_TString* name,
+            const TF_TString* type_text,
             TF_Status* status
         );
         void (*function__add_node)(
-            void* function_context,
-            const void* def_context,
+            TF_Generator_Function* function_context,
+            const TF_Generator_Definition* def_context,
             const TF_Tensor_Handle* operands,
             const TF_Tensor_Handle* attrs,
             TF_Tensor_Handle* out_results,
             TF_Status* status
         );
-        void (*function__exit_border_patrol)(
-            void* function_context,
+        void (*function__finish)(
+            TF_Generator_Function* function_context,
             const TF_Tensor_Handle* outputs,
             TF_Status* status
         );
 
         // Definition
-        void (*definition__destroy)(void* def_context);
-        void (*definition__get_name)(void* def_context, TF_String* out);
-        void (*definition__get_summary)(void* def_context, TF_String* out);
-        void (*definition__get_description)(void* def_context, TF_String* out);
-        TF_Tensor_Handle* (*definition__get_inputs)(void* def_context, TF_Status* status);
-        TF_Tensor_Handle* (*definition__get_outputs)(void* def_context, TF_Status* status);
-        TF_Tensor_Handle* (*definition__get_attrs)(void* def_context, TF_Status* status);
+        void (*definition__destroy)(TF_Generator_Definition* def_context);
+        void (*definition__get_name)(TF_Generator_Definition* def_context, TF_String* out);
+        void (*definition__get_summary)(TF_Generator_Definition* def_context, TF_String* out);
+        void (*definition__get_description)(TF_Generator_Definition* def_context, TF_String* out);
+        TF_Tensor_Handle* (*definition__get_inputs)(TF_Generator_Definition* def_context, TF_Status* status);
+        TF_Tensor_Handle* (*definition__get_outputs)(TF_Generator_Definition* def_context, TF_Status* status);
+        TF_Tensor_Handle* (*definition__get_attrs)(TF_Generator_Definition* def_context, TF_Status* status);
 
         // Parameter
-        void (*parameter__destroy)(void* param_context);
-        void (*parameter__get_name)(void* param_context, TF_String* out);
-        void (*parameter__get_description)(void* param_context, TF_String* out);
-        int (*parameter__get_position)(void* param_context);
+        void (*parameter__destroy)(TF_Generator_Parameter* param_context);
+        void (*parameter__get_name)(TF_Generator_Parameter* param_context, TF_String* out);
+        void (*parameter__get_description)(TF_Generator_Parameter* param_context, TF_String* out);
+        int (*parameter__get_position)(TF_Generator_Parameter* param_context);
         // Ownership of the returned type handle transfers to the caller; release
         // it with typeinfo__destroy.
-        void* (*parameter__get_type)(void* param_context);
+        TF_TypeInfo* (*parameter__get_type)(TF_Generator_Parameter* param_context);
 
         // Attribute
-        void (*attribute__destroy)(void* attr_context);
-        void (*attribute__get_name)(void* attr_context, TF_String* out);
-        void (*attribute__get_description)(void* attr_context, TF_String* out);
-        void (*attribute__get_full_type)(void* attr_context, TF_String* out);
-        void (*attribute__get_base_type)(void* attr_context, TF_String* out);
-        bool (*attribute__is_list)(void* attr_context);
+        void (*attribute__destroy)(TF_Generator_Attribute* attr_context);
+        void (*attribute__get_name)(TF_Generator_Attribute* attr_context, TF_String* out);
+        void (*attribute__get_description)(TF_Generator_Attribute* attr_context, TF_String* out);
+        void (*attribute__get_full_type)(TF_Generator_Attribute* attr_context, TF_String* out);
+        void (*attribute__get_base_type)(TF_Generator_Attribute* attr_context, TF_String* out);
+        bool (*attribute__is_list)(TF_Generator_Attribute* attr_context);
 
         // TypeInfo
-        void (*typeinfo__destroy)(void* type_context);
-        int (*typeinfo__get_data_type)(void* type_context);
-        void (*typeinfo__get_type_attr_name)(void* type_context, TF_String* out);
-        bool (*typeinfo__is_read_only)(void* type_context);
-        bool (*typeinfo__is_list)(void* type_context);
+        void (*typeinfo__destroy)(TF_TypeInfo* type_context);
+        int (*typeinfo__get_data_type)(TF_TypeInfo* type_context);
+        void (*typeinfo__get_type_attr_name)(TF_TypeInfo* type_context, TF_String* out);
+        bool (*typeinfo__is_read_only)(TF_TypeInfo* type_context);
+        bool (*typeinfo__is_list)(TF_TypeInfo* type_context);
     } TF_Generator;
 
 #define TF_GENERATOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator, typeinfo__is_list)

@@ -21,9 +21,11 @@ extern "C"
     typedef struct TF_Registration
     {
         size_t struct_size;
-        void (*register_op)(void* plugin_context, const char* type, const char* name, void* value);
-        void* (*get)(void* plugin_context, const char* type, const TF_String* name);
-        void (*unregister)(void* plugin_context, const char* type, const TF_String* name);
+        void (*destroy)(void* plugin_context);
+        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*register_op)(void* plugin_context, const TF_TString* type, const TF_TString* name, void* value);
+        void* (*get)(void* plugin_context, const TF_TString* type, const TF_TString* name);
+        void (*unregister)(void* plugin_context, const TF_TString* type, const TF_TString* name);
     } TF_Registration;
 
 #define TF_REGISTRATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Registration, unregister)

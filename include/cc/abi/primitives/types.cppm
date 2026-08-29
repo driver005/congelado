@@ -124,7 +124,7 @@ inline PayloadType payload_type_from_c(TF_Payload_Type type) noexcept
     }
 }
 
-// SpanKind / SpanStatus — C++ spellings of the TF_OTEL_SpanKind / TF_OTEL_SpanStatus C ABI enums.
+// SpanKind / SpanStatus — C++ spellings of the TF_Otel_SpanKind / TF_Otel_SpanStatus C ABI enums.
 enum class SpanKind
 {
     Internal = TF_OTEL_INTERNAL,
@@ -141,22 +141,22 @@ enum class SpanStatus
     Error = TF_OTEL_ERROR,
 };
 
-inline TF_OTEL_SpanKind span_kind_to_c(SpanKind kind) noexcept
+inline TF_Otel_SpanKind span_kind_to_c(SpanKind kind) noexcept
 {
-    return static_cast<TF_OTEL_SpanKind>(kind);
+    return static_cast<TF_Otel_SpanKind>(kind);
 }
 
-inline SpanKind span_kind_from_c(TF_OTEL_SpanKind kind) noexcept
+inline SpanKind span_kind_from_c(TF_Otel_SpanKind kind) noexcept
 {
     return static_cast<SpanKind>(kind);
 }
 
-inline TF_OTEL_SpanStatus span_status_to_c(SpanStatus status) noexcept
+inline TF_Otel_SpanStatus span_status_to_c(SpanStatus status) noexcept
 {
-    return static_cast<TF_OTEL_SpanStatus>(status);
+    return static_cast<TF_Otel_SpanStatus>(status);
 }
 
-inline SpanStatus span_status_from_c(TF_OTEL_SpanStatus status) noexcept
+inline SpanStatus span_status_from_c(TF_Otel_SpanStatus status) noexcept
 {
     return static_cast<SpanStatus>(status);
 }

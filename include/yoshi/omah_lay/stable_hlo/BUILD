@@ -65,7 +65,7 @@ genrule(
 #                                         doesn't opt into the interface's second, generic/
 #                                         C-ABI-crossable tier; stable_hlo.cc registers its
 #                                         factory function pointer into
-#                                         ice::sonic::RegistrationRuntime instead)
+#                                         ice::sonic::Registration instead)
 congelado_module_library(
     name = "yoshi_omah_lay_stable_hlo",
     primary_interface = "stable_hlo.cppm",
@@ -93,7 +93,7 @@ congelado_module_library(
 # Shared-library entry point for yoshi::core::PluginLoader (include/yoshi/lucki/plugin) — a
 # init_plugin export (c/extern/plugin/registration.h) whose only job is existing as a
 # dlsym-able symbol. Its body registers cc::stable_hlo::Builder's factory function pointer into
-# ice::sonic::RegistrationRuntime (cc_abi_sonic_registration) under type="generator" — the
+# ice::sonic::Registration (cc_abi_sonic_registration) under type="generator" — the
 # process-wide shared storage (backed by //include/c:registration_shared, linkshared) that
 # makes the registration visible to the host process once this .so is dlopen'd.
 congelado_cc_binary(

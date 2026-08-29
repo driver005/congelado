@@ -1,7 +1,7 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 # Mainframe-facing profiler handle (ice::sonic::Profiler) — always crosses the
-# TF_Profiler_* C ABI, deliberately no in-process RegistrationRuntime fast path (see
+# TF_Profiler_* C ABI, deliberately no in-process Registration fast path (see
 # controller.cppm's class comment). The adapter is standalone (no dependency on the
 # builder tier) — never on any specific profiler backend implementation.
 congelado_module_library(

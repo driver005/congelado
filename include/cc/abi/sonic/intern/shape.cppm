@@ -15,6 +15,11 @@ class Shape : public Runtime<Shape, TF_Shape>
 public:
     static constexpr std::string_view domain_name = "shape";
 
+    explicit Shape(TF_Shape* ops, void* plugin_context) noexcept :
+        Runtime(ops, plugin_context)
+    {
+    }
+
     ice::String get_name() const
     {
         ice::String out;

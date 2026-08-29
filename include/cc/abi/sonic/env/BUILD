@@ -4,7 +4,6 @@ congelado_module_library(
     name = "cc_abi_sonic_env",
     primary_interface = "env.cppm",
     partitions = [
-        "thread.cppm",
         "time.cppm",
     ],
     deps = [

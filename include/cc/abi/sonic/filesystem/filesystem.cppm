@@ -10,6 +10,28 @@ import cc_abi_primitives;
 import cc_abi_sonic_intern;
 import cc_abi_sonic_registration;
 
+namespace {
+
+// Tensor runtime the paths_exist adapter decodes its string-tensor input through —
+// obtained lazily from the host's registered "tensor" factory
+// (ice::sonic::Tensor::create), the same file-local pattern as stable_hlo's
+// generator_tensor_runtime(). Null when the host hasn't registered a tensor factory —
+// paths_exist then fails with a clear Status instead of dereferencing null.
+std::unique_ptr<ice::sonic::Tensor>& tensor_runtime()
+{
+    static std::unique_ptr<ice::sonic::Tensor> tensor = []
+    {
+        auto t = ice::sonic::Tensor::create("tensor");
+        if (!t) {
+            return std::unique_ptr<ice::sonic::Tensor>{};
+        }
+        return std::move(*t);
+    }();
+    return tensor;
+}
+
+} // namespace
+
 export namespace ice::sonic {
 
 // Runtime — the mainframe-facing filesystem handle, one per URI scheme. Same
@@ -27,11 +49,14 @@ public:
     static constexpr std::string_view domain_name = "filesystem";
 
     std::unique_ptr<ice::sonic::RandomAccessFile>
-    new_random_access_file(const ice::String& path) noexcept
+    create_random_access_file(const ice::String& path) noexcept
     {
         ice::Status status;
-        void* handle =
-            m_ops->new_random_access_file(get_handle(), path.get_handle(), status.get_handle());
+        TF_RandomAccessFile* handle = m_ops->create_random_access_file(
+            get_handle(),
+            path.get_handle(),
+            status.get_handle()
+        );
         if (!status.ok()) {
             if (handle) {
                 m_ops->random_access_file__destroy(handle);
@@ -41,11 +66,14 @@ public:
         return std::make_unique<ice::sonic::RandomAccessFile>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::WritableFile> new_writable_file(const ice::String& path) noexcept
+    std::unique_ptr<ice::sonic::WritableFile> create_writable_file(const ice::String& path) noexcept
     {
         ice::Status status;
-        void* handle =
-            m_ops->new_writable_file(get_handle(), path.get_handle(), status.get_handle());
+        TF_WritableFile* handle = m_ops->create_writable_file(
+            get_handle(),
+            path.get_handle(),
+            status.get_handle()
+        );
         if (!status.ok()) {
             if (handle) {
                 m_ops->writable_file__destroy(handle);
@@ -55,11 +83,14 @@ public:
         return std::make_unique<ice::sonic::WritableFile>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::WritableFile> new_appendable_file(const ice::String& path) noexcept
+    std::unique_ptr<ice::sonic::WritableFile> create_appendable_file(const ice::String& path) noexcept
     {
         ice::Status status;
-        void* handle =
-            m_ops->new_appendable_file(get_handle(), path.get_handle(), status.get_handle());
+        TF_WritableFile* handle = m_ops->create_appendable_file(
+            get_handle(),
+            path.get_handle(),
+            status.get_handle()
+        );
         if (!status.ok()) {
             if (handle) {
                 m_ops->writable_file__destroy(handle);
@@ -70,10 +101,10 @@ public:
     }
 
     std::unique_ptr<ice::sonic::ReadOnlyMemoryRegion>
-    new_read_only_memory_region_from_file(const ice::String& path) noexcept
+    create_read_only_memory_region_from_file(const ice::String& path) noexcept
     {
         ice::Status status;
-        void* handle = m_ops->new_read_only_memory_region_from_file(
+        TF_ReadOnlyMemoryRegion* handle = m_ops->create_read_only_memory_region_from_file(
             get_handle(),
             path.get_handle(),
             status.get_handle()
@@ -180,22 +211,23 @@ public:
         return {};
     }
 
+    // paths_exist — the caller passes a 1-D string tensor (built with the builder tier's
+    // make_string_tensor); the C slot takes a contiguous (const TF_TString*, int) array,
+    // so the tensor's element buffer is decoded back to that shape. The tensor must
+    // outlive the call — the slot only reads from it synchronously.
     [[nodiscard]] std::expected<void, ice::Status>
-    paths_exist(const std::vector<ice::String>& paths) noexcept
+    paths_exist(ice::TensorHandle paths) noexcept
     {
-        ice::Status status;
-        // The C slot takes a contiguous array of TF_TString values; the plugin only
-        // reads it for the duration of the call, so copying the handles by value is
-        // safe (TF_TString is a POD union — no destructor, no ownership transfer).
-        std::vector<TF_TString> raw_paths;
-        raw_paths.reserve(paths.size());
-        for (const auto& path: paths) {
-            raw_paths.push_back(*path.get_handle());
+        auto* runtime = tensor_runtime().get();
+        if (!runtime) {
+            return std::unexpected{ice::Status{"no tensor runtime available"}};
         }
+        auto raw = runtime->get_data_as<TF_TString>(paths.get_handle());
+        ice::Status status;
         m_ops->paths_exist(
             get_handle(),
-            raw_paths.data(),
-            static_cast<int>(raw_paths.size()),
+            raw.data(),
+            static_cast<int>(raw.size()),
             status.get_handle()
         );
         if (!status.ok()) {

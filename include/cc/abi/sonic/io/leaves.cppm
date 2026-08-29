@@ -28,7 +28,7 @@ public:
     Request(Request&&) = delete;
     Request& operator=(Request&&) = delete;
 
-    explicit Request(TF_IO* ops, void* handle) :
+    explicit Request(TF_IO* ops, TF_IO_Request* handle) :
         m_ops{ops},
         m_handle{handle}
     {
@@ -74,7 +74,7 @@ public:
 
 private:
     TF_IO* m_ops;
-    void* m_handle;
+    TF_IO_Request* m_handle;
 };
 
 class Response
@@ -92,7 +92,7 @@ public:
     Response(Response&&) = delete;
     Response& operator=(Response&&) = delete;
 
-    explicit Response(TF_IO* ops, void* handle) :
+    explicit Response(TF_IO* ops, TF_IO_Response* handle) :
         m_ops{ops},
         m_handle{handle}
     {
@@ -136,7 +136,7 @@ public:
 
 private:
     TF_IO* m_ops;
-    void* m_handle;
+    TF_IO_Response* m_handle;
 };
 
 } // namespace ice::sonic

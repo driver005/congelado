@@ -14,7 +14,7 @@ export namespace ice::builder {
 
 // Abstract base class for a running protocol server — created by Protocol::create_server(), no
 // independent existence outside its owning Protocol (mirrors ice::builder::Function's
-// relationship to Builder::enter_border_patrol).
+// relationship to Generator::create_function).
 class Server
 {
 public:
@@ -35,7 +35,7 @@ public:
 
 // Abstract base class for a protocol backend — pure interface, zero C-ABI/TF_* knowledge,
 // mirrors ice::builder::Generator's role. A backend implements this directly and
-// registers a factory function pointer into ice::sonic::RegistrationRuntime under
+// registers a factory function pointer into ice::sonic::Registration under
 // type="protocol".
 class Protocol
 {
@@ -100,7 +100,7 @@ public:
                 auto name = self->get_tls_key();
                 name.to_c(out);
             },
-            .create_server = [](void* plugin_context, TF_Status* status) noexcept -> void*
+            .create_server = [](void* plugin_context, TF_Status* status) noexcept -> TF_Protocol_Server*
             {
                 auto* self = Protocol::create(plugin_context);
                 auto res = self->create_server();
@@ -108,15 +108,15 @@ public:
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return res->release();
+                return static_cast<TF_Protocol_Server*>(static_cast<void*>(res->release()));
             },
             .server__destroy =
-                [](void* server_context) noexcept
+                [](TF_Protocol_Server* server_context) noexcept
             {
                 delete Server::create(server_context);
             },
             .server__start =
-                [](void* server_context, TF_Status* status) noexcept
+                [](TF_Protocol_Server* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
                 auto res = self->start();
@@ -125,7 +125,7 @@ public:
                 }
             },
             .server__stop =
-                [](void* server_context, TF_Status* status) noexcept
+                [](TF_Protocol_Server* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
                 auto res = self->stop();
@@ -133,7 +133,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .server__is_running = [](void* server_context, TF_Status* status) noexcept -> bool
+            .server__is_running = [](TF_Protocol_Server* server_context, TF_Status* status) noexcept -> bool
             {
                 auto* self = Server::create(server_context);
                 auto res = self->is_running();

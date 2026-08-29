@@ -3,7 +3,7 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 # Pure orchestrator-backend interface — abstract base class only. Depends on
 # cc_abi_builder_worker for CompletionFn reuse (task completion reported the same way a worker's
 # own async operations are); zero dependency on any specific orchestrator backend
-# implementation, which registers a factory function pointer into ice::sonic::RegistrationRuntime
+# implementation, which registers a factory function pointer into ice::sonic::Registration
 # (cc_abi_sonic_registration) instead.
 congelado_module_library(
     name = "cc_abi_builder_orchestrator",

@@ -28,7 +28,7 @@ public:
     Counter(Counter&&) = delete;
     Counter& operator=(Counter&&) = delete;
 
-    explicit Counter(TF_Otel* ops, void* handle) :
+    explicit Counter(TF_Otel* ops, TF_Otel_Counter* handle) :
         m_ops{ops},
         m_handle{handle}
     {
@@ -46,7 +46,7 @@ public:
 
 private:
     TF_Otel* m_ops;
-    void* m_handle;
+    TF_Otel_Counter* m_handle;
 };
 
 class Histogram
@@ -64,7 +64,7 @@ public:
     Histogram(Histogram&&) = delete;
     Histogram& operator=(Histogram&&) = delete;
 
-    explicit Histogram(TF_Otel* ops, void* handle) :
+    explicit Histogram(TF_Otel* ops, TF_Otel_Histogram* handle) :
         m_ops{ops},
         m_handle{handle}
     {
@@ -82,7 +82,7 @@ public:
 
 private:
     TF_Otel* m_ops;
-    void* m_handle;
+    TF_Otel_Histogram* m_handle;
 };
 
 class Span
@@ -100,7 +100,7 @@ public:
     Span(Span&&) = delete;
     Span& operator=(Span&&) = delete;
 
-    explicit Span(TF_Otel* ops, void* handle) :
+    explicit Span(TF_Otel* ops, TF_Otel_Span* handle) :
         m_ops{ops},
         m_handle{handle}
     {
@@ -150,7 +150,7 @@ public:
 
 private:
     TF_Otel* m_ops;
-    void* m_handle;
+    TF_Otel_Span* m_handle;
 };
 
 } // namespace ice::sonic

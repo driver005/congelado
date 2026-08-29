@@ -14,7 +14,7 @@ export namespace ice::sonic {
 class Attribute
 {
 public:
-    explicit Attribute(TF_Generator* ops, void* handle) noexcept :
+    explicit Attribute(TF_Generator* ops, TF_Generator_Attribute* handle) noexcept :
         m_ops{ops},
         m_handle{handle}
     {
@@ -67,7 +67,7 @@ public:
 
 private:
     TF_Generator* m_ops;
-    void* m_handle;
+    TF_Generator_Attribute* m_handle;
 };
 
 } // namespace ice::sonic

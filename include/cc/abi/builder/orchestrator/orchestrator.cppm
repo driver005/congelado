@@ -15,7 +15,7 @@ export namespace ice::builder {
 
 // Abstract base class for a workflow-orchestrator backend — pure interface, zero C-ABI/TF_*
 // knowledge, mirrors ice::builder::Generator's role. A backend implements this
-// directly and registers a factory function pointer into ice::sonic::RegistrationRuntime under
+// directly and registers a factory function pointer into ice::sonic::Registration under
 // type="orchestrator". Task completion is reported through the C-ABI
 // TF_Worker_CompletionFn callback type directly.
 class Orchestrator

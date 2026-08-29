@@ -13,7 +13,7 @@ import cc_abi_sonic_registration;
 export namespace ice::sonic {
 
 // Runtime — the mainframe-facing generator handle. Resolved by name through
-// ice::sonic::RegistrationRuntime (type="generator"): the plugin's init_generator
+// ice::sonic::Registration (type="generator"): the plugin's init_generator
 // fills the flat TF_Generator vtable (typically from its Builder's
 // get_generic_vtable()) and hands back the plugin context; every call below forwards
 // across that vtable.
@@ -68,11 +68,11 @@ public:
     // function__destroy) before constructing the new one — same "a fresh call
     // replaces the current one" lifetime story as the rest of this interface.
     [[nodiscard]] std::expected<std::reference_wrapper<ice::sonic::Function>, ice::Status>
-    enter_border_patrol(const ice::String& name) noexcept
+    create_function(const ice::String& name) noexcept
     {
         ice::Status status;
-        void* handle =
-            m_ops->enter_border_patrol(get_handle(), name.get_handle(), status.get_handle());
+        TF_Generator_Function* handle =
+            m_ops->create_function(get_handle(), name.get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
                 m_ops->function__destroy(handle);
@@ -86,7 +86,7 @@ public:
 
 private:
     // Owns whichever construction unit is currently open — the mainframe keeps the
-    // reference_wrapper returned by enter_border_patrol for as long as it needs it.
+    // reference_wrapper returned by create_function for as long as it needs it.
     std::optional<Function> m_open_function;
 };
 
