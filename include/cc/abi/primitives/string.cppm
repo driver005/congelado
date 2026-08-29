@@ -13,80 +13,56 @@ export namespace ice {
 // built) both deep-copy into m_owned — there is no separate view/pointer state to keep track of.
 class String
 {
-private:
-    struct RuntimeState {
-        TF_TStringOps* ops;
-        void* host_context;
-    };
-
-    RuntimeState state() const {
-        RuntimeState s;
-        TF_InitTString(&s.ops, &s.host_context);
-        return s;
-    }
-
 public:
     String()
     {
-        state().ops->TF_StringInit(state().host_context, &m_owned);
+        string_init(&m_owned);
     }
 
     explicit String(const TF_TString* str)
     {
-
-        state().ops->TF_StringInit(state().host_context, &m_owned);
+        string_init(&m_owned);
         if (str) {
-            auto* data = state().ops->TF_StringGetDataPointer(state().host_context, str);
-            auto size = state().ops->TF_StringGetSize(state().host_context, str);
+            const char* data = string_get_data_pointer(str);
+            size_t size = string_get_size(str);
             if (data && size > 0) {
-                state().ops->TF_StringCopy(state().host_context, &m_owned, data, size);
+                string_copy(&m_owned, data, size);
             }
         }
     }
 
     explicit String(std::string_view text)
     {
-        state().ops->TF_StringInit(state().host_context, &m_owned);
+        string_init(&m_owned);
         if (!text.empty()) {
-            state().ops->TF_StringCopy(state().host_context, &m_owned, text.data(), text.size());
-        }
-    }
-
-    explicit String(const std::string& text)
-    {
-
-        state().ops->TF_StringInit(state().host_context, &m_owned);
-        if (!text.empty()) {
-            state().ops->TF_StringCopy(state().host_context, &m_owned, text.data(), text.size());
+            string_copy(&m_owned, text.data(), text.size());
         }
     }
 
     ~String()
     {
-        state().ops->TF_StringDealloc(state().host_context, &m_owned);
+        string_dealloc(&m_owned);
     }
 
     String(const String& other)
     {
-
-        state().ops->TF_StringInit(state().host_context, &m_owned);
-        auto* data = state().ops->TF_StringGetDataPointer(state().host_context, &other.m_owned);
-        auto size = state().ops->TF_StringGetSize(state().host_context, &other.m_owned);
+        string_init(&m_owned);
+        const char* data = string_get_data_pointer(&other.m_owned);
+        size_t size = string_get_size(&other.m_owned);
         if (data && size > 0) {
-            state().ops->TF_StringCopy(state().host_context, &m_owned, data, size);
+            string_copy(&m_owned, data, size);
         }
     }
 
     String& operator=(const String& other)
     {
-
         if (this != &other) {
-            state().ops->TF_StringDealloc(state().host_context, &m_owned);
-            state().ops->TF_StringInit(state().host_context, &m_owned);
-            auto* data = state().ops->TF_StringGetDataPointer(state().host_context, &other.m_owned);
-            auto size = state().ops->TF_StringGetSize(state().host_context, &other.m_owned);
+            string_dealloc(&m_owned);
+            string_init(&m_owned);
+            const char* data = string_get_data_pointer(&other.m_owned);
+            size_t size = string_get_size(&other.m_owned);
             if (data && size > 0) {
-                state().ops->TF_StringCopy(state().host_context, &m_owned, data, size);
+                string_copy(&m_owned, data, size);
             }
         }
         return *this;
@@ -94,29 +70,26 @@ public:
 
     String(String&& other) noexcept
     {
-
         m_owned = other.m_owned;
-        state().ops->TF_StringInit(state().host_context, &other.m_owned);
+        string_init(&other.m_owned);
     }
 
     String& operator=(String&& other) noexcept
     {
-
         if (this != &other) {
-            state().ops->TF_StringDealloc(state().host_context, &m_owned);
+            string_dealloc(&m_owned);
             m_owned = other.m_owned;
-            state().ops->TF_StringInit(state().host_context, &other.m_owned);
+            string_init(&other.m_owned);
         }
         return *this;
     }
 
-
     void to_c(TF_TString* out) const
     {
         if (out) {
-            auto* data = state().ops->TF_StringGetDataPointer(state().host_context, &m_owned);
-            auto sz = state().ops->TF_StringGetSize(state().host_context, &m_owned);
-            state().ops->TF_StringAssignView(state().host_context, out, data, sz);
+            const char* data = string_get_data_pointer(&m_owned);
+            size_t sz = string_get_size(&m_owned);
+            string_assign_view(out, data, sz);
         }
     }
 
@@ -127,19 +100,18 @@ public:
 
     const char* c_str() const
     {
-        return state().ops->TF_StringGetDataPointer(state().host_context, &m_owned);
+        return string_get_data_pointer(&m_owned);
     }
 
     size_t size() const
     {
-        return state().ops->TF_StringGetSize(state().host_context, &m_owned);
+        return string_get_size(&m_owned);
     }
 
     std::string to_std_string() const
     {
-
-        auto* data = state().ops->TF_StringGetDataPointer(state().host_context, &m_owned);
-        auto sz = state().ops->TF_StringGetSize(state().host_context, &m_owned);
+        const char* data = string_get_data_pointer(&m_owned);
+        size_t sz = string_get_size(&m_owned);
         return data ? std::string(data, sz) : std::string();
     }
 

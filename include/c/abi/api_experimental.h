@@ -42,8 +42,7 @@ extern "C"
     // This and the next API are syntax sugar over TF_SetConfig(), and is used by
     // clients that cannot read/write the tensorflow.ConfigProto proto.
     // TODO: Migrate to TF_CreateConfig() below.
-    TF_CAPI_EXPORT extern void
-    TF_EnableXLACompilation(TF_SessionOptions* options, unsigned char enable);
+    TF_CAPI_EXPORT void TF_EnableXLACompilation(TF_SessionOptions* options, unsigned char enable);
 
     // Set XLA's internal BuildXlaOpsPassFlags.tf_xla_enable_lazy_compilation to the
     // value of 'enabled'. Also returns the original value of that flag.
@@ -75,7 +74,7 @@ extern "C"
     // `enable_xla_compilation` is non-zero, and OFF otherwise.
     // b) ConfigProto.gpu_options.allow_growth is set to `gpu_memory_allow_growth`.
     // c) ConfigProto.device_count is set to `num_cpu_devices`.
-    TF_CAPI_EXPORT extern TF_Buffer* TF_CreateConfig(
+    TF_CAPI_EXPORT TF_Buffer* TF_CreateConfig(
         unsigned char enable_xla_compilation,
         unsigned char gpu_memory_allow_growth,
         unsigned int num_cpu_devices
@@ -84,12 +83,12 @@ extern "C"
     // Create a serialized tensorflow.RunOptions proto, where RunOptions.trace_level
     // is set to FULL_TRACE if `enable_full_trace` is non-zero, and NO_TRACE
     // otherwise.
-    TF_CAPI_EXPORT extern TF_Buffer* TF_CreateRunOptions(unsigned char enable_full_trace);
+    TF_CAPI_EXPORT TF_Buffer* TF_CreateRunOptions(unsigned char enable_full_trace);
 
     // Returns the graph content in a human-readable format, with length set in
     // `len`. The format is subject to change in the future.
     // The returned string is heap-allocated, and caller should call free() on it.
-    TF_CAPI_EXPORT extern const char* TF_GraphDebugString(TF_Graph* graph, size_t* len);
+    TF_CAPI_EXPORT const char* TF_GraphDebugString(TF_Graph* graph, size_t* len);
 
     // Returns the function content in a human-readable format, with length set in
     // `len`. The format is subject to change in the future.
@@ -97,7 +96,7 @@ extern "C"
     //
     // Do not return const char*, because some foreign language binding
     // (e.g. swift) cannot then call free() on the returned pointer.
-    TF_CAPI_EXPORT extern char* TF_FunctionDebugString(TF_Function* func, size_t* len);
+    TF_CAPI_EXPORT char* TF_FunctionDebugString(TF_Function* func, size_t* len);
 
     // On success, dequeues a tensor from a TF-managed FifoQueue given by
     // `tensor_id`, associated with `session`. There must be a graph node named
@@ -108,7 +107,7 @@ extern "C"
     //
     // Tensors are enqueued via the corresponding TF enqueue op.
     // TODO(hongm): Add support for `timeout_ms`.
-    TF_CAPI_EXPORT extern TF_Tensor*
+    TF_CAPI_EXPORT TF_Tensor*
     TF_DequeueNamedTensor(TF_Session* session, int tensor_id, TF_Status* status);
 
     // On success, enqueues `tensor` into a TF-managed FifoQueue given by
@@ -122,31 +121,30 @@ extern "C"
     //
     // Tensors are dequeued via the corresponding TF dequeue op.
     // TODO(hongm): Add support for `timeout_ms`.
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT void
     TF_EnqueueNamedTensor(TF_Session* session, int tensor_id, TF_Tensor* tensor, TF_Status* status);
     // Create a serialized tensorflow.ServerDef proto.
     TF_Buffer* TFE_GetServerDef(const char* text_proto, TF_Status* status);
 
-    TF_CAPI_EXPORT extern void TF_MakeInternalErrorStatus(TF_Status* status, const char* errMsg);
+    TF_CAPI_EXPORT void TF_MakeInternalErrorStatus(TF_Status* status, const char* errMsg);
 
     // TF_NewCheckpointReader() return the CheckpointReader that can be use to
     // investigate or load the variable from the checkpoint file
     typedef struct TF_CheckpointReader TF_CheckpointReader;
-    TF_CAPI_EXPORT extern TF_CheckpointReader*
+    TF_CAPI_EXPORT TF_CheckpointReader*
     TF_NewCheckpointReader(const char* filename, TF_Status* status);
-    TF_CAPI_EXPORT extern void TF_DeleteCheckpointReader(TF_CheckpointReader* reader);
-    TF_CAPI_EXPORT extern int
-    TF_CheckpointReaderHasTensor(TF_CheckpointReader* reader, const char* name);
+    TF_CAPI_EXPORT void TF_DeleteCheckpointReader(TF_CheckpointReader* reader);
+    TF_CAPI_EXPORT int TF_CheckpointReaderHasTensor(TF_CheckpointReader* reader, const char* name);
     // Get the variable name at the given index
-    TF_CAPI_EXPORT extern const char*
+    TF_CAPI_EXPORT const char*
     TF_CheckpointReaderGetVariable(TF_CheckpointReader* reader, int index);
     // Get the number of variable in the checkpoint
-    TF_CAPI_EXPORT extern int TF_CheckpointReaderSize(TF_CheckpointReader* reader);
+    TF_CAPI_EXPORT int TF_CheckpointReaderSize(TF_CheckpointReader* reader);
     // Get the DataType of a variable
-    TF_CAPI_EXPORT extern TF_DataType
+    TF_CAPI_EXPORT TF_DataType
     TF_CheckpointReaderGetVariableDataType(TF_CheckpointReader* reader, const char* name);
     // Read the shape of a variable and write to `dims`
-    TF_CAPI_EXPORT extern void TF_CheckpointReaderGetVariableShape(
+    TF_CAPI_EXPORT void TF_CheckpointReaderGetVariableShape(
         TF_CheckpointReader* reader,
         const char* name,
         int64_t* dims,
@@ -154,40 +152,45 @@ extern "C"
         TF_Status* status
     );
     // Get the number of dimension of a variable
-    TF_CAPI_EXPORT extern int
+    TF_CAPI_EXPORT int
     TF_CheckpointReaderGetVariableNumDims(TF_CheckpointReader* reader, const char* name);
     // Load the weight of a variable
-    TF_CAPI_EXPORT extern TF_Tensor*
+    TF_CAPI_EXPORT TF_Tensor*
     TF_CheckpointReaderGetTensor(TF_CheckpointReader* reader, const char* name, TF_Status* status);
 
     // TF_NewAttrBuilder() returns an object that you can set attributes on as
     // though it were an op. This allows querying properties of that op for
     // type-checking purposes like if the op will run on a particular device type.
     typedef struct TF_AttrBuilder TF_AttrBuilder;
-    TF_CAPI_EXPORT extern TF_AttrBuilder* TF_NewAttrBuilder(const char* op_name);
-    TF_CAPI_EXPORT extern void TF_DeleteAttrBuilder(TF_AttrBuilder* builder);
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT TF_AttrBuilder* TF_NewAttrBuilder(const char* op_name);
+    TF_CAPI_EXPORT void TF_DeleteAttrBuilder(TF_AttrBuilder* builder);
+    TF_CAPI_EXPORT void
     TF_AttrBuilderSetType(TF_AttrBuilder* builder, const char* attr_name, TF_DataType value);
-    TF_CAPI_EXPORT extern void TF_AttrBuilderSetTypeList(
-        TF_AttrBuilder* builder, const char* attr_name, const TF_DataType* values, int num_values
+    TF_CAPI_EXPORT void TF_AttrBuilderSetTypeList(
+        TF_AttrBuilder* builder,
+        const char* attr_name,
+        const TF_DataType* values,
+        int num_values
     );
 
     // Checks the tensorflow::NodeDef built via the methods above to see if it can
     // run on device_type.
-    TF_CAPI_EXPORT extern void TF_AttrBuilderCheckCanRunOnDevice(
-        TF_AttrBuilder* builder, const char* device_type, TF_Status* status
+    TF_CAPI_EXPORT void TF_AttrBuilderCheckCanRunOnDevice(
+        TF_AttrBuilder* builder,
+        const char* device_type,
+        TF_Status* status
     );
 
     // For argument number input_index, fetch the corresponding number_attr that
     // needs to be updated with the argument length of the input list.
     // Returns nullptr if there is any problem like op_name is not found, or the
     // argument does not support this attribute type.
-    TF_CAPI_EXPORT extern const char*
+    TF_CAPI_EXPORT const char*
     TF_GetNumberAttrForOpListInput(const char* op_name, int input_index, TF_Status* status);
 
     // Returns 1 if the op is stateful, 0 otherwise. The return value is undefined
     // if the status is not ok.
-    TF_CAPI_EXPORT extern int TF_OpIsStateful(const char* op_type, TF_Status* status);
+    TF_CAPI_EXPORT int TF_OpIsStateful(const char* op_type, TF_Status* status);
 
     // Platform specific initialization routine. Very few platforms actually require
     // this to be called.
@@ -199,15 +202,18 @@ extern "C"
 
     // Fast path method that makes constructing a single scalar tensor require less
     // overhead and copies.
-    TF_CAPI_EXPORT extern TFE_TensorHandle*
+    TF_CAPI_EXPORT TFE_TensorHandle*
     TFE_NewTensorHandleFromScalar(TF_DataType data_type, void* data, size_t len, TF_Status* status);
 
     // Specify the server_def that enables collective ops.
     // This is different to the above function in that it doesn't create remote
     // contexts, and remotely executing ops is not possible. It just enables
     // communication for collective ops.
-    TF_CAPI_EXPORT extern void TFE_EnableCollectiveOps(
-        TFE_Context* ctx, const void* proto, size_t proto_len, TF_Status* status
+    TF_CAPI_EXPORT void TFE_EnableCollectiveOps(
+        TFE_Context* ctx,
+        const void* proto,
+        size_t proto_len,
+        TF_Status* status
     );
 
     // Aborts all ongoing collectives with the specified status. After abortion,
@@ -215,13 +221,16 @@ extern "C"
     // collectives, create a new EagerContext.
     //
     // This is intended to be used when a peer failure is detected.
-    TF_CAPI_EXPORT extern void TFE_AbortCollectiveOps(TFE_Context* ctx, TF_Status* status);
+    TF_CAPI_EXPORT void TFE_AbortCollectiveOps(TFE_Context* ctx, TF_Status* status);
 
     // Checks the health of collective ops peers. Explicit health check is needed in
     // multi worker collective ops to detect failures in the cluster.  If a peer is
     // down, collective ops may hang.
-    TF_CAPI_EXPORT extern void TFE_CollectiveOpsCheckPeerHealth(
-        TFE_Context* ctx, const char* task, int64_t timeout_in_ms, TF_Status* status
+    TF_CAPI_EXPORT void TFE_CollectiveOpsCheckPeerHealth(
+        TFE_Context* ctx,
+        const char* task,
+        int64_t timeout_in_ms,
+        TF_Status* status
     );
 
     // Information about the shape of a Tensor and its type.
@@ -247,16 +256,19 @@ extern "C"
 
     // API for manipulating TF_ShapeAndTypeList objects.
     //
-    TF_CAPI_EXPORT extern TF_ShapeAndTypeList* TF_NewShapeAndTypeList(int num_shapes);
-    TF_CAPI_EXPORT extern void TF_ShapeAndTypeListSetShape(
-        TF_ShapeAndTypeList* shape_list, int index, const int64_t* dims, int num_dims
+    TF_CAPI_EXPORT TF_ShapeAndTypeList* TF_NewShapeAndTypeList(int num_shapes);
+    TF_CAPI_EXPORT void TF_ShapeAndTypeListSetShape(
+        TF_ShapeAndTypeList* shape_list,
+        int index,
+        const int64_t* dims,
+        int num_dims
     );
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT void
     TF_ShapeAndTypeListSetUnknownShape(TF_ShapeAndTypeList* shape_list, int index);
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT void
     TF_ShapeAndTypeListSetDtype(TF_ShapeAndTypeList* shape_list, int index, TF_DataType dtype);
-    TF_CAPI_EXPORT extern void TF_DeleteShapeAndTypeList(TF_ShapeAndTypeList* shape_list);
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT void TF_DeleteShapeAndTypeList(TF_ShapeAndTypeList* shape_list);
+    TF_CAPI_EXPORT void
     TF_DeleteShapeAndTypeListArray(TF_ShapeAndTypeList** shape_list_array, int num_items);
 
     // Infer shapes for the given `op`. The arguments mimic the arguments of the
@@ -272,7 +284,7 @@ extern "C"
     // The results are returned in `output_shapes` and
     // `output_resource_shapes_and_types`. The caller is responsible for freeing the
     // memory in these buffers by calling `TF_DeleteShapeAndTypeList`.
-    TF_CAPI_EXPORT extern void TFE_InferShapes(
+    TF_CAPI_EXPORT void TFE_InferShapes(
         TFE_Op* op,
         TF_ShapeAndTypeList* input_shapes,
         TF_Tensor** input_tensors,
@@ -283,8 +295,9 @@ extern "C"
         TF_Status* status
     );
 
-    TF_CAPI_EXPORT extern void TF_ImportGraphDefOptionsSetValidateColocationConstraints(
-        TF_ImportGraphDefOptions* opts, unsigned char enable
+    TF_CAPI_EXPORT void TF_ImportGraphDefOptionsSetValidateColocationConstraints(
+        TF_ImportGraphDefOptions* opts,
+        unsigned char enable
     );
 
     // Load the library specified by library_filename and register the pluggable
@@ -300,16 +313,16 @@ extern "C"
     // The caller owns the library handle.
     //
     // On failure, returns nullptr and places an error status in status.
-    TF_CAPI_EXPORT extern TF_Library*
+    TF_CAPI_EXPORT TF_Library*
     TF_LoadPluggableDeviceLibrary(const char* library_filename, TF_Status* status);
 
     // Frees the memory associated with the library handle.
     // Does NOT unload the library.
-    TF_CAPI_EXPORT extern void TF_DeletePluggableDeviceLibraryHandle(TF_Library* lib_handle);
+    TF_CAPI_EXPORT void TF_DeletePluggableDeviceLibraryHandle(TF_Library* lib_handle);
 
     // Removes `func_name` from `g`. If `func_name` is not in `g`, an error will be
     // returned.
-    TF_CAPI_EXPORT extern void
+    TF_CAPI_EXPORT void
     TF_GraphRemoveFunction(TF_Graph* g, const char* func_name, TF_Status* status);
 
 #ifdef __cplusplus

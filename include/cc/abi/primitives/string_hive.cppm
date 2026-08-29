@@ -32,4 +32,4 @@ private:
     String m_shared;
 };
 
-} // namespace ice::sonic
+} // namespace ice

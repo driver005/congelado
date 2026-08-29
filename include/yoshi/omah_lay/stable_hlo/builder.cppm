@@ -5,6 +5,7 @@ export module yoshi_omah_lay_stable_hlo:builder;
 import std;
 import cc_abi_sonic_intern;
 import cc_abi_primitives;
+import cc_abi_builder_intern;
 import cc_abi_builder_generator;
 import :dtype;
 import :shape;
@@ -20,31 +21,55 @@ export namespace cc::stable_hlo {
 // yoshi_omah_lay_stable_hlo — this is the one place this module touches cc/abi, and only downward. Only
 // implements the interface's typed-API tier (own native construction methods — append_module
 // here, add_parameter/add_op on Function itself) — the interface's second, optional,
-// C-ABI-crossable generic construction tier isn't opted into. stable_hlo.cc registers a factory
-// function pointer that constructs this class into ice::sonic::RegistrationRuntime under
-// type="generator", name="stablehlo", so ice::sonic::Generator can resolve it
-// in-process without a direct cc_abi -> yoshi_omah_lay_stable_hlo dependency.
+// C-ABI-crossable generic construction tier (enter_border_patrol) isn't opted into, so it
+// keeps the base class's default "not supported" answer. stable_hlo.cc registers a
+// TF_InitGenerator-style factory that constructs this class into
+// ice::sonic::RegistrationRuntime under type="generator", name="stablehlo", so
+// ice::sonic::Generator can resolve it in-process without a direct cc_abi ->
+// yoshi_omah_lay_stable_hlo dependency.
 class Builder : public ice::builder::Builder
 {
 public:
     Builder() = default;
 
+    // Tensor runtime the definitions' get_inputs/outputs/attrs allocate through.
+    explicit Builder(ice::sonic::Tensor& tensor_runtime) :
+        ice::builder::Builder{tensor_runtime}
+    {
+    }
+
     // --- ice::builder::Builder ---
 
     // Module implements ice::builder::Definition too, so the modules this Builder
     // actually holds double as its definition list — no separate static schema catalog.
-    std::size_t get_definition_count() const override
+    // Each definition is handed out as a heap copy (stable across later append_module
+    // calls, which can reallocate m_modules); ownership of the copy transfers to the C
+    // side, which frees it with definition__destroy. The tensor data is an array of
+    // opaque Definition* handles (the list/array-carrier contract of TF_Tensor_Handle).
+    std::expected<ice::TensorHandle, ice::Status>
+    get_definitions(ice::TensorHandle /*out*/) const override
     {
-        return m_modules.size();
-    }
-
-    std::unique_ptr<ice::builder::Definition>
-    get_definition(std::size_t index) const override
-    {
-        if (index >= m_modules.size()) {
-            return nullptr;
+        if (!m_tensor_runtime) {
+            return std::unexpected{ice::Status{"Builder has no tensor runtime"}};
         }
-        return std::make_unique<Module>(m_modules[index]);
+        int64_t count = static_cast<int64_t>(m_modules.size());
+        size_t bytes = static_cast<size_t>(count) * sizeof(void*);
+        auto* raw = m_tensor_runtime->allocate_tensor(
+            ice::builder::DataTypeEnum::Uint8, &count, 1, bytes
+        );
+        if (!raw) {
+            return std::unexpected{ice::Status{"OOM: definitions tensor"}};
+        }
+        ice::TensorHandle handle{raw};
+        auto** dst = static_cast<void**>(m_tensor_runtime->get_data(raw));
+        for (int64_t i = 0; i < count; ++i) {
+            auto* module = new Module(m_modules[static_cast<size_t>(i)]);
+            if (m_tensor_runtime) {
+                module->set_tensor_runtime(*m_tensor_runtime);
+            }
+            dst[i] = module;
+        }
+        return handle;
     }
 
     void set_name(std::string_view name) override

@@ -17,7 +17,7 @@ public:
     {
         // m_handle is a void* carrying a function pointer — std::bit_cast recovers the
         // callable with a compile-time size check instead of a raw reinterpret_cast.
-        std::bit_cast<void(*)(void*)>(m_handle)(arg);
+        std::bit_cast<void (*)(void*)>(m_handle)(arg);
     }
 
     void* get_handle() const

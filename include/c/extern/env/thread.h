@@ -31,15 +31,15 @@ extern "C"
     typedef struct TF_ThreadOptions
     {
         size_t struct_size;
-        int global_name;  // If non-zero, set the thread name visible in /proc
+        int global_name; // If non-zero, set the thread name visible in /proc
     } TF_ThreadOptions;
 
-    TF_CAPI_EXPORT extern void TF_DefaultThreadOptions(TF_ThreadOptions* options);
+    TF_CAPI_EXPORT void default_thread_options(TF_ThreadOptions* options);
 
     // Starts a new thread. The thread name is advisory, used only for debugging.
     // The caller does NOT own the returned TF_Thread*; ownership passes to the
-    // returned handle and must be released by calling TF_JoinThread.
-    TF_CAPI_EXPORT extern TF_Thread* TF_StartThread(
+    // returned handle and must be released by calling join_thread.
+    TF_CAPI_EXPORT TF_Thread* start_thread(
         const TF_ThreadOptions* options,
         const char* thread_name,
         TF_ThreadWorkFn work_func,
@@ -47,8 +47,8 @@ extern "C"
     );
 
     // Blocks until the thread completes, then releases the TF_Thread* handle.
-    // Must be called exactly once per TF_StartThread return value.
-    TF_CAPI_EXPORT extern void TF_JoinThread(TF_Thread* thread);
+    // Must be called exactly once per start_thread return value.
+    TF_CAPI_EXPORT void join_thread(TF_Thread* thread);
 
 #ifdef __cplusplus
 }

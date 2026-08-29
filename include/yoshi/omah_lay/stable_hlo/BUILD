@@ -81,9 +81,11 @@ congelado_module_library(
         "builder.cppm",
     ],
     deps = [
-        "//include/cc/abi/builder/generator:cc_abi_builder_generator",
-        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
         "//include/c:tf_c_headers",  # dtype.cppm's get_data_type() maps onto TF_DataType
+        "//include/cc/abi/builder/generator:cc_abi_builder_generator",
+        "//include/cc/abi/builder/intern:cc_abi_builder_intern",  # DataTypeEnum for handle tensors
+        "//include/cc/abi/primitives:cc_abi_primitives",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
     ],
     visibility = ["//visibility:public"],
 )
@@ -100,7 +102,10 @@ congelado_cc_binary(
     linkshared = True,
     deps = [
         ":yoshi_omah_lay_stable_hlo",
+        "//include/c:extern_generator_hdrs",
         "//include/c:extern_plugin_registration_hdrs",
+        "//include/cc/abi/primitives:cc_abi_primitives",
+        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
         "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",
     ],
 )

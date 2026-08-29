@@ -13,12 +13,10 @@ export namespace ice::builder {
 class DynamicLibrary
 {
 public:
-    [[nodiscard]] static std::expected<void*, ice::Status>
-    load(const ice::String& library_filename)
+    [[nodiscard]] static std::expected<void*, ice::Status> load(const ice::String& library_filename)
     {
-
         ice::Status status;
-        void* handle = TF_LoadSharedLibrary(library_filename.c_str(), status.get_handle());
+        void* handle = load_shared_library(library_filename.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -28,9 +26,9 @@ public:
     [[nodiscard]] static std::expected<void*, ice::Status>
     get_symbol(void* handle, const ice::String& symbol_name)
     {
-
         ice::Status status;
-        void* symbol = TF_GetSymbolFromLibrary(handle, symbol_name.c_str(), status.get_handle());
+        void* symbol =
+            get_symbol_from_library(handle, symbol_name.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }

@@ -62,16 +62,6 @@ cc_library(
 )
 
 cc_library(
-    name = "tf_bool_hdrs",
-    hdrs = ["intern/tf_bool.h"],
-)
-
-cc_library(
-    name = "conversion_macros_hdrs",
-    hdrs = ["intern/conversion_macros.h"],
-)
-
-cc_library(
     name = "tf_datatype_hdrs",
     hdrs = ["intern/tf_datatype.h"],
     deps = [":c_api_macros_hdrs"],
@@ -143,17 +133,6 @@ cc_library(
     deps = [":tf_tstring_hdrs"],
 )
 
-cc_library(
-    name = "tensor_interface_hdrs",
-    hdrs = ["intern/tensor_interface.h"],
-)
-
-cc_library(
-    name = "safe_ptr_hdrs",
-    hdrs = ["intern/safe_ptr.h"],
-    deps = [":c_api_hdrs"],
-)
-
 # =============================================================================
 # Extern layer — subdirectory headers (extern/<name>/<name>.h)
 # =============================================================================
@@ -173,7 +152,6 @@ cc_library(
     hdrs = ["extern/cron/cron.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -184,7 +162,6 @@ cc_library(
     hdrs = ["extern/database/database.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -226,6 +203,12 @@ cc_library(
 )
 
 cc_library(
+    name = "extern_io_enums_hdrs",
+    hdrs = ["extern/io/enums.h"],
+    deps = [":c_api_macros_hdrs"],
+)
+
+cc_library(
     name = "extern_io_hdrs",
     hdrs = ["extern/io/io.h"],
     deps = [
@@ -238,7 +221,6 @@ cc_library(
     hdrs = ["extern/logger/logger.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -250,7 +232,6 @@ cc_library(
     deps = [
         ":c_api_macros_hdrs",
         ":extern_worker_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -262,10 +243,14 @@ cc_library(
     deps = [
         ":c_api_macros_hdrs",
         ":extern_worker_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
+)
+
+cc_library(
+    name = "extern_otel_enums_hdrs",
+    hdrs = ["extern/otel/enums.h"],
 )
 
 cc_library(
@@ -273,6 +258,7 @@ cc_library(
     hdrs = ["extern/otel/otel.h"],
     deps = [
         ":c_api_macros_hdrs",
+        ":extern_otel_enums_hdrs",
     ],
 )
 
@@ -308,7 +294,6 @@ cc_library(
     hdrs = ["extern/protocol/protocol.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -319,7 +304,6 @@ cc_library(
     hdrs = ["extern/search/search.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -340,7 +324,6 @@ cc_library(
     hdrs = ["extern/worker/worker.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_bool_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
@@ -392,7 +375,6 @@ cc_library(
         ":extern_serde_hdrs",
         ":extern_worker_hdrs",
         ":tf_attrtype_hdrs",
-        ":tf_bool_hdrs",
         ":tf_buffer_hdrs",
         ":tf_datatype_hdrs",
         ":tf_file_statistics_hdrs",
@@ -411,10 +393,7 @@ cc_library(
     name = "tf_c_headers",
     deps = [
         ":c_api_headers",
-        ":conversion_macros_hdrs",
         ":platform_hdrs",
-        ":safe_ptr_hdrs",
-        ":tensor_interface_hdrs",
     ],
 )
 

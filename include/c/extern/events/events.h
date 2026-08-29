@@ -26,21 +26,23 @@ extern "C"
 {
 #endif
 
-    
-    
 
-    
-
-    
-
-    typedef struct TF_Events {
+    typedef struct TF_Events
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void (*publish)(void* plugin_context, const TF_TString* event_name, const TF_TString* payload_json, TF_Status* status);
+        void (*publish)(
+            void* plugin_context,
+            const TF_TString* event_name,
+            const TF_TString* payload_json,
+            TF_Status* status
+        );
     } TF_Events;
 
-    TF_CAPI_EXPORT extern void TF_InitEvents(TF_Events** ops, void** plugin_context, TF_Status* status);
+#define TF_EVENTS_STRUCT_SIZE TF_OFFSET_OF_END(TF_Events, publish)
+
+    TF_CAPI_EXPORT void init_events(TF_Events** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

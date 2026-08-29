@@ -23,8 +23,9 @@ extern "C"
 {
 #endif
 
-    TF_CAPI_EXPORT extern void* TF_LoadSharedLibrary(const char* library_filename, TF_Status* status);
-    TF_CAPI_EXPORT extern void* TF_GetSymbolFromLibrary(void* handle, const char* symbol_name, TF_Status* status);
+    TF_CAPI_EXPORT void* load_shared_library(const char* library_filename, TF_Status* status);
+    TF_CAPI_EXPORT void*
+    get_symbol_from_library(void* handle, const char* symbol_name, TF_Status* status);
 
 #ifdef __cplusplus
 }

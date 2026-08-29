@@ -10,7 +10,6 @@ import std;
 import cc_abi_primitives;
 import cc_abi_sonic_intern;
 
-
 export namespace ice::builder {
 
 // Abstract base class for a serde (encode/decode) backend — pure interface, zero C-ABI/TF_*
@@ -18,37 +17,68 @@ export namespace ice::builder {
 class Serde
 {
 public:
+    // Recover the Serde instance from the opaque void* context slot that every
+    // C vtable callback receives.  Named accessor so the cast intent is explicit
+    // at the call site and the static_cast appears exactly once, here.
+    static Serde* create(void* ctx) noexcept
+    {
+        return static_cast<Serde*>(ctx);
+    }
+
     virtual ~Serde() = default;
 
-    virtual std::expected<ice::String, ice::Status>
+    virtual [[nodiscard]] std::expected<ice::String, ice::Status>
     encode(const ice::String& value_json) = 0;
 
-    virtual std::expected<ice::String, ice::Status>
+    virtual [[nodiscard]] std::expected<ice::String, ice::Status>
     decode(const ice::String& data) = 0;
 
     virtual ice::String get_content_type() const = 0;
     virtual ice::String get_format_name() const = 0;
 
-    TF_Serde* get_generic_vtable() {
+    static TF_Serde* get_generic_vtable()
+    {
         static TF_Serde vtable = {
             .struct_size = sizeof(TF_Serde),
-            .destroy = [](void* ctx) {
-                delete ctx_as<Serde>(ctx);
+            .destroy =
+                [](void* plugin_context)
+            {
+                delete Serde::create(plugin_context);
             },
-            .get_content_type = [](void* ctx, TF_String* out) {
-                ctx_as<Serde>(ctx)->get_content_type().to_c(out);
+            .get_content_type =
+                [](void* plugin_context, TF_String* out)
+            {
+                Serde::create(plugin_context)->get_content_type().to_c(out);
             },
-            .get_format_name = [](void* ctx, TF_String* out) {
-                ctx_as<Serde>(ctx)->get_format_name().to_c(out);
+            .get_format_name =
+                [](void* plugin_context, TF_String* out)
+            {
+                Serde::create(plugin_context)->get_format_name().to_c(out);
             },
-            .encode = [](void* ctx, const TF_TString* value_json, TF_TString* out_encoded, TF_Status* status) {
-                auto res = ctx_as<Serde>(ctx)->encode(ice::String::create(value_json));
-                if (!res) { res.error().to_c(status); return; }
+            .encode =
+                [](void* plugin_context,
+                   const TF_TString* value_json,
+                   TF_TString* out_encoded,
+                   TF_Status* status)
+            {
+                auto res = Serde::create(plugin_context)->encode(ice::String::create(value_json));
+                if (!res) {
+                    res.error().to_c(status);
+                    return;
+                }
                 res->to_c(out_encoded);
             },
-            .decode = [](void* ctx, const TF_TString* data, TF_TString* out_json, TF_Status* status) {
-                auto res = ctx_as<Serde>(ctx)->decode(ice::String::create(data));
-                if (!res) { res.error().to_c(status); return; }
+            .decode =
+                [](void* plugin_context,
+                   const TF_TString* data,
+                   TF_TString* out_json,
+                   TF_Status* status)
+            {
+                auto res = Serde::create(plugin_context)->decode(ice::String::create(data));
+                if (!res) {
+                    res.error().to_c(status);
+                    return;
+                }
                 res->to_c(out_json);
             }
         };

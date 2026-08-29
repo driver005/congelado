@@ -18,7 +18,25 @@ IndentWrappedFunctionNames: false
 NamespaceIndentation: Inner
 
 # ── Braces ────────────────────────────────────────────────────────────────────
-BreakBeforeBraces: Mozilla
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterObjCDeclaration: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: true
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: true
 
 # ── Short constructs ──────────────────────────────────────────────────────────
 AllowShortBlocksOnASingleLine: Empty
@@ -44,7 +62,7 @@ BreakStringLiterals: true
 BreakTemplateDeclarations: Yes
 AlwaysBreakBeforeMultilineStrings: false
 PackConstructorInitializers: Never
-BinPackParameters: false
+BinPackParameters: OnePerLine
 BinPackArguments: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine: false

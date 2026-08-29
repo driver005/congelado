@@ -36,21 +36,31 @@ extern "C"
 
     typedef void (*TF_Payload_CompletionFn)(const TF_TString* result, void* user_data);
 
-    
-    
-
-    
-    
-
-    typedef struct TF_Payload {
+    typedef struct TF_Payload
+    {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void (*write)(void* plugin_context, TF_Payload_Type type, const TF_TString* data, TF_Payload_CompletionFn completion, void* cb_user_data, TF_Status* status);
-        void (*read)(void* plugin_context, const TF_TString* reference, TF_Payload_CompletionFn completion, void* cb_user_data, TF_Status* status);
+        void (*write)(
+            void* plugin_context,
+            TF_Payload_Type type,
+            const TF_TString* data,
+            TF_Payload_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
+        void (*read)(
+            void* plugin_context,
+            const TF_TString* reference,
+            TF_Payload_CompletionFn completion,
+            void* cb_user_data,
+            TF_Status* status
+        );
     } TF_Payload;
 
-    TF_CAPI_EXPORT extern void TF_InitPayload(TF_Payload** ops, void** plugin_context, TF_Status* status);
+#define TF_PAYLOAD_STRUCT_SIZE TF_OFFSET_OF_END(TF_Payload, read)
+
+    TF_CAPI_EXPORT void init_payload(TF_Payload** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 }

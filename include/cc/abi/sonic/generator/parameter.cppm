@@ -1,68 +1,70 @@
 module;
 
-#include "c/extern/generator/parameter.h"
-#include "c/extern/generator/typeinfo.h"
+#include "c/extern/generator/generator.h"
 
 export module cc_abi_sonic_generator:parameter;
 
 import std;
-import cc_abi_sonic_intern;
 import :typeinfo;
+import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter: implements ice::builder::Parameter by calling
-// TF_Generator_Parameter_* functions.
-class Parameter : public ice::builder::Parameter
+// C ABI adapter for the flat TF_Generator vtable's parameter__* slots. Owning —
+// destroys the handle with parameter__destroy (the plugin released ownership
+// when it handed the handle out).
+class Parameter
 {
 public:
-    explicit Parameter(const TF_Generator_Parameter* handle) :
-        m_handle(handle)
+    explicit Parameter(TF_Generator* ops, void* handle) :
+        m_ops{ops},
+        m_handle{handle}
     {
     }
 
-    ~Parameter() = default;
-
-    Parameter(const Parameter&) = default;
-    Parameter& operator=(const Parameter&) = default;
-    Parameter(Parameter&&) = default;
-    Parameter& operator=(Parameter&&) = default;
-
-    String get_name() const
+    ~Parameter()
     {
-
-        return String(TF_Generator_Parameter_GetName(m_handle));
+        if (m_ops && m_handle) {
+            m_ops->parameter__destroy(m_handle);
+        }
     }
 
-    String get_description() const
-    {
+    Parameter(const Parameter&) = delete;
+    Parameter& operator=(const Parameter&) = delete;
+    Parameter(Parameter&&) = delete;
+    Parameter& operator=(Parameter&&) = delete;
 
-        return String(TF_Generator_Parameter_GetDescription(m_handle));
+    ice::String get_name() const
+    {
+        ice::String out;
+        m_ops->parameter__get_name(m_handle, out.get_handle());
+        return out;
+    }
+
+    ice::String get_description() const
+    {
+        ice::String out;
+        m_ops->parameter__get_description(m_handle, out.get_handle());
+        return out;
     }
 
     int get_position() const
     {
-
-        return TF_Generator_Parameter_GetPosition(m_handle);
+        return m_ops->parameter__get_position(m_handle);
     }
 
-    std::unique_ptr<ice::builder::TypeInfo> get_type() const
+    std::unique_ptr<ice::sonic::TypeInfo> get_type() const
     {
-
-        const TF_Generator_TypeInfo* type = TF_Generator_Parameter_GetType(m_handle);
-        if (!type) {
+        void* handle = m_ops->parameter__get_type(m_handle);
+        if (!handle) {
             return nullptr;
         }
-        return std::make_unique<TypeInfo>(type);
-    }
-
-    const TF_Generator_Parameter* get_handle() const
-    {
-        return m_handle;
+        return std::make_unique<TypeInfo>(m_ops, handle);
     }
 
 private:
-    const TF_Generator_Parameter* m_handle;
+    TF_Generator* m_ops;
+    void* m_handle;
 };
 
 } // namespace ice::sonic

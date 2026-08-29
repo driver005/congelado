@@ -7,7 +7,6 @@ congelado_module_library(
         "allocator_attributes.cppm",
         "attrtype.cppm",
         "buffer.cppm",
-        "ctx.cppm",
         "datatype.cppm",
         "file_statistics.cppm",
         "shape.cppm",
@@ -15,7 +14,8 @@ congelado_module_library(
     ],
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/value:cc_abi_value",
-    ],
+    
+        "//include/cc/abi/primitives:cc_abi_primitives",
+],
     visibility = ["//visibility:public"],
 )

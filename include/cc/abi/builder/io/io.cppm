@@ -7,12 +7,9 @@ module;
 export module cc_abi_builder_io;
 
 export import :leaves;
-export import :enums;
 import std;
 import cc_abi_primitives;
 import cc_abi_sonic_intern;
-import :leaves;
-
 
 export namespace ice::builder {
 
@@ -22,19 +19,39 @@ export namespace ice::builder {
 class Io
 {
 public:
+    // Recover the Io instance from the opaque void* context slot that every
+    // C vtable callback receives.  Named accessor so the cast intent is explicit
+    // at the call site and the static_cast appears exactly once, here.
+    static Io* create(void* ctx) noexcept
+    {
+        return static_cast<Io*>(ctx);
+    }
+
     virtual ~Io() = default;
 
-    virtual std::expected<std::unique_ptr<Request>, ice::Status> create_request() = 0;
-    virtual std::expected<std::unique_ptr<Response>, ice::Status> create_response() = 0;
+    virtual ice::String get_name() const = 0;
 
-    TF_IO* get_generic_vtable() {
+    virtual [[nodiscard]] std::expected<std::unique_ptr<Request>, ice::Status> create_request() = 0;
+    virtual [[nodiscard]] std::expected<std::unique_ptr<Response>, ice::Status>
+    create_response() = 0;
+
+    static TF_IO* get_generic_vtable()
+    {
         static TF_IO vtable = {
             .struct_size = sizeof(TF_IO),
-            .destroy = [](void* ctx) {
-                delete ctx_as<Io>(ctx);
+            .destroy =
+                [](void* plugin_context)
+            {
+                delete Io::create(plugin_context);
             },
-            .create_request = [](void* ctx, TF_Status* status) -> void* {
-                auto* self = ctx_as<Io>(ctx);
+            .get_name =
+                [](void* plugin_context, TF_String* out)
+            {
+                Io::create(plugin_context)->get_name().to_c(out);
+            },
+            .create_request = [](void* plugin_context, TF_Status* status) -> void*
+            {
+                auto* self = Io::create(plugin_context);
                 auto res = self->create_request();
                 if (!res) {
                     res.error().to_c(status);
@@ -42,11 +59,14 @@ public:
                 }
                 return res->release();
             },
-            .request__destroy = [](void* ctx) {
-                delete ctx_as<Request>(ctx);
+            .request__destroy =
+                [](void* request_context)
+            {
+                delete Request::create(request_context);
             },
-            .create_response = [](void* ctx, TF_Status* status) -> void* {
-                auto* self = ctx_as<Io>(ctx);
+            .create_response = [](void* plugin_context, TF_Status* status) -> void*
+            {
+                auto* self = Io::create(plugin_context);
                 auto res = self->create_response();
                 if (!res) {
                     res.error().to_c(status);
@@ -54,52 +74,73 @@ public:
                 }
                 return res->release();
             },
-            .response__destroy = [](void* ctx) {
-                delete ctx_as<Response>(ctx);
+            .response__destroy =
+                [](void* response_context)
+            {
+                delete Response::create(response_context);
             },
-            .request__get_method = [](void* ctx) -> TF_IO_Method {
-                auto* self = ctx_as<Request>(ctx);
-                return method_to_c(self->get_method());
+            .request__get_method = [](void* request_context) -> TF_IO_Method
+            {
+                auto* self = Request::create(request_context);
+                return ice::method_to_c(self->get_method());
             },
-            .request__get_path = [](void* ctx, TF_String* out) {
-                auto* self = ctx_as<Request>(ctx);
+            .request__get_path =
+                [](void* request_context, TF_String* out)
+            {
+                auto* self = Request::create(request_context);
                 auto name = self->get_path();
                 name.to_c(out);
             },
-            .request__set_header = [](void* ctx, const TF_TString* name, const TF_TString* value, TF_Status* status) {
-                auto* self = ctx_as<Request>(ctx);
-                auto res = self->set_header(
-                    ice::String::create(name),
-                    ice::String::create(value)
-                );
-                if (!res) res.error().to_c(status);
+            .request__set_header =
+                [](void* request_context,
+                   const TF_TString* name,
+                   const TF_TString* value,
+                   TF_Status* status)
+            {
+                auto* self = Request::create(request_context);
+                auto res = self->set_header(ice::String::create(name), ice::String::create(value));
+                if (!res) {
+                    res.error().to_c(status);
+                }
             },
-            .request__set_body = [](void* ctx, const TF_TString* body, TF_Status* status) {
-                auto* self = ctx_as<Request>(ctx);
-                auto res = self->set_body(
-                    ice::String::create(body)
-                );
-                if (!res) res.error().to_c(status);
+            .request__set_body =
+                [](void* request_context, const TF_TString* body, TF_Status* status)
+            {
+                auto* self = Request::create(request_context);
+                auto res = self->set_body(ice::String::create(body));
+                if (!res) {
+                    res.error().to_c(status);
+                }
             },
-            .response__set_status = [](void* ctx, int32_t status_code, TF_Status* status) {
-                auto* self = ctx_as<Response>(ctx);
+            .response__set_status =
+                [](void* response_context, int32_t status_code, TF_Status* status)
+            {
+                auto* self = Response::create(response_context);
                 auto res = self->set_status(status_code);
-                if (!res) res.error().to_c(status);
+                if (!res) {
+                    res.error().to_c(status);
+                }
             },
-            .response__set_header = [](void* ctx, const TF_TString* name, const TF_TString* value, TF_Status* status) {
-                auto* self = ctx_as<Response>(ctx);
-                auto res = self->set_header(
-                    ice::String::create(name),
-                    ice::String::create(value)
-                );
-                if (!res) res.error().to_c(status);
+            .response__set_header =
+                [](void* response_context,
+                   const TF_TString* name,
+                   const TF_TString* value,
+                   TF_Status* status)
+            {
+                auto* self = Response::create(response_context);
+                auto res = self->set_header(ice::String::create(name), ice::String::create(value));
+                if (!res) {
+                    res.error().to_c(status);
+                }
             },
-            .response__set_body = [](void* ctx, const TF_TString* body, TF_Status* status) {
-                auto* self = ctx_as<Response>(ctx);
-                auto res = self->set_body(
-                    ice::String::create(body)
-                );
-                if (!res) res.error().to_c(status);
+            .response__set_body =
+                [](void* response_context, const TF_TString* body, TF_Status* status)
+            {
+                auto* self = Response::create(response_context);
+                auto res = self->set_body(ice::String::create(body));
+                if (!res) {
+                    res.error().to_c(status);
+                }
             }
         };
         return &vtable;

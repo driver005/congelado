@@ -10,15 +10,13 @@ congelado_module_library(
         "datatype.cppm",
         "file_statistics.cppm",
         "runtime.cppm",
-        "runtime_base.cppm",
         "shape.cppm",
-        "string.cppm",
-        "string_hive.cppm",
         "tensor.cppm",
     ],
     deps = [
         "//include/c:tf_c_headers",
-        "//include/cc/abi/value:cc_abi_value",
+        "//include/cc/abi/primitives:cc_abi_primitives",
+        "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",
     ],
     visibility = ["//visibility:public"],
 )

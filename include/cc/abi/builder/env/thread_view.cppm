@@ -4,8 +4,9 @@ module;
 
 export module cc_abi_builder_env:thread_view;
 
+import std;
+import cc_abi_primitives;
 import cc_abi_sonic_intern;
-import :thread_options_builder;
 
 export namespace ice::builder {
 
@@ -30,7 +31,6 @@ public:
 
     ThreadView& operator=(ThreadView&& other) noexcept
     {
-
         if (this != &other) {
             m_handle = other.m_handle;
             other.m_handle = nullptr;
@@ -41,7 +41,7 @@ public:
     void join()
     {
         if (m_handle) {
-            TF_JoinThread(m_handle);
+            join_thread(m_handle);
         }
     }
 
@@ -61,17 +61,13 @@ private:
 };
 
 inline ThreadView start_thread(
-    const ThreadOptionsBuilder* options,
+    const TF_ThreadOptions* options,
     const ice::String& thread_name,
     TF_ThreadWorkFn work_func,
     void* param
 )
 {
-
-    return ThreadView(TF_StartThread(
-        const_cast<TF_ThreadOptions*>(options->get_handle()), thread_name.c_str(), work_func,
-        param
-    ));
+    return ThreadView(start_thread(options, thread_name.c_str(), work_func, param));
 }
 
 } // namespace ice::builder

@@ -5,39 +5,44 @@ module;
 export module cc_abi_sonic_search;
 
 import std;
-import cc_abi_sonic_intern;
 import cc_abi_primitives;
+import cc_abi_sonic_intern;
 import cc_abi_sonic_registration;
 
-namespace ice::sonic::detail {
-inline TF_Search_CompletionFn to_c(ice::builder::CompletionFn fn) noexcept {
-    static_assert(sizeof(ice::builder::CompletionFn) == sizeof(TF_Search_CompletionFn));
-    return std::bit_cast<TF_Search_CompletionFn>(fn);
-}
-} // namespace ice::sonic::detail
 export namespace ice::sonic {
 
 // Runtime — the mainframe-facing search handle. Same in-process/cross-plugin duality as
 // ice::sonic::Cache and ice::sonic::Generator. The cross-plugin path converts
-// ice::builder::SearchQuery (pure C++) into a stack TF_Search_Query (the raw C-ABI
+// ice::SearchQuery (pure C++) into a stack TF_Search_Query (the raw C-ABI
 // value struct) right at the call site — the query never needs to be owned/kept alive past the
-// call, unlike the async completion contexts elsewhere in this file.
-class Search : public ice::sonic::Runtime<Search, TF_Search, /*PassNameToFactory=*/true>
+// call.
+class Search : public ice::sonic::Runtime<Search, TF_Search>
 {
 public:
+    explicit Search(TF_Search* ops, void* plugin_context) :
+        Runtime(ops, plugin_context)
+    {
+    }
+
     static constexpr std::string_view domain_name = "search";
 
-    std::expected<void, ice::Status> index(
+    [[nodiscard]] std::expected<void, ice::Status> index(
         const ice::String& collection,
         const ice::String& id,
         const ice::String& document_json,
-        ice::builder::CompletionFn completion,
+        TF_Search_CompletionFn completion,
         void* cb_user_data
     )
     {
         ice::Status status;
-        this->m_ops->index(this->get_handle(), collection.get_handle(), id.get_handle(),
-            document_json.get_handle(), detail::to_c(completion), cb_user_data, status.get_handle()
+        m_ops->index(
+            get_handle(),
+            collection.get_handle(),
+            id.get_handle(),
+            document_json.get_handle(),
+            completion,
+            cb_user_data,
+            status.get_handle()
         );
         if (!status.ok()) {
             return std::unexpected{status};
@@ -45,16 +50,21 @@ public:
         return {};
     }
 
-    std::expected<void, ice::Status> remove(
+    [[nodiscard]] std::expected<void, ice::Status> remove(
         const ice::String& collection,
         const ice::String& id,
-        ice::builder::CompletionFn completion,
+        TF_Search_CompletionFn completion,
         void* cb_user_data
     )
     {
         ice::Status status;
-        this->m_ops->remove(this->get_handle(), collection.get_handle(), id.get_handle(),
-            detail::to_c(completion), cb_user_data, status.get_handle()
+        m_ops->remove(
+            get_handle(),
+            collection.get_handle(),
+            id.get_handle(),
+            completion,
+            cb_user_data,
+            status.get_handle()
         );
         if (!status.ok()) {
             return std::unexpected{status};
@@ -62,10 +72,10 @@ public:
         return {};
     }
 
-    std::expected<void, ice::Status> search(
+    [[nodiscard]] std::expected<void, ice::Status> search(
         const ice::String& collection,
-        const ice::builder::SearchQuery& query,
-        ice::builder::CompletionFn completion,
+        const ice::SearchQuery& query,
+        TF_Search_CompletionFn completion,
         void* cb_user_data
     )
     {
@@ -84,8 +94,13 @@ public:
         tf_query.size = query.get_size();
         tf_query.sort = *sr_sort.get_handle();
 
-        this->m_ops->search(this->get_handle(), collection.get_handle(), &tf_query,
-            detail::to_c(completion), cb_user_data, status.get_handle()
+        m_ops->search(
+            get_handle(),
+            collection.get_handle(),
+            &tf_query,
+            completion,
+            cb_user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -96,13 +111,10 @@ public:
 
     ice::String get_name() const
     {
-        ice::String tf_name;
-        this->m_ops->get_name(this->get_handle(), tf_name.get_handle());
-        return std::move(tf_name);
+        ice::String out;
+        m_ops->get_name(get_handle(), out.get_handle());
+        return out;
     }
-
-public:
-    explicit Search(TF_Search* ops, void* plugin_context) : Runtime(ops, plugin_context) {}
 };
 
 } // namespace ice::sonic

@@ -6,7 +6,8 @@ congelado_module_library(
     deps = [
         "//include/cc/abi/builder:cc_abi_builder",
         "//include/cc/abi/sonic:cc_abi_sonic",
-        "//include/cc/abi/value:cc_abi_value",
-    ],
+    
+        "//include/cc/abi/primitives:cc_abi_primitives",
+],
     visibility = ["//visibility:public"],
 )

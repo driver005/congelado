@@ -1,60 +1,63 @@
 module;
 
-#include "c/extern/generator/typeinfo.h"
+#include "c/extern/generator/generator.h"
 
 export module cc_abi_sonic_generator:typeinfo;
 
-import cc_abi_sonic_intern;
+import std;
+import cc_abi_primitives;
+
 export namespace ice::sonic {
 
-// C ABI adapter: implements ice::builder::TypeInfo by calling
-// TF_Generator_TypeInfo_* functions.
-class TypeInfo : public ice::builder::TypeInfo
+// C ABI adapter for the flat TF_Generator vtable's typeinfo__* slots. Owning —
+// destroys the handle with typeinfo__destroy (the plugin released ownership
+// when it handed the handle out).
+class TypeInfo
 {
 public:
-    explicit TypeInfo(const TF_Generator_TypeInfo* handle) :
-        m_handle(handle)
+    explicit TypeInfo(TF_Generator* ops, void* handle) :
+        m_ops{ops},
+        m_handle{handle}
     {
     }
 
-    ~TypeInfo() = default;
+    ~TypeInfo()
+    {
+        if (m_ops && m_handle) {
+            m_ops->typeinfo__destroy(m_handle);
+        }
+    }
 
-    TypeInfo(const TypeInfo&) = default;
-    TypeInfo& operator=(const TypeInfo&) = default;
-    TypeInfo(TypeInfo&&) = default;
-    TypeInfo& operator=(TypeInfo&&) = default;
+    TypeInfo(const TypeInfo&) = delete;
+    TypeInfo& operator=(const TypeInfo&) = delete;
+    TypeInfo(TypeInfo&&) = delete;
+    TypeInfo& operator=(TypeInfo&&) = delete;
 
     int get_data_type() const
     {
-
-        return TF_Generator_TypeInfo_GetDataType(m_handle);
+        return m_ops->typeinfo__get_data_type(m_handle);
     }
 
-    String get_type_attr_name() const
+    ice::String get_type_attr_name() const
     {
-
-        return String(TF_Generator_TypeInfo_GetTypeAttrName(m_handle));
+        ice::String out;
+        m_ops->typeinfo__get_type_attr_name(m_handle, out.get_handle());
+        return out;
     }
 
     bool is_read_only() const
     {
-
-        return TF_Generator_TypeInfo_IsReadOnly(m_handle);
+        return m_ops->typeinfo__is_read_only(m_handle);
     }
 
     bool is_list() const
     {
-
-        return TF_Generator_TypeInfo_IsList(m_handle);
-    }
-
-    const TF_Generator_TypeInfo* get_handle() const
-    {
-        return m_handle;
+        return m_ops->typeinfo__is_list(m_handle);
     }
 
 private:
-    const TF_Generator_TypeInfo* m_handle;
+    TF_Generator* m_ops;
+    void* m_handle;
 };
 
 } // namespace ice::sonic

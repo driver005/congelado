@@ -6,27 +6,37 @@ module;
 
 export module cc_abi_builder_generator;
 
-export import :node_handle;
-export import :generator_function;
+export import :attribute;
 export import :definition;
+export import :function;
 export import :parameter;
 export import :typeinfo;
-export import :attribute;
 import std;
 import cc_abi_primitives;
 import cc_abi_sonic_intern;
-import :definition;
-import :generator_function;
 
 export namespace ice::builder {
 
 class Builder
 {
 public:
+    // Recover the Builder instance from the opaque void* context slot that every
+    // C vtable callback receives.  Named accessor so the cast intent is explicit
+    // at the call site and the static_cast appears exactly once, here.
+    static Builder* create(void* ctx) noexcept
+    {
+        return static_cast<Builder*>(ctx);
+    }
+
     // Tensor runtime injected at construction so implementations can allocate
     // tensors for get_definitions() and pass them back as ice::TensorHandle.
+    // Optional: backends that don't allocate definition tensors (or that obtain a
+    // tensor runtime lazily) may default-construct; tensor-returning methods then
+    // fail with a clear Status instead of dereferencing null.
+    Builder() = default;
+
     explicit Builder(ice::sonic::Tensor& tensor_runtime) :
-        m_tensor_runtime{tensor_runtime}
+        m_tensor_runtime{&tensor_runtime}
     {
     }
 
@@ -34,134 +44,167 @@ public:
 
     virtual void set_name(std::string_view name) = 0;
     virtual ice::String get_name() const = 0;
-    virtual std::expected<ice::TensorHandle, ice::Status>
+    virtual [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
     get_definitions(ice::TensorHandle out) const = 0;
-    virtual std::expected<ice::String, ice::Status> build() const = 0;
+    virtual [[nodiscard]] std::expected<ice::String, ice::Status> build() const = 0;
 
-    virtual std::expected<std::reference_wrapper<Function>, ice::Status>
-        enter_border_patrol(std::string_view) = 0;
+    // Generic/C-ABI-crossable construction tier — OPTIONAL. A backend that only
+    // implements the typed-API tier leaves this at the default (an error), and its
+    // exported vtable's function__* slots simply report "not supported". Backends
+    // that opt in return a heap-allocated Function whose ownership transfers to the
+    // caller (the C ABI frees it with function__destroy).
+    virtual [[nodiscard]] std::expected<std::unique_ptr<Function>, ice::Status>
+    enter_border_patrol(std::string_view)
+    {
+        return std::unexpected{
+            ice::Status{"generic construction tier not supported by this backend"}
+        };
+    }
 
-    TF_Generator* get_generic_vtable()
+    static TF_Generator* get_generic_vtable()
     {
         static TF_Generator vtable = {
             .struct_size = sizeof(TF_Generator),
             .destroy =
-                [](void* ctx) {
-                    delete ctx_as<Builder>(ctx);
-                },
+                [](void* plugin_context)
+            {
+                delete Builder::create(plugin_context);
+            },
             .set_name =
-                [](void* ctx, const TF_String* name) {
-                    ice::String str_view(name);
-                    ctx_as<Builder>(ctx)->set_name(str_view.to_std_string());
-                },
+                [](void* plugin_context, const TF_TString* name)
+            {
+                ice::String str_view(name);
+                Builder::create(plugin_context)->set_name(str_view.to_std_string());
+            },
             .get_name =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Builder>(ctx)->get_name().to_c(out);
-                },
-            .get_definitions = [](void* ctx, TF_Status* status) -> TF_Tensor_Handle* {
-                auto res = ctx_as<Builder>(ctx)->get_definitions(ice::TensorHandle{});
+                [](void* plugin_context, TF_String* out)
+            {
+                Builder::create(plugin_context)->get_name().to_c(out);
+            },
+            .get_definitions = [](void* plugin_context, TF_Status* status) -> TF_Tensor_Handle*
+            {
+                auto res = Builder::create(plugin_context)->get_definitions(ice::TensorHandle{});
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
                 return res->get_handle();
             },
-            .build = [](void* ctx, TF_String* out, TF_Status* status) -> bool {
-                auto res = ctx_as<Builder>(ctx)->build();
+            .build =
+                [](void* plugin_context, TF_String* out, TF_Status* status)
+            {
+                auto res = Builder::create(plugin_context)->build();
                 if (!res) {
                     res.error().to_c(status);
-                    return false;
+                    return;
                 }
                 res->to_c(out);
-                return true;
             },
-            .enter_border_patrol = [](void* ctx, const TF_String* name,
-                                      TF_Status* status) -> void* {
+            .enter_border_patrol =
+                [](void* plugin_context, const TF_TString* name, TF_Status* status) -> void*
+            {
                 ice::String name_rt(name);
-                auto res = ctx_as<Builder>(ctx)->enter_border_patrol(name_rt.to_std_string());
+                auto res =
+                    Builder::create(plugin_context)->enter_border_patrol(name_rt.to_std_string());
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
-                return &res->get();
+                // Ownership of the heap Function transfers to the C side; the caller
+                // frees it with function__destroy (delete).
+                return res->release();
             },
             .function__destroy =
-                [](void* ctx) {
-                    delete ctx_as<Function>(ctx);
-                },
-            .function__add_parameter = [](void* ctx, const TF_String* name,
-                                          const TF_String* type_text, TF_Status* status) -> void* {
+                [](void* function_context)
+            {
+                delete Function::create(function_context);
+            },
+            .function__add_parameter = [](void* function_context,
+                                          const TF_TString* name,
+                                          const TF_TString* type_text,
+                                          TF_Status* status) -> void*
+            {
                 ice::String name_rt(name);
                 ice::String type_rt(type_text);
-                auto res = ctx_as<Function>(ctx)->add_parameter(
-                    name_rt.to_std_string(), type_rt.to_std_string()
-                );
+                auto res = Function::create(function_context)
+                               ->add_parameter(name_rt.to_std_string(), type_rt.to_std_string());
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
                 return res->release();
             },
-            .function__add_node = [](void* ctx, const void* def_context,
-                                     const TF_Tensor_Handle* operands,
-                                     const TF_Tensor_Handle* attrs, TF_Tensor_Handle* out_results,
-                                     TF_Status* status) -> bool {
-                auto res = ctx_as<Function>(ctx)->add_node(
-                    *ctx_as<const Definition>(def_context), ice::TensorHandle{operands},
-                    ice::TensorHandle{attrs}, ice::TensorHandle{out_results}
-                );
+            .function__add_node =
+                [](void* function_context,
+                   const void* def_context,
+                   const TF_Tensor_Handle* operands,
+                   const TF_Tensor_Handle* attrs,
+                   TF_Tensor_Handle* out_results,
+                   TF_Status* status)
+            {
+                auto res = Function::create(function_context)
+                               ->add_node(
+                                   *Definition::create(def_context),
+                                   ice::TensorHandle{operands},
+                                   ice::TensorHandle{attrs},
+                                   ice::TensorHandle{out_results}
+                               );
                 if (!res) {
                     res.error().to_c(status);
-                    return false;
                 }
-                return true;
             },
-            .function__exit_border_patrol = [](void* ctx, const TF_Tensor_Handle* outputs,
-                                               TF_Status* status) -> bool {
-                auto res =
-                    ctx_as<Function>(ctx)->exit_border_patrol(ice::TensorHandle{outputs});
+            .function__exit_border_patrol =
+                [](void* function_context, const TF_Tensor_Handle* outputs, TF_Status* status)
+            {
+                auto res = Function::create(function_context)
+                               ->exit_border_patrol(ice::TensorHandle{outputs});
                 if (!res) {
                     res.error().to_c(status);
-                    return false;
                 }
-                return true;
             },
 
             // Definition
             .definition__destroy =
-                [](void* ctx) {
-                    delete ctx_as<Definition>(ctx);
-                },
+                [](void* def_context)
+            {
+                delete Definition::create(def_context);
+            },
             .definition__get_name =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Definition>(ctx)->get_name().to_c(out);
-                },
+                [](void* def_context, TF_String* out)
+            {
+                Definition::create(def_context)->get_name().to_c(out);
+            },
             .definition__get_summary =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Definition>(ctx)->get_summary().to_c(out);
-                },
+                [](void* def_context, TF_String* out)
+            {
+                Definition::create(def_context)->get_summary().to_c(out);
+            },
             .definition__get_description =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Definition>(ctx)->get_description().to_c(out);
-                },
-            .definition__get_inputs = [](void* ctx, TF_Status* status) -> TF_Tensor_Handle* {
-                auto res = ctx_as<Definition>(ctx)->get_inputs(ice::TensorHandle{});
+                [](void* def_context, TF_String* out)
+            {
+                Definition::create(def_context)->get_description().to_c(out);
+            },
+            .definition__get_inputs = [](void* def_context, TF_Status* status) -> TF_Tensor_Handle*
+            {
+                auto res = Definition::create(def_context)->get_inputs(ice::TensorHandle{});
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
                 return res->get_handle();
             },
-            .definition__get_outputs = [](void* ctx, TF_Status* status) -> TF_Tensor_Handle* {
-                auto res = ctx_as<Definition>(ctx)->get_outputs(ice::TensorHandle{});
+            .definition__get_outputs = [](void* def_context, TF_Status* status) -> TF_Tensor_Handle*
+            {
+                auto res = Definition::create(def_context)->get_outputs(ice::TensorHandle{});
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
                 }
                 return res->get_handle();
             },
-            .definition__get_attrs = [](void* ctx, TF_Status* status) -> TF_Tensor_Handle* {
-                auto res = ctx_as<Definition>(ctx)->get_attrs(ice::TensorHandle{});
+            .definition__get_attrs = [](void* def_context, TF_Status* status) -> TF_Tensor_Handle*
+            {
+                auto res = Definition::create(def_context)->get_attrs(ice::TensorHandle{});
                 if (!res) {
                     res.error().to_c(status);
                     return nullptr;
@@ -171,73 +214,89 @@ public:
 
             // Parameter
             .parameter__destroy =
-                [](void* ctx) {
-                    delete ctx_as<Parameter>(ctx);
-                },
-            .parameter__get_name =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Parameter>(ctx)->get_name().to_c(out);
-                },
-            .parameter__get_description =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Parameter>(ctx)->get_description().to_c(out);
-                },
-            .parameter__get_position = [](void* ctx) -> int {
-                return ctx_as<Parameter>(ctx)->get_position();
+                [](void* param_context)
+            {
+                delete Parameter::create(param_context);
             },
-            .parameter__get_type = [](void* ctx) -> const void* {
-                return ctx_as<Parameter>(ctx)->get_type().release();
+            .parameter__get_name =
+                [](void* param_context, TF_String* out)
+            {
+                Parameter::create(param_context)->get_name().to_c(out);
+            },
+            .parameter__get_description =
+                [](void* param_context, TF_String* out)
+            {
+                Parameter::create(param_context)->get_description().to_c(out);
+            },
+            .parameter__get_position = [](void* param_context) -> int
+            {
+                return Parameter::create(param_context)->get_position();
+            },
+            .parameter__get_type = [](void* param_context) -> void*
+            {
+                return Parameter::create(param_context)->get_type().release();
             },
 
             // Attribute
             .attribute__destroy =
-                [](void* ctx) {
-                    delete ctx_as<Attribute>(ctx);
-                },
+                [](void* attr_context)
+            {
+                delete Attribute::create(attr_context);
+            },
             .attribute__get_name =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Attribute>(ctx)->get_name().to_c(out);
-                },
+                [](void* attr_context, TF_String* out)
+            {
+                Attribute::create(attr_context)->get_name().to_c(out);
+            },
             .attribute__get_description =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Attribute>(ctx)->get_description().to_c(out);
-                },
+                [](void* attr_context, TF_String* out)
+            {
+                Attribute::create(attr_context)->get_description().to_c(out);
+            },
             .attribute__get_full_type =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Attribute>(ctx)->get_full_type().to_c(out);
-                },
+                [](void* attr_context, TF_String* out)
+            {
+                Attribute::create(attr_context)->get_full_type().to_c(out);
+            },
             .attribute__get_base_type =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<Attribute>(ctx)->get_base_type().to_c(out);
-                },
-            .attribute__is_list = [](void* ctx) -> bool {
-                return ctx_as<Attribute>(ctx)->is_list();
+                [](void* attr_context, TF_String* out)
+            {
+                Attribute::create(attr_context)->get_base_type().to_c(out);
+            },
+            .attribute__is_list = [](void* attr_context) -> bool
+            {
+                return Attribute::create(attr_context)->is_list();
             },
 
             // TypeInfo
             .typeinfo__destroy =
-                [](void* ctx) {
-                    delete ctx_as<TypeInfo>(ctx);
-                },
-            .typeinfo__get_data_type = [](void* ctx) -> int {
-                return ctx_as<TypeInfo>(ctx)->get_data_type();
+                [](void* type_context)
+            {
+                delete TypeInfo::create(type_context);
+            },
+            .typeinfo__get_data_type = [](void* type_context) -> int
+            {
+                return TypeInfo::create(type_context)->get_data_type();
             },
             .typeinfo__get_type_attr_name =
-                [](void* ctx, TF_String* out) {
-                    ctx_as<TypeInfo>(ctx)->get_type_attr_name().to_c(out);
-                },
-            .typeinfo__is_read_only = [](void* ctx) -> bool {
-                return ctx_as<TypeInfo>(ctx)->is_read_only();
+                [](void* type_context, TF_String* out)
+            {
+                TypeInfo::create(type_context)->get_type_attr_name().to_c(out);
             },
-            .typeinfo__is_list = [](void* ctx) -> bool {
-                return ctx_as<TypeInfo>(ctx)->is_list();
+            .typeinfo__is_read_only = [](void* type_context) -> bool
+            {
+                return TypeInfo::create(type_context)->is_read_only();
+            },
+            .typeinfo__is_list = [](void* type_context) -> bool
+            {
+                return TypeInfo::create(type_context)->is_list();
             }
         };
         return &vtable;
     }
 
 protected:
-    ice::sonic::Tensor& m_tensor_runtime;
+    ice::sonic::Tensor* m_tensor_runtime = nullptr;
 };
 
 } // namespace ice::builder

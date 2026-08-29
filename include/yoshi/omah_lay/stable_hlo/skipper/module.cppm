@@ -4,6 +4,7 @@ export module yoshi_omah_lay_stable_hlo:module;
 
 import std;
 import cc_abi_builder_generator;
+import cc_abi_builder_intern;
 import cc_abi_sonic_intern;
 import cc_abi_primitives;
 import :function;
@@ -49,34 +50,23 @@ public:
         return ice::String{};
     }
 
-    std::size_t get_input_count() const override
+    // A module binds no inputs, outputs, or attrs of its own — all empty handle tensors.
+    std::expected<ice::TensorHandle, ice::Status>
+    get_inputs(ice::TensorHandle /*out*/) const override
     {
-        return 0;
+        return make_handle_tensor(0);
     }
 
-    std::unique_ptr<ice::builder::Parameter> get_input(std::size_t) const override
+    std::expected<ice::TensorHandle, ice::Status>
+    get_outputs(ice::TensorHandle /*out*/) const override
     {
-        return nullptr;
+        return make_handle_tensor(0);
     }
 
-    std::size_t get_output_count() const override
+    std::expected<ice::TensorHandle, ice::Status>
+    get_attrs(ice::TensorHandle /*out*/) const override
     {
-        return 0;
-    }
-
-    std::unique_ptr<ice::builder::Parameter> get_output(std::size_t) const override
-    {
-        return nullptr;
-    }
-
-    std::size_t get_attr_count() const override
-    {
-        return 0;
-    }
-
-    std::unique_ptr<ice::builder::Attribute> get_attr(std::size_t) const override
-    {
-        return nullptr;
+        return make_handle_tensor(0);
     }
 
     // --- StableHLO-specific ---
