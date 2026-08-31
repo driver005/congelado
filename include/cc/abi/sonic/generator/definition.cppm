@@ -9,8 +9,8 @@ import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter for the flat TF_Generator vtable's definition__* slots. Owning — destroys the
-// handle with definition__destroy (the plugin released ownership when it handed the handle out).
+// C ABI adapter for the flat TF_Generator vtable's definition_* slots. Owning — destroys the
+// handle with definition_destroy (the plugin released ownership when it handed the handle out).
 // Mirrors ice::builder::Definition's query surface for the mainframe side.
 class Definition
 {
@@ -24,7 +24,7 @@ public:
     ~Definition()
     {
         if (m_ops && m_handle) {
-            m_ops->definition__destroy(m_handle);
+            m_ops->definition_destroy(m_handle);
         }
     }
 
@@ -36,21 +36,21 @@ public:
     ice::String get_name() const noexcept
     {
         ice::String out;
-        m_ops->definition__get_name(m_handle, out.get_handle());
+        m_ops->definition_get_name(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_summary() const noexcept
     {
         ice::String out;
-        m_ops->definition__get_summary(m_handle, out.get_handle());
+        m_ops->definition_get_summary(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_description() const noexcept
     {
         ice::String out;
-        m_ops->definition__get_description(m_handle, out.get_handle());
+        m_ops->definition_get_description(m_handle, out.get_handle());
         return out;
     }
 
@@ -59,7 +59,7 @@ public:
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_inputs() const noexcept
     {
         ice::Status status;
-        TF_Tensor_Handle* handle = m_ops->definition__get_inputs(m_handle, status.get_handle());
+        TF_Tensor_Handle* handle = m_ops->definition_get_inputs(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -69,7 +69,7 @@ public:
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_outputs() const noexcept
     {
         ice::Status status;
-        TF_Tensor_Handle* handle = m_ops->definition__get_outputs(m_handle, status.get_handle());
+        TF_Tensor_Handle* handle = m_ops->definition_get_outputs(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -79,7 +79,7 @@ public:
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_attrs() const noexcept
     {
         ice::Status status;
-        TF_Tensor_Handle* handle = m_ops->definition__get_attrs(m_handle, status.get_handle());
+        TF_Tensor_Handle* handle = m_ops->definition_get_attrs(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }

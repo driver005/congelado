@@ -36,7 +36,7 @@ extern "C"
 
 #define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatistics, mtime_nsec)
 
-    static inline void TF_FileStatisticsInit(TF_FileStatistics* stats)
+    static inline void file_statistics_init(TF_FileStatistics* stats)
     {
         stats->struct_size = TF_FILE_STATISTICS_STRUCT_SIZE;
         stats->is_directory = 0;

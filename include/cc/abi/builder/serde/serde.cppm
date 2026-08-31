@@ -27,6 +27,8 @@ public:
 
     virtual ~Serde() = default;
 
+    virtual ice::String get_name() const noexcept = 0;
+
     [[nodiscard]] virtual std::expected<ice::String, ice::Status>
     encode(const ice::String& value_json) noexcept = 0;
 
@@ -44,6 +46,11 @@ public:
                 [](void* plugin_context) noexcept
             {
                 delete Serde::create(plugin_context);
+            },
+            .get_name =
+                [](void* plugin_context, TF_String* out) noexcept
+            {
+                Serde::create(plugin_context)->get_name().to_c(out);
             },
             .get_content_type =
                 [](void* plugin_context, TF_String* out) noexcept

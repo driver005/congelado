@@ -110,12 +110,12 @@ public:
                 }
                 return static_cast<TF_Protocol_Server*>(static_cast<void*>(res->release()));
             },
-            .server__destroy =
+            .server_destroy =
                 [](TF_Protocol_Server* server_context) noexcept
             {
                 delete Server::create(server_context);
             },
-            .server__start =
+            .server_start =
                 [](TF_Protocol_Server* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
@@ -124,7 +124,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .server__stop =
+            .server_stop =
                 [](TF_Protocol_Server* server_context, TF_Status* status) noexcept
             {
                 auto* self = Server::create(server_context);
@@ -133,7 +133,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .server__is_running = [](TF_Protocol_Server* server_context, TF_Status* status) noexcept -> bool
+            .server_is_running = [](TF_Protocol_Server* server_context, TF_Status* status) noexcept -> bool
             {
                 auto* self = Server::create(server_context);
                 auto res = self->is_running();

@@ -13,9 +13,9 @@ export namespace ice::sonic {
 
 // Real POSIX dlopen/dlsym-backed dynamic library loader — moved here from env: the
 // plugin loader owns the .so boundary, so the library/symbol wrappers live with it. — include/c/ is
-// declaration-only, so this doesn't forward to c/extern/env/dynamic_library.h's
-// load_shared_library/ get_symbol_from_library (which have no implementation anywhere and never
-// will); it calls dlopen/dlsym directly instead, same RTLD_NOW | RTLD_LOCAL choice
+// declaration-only, and the c/extern/env/dynamic_library.h header (with its
+// load_shared_library/get_symbol_from_library free functions) was dead code and has been
+// removed; this calls dlopen/dlsym directly instead, same RTLD_NOW | RTLD_LOCAL choice
 // include/core/manager/shared_lib.cppm's own real plugin loader already uses. Owns the loaded
 // handle (RAII dlclose), move-only.
 class DynamicLibrary

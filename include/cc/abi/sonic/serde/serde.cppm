@@ -23,7 +23,7 @@ public:
 
     static constexpr std::string_view domain_name = "serde";
 
-    [[nodiscard]] std::expected<ice::String, ice::Status> encode(const ice::String& value_json)
+    [[nodiscard]] std::expected<ice::String, ice::Status> encode(const ice::String& value_json) noexcept
     {
         ice::Status status;
         ice::String result;
@@ -34,7 +34,7 @@ public:
         return result;
     }
 
-    [[nodiscard]] std::expected<ice::String, ice::Status> decode(const ice::String& data)
+    [[nodiscard]] std::expected<ice::String, ice::Status> decode(const ice::String& data) noexcept
     {
         ice::Status status;
         ice::String result;
@@ -43,6 +43,13 @@ public:
             return std::unexpected{status};
         }
         return result;
+    }
+
+    ice::String get_name() const noexcept
+    {
+        ice::String tf_name;
+        m_ops->get_name(get_handle(), tf_name.get_handle());
+        return tf_name;
     }
 
     ice::String get_content_type() const noexcept

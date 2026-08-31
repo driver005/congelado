@@ -28,6 +28,13 @@ public:
 
     static constexpr std::string_view domain_name = "profiler";
 
+    ice::String get_name() const noexcept
+    {
+        ice::String out;
+        m_ops->get_name(get_handle(), out.get_handle());
+        return out;
+    }
+
     ice::String get_device_type() const noexcept
     {
         ice::String tf_device_type;

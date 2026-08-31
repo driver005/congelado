@@ -30,6 +30,8 @@ public:
 
     virtual ~Profiler() = default;
 
+    virtual ice::String get_name() const noexcept = 0;
+
     virtual ice::String get_device_type() const noexcept = 0;
 
     [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
@@ -47,6 +49,13 @@ public:
                 [](void* plugin_context) noexcept
             {
                 delete Profiler::create(plugin_context);
+            },
+            .get_name =
+                [](void* plugin_context, TF_String* out) noexcept
+            {
+                auto* self = Profiler::create(plugin_context);
+                auto name = self->get_name();
+                name.to_c(out);
             },
             .get_device_type =
                 [](void* plugin_context, TF_String* out) noexcept

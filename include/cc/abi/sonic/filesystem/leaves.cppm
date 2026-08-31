@@ -11,7 +11,7 @@ import cc_abi_primitives;
 export namespace ice::sonic {
 
 // Host-side RAII wrappers over plugin-allocated file handles: each owns the C
-// __destroy call in its destructor (move-only, like the plugin-side leaves).
+// destroy call in its destructor (move-only, like the plugin-side leaves).
 // Every member is noexcept — the std::expected return is the only failure channel.
 
 class RandomAccessFile
@@ -20,7 +20,7 @@ public:
     ~RandomAccessFile()
     {
         if (m_ops && m_handle) {
-            m_ops->random_access_file__destroy(m_handle);
+            m_ops->random_access_file_destroy(m_handle);
         }
     }
 
@@ -41,7 +41,7 @@ public:
     read(std::uint64_t offset, std::span<char> buffer) noexcept
     {
         ice::Status status;
-        std::int64_t result = m_ops->random_access_file__read(
+        std::int64_t result = m_ops->random_access_file_read(
             m_handle,
             offset,
             buffer.size(),
@@ -65,7 +65,7 @@ public:
     ~WritableFile()
     {
         if (m_ops && m_handle) {
-            m_ops->writable_file__destroy(m_handle);
+            m_ops->writable_file_destroy(m_handle);
         }
     }
 
@@ -83,7 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> append(const ice::String& buffer) noexcept
     {
         ice::Status status;
-        m_ops->writable_file__append(m_handle, buffer.get_handle(), status.get_handle());
+        m_ops->writable_file_append(m_handle, buffer.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -93,7 +93,7 @@ public:
     [[nodiscard]] std::expected<std::int64_t, ice::Status> tell() noexcept
     {
         ice::Status status;
-        std::int64_t result = m_ops->writable_file__tell(m_handle, status.get_handle());
+        std::int64_t result = m_ops->writable_file_tell(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -103,7 +103,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> flush() noexcept
     {
         ice::Status status;
-        m_ops->writable_file__flush(m_handle, status.get_handle());
+        m_ops->writable_file_flush(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -113,7 +113,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> sync() noexcept
     {
         ice::Status status;
-        m_ops->writable_file__sync(m_handle, status.get_handle());
+        m_ops->writable_file_sync(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -123,7 +123,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> close() noexcept
     {
         ice::Status status;
-        m_ops->writable_file__close(m_handle, status.get_handle());
+        m_ops->writable_file_close(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -141,7 +141,7 @@ public:
     ~ReadOnlyMemoryRegion()
     {
         if (m_ops && m_handle) {
-            m_ops->read_only_memory_region__destroy(m_handle);
+            m_ops->read_only_memory_region_destroy(m_handle);
         }
     }
 
@@ -159,8 +159,8 @@ public:
     // Range-first: data + length are one span instead of two split C ABI calls.
     std::span<const std::byte> data() noexcept
     {
-        const auto* raw = static_cast<const std::byte*>(m_ops->read_only_memory_region__data(m_handle));
-        return {raw, static_cast<size_t>(m_ops->read_only_memory_region__length(m_handle))};
+        const auto* raw = static_cast<const std::byte*>(m_ops->read_only_memory_region_data(m_handle));
+        return {raw, static_cast<size_t>(m_ops->read_only_memory_region_length(m_handle))};
     }
 
 private:

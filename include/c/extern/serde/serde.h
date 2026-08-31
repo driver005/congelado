@@ -34,6 +34,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
+        void (*get_name)(void* plugin_context, TF_String* out);
         void (*get_content_type)(void* plugin_context, TF_String* out);
         void (*get_format_name)(void* plugin_context, TF_String* out);
         void (*encode)(

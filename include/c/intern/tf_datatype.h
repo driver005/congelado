@@ -73,10 +73,10 @@ extern "C"
     typedef TF_DataType_Enum TF_DataType;
 
     // Global helper (non-vtable path).
-    TF_CAPI_EXPORT size_t data_type_size(TF_DataType_Enum dt);
+    TF_CAPI_EXPORT size_t datatype_size(TF_DataType_Enum dt);
 
     // --------------------------------------------------------------------------
-    // TF_DataType — plugin vtable for data-type operations.
+    // TF_DataTypeOps — plugin vtable for data-type operations.
     typedef struct TF_DataTypeOps
     {
         size_t struct_size;
@@ -86,13 +86,13 @@ extern "C"
 
         // Return the byte size of one scalar element of the given type.
         // Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
-        size_t (*data_type_size)(void* plugin_context, TF_DataType_Enum dt);
+        size_t (*datatype_size)(void* plugin_context, TF_DataType_Enum dt);
 
     } TF_DataTypeOps;
 
-#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataTypeOps, data_type_size)
+#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataTypeOps, datatype_size)
 
-    TF_CAPI_EXPORT void init_data_type(TF_DataType** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_datatype(TF_DataType** ops, void** plugin_context, TF_Status* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

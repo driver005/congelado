@@ -101,7 +101,7 @@ public:
                 }
                 return static_cast<TF_Otel_Tracer*>(static_cast<void*>(res->release()));
             },
-            .tracer__destroy =
+            .tracer_destroy =
                 [](TF_Otel_Tracer* tracer_context) noexcept
             {
                 delete Tracer::create(tracer_context);
@@ -116,12 +116,12 @@ public:
                 }
                 return static_cast<TF_Otel_Meter*>(static_cast<void*>(res->release()));
             },
-            .meter__destroy =
+            .meter_destroy =
                 [](TF_Otel_Meter* meter_context) noexcept
             {
                 delete Meter::create(meter_context);
             },
-            .tracer__start_span = [](TF_Otel_Tracer* tracer_context,
+            .tracer_start_span = [](TF_Otel_Tracer* tracer_context,
                                      const TF_TString* name,
                                      int kind,
                                      TF_Status* status) noexcept -> TF_Otel_Span*
@@ -137,12 +137,12 @@ public:
                 }
                 return static_cast<TF_Otel_Span*>(static_cast<void*>(res->release()));
             },
-            .span__destroy =
+            .span_destroy =
                 [](TF_Otel_Span* span_context) noexcept
             {
                 delete Span::create(span_context);
             },
-            .span__set_attribute =
+            .span_set_attribute =
                 [](TF_Otel_Span* span_context,
                    const TF_TString* key,
                    const TF_TString* value,
@@ -155,7 +155,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .span__set_status =
+            .span_set_status =
                 [](TF_Otel_Span* span_context,
                    int status_code,
                    const TF_TString* description,
@@ -170,7 +170,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .span__end =
+            .span_end =
                 [](TF_Otel_Span* span_context, TF_Status* status) noexcept
             {
                 auto* self = Span::create(span_context);
@@ -179,7 +179,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .meter__create_counter = [](TF_Otel_Meter* meter_context,
+            .meter_create_counter = [](TF_Otel_Meter* meter_context,
                                         const TF_TString* name,
                                         const TF_TString* description,
                                         const TF_TString* unit,
@@ -197,12 +197,12 @@ public:
                 }
                 return static_cast<TF_Otel_Counter*>(static_cast<void*>(res->release()));
             },
-            .counter__destroy =
+            .counter_destroy =
                 [](TF_Otel_Counter* counter_context) noexcept
             {
                 delete Counter::create(counter_context);
             },
-            .counter__add =
+            .counter_add =
                 [](TF_Otel_Counter* counter_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Counter::create(counter_context);
@@ -211,7 +211,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .meter__create_histogram = [](TF_Otel_Meter* meter_context,
+            .meter_create_histogram = [](TF_Otel_Meter* meter_context,
                                           const TF_TString* name,
                                           const TF_TString* description,
                                           const TF_TString* unit,
@@ -229,12 +229,12 @@ public:
                 }
                 return static_cast<TF_Otel_Histogram*>(static_cast<void*>(res->release()));
             },
-            .histogram__destroy =
+            .histogram_destroy =
                 [](TF_Otel_Histogram* histogram_context) noexcept
             {
                 delete Histogram::create(histogram_context);
             },
-            .histogram__record =
+            .histogram_record =
                 [](TF_Otel_Histogram* histogram_context, double value, TF_Status* status) noexcept
             {
                 auto* self = Histogram::create(histogram_context);

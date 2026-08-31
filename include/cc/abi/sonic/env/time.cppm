@@ -9,8 +9,8 @@ import std;
 
 export namespace ice::sonic {
 
-// Real host time source — include/c/ is declaration-only, so this doesn't forward to
-// c/extern/env/env.h's now_* vtable slots (which have no implementation anywhere); it calls
+// Real host time source — include/c/ is declaration-only, and the c/extern/env/env.h
+// vtable (with its now_* slots) was dead code and has been removed; this calls
 // clock_gettime directly, same "real host implementation" choice as DynamicLibrary's
 // dlopen/dlsym.
 class Time

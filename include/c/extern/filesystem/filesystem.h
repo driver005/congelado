@@ -63,8 +63,8 @@ extern "C"
             const TF_TString* path,
             TF_Status* status
         );
-        void (*random_access_file__destroy)(TF_RandomAccessFile* file_context);
-        int64_t (*random_access_file__read)(
+        void (*random_access_file_destroy)(TF_RandomAccessFile* file_context);
+        int64_t (*random_access_file_read)(
             TF_RandomAccessFile* file_context,
             uint64_t offset,
             size_t n,
@@ -79,16 +79,16 @@ extern "C"
             const TF_TString* path,
             TF_Status* status
         );
-        void (*writable_file__destroy)(TF_WritableFile* file_context);
-        void (*writable_file__append)(
+        void (*writable_file_destroy)(TF_WritableFile* file_context);
+        void (*writable_file_append)(
             TF_WritableFile* file_context,
             const TF_TString* buffer,
             TF_Status* status
         );
-        int64_t (*writable_file__tell)(TF_WritableFile* file_context, TF_Status* status);
-        void (*writable_file__flush)(TF_WritableFile* file_context, TF_Status* status);
-        void (*writable_file__sync)(TF_WritableFile* file_context, TF_Status* status);
-        void (*writable_file__close)(TF_WritableFile* file_context, TF_Status* status);
+        int64_t (*writable_file_tell)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file_flush)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file_sync)(TF_WritableFile* file_context, TF_Status* status);
+        void (*writable_file_close)(TF_WritableFile* file_context, TF_Status* status);
 
         // ReadOnlyMemoryRegion
         TF_ReadOnlyMemoryRegion* (*create_read_only_memory_region_from_file)(
@@ -96,9 +96,9 @@ extern "C"
             const TF_TString* path,
             TF_Status* status
         );
-        void (*read_only_memory_region__destroy)(TF_ReadOnlyMemoryRegion* region_context);
-        const void* (*read_only_memory_region__data)(TF_ReadOnlyMemoryRegion* region_context);
-        uint64_t (*read_only_memory_region__length)(TF_ReadOnlyMemoryRegion* region_context);
+        void (*read_only_memory_region_destroy)(TF_ReadOnlyMemoryRegion* region_context);
+        const void* (*read_only_memory_region_data)(TF_ReadOnlyMemoryRegion* region_context);
+        uint64_t (*read_only_memory_region_length)(TF_ReadOnlyMemoryRegion* region_context);
 
         void (*create_dir)(void* plugin_context, const TF_TString* path, TF_Status* status);
         void (*recursively_create_dir)(

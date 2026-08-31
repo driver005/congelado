@@ -35,7 +35,7 @@ public:
     {
         TF_Tensor_Handle* handle = m_ops->allocate_tensor(
             m_host_context,
-            data_type_to_c(dtype),
+            datatype_to_c(dtype),
             dims.data(),
             static_cast<int>(dims.size()),
             len
@@ -53,7 +53,7 @@ public:
 
     DataTypeEnum get_type(const TF_Tensor_Handle* tensor) const noexcept
     {
-        return data_type_from_c(m_ops->tensor_type(m_host_context, tensor));
+        return datatype_from_c(m_ops->tensor_type(m_host_context, tensor));
     }
 
     int get_num_dims(const TF_Tensor_Handle* tensor) const noexcept
@@ -98,7 +98,7 @@ public:
         m_ops->tensor_bitcast_from(
             m_host_context,
             src,
-            data_type_to_c(dtype),
+            datatype_to_c(dtype),
             out,
             status.get_handle()
         );
@@ -115,7 +115,7 @@ public:
         m_ops->tensor_bitcast_to(
             m_host_context,
             src,
-            data_type_to_c(dtype),
+            datatype_to_c(dtype),
             out,
             status.get_handle()
         );

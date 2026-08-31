@@ -53,12 +53,12 @@ enum class DataTypeEnum
 
 // Converters between the C++ enum class and the C ABI enum — centralise the
 // static_cast so call sites don't need to know the underlying type.
-inline TF_DataType_Enum data_type_to_c(DataTypeEnum dt) noexcept
+inline TF_DataType_Enum datatype_to_c(DataTypeEnum dt) noexcept
 {
     return static_cast<TF_DataType_Enum>(dt);
 }
 
-inline DataTypeEnum data_type_from_c(TF_DataType_Enum dt) noexcept
+inline DataTypeEnum datatype_from_c(TF_DataType_Enum dt) noexcept
 {
     return static_cast<DataTypeEnum>(dt);
 }

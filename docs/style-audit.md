@@ -199,6 +199,10 @@ Additional fixes made during execution:
   Vtable structs renamed to TF_TensorOps / TF_DataTypeOps.
 - tf_tstring.h had a circular include of tf_tensor.h (unneeded) — removed.
 - env.h included nonexistent c/extern/env/time.h — removed.
+- `__` sub-object slot separator replaced with `_` ABI-wide (`function__destroy` → `function_destroy`,
+  `request__set_header` → `request_set_header`, `writable_file__append` → `writable_file_append`,
+  `server__start` → `server_start`, …) per user decision — one single-underscore dialect everywhere
+  (see style-principles.md P5).
 - Build blocked in this sandbox (bazel output/install base read-only); header-level syntax verification
   (clang/clang++ -fsyntax-only) used instead. Pre-existing issues found (not caused by the refactor):
   api.h uses `bool` without <stdbool.h> in C mode; api_experimental.h declares TFE_* functions with

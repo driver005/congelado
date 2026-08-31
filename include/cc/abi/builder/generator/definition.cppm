@@ -7,7 +7,6 @@ export module cc_abi_builder_generator:definition;
 
 import std;
 import cc_abi_primitives;
-import cc_abi_builder_intern;
 import cc_abi_sonic_intern;
 import :parameter;
 import :attribute;

@@ -10,8 +10,8 @@ import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter for the flat TF_Generator vtable's parameter__* slots. Owning —
-// destroys the handle with parameter__destroy (the plugin released ownership
+// C ABI adapter for the flat TF_Generator vtable's parameter_* slots. Owning —
+// destroys the handle with parameter_destroy (the plugin released ownership
 // when it handed the handle out).
 class Parameter
 {
@@ -25,7 +25,7 @@ public:
     ~Parameter()
     {
         if (m_ops && m_handle) {
-            m_ops->parameter__destroy(m_handle);
+            m_ops->parameter_destroy(m_handle);
         }
     }
 
@@ -37,25 +37,25 @@ public:
     ice::String get_name() const noexcept
     {
         ice::String out;
-        m_ops->parameter__get_name(m_handle, out.get_handle());
+        m_ops->parameter_get_name(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_description() const noexcept
     {
         ice::String out;
-        m_ops->parameter__get_description(m_handle, out.get_handle());
+        m_ops->parameter_get_description(m_handle, out.get_handle());
         return out;
     }
 
     int get_position() const noexcept
     {
-        return m_ops->parameter__get_position(m_handle);
+        return m_ops->parameter_get_position(m_handle);
     }
 
     std::unique_ptr<ice::sonic::TypeInfo> get_type() const noexcept
     {
-        TF_TypeInfo* handle = m_ops->parameter__get_type(m_handle);
+        TF_TypeInfo* handle = m_ops->parameter_get_type(m_handle);
         if (!handle) {
             return nullptr;
         }

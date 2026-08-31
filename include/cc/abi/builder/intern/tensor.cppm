@@ -71,7 +71,7 @@ public:
                     num_dims > 0 ? std::span{dims, static_cast<size_t>(num_dims)}
                                  : std::span<const int64_t>{};
                 auto res = Tensor::create(plugin_context)
-                               ->allocate_tensor(ice::data_type_from_c(dtype), dim_span, len);
+                               ->allocate_tensor(ice::datatype_from_c(dtype), dim_span, len);
                 if (!res) {
                     return nullptr; // no status slot — P1 allocator contract
                 }
@@ -85,7 +85,7 @@ public:
             .tensor_type = [](void* plugin_context,
                               const TF_Tensor_Handle* tensor) noexcept -> TF_DataType_Enum
             {
-                return data_type_to_c(Tensor::create(plugin_context)->get_type(tensor));
+                return datatype_to_c(Tensor::create(plugin_context)->get_type(tensor));
             },
             .num_dims = [](void* plugin_context, const TF_Tensor_Handle* tensor) noexcept -> int
             {
@@ -120,7 +120,7 @@ public:
                    TF_Status* status) noexcept
             {
                 auto res = Tensor::create(plugin_context)
-                               ->bitcast_from(src, ice::data_type_from_c(dtype), out);
+                               ->bitcast_from(src, ice::datatype_from_c(dtype), out);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -133,7 +133,7 @@ public:
                    TF_Status* status) noexcept
             {
                 auto res = Tensor::create(plugin_context)
-                               ->bitcast_to(src, ice::data_type_from_c(dtype), out);
+                               ->bitcast_to(src, ice::datatype_from_c(dtype), out);
                 if (!res) {
                     res.error().to_c(status);
                 }

@@ -41,7 +41,7 @@ public:
 
     // Definitions come back as a tensor allocated by the plugin — see the
     // TF_Generator_GetDefinitions contract (a 1-D tensor whose elements are the
-    // opaque definition handles consumed by the definition__* vtable slots).
+    // opaque definition handles consumed by the definition_* vtable slots).
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status> get_definitions() const noexcept
     {
         ice::Status status;
@@ -63,11 +63,11 @@ public:
         return out;
     }
 
-    // Opens a construction unit. A fresh call replaces the current one: emplace()
-    // destroys whatever was previously open (running ~Function()'s
-    // function__destroy) before constructing the new one — same "a fresh call
-    // replaces the current one" lifetime story as the rest of this interface.
-    [[nodiscard]] std::expected<std::reference_wrapper<ice::sonic::Function>, ice::Status>
+    // Opens a construction unit and transfers ownership of it to the caller — the
+    // returned Function owns its C handle (function_destroy runs in ~Function).
+    // Same "fresh call replaces the current one" lifetime story as the rest of this
+    // interface: a second create_function() call simply returns another owned unit.
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Function>, ice::Status>
     create_function(const ice::String& name) noexcept
     {
         ice::Status status;
@@ -75,19 +75,12 @@ public:
             m_ops->create_function(get_handle(), name.get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->function__destroy(handle);
+                m_ops->function_destroy(handle);
             }
             return std::unexpected{status};
         }
-        m_open_function.emplace(m_ops, handle);
-        ice::sonic::Function& function = *m_open_function;
-        return std::ref(function);
+        return std::make_unique<ice::sonic::Function>(m_ops, handle);
     }
-
-private:
-    // Owns whichever construction unit is currently open — the mainframe keeps the
-    // reference_wrapper returned by create_function for as long as it needs it.
-    std::optional<Function> m_open_function;
 };
 
 } // namespace ice::sonic

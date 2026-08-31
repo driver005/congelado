@@ -29,7 +29,7 @@ extern "C"
 #endif
 
 
-    // Opens a new server, returning an owned handle (destroy with server__destroy).
+    // Opens a new server, returning an owned handle (destroy with server_destroy).
     // NULL on failure (see status).
 
 
@@ -53,13 +53,13 @@ extern "C"
         void (*get_tls_cert)(void* plugin_context, TF_String* out);
         void (*get_tls_key)(void* plugin_context, TF_String* out);
         TF_Protocol_Server* (*create_server)(void* plugin_context, TF_Status* status);
-        void (*server__destroy)(TF_Protocol_Server* server_context);
-        void (*server__start)(TF_Protocol_Server* server_context, TF_Status* status);
-        void (*server__stop)(TF_Protocol_Server* server_context, TF_Status* status);
-        bool (*server__is_running)(TF_Protocol_Server* server_context, TF_Status* status);
+        void (*server_destroy)(TF_Protocol_Server* server_context);
+        void (*server_start)(TF_Protocol_Server* server_context, TF_Status* status);
+        void (*server_stop)(TF_Protocol_Server* server_context, TF_Status* status);
+        bool (*server_is_running)(TF_Protocol_Server* server_context, TF_Status* status);
     } TF_Protocol;
 
-#define TF_PROTOCOL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Protocol, server__is_running)
+#define TF_PROTOCOL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Protocol, server_is_running)
 
     TF_CAPI_EXPORT void init_protocol(TF_Protocol** ops, void** plugin_context, TF_Status* status);
 

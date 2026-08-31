@@ -59,7 +59,7 @@ public:
                 }
                 return static_cast<TF_IO_Request*>(static_cast<void*>(res->release()));
             },
-            .request__destroy =
+            .request_destroy =
                 [](TF_IO_Request* request_context) noexcept
             {
                 delete Request::create(request_context);
@@ -74,24 +74,24 @@ public:
                 }
                 return static_cast<TF_IO_Response*>(static_cast<void*>(res->release()));
             },
-            .response__destroy =
+            .response_destroy =
                 [](TF_IO_Response* response_context) noexcept
             {
                 delete Response::create(response_context);
             },
-            .request__get_method = [](TF_IO_Request* request_context) noexcept -> TF_IO_Method
+            .request_get_method = [](TF_IO_Request* request_context) noexcept -> TF_IO_Method
             {
                 auto* self = Request::create(request_context);
                 return ice::method_to_c(self->get_method());
             },
-            .request__get_path =
+            .request_get_path =
                 [](TF_IO_Request* request_context, TF_String* out) noexcept
             {
                 auto* self = Request::create(request_context);
                 auto name = self->get_path();
                 name.to_c(out);
             },
-            .request__set_header =
+            .request_set_header =
                 [](TF_IO_Request* request_context,
                    const TF_TString* name,
                    const TF_TString* value,
@@ -103,7 +103,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .request__set_body =
+            .request_set_body =
                 [](TF_IO_Request* request_context, const TF_TString* body, TF_Status* status) noexcept
             {
                 auto* self = Request::create(request_context);
@@ -112,7 +112,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .response__set_status =
+            .response_set_status =
                 [](TF_IO_Response* response_context, int32_t status_code, TF_Status* status) noexcept
             {
                 auto* self = Response::create(response_context);
@@ -121,7 +121,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .response__set_header =
+            .response_set_header =
                 [](TF_IO_Response* response_context,
                    const TF_TString* name,
                    const TF_TString* value,
@@ -133,7 +133,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .response__set_body =
+            .response_set_body =
                 [](TF_IO_Response* response_context, const TF_TString* body, TF_Status* status) noexcept
             {
                 auto* self = Response::create(response_context);
