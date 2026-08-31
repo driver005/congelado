@@ -19,7 +19,7 @@ public:
     ~Counter()
     {
         if (m_ops && m_handle) {
-            m_ops->counter__destroy(m_handle);
+            m_ops->counter_destroy(m_handle);
         }
     }
 
@@ -34,10 +34,10 @@ public:
     {
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> add(double value)
+    [[nodiscard]] std::expected<void, ice::Status> add(double value) noexcept
     {
         ice::Status status;
-        m_ops->counter__add(m_handle, value, status.get_handle());
+        m_ops->counter_add(m_handle, value, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -55,7 +55,7 @@ public:
     ~Histogram()
     {
         if (m_ops && m_handle) {
-            m_ops->histogram__destroy(m_handle);
+            m_ops->histogram_destroy(m_handle);
         }
     }
 
@@ -70,10 +70,10 @@ public:
     {
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> record(double value)
+    [[nodiscard]] std::expected<void, ice::Status> record(double value) noexcept
     {
         ice::Status status;
-        m_ops->histogram__record(m_handle, value, status.get_handle());
+        m_ops->histogram_record(m_handle, value, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -91,7 +91,7 @@ public:
     ~Span()
     {
         if (m_ops && m_handle) {
-            m_ops->span__destroy(m_handle);
+            m_ops->span_destroy(m_handle);
         }
     }
 
@@ -107,10 +107,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_attribute(const ice::String& key, const ice::String& value)
+    set_attribute(const ice::String& key, const ice::String& value) noexcept
     {
         ice::Status status;
-        m_ops->span__set_attribute(
+        m_ops->span_set_attribute(
             m_handle,
             key.get_handle(),
             value.get_handle(),
@@ -123,10 +123,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_status(ice::SpanStatus status_code, const ice::String& description)
+    set_status(ice::SpanStatus status_code, const ice::String& description) noexcept
     {
         ice::Status status;
-        m_ops->span__set_status(
+        m_ops->span_set_status(
             m_handle,
             ice::span_status_to_c(status_code),
             description.get_handle(),
@@ -138,10 +138,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> end()
+    [[nodiscard]] std::expected<void, ice::Status> end() noexcept
     {
         ice::Status status;
-        m_ops->span__end(m_handle, status.get_handle());
+        m_ops->span_end(m_handle, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }

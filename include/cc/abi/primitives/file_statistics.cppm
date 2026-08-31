@@ -2,16 +2,16 @@ module;
 
 #include "c/intern/tf_file_statistics.h"
 
-export module cc_abi_sonic_intern:file_statistics;
+export module cc_abi_primitives:file_statistics;
 
 import std;
 
-export namespace ice::sonic {
+export namespace ice {
 
-// FileStatistics — RAII owner of a TF_FileStatistics value (unique_ptr + delete), so
-// ownership/copy/move are standard-library-managed. Every member is noexcept: allocation
-// uses a guarded nothrow factory (a failed allocation yields an empty/default stats object,
-// never an exception crossing a noexcept boundary).
+// FileStatistics — RAII owner of a TF_FileStatistics value (unique_ptr + delete).
+// Every member is noexcept: allocation uses a guarded nothrow factory (a failed
+// allocation yields an empty/default stats object, never an exception crossing a
+// noexcept boundary).
 class FileStatistics
 {
 public:
@@ -120,7 +120,7 @@ private:
     {
         try {
             auto* s = new TF_FileStatistics;
-            TF_FileStatisticsInit(s);
+            file_statistics_init(s);
             return s;
         } catch (...) {
             return nullptr;
@@ -130,4 +130,4 @@ private:
     std::unique_ptr<TF_FileStatistics> m_stats{new_tf_file_statistics()};
 };
 
-} // namespace ice::sonic
+} // namespace ice

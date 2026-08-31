@@ -22,13 +22,14 @@ MODULES = {
     "include/cc/abi/builder/logger/logger.cppm": ("include/c/extern/logger/logger.h", "TF_Logger"),
     "include/cc/abi/builder/orchestrator/orchestrator.cppm": ("include/c/extern/orchestrator/orchestrator.h", "TF_Orchestrator"),
     "include/cc/abi/builder/database/database.cppm": ("include/c/extern/database/database.h", "TF_Database"),
-    "include/cc/abi/builder/intern/tensor.cppm": ("include/c/intern/tf_tensor.h", "TF_Tensor"),
+    "include/cc/abi/builder/intern/tensor.cppm": ("include/c/intern/tf_tensor.h", "TF_TensorOps"),
     "include/cc/abi/builder/intern/buffer.cppm": ("include/c/intern/tf_buffer.h", "TF_Buffer"),
     "include/cc/abi/builder/cron/cron.cppm": ("include/c/extern/cron/cron.h", "TF_Cron"),
     "include/cc/abi/builder/intern/shape.cppm": ("include/c/intern/tf_shape.h", "TF_Shape"),
-    "include/cc/abi/builder/intern/datatype.cppm": ("include/c/intern/tf_datatype.h", "TF_DataType"),
+    "include/cc/abi/builder/intern/datatype.cppm": ("include/c/intern/tf_datatype.h", "TF_DataTypeOps"),
     "include/cc/abi/builder/io/io.cppm": ("include/c/extern/io/io.h", "TF_IO"),
     "include/cc/abi/builder/generator/generator.cppm": ("include/c/extern/generator/generator.h", "TF_Generator"),
+    "include/cc/abi/builder/python.cppm": ("include/c/extern/python/python.h", "TF_Python"),
 }
 
 COMMENT_RE = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)

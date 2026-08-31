@@ -24,8 +24,8 @@ public:
 
     ~Server()
     {
-        if (m_server_context && m_ops && m_ops->server__destroy) {
-            m_ops->server__destroy(m_server_context);
+        if (m_server_context && m_ops && m_ops->server_destroy) {
+            m_ops->server_destroy(m_server_context);
         }
     }
 
@@ -37,7 +37,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> start() noexcept
     {
         ice::Status status;
-        m_ops->server__start(m_server_context, status.get_handle());
+        m_ops->server_start(m_server_context, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -47,7 +47,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> stop() noexcept
     {
         ice::Status status;
-        m_ops->server__stop(m_server_context, status.get_handle());
+        m_ops->server_stop(m_server_context, status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -57,7 +57,7 @@ public:
     [[nodiscard]] std::expected<bool, ice::Status> is_running() noexcept
     {
         ice::Status status;
-        bool result = m_ops->server__is_running(m_server_context, status.get_handle()) != 0;
+        bool result = m_ops->server_is_running(m_server_context, status.get_handle()) != 0;
         if (!status.ok()) {
             return std::unexpected{status};
         }
@@ -87,7 +87,7 @@ public:
         TF_Protocol_Server* handle = m_ops->create_server(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->server__destroy(handle);
+                m_ops->server_destroy(handle);
             }
             return std::unexpected{status};
         }

@@ -18,7 +18,7 @@ import cc_abi_sonic_intern;
 namespace {
 
 // Tensor runtime the Builder's definitions allocate through — obtained from the
-// host's registered "tensor" factory (ice::sonic::Tensor::create). Plugin-lifetime
+// host's registered "tensor" factory (ice::sonic::Tensor::resolve). Plugin-lifetime
 // static: every Builder holds a reference to it, so it must outlive them all. Null
 // when the host hasn't registered a tensor factory — get_definitions then fails
 // with a clear Status instead of dereferencing null.
@@ -26,7 +26,7 @@ std::unique_ptr<ice::sonic::Tensor>& generator_tensor_runtime()
 {
     static std::unique_ptr<ice::sonic::Tensor> tensor = []
     {
-        auto t = ice::sonic::Tensor::create("tensor");
+        auto t = ice::sonic::Tensor::resolve("tensor");
         if (!t) {
             return std::unique_ptr<ice::sonic::Tensor>{};
         }

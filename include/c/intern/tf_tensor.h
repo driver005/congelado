@@ -30,7 +30,7 @@ extern "C"
 #endif
 
     // --------------------------------------------------------------------------
-    // TF_Tensor — plugin vtable for tensor operations.
+    // TF_TensorOps — plugin vtable for tensor operations.
     //
     // TF_Tensor_Handle is an opaque pointer to a plugin-owned tensor object.
     // It doubles as the "list/array carrier" type at C ABI boundaries

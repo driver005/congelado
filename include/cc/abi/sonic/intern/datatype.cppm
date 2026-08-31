@@ -22,16 +22,16 @@ public:
     {
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(m_host_context, out.get_handle());
         return out;
     }
 
-    size_t data_type_size(DataTypeEnum dt)
+    size_t datatype_size(DataTypeEnum dt) noexcept
     {
-        return m_ops->data_type_size(m_host_context, data_type_to_c(dt));
+        return m_ops->datatype_size(m_host_context, datatype_to_c(dt));
     }
 };
 

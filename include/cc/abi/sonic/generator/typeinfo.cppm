@@ -9,8 +9,8 @@ import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter for the flat TF_Generator vtable's typeinfo__* slots. Owning —
-// destroys the handle with typeinfo__destroy (the plugin released ownership
+// C ABI adapter for the flat TF_Generator vtable's typeinfo_* slots. Owning —
+// destroys the handle with typeinfo_destroy (the plugin released ownership
 // when it handed the handle out).
 class TypeInfo
 {
@@ -24,7 +24,7 @@ public:
     ~TypeInfo()
     {
         if (m_ops && m_handle) {
-            m_ops->typeinfo__destroy(m_handle);
+            m_ops->typeinfo_destroy(m_handle);
         }
     }
 
@@ -35,24 +35,24 @@ public:
 
     int get_data_type() const noexcept
     {
-        return m_ops->typeinfo__get_data_type(m_handle);
+        return m_ops->typeinfo_get_data_type(m_handle);
     }
 
     ice::String get_type_attr_name() const noexcept
     {
         ice::String out;
-        m_ops->typeinfo__get_type_attr_name(m_handle, out.get_handle());
+        m_ops->typeinfo_get_type_attr_name(m_handle, out.get_handle());
         return out;
     }
 
     bool is_read_only() const noexcept
     {
-        return m_ops->typeinfo__is_read_only(m_handle);
+        return m_ops->typeinfo_is_read_only(m_handle);
     }
 
     bool is_list() const noexcept
     {
-        return m_ops->typeinfo__is_list(m_handle);
+        return m_ops->typeinfo_is_list(m_handle);
     }
 
 private:

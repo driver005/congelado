@@ -13,7 +13,6 @@ export module cc_abi_builder_filesystem;
 
 import std;
 export import :leaves;
-import cc_abi_builder_intern;
 import cc_abi_primitives;
 import cc_abi_sonic_intern;
 
@@ -63,7 +62,7 @@ public:
     delete_dir(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> delete_recursively(
         const ice::String& path,
-        DeleteRecursivelyResult& out
+        ice::DeleteRecursivelyResult& out
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     rename_file(const ice::String& src, const ice::String& dst) noexcept = 0;
@@ -80,7 +79,7 @@ public:
     // Range-first on the C++ side too: the C ABI's raw TF_FileStatistics* out-param is
     // adapted into a typed value the implementation fills.
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    stat(const ice::String& path, ice::builder::FileStatistics& out_stats) noexcept = 0;
+    stat(const ice::String& path, ice::FileStatistics& out_stats) noexcept = 0;
     [[nodiscard]] virtual std::expected<bool, ice::Status>
     is_directory(const ice::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<std::int64_t, ice::Status>
@@ -102,10 +101,10 @@ public:
     get_filesystem_configuration() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_filesystem_configuration(ice::TensorHandle options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<ice::builder::FilesystemOption, ice::Status>
+    [[nodiscard]] virtual std::expected<ice::FilesystemOption, ice::Status>
     get_filesystem_configuration_option(const ice::String& key) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_filesystem_configuration_option(const ice::builder::FilesystemOption& option) noexcept = 0;
+    set_filesystem_configuration_option(const ice::FilesystemOption& option) noexcept = 0;
     [[nodiscard]] virtual std::expected<ice::TensorHandle, ice::Status>
     get_filesystem_configuration_keys() noexcept = 0;
 
@@ -136,7 +135,7 @@ public:
 
     // Allocate a raw-bytes tensor and memcpy each wrapped option's C value into it.
     [[nodiscard]] std::expected<ice::TensorHandle, ice::Status>
-    make_options_tensor(std::span<const ice::builder::FilesystemOption> opts) noexcept
+    make_options_tensor(std::span<const ice::FilesystemOption> opts) noexcept
     {
         int64_t count = static_cast<int64_t>(opts.size());
         size_t bytes = static_cast<size_t>(count) * sizeof(TF_Filesystem_Option);
@@ -188,12 +187,12 @@ public:
                 }
                 return static_cast<TF_RandomAccessFile*>(static_cast<void*>(res->release()));
             },
-            .random_access_file__destroy =
+            .random_access_file_destroy =
                 [](TF_RandomAccessFile* file_context) noexcept
             {
                 delete RandomAccessFile::create(file_context);
             },
-            .random_access_file__read =
+            .random_access_file_read =
                 [](TF_RandomAccessFile* file_context, uint64_t offset, size_t n, char* buffer, TF_Status* status) noexcept
                 -> int64_t
             {
@@ -231,12 +230,12 @@ public:
                 }
                 return static_cast<TF_WritableFile*>(static_cast<void*>(res->release()));
             },
-            .writable_file__destroy =
+            .writable_file_destroy =
                 [](TF_WritableFile* file_context) noexcept
             {
                 delete WritableFile::create(file_context);
             },
-            .writable_file__append =
+            .writable_file_append =
                 [](TF_WritableFile* file_context, const TF_TString* buffer, TF_Status* status) noexcept
             {
                 auto res =
@@ -245,7 +244,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .writable_file__tell = [](TF_WritableFile* file_context, TF_Status* status) noexcept -> int64_t
+            .writable_file_tell = [](TF_WritableFile* file_context, TF_Status* status) noexcept -> int64_t
             {
                 auto res = WritableFile::create(file_context)->tell();
                 if (!res) {
@@ -254,7 +253,7 @@ public:
                 }
                 return res.value();
             },
-            .writable_file__flush =
+            .writable_file_flush =
                 [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->flush();
@@ -262,7 +261,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .writable_file__sync =
+            .writable_file_sync =
                 [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->sync();
@@ -270,7 +269,7 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .writable_file__close =
+            .writable_file_close =
                 [](TF_WritableFile* file_context, TF_Status* status) noexcept
             {
                 auto res = WritableFile::create(file_context)->close();
@@ -279,7 +278,7 @@ public:
                 }
             },
 
-            // ReadOnlyMemoryRegion — the C ABI's __data/__length pair derives from the
+            // ReadOnlyMemoryRegion — the C ABI's data/length pair derives from the
             // C++ interface's single span.
             .create_read_only_memory_region_from_file =
                 [](void* plugin_context, const TF_TString* path, TF_Status* status) noexcept
@@ -293,16 +292,16 @@ public:
                 }
                 return static_cast<TF_ReadOnlyMemoryRegion*>(static_cast<void*>(res->release()));
             },
-            .read_only_memory_region__destroy =
+            .read_only_memory_region_destroy =
                 [](TF_ReadOnlyMemoryRegion* region_context) noexcept
             {
                 delete ReadOnlyMemoryRegion::create(region_context);
             },
-            .read_only_memory_region__data = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> const void*
+            .read_only_memory_region_data = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> const void*
             {
                 return ReadOnlyMemoryRegion::create(region_context)->data().data();
             },
-            .read_only_memory_region__length = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> uint64_t
+            .read_only_memory_region_length = [](TF_ReadOnlyMemoryRegion* region_context) noexcept -> uint64_t
             {
                 return ReadOnlyMemoryRegion::create(region_context)->data().size();
             },
@@ -351,7 +350,7 @@ public:
                    uint64_t* undeleted_dirs,
                    TF_Status* status) noexcept
             {
-                ice::builder::DeleteRecursivelyResult result{};
+                ice::DeleteRecursivelyResult result{};
                 auto res = Filesystem::create(plugin_context)
                                ->delete_recursively(ice::String::create(path), result);
                 if (!res) {
@@ -434,7 +433,7 @@ public:
                    TF_FileStatistics* out_stats,
                    TF_Status* status) noexcept
             {
-                ice::builder::FileStatistics stats;
+                ice::FileStatistics stats;
                 auto res = Filesystem::create(plugin_context)
                                ->stat(ice::String::create(path), stats);
                 if (!res) {
@@ -556,7 +555,7 @@ public:
             {
                 auto res = Filesystem::create(plugin_context)
                                ->set_filesystem_configuration_option(
-                                   ice::builder::FilesystemOption::create(*option)
+                                   ice::FilesystemOption::create(*option)
                                );
                 if (!res) {
                     res.error().to_c(status);

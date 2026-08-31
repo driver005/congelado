@@ -14,14 +14,14 @@ namespace {
 
 // Tensor runtime the paths_exist adapter decodes its string-tensor input through —
 // obtained lazily from the host's registered "tensor" factory
-// (ice::sonic::Tensor::create), the same file-local pattern as stable_hlo's
+// (ice::sonic::Tensor::resolve), the same file-local pattern as stable_hlo's
 // generator_tensor_runtime(). Null when the host hasn't registered a tensor factory —
 // paths_exist then fails with a clear Status instead of dereferencing null.
-std::unique_ptr<ice::sonic::Tensor>& tensor_runtime()
+std::unique_ptr<ice::sonic::Tensor>& tensor_runtime() noexcept
 {
     static std::unique_ptr<ice::sonic::Tensor> tensor = []
     {
-        auto t = ice::sonic::Tensor::create("tensor");
+        auto t = ice::sonic::Tensor::resolve("tensor");
         if (!t) {
             return std::unique_ptr<ice::sonic::Tensor>{};
         }
@@ -48,7 +48,7 @@ public:
 
     static constexpr std::string_view domain_name = "filesystem";
 
-    std::unique_ptr<ice::sonic::RandomAccessFile>
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::RandomAccessFile>, ice::Status>
     create_random_access_file(const ice::String& path) noexcept
     {
         ice::Status status;
@@ -59,14 +59,15 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->random_access_file__destroy(handle);
+                m_ops->random_access_file_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::RandomAccessFile>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::WritableFile> create_writable_file(const ice::String& path) noexcept
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::WritableFile>, ice::Status>
+    create_writable_file(const ice::String& path) noexcept
     {
         ice::Status status;
         TF_WritableFile* handle = m_ops->create_writable_file(
@@ -76,14 +77,15 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->writable_file__destroy(handle);
+                m_ops->writable_file_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::WritableFile>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::WritableFile> create_appendable_file(const ice::String& path) noexcept
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::WritableFile>, ice::Status>
+    create_appendable_file(const ice::String& path) noexcept
     {
         ice::Status status;
         TF_WritableFile* handle = m_ops->create_appendable_file(
@@ -93,14 +95,14 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->writable_file__destroy(handle);
+                m_ops->writable_file_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::WritableFile>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::ReadOnlyMemoryRegion>
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::ReadOnlyMemoryRegion>, ice::Status>
     create_read_only_memory_region_from_file(const ice::String& path) noexcept
     {
         ice::Status status;
@@ -111,9 +113,9 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->read_only_memory_region__destroy(handle);
+                m_ops->read_only_memory_region_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::ReadOnlyMemoryRegion>(m_ops, handle);
     }
@@ -161,16 +163,15 @@ public:
 
     [[nodiscard]] std::expected<void, ice::Status> delete_recursively(
         const ice::String& path,
-        std::uint64_t* undeleted_files,
-        std::uint64_t* undeleted_dirs
+        ice::DeleteRecursivelyResult& out
     ) noexcept
     {
         ice::Status status;
         m_ops->delete_recursively(
             get_handle(),
             path.get_handle(),
-            undeleted_files,
-            undeleted_dirs,
+            &out.undeleted_files,
+            &out.undeleted_dirs,
             status.get_handle()
         );
         if (!status.ok()) {
@@ -239,7 +240,7 @@ public:
     // Range-first on the C++ side too: the C ABI's raw TF_FileStatistics* out-param is
     // adapted into the typed stats value the caller passes in.
     [[nodiscard]] std::expected<void, ice::Status>
-    stat(const ice::String& path, ice::sonic::FileStatistics& out_stats) noexcept
+    stat(const ice::String& path, ice::FileStatistics& out_stats) noexcept
     {
         ice::Status status;
         m_ops->stat(get_handle(), path.get_handle(), out_stats.get_handle(), status.get_handle());
@@ -335,7 +336,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<TF_Filesystem_Option, ice::Status>
+    [[nodiscard]] std::expected<ice::FilesystemOption, ice::Status>
     get_filesystem_configuration_option(const ice::String& key) noexcept
     {
         ice::Status status;
@@ -349,14 +350,14 @@ public:
         if (!status.ok()) {
             return std::unexpected{status};
         }
-        return option;
+        return ice::FilesystemOption{option};
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_filesystem_configuration_option(const TF_Filesystem_Option& option) noexcept
+    set_filesystem_configuration_option(const ice::FilesystemOption& option) noexcept
     {
         ice::Status status;
-        m_ops->set_filesystem_configuration_option(get_handle(), &option, status.get_handle());
+        m_ops->set_filesystem_configuration_option(get_handle(), option.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }

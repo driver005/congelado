@@ -80,7 +80,7 @@ public:
     // Each returns a 1-D tensor of opaque Parameter*/Attribute* handles (list/array
     // carrier contract of TF_Tensor_Handle). The handles are heap copies with
     // parameter-slot context applied; ownership of each transfers to the C side,
-    // which frees them with parameter__destroy/attribute__destroy.
+    // which frees them with parameter_destroy/attribute_destroy.
     std::expected<ice::TensorHandle, ice::Status>
     get_inputs() const noexcept override
     {

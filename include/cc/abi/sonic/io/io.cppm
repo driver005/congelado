@@ -37,22 +37,23 @@ public:
         TF_IO_Request* handle = m_ops->create_request(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->request__destroy(handle);
+                m_ops->request_destroy(handle);
             }
             return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Request>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::Response> create_response() noexcept
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Response>, ice::Status>
+    create_response() noexcept
     {
         ice::Status status;
         TF_IO_Response* handle = m_ops->create_response(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->response__destroy(handle);
+                m_ops->response_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Response>(m_ops, handle);
     }

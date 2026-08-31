@@ -213,25 +213,10 @@ extern "C"
     TF_CAPI_EXPORT int
     TF_GraphGetTensorNumDims(TF_Graph* graph, TF_Output output, TF_Status* status);
 
-    // Returns the shape of the Tensor referenced by `output` in `graph`
-    // into `dims`. `dims` must be an array large enough to hold `num_dims`
-    // entries (e.g., the return value of TF_GraphGetTensorNumDims).
-    //
-    // If the number of dimensions in the shape is unknown or the shape is
-    // a scalar, `dims` will remain untouched. Otherwise, each element of
-    // `dims` will be set corresponding to the size of the dimension. An
-    // unknown dimension is represented by `-1`.
-    //
-    // Returns an error into `status` if:
-    //   * `output` is not in `graph`.
-    //   * `num_dims` does not match the actual number of dimensions.
-    TF_CAPI_EXPORT void TF_GraphGetTensorShape(
-        TF_Graph* graph,
-        TF_Output output,
-        int64_t* dims,
-        int num_dims,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the tensor's dimension sizes, in order.
+    // The array has TF_GraphGetTensorNumDims() entries; the caller releases it with free().
+    // Returns NULL on error (see status). Unknown dimensions are represented by -1.
+    TF_CAPI_EXPORT int64_t* TF_GraphGetTensorShape(TF_Graph* graph, TF_Output output, TF_Status* status);
 
     // Creates a new operation - see `TF_NewOperation` for more details.
     //
@@ -445,6 +430,16 @@ extern "C"
     TF_CAPI_EXPORT TF_Operation*
     TF_FinishOperation(TF_OperationDescription* desc, TF_Status* status);
 
+    // --------------------------------------------------------------------------
+    // Getter convention: every getter in this header that returns dynamically-sized
+    // data is plugin-allocated — the implementation allocates the result, the caller
+    // releases it. Scalars return by value (status reports failure). Arrays return a
+    // heap pointer released with free(); counts come back through a trailing int*
+    // out-param. Proto/buffer getters return TF_Buffer_Data* released with
+    // delete_buffer(). The string-list getter returns a single free()-able
+    // allocation holding the TF_StringView array plus all string bytes.
+    // --------------------------------------------------------------------------
+
     // TF_Operation functions.  Operations are immutable once created, so
     // these are all query functions.
 
@@ -468,59 +463,34 @@ extern "C"
     // producer.index) to consumer.oper's input (given by consumer.index).
     TF_CAPI_EXPORT TF_Output TF_OperationInput(TF_Input oper_in);
 
-    // Get list of all inputs of a specific operation.  `inputs` must point to
-    // an array of length at least `max_inputs` (ideally set to
-    // TF_OperationNumInputs(oper)).  Beware that a concurrent
-    // modification of the graph can increase the number of inputs of
-    // an operation.
-    TF_CAPI_EXPORT void
-    TF_OperationAllInputs(TF_Operation* oper, TF_Output* inputs, int max_inputs);
+    // Returns a plugin-allocated array of all inputs of `oper`; *num_inputs receives the count.
+    // The caller releases the array with free().
+    TF_CAPI_EXPORT TF_Output* TF_OperationAllInputs(TF_Operation* oper, int* num_inputs);
 
     // Get the number of current consumers of a specific output of an
     // operation.  Note that this number can change when new operations
     // are added to the graph.
     TF_CAPI_EXPORT int TF_OperationOutputNumConsumers(TF_Output oper_out);
 
-    // Get list of all current consumers of a specific output of an
-    // operation.  `consumers` must point to an array of length at least
-    // `max_consumers` (ideally set to
-    // TF_OperationOutputNumConsumers(oper_out)).  Beware that a concurrent
-    // modification of the graph can increase the number of consumers of
-    // an operation.  Returns the number of output consumers (should match
-    // TF_OperationOutputNumConsumers(oper_out)).
-    TF_CAPI_EXPORT int
-    TF_OperationOutputConsumers(TF_Output oper_out, TF_Input* consumers, int max_consumers);
+    // Returns a plugin-allocated array of all current consumers of `oper_out`;
+    // *num_consumers receives the count. The caller releases the array with free().
+    TF_CAPI_EXPORT TF_Input* TF_OperationOutputConsumers(TF_Output oper_out, int* num_consumers);
 
     // Get the number of control inputs to an operation.
     TF_CAPI_EXPORT int TF_OperationNumControlInputs(TF_Operation* oper);
 
-    // Get list of all control inputs to an operation.  `control_inputs` must
-    // point to an array of length `max_control_inputs` (ideally set to
-    // TF_OperationNumControlInputs(oper)).  Returns the number of control
-    // inputs (should match TF_OperationNumControlInputs(oper)).
-    TF_CAPI_EXPORT int TF_OperationGetControlInputs(
-        TF_Operation* oper,
-        TF_Operation** control_inputs,
-        int max_control_inputs
-    );
+    // Returns a plugin-allocated array of all control inputs of `oper`; *num_control_inputs
+    // receives the count. The caller releases the array with free().
+    TF_CAPI_EXPORT TF_Operation** TF_OperationGetControlInputs(TF_Operation* oper, int* num_control_inputs);
 
     // Get the number of operations that have `*oper` as a control input.
     // Note that this number can change when new operations are added to
     // the graph.
     TF_CAPI_EXPORT int TF_OperationNumControlOutputs(TF_Operation* oper);
 
-    // Get the list of operations that have `*oper` as a control input.
-    // `control_outputs` must point to an array of length at least
-    // `max_control_outputs` (ideally set to
-    // TF_OperationNumControlOutputs(oper)). Beware that a concurrent
-    // modification of the graph can increase the number of control
-    // outputs.  Returns the number of control outputs (should match
-    // TF_OperationNumControlOutputs(oper)).
-    TF_CAPI_EXPORT int TF_OperationGetControlOutputs(
-        TF_Operation* oper,
-        TF_Operation** control_outputs,
-        int max_control_outputs
-    );
+    // Returns a plugin-allocated array of all operations that have `*oper` as a control input;
+    // *num_control_outputs receives the count. The caller releases the array with free().
+    TF_CAPI_EXPORT TF_Operation** TF_OperationGetControlOutputs(TF_Operation* oper, int* num_control_outputs);
 
     // TF_AttrMetadata describes the value of an attribute on an operation.
     typedef struct TF_AttrMetadata
@@ -558,171 +528,55 @@ extern "C"
     TF_CAPI_EXPORT TF_AttrMetadata
     TF_OperationGetAttrMetadata(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `value` with the value of the attribute `attr_name`.  `value` must
-    // point to an array of length at least `max_length` (ideally set to
-    // TF_AttrMetadata.total_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrString(
-        TF_Operation* oper,
-        const char* attr_name,
-        void* value,
-        size_t max_length,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated copy of the string attr's bytes; *length receives the byte
+    // count (the bytes may contain NULs). The caller releases the buffer with free().
+    TF_CAPI_EXPORT char* TF_OperationGetAttrString(TF_Operation* oper, const char* attr_name, size_t* length, TF_Status* status);
 
-    // Get the list of strings in the value of the attribute `attr_name`.  Fills in
-    // `values` and `lengths`, each of which must point to an array of length at
-    // least `max_values`.
-    //
-    // The elements of values will point to addresses in `storage` which must be at
-    // least `storage_size` bytes in length.  Ideally, max_values would be set to
-    // TF_AttrMetadata.list_size and `storage` would be at least
-    // TF_AttrMetadata.total_size, obtained from TF_OperationGetAttrMetadata(oper,
-    // attr_name).
-    //
-    // Fails if storage_size is too small to hold the requested number of strings.
-    TF_CAPI_EXPORT void TF_OperationGetAttrStringList(
-        TF_Operation* oper,
-        const char* attr_name,
-        void** values,
-        size_t* lengths,
-        int max_values,
-        void* storage,
-        size_t storage_size,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of TF_StringView (one per string); *num_values receives
+    // the count. The array and all string data it references live in ONE allocation — the
+    // caller releases everything with a single free(). Fails (NULL + status) on error.
+    TF_CAPI_EXPORT TF_StringView* TF_OperationGetAttrStringList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
-    TF_CAPI_EXPORT void TF_OperationGetAttrInt(
-        TF_Operation* oper,
-        const char* attr_name,
-        int64_t* value,
-        TF_Status* status
-    );
+    TF_CAPI_EXPORT int64_t TF_OperationGetAttrInt(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `values` with the value of the attribute `attr_name` of `oper`.
-    // `values` must point to an array of length at least `max_values` (ideally set
-    // TF_AttrMetadata.list_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrIntList(
-        TF_Operation* oper,
-        const char* attr_name,
-        int64_t* values,
-        int max_values,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the int64 list; *num_values receives the count.
+    // The caller releases the array with free().
+    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrIntList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
-    TF_CAPI_EXPORT void TF_OperationGetAttrFloat(
-        TF_Operation* oper,
-        const char* attr_name,
-        float* value,
-        TF_Status* status
-    );
+    TF_CAPI_EXPORT float TF_OperationGetAttrFloat(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `values` with the value of the attribute `attr_name` of `oper`.
-    // `values` must point to an array of length at least `max_values` (ideally set
-    // to TF_AttrMetadata.list_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrFloatList(
-        TF_Operation* oper,
-        const char* attr_name,
-        float* values,
-        int max_values,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the float list; *num_values receives the count.
+    // The caller releases the array with free().
+    TF_CAPI_EXPORT float* TF_OperationGetAttrFloatList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
-    TF_CAPI_EXPORT void TF_OperationGetAttrBool(
-        TF_Operation* oper,
-        const char* attr_name,
-        unsigned char* value,
-        TF_Status* status
-    );
+    TF_CAPI_EXPORT unsigned char TF_OperationGetAttrBool(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `values` with the value of the attribute `attr_name` of `oper`.
-    // `values` must point to an array of length at least `max_values` (ideally set
-    // to TF_AttrMetadata.list_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrBoolList(
-        TF_Operation* oper,
-        const char* attr_name,
-        unsigned char* values,
-        int max_values,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the bool list (0/1 per element); *num_values receives
+    // the count. The caller releases the array with free().
+    TF_CAPI_EXPORT unsigned char* TF_OperationGetAttrBoolList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
-    TF_CAPI_EXPORT void TF_OperationGetAttrType(
-        TF_Operation* oper,
-        const char* attr_name,
-        TF_DataType* value,
-        TF_Status* status
-    );
+    TF_CAPI_EXPORT TF_DataType TF_OperationGetAttrType(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `values` with the value of the attribute `attr_name` of `oper`.
-    // `values` must point to an array of length at least `max_values` (ideally set
-    // to TF_AttrMetadata.list_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrTypeList(
-        TF_Operation* oper,
-        const char* attr_name,
-        TF_DataType* values,
-        int max_values,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the TF_DataType list; *num_values receives the count.
+    // The caller releases the array with free().
+    TF_CAPI_EXPORT TF_DataType* TF_OperationGetAttrTypeList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
-    // Fills in `value` with the value of the attribute `attr_name` of `oper`.
-    // `values` must point to an array of length at least `num_dims` (ideally set to
-    // TF_Attr_Meta.size from TF_OperationGetAttrMetadata(oper, attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrShape(
-        TF_Operation* oper,
-        const char* attr_name,
-        int64_t* value,
-        int num_dims,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of the shape's dimension sizes; *num_dims receives the
+    // count (-1 for unknown rank). The caller releases the array with free().
+    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrShape(TF_Operation* oper, const char* attr_name, int* num_dims, TF_Status* status);
 
-    // Fills in `dims` with the list of shapes in the attribute `attr_name` of
-    // `oper` and `num_dims` with the corresponding number of dimensions. On return,
-    // for every i where `num_dims[i]` > 0, `dims[i]` will be an array of
-    // `num_dims[i]` elements. A value of -1 for `num_dims[i]` indicates that the
-    // i-th shape in the list is unknown.
-    //
-    // The elements of `dims` will point to addresses in `storage` which must be
-    // large enough to hold at least `storage_size` int64_ts.  Ideally, `num_shapes`
-    // would be set to TF_AttrMetadata.list_size and `storage_size` would be set to
-    // TF_AttrMetadata.total_size from TF_OperationGetAttrMetadata(oper,
-    // attr_name).
-    //
-    // Fails if storage_size is insufficient to hold the requested shapes.
-    TF_CAPI_EXPORT void TF_OperationGetAttrShapeList(
-        TF_Operation* oper,
-        const char* attr_name,
-        int64_t** dims,
-        int* num_dims,
-        int num_shapes,
-        int64_t* storage,
-        int storage_size,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of *num_shapes int64_t* rows, each row a plugin-allocated
+    // dims array (row i has num_dims_out[i] entries; -1 means unknown rank). The caller frees
+    // each row with free() and then frees the row-pointer array and num_dims_out with free().
+    TF_CAPI_EXPORT int64_t** TF_OperationGetAttrShapeList(TF_Operation* oper, const char* attr_name, int** num_dims_out, int* num_shapes, TF_Status* status);
 
-    // Sets `value` to the binary-serialized TensorShapeProto of the value of
-    // `attr_name` attribute of `oper`.
-    TF_CAPI_EXPORT void TF_OperationGetAttrTensorShapeProto(
-        TF_Operation* oper,
-        const char* attr_name,
-        TF_Buffer* value,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated TF_Buffer_Data holding the binary-serialized TensorShapeProto;
+    // the caller releases it with delete_buffer(). Returns NULL on error (see status).
+    TF_CAPI_EXPORT TF_Buffer_Data* TF_OperationGetAttrTensorShapeProto(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
-    // Fills in `values` with binary-serialized TensorShapeProto values of the
-    // attribute `attr_name` of `oper`. `values` must point to an array of length at
-    // least `num_values` (ideally set to TF_AttrMetadata.list_size from
-    // TF_OperationGetAttrMetadata(oper, attr_name)).
-    TF_CAPI_EXPORT void TF_OperationGetAttrTensorShapeProtoList(
-        TF_Operation* oper,
-        const char* attr_name,
-        TF_Buffer** values,
-        int max_values,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated array of *num_values TF_Buffer_Data* entries; the caller
+    // releases each entry with delete_buffer() and the array with free().
+    TF_CAPI_EXPORT TF_Buffer_Data** TF_OperationGetAttrTensorShapeProtoList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
 
     // Gets the TF_Tensor valued attribute of `attr_name` of `oper`.
     //
@@ -750,14 +604,9 @@ extern "C"
         TF_Status* status
     );
 
-    // Sets `output_attr_value` to the binary-serialized AttrValue proto
-    // representation of the value of the `attr_name` attr of `oper`.
-    TF_CAPI_EXPORT void TF_OperationGetAttrValueProto(
-        TF_Operation* oper,
-        const char* attr_name,
-        TF_Buffer* output_attr_value,
-        TF_Status* status
-    );
+    // Returns a plugin-allocated TF_Buffer_Data holding the binary-serialized AttrValue proto;
+    // the caller releases it with delete_buffer(). Returns NULL on error (see status).
+    TF_CAPI_EXPORT TF_Buffer_Data* TF_OperationGetAttrValueProto(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Get the number of attributes the operation has.
     TF_CAPI_EXPORT int TF_OperationGetNumAttrs(TF_Operation* oper);
@@ -1016,19 +865,10 @@ extern "C"
     // Returns the number of TF_Functions registered in `g`.
     TF_CAPI_EXPORT int TF_GraphNumFunctions(TF_Graph* g);
 
-    // Fills in `funcs` with the TF_Function* registered in `g`.
-    // `funcs` must point to an array of TF_Function* of length at least
-    // `max_func`. In usual usage, max_func should be set to the result of
-    // TF_GraphNumFunctions(g). In this case, all the functions registered in
-    // `g` will be returned. Else, an unspecified subset.
-    //
-    // If successful, returns the number of TF_Function* successfully set in
-    // `funcs` and sets status to OK. The caller takes ownership of
-    // all the returned TF_Functions. They must be deleted with TF_DeleteFunction.
-    // On error, returns 0, sets status to the encountered error, and the contents
-    // of funcs will be undefined.
-    TF_CAPI_EXPORT int
-    TF_GraphGetFunctions(TF_Graph* g, TF_Function** funcs, int max_func, TF_Status* status);
+    // Returns a plugin-allocated array of TF_Function* registered in `g`; *num_funcs receives
+    // the count. The caller takes ownership of each TF_Function (release with TF_DeleteFunction)
+    // and releases the array itself with free().
+    TF_CAPI_EXPORT TF_Function** TF_GraphGetFunctions(TF_Graph* g, int* num_funcs, TF_Status* status);
 
     // Note: The following function may fail on very large protos in the future.
 

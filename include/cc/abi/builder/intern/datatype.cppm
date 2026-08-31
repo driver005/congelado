@@ -24,7 +24,7 @@ public:
 
     virtual ice::String get_name() const noexcept = 0;
 
-    virtual size_t data_type_size(ice::DataTypeEnum dt) noexcept = 0;
+    virtual size_t datatype_size(ice::DataTypeEnum dt) noexcept = 0;
 
     static TF_DataTypeOps* get_generic_vtable()
     {
@@ -35,9 +35,9 @@ public:
             {
                 DataType::create(plugin_context)->get_name().to_c(out);
             },
-            .data_type_size = [](void* plugin_context, TF_DataType_Enum dt) noexcept -> size_t
+            .datatype_size = [](void* plugin_context, TF_DataType_Enum dt) noexcept -> size_t
             {
-                return DataType::create(plugin_context)->data_type_size(ice::data_type_from_c(dt));
+                return DataType::create(plugin_context)->datatype_size(ice::datatype_from_c(dt));
             }
         };
         return &vtable;

@@ -20,7 +20,7 @@ public:
     {
     }
 
-    ice::String get_name() const
+    ice::String get_name() const noexcept
     {
         ice::String out;
         m_ops->get_name(m_host_context, out.get_handle());
@@ -28,7 +28,7 @@ public:
     }
 
     [[nodiscard]] std::expected<TF_Shape_Handle*, ice::Status>
-    new_shape(const int64_t* dims, int num_dims)
+    new_shape(const int64_t* dims, int num_dims) noexcept
     {
         TF_Shape_Handle* handle = m_ops->new_shape(m_host_context, dims, num_dims);
         if (handle == nullptr) {
@@ -37,17 +37,17 @@ public:
         return handle;
     }
 
-    void delete_shape(TF_Shape_Handle* shape)
+    void delete_shape(TF_Shape_Handle* shape) noexcept
     {
         m_ops->delete_shape(m_host_context, shape);
     }
 
-    int get_num_dims(const TF_Shape_Handle* shape) const
+    int get_num_dims(const TF_Shape_Handle* shape) const noexcept
     {
         return m_ops->shape_num_dims(m_host_context, shape);
     }
 
-    int64_t get_dim(const TF_Shape_Handle* shape, int index) const
+    int64_t get_dim(const TF_Shape_Handle* shape, int index) const noexcept
     {
         return m_ops->shape_dim(m_host_context, shape, index);
     }

@@ -9,8 +9,8 @@ import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter for the flat TF_Generator vtable's attribute__* slots. Owning —
-// destroys the handle with attribute__destroy.
+// C ABI adapter for the flat TF_Generator vtable's attribute_* slots. Owning —
+// destroys the handle with attribute_destroy.
 class Attribute
 {
 public:
@@ -23,7 +23,7 @@ public:
     ~Attribute()
     {
         if (m_ops && m_handle) {
-            m_ops->attribute__destroy(m_handle);
+            m_ops->attribute_destroy(m_handle);
         }
     }
 
@@ -35,34 +35,34 @@ public:
     ice::String get_name() const noexcept
     {
         ice::String out;
-        m_ops->attribute__get_name(m_handle, out.get_handle());
+        m_ops->attribute_get_name(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_description() const noexcept
     {
         ice::String out;
-        m_ops->attribute__get_description(m_handle, out.get_handle());
+        m_ops->attribute_get_description(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_full_type() const noexcept
     {
         ice::String out;
-        m_ops->attribute__get_full_type(m_handle, out.get_handle());
+        m_ops->attribute_get_full_type(m_handle, out.get_handle());
         return out;
     }
 
     ice::String get_base_type() const noexcept
     {
         ice::String out;
-        m_ops->attribute__get_base_type(m_handle, out.get_handle());
+        m_ops->attribute_get_base_type(m_handle, out.get_handle());
         return out;
     }
 
     bool is_list() const noexcept
     {
-        return m_ops->attribute__is_list(m_handle);
+        return m_ops->attribute_is_list(m_handle);
     }
 
 private:

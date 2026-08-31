@@ -25,12 +25,12 @@ public:
 
     virtual ~Request() = default;
 
-    virtual ice::Method get_method() = 0;
-    virtual ice::String get_path() = 0;
+    virtual ice::Method get_method() noexcept = 0;
+    virtual ice::String get_path() noexcept = 0;
 
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_header(const ice::String& name, const ice::String& value) = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_body(const ice::String& body) = 0;
+    set_header(const ice::String& name, const ice::String& value) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> set_body(const ice::String& body) noexcept = 0;
 };
 
 class Response
@@ -46,10 +46,10 @@ public:
 
     virtual ~Response() = default;
 
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_status(std::int32_t status_code) = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> set_status(std::int32_t status_code) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_header(const ice::String& name, const ice::String& value) = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_body(const ice::String& body) = 0;
+    set_header(const ice::String& name, const ice::String& value) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> set_body(const ice::String& body) noexcept = 0;
 };
 
 } // namespace ice::builder

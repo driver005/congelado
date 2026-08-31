@@ -47,7 +47,7 @@ public:
     // actually holds double as its definition list — no separate static schema catalog.
     // Each definition is handed out as a heap copy (stable across later append_module
     // calls, which can reallocate m_modules); ownership of the copy transfers to the C
-    // side, which frees it with definition__destroy. The tensor data is an array of
+    // side, which frees it with definition_destroy. The tensor data is an array of
     // opaque Definition* handles (the list/array-carrier contract of TF_Tensor_Handle).
     std::expected<ice::TensorHandle, ice::Status>
     get_definitions() const noexcept override

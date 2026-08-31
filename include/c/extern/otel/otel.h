@@ -38,50 +38,50 @@ extern "C"
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
         TF_Otel_Tracer* (*create_tracer)(void* plugin_context, TF_Status* status);
-        void (*tracer__destroy)(TF_Otel_Tracer* tracer_context);
+        void (*tracer_destroy)(TF_Otel_Tracer* tracer_context);
         TF_Otel_Meter* (*create_meter)(void* plugin_context, TF_Status* status);
-        void (*meter__destroy)(TF_Otel_Meter* meter_context);
-        TF_Otel_Span* (*tracer__start_span)(
+        void (*meter_destroy)(TF_Otel_Meter* meter_context);
+        TF_Otel_Span* (*tracer_start_span)(
             TF_Otel_Tracer* tracer_context,
             const TF_TString* name,
             int kind,
             TF_Status* status
         );
-        void (*span__destroy)(TF_Otel_Span* span_context);
-        void (*span__set_attribute)(
+        void (*span_destroy)(TF_Otel_Span* span_context);
+        void (*span_set_attribute)(
             TF_Otel_Span* span_context,
             const TF_TString* key,
             const TF_TString* value,
             TF_Status* status
         );
-        void (*span__set_status)(
+        void (*span_set_status)(
             TF_Otel_Span* span_context,
             int status_code,
             const TF_TString* description,
             TF_Status* status
         );
-        void (*span__end)(TF_Otel_Span* span_context, TF_Status* status);
-        TF_Otel_Counter* (*meter__create_counter)(
+        void (*span_end)(TF_Otel_Span* span_context, TF_Status* status);
+        TF_Otel_Counter* (*meter_create_counter)(
             TF_Otel_Meter* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,
             TF_Status* status
         );
-        void (*counter__destroy)(TF_Otel_Counter* counter_context);
-        void (*counter__add)(TF_Otel_Counter* counter_context, double value, TF_Status* status);
-        TF_Otel_Histogram* (*meter__create_histogram)(
+        void (*counter_destroy)(TF_Otel_Counter* counter_context);
+        void (*counter_add)(TF_Otel_Counter* counter_context, double value, TF_Status* status);
+        TF_Otel_Histogram* (*meter_create_histogram)(
             TF_Otel_Meter* meter_context,
             const TF_TString* name,
             const TF_TString* description,
             const TF_TString* unit,
             TF_Status* status
         );
-        void (*histogram__destroy)(TF_Otel_Histogram* histogram_context);
-        void (*histogram__record)(TF_Otel_Histogram* histogram_context, double value, TF_Status* status);
+        void (*histogram_destroy)(TF_Otel_Histogram* histogram_context);
+        void (*histogram_record)(TF_Otel_Histogram* histogram_context, double value, TF_Status* status);
     } TF_Otel;
 
-#define TF_OTEL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel, histogram__record)
+#define TF_OTEL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel, histogram_record)
 
     TF_CAPI_EXPORT void init_otel(TF_Otel** ops, void** plugin_context, TF_Status* status);
 

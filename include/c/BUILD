@@ -168,19 +168,6 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_env_hdrs",
-    hdrs = [
-        "extern/env/dynamic_library.h",
-        "extern/env/env.h",
-        "extern/env/thread.h",
-    ],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-    ],
-)
-
-cc_library(
     name = "extern_events_hdrs",
     hdrs = ["extern/events/events.h"],
     deps = [
@@ -307,6 +294,15 @@ cc_library(
 )
 
 cc_library(
+    name = "extern_python_hdrs",
+    hdrs = ["extern/python/python.h"],
+    deps = [
+        ":c_api_hdrs",
+        ":tf_tstring_hdrs",
+    ],
+)
+
+cc_library(
     name = "extern_search_hdrs",
     hdrs = ["extern/search/search.h"],
     deps = [
@@ -364,7 +360,6 @@ cc_library(
         ":extern_cache_hdrs",
         ":extern_cron_hdrs",
         ":extern_database_hdrs",
-        ":extern_env_hdrs",
         ":extern_events_hdrs",
         ":extern_filesystem_hdrs",
         ":extern_generator_hdrs",
@@ -377,6 +372,7 @@ cc_library(
         ":extern_plugin_hdrs",
         ":extern_profiler_hdrs",
         ":extern_protocol_hdrs",
+        ":extern_python_hdrs",
         ":extern_registration_hdrs",
         ":extern_search_hdrs",
         ":extern_serde_hdrs",

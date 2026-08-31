@@ -1,124 +1,194 @@
 module;
 
-#include "c/abi/api.h"
+#include "c/extern/python/python.h"
 
 export module cc_abi_builder:python;
 
 import std;
 import cc_abi_primitives;
-import cc_abi_sonic_intern;
 
 export namespace ice::builder {
 
-// Python API wrapper — thin adapters over the C ABI's TF_* graph/session functions
-// (api.h), not a C ABI of their own. The previous version called tensorflow::* C++
-// helpers that do not exist in this repo (include/c is declaration-only); these now
-// call the declared TF_* entry points directly. All members are noexcept — the
-// std::expected return is the only failure channel.
-class PythonApiBuilder
+// Abstract base class for a Python API backend — pure interface, zero C-ABI/TF_* knowledge,
+// mirrors ice::builder::Logger's role. A backend implements this directly and registers a
+// factory function pointer into ice::sonic::Registration under type="python".
+class PythonApi
 {
 public:
-    PythonApiBuilder() noexcept = default;
-    ~PythonApiBuilder() noexcept = default;
-
-    // Graph mutation helpers
-    static void add_control_input(TF_Graph* graph, TF_Operation* op, TF_Operation* input) noexcept
+    // Recover the PythonApi instance from the opaque void* context slot that every
+    // C vtable callback receives.  Named accessor so the cast intent is explicit
+    // at the call site and the static_cast appears exactly once, here.
+    static PythonApi* create(void* ctx) noexcept
     {
-        TF_AddOperationControlInput(graph, op, input);
+        return static_cast<PythonApi*>(ctx);
     }
 
-    [[nodiscard]] static std::expected<void, ice::Status> set_attr(
+    virtual ~PythonApi() = default;
+
+    virtual ice::String get_name() const noexcept = 0;
+
+    virtual void
+    add_control_input(TF_Graph* graph, TF_Operation* op, TF_Operation* input) noexcept = 0;
+
+    [[nodiscard]] virtual std::expected<void, ice::Status> set_attr(
         TF_Graph* graph,
         TF_Operation* op,
         const ice::String& attr_name,
-        TF_Buffer* attr_value_proto
-    ) noexcept
-    {
-        ice::Status status;
-        TF_SetAttr(graph, op, attr_name.c_str(), attr_value_proto, status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
+        TF_Buffer_Data* attr_value_proto
+    ) noexcept = 0;
 
-    [[nodiscard]] static std::expected<void, ice::Status>
-    clear_attr(TF_Graph* graph, TF_Operation* op, const ice::String& attr_name) noexcept
-    {
-        ice::Status status;
-        TF_ClearAttr(graph, op, attr_name.c_str(), status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    clear_attr(TF_Graph* graph, TF_Operation* op, const ice::String& attr_name) noexcept = 0;
 
-    static void
-    set_full_type(TF_Graph* graph, TF_Operation* op, const TF_Buffer* full_type_proto) noexcept
-    {
-        TF_SetFullType(graph, op, full_type_proto);
-    }
+    virtual void set_full_type(
+        TF_Graph* graph,
+        TF_Operation* op,
+        const TF_Buffer_Data* full_type_proto
+    ) noexcept = 0;
 
-    static void
-    set_requested_device(TF_Graph* graph, TF_Operation* op, const ice::String& device) noexcept
-    {
-        TF_SetRequestedDevice(graph, op, device.c_str());
-    }
+    virtual void
+    set_requested_device(TF_Graph* graph, TF_Operation* op, const ice::String& device) noexcept = 0;
 
-    [[nodiscard]] static std::expected<void, ice::Status>
-    update_edge(TF_Graph* graph, TF_Output new_src, TF_Input dst) noexcept
-    {
-        ice::Status status;
-        TF_UpdateEdge(graph, new_src, dst, status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    update_edge(TF_Graph* graph, TF_Output new_src, TF_Input dst) noexcept = 0;
 
-    [[nodiscard]] static std::expected<void, ice::Status> extend_session(TF_Session* session) noexcept
-    {
-        ice::Status status;
-        TF_ExtendSession(session, status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    extend_session(TF_Session* session) noexcept = 0;
 
-    // The C ABI's TF_GetHandleShapeAndType returns a TF_Buffer whose backing runtime is not
-    // linked into this repo (include/c is declaration-only), so the wrapper reports the
-    // capability as unavailable rather than dereferencing an uninitialized buffer.
-    [[nodiscard]] static std::expected<ice::String, ice::Status>
-    get_handle_shape_and_type(TF_Graph* /*graph*/, TF_Output /*output*/) noexcept
-    {
-        return std::unexpected{ice::Status{"TF buffer runtime not linked in this build"}};
-    }
+    [[nodiscard]] virtual std::expected<TF_Buffer_Data*, ice::Status>
+    get_handle_shape_and_type(TF_Graph* graph, TF_Output output) noexcept = 0;
 
-    [[nodiscard]] static std::expected<void, ice::Status> set_handle_shape_and_type(
+    [[nodiscard]] virtual std::expected<void, ice::Status> set_handle_shape_and_type(
         TF_Graph* graph,
         TF_Output output,
         const void* proto,
         size_t proto_len
-    ) noexcept
-    {
-        ice::Status status;
-        TF_SetHandleShapeAndType(graph, output, proto, proto_len, status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
+    ) noexcept = 0;
 
-    [[nodiscard]] static std::expected<void, ice::Status>
-    add_while_input_hack(TF_Graph* graph, TF_Output new_src, TF_Operation* dst) noexcept
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    add_while_input_hack(TF_Graph* graph, TF_Output new_src, TF_Operation* dst) noexcept = 0;
+
+    static TF_Python* get_generic_vtable()
     {
-        ice::Status status;
-        TF_AddWhileInputHack(graph, new_src, dst, status.get_handle());
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        static TF_Python vtable = {
+            .struct_size = TF_PYTHON_STRUCT_SIZE,
+            .destroy =
+                [](void* plugin_context) noexcept
+            {
+                delete PythonApi::create(plugin_context);
+            },
+            .get_name =
+                [](void* plugin_context, TF_String* out) noexcept
+            {
+                PythonApi::create(plugin_context)->get_name().to_c(out);
+            },
+            .add_control_input =
+                [](void* plugin_context, TF_Graph* graph, TF_Operation* op, TF_Operation* input) noexcept
+            {
+                PythonApi::create(plugin_context)->add_control_input(graph, op, input);
+            },
+            .set_attr =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Operation* op,
+                   const TF_TString* attr_name,
+                   TF_Buffer_Data* attr_value_proto,
+                   TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)
+                               ->set_attr(graph, op, ice::String::create(attr_name), attr_value_proto);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .clear_attr =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Operation* op,
+                   const TF_TString* attr_name,
+                   TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)
+                               ->clear_attr(graph, op, ice::String::create(attr_name));
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .set_full_type =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Operation* op,
+                   const TF_Buffer_Data* full_type_proto) noexcept
+            {
+                PythonApi::create(plugin_context)->set_full_type(graph, op, full_type_proto);
+            },
+            .set_requested_device =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Operation* op,
+                   const TF_TString* device) noexcept
+            {
+                PythonApi::create(plugin_context)
+                    ->set_requested_device(graph, op, ice::String::create(device));
+            },
+            .update_edge =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Output new_src,
+                   TF_Input dst,
+                   TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)->update_edge(graph, new_src, dst);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .extend_session =
+                [](void* plugin_context, TF_Session* session, TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)->extend_session(session);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .get_handle_shape_and_type =
+                [](void* plugin_context, TF_Graph* graph, TF_Output output) noexcept
+                -> TF_Buffer_Data*
+            {
+                auto res = PythonApi::create(plugin_context)->get_handle_shape_and_type(graph, output);
+                if (!res) {
+                    return nullptr; // no status slot — allocator contract
+                }
+                return res.value();
+            },
+            .set_handle_shape_and_type =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Output output,
+                   const void* proto,
+                   size_t proto_len,
+                   TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)
+                               ->set_handle_shape_and_type(graph, output, proto, proto_len);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .add_while_input_hack =
+                [](void* plugin_context,
+                   TF_Graph* graph,
+                   TF_Output new_src,
+                   TF_Operation* dst,
+                   TF_Status* status) noexcept
+            {
+                auto res = PythonApi::create(plugin_context)->add_while_input_hack(graph, new_src, dst);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+        };
+        return &vtable;
     }
 };
 

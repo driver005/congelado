@@ -33,6 +33,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
+        void (*get_name)(void* plugin_context, TF_String* out);
         void (*get_device_type)(void* plugin_context, TF_String* out);
         void (*start)(void* plugin_context, TF_Status* status);
         void (*stop)(void* plugin_context, TF_Status* status);

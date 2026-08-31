@@ -4,10 +4,8 @@ congelado_module_library(
     name = "cc_abi_sonic_intern",
     primary_interface = "intern.cppm",
     partitions = [
-        "allocator_attributes.cppm",
         "buffer.cppm",
         "datatype.cppm",
-        "file_statistics.cppm",
         "runtime.cppm",
         "shape.cppm",
         "tensor.cppm",

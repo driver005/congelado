@@ -46,10 +46,11 @@ Every creator documents the matching destroyer; destroyers are null-safe.
   io, otel, env, env/thread, registration).
 
 ### P5 — One slot-naming dialect
-Lowercase `snake_case` with `__` separating sub-object slots (`function__destroy`,
-`span__set_attribute`).
-- ✅ extern tier: `destroy`, `get_name`, `function__add_parameter`.
+Lowercase `snake_case` with a single `_` separating sub-object slots (`function_destroy`,
+`span_set_attribute`).
+- ✅ extern tier: `destroy`, `get_name`, `function_add_parameter`.
 - ✅ fixed: intern slots renamed to the extern dialect (`allocate_tensor`, `get_name`, `tensor_bitcast_from`, `new_shape`, `data_type_size`…); `get_buffer` slot return type corrected to `TF_Buffer_Data`; the two bitcast slots gained `TF_Status*`.
+- ✅ updated (2026-08-29): `__` sub-object separator replaced with `_` ABI-wide (`function__add_parameter` → `function_add_parameter`, `request__set_header` → `request_set_header`, `server__start` → `server_start`, …) — single underscore is the one dialect everywhere.
 
 ### P6 — Context parameter: first, and uniformly named
 Every vtable slot's first parameter is the owning context. Root backends: `plugin_context`.

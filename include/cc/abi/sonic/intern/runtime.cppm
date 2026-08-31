@@ -31,7 +31,7 @@ public:
 
     template<typename... Args>
     [[nodiscard]] static std::expected<std::unique_ptr<T>, ice::Status>
-    create(std::string_view name, Args&&... args) noexcept
+    resolve(std::string_view name, Args&&... args) noexcept
     {
         try {
             ice::String name_str{name};

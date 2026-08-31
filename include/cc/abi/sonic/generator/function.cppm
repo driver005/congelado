@@ -10,7 +10,7 @@ import cc_abi_primitives;
 
 export namespace ice::sonic {
 
-// C ABI adapter for the flat TF_Generator vtable's function__* slots. Owning —
+// C ABI adapter for the flat TF_Generator vtable's function_* slots. Owning —
 // this wraps a real opened construction resource (the plugin released ownership
 // when create_function returned the handle), non-copyable, destroys the
 // handle in its destructor — same ownership shape as the Generator runtime
@@ -27,7 +27,7 @@ public:
     ~Function()
     {
         if (m_ops && m_handle) {
-            m_ops->function__destroy(m_handle);
+            m_ops->function_destroy(m_handle);
         }
     }
 
@@ -40,7 +40,7 @@ public:
     add_parameter(const ice::String& name, const ice::String& type_text) noexcept
     {
         ice::Status status;
-        TF_Generator_Parameter* handle = m_ops->function__add_parameter(
+        TF_Generator_Parameter* handle = m_ops->function_add_parameter(
             m_handle,
             name.get_handle(),
             type_text.get_handle(),
@@ -48,7 +48,7 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->parameter__destroy(handle);
+                m_ops->parameter_destroy(handle);
             }
             return std::unexpected{status};
         }
@@ -63,7 +63,7 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops->function__add_node(
+        m_ops->function_add_node(
             m_handle,
             def_context,
             operands->get_handle(),
@@ -80,7 +80,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> finish(ice::TensorHandle outputs) noexcept
     {
         ice::Status status;
-        m_ops->function__finish(m_handle, outputs.get_handle(), status.get_handle());
+        m_ops->function_finish(m_handle, outputs.get_handle(), status.get_handle());
         if (!status.ok()) {
             return std::unexpected{status};
         }

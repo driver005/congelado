@@ -18,7 +18,7 @@ public:
     ~Tracer()
     {
         if (m_ops && m_handle) {
-            m_ops->tracer__destroy(m_handle);
+            m_ops->tracer_destroy(m_handle);
         }
     }
 
@@ -33,10 +33,11 @@ public:
     {
     }
 
-    std::unique_ptr<ice::sonic::Span> start_span(const ice::String& name, ice::SpanKind kind) noexcept
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Span>, ice::Status>
+    start_span(const ice::String& name, ice::SpanKind kind) noexcept
     {
         ice::Status status;
-        TF_Otel_Span* handle = m_ops->tracer__start_span(
+        TF_Otel_Span* handle = m_ops->tracer_start_span(
             m_handle,
             name.get_handle(),
             ice::span_kind_to_c(kind),
@@ -44,9 +45,9 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->span__destroy(handle);
+                m_ops->span_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Span>(m_ops, handle);
     }
@@ -62,7 +63,7 @@ public:
     ~Meter()
     {
         if (m_ops && m_handle) {
-            m_ops->meter__destroy(m_handle);
+            m_ops->meter_destroy(m_handle);
         }
     }
 
@@ -77,11 +78,11 @@ public:
     {
     }
 
-    std::unique_ptr<ice::sonic::Counter>
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Counter>, ice::Status>
     create_counter(const ice::String& name, const ice::String& description, const ice::String& unit) noexcept
     {
         ice::Status status;
-        TF_Otel_Counter* handle = m_ops->meter__create_counter(
+        TF_Otel_Counter* handle = m_ops->meter_create_counter(
             m_handle,
             name.get_handle(),
             description.get_handle(),
@@ -90,21 +91,21 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->counter__destroy(handle);
+                m_ops->counter_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Counter>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::Histogram> create_histogram(
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Histogram>, ice::Status> create_histogram(
         const ice::String& name,
         const ice::String& description,
         const ice::String& unit
     ) noexcept
     {
         ice::Status status;
-        TF_Otel_Histogram* handle = m_ops->meter__create_histogram(
+        TF_Otel_Histogram* handle = m_ops->meter_create_histogram(
             m_handle,
             name.get_handle(),
             description.get_handle(),
@@ -113,9 +114,9 @@ public:
         );
         if (!status.ok()) {
             if (handle) {
-                m_ops->histogram__destroy(handle);
+                m_ops->histogram_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Histogram>(m_ops, handle);
     }
@@ -150,22 +151,23 @@ public:
         TF_Otel_Tracer* handle = m_ops->create_tracer(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->tracer__destroy(handle);
+                m_ops->tracer_destroy(handle);
             }
             return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Tracer>(m_ops, handle);
     }
 
-    std::unique_ptr<ice::sonic::Meter> create_meter() noexcept
+    [[nodiscard]] std::expected<std::unique_ptr<ice::sonic::Meter>, ice::Status>
+    create_meter() noexcept
     {
         ice::Status status;
         TF_Otel_Meter* handle = m_ops->create_meter(get_handle(), status.get_handle());
         if (!status.ok()) {
             if (handle) {
-                m_ops->meter__destroy(handle);
+                m_ops->meter_destroy(handle);
             }
-            return nullptr;
+            return std::unexpected{status};
         }
         return std::make_unique<ice::sonic::Meter>(m_ops, handle);
     }
