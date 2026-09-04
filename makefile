@@ -11,7 +11,7 @@
 # NOTE: plain `build`/`test`/`clean` are the Bazel targets and ignore MODE.
 MODE ?= debug
 
-.PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
+.PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test gen-cc-abi check-cc-abi compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
 
 # Default entry — Bazel is the authoritative build system.
 all: dev
@@ -187,6 +187,18 @@ inso-test:
 		--requestTimeout 15000 \
 		--reporter spec \
 		--ci
+
+# Runs cc_abi_gen (see include/cc/abi_gen/README.md) against the pilot domains (cache, logger),
+# regenerating the checked-in include/cc/abi/{builder,sonic}/{cache,logger}/*.cppm files in
+# place. It also runs automatically as part of `bazel build` via the genrules in those domains'
+# BUILD files — this target is for a manual, standalone regeneration + `git diff` review.
+gen-cc-abi:
+	bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot --repo-root "$(CURDIR)"
+
+# Dry-run form of gen-cc-abi: prints a unified diff of what generation would produce vs. the
+# current checked-in files, writes nothing, nonzero exit on any mismatch.
+check-cc-abi:
+	bazel run //include/cc/abi_gen:cc_abi_gen -- check --pilot --repo-root "$(CURDIR)"
 
 # --------------------------- Docker (podman compose) --------------------------
 
