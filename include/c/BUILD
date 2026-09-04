@@ -134,6 +134,144 @@ cc_library(
 )
 
 # =============================================================================
+# Intern layer (intern/) — ported std-lib vocabulary types
+#
+# Every ported type follows the same Ops-vtable + struct_size pattern as
+# TF_Buffer/TF_Shape, uniformly across the C ABI layer — headers-only,
+# declaration-only for now. Wrapper/combinator concepts (optional,
+# expected/result, reference_wrapper, unique_ptr/shared_ptr/weak_ptr,
+# pair/tuple/variant, function) deliberately have no C intern type at all
+# — they're implemented directly in the C++ runtime layer over these
+# ABI-safe primitives, not represented here.
+# =============================================================================
+
+cc_library(
+    name = "tf_hash_hdrs",
+    hdrs = ["intern/tf_hash.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_vector_hdrs",
+    hdrs = ["intern/tf_vector.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_array_hdrs",
+    hdrs = ["intern/tf_array.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_deque_hdrs",
+    hdrs = ["intern/tf_deque.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_list_hdrs",
+    hdrs = ["intern/tf_list.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_forward_list_hdrs",
+    hdrs = ["intern/tf_forward_list.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_hive_hdrs",
+    hdrs = ["intern/tf_hive.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_map_hdrs",
+    hdrs = ["intern/tf_map.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_set_hdrs",
+    hdrs = ["intern/tf_set.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_span_hdrs",
+    hdrs = ["intern/tf_span.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_duration_hdrs",
+    hdrs = ["intern/tf_duration.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_time_point_hdrs",
+    hdrs = ["intern/tf_time_point.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_duration_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_complex_hdrs",
+    hdrs = ["intern/tf_complex.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+cc_library(
+    name = "tf_bitset_hdrs",
+    hdrs = ["intern/tf_bitset.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+    ],
+)
+
+# =============================================================================
 # Extern layer — subdirectory headers (extern/<name>/<name>.h)
 # =============================================================================
 
@@ -377,14 +515,28 @@ cc_library(
         ":extern_search_hdrs",
         ":extern_serde_hdrs",
         ":extern_worker_hdrs",
+        ":tf_array_hdrs",
         ":tf_attrtype_hdrs",
+        ":tf_bitset_hdrs",
         ":tf_buffer_hdrs",
+        ":tf_complex_hdrs",
         ":tf_datatype_hdrs",
+        ":tf_deque_hdrs",
+        ":tf_duration_hdrs",
         ":tf_file_statistics_hdrs",
+        ":tf_forward_list_hdrs",
+        ":tf_hash_hdrs",
+        ":tf_hive_hdrs",
+        ":tf_list_hdrs",
+        ":tf_map_hdrs",
+        ":tf_set_hdrs",
         ":tf_shape_hdrs",
+        ":tf_span_hdrs",
         ":tf_status_hdrs",
         ":tf_tensor_hdrs",
+        ":tf_time_point_hdrs",
         ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
     ],
 )
 

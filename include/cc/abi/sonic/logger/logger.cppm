@@ -11,8 +11,6 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-// Runtime — the mainframe-facing logger handle. Same in-process/cross-plugin duality as
-// ice::sonic::Cache and ice::sonic::Generator.
 class Logger : public ice::sonic::Runtime<Logger, TF_Logger>
 {
 public:

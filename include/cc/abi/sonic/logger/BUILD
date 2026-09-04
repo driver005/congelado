@@ -1,12 +1,14 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
+# See include/cc/abi/builder/logger/BUILD's header comment for the pattern this mirrors.
+
 # Mainframe-facing logger handle (ice::sonic::Logger) + the C-ABI adapter it uses to
 # cross into a loaded plugin. The adapter is standalone (no dependency on the builder
 # tier); cc_abi_sonic_registration provides the in-process factory lookup — never on
 # any specific logger backend implementation.
 congelado_module_library(
     name = "cc_abi_sonic_logger",
-    primary_interface = "logger.cppm",
+    primary_interface = "//include/cc/abi_gen:generated/sonic/logger/logger.cppm",
     partitions = [
         ],
     deps = [

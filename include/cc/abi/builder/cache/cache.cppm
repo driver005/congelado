@@ -12,16 +12,9 @@ import cc_abi_sonic_intern;
 
 export namespace ice::builder {
 
-// Abstract base class for a cache backend — pure interface, zero C-ABI/TF_* knowledge, mirrors
-// ice::builder::Generator's role. A backend implements this directly and registers a
-// factory function pointer into ice::sonic::Registration under type="cache"; this module
-// never imports any specific backend implementation.
 class Cache
 {
 public:
-    // Recover the Cache instance from the opaque void* context slot that every
-    // C vtable callback receives.  Named accessor so the cast intent is explicit
-    // at the call site and the static_cast appears exactly once, here.
     static Cache* create(void* ctx) noexcept
     {
         return static_cast<Cache*>(ctx);
@@ -31,15 +24,16 @@ public:
 
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept = 0;
-
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set(const ice::String& key,
         const ice::String& value,
         TF_Cache_CompletionFn completion,
         void* cb_user_data) noexcept = 0;
-
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    remove(const ice::String& key, TF_Cache_CompletionFn completion, void* cb_user_data) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> remove(
+        const ice::String& key,
+        TF_Cache_CompletionFn completion,
+        void* cb_user_data
+    ) noexcept = 0;
 
     virtual ice::String get_name() const noexcept = 0;
 
@@ -103,7 +97,7 @@ public:
                 if (!res) {
                     res.error().to_c(status);
                 }
-            }
+            },
         };
         return &vtable;
     }

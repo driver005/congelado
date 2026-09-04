@@ -11,9 +11,6 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-// Runtime — cross-plugin C ABI handle. Genuine third-party plugins are independently built
-// (possibly by a different compiler/toolchain), so this always crosses the opaque-handle C ABI
-// to avoid C++ ABI incompatibility (no in-process virtual method sharing).
 class Cache : public ice::sonic::Runtime<Cache, TF_Cache>
 {
 public:
