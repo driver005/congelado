@@ -175,7 +175,7 @@ private:
 
         std::cerr << std::format("[cc_abi_gen] parsing {}\n", *options.m_header);
 
-        auto model = m_header_parser.parse(*options.m_header, repo_root / "include");
+        auto model = m_parser.parse(*options.m_header, repo_root / "include");
         if (!model) {
 
             std::cerr << model.error() << "\n";
@@ -228,7 +228,7 @@ private:
 
             std::cerr << std::format("[cc_abi_gen] parsing {}\n", paths.m_header.string());
 
-            auto model = m_header_parser.parse(paths.m_header, repo_root / "include");
+            auto model = m_parser.parse(paths.m_header, repo_root / "include");
             if (!model) {
 
                 std::cerr << model.error() << "\n";
@@ -303,7 +303,7 @@ private:
 
             std::cerr << std::format("[cc_abi_gen] parsing {}\n", paths.m_header.string());
 
-            auto model = m_header_parser.parse(paths.m_header, repo_root / "include");
+            auto model = m_parser.parse(paths.m_header, repo_root / "include");
             if (!model) {
 
                 std::cerr << model.error() << "\n";
@@ -330,7 +330,7 @@ private:
     std::vector<std::string> m_arguments;
     std::vector<std::string> m_pilot_domains{"cache", "logger"};
     TypeRegistry m_type_registry;
-    HeaderParser m_header_parser;
+    HeaderParser m_parser;
     BuilderEmitter m_builder_emitter{m_type_registry};
     SonicEmitter m_sonic_emitter{m_type_registry};
     GeneratedFileWriter m_writer;

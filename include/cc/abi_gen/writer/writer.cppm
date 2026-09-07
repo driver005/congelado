@@ -1,6 +1,72 @@
-export module cc_abi_gen_writer;
+export module cc_abi_gen_writer:writer;
 
-export import :diff_result;
-export import :clang_format_runner;
-export import :diff_reporter;
-export import :generated_file_writer;
+import std;
+import :runner_diff;
+import :runner_format;
+import :helper_diff;
+
+export namespace cc_abi_gen::writer {
+
+class Writer
+{
+public:
+    Writer() = default;
+    ~Writer() = default;
+
+    Writer(const Writer&) = delete;
+    Writer(Writer&&) = delete;
+    Writer& operator=(const Writer&) = delete;
+    Writer& operator=(Writer&&) = delete;
+
+    std::expected<void, std::string> write(
+        const std::string& rendered_text,
+        const std::filesystem::path& out_path,
+        const std::filesystem::path& repo_root
+    )
+    {
+        auto formatted = m_formatter.format(rendered_text, repo_root);
+        if (!formatted) {
+            return std::unexpected{formatted.error()};
+        }
+
+        std::error_code error;
+        std::filesystem::create_directories(out_path.parent_path(), error);
+
+        std::ofstream out(out_path);
+        if (!out) {
+            return std::unexpected{"failed to write: " + out_path.string()};
+        }
+        out << *formatted;
+
+        return {};
+    }
+
+    std::expected<DiffResult, std::string> diff(
+        const std::string& rendered_text,
+        const std::filesystem::path& real_path,
+        const std::filesystem::path& repo_root
+    )
+    {
+        auto formatted = m_formatter.format(rendered_text, repo_root);
+        if (!formatted) {
+            return std::unexpected{formatted.error()};
+        }
+
+        return m_diff.compare(real_path, *formatted);
+    }
+
+    const Formatter& get_formatter() const
+    {
+        return m_formatter;
+    }
+
+    const DiffReporter& get_diff_reporter() const
+    {
+        return m_diff;
+    }
+
+private:
+    Formatter m_formatter;
+    Diff m_diff;
+};
+} // namespace cc_abi_gen::writer

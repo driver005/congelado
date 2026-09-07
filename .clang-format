@@ -12,7 +12,7 @@ ConstructorInitializerIndentWidth: 4
 IndentCaseLabels: true
 IndentCaseBlocks: true
 IndentExternBlock: Indent
-IndentPPDirectives: AfterHash
+IndentPPDirectives: BeforeHash
 IndentRequiresClause: true
 IndentWrappedFunctionNames: false
 NamespaceIndentation: Inner
@@ -150,6 +150,12 @@ NumericLiteralCase:
   ExponentLetter: Lower
   HexDigit: Upper
   Prefix: Lower
+
+RawStringFormats:
+  - Language: Cpp
+    Delimiters:
+      - cpp
+    BasedOnStyle: LLVM
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 InsertNewlineAtEOF: true

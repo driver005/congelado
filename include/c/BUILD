@@ -276,42 +276,38 @@ cc_library(
 # =============================================================================
 
 cc_library(
-    name = "extern_cache_hdrs",
-    hdrs = ["extern/cache/cache.h"],
+    name = "extern_store_hdrs",
+    hdrs = ["extern/store/store.h"],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_map_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
     ],
 )
 
 cc_library(
-    name = "extern_cron_hdrs",
-    hdrs = ["extern/cron/cron.h"],
+    name = "extern_pubsub_hdrs",
+    hdrs = ["extern/pubsub/pubsub.h"],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_map_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
     ],
 )
 
 cc_library(
-    name = "extern_database_hdrs",
-    hdrs = ["extern/database/database.h"],
+    name = "extern_job_hdrs",
+    hdrs = ["extern/job/job.h"],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_map_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
-    ],
-)
-
-cc_library(
-    name = "extern_events_hdrs",
-    hdrs = ["extern/events/events.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
     ],
 )
 
@@ -335,22 +331,8 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_io_enums_hdrs",
-    hdrs = ["extern/io/enums.h"],
-    deps = [":c_api_macros_hdrs"],
-)
-
-cc_library(
-    name = "extern_io_hdrs",
-    hdrs = ["extern/io/io.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-    ],
-)
-
-cc_library(
-    name = "extern_logger_hdrs",
-    hdrs = ["extern/logger/logger.h"],
+    name = "extern_socket_hdrs",
+    hdrs = ["extern/io/socket.h"],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_status_hdrs",
@@ -359,24 +341,53 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_manager_hdrs",
-    hdrs = ["extern/manager/manager.h"],
+    name = "extern_request_hdrs",
+    hdrs = ["extern/io/request.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":extern_worker_hdrs",
+        ":tf_map_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
 )
 
 cc_library(
-    name = "extern_orchestrator_hdrs",
-    hdrs = ["extern/orchestrator/orchestrator.h"],
+    name = "extern_response_hdrs",
+    hdrs = ["extern/io/response.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":extern_worker_hdrs",
+        ":tf_map_hdrs",
         ":tf_status_hdrs",
         ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
+    ],
+)
+
+cc_library(
+    name = "extern_server_hdrs",
+    hdrs = ["extern/io/server.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":extern_request_hdrs",
+        ":extern_response_hdrs",
+        ":tf_map_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
+    ],
+)
+
+cc_library(
+    name = "extern_client_hdrs",
+    hdrs = ["extern/io/client.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":extern_request_hdrs",
+        ":extern_response_hdrs",
+        ":tf_map_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
+        ":tf_vector_hdrs",
     ],
 )
 
@@ -391,16 +402,6 @@ cc_library(
     deps = [
         ":c_api_macros_hdrs",
         ":extern_otel_enums_hdrs",
-    ],
-)
-
-cc_library(
-    name = "extern_payload_hdrs",
-    hdrs = ["extern/payload/payload.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tstring_hdrs",
     ],
 )
 
@@ -422,30 +423,10 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_protocol_hdrs",
-    hdrs = ["extern/protocol/protocol.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tstring_hdrs",
-    ],
-)
-
-cc_library(
     name = "extern_python_hdrs",
     hdrs = ["extern/python/python.h"],
     deps = [
         ":c_api_hdrs",
-        ":tf_tstring_hdrs",
-    ],
-)
-
-cc_library(
-    name = "extern_search_hdrs",
-    hdrs = ["extern/search/search.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
         ":tf_tstring_hdrs",
     ],
 )
@@ -460,31 +441,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "extern_worker_hdrs",
-    hdrs = ["extern/worker/worker.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tstring_hdrs",
-    ],
-)
-
-cc_library(
-    name = "extern_registration_hdrs",
-    hdrs = [
-        "extern/registration/registration.h",
-    ],
-    srcs = ["extern/registration/registration.cc"],
-    copts = congelado_copts(),
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tstring_hdrs",
-    ],
-)
-
-# =============================================================================
 
 # =============================================================================
 # Aggregate: c_api_headers — the public TF C API surface
@@ -495,26 +451,22 @@ cc_library(
     deps = [
         ":c_api_hdrs",
         ":c_api_macros_hdrs",
-        ":extern_cache_hdrs",
-        ":extern_cron_hdrs",
-        ":extern_database_hdrs",
-        ":extern_events_hdrs",
+        ":extern_client_hdrs",
         ":extern_filesystem_hdrs",
         ":extern_generator_hdrs",
-        ":extern_io_hdrs",
-        ":extern_logger_hdrs",
-        ":extern_manager_hdrs",
-        ":extern_orchestrator_hdrs",
+        ":extern_job_hdrs",
         ":extern_otel_hdrs",
-        ":extern_payload_hdrs",
         ":extern_plugin_hdrs",
         ":extern_profiler_hdrs",
-        ":extern_protocol_hdrs",
+        ":extern_pubsub_hdrs",
         ":extern_python_hdrs",
         ":extern_registration_hdrs",
-        ":extern_search_hdrs",
+        ":extern_request_hdrs",
+        ":extern_response_hdrs",
         ":extern_serde_hdrs",
-        ":extern_worker_hdrs",
+        ":extern_server_hdrs",
+        ":extern_socket_hdrs",
+        ":extern_store_hdrs",
         ":tf_array_hdrs",
         ":tf_attrtype_hdrs",
         ":tf_bitset_hdrs",

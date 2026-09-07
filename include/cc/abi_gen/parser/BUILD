@@ -1,24 +1,28 @@
-load("//bazel:build_defs.bzl", "congelado_module_library")
+load("//bazel:build_defs.bzl", "congelado_cc_test", "congelado_module_library")
 
-# The only files in this tool that #include <clang/...> — those headers live under /usr/include,
-# already on the system clang toolchain's default search path
-# (bazel/toolchain/system_cc/BUILD:37-42: "System clang-22 resolves headers to real absolute
-# paths [...] rather than paths relative to a Bazel-tracked toolchain input"), so no extra
-# -isystem flag is needed (an earlier attempt at adding one broke the deps-scanner's own,
-# separately-invoked clang-scan-deps command, which resolves cstdlib's stdlib.h differently).
 congelado_module_library(
     name = "cc_abi_gen_parser",
-    primary_interface = "parser.cppm",
+    primary_interface = "base.cppm",
     partitions = [
-        "parameter.cppm",
-        "vtable_slot.cppm",
-        "vtable_model.cppm",
-        "vtable_naming.cppm",
-        "slot_reader.cppm",
-        "vtable_ast_visitor.cppm",
-        "system_include_finder.cppm",
-        "header_parser.cppm",
-        "domain_paths.cppm",
+        "helper/parameter.cppm",
+        "helper/include_finder.cppm",
+        "helper/paths.cppm",
+        "slot/reader.cppm",
+        "slot/slot.cppm",
+        "vtable/model.cppm",
+        "vtable/naming.cppm",
+        "vtable/ast_visitor.cppm",
+        "base.cppm"
+        "parser.cppm",
+        "registry.cppm"
     ],
+    deps = ["//include/cc/abi_gen/utils:cc_utils_cli"],
     visibility = ["//visibility:public"],
+)
+
+congelado_cc_test(
+    name = "parser",
+    srcs = ["parser_test.cc"],
+    data = ["//include/c:extern_client_hdrs"],
+    deps = [":cc_abi_gen_parser"],
 )
