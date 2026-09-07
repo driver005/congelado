@@ -100,23 +100,23 @@ class Client final : public interfaces::IClient {
      * yet at that point, so there's nothing to send through.
      */
     // Please pass in a HttpRequest object. Else this function will throw a std::bad_cast exception.
-    void send(interfaces::io::IRequest &req) override {
+    std::uint32_t send(interfaces::io::IRequest &req) override {
         if (!m_flow) {
             core::logger::error("http2", "send() called before the connection was established");
             core::events::publish("http2.send.not_connected");
-            return;
+            return 0;
         }
         try {
             // Downcast to the concrete request type this protocol actually knows how to frame.
             auto &http_request = dynamic_cast<HttpRequest &>(req);
 
-            m_flow->sender(http_request);
-            return;
+            return m_flow->sender(http_request);
         } catch (const std::bad_cast &e) {
             // Wrong IRequest type got routed here, no cap — log it and drop the request instead
             // of propagating the exception up to the caller.
             core::logger::error("http2", "Failed to cast IRequest to HttpRequest: {}", e.what());
             core::events::publish("http2.request.cast_failed", {{"error", e.what()}});
+            return 0;
         }
     }
 

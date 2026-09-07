@@ -11,6 +11,7 @@ congelado_module_library(
         "//include/cc/abi_gen/parser:cc_abi_gen_parser",
         "//include/cc/abi_gen/generator:cc_abi_gen_generator",
         "//include/cc/abi_gen/writer:cc_abi_gen_writer",
+        "//include/cc/utils/cli:cc_utils_cli",
     ],
     visibility = ["//visibility:private"],
 )

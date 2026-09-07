@@ -16,11 +16,7 @@ export namespace cc_abi_gen::parser::vtable {
 class AstVisitor : public clang::RecursiveASTVisitor<AstVisitor>
 {
 public:
-    AstVisitor(Naming naming, slot::Reader slot_reader) :
-        m_naming(std::move(naming)),
-        m_reader(std::move(slot_reader))
-    {
-    }
+    AstVisitor() = default;
 
     std::optional<Model> traverse_record_decl(clang::RecordDecl* record_decl)
     {

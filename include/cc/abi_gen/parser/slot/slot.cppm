@@ -21,7 +21,7 @@ public:
     {
     }
 
-    std::span<const helper::Parameter> extract_parameters()
+    std::span<const helper::Parameter> extract_parameters() const
     {
         if (has_parameter()) {
             auto params = std::span<const helper::Parameter>{m_parameters}.subspan(1);
@@ -36,7 +36,7 @@ public:
         return {};
     }
 
-    std::optional<std::reference_wrapper<helper::Parameter>> extract_failable()
+    std::optional<std::reference_wrapper<const helper::Parameter>> extract_failable() const
     {
         if (has_parameter() && is_failable()) {
             return std::ref(m_parameters.back());
@@ -45,22 +45,22 @@ public:
         return std::nullopt;
     }
 
-    bool is_failable()
+    bool is_failable() const
     {
         return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status";
     }
 
-    bool is_destroy()
+    bool is_destroy() const
     {
         return m_name == "destroy";
     }
 
-    bool is_get_name()
+    bool is_get_name() const
     {
         return m_name == "get_name";
     }
 
-    bool has_parameter()
+    bool has_parameter() const
     {
         return !m_parameters.empty();
     }

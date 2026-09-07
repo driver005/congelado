@@ -37,7 +37,7 @@ public:
     }
 
     // Example: const ice::String &
-    std::string get_ponintee_type(std::string_view namespace_name)
+    std::string get_pointee_type(std::string_view namespace_name)
     {
         return std::format("const {}::{} &", namespace_name, m_class_name);
     }
