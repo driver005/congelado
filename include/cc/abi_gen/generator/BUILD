@@ -4,7 +4,6 @@ congelado_module_library(
     name = "cc_abi_gen_generator",
     primary_interface = "generator.cppm",
     partitions = [
-        "known_type.cppm",
         "type_registry.cppm",
         "slot_classifier.cppm",
         "builder_emitter.cppm",
