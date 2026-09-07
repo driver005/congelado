@@ -2,22 +2,20 @@ export module cc_abi_gen_generator:sonic_emitter;
 
 import std;
 import cc_abi_gen_parser;
-import :type_registry;
-import :slot_classifier;
 import :helper_formater;
 
-export namespace cc_abi_gen::emitter {
+export namespace cc_abi_gen::generator::emitter {
 
 class Sonic
 {
 public:
-    Sonic(std::reference_wrapper<Register> registry, std::string_view namespace_name) :
+    Sonic(std::reference_wrapper<parser::Register> registry, std::string_view namespace_name) :
         m_registry{registry},
         m_namespace_name{namespace_name}
     {
     }
 
-    std::string render(const vtable::Model& model)
+    std::expected<std::string, std::string> render(const vtable::Model& model)
     {
         m_writer.clear();
 
@@ -34,7 +32,10 @@ public:
                 continue;
             }
 
-            write_method(slot);
+            auto method = write_method(slot);
+            if (!method.has_value()) {
+                return method;
+            }
         }
 
         m_writer += helper::format_sonic_footer();
@@ -43,19 +44,27 @@ public:
     }
 
 private:
-    void write_method(const VtableSlot& slot)
+    std::expected<void, std::string> write_method(const vtable::Slot& slot)
     {
-        std::span<const Parameter> middle = m_classifier.middle_parameters(slot);
+        std::span<const Parameter> middle = slot.extract_parameters();
 
         m_writer += helper::format_method_signature(slot.get_name(), m_namespace_name);
 
-        write_cpp_parameter_list(middle);
+        auto parameters_list = write_cpp_parameter_list(middle);
+        if (!parameters_list.has_value()) {
+            return parameters_list;
+        }
 
         m_writer += helper::format_method_body_start(slot.get_name());
 
-        write_call_arguments(middle);
+        auto call_arguments = write_call_arguments(middle);
+        if (!call_arguments.has_value()) {
+            return call_arguments;
+        }
 
         m_writer += helper::format_method_body_end();
+
+        return {};
     }
 
     std::expected<void, std::string> write_cpp_parameter_list(std::span<const Parameter> parameters)
@@ -65,27 +74,40 @@ private:
                 m_writer += ", ";
             }
 
-            auto type_name = m_registry.get().find(parameter.get_pointee_name());
-            if (!type_name.has_value()) {
+            auto model = m_registry.get().find(parameter.get_pointee_name());
+            if (!model.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
                 );
             }
 
-            m_writer +=
-                helper::format_parameter(type_name.get_ponintee_type(), parameter.get_name());
+            m_writer += helper::format_parameter(
+                model->get().get_ponintee_type(m_namespace_name),
+                parameter.get_name()
+            );
         }
+
+        return {};
     }
 
-    void write_call_arguments(std::span<const Parameter> parameters)
+    std::expected<void, std::string> write_call_arguments(std::span<const Parameter> parameters)
     {
         for (const Parameter& parameter: parameters) {
-            m_writer += parameter.unwrap_argument(parameter) + ", ";
+            auto model = m_registry.get().find(parameter.get_pointee_name());
+            if (!model.has_value()) {
+                return std::unexpected(
+                    std::format("Type {} not found in registry", parameter.get_pointee_name())
+                );
+            }
+
+            m_writer += model->get().unwrape_type(parameter.get_name()) + ", ";
         }
+
+        return {};
     }
 
     std::string m_writer;
     std::string m_namespace_name;
-    std::reference_wrapper<Register> m_registry;
+    std::reference_wrapper<parser::Register> m_registry;
 };
-} // namespace cc_abi_gen::emitter
+} // namespace cc_abi_gen::generator::emitter

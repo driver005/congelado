@@ -2,7 +2,7 @@ export module cc_abi_gen_writer:runner_diff;
 
 import std;
 import cc_utils_cli;
-import :helper_result;
+import :helper_diff;
 
 export namespace cc_abi_gen::writer {
 
@@ -20,16 +20,16 @@ public:
     std::expected<helper::DiffResult, std::string>
     compare(const std::filesystem::path& real_path, const std::string& generated_text)
     {
-        auto executable = utils::Executable("diff");
+        auto executable = cc_utils::cli::Executable("diff");
         if (!executable.is_found()) {
             return std::unexpected{"diff is not installed or not in PATH."};
         }
 
-        auto cmd = utils::Command(std::move(executable))
-                       .arguments(utils::Arguments{"-u", real_path.string(), "-"})
+        auto cmd = cc_utils::cli::Command(std::move(executable))
+                       .arguments(cc_utils::cli::Arguments{"-u", real_path.string(), "-"})
                        .input(std::string(generated_text));
 
-        auto run_result = m_runner.execute(cmd);
+        auto run_result = m_runner.execute(std::move(cmd));
 
         if (!run_result) {
             return std::unexpected{run_result.error()};
@@ -44,27 +44,26 @@ public:
         }
 
         std::println(
-            std::format(
-                "diff succeeded in {}ms. Exit Code: {}",
-                run_result->get_duration().count(),
-                run_result->get_exit_code()
-            )
+            "diff succeeded in {}ms. Exit Code: {}",
+            run_result->get_duration().count(),
+            run_result->get_exit_code()
         );
 
+        auto code = (run_result->get_exit_code() == 0);
         return helper::DiffResult{
-            (run_result->get_exit_code() == 0),
-            run_result->get_std_out(),
-            run_result->get_duration()
+            code,
+            std::move(run_result->get_std_out()),
+            std::move(run_result->get_duration())
         };
     }
 
-    const utils::CommandRunner& get_runner() const
+    const cc_utils::cli::Runner& get_runner() const
     {
         return m_runner;
     }
 
 private:
-    utils::CommandRunner m_runner;
+    cc_utils::cli::Runner m_runner;
 };
 
 } // namespace cc_abi_gen::writer

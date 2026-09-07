@@ -460,7 +460,7 @@ cc_library(
         ":extern_profiler_hdrs",
         ":extern_pubsub_hdrs",
         ":extern_python_hdrs",
-        ":extern_registration_hdrs",
+        # ":extern_registration_hdrs",  # include/c/extern/registration/ deleted, rule never re-added
         ":extern_request_hdrs",
         ":extern_response_hdrs",
         ":extern_serde_hdrs",

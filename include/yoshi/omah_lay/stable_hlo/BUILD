@@ -66,29 +66,29 @@ genrule(
 #                                         C-ABI-crossable tier; stable_hlo.cc registers its
 #                                         factory function pointer into
 #                                         ice::sonic::Registration instead)
-congelado_module_library(
-    name = "yoshi_omah_lay_stable_hlo",
-    primary_interface = "stable_hlo.cppm",
-    partitions = [
-        "base/dtype.cppm",
-        "base/shape.cppm",
-        "base/parameter.cppm",
-        "base/attribute.cppm",
-        "skipper/operation.cppm",
-        "skipper/function.cppm",
-        "skipper/module.cppm",
-        "table.cppm",
-        "builder.cppm",
-    ],
-    deps = [
-        "//include/c:tf_c_headers",  # dtype.cppm's get_data_type() maps onto TF_DataType
-        "//include/cc/abi/builder/generator:cc_abi_builder_generator",
-        "//include/cc/abi/builder/intern:cc_abi_builder_intern",  # DataTypeEnum for handle tensors
-        "//include/cc/abi/primitives:cc_abi_primitives",
-        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-    ],
-    visibility = ["//visibility:public"],
-)
+# congelado_module_library(
+#     name = "yoshi_omah_lay_stable_hlo",
+#     primary_interface = "stable_hlo.cppm",
+#     partitions = [
+#         "base/dtype.cppm",
+#         "base/shape.cppm",
+#         "base/parameter.cppm",
+#         "base/attribute.cppm",
+#         "skipper/operation.cppm",
+#         "skipper/function.cppm",
+#         "skipper/module.cppm",
+#         "table.cppm",
+#         "builder.cppm",
+#     ],
+#     deps = [
+#         "//include/c:tf_c_headers",  # dtype.cppm's get_data_type() maps onto TF_DataType
+#         "//include/cc/abi/builder/generator:cc_abi_builder_generator",
+#         "//include/cc/abi/builder/intern:cc_abi_builder_intern",  # DataTypeEnum for handle tensors
+#         "//include/cc/abi/primitives:cc_abi_primitives",
+#         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
+#     ],
+#     visibility = ["//visibility:public"],
+# )
 
 # Shared-library entry point for yoshi::core::PluginLoader (include/yoshi/lucki/plugin) — a
 # init_plugin export (c/extern/plugin/registration.h) whose only job is existing as a
@@ -96,16 +96,16 @@ congelado_module_library(
 # ice::sonic::Registration (cc_abi_sonic_registration) under type="generator" — the
 # process-wide shared storage (backed by //include/c:registration_shared, linkshared) that
 # makes the registration visible to the host process once this .so is dlopen'd.
-congelado_cc_binary(
-    name = "stable_hlo_plugin",
-    srcs = ["stable_hlo.cc"],
-    linkshared = True,
-    deps = [
-        ":yoshi_omah_lay_stable_hlo",
-        "//include/c:extern_generator_hdrs",
-        "//include/c:extern_plugin_hdrs",
-        "//include/cc/abi/primitives:cc_abi_primitives",
-        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-        "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",
-    ],
-)
+# congelado_cc_binary(
+#     name = "stable_hlo_plugin",
+#     srcs = ["stable_hlo.cc"],
+#     linkshared = True,
+#     deps = [
+#         ":yoshi_omah_lay_stable_hlo",
+#         "//include/c:extern_generator_hdrs",
+#         "//include/c:extern_plugin_hdrs",
+#         "//include/cc/abi/primitives:cc_abi_primitives",
+#         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
+#         "//include/cc/abi/sonic/registration:cc_abi_sonic_registration",
+#     ],
+# )

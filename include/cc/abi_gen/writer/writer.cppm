@@ -2,7 +2,7 @@ export module cc_abi_gen_writer:writer;
 
 import std;
 import :runner_diff;
-import :runner_format;
+import :runner_formater;
 import :helper_diff;
 
 export namespace cc_abi_gen::writer {
@@ -41,7 +41,7 @@ public:
         return {};
     }
 
-    std::expected<DiffResult, std::string> diff(
+    std::expected<helper::DiffResult, std::string> diff(
         const std::string& rendered_text,
         const std::filesystem::path& real_path,
         const std::filesystem::path& repo_root
@@ -60,7 +60,7 @@ public:
         return m_formatter;
     }
 
-    const DiffReporter& get_diff_reporter() const
+    const Diff& get_diff_reporter() const
     {
         return m_diff;
     }

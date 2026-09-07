@@ -64,6 +64,53 @@ cc_args(
     tags = ["manual"],
 )
 
+# Module actions' own replacement for the include_paths/quote_include_paths/
+# system_include_paths/external_include_paths variables (see MODULE.bazel's widened-patch
+# comment) — these carry the -I/-iquote/-isystem flags Bazel derives from a target's `deps`'
+# propagated CcInfo (e.g. an external repo's include dir), as opposed to
+# module_actions_user_compile_flags above, which only ever carries the target's own copts.
+# Without these, any module-partition source that #includes a header from an external repo
+# (@reflect_cpp, @simdjson, @tomlplusplus, @stduuid, ...) fails C++20-modules dependency
+# scanning with "file not found" even when the dep is declared correctly — mirrors
+# rules_cc's own cc/toolchains/args/include_flags/BUILD and .../external_include_paths/BUILD,
+# just rescoped to MODULE_ACTIONS instead of source_compile_actions/compile_actions.
+cc_args(
+    name = "module_actions_quote_include_paths",
+    actions = MODULE_ACTIONS,
+    args = ["-iquote", "{quote_include_paths}"],
+    format = {"quote_include_paths": "@rules_cc//cc/toolchains/variables:quote_include_paths"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:quote_include_paths",
+    tags = ["manual"],
+)
+
+cc_args(
+    name = "module_actions_include_paths",
+    actions = MODULE_ACTIONS,
+    args = ["-I{include_paths}"],
+    format = {"include_paths": "@rules_cc//cc/toolchains/variables:include_paths"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:include_paths",
+    tags = ["manual"],
+)
+
+cc_args(
+    name = "module_actions_system_include_paths",
+    actions = MODULE_ACTIONS,
+    args = ["-isystem", "{system_include_paths}"],
+    format = {"system_include_paths": "@rules_cc//cc/toolchains/variables:system_include_paths"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:system_include_paths",
+    tags = ["manual"],
+)
+
+cc_args(
+    name = "module_actions_external_include_paths",
+    actions = MODULE_ACTIONS,
+    args = ["-isystem", "{external_include_paths}"],
+    format = {"external_include_paths": "@rules_cc//cc/toolchains/variables:external_include_paths"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:external_include_paths",
+    requires_not_none = "@rules_cc//cc/toolchains/variables:external_include_paths",
+    tags = ["manual"],
+)
+
 cc_args(
     name = "module_actions_input_flags",
     actions = MODULE_ACTIONS,
@@ -198,6 +245,10 @@ cc_toolchain(
     args = [
         ":absolute_system_includes",
         ":module_actions_user_compile_flags",
+        ":module_actions_quote_include_paths",
+        ":module_actions_include_paths",
+        ":module_actions_system_include_paths",
+        ":module_actions_external_include_paths",
         ":cpp20_module_compile_flags",
         ":module_actions_input_flags",
         ":module_actions_output_flags",

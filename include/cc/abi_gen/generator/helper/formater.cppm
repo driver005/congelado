@@ -4,7 +4,7 @@ import std;
 
 export namespace cc_abi_gen::helper {
 
-export enum class GenTarget
+enum class GenTarget
 {
     Builder,
     Sonic
@@ -15,7 +15,7 @@ inline std::string format_header(
     std::string_view domain_name,
     std::string_view cc_class_name,
     std::string_view namespace_name,
-    std::string_view c_struct_name = "",
+    std::string_view c_struct_name = ""
 )
 {
     struct Config
@@ -147,7 +147,7 @@ inline std::string format_parameter(std::string_view type, std::string_view name
 inline std::string format_method_signature(
     std::string_view method_name,
     std::string_view namespace_name,
-    bool is_virtual = false,
+    bool is_virtual = false
 )
 {
     return std::format(
@@ -170,7 +170,7 @@ inline std::string format_get_name_decl(std::string_view namespace_name)
 
 constexpr std::string_view format_virtual_method_end()
 {
-    return R"cpp(                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ) noexcept = 0;
+    return R"cpp(                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ) noexcept = 0;
     )cpp";
 }
 

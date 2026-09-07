@@ -1,4 +1,4 @@
-export module cc_abi_gen_writer:runner_formatter;
+export module cc_abi_gen_writer:runner_formater;
 
 import std;
 import cc_utils_cli;
@@ -19,22 +19,21 @@ public:
     std::expected<std::string, std::string>
     format(const std::string& source, const std::filesystem::path& repo_root)
     {
-        auto executable = utils::Executable("clang-format");
+        auto executable = cc_utils::cli::Executable("clang-format");
         if (!executable.is_found()) {
             return std::unexpected{"clang-format is not installed or not in PATH."};
         }
 
-        auto cmd = utils::Command(std::move(executable))
+        auto cmd = cc_utils::cli::Command(std::move(executable))
                        .arguments(
-                           utils::Arguments{
+                           cc_utils::cli::Arguments{
                                "--assume-filename=.cppm",
                                "-style=file:" + (repo_root / ".clang-format").string()
                            }
                        )
                        .input(std::string(source));
 
-        auto run_result = m_runner.execute(cmd);
-
+        auto run_result = m_runner.execute(std::move(cmd));
         if (!run_result) {
             return std::unexpected{run_result.error()};
         }
@@ -49,23 +48,21 @@ public:
         }
 
         std::println(
-            std::format(
-                "clang-format succeeded in {}ms. Exit Code: {}",
-                run_result->get_duration().count(),
-                run_result->get_exit_code()
-            )
+            "clang-format succeeded in {}ms. Exit Code: {}",
+            run_result->get_duration().count(),
+            run_result->get_exit_code()
         );
 
         return run_result->get_std_out();
     }
 
-    const utils::CommandRunner& get_runner() const
+    const cc_utils::cli::Runner& get_runner() const
     {
         return m_runner;
     }
 
 private:
-    utils::CommandRunner m_runner;
+    cc_utils::cli::Runner m_runner;
 };
 
 } // namespace cc_abi_gen::writer

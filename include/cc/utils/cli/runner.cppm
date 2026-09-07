@@ -19,7 +19,7 @@ class Runner
 public:
     Runner() = default;
 
-    std::expected<Result, std::string> execute(const Command& cmd)
+    std::expected<Result, std::string> execute(Command&& cmd)
     {
         auto process_expected = pipe::Process::create(cmd.get_executable().get_name());
         if (!process_expected) {
@@ -40,7 +40,7 @@ public:
 
         Result result = manage_parent_io(pid, cmd, pipes, start_time);
 
-        m_history.emplace_back(cmd, result);
+        m_history.emplace_back(Record{std::move(cmd), std::move(result)});
 
         return result;
     }

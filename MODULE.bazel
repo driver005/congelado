@@ -35,7 +35,14 @@ single_version_override(
     module_name = "rules_cc",
     version = "0.2.22",
     patch_cmds = [
-        "for v in source_file output_file user_compile_flags legacy_compile_flags unfiltered_compile_flags dependency_file; do " +
+        # include_paths/quote_include_paths/system_include_paths/external_include_paths:
+        # same widening as the 6 above, for the variables that carry deps-derived -I/-iquote/
+        # -isystem search paths (a dep's propagated CcInfo include dirs) — without this, the
+        # three module actions can only ever see a target's own copts (user_compile_flags),
+        # never anything from `deps`, so any module-partition file that #includes a header
+        # from an external repo (@reflect_cpp, @simdjson, @tomlplusplus, @stduuid, ...) fails
+        # dependency scanning with "file not found" even though the dep is declared correctly.
+        "for v in source_file output_file user_compile_flags legacy_compile_flags unfiltered_compile_flags dependency_file include_paths quote_include_paths system_include_paths external_include_paths; do " +
         "sed -i \"/name = \\\"$v\\\",/{n;s|actions = \\[|actions = [\\\"//cc/toolchains/actions:cpp_module_deps_scanning\\\", \\\"//cc/toolchains/actions:cpp20_module_compile\\\", \\\"//cc/toolchains/actions:cpp20_module_codegen\\\", |}\" " +
         "cc/toolchains/variables/BUILD; done",
         """cat >> cc/toolchains/variables/BUILD << 'EOF'
@@ -75,6 +82,7 @@ EOF
 bazel_dep(name = "rules_python", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "protobuf", version = "36.1.bcr.1", repo_name = "com_google_protobuf")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 

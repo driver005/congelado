@@ -8,6 +8,7 @@ export module cc_utils_pipe:process;
 
 import std;
 import :fd;
+import :pipe;
 
 export namespace cc_utils::pipe {
 
@@ -138,7 +139,7 @@ public:
     }
 
 private:
-    Process(const Pipe&& stdin_p, const Pipe&& stdout_p, const Pipe&& stderr_p) :
+    Process(Pipe&& stdin_p, Pipe&& stdout_p, Pipe&& stderr_p) :
         m_stdin(std::move(stdin_p)),
         m_stdout(std::move(stdout_p)),
         m_stderr(std::move(stderr_p))

@@ -42,7 +42,7 @@ public:
             return std::nullopt;
         }
 
-        std::vector<Slot> slots;
+        std::vector<slot::Slot> slots;
 
         for (++field_iterator; field_iterator != record_decl->field_end(); ++field_iterator) {
             clang::FieldDecl* field = *field_iterator;
@@ -55,12 +55,15 @@ public:
             slots.push_back(m_reader.read(field));
         }
 
+        std::string struct_name = record_decl->getNameAsString();
+        std::string domain_name = m_naming.domain_name(struct_name);
+
         return Model{
-            record_decl->getNameAsString(),
-            m_naming.struct_size_macro(model.m_struct_name),
-            m_naming.domain_name(model.m_struct_name),
-            m_naming.class_name(model.m_domain_name),
-            slots
+            std::move(struct_name),
+            std::move(m_naming.struct_size_macro(struct_name)),
+            std::move(domain_name),
+            std::move(m_naming.class_name(domain_name)),
+            std::move(slots)
         };
     }
 
@@ -69,7 +72,7 @@ public:
         return m_naming;
     }
 
-    const SlotReader& get_slot_reader() const
+    const slot::Reader& get_slot_reader() const
     {
         return m_reader;
     }

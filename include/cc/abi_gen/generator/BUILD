@@ -4,10 +4,9 @@ congelado_module_library(
     name = "cc_abi_gen_generator",
     primary_interface = "generator.cppm",
     partitions = [
-        "type_registry.cppm",
-        "slot_classifier.cppm",
-        "builder_emitter.cppm",
-        "sonic_emitter.cppm",
+        "emitter/builder.cppm",
+        "emitter/sonic.cppm",
+        "helper/formater.cppm",
     ],
     deps = ["//include/cc/abi_gen/parser:cc_abi_gen_parser"],
     visibility = ["//visibility:public"],

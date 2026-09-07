@@ -10,7 +10,11 @@ export namespace cc_abi_gen::parser::slot {
 class Slot
 {
 public:
-    Slot(std::string&& name, std::string&& return_type, std::span<helper::Parameter>&& parameters) :
+    Slot(
+        std::string&& name,
+        std::string&& return_type,
+        std::vector<helper::Parameter>&& parameters
+    ) :
         m_name{std::move(name)},
         m_return_type{std::move(return_type)},
         m_parameters{std::move(parameters)}
@@ -22,7 +26,7 @@ public:
         if (has_parameter()) {
             auto params = std::span<const helper::Parameter>{m_parameters}.subspan(1);
 
-            if (is_failable(slot) && !params.empty()) {
+            if (is_failable() && !params.empty()) {
                 return params.first(params.size() - 1);
             }
 
@@ -34,10 +38,8 @@ public:
 
     std::optional<std::reference_wrapper<helper::Parameter>> extract_failable()
     {
-        if (has_parameter()) {
-            if (is_failable(slot) && !params.empty()) {
-                return std::ref(slot.m_parameters.back());
-            }
+        if (has_parameter() && is_failable()) {
+            return std::ref(m_parameters.back());
         }
 
         return std::nullopt;
@@ -45,7 +47,7 @@ public:
 
     bool is_failable()
     {
-        return has_parameter() && pointee_name(slot.m_parameters.back().m_type) == "TF_Status";
+        return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status";
     }
 
     bool is_destroy()
@@ -77,7 +79,7 @@ public:
 
     const std::span<const helper::Parameter> get_parameters() const
     {
-        return std::span<const Parameter>{m_parameters};
+        return std::span<const helper::Parameter>{m_parameters};
     }
 
 private:

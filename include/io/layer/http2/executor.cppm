@@ -79,7 +79,7 @@ class SessionExecutor : public ::shared::HandlerBase {
      */
     bool resume() {
         // Closed and nothing left to parse or serve — signal done so on_execute() releases.
-        if (m_closing && m_handoff.empty() && m_session.get().is_idle()) {
+        if (m_closing && m_handoff.get_view().empty() && m_session.get().is_idle()) {
             return false;
         }
         // Only parse if a drain isn't already running (guard).

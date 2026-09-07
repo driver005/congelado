@@ -18,7 +18,7 @@ public:
         m_known_models.insert({model.get_struct_name(), std::move(model)});
     }
 
-    std::optional<std::reference_wrapper<vtable::Model>> find(std::string_view name)
+    std::optional<std::reference_wrapper<vtable::Model>> find(const std::string& name)
     {
         Iterator it = m_known_models.find(name);
         if (it != m_known_models.end()) {
@@ -27,7 +27,7 @@ public:
         return std::nullopt;
     }
 
-    std::optional<std::reference_wrapper<const vtable::Model>> find(std::string_view name) const
+    std::optional<std::reference_wrapper<const vtable::Model>> find(const std::string& name) const
     {
         ConstIterator it = m_known_models.find(name);
         if (it != m_known_models.end()) {
