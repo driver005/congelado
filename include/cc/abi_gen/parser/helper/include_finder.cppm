@@ -20,9 +20,9 @@ public:
     }
 
     std::expected<void, std::string>
-    discover_from_command(const utils::Command& cmd, std::vector<std::string>& directories)
+    discover_from_command(cc_utils::cli::Command&& cmd, std::vector<std::string>& directories)
     {
-        auto result = m_runner.execute(cmd);
+        auto result = m_runner.execute(std::move(cmd));
 
         if (!result) {
             return std::unexpected{result.error()};
@@ -93,13 +93,13 @@ public:
         }
     }
 
-    const utils::CommandRunner& get_runner() const
+    const cc_utils::cli::Runner& get_runner() const
     {
         return m_runner;
     }
 
 private:
-    utils::CommandRunner m_runner;
+    cc_utils::cli::Runner m_runner;
 };
 
 } // namespace cc_abi_gen::parser::helper

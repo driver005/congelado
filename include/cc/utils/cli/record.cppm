@@ -9,7 +9,7 @@ export namespace cc_utils::cli {
 class Record
 {
 public:
-    Record(const Command&& cmd, const CommandResult&& res) :
+    Record(Command&& cmd, Result&& res) :
         m_command{std::move(cmd)},
         m_result{std::move(res)}
     {
@@ -21,7 +21,7 @@ public:
         return m_command;
     }
 
-    const CommandResult& get_result() const
+    const Result& get_result() const
     {
         return m_result;
     }

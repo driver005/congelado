@@ -8,14 +8,14 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 # aggregate — one class per file:
 #   dynamic_library.cppm                — DynamicLibrary (owns a dlopen handle, RAII dlclose,
 #                                          errors as ice::sonic::Status)
-congelado_module_library(
-    name = "yoshi_omah_lay_env",
-    primary_interface = "env.cppm",
-    partitions = [
-        "dynamic_library.cppm",
-    ],
-    deps = [
-        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-    ],
-    visibility = ["//visibility:public"],
-)
+# congelado_module_library(
+#     name = "yoshi_omah_lay_env",
+#     primary_interface = "env.cppm",
+#     partitions = [
+#         "dynamic_library.cppm",
+#     ],
+#     deps = [
+#         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
+#     ],
+#     visibility = ["//visibility:public"],
+# )

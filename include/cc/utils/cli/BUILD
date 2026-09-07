@@ -5,16 +5,14 @@ congelado_module_library(
     primary_interface = "cli.cppm",
     partitions = [
         "arguments.cppm",
-        "cli.cppm",
         "command.cppm",
         "executable.cppm",
-        "command.cppm",
-        "recode.cppm",
+        "record.cppm",
         "result.cppm",
         "runner.cppm",
     ],
     deps = [
-        "//cc_utils:cc_utils_pipe",
+        "//include/cc/utils/pipe:cc_utils_pipe",
     ],
     visibility = ["//visibility:public"],
 )

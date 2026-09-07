@@ -1,9 +1,12 @@
+module;
+
+#include <cerrno>
+#include <unistd.h>
+
 export module cc_utils_pipe:pipe;
 
 import std;
-import <cstdio>;
-export import :fd;
-export import :process;
+import :fd;
 
 export namespace cc_utils::pipe {
 
@@ -114,3 +117,5 @@ private:
     UniqueFd m_read_end;
     UniqueFd m_write_end;
 };
+
+} // namespace cc_utils::pipe

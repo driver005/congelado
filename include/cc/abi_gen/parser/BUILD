@@ -12,17 +12,10 @@ congelado_module_library(
         "vtable/model.cppm",
         "vtable/naming.cppm",
         "vtable/ast_visitor.cppm",
-        "base.cppm"
         "parser.cppm",
         "registry.cppm"
     ],
-    deps = ["//include/cc/abi_gen/utils:cc_utils_cli"],
+    deps = ["//include/cc/utils/cli:cc_utils_cli"],
     visibility = ["//visibility:public"],
 )
 
-congelado_cc_test(
-    name = "parser",
-    srcs = ["parser_test.cc"],
-    data = ["//include/c:extern_client_hdrs"],
-    deps = [":cc_abi_gen_parser"],
-)

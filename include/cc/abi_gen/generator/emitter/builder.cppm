@@ -1,12 +1,7 @@
-module;
-#include <expected>
-#include <functional>
 export module cc_abi_gen_generator:builder_emitter;
 
 import std;
 import cc_abi_gen_parser;
-import :type_registry;
-import :slot_classifier;
 import :helper_formater;
 
 export namespace cc_abi_gen::emitter {
@@ -14,7 +9,7 @@ export namespace cc_abi_gen::emitter {
 class Builder
 {
 public:
-    Builder(std::reference_wrapper<Register> registry, std::string_view namespace_name) :
+    Builder(std::reference_wrapper<parser::Register> registry, std::string_view namespace_name) :
         m_registry{registry},
         m_namespace_name{namespace_name}
     {
@@ -50,11 +45,11 @@ public:
     }
 
 private:
-    void write_virtual_method(const VtableSlot& slot)
+    void write_virtual_method(const vtable::Slot& slot)
     {
         m_writer += helper::format_method_signature(slot.get_name(), m_namespace_name);
 
-        write_cpp_parameter_list(slot.middle_parameters());
+        write_cpp_parameter_list(slot.extract_parameters());
 
         m_writer += helper::format_virtual_method_end();
     }
@@ -134,7 +129,7 @@ private:
 
     void write_call_arguments(const VtableSlot& slot)
     {
-        auto middle = slot.middle_parameters(slot);
+        auto middle = slot.extract_parameters(slot);
 
         for (auto&& [index, parameter]: middle | std::views::enumerate) {
             if (index != 0) {
@@ -158,6 +153,6 @@ private:
 
     std::string m_writer;
     std::string m_namespace_name;
-    std::reference_wrapper<Register> m_registry;
+    std::reference_wrapper<parser::Register> m_registry;
 };
 } // namespace cc_abi_gen::emitter

@@ -36,7 +36,7 @@ public:
             clang::QualType parameter_type = function_type->getParamType(index);
 
             parameters.emplace_back(
-                Parameter{
+                helper::Parameter{
                     parameter_type.getAsString(),
                     resolve_pointee_name(parameter_type),
                     resolve_parameter_name(function_loc, index)

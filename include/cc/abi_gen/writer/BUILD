@@ -7,9 +7,8 @@ congelado_module_library(
         "helper/diff.cppm",
         "runner/diff.cppm",
         "runner/formater.cppm",
-        "base.cppm",
         "writer.cppm",
     ],
-    deps = ["//include/cc/abi_gen/utils:cc_utils_cli"],
+    deps = ["//include/cc/utils/cli:cc_utils_cli"],
     visibility = ["//visibility:public"],
 )

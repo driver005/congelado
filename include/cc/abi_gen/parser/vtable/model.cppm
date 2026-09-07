@@ -10,11 +10,11 @@ class Model
 {
 public:
     Model(
-        std::string && &struct_name,
+        std::string&& struct_name,
         std::string&& struct_size_macro,
         std::string&& domain_name,
         std::string&& class_name,
-        std::vector<Slot>&& slots
+        std::vector<slot::Slot>&& slots
     ) :
         m_struct_name(std::move(struct_name)),
         m_struct_size_macro(std::move(struct_size_macro)),
@@ -43,7 +43,7 @@ public:
     }
 
     // Example: TF_String
-    std::string& get_struct_name() const
+    const std::string& get_struct_name() const
     {
         return m_struct_name;
     }
@@ -66,9 +66,9 @@ public:
         return m_class_name;
     }
 
-    const std::span<const Slot> get_slots() const
+    const std::span<const slot::Slot> get_slots() const
     {
-        return std::span<const Slot>{m_slots};
+        return std::span<const slot::Slot>{m_slots};
     }
 
 private:
@@ -76,7 +76,7 @@ private:
     std::string m_struct_size_macro;
     std::string m_domain_name;
     std::string m_class_name;
-    std::vector<Slot> m_slots;
+    std::vector<slot::Slot> m_slots;
 };
 
 } // namespace cc_abi_gen::parser::vtable

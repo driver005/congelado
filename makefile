@@ -1,30 +1,9 @@
-# Target naming convention:
-#   plain name  -> the authoritative Bazel build
-#   xmake-*     -> the optional legacy xmake build of the same verb
-#
-# Build mode shared by `xmake-install`/`xmake-build` — override per-invocation with
-# `make xmake-build MODE=release` (or `MODE=release make xmake-build`). Kept at
-# "debug" by default to match local dev's historical behavior;
-# docker/Dockerfile.builder's own BUILD_MODE build arg drives this the same way for
-# container builds (default "release" there — see docker-compose.yml vs
-# docker-compose.debug.yml).
-# NOTE: plain `build`/`test`/`clean` are the Bazel targets and ignore MODE.
 MODE ?= debug
 
 .PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test gen-cc-abi check-cc-abi compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
 
-# Default entry — Bazel is the authoritative build system.
 all: dev
 
-# ------------------------------ Bazel -----------------------------------------
-# Authoritative build — see MODULE.bazel / bazel/ / the plan doc. C++26/named-modules
-# flags live per-target now (copts/features defaults in the congelado_* wrapper
-# macros, bazel/build_defs.bzl) — no --config needed, and XLA/abseil
-# stay untouched.
-#
-# //... is safe: XLA is fetched via http_archive (third_party/xla/repo.bzl) so Bazel's package
-# scanner doesn't see it in the workspace — XLA targets are only reachable via @xla//xla/... labels
-# (used by //include/c and other root targets that depend on XLA).
 
 dev: build-debug editor
 
@@ -32,9 +11,6 @@ dev: build-debug editor
 build:
 	bazel build  //...
 
-# bazel .bazelrc configs: --config=debug (-g, unstripped), --config=prod
-# (-O3, stripped, compilation_mode=opt). Default `build` above is plain
-# fastbuild — fast to compile, no optimization/debug info either way.
 build-debug:
 	bazel build --config=debug //...
 
@@ -55,27 +31,17 @@ format:
 		\( -name '*.cpp' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \) \
 		| xargs -P $(shell nproc) clang-format -i
 
-# Just the Phase 1 proof-of-concept targets, fast sanity check.
 canary:
 	bazel build //include/core/ffi:core_ffi //bazel/probes:gmf_probe
 
-# Strict warnings check: -Wall -Werror on congelado code only; every dep is
-# silenced via the external/.*@-w carve-out inside warnings.bazelrc.
 warn-check:
 	bazel build --keep_going --config=warnings //...
 
-# Regenerates compile_commands.json from the Bazel side (bazel-compile-commands,
-# standalone binary, not a Bazel dep — hedron_compile_commands doesn't support
-# Bazel 9 yet, upstream #279). Writes the same path `make xmake-editor` does —
-# last one run wins, they don't merge.
 editor:
 	bazel-compile-commands //...
 
 clean:
 	bazel clean
-
-# ------------------------------- xmake ----------------------------------------
-# The legacy build, kept under the xmake-* prefix. See MODE above.
 
 xmake-dev: xmake-build xmake-editor
 
@@ -122,8 +88,6 @@ xmake-editor:
 xmake-test:
 	xmake test -v
 
-# ---------------------------- System deps -------------------------------------
-
 dependency:
 	yay -S xmake conan libc++ --noconfirm
 	conan profile detect --force
@@ -137,11 +101,6 @@ clean-conan:
 clean-all: clean-conan xmake-clean
 	rm -rf build/ ~/.xmake/
 
-# ------------------------------ UI (Flutter) ----------------------------------
-# UI: the Flutter app (flutter/ui/) is a separate, independent project — no
-# xmake target ever touches it. Run `make xmake-run` first so a live engine is
-# reachable. flutter/ui is both the design-system package (congelado_hero_ui)
-# and the runnable app: lib/main.dart launches the Widgetbook catalogue.
 ui-run:
 	cd flutter/ui && flutter pub get && flutter run -d linux
 
@@ -151,24 +110,9 @@ ui-build-web:
 ui-catalogue:
 	cd flutter/ui && flutter pub get && flutter run -d chrome
 
-# ------------------------- Insomnia API test suite ----------------------------
-# Insomnia-scripted API test suite (after-response assertions on every request in the
-# insomia/ collection). Requires the modern `inso` CLI (>= 10, the `core@` release binary
-# from github.com/Kong/insomnia/releases — the npm `insomnia-inso` package is stuck at 3.x
-# and lacks `run collection`). Runs against a server the caller already started (e.g. the
-# docker-compose `test` stack, or `make compose-release-up`); it does NOT manage lifecycle.
-# --disableCertValidation: server is TLS with a self-signed cert. No --bail: creates return
-# 201/202/204, which --bail (abort-on-non-200) would wrongly treat as failure. --requestTimeout
-# bounds the queue long-poll endpoints so an empty queue can't hang the run.
 INSO_COLLECTION := insomia/Congelado API 1.0.0-wrk_e999e591aaef4a51b27267d843c09433.yaml
 INSO_ENV ?= Local
 
-# Regenerate the Insomnia test collection ($(INSO_COLLECTION)) from the OpenAPI spec
-# (plugins/engine/generated/engine/openapi.json, itself regenerated at build). Run this after
-# adding/removing/renaming routes: new routes appear asserted automatically (status + shape
-# from the spec); only bodies/order/chaining live in the generator's scenario overlay.
-# Prefers `uv run` (auto-installs the pyyaml dep via the script's PEP 723 header, no venv
-# needed); falls back to a python3 that already has pyyaml — same resolution style as api-test.
 gen-inso-tests:
 	@if command -v uv >/dev/null 2>&1; then \
 		uv run scripts/gen_inso_collection.py; \
@@ -188,19 +132,11 @@ inso-test:
 		--reporter spec \
 		--ci
 
-# Runs cc_abi_gen (see include/cc/abi_gen/README.md) against the pilot domains (cache, logger),
-# regenerating the checked-in include/cc/abi/{builder,sonic}/{cache,logger}/*.cppm files in
-# place. It also runs automatically as part of `bazel build` via the genrules in those domains'
-# BUILD files — this target is for a manual, standalone regeneration + `git diff` review.
 gen-cc-abi:
 	bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot --repo-root "$(CURDIR)"
 
-# Dry-run form of gen-cc-abi: prints a unified diff of what generation would produce vs. the
-# current checked-in files, writes nothing, nonzero exit on any mismatch.
 check-cc-abi:
 	bazel run //include/cc/abi_gen:cc_abi_gen -- check --pilot --repo-root "$(CURDIR)"
-
-# --------------------------- Docker (podman compose) --------------------------
 
 compose-env-up:
 	podman compose -f docker/docker-compose.environment.yml up -d

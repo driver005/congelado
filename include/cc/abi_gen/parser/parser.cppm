@@ -9,7 +9,7 @@ import std;
 import :registry;
 import :vtable_model;
 import :vtable_ast_visitor;
-import :include_finder;
+import :helper_include_finder;
 
 export namespace cc_abi_gen::parser {
 
@@ -18,7 +18,7 @@ class Parser
 {
 public:
     Parser(std::string_view compiler_path, std::string_view domain) :
-        m_include_finder{compiler_path},
+        m_include_finder{},
         m_domain{domain},
     {
         cache_system_arguments();
@@ -40,9 +40,9 @@ public:
     std::expected<void, std::string>
     parse_file(const std::filesystem::path& header_path, const std::filesystem::path& include_root)
     {
-        auto source = open_file();
+        auto source = open_file(header_path);
 
-        auto arguments = parse_arguments();
+        auto arguments = parse_arguments(include_root);
 
         // Build the AST from the source code
         auto translation_unit =
@@ -70,7 +70,7 @@ public:
         return m_registry;
     }
 
-    const Registry& get_registry()
+    const Registry& get_registry() const
     {
         return m_registry;
     }

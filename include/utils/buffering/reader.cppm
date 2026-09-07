@@ -545,6 +545,39 @@ class BufferReader {
     }
 
     /**
+     * @brief Zero-copy chain transfer — steals every node still linked into `other`, appending
+     * them onto this chain's tail, and leaves `other` empty (size zero, no nodes). Mirrors
+     * push_back()'s ownership transfer: this chain now owns whatever `NodeReader`s it steals,
+     * `other` no longer references them.
+     * @warning Only `other`'s head may carry a nonzero internal read offset, and only when this
+     * chain is currently empty (that offset becomes this chain's new offset) — every other
+     * spliced node is assumed fully unread, same invariant push_back() relies on. Splicing a
+     * partially-consumed `other` onto a non-empty target would desync size() bookkeeping.
+     * @param other the reader to drain.
+     */
+    void splice(BufferReader &other) noexcept {
+        auto *other_head = other.m_head.exchange(nullptr, std::memory_order_acq_rel);
+        if (other_head == nullptr) {
+            return;
+        }
+
+        auto *other_tail = other.m_tail.exchange(nullptr, std::memory_order_acq_rel);
+        std::size_t other_offset = other.m_offset.exchange(0, std::memory_order_relaxed);
+        std::size_t other_size = other.m_size.exchange(0, std::memory_order_relaxed);
+
+        auto *old_tail = m_tail.exchange(other_tail, std::memory_order_acq_rel);
+        if (old_tail != nullptr) {
+            assert(other_offset == 0 && "splice: mid-chain offset on non-empty target desyncs size()");
+            old_tail->set_next(other_head);
+        } else {
+            m_head.store(other_head, std::memory_order_release);
+            m_offset.store(other_offset, std::memory_order_relaxed);
+        }
+
+        m_size.fetch_add(other_size, std::memory_order_release);
+    }
+
+    /**
      * @brief Pulls up to `length` bytes off the front of the chain and copies references into
      * `view` as `NodeView` slices, consuming them from this reader as it goes (same node-hopping
      * logic as consume(), but building a view instead of just discarding).

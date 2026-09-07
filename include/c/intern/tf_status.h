@@ -64,39 +64,39 @@ extern "C"
     // --------------------------------------------------------------------------
 
     // Return a new status object.
-    TF_CAPI_EXPORT TF_Status* new_status(void);
+    TF_CAPI_EXPORT TF_Status* new_status(void) noexcept;
 
     // Delete a previously created status object.
-    TF_CAPI_EXPORT void delete_status(TF_Status*);
+    TF_CAPI_EXPORT void delete_status(TF_Status*) noexcept;
 
     // Record <code, msg> in *s.  Any previous information is lost.
     // A common use is to clear a status: set_status(s, TF_OK, "");
-    TF_CAPI_EXPORT void set_status(TF_Status* s, TF_Code code, const char* msg);
+    TF_CAPI_EXPORT void set_status(TF_Status* s, TF_Code code, const char* msg) noexcept;
 
     // Record <key, value> as a payload in *s. The previous payload having the
     // same key (if any) is overwritten. Payload will not be added if the Status
     // is OK.
-    TF_CAPI_EXPORT void set_payload(TF_Status* s, const char* key, const char* value);
+    TF_CAPI_EXPORT void set_payload(TF_Status* s, const char* key, const char* value) noexcept;
 
     // Iterates over the stored payloads and calls the `visitor(key, value)`
     // callable for each one. `key` and `value` is only usable during the callback.
     // `capture` will be passed to the callback without modification.
     TF_CAPI_EXPORT void
-    for_each_payload(const TF_Status* s, TF_PayloadVisitor visitor, void* capture);
+    for_each_payload(const TF_Status* s, TF_PayloadVisitor visitor, void* capture) noexcept;
 
     // Convert from an I/O error code (e.g., errno) to a TF_Status value.
     // Any previous information is lost. Prefer to use this instead of set_status
     // when the error comes from I/O operations.
-    TF_CAPI_EXPORT void set_statusFromIOError(TF_Status* s, int error_code, const char* context);
+    TF_CAPI_EXPORT void set_statusFromIOError(TF_Status* s, int error_code, const char* context) noexcept;
 
     // Return the code record in *s.
-    TF_CAPI_EXPORT TF_Code get_code(const TF_Status* s);
+    TF_CAPI_EXPORT TF_Code get_code(const TF_Status* s) noexcept;
 
     // Return a pointer to the (null-terminated) error message in *s.  The
     // return value points to memory that is only usable until the next
     // mutation to *s.  Always returns an empty string if get_code(s) is
     // TF_OK.
-    TF_CAPI_EXPORT const char* message(const TF_Status* s);
+    TF_CAPI_EXPORT const char* message(const TF_Status* s) noexcept;
 
 #ifdef __cplusplus
 } /* end extern "C" */

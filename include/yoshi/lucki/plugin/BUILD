@@ -9,16 +9,16 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 #   plugin_loader.cppm                 — PluginLoader (dlopen's the .so via
 #                                         ice::sonic::DynamicLibrary, resolves and calls
 #                                         init_plugin)
-congelado_module_library(
-    name = "yoshi_lucki_plugin",
-    primary_interface = "plugin.cppm",
-    partitions = [
-        "plugin_loader.cppm",
-    ],
-    deps = [
-        "//include/c:extern_plugin_hdrs",
-        "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
-        "//include/cc/abi/sonic/plugin:cc_abi_sonic_plugin",
-    ],
-    visibility = ["//visibility:public"],
-)
+# congelado_module_library(
+#     name = "yoshi_lucki_plugin",
+#     primary_interface = "plugin.cppm",
+#     partitions = [
+#         "plugin_loader.cppm",
+#     ],
+#     deps = [
+#         "//include/c:extern_plugin_hdrs",
+#         "//include/cc/abi/sonic/intern:cc_abi_sonic_intern",
+#         "//include/cc/abi/sonic/plugin:cc_abi_sonic_plugin",
+#     ],
+#     visibility = ["//visibility:public"],
+# )
