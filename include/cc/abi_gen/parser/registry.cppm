@@ -13,7 +13,7 @@ public:
 
     Registry() = default;
 
-    void add_model(const vtable::Model&& model)
+    void add(const vtable::Model&& model)
     {
         m_known_models.insert({model.get_struct_name(), std::move(model)});
     }

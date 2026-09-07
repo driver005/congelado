@@ -4,8 +4,10 @@ congelado_module_library(
     name = "cc_utils_cli",
     primary_interface = "cli.cppm",
     partitions = [
-        "arguments.cppm",
-        "command.cppm",
+        "command/arguments.cppm",
+        "command/command.cppm",
+        "command/command_schema.cppm",
+        "command/parser.cppm",
         "executable.cppm",
         "record.cppm",
         "result.cppm",

@@ -4,18 +4,18 @@ import std;
 import cc_abi_gen_parser;
 import :helper_formater;
 
-export namespace cc_abi_gen::emitter {
+export namespace cc_abi_gen::generator::emitter {
 
 class Builder
 {
 public:
-    Builder(std::reference_wrapper<parser::Register> registry, std::string_view namespace_name) :
+    Builder(std::reference_wrapper<parser::Registry> registry, std::string_view namespace_name) :
         m_registry{registry},
         m_namespace_name{namespace_name}
     {
     }
 
-    std::string render(const vtable::Model& model)
+    std::string render(const parser::vtable::Model& model)
     {
         m_writer.clear();
 
@@ -27,7 +27,7 @@ public:
             model.get_struct_name()
         );
 
-        for (const vtable::Slot& slot: model.get_slots()) {
+        for (const parser::slot::Slot& slot: model.get_slots()) {
             if (slot.is_destroy() || slot.is_get_name()) {
                 continue;
             }
@@ -45,7 +45,7 @@ public:
     }
 
 private:
-    void write_virtual_method(const vtable::Slot& slot)
+    void write_virtual_method(const parser::slot::Slot& slot)
     {
         m_writer += helper::format_method_signature(slot.get_name(), m_namespace_name);
 
@@ -54,40 +54,43 @@ private:
         m_writer += helper::format_virtual_method_end();
     }
 
-    std::expected<void, std::string> write_cpp_parameter_list(std::span<const Parameter> parameters)
+    std::expected<void, std::string>
+    write_cpp_parameter_list(std::span<const parser::helper::Parameter> parameters)
     {
         for (auto&& [index, parameter]: parameters | std::views::enumerate) {
             if (index != 0) {
                 m_writer += ", ";
             }
 
-            auto type_name = m_registry.get().find(parameter.get_pointee_name());
+            auto type_name = m_registry.get().find(std::string{parameter.get_pointee_name()});
             if (!type_name.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
                 );
             }
 
-            m_writer +=
-                helper::format_parameter(type_name.get_ponintee_type(), parameter.get_name());
+            m_writer += helper::format_parameter(
+                type_name->get().get_pointee_type(m_namespace_name),
+                parameter.get_name()
+            );
         }
     }
 
-    void write_vtable_accessor(const vtable::Model& model)
+    void write_vtable_accessor(const parser::vtable::Model& model)
     {
         m_writer += helper::format_vtable_accessor_start(
             model.get_struct_name(),
-            model.get_struct_size_macro(),
+            model.get_struct_size_macro()
         );
 
-        for (const vtable::Slot& slot: model.get_slots()) {
+        for (const parser::slot::Slot& slot: model.get_slots()) {
             write_vtable_field(model, slot);
         }
 
         m_writer += helper::format_vtable_accessor_end();
     }
 
-    void write_vtable_field(const vtable::Model& model, const vtable::Slot& slot)
+    void write_vtable_field(const parser::vtable::Model& model, const parser::slot::Slot& slot)
     {
         if (slot.is_destroy()) {
             m_writer +=
@@ -115,37 +118,45 @@ private:
         m_writer += helper::format_vtable_field_generic_end(failable_parameter_name(slot));
     }
 
-    void write_c_parameter_list(std::span<const Parameter> parameters)
+    void write_c_parameter_list(std::span<const parser::helper::Parameter> parameters)
     {
         for (auto&& [index, parameter]: parameters | std::views::enumerate) {
             if (index != 0) {
                 m_writer += ", ";
             }
 
-            m_writer +=
-                helper::format_builder_parameter(parameter.get_type(), parameter.get_name());
+            m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
         }
     }
 
-    void write_call_arguments(const VtableSlot& slot)
+    std::expected<void, std::string> write_call_arguments(const parser::slot::Slot& slot)
     {
-        auto middle = slot.extract_parameters(slot);
+        auto middle = slot.extract_parameters();
 
         for (auto&& [index, parameter]: middle | std::views::enumerate) {
             if (index != 0) {
                 m_writer += ", ";
             }
 
-            m_writer += parameter.wrap_argument();
+            auto model = m_registry.get().find(std::string{parameter.get_pointee_name()});
+            if (!model.has_value()) {
+                return std::unexpected(
+                    std::format("Type {} not found in registry", parameter.get_pointee_name())
+                );
+            }
+
+            m_writer += model->get().wrape_type(m_namespace_name, parameter.get_name());
         }
+
+        return {};
     }
 
-    std::string failable_parameter_name(const vtable::Slot& slot)
+    std::string_view failable_parameter_name(const parser::slot::Slot& slot)
     {
         auto failable = slot.extract_failable();
 
         if (failable.has_value()) {
-            return failable.value().get_name();
+            return failable->get().get_name();
         }
 
         return "status";
@@ -153,6 +164,6 @@ private:
 
     std::string m_writer;
     std::string m_namespace_name;
-    std::reference_wrapper<parser::Register> m_registry;
+    std::reference_wrapper<parser::Registry> m_registry;
 };
-} // namespace cc_abi_gen::emitter
+} // namespace cc_abi_gen::generator::emitter
