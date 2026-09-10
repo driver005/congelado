@@ -86,6 +86,26 @@ bazel_dep(name = "protobuf", version = "36.1.bcr.1", repo_name = "com_google_pro
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
+# hedron_compile_commands: editor tooling only (compile_commands.json for
+# clangd), dev_dependency so it never affects real builds. Not in BCR, hence
+# git_override. bazel-compile-commands (the standalone binary this project
+# used via `make editor`) collapses multi-source module_interfaces targets
+# down to a single (wrong) entry - it can't disambiguate which .cppm partition
+# a CppCompile action belongs to when siblings appear as its inputs too. This
+# extractor instead walks each compile action's own structured CcInfo via a
+# Bazel aspect, so it doesn't need to guess file<->action correlation at all.
+#
+# Using the helly25 fork, not upstream hedronvision - upstream's been inactive
+# since mid-2024 (team moved to Google DeepMind) and still has an open,
+# unfixed Bazel 9 bug (native py_binary/cc_binary removed - hedronvision#279).
+# helly25 is the actively-maintained continuation with that fix applied.
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/helly25/bazel-compile-commands-extractor.git",
+    commit = "85d83bc1ee3ab8034d9c40f6900a0753688068b6",
+)
+
 # Third-party deps confirmed in Bazel Central Registry
 bazel_dep(name = "simdjson", version = "4.2.4")  # matches Conan's pin
 bazel_dep(name = "tomlplusplus", version = "3.4.0")  # matches Conan's pin

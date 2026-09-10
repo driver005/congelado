@@ -42,7 +42,7 @@ public:
         return *this;
     }
 
-    int get() const
+    [[nodiscard]] int get() const
     {
         return m_fd;
     }
