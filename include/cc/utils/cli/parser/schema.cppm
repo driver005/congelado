@@ -31,8 +31,12 @@ public:
         m_action{std::move(action)}
     {
     }
-        ~Schema() = default;
-        
+
+    ~Schema() = default;
+    Schema(const Schema&) = delete;
+    Schema& operator=(const Schema&) = delete;
+    Schema(Schema&&) = default;
+    Schema& operator=(Schema&&) = default;
 
     Schema& add_name(std::string&& value) noexcept
     {
