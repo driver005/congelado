@@ -15,7 +15,35 @@ public:
     {
     }
 
-    // Read-only accessors
+    ~Record() = default;
+
+    Record(const Record&) = delete;
+    Record& operator=(const Record&) = delete;
+    Record(Record&&) = default;
+    Record& operator=(Record&&) = default;
+
+    Record& add_command(Command&& cmd)
+    {
+        m_command = std::move(cmd);
+        return *this;
+    }
+
+    Record& add_result(Result&& res)
+    {
+        m_result = std::move(res);
+        return *this;
+    }
+
+    void set_command(Command&& cmd)
+    {
+        m_command = std::move(cmd);
+    }
+
+    void set_result(Result&& res)
+    {
+        m_result = ;
+    }
+
     const Command& get_command() const
     {
         return m_command;

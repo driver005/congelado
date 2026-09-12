@@ -13,14 +13,21 @@ public:
 
     Registry() = default;
 
-    void add(const vtable::Model&& model)
+    ~Registry() = default;
+    Registry(const Registry&) = delete;
+    Registry(Registry&&) = default;
+    Registry& operator=(const Registry&) = ;
+    Registry& operator=(Registry&&) = default;
+
+    Registry& add_model(vtable::Model&& model)
     {
         m_known_models.insert({model.get_struct_name(), std::move(model)});
+        return *this;
     }
 
     std::optional<std::reference_wrapper<vtable::Model>> find(const std::string& name)
     {
-        Iterator it = m_known_models.find(name);
+        auto it = m_known_models.find(name);
         if (it != m_known_models.end()) {
             return std::ref(it->second);
         }
@@ -29,7 +36,7 @@ public:
 
     std::optional<std::reference_wrapper<const vtable::Model>> find(const std::string& name) const
     {
-        ConstIterator it = m_known_models.find(name);
+        auto it = m_known_models.find(name);
         if (it != m_known_models.end()) {
             return std::cref(it->second);
         }
@@ -54,6 +61,21 @@ public:
     ConstIterator end() const
     {
         return m_known_models.end();
+    }
+
+    void add_model(vtable::Model&& model)
+    {
+        m_known_models.insert({model.get_struct_name(), std::move(model)});
+    }
+
+    const std::unordered_map<std::string, vtable::Model>& get_models() const
+    {
+        return m_known_models;
+    }
+
+    std::unordered_map<std::string, vtable::Model>& get_models()
+    {
+        return m_known_models;
     }
 
 private:

@@ -3,6 +3,7 @@ module;
 #include <clang/AST/DeclCXX.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
+#include <span>
 
 export module cc_abi_gen_parser:parser;
 
@@ -28,7 +29,47 @@ public:
         }
     };
 
+    ~Parser() = default;
+    
+
+    Parser& add_registry(Registry&& registry) noexcept
+    {
+        m_registry = std::move(registry);
+        return *this;
+    }
+
+    Parser& add_include_finder(helper::IncludeFinder&& finder) noexcept
+    {
+        m_include_finder = std::move(finder);
+        return *this;
+    }
+
+    Parser& add_visitor(vtable::AstVisitor&& visitor) noexcept
+    {
+        m_visitor = std::move(visitor);
+        return *this;
+    }
+
+    Parser& add_system_argument(std::string&& argument) noexcept
+    {
+        m_system_arguments.push_back(std::move(argument));
+        return *this;
+    }
+
+    Parser& add_domain(std::string&& domain) noexcept
+    {
+        m_domain = std::move(domain);
+        return *this;
+    }
+
+    Parser& add_tool_name(std::string&& tool_name) noexcept
+    {
+        m_tool_name = std::move(tool_name);
+        return *this;
+    }
+
     std::expected<void, std::string> parse_directory(const std::filesystem::path& directory_path)
+
     {
         for (const auto& header_path: std::filesystem::directory_iterator{directory_path}) {
             auto model = parse_file(header_path.path(), directory_path);
@@ -74,14 +115,94 @@ public:
         return {};
     }
 
-    Registry& get_registry()
+    void set_registry(Registry&& registry) noexcept
+    {
+        m_registry = std::move(registry);
+    }
+
+    void set_include_finder(helper::IncludeFinder&& finder) noexcept
+    {
+        m_include_finder = std::move(finder);
+    }
+
+    void set_visitor(vtable::AstVisitor&& visitor) noexcept
+    {
+        m_visitor = std::move(visitor);
+    }
+
+    void append_system_argument(std::string&& argument) noexcept
+    {
+        m_system_arguments.push_back(std::move(argument));
+    }
+
+    void set_domain(std::string&& domain) noexcept
+    {
+        m_domain = std::move(domain);
+    }
+
+    void set_tool_name(std::string&& tool_name) noexcept
+    {
+        m_tool_name = std::move(tool_name);
+    }
+
+    Registry& get_registry() noexcept
     {
         return m_registry;
     }
 
-    const Registry& get_registry() const
+    helper::IncludeFinder& get_include_finder() noexcept
+    {
+        return m_include_finder;
+    }
+
+    vtable::AstVisitor& get_ast_visitor() noexcept
+    {
+        return m_ast_visitor;
+    }
+
+    std::span<std::string_view> get_system_argument() noexcept
+    {
+        return m_system_argument;
+    }
+
+    std::string& get_domain() noexcept
+    {
+        return m_domain;
+    }
+
+    std::string& get_tool_name() noexcept
+    {
+        return m_tool_name;
+    }
+
+    const Registry& get_registry() const noexcept
     {
         return m_registry;
+    }
+
+    const helper::IncludeFinder& get_include_finder() const noexcept
+    {
+        return m_include_finder;
+    }
+
+    const helper::AstVisitor& get_ast_visitor() const noexcept
+    {
+        return m_visitor;
+    }
+
+    const std::span<std::string> get_system_argument() const noexcept
+    {
+        return m_system_arguments;
+    }
+
+    const std::string& get_domain() const noexcept
+    {
+        return m_domain;
+    }
+
+    const std::string& get_tool_name() const noexcept
+    {
+        return m_tool_name;
     }
 
 private:
@@ -90,7 +211,7 @@ private:
         bool nothing = true;
 
         // Iterate through all top-level declarations in the file
-        for (clang::Decl* decl: tu_decl->decls()) {
+        for (clang::Decl* decl: context->decls()) {
             // Check if the declaration is a struct/class (RecordDecl)
             if (auto* record_decl = clang::dyn_cast<clang::RecordDecl>(decl)) {
                 auto model = m_visitor.traverse_record_decl(record_decl);
@@ -161,7 +282,7 @@ private:
     }
 
     Registry m_registry;
-    helper::IncludeFinder m_include_finder;
+    helper::helper::IncludeFinder m_include_finder;
     vtable::AstVisitor m_visitor;
     std::vector<std::string> m_system_arguments;
     std::string m_domain;

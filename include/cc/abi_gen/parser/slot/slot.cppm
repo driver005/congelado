@@ -21,6 +21,30 @@ public:
     {
     }
 
+    ~Slot() = default;
+    Slot(const Slot&) = delete;
+    Slot& operator=(const Slot&) = delete;
+    Slot(Slot&&) = default;
+    Slot& operator=(Slot&&) = default;
+
+    Slot& add_name(std::string&& name) noexcept
+    {
+        m_name = std::move(name);
+        return *this;
+    }
+
+    Slot& add_return_type(std::string&& return_type) noexcept
+    {
+        m_return_type = std::move(return_type);
+        return *this;
+    }
+
+    Slot& add_parameter(helper::Parameter&& parameter) noexcept
+    {
+        m_parameters.emplace_back(std::move(parameter));
+        return *this;
+    }
+
     std::span<const helper::Parameter> extract_parameters() const
     {
         if (has_parameter()) {
@@ -65,19 +89,51 @@ public:
         return !m_parameters.empty();
     }
 
+    void set_name(std::string&& name) noexcept
+    {
+        m_name = std::move(name);
+    }
+
+    void set_retrun_type(std::string&& return_type) noexcept
+    {
+        m_return_type = std::move(return_type);
+    }
+
+    void append_parameter(helper::Parameter&& parameter) noexcept
+    {
+        m_parameters.emplace_back(std::move(parameter));
+    }
+
     // Example: Create
-    const std::string& get_name() const
+    std::string& get_name() noexcept
     {
         return m_name;
     }
 
     // Example: TF_TString
-    const std::string& get_return_type() const
+    std::string& get_return_type() noexcept
     {
         return m_return_type;
     }
 
-    const std::span<const helper::Parameter> get_parameters() const
+    std::span<const helper::Parameter> get_parameters() noexcept
+    {
+      return m_parameters;
+    }
+
+    // Example: Create
+    const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    // Example: TF_TString
+    const std::string& get_return_type() const noexcept
+    {
+        return m_return_type;
+    }
+
+    const std::span<const helper::Parameter> get_parameters() const noexcept
     {
         return std::span<const helper::Parameter>{m_parameters};
     }

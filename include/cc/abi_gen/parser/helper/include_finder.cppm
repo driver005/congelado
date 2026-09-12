@@ -10,6 +10,19 @@ class IncludeFinder
 public:
     IncludeFinder() = default;
 
+    ~IncludeFinder() = default;
+
+    IncludeFinder(const IncludeFinder&) = delete;
+    IncludeFinder& operator=(const IncludeFinder&) = delete;
+    IncludeFinder(IncludeFinder&&) = default;
+    IncludeFinder& operator=(IncludeFinder&&) = default;
+
+    IncludeFinder& add_runner(cc_utils::cli::Runner&& runner) noexcept
+    {
+        m_runner = std::move(runner);
+        return *this;
+    }
+
     void discover_from_file(
         const std::filesystem::path& path,
         std::vector<std::string>& directories
@@ -93,7 +106,17 @@ public:
         }
     }
 
-    const cc_utils::cli::Runner& get_runner() const
+    void set_runner(cc_utils::cli::Runner&& runner) noexcept
+    {
+        m_runner = std::move(runner);
+    }
+
+    cc_utils::cli::Runner& get_runner() noexcept
+    {
+        return m_runner;
+    }
+
+    const cc_utils::cli::Runner& get_runner() const no
     {
         return m_runner;
     }

@@ -31,6 +31,14 @@ public:
         m_action{std::move(action)}
     {
     }
+        ~Schema() = default;
+        
+
+    Schema& add_name(std::string&& value) noexcept
+    {
+        m_name = std::move(value);
+        return *this;
+    }
 
     Schema& add_option(Option&& opt)
     {
@@ -44,9 +52,25 @@ public:
         return *this;
     }
 
+    Schema& add_action(Action&& act) noexcept
+    {
+        m_action = std::move(act);
+        return *this;
+    }
+
     void set_name(std::string&& value) noexcept
     {
         m_name = std::move(value);
+    }
+
+    void append_option(Option&& opt) noexcept
+    {
+        m_options.push_back(std::move(opt));
+    }
+
+    void append_flag(Flag&& flag) noexcept
+    {
+        m_flags.push_back(std::move(flag));
     }
 
     template<typename Callable>

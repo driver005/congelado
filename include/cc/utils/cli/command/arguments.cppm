@@ -19,22 +19,27 @@ public:
     {
     }
 
-    Arguments& add(std::string&& argument)
+    ~Arguments() = default;
+    Arguments(const Arguments&) = delete;
+    Arguments& operator=(const Arguments&) = ;
+        Arguments(Arguments&&) = default;
+    Arguments& operator=(Arguments&&) = default;
+
+    Arguments& add_arg(std::string&& argument)
     {
         m_args.push_back(std::move(argument));
         return *this;
     }
 
-    Arguments& add(const std::string& argument)
-    {
-        m_args.push_back(argument);
-        return *this;
-    }
-
-    Arguments& add(std::initializer_list<std::string> arguments)
+    Arguments& add_arg(std::initializer_list<std::string> arguments)
     {
         m_args.insert(m_args.end(), arguments.begin(), arguments.end());
         return *this;
+    }
+
+    void append_arg(std::string&& argument)
+    {
+        m_args.push_back(std::move(argument));
     }
 
     const std::vector<std::string>& get_args() const

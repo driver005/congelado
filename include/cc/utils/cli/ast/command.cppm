@@ -28,6 +28,15 @@ public:
     {
     }
 
+    ~Command() = default;
+    
+
+    Command& add_name(std::string&& name)
+    {
+        m_name = std::move(name);
+        return *this;
+    }
+
     Command& add_flag(Flag&& flag)
     {
         m_flags.push_back(std::move(flag));
@@ -49,6 +58,21 @@ public:
     void set_name(std::string&& name) noexcept
     {
         m_name = std::move(name);
+    }
+
+    void append_flag(Flag&& flag) noexcept
+    {
+        m_flags.push_back(std::move(flag));
+    }
+
+    void append_subcommand(Command&& subcommand) noexcept
+    {
+        m_subcommands.push_back(std::move(subcommand));
+    }
+
+    void append_operand(Operand&& operand) noexcept
+    {
+        m_operands.push_back(std::move(operand));
     }
 
     [[nodiscard]] std::string& get_name() noexcept

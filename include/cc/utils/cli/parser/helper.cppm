@@ -45,6 +45,48 @@ public:
     {
     }
 
+    ~FlagConfig() = default;
+    FlagConfig(const FlagConfig&) = delete;
+    FlagConfig& operator=(const FlagConfig&) = delete;
+    FlagConfig(FlagConfig&&) = default;
+    FlagConfig& operator=(FlagConfig&&) = default;
+
+    FlagConfig& add_default_value(std::string&& value)
+    {
+        m_default_value = std::move(value);
+        return *this;
+    }
+
+    FlagConfig& add_min(std::string&& min)
+    {
+        m_min = std::move(min);
+        return *this;
+    }
+
+    FlagConfig& add_max(std::string&& max)
+    {
+        m_max = std::move(max);
+        return *this;
+    }
+
+    FlagConfig& add_required(bool required)
+    {
+        m_required = required;
+        return *this;
+    }
+
+    FlagConfig& add_hidden(bool hidden)
+    {
+        m_hidden = hidden;
+        return *this;
+    }
+
+    FlagConfig& add_env_var(std::string&& env_var)
+    {
+        m_env_var = std::move(env_var);
+        return *this;
+    }
+
     FlagConfig& add_allowed_value(std::string&& value)
     {
         m_allowed_values.push_back(std::move(value));
@@ -91,6 +133,21 @@ public:
     void set_env_var(std::string&& value) noexcept
     {
         m_env_var = std::move(value);
+    }
+
+    void append_allowed_value(std::string&& value) noexcept
+    {
+        m_allowed_values.push_back(std::move(value));
+    }
+
+    void append_requires_flag(std::string&& value) noexcept
+    {
+        m_requires_flags.push_back(std::move(value));
+    }
+
+    void append_coflicts_with(std::string&& value) noexcept
+    {
+        m_conflicts_with.push_back(std::move(value));
     }
 
     [[nodiscard]] std::optional<std::string>& get_default_value() noexcept
@@ -197,6 +254,30 @@ public:
     {
     }
 
+    ~ParserOptions() = default;
+    ParserOptions(const ParserOptions&) = delete;
+    ParserOptions& operator=(const ParserOptions&) = delete;
+    ParserOptions& operator=(ParserOptions&&) = default;
+    ParserOptions(ParserOptions&&) = default;
+
+    ParserOption& add_allow_unrecognized() noexcept
+    {
+        m_allow_unrecognized = true;
+        return *this;
+    }
+
+    ParserOption& add_auto_help() noexcept
+    {
+        m_auto_help = true;
+        return *this;
+    }
+
+    ParserOptions& add_version(std::string&& value) noexcept
+    {
+        m_version = std::move(value);
+        return *this;
+    }
+
     void set_allow_unrecognized(bool value) noexcept
     {
         m_allow_unrecognized = value;
@@ -212,12 +293,12 @@ public:
         m_version = std::move(value);
     }
 
-    [[nodiscard]] bool allows_unrecognized() const noexcept
+    [[nodiscard]] bool get_allows_unrecognized() const noexcept
     {
         return m_allow_unrecognized;
     }
 
-    [[nodiscard]] bool has_auto_help() const noexcept
+    [[nodiscard]] bool get_has_auto_help() const noexcept
     {
         return m_auto_help;
     }

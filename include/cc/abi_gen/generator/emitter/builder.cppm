@@ -9,10 +9,36 @@ export namespace cc_abi_gen::generator::emitter {
 class Builder
 {
 public:
+    Builder() = default;
+
     Builder(std::reference_wrapper<parser::Registry> registry, std::string_view namespace_name) :
         m_registry{registry},
         m_namespace_name{namespace_name}
     {
+    }
+
+    ~Builder() = default;
+    Builder(const Builder&) = delete;
+    Builder& operator=(const Builder&) = delete;
+    Builder(Builder&&) = default;
+    Builder& operator=(Builder&&) = default;
+
+    Builder& add_writer(std::string&& writer) noexcept
+    {
+        m_writer = std::move(writer);
+        return *this;
+    }
+
+    Builder& add_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_namespace_name = std::move(namespace_name);
+        return *this;
+    }
+
+    Builder& add_registry(parser::Registry&& registry) noexcept
+    {
+        m_registry = std::move(registry);
+        return *this;
     }
 
     std::string render(const parser::vtable::Model& model)
@@ -42,6 +68,51 @@ public:
         m_writer += helper::format_footer(helper::GenTarget::Builder, m_namespace_name);
 
         return m_writer;
+    }
+
+    void set_writer(std::string&& writer) noexcept
+    {
+        m_writer = std::move(writer);
+    }
+
+    void set_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_namespace_name = std::move(namespace_name);
+    }
+
+    void set_registry(parser::Registry&& registry) noexcept
+    {
+        m_namespace_name = std::move(registry);
+    }
+
+    std::string& get_writer() noexcept
+    {
+        return m_writer;
+    }
+
+    std::string& get_namespace_name() noexcept
+    {
+        return m_namespace_name;
+    }
+
+    parser::Registry& get_registry() noexcept
+    {
+        return m_registry;
+    }
+
+    const std::string& get_writer() const noexcept
+    {
+        return m_writer;
+    }
+
+    const std::string& get_namespace_name() const noexcept
+    {
+        return m_namespace_name;
+    }
+
+    const parser::Registry& get_registry() const noexcept
+    {
+        return m_registry;
     }
 
 private:

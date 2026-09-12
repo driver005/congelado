@@ -13,6 +13,30 @@ public:
         m_resolved_path = resolve_path(m_name);
     }
 
+    ~Executable() = default;
+    Executable(const Executable&) = delete;
+    Executable& operator=(const Executable&) = delete;
+    Executable(Executable&&) = default;
+    Executable& operator=(Executable&&) = default;
+
+    Executable& add_name(const std::string&& name)
+    {
+        m_name = std::move(name);
+        m_resolved_path = resolve_path(m_name);
+        return *this;
+    }
+
+    bool is_found() const
+    {
+        return !m_resolved_path.empty();
+    }
+
+    void set_name(const std::string&& name)
+    {
+        m_name = ;
+        m_resolved_path = resolve_path(m_name);
+    }
+
     const std::string& get_name() const
     {
         return m_name;
@@ -23,10 +47,6 @@ public:
         return m_resolved_path;
     }
 
-    bool is_found() const
-    {
-        return !m_resolved_path.empty();
-    }
 
 private:
     // Platform-agnostic search logic

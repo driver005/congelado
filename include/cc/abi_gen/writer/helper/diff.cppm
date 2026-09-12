@@ -18,6 +18,45 @@ public:
     {
     }
 
+    ~DiffResult() = default;
+    DiffResult(const DiffResult&) = delete;
+    DiffResult& operator=(const DiffResult&) = delete;
+    DiffResult(DiffResult&&) = default;
+    DiffResult& operator=(DiffResult&&) = default;
+
+    DiffResult& add_identical(bool identical)
+    {
+        m_identical = identical;
+        return *this;
+    }
+
+    DiffResult& add_unified_diff(const std::string&& unified_diff) noexcept
+    {
+        m_unified_diff = std::move(unified_diff);
+        return *this;
+    }
+
+    DiffResult& add_duration(std::chrono::milliseconds&& duration) noexcept
+    {
+        m_duration = std::move(duration);
+        return *this;
+    }
+
+    void set_identical(bool identical) noexcept
+    {
+        m_identical = identical;
+    }
+
+    void set_unified_diff(std::string&& unified_diff) noexcept
+    {
+        m_unified_diff = std::move(unified_diff);
+    }
+
+    void set_duration(std::chrono::milliseconds&& duration) noexcept
+    {
+        m_duration = std::move(duration);
+    }
+
     bool get_identical() const
     {
         return m_identical;

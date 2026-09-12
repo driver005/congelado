@@ -13,9 +13,18 @@ public:
     ~Diff() = default;
 
     Diff(const Diff&) = delete;
-    Diff(Diff&&) = delete;
     Diff& operator=(const Diff&) = delete;
-    Diff& operator=(Diff&&) = delete;
+    Diff(Diff&&) = default;
+    Diff& operator=(Diff&&) = default;
+
+    Diff& add_runner(cc_utils::cli::Runner&& runner) noexcept
+    {
+        m_runner = std::move(runner);
+        return *this;
+    }
+
+    void set_runner(cc_utils::cli::Runner&& runner) noexcept
+    {}
 
     std::expected<helper::DiffResult, std::string>
     compare(const std::filesystem::path& real_path, const std::string& generated_text)

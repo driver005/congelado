@@ -10,21 +10,21 @@ class Action
 public:
     using Callable = std::move_only_function<void(Args...) const>;
 
-    Action() = default;
-
     Action(Callable&& func) :
         m_func{std::move(func)}
     {
     }
+
 
     Action(const Action&) = delete;
     Action& operator=(const Action&) = delete;
     Action(Action&&) = default;
     Action& operator=(Action&&) = default;
 
-    void set_func(Callable&& func) noexcept
+    Action& add_function(Callable&& func) noexcept
     {
         m_func = std::move(func);
+        return *this;
     }
 
     void execute(Args... args) const
@@ -32,6 +32,11 @@ public:
         if (m_func) {
             m_func(std::forward<Args>(args)...);
         }
+    }
+
+    void set_func(Callable&& func) noexcept
+    {
+        m_func = std::move(func);
     }
 
     [[nodiscard]] Callable& get_func() noexcept

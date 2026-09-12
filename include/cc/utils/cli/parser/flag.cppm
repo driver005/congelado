@@ -11,7 +11,8 @@ class Flag
 public:
     Flag() = default;
 
-    Flag(std::string&& name, std::string&& description, FlagType type, FlagConfig&& config) noexcept :
+    Flag(std::string&& name, std::string&& description, FlagType type, FlagConfig&& config) noexcept
+        :
         m_name{std::move(name)},
         m_description{std::move(description)},
         m_type{type},
@@ -24,24 +25,28 @@ public:
     Flag(Flag&&) = default;
     Flag& operator=(Flag&&) = default;
 
-    void set_name(std::string&& value) noexcept
+    Flag& add_name(std::string&& name)
     {
-        m_name = std::move(value);
+        m_name = std::move(name);
+        return *this;
     }
 
-    void set_description(std::string&& value) noexcept
+    Flag& add_description(std::string&& description)
     {
-        m_description = std::move(value);
+        m_description = std::move(description);
+        return *this;
     }
 
-    void set_type(FlagType value) noexcept
+    Flag& add_type(FlagType&& type)
     {
-        m_type = value;
+        
+        return *this;
     }
 
-    void set_config(FlagConfig&& value) noexcept
+    Flag& add_config(FlagConfig&& config)
     {
-        m_config = std::move(value);
+        m_config = std::move(config);
+        return *this;
     }
 
     [[nodiscard]] std::expected<void, std::string> validate(ast::Flag& parsed_flag) const noexcept
@@ -158,6 +163,26 @@ public:
         }
 
         return {};
+    }
+
+    void set_name(std::string&& value) noexcept
+    {
+        m_name = std::move(value);
+    }
+
+    void set_description(std::string&& value) noexcept
+    {
+        m_description = std::move(value);
+    }
+
+    void set_type(FlagType&& value) noexcept
+    {
+        m_type = std::move(value);
+    }
+
+    void set_config(FlagConfig&& value) noexcept
+    {
+        m_config = std::move(value);
     }
 
     [[nodiscard]] std::optional<std::string_view> get_default_value() const noexcept

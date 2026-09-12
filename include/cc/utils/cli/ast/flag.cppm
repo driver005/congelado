@@ -31,6 +31,30 @@ public:
     {
     }
 
+    ~Flag() = default;
+    Flag(const Flag&) = delete;
+    Flag& operator=(const Flag&) = delete;
+    Flag(Flag&&) = default;
+    Flag& operator=(Flag&&) = default;
+
+    Flag& add_name(std::string&& name) noexcept
+    {
+        m_names.push_back(std::move(name));
+        return *this;
+    }
+
+    Flag& add_value(std::string&& value) noexcept {
+        m_value = std::move(value);
+        return *this;
+    }
+
+    Flag& add_has_value(bool has_value) noexcept {
+        m_has_value = has_value;
+        return *this;
+    }
+
+    Flag& 
+
     void set_name(std::string&& name) noexcept
     {
         m_name = std::move(name);

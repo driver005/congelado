@@ -14,6 +14,27 @@ public:
     {
     }
 
+    ~Command() = default;
+    
+
+    Command& add_executable(Executable&& executable) noexcept
+    {
+        m_executable = std::move(executable);
+        return *this;
+    }
+
+    Command& add_argument(Argument&& arg) noexcept
+    {
+        m_args.emplace_back(std::move(arg));
+        return *this;
+    }
+
+    Command& add_stdin(std::string&& text) noexcept
+    {
+        m_stdin_text = std::move(text);
+        return *this;
+    }
+
     void set_arguments(Arguments&& args) noexcept
     {
         m_args = std::move(args);

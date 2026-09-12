@@ -12,9 +12,18 @@ public:
     ~Formatter() = default;
 
     Formatter(const Formatter&) = delete;
-    Formatter(Formatter&&) = delete;
     Formatter& operator=(const Formatter&) = delete;
-    Formatter& operator=(Formatter&&) = delete;
+    Formatter(Formatter&&) = default;
+    Formatter& operator=(Formatter&&) = default;
+
+    Formatter& add_runner(cc_utils::cli::Runner&& runner) noexcept
+    {
+        m_runner = std::move(runner);
+        return *this;
+    }
+
+    void set_runner(cc_utils::cli::Runner&& runner) noexcept
+      
 
     std::expected<std::string, std::string>
     format(const std::string& source, const std::filesystem::path& repo_root)

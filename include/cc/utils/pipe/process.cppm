@@ -7,7 +7,6 @@ module;
 export module cc_utils_pipe:process;
 
 import std;
-import :fd;
 import :pipe;
 
 export namespace cc_utils::pipe {
@@ -15,10 +14,17 @@ export namespace cc_utils::pipe {
 class Process
 {
 public:
-    Process(Process&&) = default;
-    Process& operator=(Process&&) = default;
+    Process(Pipe&& stdin_p, Pipe&& stdout_p, Pipe&& stderr_p) :
+        m_stdin(std::move(stdin_p)),
+        m_stdout(std::move(stdout_p)),
+        m_stderr(std::move(stderr_p))
+    {
+    }
+
     Process(const Process&) = delete;
     Process& operator=(const Process&) = delete;
+    Process(Process&&) = default;
+    Process& operator=(Process&&) = default;
 
     // Factory method orchestrates the creation of all 3 required pipes
     static std::expected<Process, std::string> create(const std::string& exe_name)
@@ -41,17 +47,35 @@ public:
         return Process{std::move(*stdin_pipe), std::move(*stdout_pipe), std::move(*stderr_pipe)};
     }
 
+    Process& add_stdin(Pipe&& stdin_pipe)
+    {
+        m_stdin = std::move(stdin_pipe);
+        return *this;
+    }
+
+    Process& add_stdout(Pipe&& stdout_pipe)
+    {
+        m_stdout = std::move(stdout_pipe);
+        return *this;
+    }
+
+    Pcess& add_stderr(Pipe&& stderr_pipe)
+    {
+        m_stderr = std::move(stderr_pipe);
+        return *this;
+    }
+
     void stream_stdin(std::string_view input)
     {
         m_stdin.stream_write(input);
     }
 
-    std::string read_stdout()
+    [[nodiscard]] std::string read_stdout()
     {
         return m_stdout.read_all();
     }
 
-    std::string read_stderr()
+    [[nodiscard]] std::string read_stderr()
     {
         return m_stderr.read_all();
     }
@@ -62,9 +86,9 @@ public:
         m_stdout.close_read_end();
         m_stderr.close_read_end();
 
-        ::dup2(m_stdin.get_read_end(), STDIN_FILENO);
-        ::dup2(m_stdout.get_write_end(), STDOUT_FILENO);
-        ::dup2(m_stderr.get_write_end(), STDERR_FILENO);
+        ::dup2(m_stdin.get_fd_read_end(), STDIN_FILENO);
+        ::dup2(m_stdout.get_fd_write_end(), STDOUT_FILENO);
+        ::dup2(m_stderr.get_fd_write_end(), STDERR_FILENO);
 
         m_stdin.close_read_end();
         m_stdout.close_write_end();
@@ -108,44 +132,52 @@ public:
         return m_stderr.release_write_end();
     }
 
-    int get_parent_write_stdin() const
+    void set_stdin(Pipe&& stdin_pipe)
     {
-        return m_stdin.get_write_end();
+        m_stdin = std::move(stdin_pipe);
     }
 
-    int get_parent_read_stdout() const
+    void set_stdout(Pipe&& stdout_pipe)
     {
-        return m_stdout.get_read_end();
+        m_stdout = std::move(stdout_pipe);
     }
 
-    int get_parent_read_stderr() const
+    void set_stderr(Pipe&& stderr_pipe)
     {
-        return m_stderr.get_read_end();
+        m_stderr = std::move(stderr_pipe);
     }
 
-    int get_child_read_stdin() const
+    [[nodiscard]] int get_fd_parent_write_stdin() const
     {
-        return m_stdin.get_read_end();
+        return m_stdin.get_fd_write_end();
     }
 
-    int get_child_write_stdout() const
+    [[nodiscard]] int get_fd_parent_read_stdout() const
     {
-        return m_stdout.get_write_end();
+        return m_stdout.get_fd_read_end();
     }
 
-    int get_child_write_stderr() const
+    [[nodiscard]] int get_fd_parent_read_stderr() const
     {
-        return m_stderr.get_write_end();
+        return m_stderr.get_fd_read_end();
+    }
+
+    [[nodiscard]] int get_fd_child_read_stdin() const
+    {
+        return m_stdin.get_fd_read_end();
+    }
+
+    [[nodiscard]] int get_fd_child_write_stdout() const
+    {
+        return m_stdout.get_fd_write_end();
+    }
+
+    [[nodiscard]] int get_fd_child_write_stderr() const
+    {
+        return m_stderr.get_fd_write_end();
     }
 
 private:
-    Process(Pipe&& stdin_p, Pipe&& stdout_p, Pipe&& stderr_p) :
-        m_stdin(std::move(stdin_p)),
-        m_stdout(std::move(stdout_p)),
-        m_stderr(std::move(stderr_p))
-    {
-    }
-
     Pipe m_stdin;
     Pipe m_stdout;
     Pipe m_stderr;

@@ -17,6 +17,12 @@ class Reader
 public:
     Reader() = default;
 
+    ~Reader() = default;
+    Reader(const Reader&) = delete;
+    Reader& operator=(const Reader&) = delete;
+    Reader(Reader&&) = de;
+    Reader& operator=(Reader&&) = delete;
+
     Slot read(clang::FieldDecl* field)
     {
         std::vector<helper::Parameter> parameters;

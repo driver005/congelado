@@ -18,6 +18,18 @@ public:
     Writer& operator=(const Writer&) = delete;
     Writer& operator=(Writer&&) = delete;
 
+    Writer& add_formater(Formatter&& formatter) noexcept
+    {
+        m_formatter = std::move(formatter);
+        return *this;
+    }
+
+    Writer& add_diff(Diff&& differ) noexcept
+    {
+        m_diff = std::move(differ);
+        return *this;
+    }
+
     std::expected<void, std::string> write(
         const std::string& rendered_text,
         const std::filesystem::path& out_path,
@@ -55,7 +67,17 @@ public:
         return m_diff.compare(real_path, *formatted);
     }
 
-    const Formatter& get_formatter() const
+    void set_formater(Formatter&& formatter) noexcept
+    {
+        m_formatter = std::move(formatter);
+    }
+
+    void set_diff(Diff&& differ) noexcept
+    {
+        m_diff = std::move(differ);
+    }
+
+   [[no]] const Formatter& get_formatter() const
     {
         return m_formatter;
     }
@@ -69,4 +91,5 @@ private:
     Formatter m_formatter;
     Diff m_diff;
 };
+
 } // namespace cc_abi_gen::writer

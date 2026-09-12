@@ -6,17 +6,35 @@ module;
 export module cc_utils_pipe:pipe;
 
 import std;
-import :fd;
+import cc_utils_kernel;
 
 export namespace cc_utils::pipe {
 
 class Pipe
 {
 public:
-    Pipe(Pipe&&) = default;
-    Pipe& operator=(Pipe&&) = default;
+    explicit Pipe(int fds[2]) :
+        m_read_end(fds[0]),
+        m_write_end(fds[1])
+    {
+    }
+
     Pipe(const Pipe&) = delete;
     Pipe& operator=(const Pipe&) = delete;
+    Pipe(Pipe&&) = default;
+    Pipe& operator=(Pipe&&) = default;
+
+    Pipe& add_read_end(kernel::FileDescriptor&& fd) noexcept
+    {
+        m_read_end = std::move(fd);
+        return *this;
+    }
+
+    Pipe& add_write_end(kernel::FileDescriptor&& fd) noexcept
+    {
+        m_write_end = std::move(fd);
+        return *this;
+    }
 
     static std::expected<Pipe, std::string> create()
     {
@@ -29,7 +47,7 @@ public:
 
     void stream_write(std::string_view input)
     {
-        int fd = m_write_end.get();
+        int fd = m_write_end.get_fd();
         if (fd == -1) {
             return;
         }
@@ -54,7 +72,7 @@ public:
     std::string read_all()
     {
         std::string output;
-        int fd = m_read_end.get();
+        int fd = m_read_end.get_fd();
         if (fd == -1) {
             return output;
         }
@@ -77,14 +95,24 @@ public:
         return output;
     }
 
-    int get_read_end() const
+    void set_read_end(kernel::FileDescriptor&& fd) noexcept
     {
-        return m_read_end.get();
+        m_read_end = std::move(fd);
     }
 
-    int get_write_end() const
+    void set_write_end(kernel::FileDescriptor&& fd) noexcept
     {
-        return m_write_end.get();
+        m_write_end = std::move(fd);
+    }
+
+    const int& get_fd_read_end() const
+    {
+        return m_read_end.get_fd();
+    }
+
+    const int& get_fd_write_end() const
+    {
+        return m_write_end.get_fd();
     }
 
     int release_read_end()
@@ -108,14 +136,8 @@ public:
     }
 
 private:
-    explicit Pipe(int fds[2]) :
-        m_read_end(fds[0]),
-        m_write_end(fds[1])
-    {
-    }
-
-    UniqueFd m_read_end;
-    UniqueFd m_write_end;
+    kernel::UniqueFd m_read_end;
+    kernel::UniqueFd m_write_end;
 };
 
 } // namespace cc_utils::pipe
