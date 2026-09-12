@@ -7,6 +7,8 @@ export namespace cc_utils::cli {
 class Result
 {
 public:
+    Result() = default;
+    
     Result(
         int exit_code,
         bool exited_normally,
@@ -22,6 +24,79 @@ public:
         m_std_err{std::move(std_err)},
         m_duration{duration}
     {
+    }
+
+    ~Result() = default;
+
+    Result(const Result&) = delete;
+    Result& operator=(const Result&) = delete;
+    Result(Result&&) = default;
+    Result& operator=(Result&&) = default;
+
+    Result& add_exit_code(int exit_code)
+    {
+        m_exit_code = exit_code;
+        return *this;
+    }
+
+    Result& add_exited_normally(bool exited_normally)
+    {
+        m_exited_normally = exited_normally;
+        return *this;
+    }
+
+    Result& add_term_signal(int term_signal)
+    {
+        m_term_signal = term_signal;
+        return *this;
+    }
+
+    Result& add_std_out(std::string&& std_out)
+    {
+        m_std_out = std::move(std_out);
+        return *this;
+    }
+
+    Result& add_std_err(std::string&& std_err)
+    {
+        m_std_err = std::move(std_err);
+        return *this;
+    }
+
+    Restult& add_duration(std::chrono::milliseconds&& duration)
+    {
+        m_duration = std::move(duration);
+        return *this;
+    }
+
+    void set_exit_code(int exit_code)
+    {
+        m_exit_code = exit_code;
+    }
+
+    void set_exited_normally(bool exited_normally)
+    {
+        m_exited_normally = exited_normally;
+    }
+
+    void set_term_signal(int term_signal)
+    {
+        m_term_signal = term_signal;
+    }
+
+    void set_std_out(std::string&& std_out)
+    {
+        m_std_out = std::move(std_out);
+    }
+
+    void set_std_err(std::string&& std_err)
+    {
+        m_std_err = std::move(std_err);
+    }
+
+    void set_duration(std::chrono::milliseconds&& duration)
+    {
+        m_duration = std::move(duration);
     }
 
     int get_exit_code() const

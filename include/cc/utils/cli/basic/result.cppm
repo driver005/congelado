@@ -26,6 +26,47 @@ public:
     {
     }
 
+    ~Result() = default;
+    Result(const Result&) = delete;
+    Result& operator=(const Result&) = delete;
+    
+
+    Result& add_exit_code(int exit_code) noexcept
+    {
+        m_exit_code = exit_code;
+        return *this;
+    }
+
+    Result& add_exited_normally(bool exited_normally) noexcept
+    {
+        m_exited_normally = exited_normally;
+        return *this;
+    }
+
+    Result& add_term_signal(int term_signal) noexcept
+    {
+        m_term_signal = term_signal;
+        return *this;
+    }
+
+    Result& add_std_out(std::string&& std_out) noexcept
+    {
+        m_std_out = std::move(std_out);
+        return *this;
+    }
+
+    Result& add_std_err(std::string&& std_err) noexcept
+    {
+        m_std_err = std::move(std_err);
+        return *this;
+    }
+
+    Result& add_duration(std::chrono::milliseconds&& duration) noexcept
+    {
+        m_duration = std::move(duration);
+        return *this;
+    }
+
     void set_exit_code(int exit_code) noexcept
     {
         m_exit_code = exit_code;
@@ -51,9 +92,9 @@ public:
         m_std_err = std::move(std_err);
     }
 
-    void set_duration(std::chrono::milliseconds duration) noexcept
+    void set_duration(std::chrono::milliseconds&& duration) noexcept
     {
-        m_duration = duration;
+        m_duration = std::move(duration);
     }
 
     [[nodiscard]] int get_exit_code() const noexcept

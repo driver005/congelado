@@ -7,6 +7,8 @@ export namespace cc_abi_gen::helper {
 class KnownType
 {
 public:
+    KnownType() = default;
+
     KnownType(
         std::string&& pointee_name,
         std::string&& cpp_parameter_type,
@@ -19,6 +21,52 @@ public:
         m_unwrap_format{std::move(unwrap_format)}
     {
     }
+
+    ~KnownType() = default;
+    KnownType(const KnownType&) = delete;
+    KnownType& operator=(const KnownType&) = delete;
+    KnownType(KnownType&&) = default;
+    KnownType& operator=(KnownType&&) = default;
+
+    KnownType& add_pointee_name(std::string&& pointee_name) noexcept
+    {
+        m_pointee_name = std::move(pointee_name);
+        return *this;
+    }
+
+    KnownType& add_cpp_parameter_type(std::string&& cpp_parameter_type) noexcept
+    {
+        m_cpp_parameter_type = std::move(cpp_parameter_type);
+        return *this;
+    }
+
+    KnownType& add_wrap_format(std::string&& wrap_format) noexcept
+    {
+        m_wrap_format = std::move(wrap_format);
+        return *this;
+    }
+
+    KnownType& add_unwrap_format(std::string&& unwrap_format) noexcept
+    {
+        m_unwrap_format = std::move(unwrap_format);
+        return *this;
+    }
+
+    void set_pointee_name(std::string&& pointee_name) noexcept
+    {
+        m_pointee_name = std::move(pointee_name);
+    }
+
+    void set_cpp_parameter_type(std::string&& cpp_parameter_type) noexcept
+    {
+        m_cpp_parameter_type = std::move(cpp_parameter_type);
+    }
+
+    void set_wrap_format(std::string&& wrap_format) noexcept {
+        m_wrap_format = std::move(wrap_format);
+    }
+
+    void 
 
     std::string wrape_cc_type(const std::string& argument_name)
     {

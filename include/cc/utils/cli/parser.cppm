@@ -9,17 +9,30 @@ export namespace cc_utils::cli {
 class Parser
 {
 public:
-    Parser() = default;
-
     explicit Parser(parser::Schema&& schema) noexcept :
         m_schema{std::move(schema)}
     {
     }
 
-    void set_schema(parser::Schema&& schema) noexcept
+    ~Parser() = default;
+
+    Parser(const Parser&) = delete;
+    Parser& operator=(const Parser&) = delete;
+    Parser(Parser&&) = default;
+    Parser& operator=(Parser&&) = default;
+
+    Parser& add_invocation(ast::Invocation&& invocation) noexcept
+    {
+        m_invocation = std::move(invocation);
+        return *this;
+    }
+
+    Parser& set_schema(parser::Schema&& schema) noexcept
     {
         m_schema = std::move(schema);
+        return *this;
     }
+
 
     [[nodiscard]] std::expected<void, std::string> parse(int argc, const char* const* argv) noexcept
     {
@@ -93,6 +106,16 @@ public:
     [[nodiscard]] std::expected<void, std::string> check()
     {
         return m_schema.validate(m_invocation);
+    }
+
+    void set_invocation(ast::Invocation&& invocation) noexcept
+    {
+        m_invocation = std::move(invocation);
+    }
+
+    void set_schema(parser::Schema&& schema) noexcept
+    {
+        m_schema = std::move(schema);
     }
 
     [[nodiscard]] const ast::Invocation& get_invocation() const noexcept

@@ -9,10 +9,36 @@ export namespace cc_abi_gen::generator::emitter {
 class Sonic
 {
 public:
+    Sonic() = default;
+
     Sonic(std::reference_wrapper<parser::Registry> registry, std::string_view namespace_name) :
         m_registry{registry},
         m_namespace_name{namespace_name}
     {
+    }
+
+    ~Sonic() = default;
+    Sonic(const Sonic&) = delete;
+    Sonic& operator=(const Sonic&) = delete;
+    Sonic(Sonic&&) = default;
+    Sonic& operator=(Sonic&&) = default;
+
+    Sonic& add_writer(std::string&& writer) noexcept
+    {
+        m_writer = std::move(writer);
+        return *this;
+    }
+
+    Sonic& add_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_namespace_name = std::move(namespace_name);
+        return *this;
+    }
+
+    Sonic& add_registry(parser::Registry&& registry) noexcept
+    {
+        m_registry = std::move(registry);
+        return *this;
     }
 
     std::expected<std::string, std::string> render(const parser::vtable::Model& model)
@@ -41,6 +67,51 @@ public:
         m_writer += helper::format_footer(helper::GenTarget::Sonic, m_namespace_name);
 
         return m_writer;
+    }
+
+    void set_writer(std::string&& writer) noexcept
+    {
+        m_writer = std::move(writer);
+    }
+
+    void set_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_namespace_name = std::move(namespace_name);
+    }
+
+    void set_registry(parser::Registry&& registry) noexcept
+    {
+        m_namespace_name = std::move(registry);
+    }
+
+    std::string& get_writer() noexcept
+    {
+        return m_writer;
+    }
+
+    std::string& get_namespace_name() noexcept
+    {
+        return m_namespace_name;
+    }
+
+    parser::Registry& get_registry() noexcept
+    {
+        return m_registry;
+    }
+
+    const std::string& get_writer() noexcept
+    {
+        return m_writer;
+    }
+
+    const std::string& get_namespace_name() noexcept
+    {
+        return m_namespace_name;
+    }
+
+   cons parser::Registry& get_registry() noexcept
+    {
+        return m_registry;
     }
 
 private:

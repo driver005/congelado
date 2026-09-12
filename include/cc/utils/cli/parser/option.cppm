@@ -32,6 +32,21 @@ public:
     {
     }
 
+        ~Option() = default;
+        
+
+    Option& add_name(std::string&& name)
+    {
+        m_name = std::move(name);
+        return *this;
+    }
+
+    Option& add_description(std::string&& description)
+    {
+        m_description = std::move(description);
+        return *this;
+    }
+
     Option& add_flag(Flag&& option)
     {
         m_flags.push_back(std::move(option));
@@ -44,6 +59,12 @@ public:
         return *this;
     }
 
+    Option& add_action(std::function<void(const ast::Command&)>&& cb)
+    {
+        m_action = std::move(cb);
+        return *this;
+    }
+
     void set_name(std::string&& value) noexcept
     {
         m_name = std::move(value);
@@ -52,6 +73,16 @@ public:
     void set_description(std::string&& value) noexcept
     {
         m_description = std::move(value);
+    }
+
+    void append_flag(Option&& opt) noexcept
+    {
+        m_flags.push_back(std::move(opt));
+    }
+
+    void append_subcommand(Command&& cmd) noexcept
+    {
+        m_subcommands.push_back(std::move(cmd));
     }
 
     void set_action(std::function<void(const ast::Command&)>&& cb) noexcept

@@ -14,6 +14,12 @@ public:
     {
     }
 
+    ~Arguments() = default;
+    Arguments(const Arguments&) = delete;
+    Arguments& operator=(const Arguments&) = dele;
+    Arguments(Arguments&&) = default;
+    Arguments& operator=(Arguments&&) = default;
+
     Arguments(std::initializer_list<std::string> args) :
         m_args{args}
     {
@@ -23,6 +29,11 @@ public:
     {
         m_args.push_back(std::move(argument));
         return *this;
+    }
+
+    void append_argumment(std::string&& argument)
+    {
+        m_args.push_back(std::move(argument));
     }
 
     [[nodiscard]] std::vector<std::string>& get_args() noexcept

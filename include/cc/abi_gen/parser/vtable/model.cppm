@@ -24,6 +24,65 @@ public:
     {
     }
 
+    ~Model() = default;
+    Model(const Model&) = delete;
+    Model& operator=(const Model&) = delete;
+    Model(Model&&) = default;
+    Model& operator=(Model&&) = default;
+
+    Model& add_struct_name(std::string&& struct_name) noexcept
+    {
+        m_struct_name = std::move(struct_name);
+        return *this;
+    }
+
+    Model& add_struct_size_macro(std::string&& struct_size_macro) noexcept
+    {
+        m_struct_size_macro = std::move(struct_size_macro);
+        return *this;
+    }
+
+    Model& add_domain_name(std::string&& domain_name) noexcept
+    {
+        m_domain_name = std::move(domain_name);
+        return *this;
+    }
+
+    Model& add_class_name(std::string&& class_name) noexcept
+    {
+        m_class_name = std::move(class_name);
+        return *this;
+    }
+
+    Model& add_slot(slot::Slot&& slot) noexcept
+    {
+        m_slots.emplace_back(std::move(slot));
+        return *this;
+    }
+
+    void set_struct_name(std::string&& struct_name) noexcept
+    {
+        m_struct_name = std::move(struct_name);
+    }
+
+    void set_struct_size_macro(std::string&& struct_size_macro) noexcept
+    {
+        m_struct_size_macro = std::move(struct_size_macro);
+    }
+
+    void set_domain_name(std::string&& domain_name) noexcept
+    {
+        m_domain_name = std::move(domain_name);
+    }
+
+    void set_class_name(std::string&& class_name) noexcept {
+        m_class_name = std::move(class_name);
+    }
+
+    void append_slot(slot::Slot && slot) noexcept{
+    }
+
+
     // Example: ice::String::create({})
     std::string wrape_type(std::string_view domain, std::string_view argument_name)
     {

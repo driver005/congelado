@@ -31,15 +31,21 @@ public:
     {
     }
 
-    Invocation& add_global_flag(Flag&& flag)
+    ~Invocation() = default;
+    Invocation(const Invocation&) = delete;
+    Invocation& operator=(const Invocation&) = delete;
+    Invocation(Invocation&&) = default;
+    Invocation& operator=(Invocation&&) = default;
+
+    Invocation& add_program_name(std::string&& program_name) noexcept
     {
-        m_global_flags.push_back(std::move(flag));
+        m_program_name = std::move(program_name);
         return *this;
     }
 
-    Invocation& add_command(Command&& cmd)
+    Invocation& add_global_flag(std::string&& flag_name) noexcept
     {
-        m_commands.push_back(std::move(cmd));
+        m_global_flags.emplace_back(std::move(flag_name));
         return *this;
     }
 
@@ -49,10 +55,30 @@ public:
         return *this;
     }
 
+    Invocation& add_command(Command&& cmd)
+    {
+        m_commands.push_back(std::move(cmd));
+        return *this;
+    }
+
+    void append_global_flag(std::string&& flag_name) noexcept
+    {
+        m_global_flags.emplace_back(std::move(flag_name));
+    }
+
     void set_program_name(std::string&& program_name) noexcept
     {
         m_program_name = std::move(program_name);
     }
+
+    void append_global_operand(std::string&& operand) noexcept
+    {
+        m_global_operands.emplace_back(std::move(operand));
+    }
+
+    void append_command(Command&& cmd) noexcept
+      
+
 
     [[nodiscard]] std::optional<std::reference_wrapper<Command>> get_current_command() noexcept
     {

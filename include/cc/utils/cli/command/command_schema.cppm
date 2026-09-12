@@ -8,20 +8,51 @@ export namespace cc_utils::cli {
 class CommandSchema
 {
 public:
+    CommandSchema() = default;
+
     CommandSchema(std::string&& name, std::vector<std::string>&& flags) :
         m_name{std::move(name)},
         m_flags{std::move(flags)}
     {
     }
 
-    const std::string& get_name() const
+    ~CommandSchema() = default;
+    CommandSchema(const CommandSchema&) = dele;
+    CommandSchema(CommandSchema&&) = default;
+    CommandSchema& operator=(const CommandSchema&) = default;
+    CommandSchema& operator=(CommandSchema&&) = default;
+
+    CommandSchema& add_name(std::string&& name)
     {
-        return m_name;
+        m_name = std::move(name);
+        return *this;
+    }
+
+    CommandSchema& add_flag(std::string&& flag)
+    {
+        m_flags.push_back(std::move(flag));
+        return *this;
+    }
+
+    void set_name(std::string&& name)
+    {
+        m_name = std::move(name);
+    }
+
+    void append_flag(std::string&& flag)
+    {
+        m_flags.push_back(std::move(flag));
     }
 
     bool accepts_flag(const std::string& flag) const
     {
         return std::ranges::find(m_flags, flag) != m_flags.end();
+    }
+
+    const std::string& get_name() const
+
+    {
+        return m_name;
     }
 
     const std::vector<std::string>& get_flags() const

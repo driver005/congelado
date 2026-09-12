@@ -19,6 +19,19 @@ class Runner
 public:
     Runner() = default;
 
+    ~Runner() = default;
+
+    Runner(const Runner&) = delete;
+    Runner& operator=(const Runner&) = delete;
+    Runner(Runner&&) = default;
+    Runner& operator=(Runner&&) = default;
+
+    Runner& add_history(Record&& record)
+    {
+        m_history.emplace_back(std::move(record));
+        return *this;
+    }
+
     std::expected<Result, std::string> execute(Command&& cmd)
     {
         auto process_expected = pipe::Process::create(cmd.get_executable().get_name());
@@ -43,6 +56,11 @@ public:
         m_history.emplace_back(Record{std::move(cmd), std::move(result)});
 
         return result;
+    }
+
+    void append_history(Record&& record)
+    {
+        m_history.emplace_back(std::move(record));
     }
 
     std::span<const Record> get_history() const
@@ -96,7 +114,7 @@ private:
         ::_exit(127);
     }
 
-    Result manage_parent_io(
+    [[nodiscard]] Result manage_parent_io(
         pid_t pid,
         const Command& cmd,
         pipe::Process& pipes,

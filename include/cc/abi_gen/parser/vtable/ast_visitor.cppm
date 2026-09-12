@@ -18,6 +18,24 @@ class AstVisitor : public clang::RecursiveASTVisitor<AstVisitor>
 public:
     AstVisitor() = default;
 
+    ~AstVisitor() = default;
+    AstVisitor(const AstVisitor&) = delete;
+    AstVisitor& operator=(const AstVisitor&) = delete;
+    AstVisitor(AstVisitor&&) = defaul;
+    AstVisitor& operator=(AstVisitor&&) = delete;
+
+    AstVisitor& add_nameing(Naming&& naming) noexcept
+    {
+        m_naming = std::move(naming);
+        return *this;
+    }
+
+    AstVisitor& add_slot_reader(slot::Reader&& slot_reader) noexcept
+    {
+        m_reader = std::move(slot_reader);
+        return *this;
+    }
+
     std::optional<Model> traverse_record_decl(clang::RecordDecl* record_decl)
     {
         // Check that the struct is a declation as well
@@ -63,12 +81,32 @@ public:
         };
     }
 
-    const Naming& get_naming() const
+    void set_naming(Naming&& naming) noexcept
+    {
+        m_naming = std::move(naming);
+    }
+
+    void set_slot_reader(slot::Reader&& slot_reader) noexcept
+    {
+        m_reader = std::move(slot_reader);
+    }
+
+    Naming& get_naming() noexcept
     {
         return m_naming;
     }
 
-    const slot::Reader& get_slot_reader() const
+    slot::Reader& get_slot_reader() noexcept
+    {
+        return m_reader;
+    }
+
+    const Naming& get_naming() const noexcept
+    {
+        return m_naming;
+    }
+
+    const slot::Reader& get_slot_reader() const noexcept
     {
         return m_reader;
     }

@@ -18,6 +18,36 @@ public:
     {
     }
 
+    ~Parser() = default;
+    Parser(const Parser&) = delete;
+    Parser& operator=(const Parser&) = delete;
+    Parser(Parser&&) = default;
+    Parser& operator=(Parser&&) = default;
+
+    Parser& add_command_schema(CommandSchema&& command)
+    {
+        m_commands.push_back(std::move(command));
+        return *this;
+    }
+
+    Parser& add_program_name(std::string&& program_name)
+    {
+        m_program_name = std::move(program_name);
+        return *this;
+    }
+
+    Parser& add_command(std::string&& command)
+    {
+        m_command = std::move(command);
+        return *this;
+    }
+
+    Parser& add_flag(std::string&& flag, std::string&& description)
+    {
+        m_flags.append({std::move(flag), std::move(description)});
+        return *this;
+    }
+
     std::expected<void, std::string> parse(const Arguments& arguments)
     {
         const std::vector<std::string>& args = arguments.get_args();
@@ -66,6 +96,26 @@ public:
         return {};
     }
 
+    void append_command(CommandSchema&& command)
+    {
+        m_commands.emplace_back(std::move(command));
+    }
+
+    void set_program_name(std::string&& program_name)
+    {
+        m_program_name = std::move(program_name);
+    }
+
+    void set_command(std::string&& command)
+    {
+        m_command = std::move(command);
+    }
+
+    void append_flag(std::string&& flag, std::string&& description)
+    {
+      m
+    }
+
     const std::string& get_program_name() const
     {
         return m_program_name;
@@ -99,7 +149,7 @@ public:
 private:
     const CommandSchema* find_command(const std::string& name) const
     {
-        for (const CommandSchema& command : m_commands) {
+        for (const CommandSchema& command: m_commands) {
             if (command.get_name() == name) {
                 return &command;
             }

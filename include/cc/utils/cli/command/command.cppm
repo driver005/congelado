@@ -9,27 +9,60 @@ export namespace cc_utils::cli {
 class Command
 {
 public:
+        
     explicit Command(Executable executable) :
         m_executable{std::move(executable)}
     {
     }
 
-    Command& arguments(Arguments&& args)
+    ~Command() = default;
+    Command(const Command&) = delete;
+    Command& operator=(const Command&) = delete;
+    Command(Command&&) = default;
+    Command& operator=(Command&&) = default;
+
+    Command& add_executable(Executable executable)
+    {
+        m_executable = std::move(executable);
+        return *this;
+    }
+
+    Command& add_arguments(Arguments&& args)
     {
         m_args = std::move(args);
         return *this;
     }
 
-    Command& input(std::string&& text)
+    Command& add_input(std::string&& text)
     {
         m_stdin_text = std::move(text);
         return *this;
     }
 
-    Command& append_input(std::string_view chunk)
+    Command& add_input_chunk(std::string_view chunk)
     {
         m_stdin_text.append(chunk);
         return *this;
+    }
+
+    void set_executable(Executable&& executable)
+    {
+        m_executable = std::move(executable);
+    }
+
+    void set_arguments(Arguments&& args)
+    {
+        m_args = std::move(args);
+    }
+
+    void set_input(std::string&& input)
+    {
+        m_stdin_text = std::move(input);
+    }
+
+    void append_input(std::string&& chunk)
+    {
+        m_stdin_text += std::move(chunk);
     }
 
     const Executable& get_executable() const

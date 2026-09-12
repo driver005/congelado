@@ -15,6 +15,24 @@ public:
     {
     }
 
+    ~Record() = default;
+    Record(const Record&) = dele;
+    Record(Record&&) = default;
+    Record& operator=(const Record&) = default;
+    Record& operator=(Record&&) = default;
+
+    Record& set_command(Command&& command) noexcept
+    {
+        m_command = std::move(command);
+        return *this;
+    }
+
+    Record& set_result(Result&& result) noexcept
+    {
+        m_result = std::move(result);
+        return *this;
+    }
+
     void set_command(Command&& command) noexcept
     {
         m_command = std::move(command);
