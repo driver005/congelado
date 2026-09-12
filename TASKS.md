@@ -25,3 +25,5 @@ Refactor `Tensor`, `Shape`, `Buffer`, and `DataType` in the `intern` layer to mi
     in tree).
 - [x] **Task 4: Codebase Update** — `TensorRuntime` / `TensorBuilder` etc. removed; calls go
     through the `Runtime`-derived factory + `resolve()`.
+- [x] **Task 5: Rule of Five & Getters Audit Documentation** — Document audit results for Rule of Five and getter conventions across `include/cc` in `docs/cc-rule-of-five-and-getters-audit.md`.
+
