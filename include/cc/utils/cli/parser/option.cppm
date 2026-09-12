@@ -32,8 +32,11 @@ public:
     {
     }
 
-        ~Option() = default;
-        
+    ~Option() = default;
+    Option(const Option&) = delete;
+    Option& operator=(const Option&) = delete;
+    Option(Option&&) = default;
+    Option& operator=(Option&&) = default;
 
     Option& add_name(std::string&& name)
     {
@@ -179,17 +182,7 @@ public:
         return m_name;
     }
 
-    [[nodiscard]] const std::string& get_name() const noexcept
-    {
-        return m_name;
-    }
-
     [[nodiscard]] std::string& get_description() noexcept
-    {
-        return m_description;
-    }
-
-    [[nodiscard]] const std::string& get_description() const noexcept
     {
         return m_description;
     }
@@ -199,9 +192,9 @@ public:
         return m_flags;
     }
 
-    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]] const std::string& get_name() const noexcept
     {
-        return m_flags;
+        return m_name;
     }
 
     [[nodiscard]] std::span<Option> get_subcommands() noexcept
@@ -209,14 +202,24 @@ public:
         return m_subcommands;
     }
 
-    [[nodiscard]] std::span<const Option> get_subcommands() const noexcept
-    {
-        return m_subcommands;
-    }
-
     [[nodiscard]] std::function<void(const ast::Command&)>& get_action() noexcept
     {
         return m_action;
+    }
+
+    [[nodiscard]] const std::string& get_description() const noexcept
+    {
+        return m_description;
+    }
+
+    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
+    {
+        return m_flags;
+    }
+
+    [[nodiscard]] std::span<const Option> get_subcommands() const noexcept
+    {
+        return m_subcommands;
     }
 
     [[nodiscard]] const std::function<void(const ast::Command&)>& get_action() const noexcept
