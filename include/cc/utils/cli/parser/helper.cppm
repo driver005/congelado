@@ -303,21 +303,6 @@ public:
         m_version = std::move(value);
     }
 
-    [[nodiscard]] bool get_allows_unrecognized() noexcept
-    {
-        return m_allow_unrecognized;
-    }
-
-    [[nodiscard]] bool get_has_auto_help() noexcept
-    {
-        return m_auto_help;
-    }
-
-    [[nodiscard]] std::optional<std::string>& get_version() noexcept
-    {
-        return m_version;
-    }
-
     [[nodiscard]] bool get_allows_unrecognized() const noexcept
     {
         return m_allow_unrecognized;

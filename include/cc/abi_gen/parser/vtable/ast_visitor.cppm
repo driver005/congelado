@@ -91,16 +91,6 @@ public:
         m_reader = std::move(slot_reader);
     }
 
-    Naming& get_naming() noexcept
-    {
-        return m_naming;
-    }
-
-    slot::Reader& get_slot_reader() noexcept
-    {
-        return m_reader;
-    }
-
     const Naming& get_naming() const noexcept
     {
         return m_naming;

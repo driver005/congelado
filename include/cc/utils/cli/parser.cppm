@@ -117,16 +117,6 @@ public:
         m_schema = std::move(schema);
     }
 
-    [[nodiscard]] ast::Invocation& get_invocation() noexcept
-    {
-        return m_invocation;
-    }
-
-    [[nodiscard]] parser::Schema& get_schema() noexcept
-    {
-        return m_schema;
-    }
-
     [[nodiscard]] const ast::Invocation& get_invocation() const noexcept
     {
         return m_invocation;

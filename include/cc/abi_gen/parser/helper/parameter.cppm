@@ -56,24 +56,6 @@ public:
     }
 
     // Example: TF_TString
-    std::string& get_type() noexcept
-    {
-        return m_type;
-    }
-
-    // Example: TF_Status
-    std::string& get_pointee_name() noexcept
-    {
-        return m_pointee_name;
-    }
-
-    // Example: argument_name
-    std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    // Example: TF_TString
     std::string_view get_type() const noexcept
     {
         return m_type;

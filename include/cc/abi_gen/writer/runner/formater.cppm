@@ -67,11 +67,6 @@ public:
         return run_result->get_std_out();
     }
 
-    cc_utils::cli::Runner& get_runner() noexcept
-    {
-        return m_runner;
-    }
-
     const cc_utils::cli::runner& get_runner() const noexcept
     {
         return m_runner;

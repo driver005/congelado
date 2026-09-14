@@ -189,26 +189,6 @@ public:
         m_action = std::forward<Callable>(act);
     }
 
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    [[nodiscard]] std::span<Flag> get_flags() noexcept
-    {
-        return m_flags;
-    }
-
-    [[nodiscard]] std::span<Option> get_options() noexcept
-    {
-        return m_options;
-    }
-
-    [[nodiscard]] Action<std::span<Flag>>& get_action() noexcept
-    {
-        return m_action;
-    }
-
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;

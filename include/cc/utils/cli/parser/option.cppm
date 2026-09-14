@@ -177,31 +177,6 @@ public:
         return std::ranges::contains(m_flags, flag_name, projection);
     }
 
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    [[nodiscard]] std::string& get_description() noexcept
-    {
-        return m_description;
-    }
-
-    [[nodiscard]] std::span<Flag> get_flags() noexcept
-    {
-        return m_flags;
-    }
-
-    [[nodiscard]] std::span<Option> get_subcommands() noexcept
-    {
-        return m_subcommands;
-    }
-
-    [[nodiscard]] std::function<void(const ast::Command&)>& get_action() noexcept
-    {
-        return m_action;
-    }
-
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;

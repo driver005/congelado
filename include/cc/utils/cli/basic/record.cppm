@@ -55,21 +55,6 @@ public:
         m_result = std::move(result);
     }
 
-    [[nodiscard]] Command& get_command() noexcept
-    {
-        return m_command;
-    }
-
-    [[nodiscard]] Result& get_result() noexcept
-    {
-        return m_result;
-    }
-
-    [[nodiscard]] std::chrono::milliseconds& get_duration() noexcept
-    {
-        return m_result.get_duration();
-    }
-
     [[nodiscard]] const Command& get_command() const noexcept
     {
         return m_command;

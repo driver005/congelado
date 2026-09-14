@@ -89,26 +89,6 @@ public:
         m_commands.emplace_back(std::move(cmd));
     }
 
-    [[nodiscard]] std::string& get_program_name() noexcept
-    {
-        return m_program_name;
-    }
-
-    [[nodiscard]] std::span<Flag> get_global_flags() noexcept
-    {
-        return m_global_flags;
-    }
-
-    [[nodiscard]] std::span<Command> get_commands() noexcept
-    {
-        return m_commands;
-    }
-
-    [[nodiscard]] std::span<std::string> get_global_operands() noexcept
-    {
-        return m_global_operands;
-    }
-
     [[nodiscard]] const std::string& get_program_name() const noexcept
     {
         return m_program_name;

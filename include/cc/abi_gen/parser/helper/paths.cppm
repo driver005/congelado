@@ -60,24 +60,6 @@ public:
     }
 
     // Example: include/c/extern/string/string.h
-    std::filesystem::path& get_header() noexcept
-    {
-        return m_header;
-    }
-
-    // Example: include/cc/abi/builder/string/string.cppm
-    std::filesystem::path& get_builder_cppm() noexcept
-    {
-        return m_builder_cppm;
-    }
-
-    // Example: include/cc/abi/sonic/string/string.cppm
-    std::filesystem::path& get_sonic_cppm() noexcept
-    {
-        return m_sonic_cppm;
-    }
-
-    // Example: include/c/extern/string/string.h
     const std::filesystem::path& get_header() const noexcept
     {
         return m_header;

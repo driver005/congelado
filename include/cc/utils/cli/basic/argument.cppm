@@ -36,12 +36,7 @@ public:
         m_args.push_back(std::move(argument));
     }
 
-    [[nodiscard]] std::vector<std::string>& get_args() noexcept
-    {
-        return m_args;
-    }
-
-    [[nodiscard]] const std::vector<std::string>& get_args() const noexcept
+    [[nodiscard]] const std::span<const std::string>& get_args() const noexcept
     {
         return m_args;
     }

@@ -56,21 +56,6 @@ public:
         m_result = std::move(res);
     }
 
-    Command& get_command() noexcept
-    {
-        return m_command;
-    }
-
-    Result& get_result() noexcept
-    {
-        return m_result;
-    }
-
-    std::chrono::milliseconds& get_duration() noexcept
-    {
-        return m_result.get_duration();
-    }
-
     const Command& get_command() const noexcept
     {
         return m_command;
@@ -79,11 +64,6 @@ public:
     const Result& get_result() const noexcept
     {
         return m_result;
-    }
-
-    const std::chrono::milliseconds& get_duration() const noexcept
-    {
-        return m_result.get_duration();
     }
 
 

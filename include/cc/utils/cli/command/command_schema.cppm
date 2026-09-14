@@ -49,16 +49,6 @@ public:
         return std::ranges::find(m_flags, flag) != m_flags.end();
     }
 
-    std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    std::span<std::string>& get_flags() noexcept
-    {
-        return m_flags;
-    }
-
     const std::string& get_name() const noexcept
     {
         return m_name;

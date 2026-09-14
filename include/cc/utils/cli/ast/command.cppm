@@ -78,19 +78,9 @@ public:
         m_operands.push_back(std::move(operand));
     }
 
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;
-    }
-
-    [[nodiscard]] std::span<Flag> get_flags() noexcept
-    {
-        return m_flags;
     }
 
     [[nodiscard]] std::span<const Flag> get_flags() const noexcept
@@ -98,19 +88,9 @@ public:
         return m_flags;
     }
 
-    [[nodiscard]] std::span<Command> get_subcommands() noexcept
-    {
-        return m_subcommands;
-    }
-
     [[nodiscard]] std::span<const Command> get_subcommands() const noexcept
     {
         return m_subcommands;
-    }
-
-    [[nodiscard]] std::span<std::string> get_operands() noexcept
-    {
-        return m_operands;
     }
 
     [[nodiscard]] std::span<const std::string> get_operands() const noexcept

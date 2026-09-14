@@ -68,11 +68,6 @@ public:
         m_runner = std::move(runner);
     }
 
-    cc_utils::cli::Runner& get_runner() noexcept
-    {
-        return m_runner;
-    }
-
     const cc_utils::cli::Runner& get_runner() const noexcept
     {
         return m_runner;
