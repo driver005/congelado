@@ -13,16 +13,6 @@ class Naming
 public:
     Naming() = default;
 
-    Naming& add_scratch_text(std::string&& text) noexcept
-    {
-        m_scratch_text = std::move(text);
-        return *this;
-    }
-    
-    void set_scratch_text(std::string&& text) noexcept {
-      m_scratch_text m
-    }
-
     // "TF_Cache" -> "TF_CACHE_STRUCT_SIZE"
     std::string struct_size_macro(const std::string& struct_name)
     {

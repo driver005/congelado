@@ -194,12 +194,12 @@ public:
         return m_name;
     }
 
-    [[nodiscard]] const std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]]  std::span<const Flag> get_flags() const noexcept
     {
         return m_flags;
     }
 
-    [[nodiscard]] const std::span<const Option> get_options() const noexcept
+    [[nodiscard]]  std::span<const Option> get_options() const noexcept
     {
         return m_options;
     }

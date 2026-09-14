@@ -46,13 +46,13 @@ public:
 
     Parser& add_flag(std::string&& flag, std::string&& description) noexcept
     {
-        m_flags.append({std::move(flag), std::move(description)});
+        m_flags.insert({std::move(flag), std::move(description)});
         return *this;
     }
 
     std::expected<void, std::string> parse(const Arguments& arguments) noexcept
     {
-        const std::vector<std::string>& args = arguments.get_args();
+        auto args = arguments.get_args();
 
         m_command.clear();
         m_flags.clear();
@@ -143,7 +143,7 @@ public:
         return m_command;
     }
 
-    const std::span<const CommandSchema>& get_commands() const noexcept
+    std::span<const CommandSchema> get_commands() const noexcept
     {
         return m_commands;
     }

@@ -21,8 +21,8 @@ public:
     ~AstVisitor() = default;
     AstVisitor(const AstVisitor&) = delete;
     AstVisitor& operator=(const AstVisitor&) = delete;
-    AstVisitor(AstVisitor&&) = defaul;
-    AstVisitor& operator=(AstVisitor&&) = delete;
+    AstVisitor(AstVisitor&&) = default;
+    AstVisitor& operator=(AstVisitor&&) = default;
 
     AstVisitor& add_nameing(Naming&& naming) noexcept
     {

@@ -22,7 +22,7 @@ public:
     {
         cc_utils::cli::Arguments arguments;
         for (int index = 0; index < argc; ++index) {
-            arguments.add(std::string{argv[index]});
+            arguments.append_argument(std::string{argv[index]});
         }
 
         cc_utils::cli::Parser parser{build_command_schema()};

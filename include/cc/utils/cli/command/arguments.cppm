@@ -42,7 +42,7 @@ public:
         m_args.push_back(std::move(argument));
     }
 
-    const std::span<const std::string>& get_args() const noexcept
+    std::span<const std::string> get_args() const noexcept
     {
         return m_args;
     }

@@ -215,17 +215,17 @@ public:
         return m_env_var;
     }
 
-    [[nodiscard]] const std::span<const std::string>& get_allowed_values() const noexcept
+    [[nodiscard]] std::span<const std::string> get_allowed_values() const noexcept
     {
         return m_allowed_values;
     }
 
-    [[nodiscard]] const std::span<const std::string>& get_requires_flags() const noexcept
+    [[nodiscard]]  std::span<const std::string>  get_requires_flags() const noexcept
     {
         return m_requires_flags;
     }
 
-    [[nodiscard]] const std::span<const std::string>& get_conflicts_with() const noexcept
+    [[nodiscard]]  std::span<const std::string>  get_conflicts_with() const noexcept
     {
         return m_conflicts_with;
     }

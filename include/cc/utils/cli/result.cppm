@@ -63,7 +63,7 @@ public:
         return *this;
     }
 
-    Restult& add_duration(std::chrono::milliseconds&& duration) noexcept
+    Result& add_duration(std::chrono::milliseconds&& duration) noexcept
     {
         m_duration = std::move(duration);
         return *this;

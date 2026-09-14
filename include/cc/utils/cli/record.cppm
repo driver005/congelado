@@ -43,7 +43,7 @@ public:
     std::string to_summary() const noexcept
     {
         return m_command.get_executable().get_name() + (is_success() ? " [SUCCESS]" : " [FAILED]") +
-               " - " + std::to_string(get_duration().count()) + "ms";
+               " - " + std::to_string(m_result.get_duration().count()) + "ms";
     }
 
     void set_command(Command&& cmd) noexcept

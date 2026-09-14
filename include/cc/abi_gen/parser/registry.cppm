@@ -15,8 +15,8 @@ public:
 
     ~Registry() = default;
     Registry(const Registry&) = delete;
+    Registry& operator=(const Registry&) = delete;
     Registry(Registry&&) = default;
-    Registry& operator=(const Registry&) = ;
     Registry& operator=(Registry&&) = default;
 
     Registry& add_model(vtable::Model&& model)

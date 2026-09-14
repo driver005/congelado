@@ -82,7 +82,7 @@ public:
 
         auto total = std::chrono::milliseconds{0};
         for (const auto& record: m_history) {
-            total += record.get_duration();
+            total += record.get_result().get_duration();
         }
 
         return total / m_history.size();
@@ -93,7 +93,7 @@ public:
         m_history.emplace_back(std::move(record));
     }
 
-    const std::span<const Record> get_history() const noexcept
+    std::span<const Record> get_history() const noexcept
     {
         return m_history;
     }
@@ -102,7 +102,7 @@ public:
 private:
     [[noreturn]] void execute_child(const Command& cmd, pipe::Process& pipes)
     {
-        pipes.setup_child_redirects();
+        pipes.setup_redirects();
 
         auto c_args = cmd.to_c_args();
         const std::string& exe_str = cmd.get_executable().is_found()
@@ -121,7 +121,7 @@ private:
         std::chrono::steady_clock::time_point start_time
     )
     {
-        pipes.close_child_ends();
+        pipes.close_ends();
 
         std::jthread stdin_thread(
             [&pipes, &cmd]()

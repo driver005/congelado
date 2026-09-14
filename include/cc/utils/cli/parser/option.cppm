@@ -187,12 +187,12 @@ public:
         return m_description;
     }
 
-    [[nodiscard]] const std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]]  std::span<const Flag> get_flags() const noexcept
     {
         return m_flags;
     }
 
-    [[nodiscard]] const std::span<const Option> get_subcommands() const noexcept
+    [[nodiscard]]  std::span<const Option> get_subcommands() const noexcept
     {
         return m_subcommands;
     }
