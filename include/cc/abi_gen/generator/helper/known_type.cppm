@@ -52,6 +52,16 @@ public:
         return *this;
     }
 
+    std::string wrape_cc_type(const std::string& argument_name)
+    {
+        return std::vformat(known.m_wrap_format, std::make_format_args(argument_name));
+    }
+
+    std::string unwrape_cc_type(const std::string& argument_name)
+    {
+        return std::vformat(known.m_unwrap_format, std::make_format_args(argument_name));
+    }
+
     void set_pointee_name(std::string&& pointee_name) noexcept
     {
         m_pointee_name = std::move(pointee_name);
@@ -62,20 +72,14 @@ public:
         m_cpp_parameter_type = std::move(cpp_parameter_type);
     }
 
-    void set_wrap_format(std::string&& wrap_format) noexcept {
+    void set_wrap_format(std::string&& wrap_format) noexcept
+    {
         m_wrap_format = std::move(wrap_format);
     }
 
-    void 
-
-    std::string wrape_cc_type(const std::string& argument_name)
+    void set_unwrap_format(std::string&& unwrap_format) noexcept
     {
-        return std::vformat(known.m_wrap_format, std::make_format_args(argument_name));
-    }
-
-    std::string unwrape_cc_type(const std::string& argument_name)
-    {
-        return std::vformat(known.m_unwrap_format, std::make_format_args(argument_name));
+        m_unwrap_format = std::move(unwrap_format);
     }
 
     // Example: TF_TString

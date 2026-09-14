@@ -22,40 +22,49 @@ public:
     CommandSchema& operator=(const CommandSchema&) = default;
     CommandSchema& operator=(CommandSchema&&) = default;
 
-    CommandSchema& add_name(std::string&& name)
+    CommandSchema& add_name(std::string&& name) noexcept
     {
         m_name = std::move(name);
         return *this;
     }
 
-    CommandSchema& add_flag(std::string&& flag)
+    CommandSchema& add_flag(std::string&& flag) noexcept
     {
         m_flags.push_back(std::move(flag));
         return *this;
     }
 
-    void set_name(std::string&& name)
+    void set_name(std::string&& name) noexcept
     {
         m_name = std::move(name);
     }
 
-    void append_flag(std::string&& flag)
+    void append_flag(std::string&& flag) noexcept
     {
         m_flags.push_back(std::move(flag));
     }
 
-    bool accepts_flag(const std::string& flag) const
+    bool accepts_flag(const std::string& flag) const noexcept
     {
         return std::ranges::find(m_flags, flag) != m_flags.end();
     }
 
-    const std::string& get_name() const
-
+    std::string& get_name() noexcept
     {
         return m_name;
     }
 
-    const std::vector<std::string>& get_flags() const
+    std::span<std::string>& get_flags() noexcept
+    {
+        return m_flags;
+    }
+
+    const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    const std::span<const std::string>& get_flags() const noexcept
     {
         return m_flags;
     }

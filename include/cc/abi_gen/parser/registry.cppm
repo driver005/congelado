@@ -43,40 +43,41 @@ public:
         return std::nullopt;
     }
 
-    Iterator begin()
+    Iterator begin() noexcept
     {
         return m_known_models.begin();
     }
 
-    Iterator end()
+    Iterator end() noexcept
     {
         return m_known_models.end();
     }
 
-    ConstIterator begin() const
+    ConstIterator begin() const noexcept
     {
         return m_known_models.begin();
     }
 
-    ConstIterator end() const
+    ConstIterator end() const noexcept
     {
         return m_known_models.end();
     }
 
-    void add_model(vtable::Model&& model)
+    void append_model(vtable::Model&& model) noexcept
     {
         m_known_models.insert({model.get_struct_name(), std::move(model)});
     }
 
-    const std::unordered_map<std::string, vtable::Model>& get_models() const
+    std::unordered_map<std::string, vtable::Model>& get_models() noexcept
     {
         return m_known_models;
     }
 
-    std::unordered_map<std::string, vtable::Model>& get_models()
+    const std::unordered_map<std::string, vtable::Model>& get_models() const noexcept
     {
         return m_known_models;
     }
+
 
 private:
     std::unordered_map<std::string, vtable::Model> m_known_models;

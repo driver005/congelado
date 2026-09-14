@@ -20,19 +20,18 @@ public:
     Runner() = default;
 
     ~Runner() = default;
-
     Runner(const Runner&) = delete;
     Runner& operator=(const Runner&) = delete;
     Runner(Runner&&) = default;
     Runner& operator=(Runner&&) = default;
 
-    Runner& add_history(Record&& record)
+    Runner& add_history(Record&& record) noexcept
     {
         m_history.emplace_back(std::move(record));
         return *this;
     }
 
-    std::expected<Result, std::string> execute(Command&& cmd)
+    std::expected<Result, std::string> execute(Command&& cmd) noexcept
     {
         auto process_expected = pipe::Process::create(cmd.get_executable().get_name());
         if (!process_expected) {
@@ -58,17 +57,7 @@ public:
         return result;
     }
 
-    void append_history(Record&& record)
-    {
-        m_history.emplace_back(std::move(record));
-    }
-
-    std::span<const Record> get_history() const
-    {
-        return m_history;
-    }
-
-    double get_success_rate() const
+    double to_success_rate() const noexcept
     {
         if (m_history.empty()) {
             return 0.0;
@@ -85,7 +74,7 @@ public:
         return (successes / m_history.size()) * 100.0;
     }
 
-    std::chrono::milliseconds get_mean_duration() const
+    std::chrono::milliseconds to_mean_duration() const noexcept
     {
         if (m_history.empty()) {
             return std::chrono::milliseconds{0};
@@ -98,6 +87,22 @@ public:
 
         return total / m_history.size();
     }
+
+    void append_history(Record&& record) noexcept
+    {
+        m_history.emplace_back(std::move(record));
+    }
+
+    std::span<Record> get_history() noexcept
+    {
+        return m_history;
+    }
+
+    const std::span<const Record> get_history() const noexcept
+    {
+        return m_history;
+    }
+
 
 private:
     [[noreturn]] void execute_child(const Command& cmd, pipe::Process& pipes)

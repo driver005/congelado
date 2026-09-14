@@ -29,7 +29,10 @@ public:
     }
 
     ~Command() = default;
-    
+    Command(const Command&) = delete;
+    Command& operator=(const Command&) = delete;
+    Command(Command&&) = default;
+    Command& operator=(Command&&) = default;
 
     Command& add_name(std::string&& name)
     {

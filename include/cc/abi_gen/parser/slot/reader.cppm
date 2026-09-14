@@ -20,10 +20,10 @@ public:
     ~Reader() = default;
     Reader(const Reader&) = delete;
     Reader& operator=(const Reader&) = delete;
-    Reader(Reader&&) = de;
-    Reader& operator=(Reader&&) = delete;
+    Reader(Reader&&) = default;
+    Reader& operator=(Reader&&) = default;
 
-    Slot read(clang::FieldDecl* field)
+    Slot read(clang::FieldDecl* field) noexcept
     {
         std::vector<helper::Parameter> parameters;
 
@@ -62,7 +62,7 @@ public:
 private:
     // Bare pointee type name, read structurally off clang's QualType instead of guessed back
     // out of a formatted type string. Empty for void* and for non-pointer parameters.
-    std::string resolve_pointee_name(clang::QualType parameter_type)
+    std::string resolve_pointee_name(clang::QualType parameter_type) noexcept
     {
         if (!parameter_type->isPointerType()) {
             return {};
@@ -76,7 +76,7 @@ private:
         return pointee_type.getUnqualifiedType().getAsString();
     }
 
-    clang::FunctionProtoTypeLoc resolve_function_loc(clang::FieldDecl* field)
+    clang::FunctionProtoTypeLoc resolve_function_loc(clang::FieldDecl* field) noexcept
     {
         // Gets the object containing the exact physical locations of the type's tokens in the
         // original source code.
@@ -100,7 +100,8 @@ private:
         return pointer_loc.getPointeeLoc().getAsAdjusted<clang::FunctionProtoTypeLoc>();
     }
 
-    std::string resolve_parameter_name(clang::FunctionProtoTypeLoc function_loc, unsigned index)
+    std::string
+    resolve_parameter_name(clang::FunctionProtoTypeLoc function_loc, unsigned index) noexcept
     {
         // If the function location is valid and the index is within the range of parameters.
         if (!function_loc.isNull() && index < function_loc.getNumParams()) {

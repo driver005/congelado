@@ -20,6 +20,7 @@ public:
     {
     }
 
+    ~Flag() = default;
     Flag(const Flag&) = delete;
     Flag& operator=(const Flag&) = delete;
     Flag(Flag&&) = default;
@@ -39,7 +40,6 @@ public:
 
     Flag& add_type(FlagType&& type)
     {
-        
         return *this;
     }
 
@@ -165,6 +165,14 @@ public:
         return {};
     }
 
+    [[nodiscard]] std::optional<std::string_view> has_default_value() noexcept
+    {
+        if (m_config.get_default_value()) {
+            return *m_config.get_default_value();
+        }
+        return std::nullopt;
+    }
+
     void set_name(std::string&& value) noexcept
     {
         m_name = std::move(value);
@@ -183,14 +191,6 @@ public:
     void set_config(FlagConfig&& value) noexcept
     {
         m_config = std::move(value);
-    }
-
-    [[nodiscard]] std::optional<std::string_view> get_default_value() const noexcept
-    {
-        if (m_config.get_default_value()) {
-            return *m_config.get_default_value();
-        }
-        return std::nullopt;
     }
 
     [[nodiscard]] std::string& get_name() noexcept

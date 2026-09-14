@@ -33,7 +33,6 @@ public:
         return *this;
     }
 
-
     [[nodiscard]] std::expected<void, std::string> parse(int argc, const char* const* argv) noexcept
     {
         if (argc == 0 || argv == nullptr) {
@@ -118,11 +117,6 @@ public:
         m_schema = std::move(schema);
     }
 
-    [[nodiscard]] const ast::Invocation& get_invocation() const noexcept
-    {
-        return m_invocation;
-    }
-
     [[nodiscard]] ast::Invocation& get_invocation() noexcept
     {
         return m_invocation;
@@ -131,6 +125,11 @@ public:
     [[nodiscard]] parser::Schema& get_schema() noexcept
     {
         return m_schema;
+    }
+
+    [[nodiscard]] const ast::Invocation& get_invocation() const noexcept
+    {
+        return m_invocation;
     }
 
     [[nodiscard]] const parser::Schema& get_schema() const noexcept

@@ -23,10 +23,12 @@ public:
     }
 
     void set_runner(cc_utils::cli::Runner&& runner) noexcept
-      
+    {
+        m_runner = std::move(runner);
+    }
 
     std::expected<std::string, std::string>
-    format(const std::string& source, const std::filesystem::path& repo_root)
+    format(const std::string& source, const std::filesystem::path& repo_root) noexcept
     {
         auto executable = cc_utils::cli::Executable("clang-format");
         if (!executable.is_found()) {
@@ -65,7 +67,12 @@ public:
         return run_result->get_std_out();
     }
 
-    const cc_utils::cli::Runner& get_runner() const
+    cc_utils::cli::Runner& get_runner() noexcept
+    {
+        return m_runner;
+    }
+
+    const cc_utils::cli::runner& get_runner() const noexcept
     {
         return m_runner;
     }

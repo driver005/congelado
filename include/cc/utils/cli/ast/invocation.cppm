@@ -61,6 +61,14 @@ public:
         return *this;
     }
 
+    [[nodiscard]] std::optional<std::reference_wrapper<Command>> current_command() noexcept
+    {
+        if (m_commands.empty()) {
+            return std::nullopt;
+        }
+        return std::ref(m_commands.back());
+    }
+
     void append_global_flag(std::string&& flag_name) noexcept
     {
         m_global_flags.emplace_back(std::move(flag_name));
@@ -77,23 +85,11 @@ public:
     }
 
     void append_command(Command&& cmd) noexcept
-      
-
-
-    [[nodiscard]] std::optional<std::reference_wrapper<Command>> get_current_command() noexcept
     {
-        if (m_commands.empty()) {
-            return std::nullopt;
-        }
-        return std::ref(m_commands.back());
+        m_commands.emplace_back(std::move(cmd));
     }
 
     [[nodiscard]] std::string& get_program_name() noexcept
-    {
-        return m_program_name;
-    }
-
-    [[nodiscard]] const std::string& get_program_name() const noexcept
     {
         return m_program_name;
     }
@@ -103,17 +99,7 @@ public:
         return m_global_flags;
     }
 
-    [[nodiscard]] std::span<const Flag> get_global_flags() const noexcept
-    {
-        return m_global_flags;
-    }
-
     [[nodiscard]] std::span<Command> get_commands() noexcept
-    {
-        return m_commands;
-    }
-
-    [[nodiscard]] std::span<const Command> get_commands() const noexcept
     {
         return m_commands;
     }
@@ -121,6 +107,21 @@ public:
     [[nodiscard]] std::span<std::string> get_global_operands() noexcept
     {
         return m_global_operands;
+    }
+
+    [[nodiscard]] const std::string& get_program_name() const noexcept
+    {
+        return m_program_name;
+    }
+
+    [[nodiscard]] std::span<const Flag> get_global_flags() const noexcept
+    {
+        return m_global_flags;
+    }
+
+    [[nodiscard]] std::span<const Command> get_commands() const noexcept
+    {
+        return m_commands;
     }
 
     [[nodiscard]] std::span<const std::string> get_global_operands() const noexcept

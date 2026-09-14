@@ -102,36 +102,6 @@ public:
         m_stderr.close_write_end();
     }
 
-    int release_parent_write_stdin()
-    {
-        return m_stdin.release_write_end();
-    }
-
-    int release_parent_read_stdout()
-    {
-        return m_stdout.release_read_end();
-    }
-
-    int release_parent_read_stderr()
-    {
-        return m_stderr.release_read_end();
-    }
-
-    int release_child_read_stdin()
-    {
-        return m_stdin.release_read_end();
-    }
-
-    int release_child_write_stdout()
-    {
-        return m_stdout.release_write_end();
-    }
-
-    int release_child_write_stderr()
-    {
-        return m_stderr.release_write_end();
-    }
-
     void set_stdin(Pipe&& stdin_pipe)
     {
         m_stdin = std::move(stdin_pipe);
@@ -147,35 +117,21 @@ public:
         m_stderr = std::move(stderr_pipe);
     }
 
-    [[nodiscard]] int get_fd_parent_write_stdin() const
+    const Pipe& stdin_pipe() const noexcept
     {
-        return m_stdin.get_fd_write_end();
+        return m_stdin;
     }
 
-    [[nodiscard]] int get_fd_parent_read_stdout() const
+    const Pipe& stdout_pipe() const noexcept
     {
-        return m_stdout.get_fd_read_end();
+        return m_stdout;
     }
 
-    [[nodiscard]] int get_fd_parent_read_stderr() const
+    const Pipe& stderr_pipe() const noexcept
     {
-        return m_stderr.get_fd_read_end();
+        return m_stderr;
     }
 
-    [[nodiscard]] int get_fd_child_read_stdin() const
-    {
-        return m_stdin.get_fd_read_end();
-    }
-
-    [[nodiscard]] int get_fd_child_write_stdout() const
-    {
-        return m_stdout.get_fd_write_end();
-    }
-
-    [[nodiscard]] int get_fd_child_write_stderr() const
-    {
-        return m_stderr.get_fd_write_end();
-    }
 
 private:
     Pipe m_stdin;

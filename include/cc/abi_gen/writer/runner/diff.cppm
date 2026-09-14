@@ -23,11 +23,8 @@ public:
         return *this;
     }
 
-    void set_runner(cc_utils::cli::Runner&& runner) noexcept
-    {}
-
     std::expected<helper::DiffResult, std::string>
-    compare(const std::filesystem::path& real_path, const std::string& generated_text)
+    compare(const std::filesystem::path& real_path, const std::string& generated_text) noexcept
     {
         auto executable = cc_utils::cli::Executable("diff");
         if (!executable.is_found()) {
@@ -66,7 +63,17 @@ public:
         };
     }
 
-    const cc_utils::cli::Runner& get_runner() const
+    void set_runner(cc_utils::cli::Runner&& runner) noexcept
+    {
+        m_runner = std::move(runner);
+    }
+
+    cc_utils::cli::Runner& get_runner() noexcept
+    {
+        return m_runner;
+    }
+
+    const cc_utils::cli::Runner& get_runner() const noexcept
     {
         return m_runner;
     }

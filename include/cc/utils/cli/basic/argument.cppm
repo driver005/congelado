@@ -46,7 +46,7 @@ public:
         return m_args;
     }
 
-    [[nodiscard]] std::vector<char*> get_c_args(const std::string& executable) const
+    [[nodiscard]] std::vector<char*> to_c_args(const std::string& executable) const noexcept
     {
         std::vector<char*> c_args;
         c_args.reserve(m_args.size() + 2);

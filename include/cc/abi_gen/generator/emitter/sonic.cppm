@@ -109,7 +109,7 @@ public:
         return m_namespace_name;
     }
 
-   cons parser::Registry& get_registry() noexcept
+    const parser::Registry& get_registry() noexcept
     {
         return m_registry;
     }

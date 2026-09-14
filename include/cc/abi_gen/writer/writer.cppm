@@ -34,7 +34,7 @@ public:
         const std::string& rendered_text,
         const std::filesystem::path& out_path,
         const std::filesystem::path& repo_root
-    )
+    ) noexcept
     {
         auto formatted = m_formatter.format(rendered_text, repo_root);
         if (!formatted) {
@@ -57,7 +57,7 @@ public:
         const std::string& rendered_text,
         const std::filesystem::path& real_path,
         const std::filesystem::path& repo_root
-    )
+    ) noexcept
     {
         auto formatted = m_formatter.format(rendered_text, repo_root);
         if (!formatted) {
@@ -77,12 +77,22 @@ public:
         m_diff = std::move(differ);
     }
 
-   [[no]] const Formatter& get_formatter() const
+    Formatter& get_formatter() noexcept
     {
         return m_formatter;
     }
 
-    const Diff& get_diff_reporter() const
+    Diff& get_diff_reporter() noexcept
+    {
+        return m_diff;
+    }
+
+    const Formatter& get_formatter() const noexcept
+    {
+        return m_formatter;
+    }
+
+    const Diff& get_diff_reporter() const noexcept
     {
         return m_diff;
     }

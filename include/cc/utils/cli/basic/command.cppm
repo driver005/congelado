@@ -15,7 +15,10 @@ public:
     }
 
     ~Command() = default;
-    
+    Command(const Command&) = delete;
+    Command& operator=(const Command&) = delete;
+    Command(Command&&) = default;
+    Command& operator=(Command&&) = default;
 
     Command& add_executable(Executable&& executable) noexcept
     {
@@ -55,17 +58,7 @@ public:
         return m_executable;
     }
 
-    [[nodiscard]] const Executable& get_executable() const noexcept
-    {
-        return m_executable;
-    }
-
     [[nodiscard]] Arguments& get_arguments() noexcept
-    {
-        return m_args;
-    }
-
-    [[nodiscard]] const Arguments& get_arguments() const noexcept
     {
         return m_args;
     }
@@ -73,6 +66,16 @@ public:
     [[nodiscard]] std::string& get_stdin_text() noexcept
     {
         return m_stdin_text;
+    }
+
+    [[nodiscard]] const Executable& get_executable() const noexcept
+    {
+        return m_executable;
+    }
+
+    [[nodiscard]] const Arguments& get_arguments() const noexcept
+    {
+        return m_args;
     }
 
     [[nodiscard]] const std::string& get_stdin_text() const noexcept

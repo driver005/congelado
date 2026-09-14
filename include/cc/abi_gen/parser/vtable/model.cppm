@@ -75,59 +75,61 @@ public:
         m_domain_name = std::move(domain_name);
     }
 
-    void set_class_name(std::string&& class_name) noexcept {
+    void set_class_name(std::string&& class_name) noexcept
+    {
         m_class_name = std::move(class_name);
     }
 
-    void append_slot(slot::Slot && slot) noexcept{
+    void append_slot(slot::Slot&& slot) noexcept
+    {
+        m_slots.push_back(std::move(slot));
     }
 
-
     // Example: ice::String::create({})
-    std::string wrape_type(std::string_view domain, std::string_view argument_name)
+    std::string wrape_type(std::string_view domain, std::string_view argument_name) noexcept
     {
         return std::format("{}::{}::wrap({})", domain, m_class_name, argument_name);
     }
 
     // Example: "{}.get_handle()",
-    std::string unwrape_type(std::string_view argument_name)
+    std::string unwrape_type(std::string_view argument_name) noexcept
     {
         return std::format("{}.get_handle()", argument_name);
     }
 
     // Example: const ice::String &
-    std::string get_pointee_type(std::string_view namespace_name)
+    std::string get_pointee_type(std::string_view namespace_name) noexcept
     {
         return std::format("const {}::{} &", namespace_name, m_class_name);
     }
 
     // Example: TF_String
-    const std::string& get_struct_name() const
+    const std::string& get_struct_name() const noexcept
     {
         return m_struct_name;
     }
 
     // Example: TF_STRING_STRUCT_SIZE
-    const std::string& get_struct_size_macro() const
+    const std::string& get_struct_size_macro() const noexcept
     {
         return m_struct_size_macro;
     }
 
     // Example: string
-    const std::string& get_domain_name() const
+    const std::string& get_domain_name() const noexcept
     {
         return m_domain_name;
     }
 
     // Example: String
-    const std::string& get_class_name() const
+    const std::string& get_class_name() const noexcept
     {
         return m_class_name;
     }
 
-    const std::span<const slot::Slot> get_slots() const
+    const std::span<const slot::Slot> get_slots() const noexcept
     {
-        return std::span<const slot::Slot>{m_slots};
+        return std::span<const slot::Slot> noexcept {m_slots};
     }
 
 private:

@@ -192,11 +192,6 @@ public:
         return m_flags;
     }
 
-    [[nodiscard]] const std::string& get_name() const noexcept
-    {
-        return m_name;
-    }
-
     [[nodiscard]] std::span<Option> get_subcommands() noexcept
     {
         return m_subcommands;
@@ -207,17 +202,22 @@ public:
         return m_action;
     }
 
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
     [[nodiscard]] const std::string& get_description() const noexcept
     {
         return m_description;
     }
 
-    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]] const std::span<const Flag> get_flags() const noexcept
     {
         return m_flags;
     }
 
-    [[nodiscard]] std::span<const Option> get_subcommands() const noexcept
+    [[nodiscard]] const std::span<const Option> get_subcommands() const noexcept
     {
         return m_subcommands;
     }

@@ -43,17 +43,28 @@ public:
         return *this;
     }
 
-    Flag& add_value(std::string&& value) noexcept {
+    Flag& add_value(std::string&& value) noexcept
+    {
         m_value = std::move(value);
         return *this;
     }
 
-    Flag& add_has_value(bool has_value) noexcept {
+    Flag& add_has_value(bool has_value) noexcept
+    {
         m_has_value = has_value;
         return *this;
     }
 
-    Flag& 
+    Flag& add_validated_value(ValidatedValue&& validated_value) noexcept
+    {
+        m_validated_value = std::move(validated_value);
+        return *this;
+    }
+
+    [[nodiscard]] bool is_boolean() const noexcept
+    {
+        return !m_has_value;
+    }
 
     void set_name(std::string&& name) noexcept
     {
@@ -80,14 +91,24 @@ public:
         return m_name;
     }
 
-    [[nodiscard]] const std::string& get_name() const noexcept
-    {
-        return m_name;
-    }
-
     [[nodiscard]] std::string& get_value() noexcept
     {
         return m_value;
+    }
+
+    [[nodiscard]] bool get_has_value() noexcept
+    {
+        return m_has_value;
+    }
+
+    [[nodiscard]] std::optional<ValidatedValue>& get_validated_value() noexcept
+    {
+        return m_validated_value;
+    }
+
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
     }
 
     [[nodiscard]] const std::string& get_value() const noexcept
@@ -95,19 +116,9 @@ public:
         return m_value;
     }
 
-    [[nodiscard]] bool get_has_value() const noexcept
+    [[nodiscard]] const bool get_has_value() const noexcept
     {
         return m_has_value;
-    }
-
-    [[nodiscard]] bool is_boolean() const noexcept
-    {
-        return !m_has_value;
-    }
-
-    [[nodiscard]] std::optional<ValidatedValue>& get_validated_value() noexcept
-    {
-        return m_validated_value;
     }
 
     [[nodiscard]] const std::optional<ValidatedValue>& get_validated_value() const noexcept
