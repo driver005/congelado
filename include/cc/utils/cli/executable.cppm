@@ -19,30 +19,40 @@ public:
     Executable(Executable&&) = default;
     Executable& operator=(Executable&&) = default;
 
-    Executable& add_name(const std::string&& name)
+    Executable& add_name(const std::string&& name) noexcept
     {
         m_name = std::move(name);
         m_resolved_path = resolve_path(m_name);
         return *this;
     }
 
-    bool is_found() const
+    bool is_found() const noexcept
     {
         return !m_resolved_path.empty();
     }
 
-    void set_name(const std::string&& name)
+    void set_name(const std::string&& name) noexcept
     {
         m_name = ;
         m_resolved_path = resolve_path(m_name);
     }
 
-    const std::string& get_name() const
+    std::string& get_name() noexcept
     {
         return m_name;
     }
 
-    const std::string& get_path() const
+    std::string& get_path() noexcept
+    {
+        return m_resolved_path;
+    }
+
+    const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    const std::string& get_path() const noexcept
     {
         return m_resolved_path;
     }
@@ -50,7 +60,7 @@ public:
 
 private:
     // Platform-agnostic search logic
-    static std::string resolve_path(const std::string& name)
+    static std::string resolve_path(const std::string& name) noexcept
     {
         // 1. If it contains a slash, it's an explicit relative or absolute path.
         if (name.find('/') != std::string::npos) {

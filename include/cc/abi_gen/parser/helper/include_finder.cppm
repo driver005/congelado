@@ -26,14 +26,16 @@ public:
     void discover_from_file(
         const std::filesystem::path& path,
         std::vector<std::string>& directories
-    ) const
+    ) const noexcept
     {
         std::ifstream file_stream(path);
         discover(file_stream, directories);
     }
 
-    std::expected<void, std::string>
-    discover_from_command(cc_utils::cli::Command&& cmd, std::vector<std::string>& directories)
+    std::expected<void, std::string> discover_from_command(
+        cc_utils::cli::Command&& cmd,
+        std::vector<std::string>& directories
+    ) noexcept
     {
         auto result = m_runner.execute(std::move(cmd));
 
@@ -56,7 +58,7 @@ public:
         return {};
     }
 
-    void discover(std::istream& stream, std::vector<std::string>& directories) const
+    void discover(std::istream& stream, std::vector<std::string>& directories) const noexcept
     {
         if (!stream.good()) {
             return;
@@ -116,7 +118,7 @@ public:
         return m_runner;
     }
 
-    const cc_utils::cli::Runner& get_runner() const no
+    const cc_utils::cli::Runner& get_runner() const noexcept
     {
         return m_runner;
     }

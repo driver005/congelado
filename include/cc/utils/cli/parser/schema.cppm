@@ -62,27 +62,6 @@ public:
         return *this;
     }
 
-    void set_name(std::string&& value) noexcept
-    {
-        m_name = std::move(value);
-    }
-
-    void append_option(Option&& opt) noexcept
-    {
-        m_options.push_back(std::move(opt));
-    }
-
-    void append_flag(Flag&& flag) noexcept
-    {
-        m_flags.push_back(std::move(flag));
-    }
-
-    template<typename Callable>
-    void set_action(Callable&& act)
-    {
-        m_action = std::forward<Callable>(act);
-    }
-
     [[nodiscard]] std::expected<void, std::string>
     validate(ast::Invocation& ast_invoc, bool allow_unrecognized = false) const
     {
@@ -140,7 +119,7 @@ public:
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<const Option>>
-    get_option(std::string_view option_name, bool allow_unrecognized) const noexcept
+    has_option(std::string_view option_name, bool allow_unrecognized) const noexcept
     {
         auto projection = [](const Option& option) -> const std::string&
         {
@@ -155,7 +134,7 @@ public:
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<const Flag>>
-    get_flag(std::string_view flag_name) const noexcept
+    has_flag(std::string_view flag_name) const noexcept
     {
         auto projection = [](const Flag& flag) -> const std::string&
         {
@@ -167,16 +146,6 @@ public:
             return std::cref(*it);
         }
         return std::nullopt;
-    }
-
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    [[nodiscard]] const std::string& get_name() const noexcept
-    {
-        return m_name;
     }
 
     [[nodiscard]] bool accepts_option(std::string_view option_name) const noexcept
@@ -199,12 +168,33 @@ public:
         return std::ranges::contains(m_flags, flag_name, projection);
     }
 
-    [[nodiscard]] std::span<Flag> get_flags() noexcept
+    void set_name(std::string&& value) noexcept
     {
-        return m_flags;
+        m_name = std::move(value);
     }
 
-    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
+    void append_option(Option&& opt) noexcept
+    {
+        m_options.push_back(std::move(opt));
+    }
+
+    void append_flag(Flag&& flag) noexcept
+    {
+        m_flags.push_back(std::move(flag));
+    }
+
+    template<typename Callable>
+    void set_action(Callable&& act)
+    {
+        m_action = std::forward<Callable>(act);
+    }
+
+    [[nodiscard]] std::string& get_name() noexcept
+    {
+        return m_name;
+    }
+
+    [[nodiscard]] std::span<Flag> get_flags() noexcept
     {
         return m_flags;
     }
@@ -214,14 +204,24 @@ public:
         return m_options;
     }
 
-    [[nodiscard]] std::span<const Option> get_options() const noexcept
-    {
-        return m_options;
-    }
-
-    [[nodiscard]] Action<std::span<const Flag>>& get_action() noexcept
+    [[nodiscard]] Action<std::span<Flag>>& get_action() noexcept
     {
         return m_action;
+    }
+
+    [[nodiscard]] const std::string& get_name() const noexcept
+    {
+        return m_name;
+    }
+
+    [[nodiscard]] const std::span<const Flag> get_flags() const noexcept
+    {
+        return m_flags;
+    }
+
+    [[nodiscard]] const std::span<const Option> get_options() const noexcept
+    {
+        return m_options;
     }
 
     [[nodiscard]] const Action<std::span<const Flag>>& get_action() const noexcept

@@ -30,7 +30,10 @@ public:
     };
 
     ~Parser() = default;
-    
+    Parser(const Parser&) = delete;
+    Parser& operator=(const Parser&) = delete;
+    Parser(Parser&&) = default;
+    Parser& operator=(Parser&&) = default;
 
     Parser& add_registry(Registry&& registry) noexcept
     {

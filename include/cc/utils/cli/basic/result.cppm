@@ -29,7 +29,8 @@ public:
     ~Result() = default;
     Result(const Result&) = delete;
     Result& operator=(const Result&) = delete;
-    
+    Result(Result&&) = default;
+    Result& operator=(Result&&) = default;
 
     Result& add_exit_code(int exit_code) noexcept
     {
@@ -67,6 +68,11 @@ public:
         return *this;
     }
 
+    [[nodiscard]] bool success() const noexcept
+    {
+        return m_exited_normally && m_exit_code == 0;
+    }
+
     void set_exit_code(int exit_code) noexcept
     {
         m_exit_code = exit_code;
@@ -97,6 +103,46 @@ public:
         m_duration = std::move(duration);
     }
 
+    [[nodiscard]] int get_exit_code() noexcept
+    {
+        return m_exit_code;
+    }
+
+    [[nodiscard]] bool get_exited_normally() noexcept
+    {
+        return m_exited_normally;
+    }
+
+    [[nodiscard]] int get_term_signal() noexcept
+    {
+        return m_term_signal;
+    }
+
+    [[nodiscard]] std::string& get_std_out() noexcept
+    {
+        return m_std_out;
+    }
+
+    [[nodiscard]] std::string& get_std_out() noexcept
+    {
+        return m_std_out;
+    }
+
+    [[nodiscard]] std::string& get_std_err() noexcept
+    {
+        return m_std_err;
+    }
+
+    [[nodiscard]] std::string& get_std_err() noexcept
+    {
+        return m_std_err;
+    }
+
+    [[nodiscard]] std::chrono::milliseconds& get_duration() noexcept
+    {
+        return m_duration;
+    }
+
     [[nodiscard]] int get_exit_code() const noexcept
     {
         return m_exit_code;
@@ -112,7 +158,7 @@ public:
         return m_term_signal;
     }
 
-    [[nodiscard]] std::string& get_std_out() noexcept
+    [[nodiscard]] const std::string& get_std_out() const noexcept
     {
         return m_std_out;
     }
@@ -122,7 +168,7 @@ public:
         return m_std_out;
     }
 
-    [[nodiscard]] std::string& get_std_err() noexcept
+    [[nodiscard]] const std::string& get_std_err() const noexcept
     {
         return m_std_err;
     }
@@ -132,15 +178,11 @@ public:
         return m_std_err;
     }
 
-    [[nodiscard]] std::chrono::milliseconds get_duration() const noexcept
+    [[nodiscard]] const std::chrono::milliseconds& get_duration() const noexcept
     {
         return m_duration;
     }
 
-    [[nodiscard]] bool success() const noexcept
-    {
-        return m_exited_normally && m_exit_code == 0;
-    }
 
 private:
     int m_exit_code{0};

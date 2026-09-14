@@ -21,33 +21,38 @@ public:
 
     ~Arguments() = default;
     Arguments(const Arguments&) = delete;
-    Arguments& operator=(const Arguments&) = ;
-        Arguments(Arguments&&) = default;
+    Arguments& operator=(const Arguments&) = delete;
+    Arguments(Arguments&&) = default;
     Arguments& operator=(Arguments&&) = default;
 
-    Arguments& add_arg(std::string&& argument)
+    Arguments& add_arg(std::string&& argument) noexcept
     {
         m_args.push_back(std::move(argument));
         return *this;
     }
 
-    Arguments& add_arg(std::initializer_list<std::string> arguments)
+    Arguments& add_arg(std::initializer_list<std::string> arguments) noexcept
     {
         m_args.insert(m_args.end(), arguments.begin(), arguments.end());
         return *this;
     }
 
-    void append_arg(std::string&& argument)
+    void append_arg(std::string&& argument) noexcept
     {
         m_args.push_back(std::move(argument));
     }
 
-    const std::vector<std::string>& get_args() const
+    std::span<std::string>& get_args() noexcept
     {
         return m_args;
     }
 
-    std::vector<char*> get_c_args(const std::string& executable) const
+    const std::span<const std::string>& get_args() const noexcept
+    {
+        return m_args;
+    }
+
+    std::vector<char*> to_c_args(const std::string& executable) const noexcept
     {
         std::vector<char*> c_args;
         c_args.reserve(m_args.size() + 2);

@@ -57,17 +57,32 @@ public:
         m_duration = std::move(duration);
     }
 
-    bool get_identical() const
+    bool get_identical() noexcept
     {
         return m_identical;
     }
 
-    const std::string& get_unified_diff() const
+    std::string& get_unified_diff() noexcept
     {
         return m_unified_diff;
     }
 
-    std::chrono::milliseconds get_duration() const
+    std::chrono::milliseconds& get_duration() noexcept
+    {
+        return m_duration;
+    }
+
+    bool get_identical() const noexcept
+    {
+        return m_identical;
+    }
+
+    const std::string& get_unified_diff() const noexcept
+    {
+        return m_unified_diff;
+    }
+
+    const std::chrono::milliseconds& get_duration() const noexcept
     {
         return m_duration;
     }

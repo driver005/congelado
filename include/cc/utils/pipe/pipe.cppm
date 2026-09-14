@@ -36,7 +36,7 @@ public:
         return *this;
     }
 
-    static std::expected<Pipe, std::string> create()
+    static std::expected<Pipe, std::string> create() noexcept
     {
         int fds[2];
         if (::pipe(fds) < 0) {
@@ -45,7 +45,7 @@ public:
         return Pipe{fds};
     }
 
-    void stream_write(std::string_view input)
+    void stream_write(std::string_view input) noexcept
     {
         int fd = m_write_end.get_fd();
         if (fd == -1) {
@@ -69,7 +69,7 @@ public:
         m_write_end.close();
     }
 
-    std::string read_all()
+    std::string read_all() noexcept
     {
         std::string output;
         int fd = m_read_end.get_fd();
@@ -105,39 +105,29 @@ public:
         m_write_end = std::move(fd);
     }
 
-    const int& get_fd_read_end() const
+    kernel::FileDescriptor& read_end() noexcept
     {
-        return m_read_end.get_fd();
+        return m_read_end;
     }
 
-    const int& get_fd_write_end() const
+    kernel::FileDescriptor& write_end() noexcept
     {
-        return m_write_end.get_fd();
+        return m_write_end;
     }
 
-    int release_read_end()
+    const kernel::FileDescriptor& read_end() const noexcept
     {
-        return m_read_end.release();
+        return m_read_end;
     }
 
-    int release_write_end()
+    const kernel::FileDescriptor& write_end() const noexcept
     {
-        return m_write_end.release();
-    }
-
-    void close_read_end()
-    {
-        m_read_end.close();
-    }
-
-    void close_write_end()
-    {
-        m_write_end.close();
+        return m_write_end;
     }
 
 private:
-    kernel::UniqueFd m_read_end;
-    kernel::UniqueFd m_write_end;
+    kernel::FileDescriptor m_read_end;
+    kernel::FileDescriptor m_write_end;
 };
 
 } // namespace cc_utils::pipe

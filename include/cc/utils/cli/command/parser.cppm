@@ -1,3 +1,5 @@
+module;
+#include <unordered_map>
 export module cc_utils_cli:parser;
 
 import std;
@@ -24,31 +26,31 @@ public:
     Parser(Parser&&) = default;
     Parser& operator=(Parser&&) = default;
 
-    Parser& add_command_schema(CommandSchema&& command)
+    Parser& add_command_schema(CommandSchema&& command) noexcept
     {
         m_commands.push_back(std::move(command));
         return *this;
     }
 
-    Parser& add_program_name(std::string&& program_name)
+    Parser& add_program_name(std::string&& program_name) noexcept
     {
         m_program_name = std::move(program_name);
         return *this;
     }
 
-    Parser& add_command(std::string&& command)
+    Parser& add_command(std::string&& command) noexcept
     {
         m_command = std::move(command);
         return *this;
     }
 
-    Parser& add_flag(std::string&& flag, std::string&& description)
+    Parser& add_flag(std::string&& flag, std::string&& description) noexcept
     {
         m_flags.append({std::move(flag), std::move(description)});
         return *this;
     }
 
-    std::expected<void, std::string> parse(const Arguments& arguments)
+    std::expected<void, std::string> parse(const Arguments& arguments) noexcept
     {
         const std::vector<std::string>& args = arguments.get_args();
 
@@ -96,42 +98,12 @@ public:
         return {};
     }
 
-    void append_command(CommandSchema&& command)
-    {
-        m_commands.emplace_back(std::move(command));
-    }
-
-    void set_program_name(std::string&& program_name)
-    {
-        m_program_name = std::move(program_name);
-    }
-
-    void set_command(std::string&& command)
-    {
-        m_command = std::move(command);
-    }
-
-    void append_flag(std::string&& flag, std::string&& description)
-    {
-      m
-    }
-
-    const std::string& get_program_name() const
-    {
-        return m_program_name;
-    }
-
-    const std::string& get_command() const
-    {
-        return m_command;
-    }
-
-    bool has_flag(const std::string& name) const
+    bool has_flag(const std::string& name) const noexcept
     {
         return m_flags.contains(name);
     }
 
-    std::optional<std::string> get_value(const std::string& name) const
+    std::optional<std::string> has_value(const std::string& name) const noexcept
     {
         auto iterator = m_flags.find(name);
         if (iterator == m_flags.end()) {
@@ -141,9 +113,64 @@ public:
         return iterator->second;
     }
 
-    const std::vector<CommandSchema>& get_commands() const
+    void append_command(CommandSchema&& command) noexcept
+    {
+        m_commands.emplace_back(std::move(command));
+    }
+
+    void set_program_name(std::string&& program_name) noexcept
+    {
+        m_program_name = std::move(program_name);
+    }
+
+    void set_command(std::string&& command) noexcept
+    {
+        m_command = std::move(command);
+    }
+
+    void append_flag(std::string&& flag, std::string&& description) noexcept
+    {
+        m_flags.emplace(std::move(flag), std::move(description));
+    }
+
+    std::string& get_program_name() noexcept
+    {
+        return m_program_name;
+    }
+
+    std::string& get_command() noexcept
+    {
+        return m_command;
+    }
+
+    std::vector<CommandSchema>& get_commands() noexcept
     {
         return m_commands;
+    }
+
+    std::unordered_map<std::string, std::string>& get_flags() noexcept
+    {
+        return m_flags;
+    }
+
+    const std::string& get_program_name() const noexcept
+    {
+        return m_program_name;
+    }
+
+    const std::string& get_command() const noexcept
+    {
+        return m_command;
+    }
+
+    const std::vector<CommandSchema>& get_commands() const noexcept
+    {
+        return m_commands;
+    }
+
+    const std::unordered_map<std::string, std::string>& get_flags() const noexcept
+    {
+        return m_flags;
     }
 
 private:

@@ -15,7 +15,7 @@ public:
     {
     }
 
-
+    ~Action() = default;
     Action(const Action&) = delete;
     Action& operator=(const Action&) = delete;
     Action(Action&&) = default;
@@ -27,7 +27,7 @@ public:
         return *this;
     }
 
-    void execute(Args... args) const
+    void execute(Args... args) const noexcept
     {
         if (m_func) {
             m_func(std::forward<Args>(args)...);

@@ -22,54 +22,70 @@ public:
     Record(Record&&) = default;
     Record& operator=(Record&&) = default;
 
-    Record& add_command(Command&& cmd)
+    Record& add_command(Command&& cmd) noexcept
     {
         m_command = std::move(cmd);
         return *this;
     }
 
-    Record& add_result(Result&& res)
+    Record& add_result(Result&& res) noexcept
     {
         m_result = std::move(res);
         return *this;
     }
 
-    void set_command(Command&& cmd)
-    {
-        m_command = std::move(cmd);
-    }
-
-    void set_result(Result&& res)
-    {
-        m_result = ;
-    }
-
-    const Command& get_command() const
-    {
-        return m_command;
-    }
-
-    const Result& get_result() const
-    {
-        return m_result;
-    }
-
-    bool is_success() const
+    bool is_success() const noexcept
     {
         return m_result.success();
     }
 
-    std::chrono::milliseconds get_duration() const
-    {
-        return m_result.get_duration();
-    }
-
     // Generates a quick human-readable log string (e.g., "clang-format [SUCCESS] - 45ms")
-    std::string get_summary() const
+    std::string to_summary() const noexcept
     {
         return m_command.get_executable().get_name() + (is_success() ? " [SUCCESS]" : " [FAILED]") +
                " - " + std::to_string(get_duration().count()) + "ms";
     }
+
+    void set_command(Command&& cmd) noexcept
+    {
+        m_command = std::move(cmd);
+    }
+
+    void set_result(Result&& res) noexcept
+    {
+        m_result = std::move(res);
+    }
+
+    Command& get_command() noexcept
+    {
+        return m_command;
+    }
+
+    Result& get_result() noexcept
+    {
+        return m_result;
+    }
+
+    std::chrono::milliseconds& get_duration() noexcept
+    {
+        return m_result.get_duration();
+    }
+
+    const Command& get_command() const noexcept
+    {
+        return m_command;
+    }
+
+    const Result& get_result() const noexcept
+    {
+        return m_result;
+    }
+
+    const std::chrono::milliseconds& get_duration() const noexcept
+    {
+        return m_result.get_duration();
+    }
+
 
 private:
     Command m_command;

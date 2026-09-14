@@ -105,6 +105,16 @@ public:
         return *this;
     }
 
+    [[nodiscard]] bool is_required() const noexcept
+    {
+        return m_required;
+    }
+
+    [[nodiscard]] bool is_hidden() const noexcept
+    {
+        return m_hidden;
+    }
+
     void set_default_value(std::string&& value) noexcept
     {
         m_default_value = std::move(value);
@@ -155,29 +165,14 @@ public:
         return m_default_value;
     }
 
-    [[nodiscard]] const std::optional<std::string>& get_default_value() const noexcept
-    {
-        return m_default_value;
-    }
-
-    [[nodiscard]] std::optional<int> get_min() const noexcept
+    [[nodiscard]] std::optional<int>& get_min() noexcept
     {
         return m_min;
     }
 
-    [[nodiscard]] std::optional<int> get_max() const noexcept
+    [[nodiscard]] std::optional<int>& get_max() noexcept
     {
         return m_max;
-    }
-
-    [[nodiscard]] bool is_required() const noexcept
-    {
-        return m_required;
-    }
-
-    [[nodiscard]] bool is_hidden() const noexcept
-    {
-        return m_hidden;
     }
 
     [[nodiscard]] std::optional<std::string>& get_env_var() noexcept
@@ -185,37 +180,52 @@ public:
         return m_env_var;
     }
 
-    [[nodiscard]] const std::optional<std::string>& get_env_var() const noexcept
-    {
-        return m_env_var;
-    }
-
-    [[nodiscard]] std::vector<std::string>& get_allowed_values() noexcept
+    [[nodiscard]] std::span<std::string>& get_allowed_values() noexcept
     {
         return m_allowed_values;
     }
 
-    [[nodiscard]] const std::vector<std::string>& get_allowed_values() const noexcept
-    {
-        return m_allowed_values;
-    }
-
-    [[nodiscard]] std::vector<std::string>& get_requires_flags() noexcept
+    [[nodiscard]] std::span<std::string>& get_requires_flags() noexcept
     {
         return m_requires_flags;
     }
 
-    [[nodiscard]] const std::vector<std::string>& get_requires_flags() const noexcept
-    {
-        return m_requires_flags;
-    }
-
-    [[nodiscard]] std::vector<std::string>& get_conflicts_with() noexcept
+    [[nodiscard]] std::span<std::string>& get_conflicts_with() noexcept
     {
         return m_conflicts_with;
     }
 
-    [[nodiscard]] const std::vector<std::string>& get_conflicts_with() const noexcept
+    [[nodiscard]] const std::optional<std::string>& get_default_value() const noexcept
+    {
+        return m_default_value;
+    }
+
+    [[nodiscard]] const std::optional<const int>& get_min() const noexcept
+    {
+        return m_min;
+    }
+
+    [[nodiscard]] const std::optional<const int>& get_max() const noexcept
+    {
+        return m_max;
+    }
+
+    [[nodiscard]] const std::optional<const std::string>& get_env_var() const noexcept
+    {
+        return m_env_var;
+    }
+
+    [[nodiscard]] const std::span<const std::string>& get_allowed_values() const noexcept
+    {
+        return m_allowed_values;
+    }
+
+    [[nodiscard]] const std::span<const std::string>& get_requires_flags() const noexcept
+    {
+        return m_requires_flags;
+    }
+
+    [[nodiscard]] const std::span<const std::string>& get_conflicts_with() const noexcept
     {
         return m_conflicts_with;
     }
@@ -293,6 +303,21 @@ public:
         m_version = std::move(value);
     }
 
+    [[nodiscard]] bool get_allows_unrecognized() noexcept
+    {
+        return m_allow_unrecognized;
+    }
+
+    [[nodiscard]] bool get_has_auto_help() noexcept
+    {
+        return m_auto_help;
+    }
+
+    [[nodiscard]] std::optional<std::string>& get_version() noexcept
+    {
+        return m_version;
+    }
+
     [[nodiscard]] bool get_allows_unrecognized() const noexcept
     {
         return m_allow_unrecognized;
@@ -303,12 +328,7 @@ public:
         return m_auto_help;
     }
 
-    [[nodiscard]] std::optional<std::string>& get_version() noexcept
-    {
-        return m_version;
-    }
-
-    [[nodiscard]] const std::optional<std::string>& get_version() const noexcept
+    [[nodiscard]] const std::optional<const std::string>& get_version() const noexcept
     {
         return m_version;
     }
