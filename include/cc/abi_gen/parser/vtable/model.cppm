@@ -127,9 +127,9 @@ public:
         return m_class_name;
     }
 
-    const std::span<const slot::Slot> get_slots() const noexcept
+    std::span<const slot::Slot> get_slots() const noexcept
     {
-        return std::span<const slot::Slot> noexcept {m_slots};
+        return m_slots;
     }
 
 private:

@@ -17,7 +17,7 @@ public:
     }
 
     ~CommandSchema() = default;
-    CommandSchema(const CommandSchema&) = dele;
+    CommandSchema(const CommandSchema&) = delete;
     CommandSchema(CommandSchema&&) = default;
     CommandSchema& operator=(const CommandSchema&) = default;
     CommandSchema& operator=(CommandSchema&&) = default;
@@ -54,7 +54,7 @@ public:
         return m_name;
     }
 
-    const std::span<const std::string>& get_flags() const noexcept
+    std::span<const std::string> get_flags() const noexcept
     {
         return m_flags;
     }

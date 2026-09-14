@@ -158,12 +158,12 @@ public:
         return m_include_finder;
     }
 
-    const helper::AstVisitor& get_ast_visitor() const noexcept
+    const vtable::AstVisitor& get_ast_visitor() const noexcept
     {
         return m_visitor;
     }
 
-    const std::span<std::string> get_system_argument() const noexcept
+    std::span<const std::string> get_system_argument() const noexcept
     {
         return m_system_arguments;
     }
@@ -190,7 +190,7 @@ private:
                 auto model = m_visitor.traverse_record_decl(record_decl);
                 if (model.has_value()) {
                     nothing = false;
-                    m_registry.add(std::move(*model));
+                    m_registry.append_model(std::move(*model));
                 }
                 // Check if it's an extern "C" block containing nested declarations
             } else if (auto* spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl)) {
@@ -230,9 +230,9 @@ private:
 
     std::expected<void, std::string> cache_system_arguments()
     {
-        auto cmd = cc_utils::cli::Command{cc_utils::cli::Executable{"clang++"}}
-                       .arguments({"-E", "-x", "c++", "-", "-v"})
-                       .input("");
+        auto& cmd = cc_utils::cli::Command{cc_utils::cli::Executable{"clang++"}}
+                        .add_arguments({"-E", "-x", "c++", "-", "-v"})
+                        .add_input("");
 
         std::vector<std::string> directories;
 
@@ -255,7 +255,7 @@ private:
     }
 
     Registry m_registry;
-    helper::helper::IncludeFinder m_include_finder;
+    helper::IncludeFinder m_include_finder;
     vtable::AstVisitor m_visitor;
     std::vector<std::string> m_system_arguments;
     std::string m_domain;

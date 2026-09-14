@@ -45,6 +45,28 @@ public:
         return Pipe{fds};
     }
 
+    template<bool IsReader>
+    void setup_redirect() noexcept
+    {
+        if constexpr (IsReader) {
+            m_read_end.close();
+        } else {
+            m_write_end.close();
+        }
+
+        if constexpr (IsReader) {
+            ::dup2(m_write_end.get_fd(), STDOUT_FILENO);
+        } else {
+            ::dup2(m_read_end.get_fd(), STDIN_FILENO);
+        }
+
+        if constexpr (IsReader) {
+            m_write_end.close();
+        } else {
+            m_read_end.close();
+        }
+    }
+
     void stream_write(std::string_view input) noexcept
     {
         int fd = m_write_end.get_fd();
@@ -95,6 +117,12 @@ public:
         return output;
     }
 
+    void close() noexcept
+    {
+        m_read_end.close();
+        m_write_end.close();
+    }
+
     void set_read_end(kernel::FileDescriptor&& fd) noexcept
     {
         m_read_end = std::move(fd);
@@ -105,12 +133,12 @@ public:
         m_write_end = std::move(fd);
     }
 
-    const kernel::FileDescriptor& read_end() const noexcept
+    const kernel::FileDescriptor& get_read_end() const noexcept
     {
         return m_read_end;
     }
 
-    const kernel::FileDescriptor& write_end() const noexcept
+    const kernel::FileDescriptor& get_write_end() const noexcept
     {
         return m_write_end;
     }

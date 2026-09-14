@@ -59,7 +59,7 @@ public:
         return *this;
     }
 
-    Pcess& add_stderr(Pipe&& stderr_pipe)
+    Process& add_stderr(Pipe&& stderr_pipe)
     {
         m_stderr = std::move(stderr_pipe);
         return *this;
@@ -80,26 +80,18 @@ public:
         return m_stderr.read_all();
     }
 
-    void setup_child_redirects()
+    void setup_redirects()
     {
-        m_stdin.close_write_end();
-        m_stdout.close_read_end();
-        m_stderr.close_read_end();
-
-        ::dup2(m_stdin.get_fd_read_end(), STDIN_FILENO);
-        ::dup2(m_stdout.get_fd_write_end(), STDOUT_FILENO);
-        ::dup2(m_stderr.get_fd_write_end(), STDERR_FILENO);
-
-        m_stdin.close_read_end();
-        m_stdout.close_write_end();
-        m_stderr.close_write_end();
+        m_stdin.setup_redirect<false>();
+        m_stdout.setup_redirect<true>();
+        m_stderr.setup_redirect<true>();
     }
 
-    void close_child_ends()
+    void close_ends()
     {
-        m_stdin.close_read_end();
-        m_stdout.close_write_end();
-        m_stderr.close_write_end();
+        m_stdin.close();
+        m_stdout.close();
+        m_stderr.close();
     }
 
     void set_stdin(Pipe&& stdin_pipe)

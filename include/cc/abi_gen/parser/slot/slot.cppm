@@ -116,7 +116,7 @@ public:
         return m_return_type;
     }
 
-    const std::span<const helper::Parameter> get_parameters() const noexcept
+     std::span<const helper::Parameter> get_parameters() const noexcept
     {
         return std::span<const helper::Parameter>{m_parameters};
     }

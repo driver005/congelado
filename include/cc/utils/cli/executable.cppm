@@ -33,7 +33,7 @@ public:
 
     void set_name(const std::string&& name) noexcept
     {
-        m_name = ;
+        m_name = std::move(name);
         m_resolved_path = resolve_path(m_name);
     }
 

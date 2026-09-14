@@ -84,7 +84,7 @@ public:
         // Pass the resolved path (or the name if resolution failed) to argv[0]
         const std::string& exe_str =
             m_executable.is_found() ? m_executable.get_path() : m_executable.get_name();
-        return m_args.get_c_args(exe_str);
+        return m_args.to_c_args(exe_str);
     }
 
 private:

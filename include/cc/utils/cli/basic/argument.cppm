@@ -31,12 +31,12 @@ public:
         return *this;
     }
 
-    void append_argumment(std::string&& argument)
+    void append_argument(std::string&& argument)
     {
         m_args.push_back(std::move(argument));
     }
 
-    [[nodiscard]] const std::span<const std::string>& get_args() const noexcept
+    [[nodiscard]] std::span<const std::string> get_args() const noexcept
     {
         return m_args;
     }

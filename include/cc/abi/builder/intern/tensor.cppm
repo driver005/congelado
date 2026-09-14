@@ -67,7 +67,6 @@ public:
                                   size_t len) noexcept -> TF_Tensor_Handle*
             {
                 // A negative num_dims (unknown rank) must not become a giant span.
-                const std::span<const int64_t> dim_span =
                     num_dims > 0 ? std::span{dims, static_cast<size_t>(num_dims)}
                                  : std::span<const int64_t>{};
                 auto res = Tensor::create(plugin_context)
