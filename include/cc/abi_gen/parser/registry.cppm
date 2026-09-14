@@ -68,11 +68,6 @@ public:
         m_known_models.insert({model.get_struct_name(), std::move(model)});
     }
 
-    std::unordered_map<std::string, vtable::Model>& get_models() noexcept
-    {
-        return m_known_models;
-    }
-
     const std::unordered_map<std::string, vtable::Model>& get_models() const noexcept
     {
         return m_known_models;

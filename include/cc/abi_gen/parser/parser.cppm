@@ -148,36 +148,6 @@ public:
         m_tool_name = std::move(tool_name);
     }
 
-    Registry& get_registry() noexcept
-    {
-        return m_registry;
-    }
-
-    helper::IncludeFinder& get_include_finder() noexcept
-    {
-        return m_include_finder;
-    }
-
-    vtable::AstVisitor& get_ast_visitor() noexcept
-    {
-        return m_ast_visitor;
-    }
-
-    std::span<std::string_view> get_system_argument() noexcept
-    {
-        return m_system_argument;
-    }
-
-    std::string& get_domain() noexcept
-    {
-        return m_domain;
-    }
-
-    std::string& get_tool_name() noexcept
-    {
-        return m_tool_name;
-    }
-
     const Registry& get_registry() const noexcept
     {
         return m_registry;

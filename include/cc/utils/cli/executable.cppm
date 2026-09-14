@@ -37,16 +37,6 @@ public:
         m_resolved_path = resolve_path(m_name);
     }
 
-    std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    std::string& get_path() noexcept
-    {
-        return m_resolved_path;
-    }
-
     const std::string& get_name() const noexcept
     {
         return m_name;

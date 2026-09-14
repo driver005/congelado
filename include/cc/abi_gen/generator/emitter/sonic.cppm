@@ -84,21 +84,6 @@ public:
         m_namespace_name = std::move(registry);
     }
 
-    std::string& get_writer() noexcept
-    {
-        return m_writer;
-    }
-
-    std::string& get_namespace_name() noexcept
-    {
-        return m_namespace_name;
-    }
-
-    parser::Registry& get_registry() noexcept
-    {
-        return m_registry;
-    }
-
     const std::string& get_writer() noexcept
     {
         return m_writer;

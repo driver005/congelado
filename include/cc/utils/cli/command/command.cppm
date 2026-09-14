@@ -64,21 +64,6 @@ public:
         m_stdin_text += std::move(chunk);
     }
 
-    Executable& get_executable() noexcept
-    {
-        return m_executable;
-    }
-
-    Arguments& get_arguments() noexcept
-    {
-        return m_args;
-    }
-
-    std::string& get_stdin_text() noexcept
-    {
-        return m_stdin_text;
-    }
-
     const Executable& get_executable() const noexcept
     {
         return m_executable;

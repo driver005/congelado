@@ -103,46 +103,6 @@ public:
         m_duration = std::move(duration);
     }
 
-    [[nodiscard]] int get_exit_code() noexcept
-    {
-        return m_exit_code;
-    }
-
-    [[nodiscard]] bool get_exited_normally() noexcept
-    {
-        return m_exited_normally;
-    }
-
-    [[nodiscard]] int get_term_signal() noexcept
-    {
-        return m_term_signal;
-    }
-
-    [[nodiscard]] std::string& get_std_out() noexcept
-    {
-        return m_std_out;
-    }
-
-    [[nodiscard]] std::string& get_std_out() noexcept
-    {
-        return m_std_out;
-    }
-
-    [[nodiscard]] std::string& get_std_err() noexcept
-    {
-        return m_std_err;
-    }
-
-    [[nodiscard]] std::string& get_std_err() noexcept
-    {
-        return m_std_err;
-    }
-
-    [[nodiscard]] std::chrono::milliseconds& get_duration() noexcept
-    {
-        return m_duration;
-    }
-
     [[nodiscard]] int get_exit_code() const noexcept
     {
         return m_exit_code;

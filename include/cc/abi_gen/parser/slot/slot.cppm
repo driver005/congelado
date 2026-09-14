@@ -45,7 +45,7 @@ public:
         return *this;
     }
 
-    std::span<const helper::Parameter> extract_parameters() const
+    std::span<const helper::Parameter> extract_parameters() const noexcept
     {
         if (has_parameter()) {
             auto params = std::span<const helper::Parameter>{m_parameters}.subspan(1);
@@ -60,7 +60,7 @@ public:
         return {};
     }
 
-    std::optional<std::reference_wrapper<const helper::Parameter>> extract_failable() const
+    std::optional<std::reference_wrapper<const helper::Parameter>> extract_failable() const noexcept
     {
         if (has_parameter() && is_failable()) {
             return std::ref(m_parameters.back());
@@ -102,23 +102,6 @@ public:
     void append_parameter(helper::Parameter&& parameter) noexcept
     {
         m_parameters.emplace_back(std::move(parameter));
-    }
-
-    // Example: Create
-    std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    // Example: TF_TString
-    std::string& get_return_type() noexcept
-    {
-        return m_return_type;
-    }
-
-    std::span<const helper::Parameter> get_parameters() noexcept
-    {
-      return m_parameters;
     }
 
     // Example: Create

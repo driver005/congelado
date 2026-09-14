@@ -133,26 +133,6 @@ public:
         m_flags.emplace(std::move(flag), std::move(description));
     }
 
-    std::string& get_program_name() noexcept
-    {
-        return m_program_name;
-    }
-
-    std::string& get_command() noexcept
-    {
-        return m_command;
-    }
-
-    std::vector<CommandSchema>& get_commands() noexcept
-    {
-        return m_commands;
-    }
-
-    std::unordered_map<std::string, std::string>& get_flags() noexcept
-    {
-        return m_flags;
-    }
-
     const std::string& get_program_name() const noexcept
     {
         return m_program_name;
@@ -163,7 +143,7 @@ public:
         return m_command;
     }
 
-    const std::vector<CommandSchema>& get_commands() const noexcept
+    const std::span<const CommandSchema>& get_commands() const noexcept
     {
         return m_commands;
     }

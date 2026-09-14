@@ -39,11 +39,6 @@ public:
         m_func = std::move(func);
     }
 
-    [[nodiscard]] Callable& get_func() noexcept
-    {
-        return m_func;
-    }
-
     [[nodiscard]] const Callable& get_func() const noexcept
     {
         return m_func;

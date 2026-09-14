@@ -93,11 +93,6 @@ public:
         m_history.emplace_back(std::move(record));
     }
 
-    std::span<Record> get_history() noexcept
-    {
-        return m_history;
-    }
-
     const std::span<const Record> get_history() const noexcept
     {
         return m_history;

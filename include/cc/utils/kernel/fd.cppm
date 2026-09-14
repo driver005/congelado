@@ -80,11 +80,6 @@ public:
         m_fd = fd;
     }
 
-    [[nodiscard]] int get_fd() noexcept
-    {
-        return m_fd;
-    }
-
     [[nodiscard]] const int get_fd() const noexcept
     {
         return m_fd;

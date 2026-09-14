@@ -86,26 +86,6 @@ public:
         m_validated_value = std::move(value);
     }
 
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
-    [[nodiscard]] std::string& get_value() noexcept
-    {
-        return m_value;
-    }
-
-    [[nodiscard]] bool get_has_value() noexcept
-    {
-        return m_has_value;
-    }
-
-    [[nodiscard]] std::optional<ValidatedValue>& get_validated_value() noexcept
-    {
-        return m_validated_value;
-    }
-
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;

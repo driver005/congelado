@@ -77,16 +77,6 @@ public:
         m_diff = std::move(differ);
     }
 
-    Formatter& get_formatter() noexcept
-    {
-        return m_formatter;
-    }
-
-    Diff& get_diff_reporter() noexcept
-    {
-        return m_diff;
-    }
-
     const Formatter& get_formatter() const noexcept
     {
         return m_formatter;

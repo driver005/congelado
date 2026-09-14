@@ -105,16 +105,6 @@ public:
         m_write_end = std::move(fd);
     }
 
-    kernel::FileDescriptor& read_end() noexcept
-    {
-        return m_read_end;
-    }
-
-    kernel::FileDescriptor& write_end() noexcept
-    {
-        return m_write_end;
-    }
-
     const kernel::FileDescriptor& read_end() const noexcept
     {
         return m_read_end;

@@ -53,21 +53,6 @@ public:
         m_stdin_text.append(chunk);
     }
 
-    [[nodiscard]] Executable& get_executable() noexcept
-    {
-        return m_executable;
-    }
-
-    [[nodiscard]] Arguments& get_arguments() noexcept
-    {
-        return m_args;
-    }
-
-    [[nodiscard]] std::string& get_stdin_text() noexcept
-    {
-        return m_stdin_text;
-    }
-
     [[nodiscard]] const Executable& get_executable() const noexcept
     {
         return m_executable;

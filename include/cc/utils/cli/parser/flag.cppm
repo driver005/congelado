@@ -193,19 +193,9 @@ public:
         m_config = std::move(value);
     }
 
-    [[nodiscard]] std::string& get_name() noexcept
-    {
-        return m_name;
-    }
-
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;
-    }
-
-    [[nodiscard]] std::string& get_description() noexcept
-    {
-        return m_description;
     }
 
     [[nodiscard]] const std::string& get_description() const noexcept
@@ -216,11 +206,6 @@ public:
     [[nodiscard]] FlagType get_type() const noexcept
     {
         return m_type;
-    }
-
-    [[nodiscard]] FlagConfig& get_config() noexcept
-    {
-        return m_config;
     }
 
     [[nodiscard]] const FlagConfig& get_config() const noexcept
