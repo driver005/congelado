@@ -194,7 +194,9 @@ private:
                 }
                 // Check if it's an extern "C" block containing nested declarations
             } else if (auto* spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl)) {
-                return collect_records(spec_decl);
+                if (!collect_records(spec_decl)) {
+                    nothing = false;
+                }
             }
         }
 
@@ -230,9 +232,8 @@ private:
 
     std::expected<void, std::string> cache_system_arguments()
     {
-        auto& cmd = cc_utils::cli::Command{cc_utils::cli::Executable{"clang++"}}
-                        .add_arguments({"-E", "-x", "c++", "-", "-v"})
-                        .add_input("");
+        auto cmd = cc_utils::cli::Command{cc_utils::cli::Executable{"clang++"}};
+        cmd.add_arguments({"-E", "-x", "c++", "-", "-v"}).add_input("");
 
         std::vector<std::string> directories;
 

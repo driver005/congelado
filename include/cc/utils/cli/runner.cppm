@@ -121,7 +121,7 @@ private:
         std::chrono::steady_clock::time_point start_time
     )
     {
-        pipes.close_ends();
+        pipes.close_unused_parent_ends();
 
         std::jthread stdin_thread(
             [&pipes, &cmd]()

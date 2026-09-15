@@ -35,14 +35,14 @@ public:
             return std::unexpected{"clang-format is not installed or not in PATH."};
         }
 
-        auto& cmd = cc_utils::cli::Command(std::move(executable))
-                        .add_arguments(
-                            cc_utils::cli::Arguments{
-                                "--assume-filename=.cppm",
-                                "-style=file:" + (repo_root / ".clang-format").string()
-                            }
-                        )
-                        .add_input(std::string(source));
+        auto cmd = cc_utils::cli::Command(std::move(executable));
+        cmd.add_arguments(
+               cc_utils::cli::Arguments{
+                   "--assume-filename=.cppm",
+                   "-style=file:" + (repo_root / ".clang-format").string()
+               }
+           )
+           .add_input(std::string(source));
 
         auto run_result = m_runner.execute(std::move(cmd));
         if (!run_result) {

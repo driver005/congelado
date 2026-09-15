@@ -45,8 +45,9 @@ public:
 
         if (!result->success()) {
             return std::unexpected{std::format(
-                "Compiler failed to dump includes. Exit code: {}. Error: {}",
+                "Compiler failed to dump includes. Exit code: {}. Signal: {}. Error: {}",
                 result->get_exit_code(),
+                result->get_term_signal(),
                 result->get_std_err()
             )};
         }
