@@ -82,9 +82,16 @@ public:
 
     void setup_redirects()
     {
-        m_stdin.setup_redirect<false>();
-        m_stdout.setup_redirect<true>();
-        m_stderr.setup_redirect<true>();
+        m_stdin.setup_redirect<false, STDIN_FILENO>();
+        m_stdout.setup_redirect<true, STDOUT_FILENO>();
+        m_stderr.setup_redirect<true, STDERR_FILENO>();
+    }
+
+    void close_unused_parent_ends()
+    {
+        m_stdin.close_read_end();
+        m_stdout.close_write_end();
+        m_stderr.close_write_end();
     }
 
     void close_ends()

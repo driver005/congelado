@@ -45,24 +45,16 @@ public:
         return Pipe{fds};
     }
 
-    template<bool IsReader>
+    template<bool IsReader, int TargetFD>
     void setup_redirect() noexcept
     {
         if constexpr (IsReader) {
             m_read_end.close();
-        } else {
-            m_write_end.close();
-        }
-
-        if constexpr (IsReader) {
-            ::dup2(m_write_end.get_fd(), STDOUT_FILENO);
-        } else {
-            ::dup2(m_read_end.get_fd(), STDIN_FILENO);
-        }
-
-        if constexpr (IsReader) {
+            ::dup2(m_write_end.get_fd(), TargetFD);
             m_write_end.close();
         } else {
+            m_write_end.close();
+            ::dup2(m_read_end.get_fd(), TargetFD);
             m_read_end.close();
         }
     }
@@ -120,6 +112,16 @@ public:
     void close() noexcept
     {
         m_read_end.close();
+        m_write_end.close();
+    }
+
+    void close_read_end() noexcept
+    {
+        m_read_end.close();
+    }
+
+    void close_write_end() noexcept
+    {
         m_write_end.close();
     }
 
