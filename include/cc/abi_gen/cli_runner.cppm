@@ -10,6 +10,7 @@ import cc_abi_gen_parser;
 import cc_abi_gen_generator;
 import cc_abi_gen_writer;
 import cc_utils_cli;
+import cc_utils_cli_parser;
 
 export namespace cc_abi_gen {
 
@@ -20,22 +21,29 @@ class CliRunner
 public:
     int run(int argc, char** argv)
     {
-        cc_utils::cli::Arguments arguments;
-        for (int index = 0; index < argc; ++index) {
-            arguments.append_argument(std::string{argv[index]});
-        }
-
         cc_utils::cli::Parser parser{build_command_schema()};
 
-        auto parse_result = parser.parse(arguments);
+        auto parse_result = parser.parse(argc, argv);
         if (!parse_result) {
             std::cerr << parse_result.error() << "\n" << usage() << "\n";
             return 1;
         }
 
+        auto check_result = parser.check();
+        if (!check_result) {
+            std::cerr << check_result.error() << "\n" << usage() << "\n";
+            return 1;
+        }
+
         CliOptions options = parse_options(parser);
 
-        if (parser.get_command() == "generate") {
+        auto current_cmd_opt = parser.get_invocation().current_command();
+        if (!current_cmd_opt) {
+            std::cerr << usage() << "\n";
+            return 1;
+        }
+
+        if (current_cmd_opt->get().get_name() == "generate") {
             return run_generate(options);
         }
 
@@ -55,46 +63,88 @@ private:
                "cc_abi_gen check --pilot";
     }
 
-    // Every command this binary accepts and the flags each one allows — cc_utils::cli::Parser
-    // rejects an unknown command or an unrecognized `--flag` against this schema before
-    // CliRunner ever sees it.
-    std::vector<cc_utils::cli::CommandSchema> build_command_schema()
+    // Every command this binary accepts and the flags each one allows
+    cc_utils::cli::parser::Schema build_command_schema()
     {
-        std::vector<cc_utils::cli::CommandSchema> commands;
+        using namespace cc_utils::cli::parser;
 
-        commands.emplace_back(
-            std::string{"generate"},
-            std::vector<
-                std::string>{"pilot", "tier", "domain", "header", "out", "out-dir", "repo-root"}
+        Schema schema{"cc_abi_gen"};
+
+        schema.add_option(
+            std::move(
+                Option{"generate", "Generate ABI"}
+                    .add_flag(Flag{"pilot", "Pilot mode", FlagType::Boolean, {}})
+                    .add_flag(Flag{"tier", "Tier", FlagType::String, {}})
+                    .add_flag(Flag{"domain", "Domain name", FlagType::String, {}})
+                    .add_flag(Flag{"header", "Header path", FlagType::String, {}})
+                    .add_flag(Flag{"out", "Output path", FlagType::String, {}})
+                    .add_flag(Flag{"out-dir", "Output directory", FlagType::String, {}})
+                    .add_flag(Flag{"repo-root", "Repo root", FlagType::String, {}})
+            )
         );
 
-        commands.emplace_back(std::string{"check"}, std::vector<std::string>{"pilot", "repo-root"});
+        schema.add_option(
+            std::move(
+                Option{"check", "Check ABI diff"}
+                    .add_flag(Flag{"pilot", "Pilot mode", FlagType::Boolean, {}})
+                    .add_flag(Flag{"repo-root", "Repo root", FlagType::String, {}})
+            )
+        );
 
-        return commands;
+        return schema;
     }
 
     CliOptions parse_options(const cc_utils::cli::Parser& parser)
     {
         CliOptions options;
 
-        options.m_pilot = parser.has_flag("pilot");
+        auto current_cmd_opt = parser.get_invocation().current_command();
+        if (!current_cmd_opt) {
+            return options;
+        }
 
-        if (auto value = parser.get_value("tier")) {
+        const auto& current_cmd = current_cmd_opt->get();
+
+        auto has_flag = [&current_cmd](std::string_view name) -> bool
+        {
+            for (const auto& flag: current_cmd.get_flags()) {
+                if (flag.get_name() == name) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        auto get_value = [&current_cmd](std::string_view name) -> std::optional<std::string>
+        {
+            for (const auto& flag: current_cmd.get_flags()) {
+                if (flag.get_name() == name) {
+                    if (flag.get_has_value()) {
+                        return flag.get_value();
+                    }
+                }
+            }
+            return std::nullopt;
+        };
+
+        options.m_pilot = has_flag("pilot");
+
+        if (auto value = get_value("tier")) {
             options.m_tier = std::move(*value);
         }
-        if (auto value = parser.get_value("domain")) {
+        if (auto value = get_value("domain")) {
             options.m_domain = std::move(*value);
         }
-        if (auto value = parser.get_value("header")) {
+        if (auto value = get_value("header")) {
             options.m_header = std::move(*value);
         }
-        if (auto value = parser.get_value("out")) {
+        if (auto value = get_value("out")) {
             options.m_out = std::move(*value);
         }
-        if (auto value = parser.get_value("out-dir")) {
+        if (auto value = get_value("out-dir")) {
             options.m_out_dir = std::move(*value);
         }
-        if (auto value = parser.get_value("repo-root")) {
+        if (auto value = get_value("repo-root")) {
             options.m_repo_root = std::move(*value);
         }
 
@@ -266,7 +316,7 @@ private:
             return 1;
         }
 
-        parser::Registry& registry = parser_instance->get_registry();
+        const parser::Registry& registry = parser_instance->get_registry();
         if (registry.begin() == registry.end()) {
             std::println("[cc_abi_gen] no vtable struct found in: {}", *options.m_header);
             return 1;
@@ -274,8 +324,8 @@ private:
 
         const parser::vtable::Model& model = registry.begin()->second;
 
-        generator::emitter::Builder builder_emitter{registry, NAMESPACE_NAME};
-        generator::emitter::Sonic sonic_emitter{registry, NAMESPACE_NAME};
+        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
 
         auto rendered = render(builder_emitter, sonic_emitter, model, *options.m_tier == "sonic");
         if (!rendered) {
@@ -303,9 +353,9 @@ private:
             return 1;
         }
 
-        parser::Registry& registry = parser_instance.get_registry();
-        generator::emitter::Builder builder_emitter{registry, NAMESPACE_NAME};
-        generator::emitter::Sonic sonic_emitter{registry, NAMESPACE_NAME};
+        const parser::Registry& registry = parser_instance.get_registry();
+        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
 
         for (const auto& [struct_name, model]: registry) {
             parser::helper::DomainPaths output_paths{
@@ -353,9 +403,9 @@ private:
             return 1;
         }
 
-        parser::Registry& registry = parser_instance.get_registry();
-        generator::emitter::Builder builder_emitter{registry, NAMESPACE_NAME};
-        generator::emitter::Sonic sonic_emitter{registry, NAMESPACE_NAME};
+        const parser::Registry& registry = parser_instance.get_registry();
+        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
 
         bool all_identical = true;
 

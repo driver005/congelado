@@ -1,4 +1,4 @@
-export module cc_utils_cli:ast_flag;
+export module cc_utils_cli_ast:flag;
 
 import std;
 
@@ -39,7 +39,7 @@ public:
 
     Flag& add_name(std::string&& name) noexcept
     {
-        m_names.push_back(std::move(name));
+        m_name = std::move(name);
         return *this;
     }
 

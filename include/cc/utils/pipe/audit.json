@@ -11,6 +11,11 @@
             "date": 1789423820619,
             "name": "/home/default/.tabby-client/agent/logs/20260915.0.log",
             "hash": "16a750bdc45b186559c9f2c05599145d"
+        },
+        {
+            "date": 1789431955047,
+            "name": "/home/default/.tabby-client/agent/logs/20260915.1.log",
+            "hash": "e601eac9f87d2a5abd8bc4a44ff20ec4"
         }
     ]
 }

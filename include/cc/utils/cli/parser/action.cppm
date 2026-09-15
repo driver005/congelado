@@ -1,14 +1,15 @@
-export module cc_utils_cli:parser_action;
+export module cc_utils_cli_parser:parser_action;
 
 import std;
 
 export namespace cc_utils::cli::parser {
 
-template<typename... Args>
 class Action
 {
 public:
-    using Callable = std::move_only_function<void(Args...) const>;
+    using Callable = std::move_only_function<void() const>;
+
+    Action() = default;
 
     Action(Callable&& func) :
         m_func{std::move(func)}
@@ -27,10 +28,10 @@ public:
         return *this;
     }
 
-    void execute(Args... args) const noexcept
+    void execute() const noexcept
     {
         if (m_func) {
-            m_func(std::forward<Args>(args)...);
+            m_func();
         }
     }
 

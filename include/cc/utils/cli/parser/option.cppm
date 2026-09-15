@@ -1,8 +1,8 @@
-export module cc_utils_cli:parser_option;
+export module cc_utils_cli_parser:parser_option;
 
 import std;
+import cc_utils_cli_ast;
 import :parser_flag;
-import :ast_command;
 
 export namespace cc_utils::cli::parser {
 
@@ -78,12 +78,12 @@ public:
         m_description = std::move(value);
     }
 
-    void append_flag(Option&& opt) noexcept
+    void append_flag(Flag&& flag) noexcept
     {
-        m_flags.push_back(std::move(opt));
+        m_flags.push_back(std::move(flag));
     }
 
-    void append_subcommand(Command&& cmd) noexcept
+    void append_subcommand(Option&& cmd) noexcept
     {
         m_subcommands.push_back(std::move(cmd));
     }
@@ -113,10 +113,12 @@ public:
                 }
             }
 
-            // Trigger the schema's flag validation, which writes the typed data back into
-            // ast_flag
-            if (auto result = it->validate(ast_flag); !result) {
-                return result;
+            if (it != m_flags.end()) {
+                // Trigger the schema's flag validation, which writes the typed data back into
+                // ast_flag
+                if (auto result = it->validate(ast_flag); !result) {
+                    return result;
+                }
             }
         }
 
@@ -187,12 +189,12 @@ public:
         return m_description;
     }
 
-    [[nodiscard]]  std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
     {
         return m_flags;
     }
 
-    [[nodiscard]]  std::span<const Option> get_subcommands() const noexcept
+    [[nodiscard]] std::span<const Option> get_subcommands() const noexcept
     {
         return m_subcommands;
     }
