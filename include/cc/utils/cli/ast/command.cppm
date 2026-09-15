@@ -1,7 +1,7 @@
-export module cc_utils_cli:ast_command;
+export module cc_utils_cli_ast:command;
 
 import std;
-import :ast_flag;
+import :flag;
 
 export namespace cc_utils::cli::ast {
 
@@ -73,7 +73,7 @@ public:
         m_subcommands.push_back(std::move(subcommand));
     }
 
-    void append_operand(Operand&& operand) noexcept
+    void append_operand(std::string&& operand) noexcept
     {
         m_operands.push_back(std::move(operand));
     }
@@ -88,7 +88,19 @@ public:
         return m_flags;
     }
 
+    // The user has to be able to verify the flags
+    [[nodiscard]] std::span<Flag> get_flags() noexcept
+    {
+        return m_flags;
+    }
+
     [[nodiscard]] std::span<const Command> get_subcommands() const noexcept
+    {
+        return m_subcommands;
+    }
+
+    // The user has to be able to verify the subcommands
+    [[nodiscard]] std::span<Command> get_subcommands() noexcept
     {
         return m_subcommands;
     }

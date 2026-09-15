@@ -86,19 +86,19 @@ public:
     }
 
     // Example: ice::String::create({})
-    std::string wrape_type(std::string_view domain, std::string_view argument_name) noexcept
+    std::string wrape_type(std::string_view domain, std::string_view argument_name) const noexcept
     {
         return std::format("{}::{}::wrap({})", domain, m_class_name, argument_name);
     }
 
     // Example: "{}.get_handle()",
-    std::string unwrape_type(std::string_view argument_name) noexcept
+    std::string unwrape_type(std::string_view argument_name) const noexcept
     {
         return std::format("{}.get_handle()", argument_name);
     }
 
     // Example: const ice::String &
-    std::string get_pointee_type(std::string_view namespace_name) noexcept
+    std::string get_pointee_type(std::string_view namespace_name) const noexcept
     {
         return std::format("const {}::{} &", namespace_name, m_class_name);
     }

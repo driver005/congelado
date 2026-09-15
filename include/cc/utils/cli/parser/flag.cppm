@@ -1,8 +1,8 @@
-export module cc_utils_cli:parser_flag;
+export module cc_utils_cli_parser:parser_flag;
 
 import std;
+import cc_utils_cli_ast;
 import :parser_helper;
-import :ast_flag;
 
 export namespace cc_utils::cli::parser {
 

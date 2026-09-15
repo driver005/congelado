@@ -1,4 +1,4 @@
-export module cc_utils_cli:parser_helper;
+export module cc_utils_cli_parser:parser_helper;
 
 import std;
 
@@ -57,15 +57,15 @@ public:
         return *this;
     }
 
-    FlagConfig& add_min(std::string&& min)
+    FlagConfig& add_min(int min)
     {
-        m_min = std::move(min);
+        m_min = min;
         return *this;
     }
 
-    FlagConfig& add_max(std::string&& max)
+    FlagConfig& add_max(int max)
     {
-        m_max = std::move(max);
+        m_max = max;
         return *this;
     }
 
@@ -180,17 +180,17 @@ public:
         return m_env_var;
     }
 
-    [[nodiscard]] std::span<std::string>& get_allowed_values() noexcept
+    [[nodiscard]] std::span<std::string> get_allowed_values() noexcept
     {
         return m_allowed_values;
     }
 
-    [[nodiscard]] std::span<std::string>& get_requires_flags() noexcept
+    [[nodiscard]] std::span<std::string> get_requires_flags() noexcept
     {
         return m_requires_flags;
     }
 
-    [[nodiscard]] std::span<std::string>& get_conflicts_with() noexcept
+    [[nodiscard]] std::span<std::string> get_conflicts_with() noexcept
     {
         return m_conflicts_with;
     }
@@ -200,17 +200,17 @@ public:
         return m_default_value;
     }
 
-    [[nodiscard]] const std::optional<const int>& get_min() const noexcept
+    [[nodiscard]] const std::optional<int>& get_min() const noexcept
     {
         return m_min;
     }
 
-    [[nodiscard]] const std::optional<const int>& get_max() const noexcept
+    [[nodiscard]] const std::optional<int>& get_max() const noexcept
     {
         return m_max;
     }
 
-    [[nodiscard]] const std::optional<const std::string>& get_env_var() const noexcept
+    [[nodiscard]] const std::optional<std::string>& get_env_var() const noexcept
     {
         return m_env_var;
     }
@@ -270,13 +270,13 @@ public:
     ParserOptions& operator=(ParserOptions&&) = default;
     ParserOptions(ParserOptions&&) = default;
 
-    ParserOption& add_allow_unrecognized() noexcept
+    ParserOptions& add_allow_unrecognized() noexcept
     {
         m_allow_unrecognized = true;
         return *this;
     }
 
-    ParserOption& add_auto_help() noexcept
+    ParserOptions& add_auto_help() noexcept
     {
         m_auto_help = true;
         return *this;
@@ -313,7 +313,7 @@ public:
         return m_auto_help;
     }
 
-    [[nodiscard]] const std::optional<const std::string>& get_version() const noexcept
+    [[nodiscard]] const std::optional<std::string>& get_version() const noexcept
     {
         return m_version;
     }

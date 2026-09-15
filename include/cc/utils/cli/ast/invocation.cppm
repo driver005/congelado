@@ -1,10 +1,8 @@
-module;
-#include <algorithm>
-export module cc_utils_cli:ast_invocation;
+export module cc_utils_cli_ast:invocation;
 
 import std;
-import :ast_flag;
-import :ast_command;
+import :flag;
+import :command;
 
 export namespace cc_utils::cli::ast {
 
@@ -43,9 +41,9 @@ public:
         return *this;
     }
 
-    Invocation& add_global_flag(std::string&& flag_name) noexcept
+    Invocation& add_global_flag(Flag&& flag) noexcept
     {
-        m_global_flags.emplace_back(std::move(flag_name));
+        m_global_flags.push_back(std::move(flag));
         return *this;
     }
 
@@ -61,7 +59,8 @@ public:
         return *this;
     }
 
-    [[nodiscard]] std::optional<std::reference_wrapper<Command>> current_command() noexcept
+    [[nodiscard]] std::optional<std::reference_wrapper<const Command>>
+    current_command() const noexcept
     {
         if (m_commands.empty()) {
             return std::nullopt;
@@ -69,9 +68,9 @@ public:
         return std::ref(m_commands.back());
     }
 
-    void append_global_flag(std::string&& flag_name) noexcept
+    void append_global_flag(Flag&& flag) noexcept
     {
-        m_global_flags.emplace_back(std::move(flag_name));
+        m_global_flags.push_back(std::move(flag));
     }
 
     void set_program_name(std::string&& program_name) noexcept
@@ -99,7 +98,19 @@ public:
         return m_global_flags;
     }
 
+    // Ther user has to be able to change flags
+    [[nodiscard]] std::span<Flag> get_global_flags() noexcept
+    {
+        return m_global_flags;
+    }
+
     [[nodiscard]] std::span<const Command> get_commands() const noexcept
+    {
+        return m_commands;
+    }
+
+    // Ther user has to be able to change flags in command
+    [[nodiscard]] std::span<Command> get_commands() noexcept
     {
         return m_commands;
     }

@@ -9,12 +9,12 @@ export namespace cc_abi_gen::generator::emitter {
 class Builder
 {
 public:
-    Builder(parser::Registry& registry) :
+    Builder(const parser::Registry& registry) :
         m_registry{registry}
     {
     }
 
-    Builder(parser::Registry& registry, std::string&& namespace_name) :
+    Builder(const parser::Registry& registry, std::string&& namespace_name) :
         m_registry{registry},
         m_namespace_name{std::move(namespace_name)}
     {
@@ -212,6 +212,6 @@ private:
 
     std::string m_writer;
     std::string m_namespace_name;
-    std::reference_wrapper<parser::Registry> m_registry;
+    std::reference_wrapper<const parser::Registry> m_registry;
 };
 } // namespace cc_abi_gen::generator::emitter

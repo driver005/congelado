@@ -1,8 +1,8 @@
-export module cc_utils_cli:parser;
+export module cc_utils_cli_parser:parser;
 
 import std;
+import cc_utils_cli_ast;
 import :parser_schema;
-import :ast_invocation;
 
 export namespace cc_utils::cli {
 
@@ -27,7 +27,7 @@ public:
         return *this;
     }
 
-    Parser& set_schema(parser::Schema&& schema) noexcept
+    Parser& add_schema(parser::Schema&& schema) noexcept
     {
         m_schema = std::move(schema);
         return *this;

@@ -1,10 +1,10 @@
-export module cc_utils_cli:parser_schema;
+export module cc_utils_cli_parser:parser_schema;
 
 import std;
+import cc_utils_cli_ast;
 import :parser_option;
 import :parser_flag;
 import :parser_action;
-import :ast_invocation;
 
 export namespace cc_utils::cli::parser {
 
@@ -23,7 +23,7 @@ public:
         std::string&& name,
         std::vector<Option>&& options,
         std::vector<Flag>&& flags,
-        Action<std::span<const Flag>>&& action
+        Action&& action
     ) noexcept :
         m_name{std::move(name)},
         m_options{std::move(options)},
@@ -71,7 +71,7 @@ public:
         }
 
         for (auto& ast_cmd: ast_invoc.get_commands()) {
-            auto opt_ref = get_option(ast_cmd.get_name(), allow_unrecognized);
+            auto opt_ref = has_option(ast_cmd.get_name(), allow_unrecognized);
 
             if (!opt_ref) {
                 if (!allow_unrecognized) {
@@ -99,7 +99,7 @@ public:
         }
 
         for (auto& ast_sub: ast_cmd.get_subcommands()) {
-            auto opt_ref = get_option(ast_sub.get_name(), allow_unrecognized);
+            auto opt_ref = has_option(ast_sub.get_name(), allow_unrecognized);
 
             if (!opt_ref) {
                 if (!allow_unrecognized) {
@@ -194,17 +194,17 @@ public:
         return m_name;
     }
 
-    [[nodiscard]]  std::span<const Flag> get_flags() const noexcept
+    [[nodiscard]] std::span<const Flag> get_flags() const noexcept
     {
         return m_flags;
     }
 
-    [[nodiscard]]  std::span<const Option> get_options() const noexcept
+    [[nodiscard]] std::span<const Option> get_options() const noexcept
     {
         return m_options;
     }
 
-    [[nodiscard]] const Action<std::span<const Flag>>& get_action() const noexcept
+    [[nodiscard]] const Action& get_action() const noexcept
     {
         return m_action;
     }
@@ -214,7 +214,7 @@ private:
     validate_flags(std::span<ast::Flag> ast_flags, bool allow_unrecognized) const
     {
         for (auto& ast_flag: ast_flags) {
-            if (auto flag_ref = get_flag(ast_flag.get_name())) {
+            if (auto flag_ref = has_flag(ast_flag.get_name())) {
                 if (auto result = flag_ref->get().validate(ast_flag); !result) {
                     return result;
                 }
@@ -234,7 +234,7 @@ private:
     std::string m_name{};
     std::vector<Option> m_options{};
     std::vector<Flag> m_flags{};
-    Action<std::span<const Flag>> m_action{};
+    Action m_action{};
 };
 
 } // namespace cc_utils::cli::parser
