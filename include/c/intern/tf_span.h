@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_SPAN_H_
 #define TENSORFLOW_C_TF_SPAN_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -36,18 +36,17 @@ extern "C"
         );
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(void* plugin_context, const TF_Span_Handle* span, size_t index);
+        const void* (*get)(const TF_Span_Handle* span, size_t index);
 
         // Element count.
-        size_t (*size)(void* plugin_context, const TF_Span_Handle* span);
+        size_t (*size)(const TF_Span_Handle* span);
 
         // Non-owning pointer to the viewed contiguous storage.
-        void* (*data)(void* plugin_context, const TF_Span_Handle* span);
+        void* (*data)(const TF_Span_Handle* span);
 
         // A new span viewing the same storage, starting at offset for count
         // elements. Must be freed independently with destroy.
         TF_Span_Handle* (*subspan)(
-            void* plugin_context,
             const TF_Span_Handle* span,
             size_t offset,
             size_t count
@@ -61,7 +60,7 @@ extern "C"
 
 #define TF_SPAN_STRUCT_SIZE TF_OFFSET_OF_END(TF_Span, destroy)
 
-    TF_CAPI_EXPORT void init_span(TF_Span** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_span(TF_Span** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

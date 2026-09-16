@@ -1,6 +1,6 @@
 module;
 
-#include <cstdlib>
+#include <cstdio>
 
 export module cc_abi_gen:cli_runner;
 
@@ -25,13 +25,13 @@ public:
 
         auto parse_result = parser.parse(argc, argv);
         if (!parse_result) {
-            std::cerr << parse_result.error() << "\n" << usage() << "\n";
+            std::println(stderr, "{}\n{}", parse_result.error(), usage());
             return 1;
         }
 
         auto check_result = parser.check();
         if (!check_result) {
-            std::cerr << check_result.error() << "\n" << usage() << "\n";
+            std::println(stderr, "{}\n{}", check_result.error(), usage());
             return 1;
         }
 
@@ -39,7 +39,7 @@ public:
 
         auto current_cmd_opt = parser.get_invocation().current_command();
         if (!current_cmd_opt) {
-            std::cerr << usage() << "\n";
+            std::println(stderr, "{}", usage());
             return 1;
         }
 
@@ -202,6 +202,31 @@ private:
         return domains;
     }
 
+    // Intern headers are parsed into the shared registry for cross-reference resolution only —
+    // they never drive their own generation (see parse_pilot_domains); the wrapper classes for
+    // these types are hand-written under include/cc/abi/primitives.
+    std::vector<std::filesystem::path> discover_intern_headers(const std::filesystem::path& repo_root)
+    {
+        std::vector<std::filesystem::path> headers;
+
+        std::error_code error;
+        std::filesystem::path intern_root = repo_root / "include/c/intern";
+
+        for (const auto& entry: std::filesystem::directory_iterator{intern_root, error}) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+
+            if (entry.path().extension() == ".h") {
+                headers.push_back(entry.path());
+            }
+        }
+
+        std::ranges::sort(headers);
+
+        return headers;
+    }
+
     std::expected<std::string, std::string> render(
         generator::emitter::Builder& builder_emitter,
         generator::emitter::Sonic& sonic_emitter,
@@ -231,14 +256,26 @@ private:
             parser::helper::DomainPaths input_paths{
                 std::string{domain},
                 std::filesystem::path{repo_root},
-                std::filesystem::path{repo_root / "include/cc/abi"}
+                std::filesystem::path{repo_root / "include/cc/abi"},
+                true
             };
 
-            std::cerr
-                << std::format("[cc_abi_gen] parsing {}\n", input_paths.get_header().string());
+            std::println(stderr, "[cc_abi_gen] parsing {}", input_paths.get_header().string());
 
             auto parse_result =
                 parser_instance.parse_file(input_paths.get_header(), repo_root / "include");
+            if (!parse_result) {
+                return std::unexpected{std::move(parse_result.error())};
+            }
+        }
+
+        // Intern headers register their types (e.g. TF_String, TF_Status, TF_Array) into the same
+        // registry so extern domains can cross-reference them, but they are not part of `domains`
+        // returned below — intern types get no generated wrapper of their own.
+        for (const std::filesystem::path& header: discover_intern_headers(repo_root)) {
+            std::println(stderr, "[cc_abi_gen] parsing {}", header.string());
+
+            auto parse_result = parser_instance.parse_file(header, repo_root / "include");
             if (!parse_result) {
                 return std::unexpected{std::move(parse_result.error())};
             }
@@ -256,11 +293,11 @@ private:
     {
         auto write_result = writer.write(rendered, out_path, repo_root);
         if (!write_result) {
-            std::cerr << write_result.error() << "\n";
+            std::println(stderr, "{}", write_result.error());
             return 1;
         }
 
-        std::cerr << std::format("[cc_abi_gen] wrote {}\n", out_path.string());
+        std::println(stderr, "[cc_abi_gen] wrote {}", out_path.string());
 
         return 0;
     }
@@ -274,15 +311,15 @@ private:
     {
         auto diff_result = writer.diff(rendered, real_path, repo_root);
         if (!diff_result) {
-            std::cerr << diff_result.error() << "\n";
+            std::println(stderr, "{}", diff_result.error());
             return false;
         }
 
         if (diff_result->get_identical()) {
-            std::cerr << std::format("[cc_abi_gen] up to date: {}\n", real_path.string());
+            std::println(stderr, "[cc_abi_gen] up to date: {}", real_path.string());
         } else {
-            std::cout << "--- " << real_path.string() << " differs ---\n";
-            std::cout << diff_result->get_unified_diff();
+            std::println("--- {} differs ---", real_path.string());
+            std::print("{}", diff_result->get_unified_diff());
         }
 
         return diff_result->get_identical();
@@ -292,44 +329,48 @@ private:
     int run_generate_single(const CliOptions& options)
     {
         if (!options.m_tier || !options.m_domain || !options.m_header || !options.m_out) {
-            std::cerr << usage() << "\n";
+            std::println(stderr, "{}", usage());
             return 1;
         }
 
         std::filesystem::path repo_root = resolve_repo_root(options);
 
-        std::cerr << std::format("[cc_abi_gen] parsing {}\n", *options.m_header);
+        std::println(stderr, "[cc_abi_gen] parsing {}", *options.m_header);
 
         std::optional<parser::Parser> parser_instance;
 
         try {
             parser_instance.emplace("clang++", *options.m_domain);
         } catch (const std::exception& e) {
-            std::println("[cc_abi_gen] failed to initialize parser: {}", e.what());
+            std::println(stderr, "[cc_abi_gen] failed to initialize parser: {}", e.what());
             return 1;
         }
 
         // Use the -> operator to access the parser methods
         auto parse_result = parser_instance->parse_file(*options.m_header, repo_root / "include");
         if (!parse_result) {
-            std::println("{}", parse_result.error());
+            std::println(stderr, "{}", parse_result.error());
             return 1;
         }
 
         const parser::Registry& registry = parser_instance->get_registry();
         if (registry.begin() == registry.end()) {
-            std::println("[cc_abi_gen] no vtable struct found in: {}", *options.m_header);
+            std::println(stderr, "[cc_abi_gen] no vtable struct found in: {}", *options.m_header);
             return 1;
         }
 
         const parser::vtable::Model& model = registry.begin()->second;
 
-        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
-        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Builder builder_emitter{
+            registry,
+            std::string{NAMESPACE_NAME},
+            repo_root
+        };
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}, repo_root};
 
         auto rendered = render(builder_emitter, sonic_emitter, model, *options.m_tier == "sonic");
         if (!rendered) {
-            std::cerr << rendered.error() << "\n";
+            std::println(stderr, "{}", rendered.error());
             return 1;
         }
 
@@ -349,26 +390,37 @@ private:
 
         auto domains = parse_pilot_domains(parser_instance, repo_root);
         if (!domains) {
-            std::cerr << domains.error() << "\n";
+            std::println(stderr, "{}", domains.error());
             return 1;
         }
 
         const parser::Registry& registry = parser_instance.get_registry();
-        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
-        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Builder builder_emitter{
+            registry,
+            std::string{NAMESPACE_NAME},
+            repo_root
+        };
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}, repo_root};
+
+        std::vector<std::string> succeeded;
 
         for (const auto& [struct_name, model]: registry) {
             parser::helper::DomainPaths output_paths{
                 std::string{model.get_domain_name()},
                 std::filesystem::path{repo_root},
-                std::filesystem::path{output_root}
+                std::filesystem::path{output_root},
+                std::ranges::binary_search(*domains, model.get_domain_name())
             };
+
+            bool domain_ok = true;
+            std::string domain_error;
 
             for (bool sonic_tier: {false, true}) {
                 auto rendered = render(builder_emitter, sonic_emitter, model, sonic_tier);
                 if (!rendered) {
-                    std::cerr << rendered.error() << "\n";
-                    return 1;
+                    domain_ok = false;
+                    domain_error = std::move(rendered.error());
+                    break;
                 }
 
                 const std::filesystem::path& out_path =
@@ -376,20 +428,54 @@ private:
 
                 if (int status = write_tier(m_writer, *rendered, out_path, repo_root);
                     status != 0) {
-                    return status;
+                    domain_ok = false;
+                    domain_error = "write failed: " + out_path.string();
+                    break;
                 }
+            }
+
+            if (domain_ok) {
+                succeeded.emplace_back(model.get_domain_name());
+            } else {
+                std::error_code error;
+                std::filesystem::remove_all(output_root / model.get_domain_name(), error);
+
+                std::println(
+                    stderr,
+                    "[cc_abi_gen] FAILED {}: {}",
+                    model.get_domain_name(),
+                    domain_error
+                );
+                std::abort();
             }
         }
 
-        std::cerr << std::format("[cc_abi_gen] done: {} domain(s) regenerated\n", domains->size());
+        std::println(stderr, "[cc_abi_gen] done: {} succeeded", succeeded.size());
+        if (!succeeded.empty()) {
+            std::println(stderr, "[cc_abi_gen]   succeeded: {}", join(succeeded));
+        }
 
         return 0;
+    }
+
+    std::string join(const std::vector<std::string>& names)
+    {
+        std::string result;
+
+        for (std::size_t index = 0; index < names.size(); ++index) {
+            if (index != 0) {
+                result += ", ";
+            }
+            result += names[index];
+        }
+
+        return result;
     }
 
     int run_check(const CliOptions& options)
     {
         if (!options.m_pilot) {
-            std::cerr << usage() << "\n";
+            std::println(stderr, "{}", usage());
             return 1;
         }
 
@@ -399,13 +485,17 @@ private:
 
         auto domains = parse_pilot_domains(parser_instance, repo_root);
         if (!domains) {
-            std::cerr << domains.error() << "\n";
+            std::println(stderr, "{}", domains.error());
             return 1;
         }
 
         const parser::Registry& registry = parser_instance.get_registry();
-        generator::emitter::Builder builder_emitter{registry, std::string{NAMESPACE_NAME}};
-        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}};
+        generator::emitter::Builder builder_emitter{
+            registry,
+            std::string{NAMESPACE_NAME},
+            repo_root
+        };
+        generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}, repo_root};
 
         bool all_identical = true;
 
@@ -413,13 +503,14 @@ private:
             parser::helper::DomainPaths real_paths{
                 std::string{model.get_domain_name()},
                 std::filesystem::path{repo_root},
-                std::filesystem::path{repo_root / "include/cc/abi"}
+                std::filesystem::path{repo_root / "include/cc/abi"},
+                std::ranges::binary_search(*domains, model.get_domain_name())
             };
 
             for (bool sonic_tier: {false, true}) {
                 auto rendered = render(builder_emitter, sonic_emitter, model, sonic_tier);
                 if (!rendered) {
-                    std::cerr << rendered.error() << "\n";
+                    std::println(stderr, "{}", rendered.error());
                     return 1;
                 }
 
@@ -431,8 +522,9 @@ private:
             }
         }
 
-        std::cerr << std::format(
-            "[cc_abi_gen] done: {}\n",
+        std::println(
+            stderr,
+            "[cc_abi_gen] done: {}",
             all_identical ? "all up to date" : "differences found"
         );
 

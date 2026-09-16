@@ -1,0 +1,22 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Produced by cc_abi_gen from c/extern/{{ domain_name }}/{{ domain_name }}.h. Re-run
+// `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
+// regenerate; edits made directly to this file will be overwritten.
+
+module;
+
+#include "c/extern/{{ domain_name }}/{{ domain_name }}.h"
+{{ extra_includes }}
+export module cc_abi_{{ target_name }}_{{ domain_name }};
+
+import std;
+import cc_abi_primitives;
+import cc_abi_sonic_intern;
+{{ extra_imports }}
+{{ extra_pre_class }}
+export namespace {{ namespace_name }}::{{ target_name }} {
+
+class {{ class_name }}{{ inheritance }}
+{
+public:
+{{ class_body }}

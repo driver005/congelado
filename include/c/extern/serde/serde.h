@@ -15,7 +15,7 @@ limitations under the License.
 #ifndef CONGELADO_C_SERDE_CONTROLLER_H_
 #define CONGELADO_C_SERDE_CONTROLLER_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -27,7 +27,7 @@ extern "C"
 #endif
 
 
-    // encode/decode write their result into a caller-supplied TF_TString (by-value output
+    // encode/decode write their result into a caller-supplied TF_String_Handle (by-value output
     // parameter).  No heap allocation, no free_string needed.
 
     typedef struct TF_Serde
@@ -39,21 +39,21 @@ extern "C"
         void (*get_format_name)(void* plugin_context, TF_String* out);
         void (*encode)(
             void* plugin_context,
-            const TF_TString* value_json,
+            const TF_String_Handle* value_json,
             TF_String* out_encoded,
-            TF_Status* status
+            TF_Status_Handle* status
         );
         void (*decode)(
             void* plugin_context,
-            const TF_TString* data,
+            const TF_String_Handle* data,
             TF_String* out_json,
-            TF_Status* status
+            TF_Status_Handle* status
         );
     } TF_Serde;
 
 #define TF_SERDE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Serde, decode)
 
-    TF_CAPI_EXPORT void init_serde(TF_Serde** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_serde(TF_Serde** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 }

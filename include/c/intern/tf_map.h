@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_MAP_H_
 #define TENSORFLOW_C_TF_MAP_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -55,25 +55,24 @@ extern "C"
 
         // Copy one key_size-byte key and one value_size-byte value in.
         // Non-zero on success.
-        int (*insert)(void* plugin_context, TF_Map_Handle* map, const void* key, const void* value);
+        int (*insert)(TF_Map_Handle* map, const void* key, const void* value);
 
         // Non-owning pointer to the value stored under key; NULL if absent.
-        const void* (*find)(void* plugin_context, const TF_Map_Handle* map, const void* key);
+        const void* (*find)(const TF_Map_Handle* map, const void* key);
 
         // Remove the entry (or entries, if allow_duplicates) stored under
         // key. Non-zero if anything was removed.
-        int (*erase)(void* plugin_context, TF_Map_Handle* map, const void* key);
+        int (*erase)(TF_Map_Handle* map, const void* key);
 
         // Non-zero if an entry exists under key.
-        int (*contains)(void* plugin_context, const TF_Map_Handle* map, const void* key);
+        int (*contains)(const TF_Map_Handle* map, const void* key);
 
         // Current entry count.
-        size_t (*size)(void* plugin_context, const TF_Map_Handle* map);
+        size_t (*size)(const TF_Map_Handle* map);
 
         // Call visitor(capture, key, value) once per entry, in unspecified
         // order.
         void (*for_each)(
-            void* plugin_context,
             const TF_Map_Handle* map,
             TF_MapVisitor visitor,
             void* capture
@@ -86,7 +85,7 @@ extern "C"
 
 #define TF_MAP_STRUCT_SIZE TF_OFFSET_OF_END(TF_Map, destroy)
 
-    TF_CAPI_EXPORT void init_map(TF_Map** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_map(TF_Map** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

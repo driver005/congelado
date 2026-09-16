@@ -23,6 +23,11 @@ limitations under the License.
 // to the macros in tensorflow/core/framework/op_requires.h. Provided
 // for plugin OpKernel developer's convenience.
 //
+// TF_Status is an ops vtable now (see tf_status.h), not a free-function API, so
+// every status call needs the vtable pointer plus the plugin_context it was
+// registered with. STATUS_OPS/STATUS_CTX below are exactly what init_status
+// handed back to the caller.
+//
 // NOTE: This header is included by both C and C++ translation units — no
 // namespace, no C++ constructs at file scope.
 
@@ -34,27 +39,32 @@ limitations under the License.
 #    define TF_PREDICT_FALSE(x) (x)
 #endif
 
-#define C_OPKERNELCONTEXT_REQUIRES_OK(CTX, C_STATUS, __VA_ARGS__)                                  \
+#define C_OPKERNELCONTEXT_REQUIRES_OK(STATUS_OPS, STATUS_CTX, CTX, C_STATUS, __VA_ARGS__)          \
     do {                                                                                           \
-        TF_Status* _s = (__VA_ARGS__);                                                             \
-        if (!TF_PREDICT_TRUE(get_code(_s) == TF_OK)) {                                             \
-            set_status(C_STATUS, get_code(_s), message(_s));                                       \
+        TF_Status_Handle* _s = (__VA_ARGS__);                                                      \
+        if (!TF_PREDICT_TRUE((STATUS_OPS)->get_code(STATUS_CTX, _s) == TF_OK)) {                   \
+            (STATUS_OPS)->set_status(                                                              \
+                STATUS_CTX,                                                                        \
+                C_STATUS,                                                                          \
+                (STATUS_OPS)->get_code(STATUS_CTX, _s),                                            \
+                (STATUS_OPS)->message(STATUS_CTX, _s)                                              \
+            );                                                                                     \
             TF_OpKernelContext_Failure(CTX, C_STATUS);                                             \
-            delete_status(_s);                                                                     \
+            (STATUS_OPS)->delete_status(STATUS_CTX, _s);                                           \
             return;                                                                                \
         }                                                                                          \
-        delete_status(_s);                                                                         \
+        (STATUS_OPS)->delete_status(STATUS_CTX, _s);                                               \
     } while (0)
 
-#define TF_CLEANUP_AND_RETURN_IF_ERROR(C_STATUS, BUFFER, __VA_ARGS__)                              \
+#define TF_CLEANUP_AND_RETURN_IF_ERROR(STATUS_OPS, STATUS_CTX, C_STATUS, BUFFER, __VA_ARGS__)      \
     do {                                                                                           \
-        TF_Status* _s = (__VA_ARGS__);                                                             \
-        if (TF_PREDICT_FALSE(get_code(_s) != TF_OK)) {                                             \
-            delete_status(C_STATUS);                                                               \
+        TF_Status_Handle* _s = (__VA_ARGS__);                                                      \
+        if (TF_PREDICT_FALSE((STATUS_OPS)->get_code(STATUS_CTX, _s) != TF_OK)) {                   \
+            (STATUS_OPS)->delete_status(STATUS_CTX, C_STATUS);                                     \
             delete_buffer(BUFFER);                                                                 \
             return _s;                                                                             \
         }                                                                                          \
-        delete_status(_s);                                                                         \
+        (STATUS_OPS)->delete_status(STATUS_CTX, _s);                                               \
     } while (0)
 
 #endif // TENSORFLOW_C_C_OP_REQUIRES_H_

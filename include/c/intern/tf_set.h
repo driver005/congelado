@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_SET_H_
 #define TENSORFLOW_C_TF_SET_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -46,24 +46,23 @@ extern "C"
         );
 
         // Copy one key_size-byte key in. Non-zero on success.
-        int (*insert)(void* plugin_context, TF_Set_Handle* set, const void* key);
+        int (*insert)(TF_Set_Handle* set, const void* key);
 
         // Non-owning pointer to the stored key equal to key; NULL if absent.
-        const void* (*find)(void* plugin_context, const TF_Set_Handle* set, const void* key);
+        const void* (*find)(const TF_Set_Handle* set, const void* key);
 
         // Remove the element (or elements, if allow_duplicates) equal to
         // key. Non-zero if anything was removed.
-        int (*erase)(void* plugin_context, TF_Set_Handle* set, const void* key);
+        int (*erase)(TF_Set_Handle* set, const void* key);
 
         // Non-zero if an element equal to key exists.
-        int (*contains)(void* plugin_context, const TF_Set_Handle* set, const void* key);
+        int (*contains)(const TF_Set_Handle* set, const void* key);
 
         // Current element count.
-        size_t (*size)(void* plugin_context, const TF_Set_Handle* set);
+        size_t (*size)(const TF_Set_Handle* set);
 
         // Call visitor(capture, key) once per element, in unspecified order.
         void (*for_each)(
-            void* plugin_context,
             const TF_Set_Handle* set,
             TF_SetVisitor visitor,
             void* capture
@@ -76,7 +75,7 @@ extern "C"
 
 #define TF_SET_STRUCT_SIZE TF_OFFSET_OF_END(TF_Set, destroy)
 
-    TF_CAPI_EXPORT void init_set(TF_Set** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_set(TF_Set** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

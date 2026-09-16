@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_BUFFER_H_
 #define TENSORFLOW_C_TF_BUFFER_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -76,16 +76,16 @@ extern "C"
         TF_Buffer_Handle* (*new_buffer)(void* plugin_context);
 
         // Free a handle returned by the two factory functions above.
-        void (*delete_buffer)(void* plugin_context, TF_Buffer_Handle* buffer);
+        void (*delete_buffer)(TF_Buffer_Handle* buffer);
 
         // Return a non-owning TF_Buffer_Data view of the handle's contents.
-        TF_Buffer_Data (*get_buffer)(void* plugin_context, TF_Buffer_Handle* buffer);
+        TF_Buffer_Data (*get_buffer)(TF_Buffer_Handle* buffer);
 
     } TF_Buffer;
 
 #define TF_BUFFER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Buffer, get_buffer)
 
-    TF_CAPI_EXPORT void init_buffer(TF_Buffer** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_buffer(TF_Buffer** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

@@ -1,0 +1,4 @@
+
+            .{{ slot_name }} = [](void* plugin_context) noexcept {
+                delete {{ class_name }}::create(plugin_context);
+            },

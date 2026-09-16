@@ -85,10 +85,10 @@ public:
         m_slots.push_back(std::move(slot));
     }
 
-    // Example: ice::String::create({})
+    // Example: ice::sonic::String::wrap({})
     std::string wrape_type(std::string_view domain, std::string_view argument_name) const noexcept
     {
-        return std::format("{}::{}::wrap({})", domain, m_class_name, argument_name);
+        return std::format("{}::sonic::{}::wrap({})", domain, m_class_name, argument_name);
     }
 
     // Example: "{}.get_handle()",
@@ -97,10 +97,10 @@ public:
         return std::format("{}.get_handle()", argument_name);
     }
 
-    // Example: const ice::String &
+    // Example: const ice::sonic::String &
     std::string get_pointee_type(std::string_view namespace_name) const noexcept
     {
-        return std::format("const {}::{} &", namespace_name, m_class_name);
+        return std::format("const {}::sonic::{} &", namespace_name, m_class_name);
     }
 
     // Example: TF_String

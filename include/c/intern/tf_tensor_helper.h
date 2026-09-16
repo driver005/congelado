@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TENSOR_HELPER_H_
 #define TENSORFLOW_C_TF_TENSOR_HELPER_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_datatype.h"
 #include "c/intern/tf_tensor.h"
 
@@ -29,10 +29,12 @@ extern "C"
 #endif
 
     // tensor_bitcast_from changes the data type of a tensor without copying data.
-    TF_CAPI_EXPORT void tensor_bitcast_from(TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT void
+    tensor_bitcast_from(TF_Tensor_Handle* src, TF_DataType_Enum dtype, TF_Tensor_Handle** out);
 
     // tensor_bitcast_to changes the data type of a tensor without copying data.
-    TF_CAPI_EXPORT void tensor_bitcast_to(const TF_Tensor* src, TF_DataType dtype, TF_Tensor** out);
+    TF_CAPI_EXPORT void
+    tensor_bitcast_to(const TF_Tensor_Handle* src, TF_DataType_Enum dtype, TF_Tensor_Handle** out);
 
 #ifdef __cplusplus
 } /* end extern "C" */

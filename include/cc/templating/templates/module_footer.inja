@@ -1,0 +1,5 @@
+
+            {{ extra_methods }}
+        };
+
+        } // namespace {{ namespace_name }}::{{ target_name }}

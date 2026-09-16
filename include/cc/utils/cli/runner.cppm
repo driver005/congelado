@@ -52,7 +52,17 @@ public:
 
         Result result = manage_parent_io(pid, cmd, pipes, start_time);
 
-        m_history.emplace_back(Record{std::move(cmd), std::move(result)});
+        // Record only exit status/duration (all Record/history consumers read via
+        // is_success()/get_duration()); stdout/stderr text is not duplicated into history.
+        Result history_result{
+            result.get_exit_code(),
+            result.get_exited_normally(),
+            result.get_term_signal(),
+            std::string{},
+            std::string{},
+            result.get_duration()
+        };
+        m_history.emplace_back(Record{std::move(cmd), std::move(history_result)});
 
         return result;
     }

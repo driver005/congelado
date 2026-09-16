@@ -1,0 +1,7 @@
+
+{{ namespace_name }}::String {{ slot_name }}() const noexcept
+{
+    {{ namespace_name }}::String result;
+    m_ops->{{ slot_name }}(get_handle(), result.get_handle());
+    return result;
+}

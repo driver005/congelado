@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_FORWARD_LIST_H_
 #define TENSORFLOW_C_TF_FORWARD_LIST_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -38,7 +38,6 @@ extern "C"
         // Copy one element_size-byte element from value onto the front,
         // returning a handle to the new node.
         TF_ForwardList_Node* (*push_front)(
-            void* plugin_context,
             TF_ForwardList_Handle* list,
             const void* value
         );
@@ -46,14 +45,12 @@ extern "C"
         // Erase the node immediately following node (or the front node, if
         // node is NULL). Matches std::forward_list::erase_after semantics.
         void (*erase_after)(
-            void* plugin_context,
             TF_ForwardList_Handle* list,
             TF_ForwardList_Node* node
         );
 
         // Call visitor(capture, element) once per element, front to back.
         void (*for_each)(
-            void* plugin_context,
             const TF_ForwardList_Handle* list,
             TF_ForwardListVisitor visitor,
             void* capture
@@ -67,7 +64,7 @@ extern "C"
 #define TF_FORWARD_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_ForwardList, destroy)
 
     TF_CAPI_EXPORT void
-    init_forward_list(TF_ForwardList** ops, void** plugin_context, TF_Status* status);
+    init_forward_list(TF_ForwardList** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

@@ -1,0 +1,5 @@
+
+            static {{ struct_name }}* get_generic_vtable()
+            {
+                static {{ struct_name }} vtable = {
+                    .struct_size = {{ struct_size_macro }},

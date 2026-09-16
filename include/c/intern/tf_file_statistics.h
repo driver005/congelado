@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_FILE_STATISTICS_H_
 #define TENSORFLOW_C_TF_FILE_STATISTICS_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>

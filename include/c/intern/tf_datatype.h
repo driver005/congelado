@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_DATATYPE_H_
 #define TENSORFLOW_C_TF_DATATYPE_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -68,16 +68,12 @@ extern "C"
         TF_FLOAT4_E2M1FN = 33
     } TF_DataType_Enum;
 
-    // Legacy alias — existing code that spells the enum as TF_DataType continues
-    // to compile without changes.
-    typedef TF_DataType_Enum TF_DataType;
-
     // Global helper (non-vtable path).
     TF_CAPI_EXPORT size_t datatype_size(TF_DataType_Enum dt);
 
     // --------------------------------------------------------------------------
-    // TF_DataTypeOps — plugin vtable for data-type operations.
-    typedef struct TF_DataTypeOps
+    // TF_DataType — plugin vtable for data-type operations.
+    typedef struct TF_DataType
     {
         size_t struct_size;
 
@@ -88,11 +84,11 @@ extern "C"
         // Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
         size_t (*datatype_size)(void* plugin_context, TF_DataType_Enum dt);
 
-    } TF_DataTypeOps;
+    } TF_DataType;
 
-#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataTypeOps, datatype_size)
+#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataType, datatype_size)
 
-    TF_CAPI_EXPORT void init_datatype(TF_DataType** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_datatype(TF_DataType** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

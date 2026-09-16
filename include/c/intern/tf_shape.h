@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_SHAPE_H_
 #define TENSORFLOW_C_TF_SHAPE_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -84,19 +84,19 @@ extern "C"
         TF_Shape_Handle* (*new_shape)(void* plugin_context, const int64_t* dims, int num_dims);
 
         // Free a handle returned by TF_NewShape.
-        void (*delete_shape)(void* plugin_context, TF_Shape_Handle* shape);
+        void (*delete_shape)(TF_Shape_Handle* shape);
 
         // Return the number of dimensions (-1 for unknown rank).
-        int (*shape_num_dims)(void* plugin_context, const TF_Shape_Handle* shape);
+        int (*shape_num_dims)(const TF_Shape_Handle* shape);
 
         // Return the size of the given dimension (-1 for unknown).
-        int64_t (*shape_dim)(void* plugin_context, const TF_Shape_Handle* shape, int index);
+        int64_t (*shape_dim)(const TF_Shape_Handle* shape, int index);
 
     } TF_Shape;
 
 #define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape, shape_dim)
 
-    TF_CAPI_EXPORT void init_shape(TF_Shape** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_shape(TF_Shape** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

@@ -1,0 +1,15 @@
+
+                        static {{ class_name }}* create(void* ctx) noexcept
+                        {
+                            return static_cast<{{ class_name }}*>(ctx);
+                        }
+
+                        template<typename HandleT>
+                        static {{ class_name }}* create(HandleT* handle) noexcept
+                        {
+                            return reinterpret_cast<{{ class_name }}*>(handle);
+                        }
+
+                        {{ extra_ctor }}
+
+                        virtual ~{{ class_name }}() = default;

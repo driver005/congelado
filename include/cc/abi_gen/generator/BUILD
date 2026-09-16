@@ -8,6 +8,9 @@ congelado_module_library(
         "emitter/sonic.cppm",
         "helper/formater.cppm",
     ],
-    deps = ["//include/cc/abi_gen/parser:cc_abi_gen_parser"],
+    deps = [
+        "//include/cc/abi_gen/parser:cc_abi_gen_parser",
+        "//include/cc/templating:cc_templating",
+    ],
     visibility = ["//visibility:public"],
 )

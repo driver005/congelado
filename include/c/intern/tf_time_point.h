@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_TIME_POINT_H_
 #define TENSORFLOW_C_TF_TIME_POINT_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_duration.h"
 #include "c/intern/tf_status.h"
 
@@ -40,7 +40,6 @@ extern "C"
         // representing the elapsed time since the epoch. Owned by the
         // time_point; do not destroy independently.
         TF_Duration_Handle* (*get_duration_since_epoch)(
-            void* plugin_context,
             const TF_TimePoint_Handle* time_point
         );
 
@@ -52,7 +51,7 @@ extern "C"
 #define TF_TIME_POINT_STRUCT_SIZE TF_OFFSET_OF_END(TF_TimePoint, destroy)
 
     TF_CAPI_EXPORT void
-    init_time_point(TF_TimePoint** ops, void** plugin_context, TF_Status* status);
+    init_time_point(TF_TimePoint** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

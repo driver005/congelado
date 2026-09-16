@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_COMPLEX_H_
 #define TENSORFLOW_C_TF_COMPLEX_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -36,16 +36,16 @@ extern "C"
         );
 
         // The real component.
-        double (*get_real)(void* plugin_context, const TF_Complex_Handle* complex_value);
+        double (*get_real)(const TF_Complex_Handle* complex_value);
 
         // The imaginary component.
-        double (*get_imag)(void* plugin_context, const TF_Complex_Handle* complex_value);
+        double (*get_imag)(const TF_Complex_Handle* complex_value);
 
         // Overwrite the real component.
-        void (*set_real)(void* plugin_context, TF_Complex_Handle* complex_value, double real);
+        void (*set_real)(TF_Complex_Handle* complex_value, double real);
 
         // Overwrite the imaginary component.
-        void (*set_imag)(void* plugin_context, TF_Complex_Handle* complex_value, double imag);
+        void (*set_imag)(TF_Complex_Handle* complex_value, double imag);
 
         // Free a handle returned by new_complex.
         void (*destroy)(void* plugin_context, TF_Complex_Handle* complex_value);
@@ -54,7 +54,7 @@ extern "C"
 
 #define TF_COMPLEX_STRUCT_SIZE TF_OFFSET_OF_END(TF_Complex, destroy)
 
-    TF_CAPI_EXPORT void init_complex(TF_Complex** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_complex(TF_Complex** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

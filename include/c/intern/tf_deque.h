@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_DEQUE_H_
 #define TENSORFLOW_C_TF_DEQUE_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -29,22 +29,22 @@ extern "C"
         TF_Deque_Handle* (*new_deque)(void* plugin_context, size_t element_size);
 
         // Copy one element_size-byte element from value onto the front.
-        void (*push_front)(void* plugin_context, TF_Deque_Handle* deque, const void* value);
+        void (*push_front)(TF_Deque_Handle* deque, const void* value);
 
         // Copy one element_size-byte element from value onto the back.
-        void (*push_back)(void* plugin_context, TF_Deque_Handle* deque, const void* value);
+        void (*push_back)(TF_Deque_Handle* deque, const void* value);
 
         // Remove the front element. No-op if empty.
-        void (*pop_front)(void* plugin_context, TF_Deque_Handle* deque);
+        void (*pop_front)(TF_Deque_Handle* deque);
 
         // Remove the back element. No-op if empty.
-        void (*pop_back)(void* plugin_context, TF_Deque_Handle* deque);
+        void (*pop_back)(TF_Deque_Handle* deque);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(void* plugin_context, const TF_Deque_Handle* deque, size_t index);
+        const void* (*get)(const TF_Deque_Handle* deque, size_t index);
 
         // Current element count.
-        size_t (*size)(void* plugin_context, const TF_Deque_Handle* deque);
+        size_t (*size)(const TF_Deque_Handle* deque);
 
         // Free a handle returned by new_deque.
         void (*destroy)(void* plugin_context, TF_Deque_Handle* deque);
@@ -53,7 +53,7 @@ extern "C"
 
 #define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Deque, destroy)
 
-    TF_CAPI_EXPORT void init_deque(TF_Deque** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_deque(TF_Deque** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */
