@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_ARRAY_H_
 #define TENSORFLOW_C_TF_ARRAY_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -29,17 +29,17 @@ extern "C"
         TF_Array_Handle* (*new_array)(void* plugin_context, size_t element_size, size_t count);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(void* plugin_context, const TF_Array_Handle* array, size_t index);
+        const void* (*get)(const TF_Array_Handle* array, size_t index);
 
         // Copy one element_size-byte element from value over the element at
         // index.
-        void (*set)(void* plugin_context, TF_Array_Handle* array, size_t index, const void* value);
+        void (*set)(TF_Array_Handle* array, size_t index, const void* value);
 
         // Fixed element count, as given to new_array.
-        size_t (*size)(void* plugin_context, const TF_Array_Handle* array);
+        size_t (*size)(const TF_Array_Handle* array);
 
         // Non-owning pointer to the contiguous backing storage.
-        void* (*data)(void* plugin_context, TF_Array_Handle* array);
+        void* (*data)(TF_Array_Handle* array);
 
         // Free a handle returned by new_array.
         void (*destroy)(void* plugin_context, TF_Array_Handle* array);
@@ -48,7 +48,7 @@ extern "C"
 
 #define TF_ARRAY_STRUCT_SIZE TF_OFFSET_OF_END(TF_Array, destroy)
 
-    TF_CAPI_EXPORT void init_array(TF_Array** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_array(TF_Array** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

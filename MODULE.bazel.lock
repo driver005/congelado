@@ -255,7 +255,7 @@
   "moduleExtensions": {
     "//third_party:extension.bzl%third_party_deps": {
       "general": {
-        "bzlTransitiveDigest": "FoUkahIYOwMI1r5Vh0MSwdbRgLpT+q6of+snTRcgbj4=",
+        "bzlTransitiveDigest": "OL6pzKghVQ2gSdTv8Jehdrjpa9fwhfy0+2wkLvGDf88=",
         "usagesDigest": "gaLLBAzV/YGmCnqyLGLqzdxWzmTNplEvjc1eTaYCmkw=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -305,6 +305,24 @@
             "attributes": {
               "path": "/usr/bin",
               "build_file": "@@//bazel/toolchain/system_cc:system_cc.BUILD"
+            }
+          },
+          "nlohmann_json": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.tar.gz",
+              "sha256": "0d8ef5af7f9794e3263480193c491549b2ba6cc74bb018906202ada498a79406",
+              "strip_prefix": "json-3.11.3",
+              "build_file": "@@//third_party/nlohmann_json:nlohmann_json.BUILD"
+            }
+          },
+          "inja": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://github.com/pantor/inja/archive/refs/tags/v3.4.0.tar.gz",
+              "sha256": "7155f944553ca6064b26e88e6cae8b71f8be764832c9c7c6d5998e0d5fd60c55",
+              "strip_prefix": "inja-3.4.0",
+              "build_file": "@@//third_party/inja:inja.BUILD"
             }
           }
         }

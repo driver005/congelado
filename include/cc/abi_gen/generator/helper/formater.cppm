@@ -1,6 +1,7 @@
 export module cc_abi_gen_generator:helper_formater;
 
 import std;
+import cc_templating;
 
 export namespace cc_abi_gen::helper {
 
@@ -10,138 +11,130 @@ enum class GenTarget
     Sonic
 };
 
+struct HeaderConfig
+{
+    std::string target_name;
+    std::string extra_includes;
+    std::string extra_imports;
+    std::string inheritance;
+    std::string class_body;
+};
+
+inline HeaderConfig build_header_config(
+    GenTarget target,
+    std::string_view domain_name,
+    std::string_view cc_class_name,
+    std::string_view namespace_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root,
+    std::string_view c_struct_name
+)
+{
+    if (target == GenTarget::Builder) {
+        return {
+            .target_name = "builder",
+            .extra_includes = "#include \"c/intern/tf_status.h\"\n"
+                               "#include \"c/intern/tf_tstring.h\"\n",
+            .extra_imports = "",
+            .inheritance = "",
+            .class_body = cc::templating::TemplateRenderer::render_template(
+                "class_body_builder",
+                {
+                    {"class_name", std::string{cc_class_name}},
+                    {"extra_ctor", ""}
+                }
+            )
+        };
+    }
+
+    return {
+        .target_name = "sonic",
+        .extra_includes = "",
+        .extra_imports = "import cc_abi_sonic_registration;\n",
+        .inheritance = cc::templating::TemplateRenderer::render_template(
+            "inheritance_sonic",
+            {
+                {"namespace_name", std::string{namespace_name}},
+                {"class_name", std::string{cc_class_name}},
+                {"struct_name", std::string{c_struct_name}}
+            }
+        ),
+        .class_body = cc::templating::TemplateRenderer::render_template(
+            "class_body_sonic",
+            {
+                {"class_name", std::string{cc_class_name}},
+                {"struct_name", std::string{c_struct_name}},
+                {"domain_name", std::string{domain_name}}
+            }
+        )
+    };
+}
+
 inline std::string format_header(
     GenTarget target,
     std::string_view domain_name,
     std::string_view cc_class_name,
     std::string_view namespace_name,
+    const std::filesystem::path& repo_root,
     std::string_view c_struct_name = ""
 )
 {
-    struct Config
-    {
-        std::string_view target_name;
-        std::string_view extra_includes;
-        std::string_view extra_imports;
-        std::string inheritance;
-        std::string class_body;
-    };
+    const HeaderConfig config =
+        build_header_config(target, domain_name, cc_class_name, namespace_name, repo_root, c_struct_name);
 
-    const Config config = [&]() -> Config
-    {
-        if (target == GenTarget::Builder) {
-            return {
-                .target_name = "builder",
-                .extra_includes = R"(
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
-                )",
-                .extra_imports = "",
-                .inheritance = "",
-                .class_body = std::format(
-                    R"(
-                        static {0}* create(void* ctx) noexcept
-                        {{
-                            return static_cast<{0}*>(ctx);
-                        }}
-
-                        virtual ~{0}() = default;
-                    )",
-                    cc_class_name
-                )
-            };
+    return cc::templating::TemplateRenderer::render_template(
+        "module_header",
+        {
+            {"domain_name", std::string{domain_name}},
+            {"extra_includes", config.extra_includes},
+            {"target_name", config.target_name},
+            {"extra_imports", config.extra_imports},
+            {"extra_pre_class", ""},
+            {"class_name", std::string{cc_class_name}},
+            {"inheritance", config.inheritance},
+            {"class_body", config.class_body},
+            {"namespace_name", std::string{namespace_name}}
         }
-
-        return {
-            .target_name = "sonic",
-            .extra_includes = "",
-            .extra_imports = R"cpp(import cc_abi_sonic_registration;
-            )cpp",
-            .inheritance = std::format(
-                " : public {}::sonic::Runtime<{}, {}>",
-                namespace_name,
-                cc_class_name,
-                c_struct_name
-            ),
-            .class_body = std::format(
-                R"(
-                        explicit {0}({1}* ops, void* plugin_context) noexcept 
-                            : Runtime(ops, plugin_context)
-                        {{
-                        }}
-
-                        static constexpr std::string_view domain_name = "{2}";
-                )",
-                cc_class_name,
-                c_struct_name,
-                domain_name
-            )
-        };
-    }();
-
-    return std::format(
-        R"(module;
-
-#include "c/extern/{0}/{0}.h"
-{1}
-export module cc_abi_{2}_{0};
-
-import std;
-import cc_abi_primitives;
-import cc_abi_sonic_intern;
-{3}
-export namespace {7}::{2} {{
-
-class {4}{5}
-{{
-public:
-{6}
-)",
-        // End of string
-        domain_name,
-        config.extra_includes,
-        config.target_name,
-        config.extra_imports,
-        cc_class_name,
-        config.inheritance,
-        config.class_body,
-        namespace_name
     );
 }
 
-inline std::string format_footer(GenTarget target, std::string_view namespace_name)
+inline std::string format_footer(
+    GenTarget target,
+    std::string_view namespace_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
     const std::string_view target_name = (target == GenTarget::Builder) ? "builder" : "sonic";
 
-    const std::string extra_methods = (target == GenTarget::Builder)
-                                          ? ""
-                                          : std::format(
-                                                R"({0}::String get_name() const noexcept
-                                                {{
-                                                    {0}::String out;
-                                                    m_ops->get_name(get_handle(), out.get_handle());
-                                                    return out;
-                                                }}
-                                                )",
-                                                namespace_name
-                                            );
+    const std::string extra_methods =
+        (target == GenTarget::Builder)
+            ? ""
+            : cc::templating::TemplateRenderer::render_template(
+                  "method_string_accessor_sonic",
+                  {
+                      {"namespace_name", std::string{namespace_name}},
+                      {"slot_name", "get_name"}
+                  }
+              );
 
-    return std::format(
-        R"(
-            {0}
-        }};
-
-        }} // namespace {2}::{1}
-        )",
-        extra_methods,
-        target_name,
-        namespace_name
+    return cc::templating::TemplateRenderer::render_template(
+        "module_footer",
+        {
+            {"extra_methods", extra_methods},
+            {"target_name", std::string{target_name}},
+            {"namespace_name", std::string{namespace_name}}
+        }
     );
 }
 
 inline std::string format_parameter(std::string_view type, std::string_view name)
 {
-    return std::format("{} {}", type, name);
+    return cc::templating::TemplateRenderer::render_template(
+        "parameter",
+        {
+            {"type", std::string{type}},
+            {"name", std::string{name}}
+        }
+    );
 }
 
 inline std::string format_method_signature(
@@ -150,140 +143,153 @@ inline std::string format_method_signature(
     bool is_virtual = false
 )
 {
-    return std::format(
-        "[[nodiscard]] {}std::expected<void, {}::Status> {}(",
-        is_virtual ? "virtual " : "",
-        namespace_name,
-        method_name
+    return cc::templating::TemplateRenderer::render_template(
+        "method_signature",
+        {
+            {"virtual_prefix", is_virtual ? "virtual " : ""},
+            {"return_type", "void"},
+            {"namespace_name", std::string{namespace_name}},
+            {"method_name", std::string{method_name}}
+        }
     );
 }
 
-inline std::string format_get_name_decl(std::string_view namespace_name)
+inline std::string format_get_name_decl(
+    std::string_view namespace_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"cpp(virtual {}
-              ::String get_name() const noexcept = 0;
-        )cpp",
-        namespace_name
+    return cc::templating::TemplateRenderer::render_template(
+        "method_decl_string_accessor",
+        {
+            {"namespace_name", std::string{namespace_name}},
+            {"method_name", "get_name"}
+        }
     );
 }
 
-constexpr std::string_view format_virtual_method_end()
+inline std::string format_virtual_method_end([[maybe_unused]] const std::filesystem::path& repo_root)
 {
-    return R"cpp(                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ) noexcept = 0;
-    )cpp";
+    return ") noexcept = 0;\n";
 }
 
-inline std::string
-format_vtable_accessor_start(std::string_view c_struct_name, std::string_view struct_size_macro)
+inline std::string format_vtable_accessor_start(
+    std::string_view c_struct_name,
+    std::string_view struct_size_macro,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"(
-            static {0}* get_generic_vtable()
-            {{
-                static {0} vtable = {{
-                    .struct_size = {1},
-        )",
-        c_struct_name,
-        struct_size_macro
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_accessor_start",
+        {
+            {"struct_name", std::string{c_struct_name}},
+            {"struct_size_macro", std::string{struct_size_macro}}
+        }
     );
 }
 
-constexpr std::string_view format_vtable_accessor_end()
+inline std::string format_vtable_accessor_end([[maybe_unused]] const std::filesystem::path& repo_root)
 {
-    return R"cpp(}
-                 ;
-                 return &vtable;
-                 }
-    )cpp";
+    return "\n                };\n\n                return &vtable;\n            }\n";
 }
 
-inline std::string
-format_vtable_field_destroy(std::string_view slot_name, std::string_view cc_class_name)
+inline std::string format_vtable_field_destroy(
+    std::string_view slot_name,
+    std::string_view cc_class_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"(
-            .{0} = [](void* plugin_context) noexcept {{
-                delete {1}::create(plugin_context);
-            }},
-        )",
-        slot_name,
-        cc_class_name
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_destroy",
+        {
+            {"slot_name", std::string{slot_name}},
+            {"class_name", std::string{cc_class_name}}
+        }
     );
 }
 
-inline std::string
-format_vtable_field_get_name(std::string_view slot_name, std::string_view cc_class_name)
+inline std::string format_vtable_field_get_name(
+    std::string_view slot_name,
+    std::string_view cc_class_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"(
-            .{0} = [](void* plugin_context, TF_String* out) noexcept {{
-                auto* self = {1}::create(plugin_context);
-                auto name = self->get_name();
-                name.to_c(out);
-            }},
-        )",
-        slot_name,
-        cc_class_name
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_string_accessor",
+        {
+            {"slot_name", std::string{slot_name}},
+            {"class_name", std::string{cc_class_name}},
+            {"param_type", "TF_String*"},
+            {"param_name", "out"}
+        }
     );
 }
 
 inline std::string format_vtable_field_generic_start(std::string_view slot_name)
 {
-    return std::format(".{} = [](", slot_name);
-}
-
-inline std::string
-format_vtable_field_generic_middle(std::string_view cc_class_name, std::string_view slot_name)
-{
-    return std::format(
-        R"(
-            ) noexcept {{
-                auto* self = {}::create(plugin_context);
-                auto res = self->{}()",
-        cc_class_name,
-        slot_name
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_generic_start",
+        {{"slot_name", std::string{slot_name}}}
     );
 }
 
-inline std::string format_vtable_field_generic_end(std::string_view status_name)
+inline std::string format_vtable_field_generic_middle(
+    std::string_view cc_class_name,
+    std::string_view slot_name,
+    std::string_view self_param_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"(
-                );
-                if (!res) {{
-                    res.error().to_c({});
-                }}
-            }},
-        )",
-        status_name
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_generic_middle",
+        {
+            {"class_name", std::string{cc_class_name}},
+            {"slot_name", std::string{slot_name}},
+            {"self_param_name", std::string{self_param_name}},
+            {"trailing_return", ""}
+        }
     );
 }
 
-inline std::string
-format_method_body_start(std::string_view method_name, std::string_view namespace_name)
+inline std::string format_vtable_field_generic_end(
+    std::string_view status_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return std::format(
-        R"(
-            ) noexcept
-            {{
-                {}::Status status;
-                m_ops->{}(get_handle(), )",
-        namespace_name,
-        method_name
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_generic_end",
+        {
+            {"status_name", std::string{status_name}},
+            {"error_return", ""},
+            {"success_return", ""}
+        }
     );
 }
 
-constexpr std::string_view format_method_body_end()
+inline std::string format_method_body_start(
+    std::string_view method_name,
+    std::string_view namespace_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+)
 {
-    return R"(
-                status.get_handle());
-                
-                if (!status.ok()) {
-                    return std::unexpected{status};
-                }
-                return {};
-            }
-    )";
+    return cc::templating::TemplateRenderer::render_template(
+        "method_body_start",
+        {
+            {"namespace_name", std::string{namespace_name}},
+            {"method_name", std::string{method_name}},
+            {"result_prefix", ""}
+        }
+    );
 }
+
+inline std::string format_method_body_end([[maybe_unused]] const std::filesystem::path& repo_root)
+{
+    return "\n                status.get_handle());\n\n"
+           "                if (!status.ok()) {\n"
+           "                    return std::unexpected{status};\n"
+           "                }\n"
+           "                return {};\n"
+           "            }\n";
+}
+
 } // namespace cc_abi_gen::helper

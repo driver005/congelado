@@ -1,0 +1,113 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Produced by cc_abi_gen from c/extern/registration/registration.h. Re-run
+// `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
+// regenerate; edits made directly to this file will be overwritten.
+
+module;
+
+#include "c/extern/registration/registration.h"
+#include "c/intern/tf_status.h"
+#include "c/intern/tf_tstring.h"
+
+export module cc_abi_builder_registration;
+
+import std;
+import cc_abi_primitives;
+import cc_abi_sonic_intern;
+
+export namespace ice::builder {
+
+class Registration
+{
+public:
+    static Registration* create(void* ctx) noexcept
+    {
+        return static_cast<Registration*>(ctx);
+    }
+
+    template<typename HandleT>
+    static Registration* create(HandleT* handle) noexcept
+    {
+        return reinterpret_cast<Registration*>(handle);
+    }
+
+    virtual ~Registration() = default;
+    [[nodiscard]] std::expected<void, ice::Status> register_op(
+        const ice::sonic::String& type,
+        const ice::sonic::String& name,
+        void* value
+    ) noexcept = 0;
+    [[nodiscard]] std::expected<void, ice::Status>
+    get(const ice::sonic::String& type, const ice::sonic::String& name) noexcept = 0;
+    [[nodiscard]] std::expected<void, ice::Status>
+    unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept = 0;
+    virtual ice::String get_name() const noexcept = 0;
+
+    static TF_Registration* get_generic_vtable()
+    {
+        static TF_Registration vtable = {
+            .struct_size = TF_REGISTRATION_STRUCT_SIZE,
+
+            .destroy =
+                [](void* plugin_context) noexcept
+            {
+                delete Registration::create(plugin_context);
+            },
+
+            .get_name =
+                [](void* plugin_context, TF_String* out) noexcept
+            {
+                auto* self = Registration::create(plugin_context);
+                auto result = self->get_name();
+                result.to_c(out);
+            },
+            .register_op =
+                [](void* plugin_context,
+                   const TF_String_Handle* type,
+                   const TF_String_Handle* name,
+                   void* value) noexcept
+            {
+                auto* self = Registration::create(plugin_context);
+                auto res = self->register_op(
+                    ice::sonic::String::wrap(type),
+                    ice::sonic::String::wrap(name),
+                    value
+                );
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .get =
+                [](void* plugin_context,
+                   const TF_String_Handle* type,
+                   const TF_String_Handle* name) noexcept
+            {
+                auto* self = Registration::create(plugin_context);
+                auto res =
+                    self->get(ice::sonic::String::wrap(type), ice::sonic::String::wrap(name));
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .unregister =
+                [](void* plugin_context,
+                   const TF_String_Handle* type,
+                   const TF_String_Handle* name) noexcept
+            {
+                auto* self = Registration::create(plugin_context);
+                auto res = self->unregister(
+                    ice::sonic::String::wrap(type),
+                    ice::sonic::String::wrap(name)
+                );
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+
+        };
+
+        return &vtable;
+    }
+};
+
+} // namespace ice::builder

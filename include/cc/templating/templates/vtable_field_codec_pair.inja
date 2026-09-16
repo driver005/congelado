@@ -1,0 +1,15 @@
+
+            .{{ slot_name }} = [](
+                void* plugin_context,
+                {{ in_type }} {{ in_name }},
+                {{ out_type }} {{ out_name }},
+                TF_Status* {{ status_name }}
+            ) noexcept {
+                auto* self = {{ class_name }}::create(plugin_context);
+                auto res = self->{{ slot_name }}({{ wrap_expr }});
+                if (!res) {
+                    res.error().to_c({{ status_name }});
+                    return;
+                }
+                res->to_c({{ out_name }});
+            },

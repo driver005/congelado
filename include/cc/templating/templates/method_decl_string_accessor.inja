@@ -1,0 +1,1 @@
+virtual {{ namespace_name }}::String {{ method_name }}() const noexcept = 0;

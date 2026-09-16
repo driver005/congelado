@@ -1,7 +1,7 @@
 #ifndef CONGELADO_C_REGISTRATION_H_
 #define CONGELADO_C_REGISTRATION_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
 
@@ -23,15 +23,15 @@ extern "C"
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        void (*register_op)(void* plugin_context, const TF_TString* type, const TF_TString* name, void* value);
-        void* (*get)(void* plugin_context, const TF_TString* type, const TF_TString* name);
-        void (*unregister)(void* plugin_context, const TF_TString* type, const TF_TString* name);
+        void (*register_op)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name, void* value);
+        void* (*get)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name);
+        void (*unregister)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name);
     } TF_Registration;
 
 #define TF_REGISTRATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Registration, unregister)
 
     TF_CAPI_EXPORT void
-    init_registration(TF_Registration** ops, void** plugin_context, TF_Status* status);
+    init_registration(TF_Registration** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 }

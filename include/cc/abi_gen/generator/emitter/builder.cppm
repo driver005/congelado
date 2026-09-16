@@ -9,14 +9,20 @@ export namespace cc_abi_gen::generator::emitter {
 class Builder
 {
 public:
-    Builder(const parser::Registry& registry) :
-        m_registry{registry}
+    Builder(const parser::Registry& registry, std::filesystem::path repo_root) :
+        m_registry{registry},
+        m_repo_root{std::move(repo_root)}
     {
     }
 
-    Builder(const parser::Registry& registry, std::string&& namespace_name) :
+    Builder(
+        const parser::Registry& registry,
+        std::string&& namespace_name,
+        std::filesystem::path repo_root
+    ) :
         m_registry{registry},
-        m_namespace_name{std::move(namespace_name)}
+        m_namespace_name{std::move(namespace_name)},
+        m_repo_root{std::move(repo_root)}
     {
     }
 
@@ -38,7 +44,7 @@ public:
         return *this;
     }
 
-    std::string render(const parser::vtable::Model& model)
+    std::expected<std::string, std::string> render(const parser::vtable::Model& model)
     {
         m_writer.clear();
 
@@ -47,6 +53,7 @@ public:
             model.get_domain_name(),
             model.get_class_name(),
             m_namespace_name,
+            m_repo_root,
             model.get_struct_name()
         );
 
@@ -55,14 +62,20 @@ public:
                 continue;
             }
 
-            write_virtual_method(slot);
+            auto method = write_virtual_method(slot);
+            if (!method.has_value()) {
+                return std::unexpected(method.error());
+            }
         }
 
-        m_writer += helper::format_get_name_decl(m_namespace_name);
+        m_writer += helper::format_get_name_decl(m_namespace_name, m_repo_root);
 
-        write_vtable_accessor(model);
+        auto accessor = write_vtable_accessor(model);
+        if (!accessor.has_value()) {
+            return std::unexpected(accessor.error());
+        }
 
-        m_writer += helper::format_footer(helper::GenTarget::Builder, m_namespace_name);
+        m_writer += helper::format_footer(helper::GenTarget::Builder, m_namespace_name, m_repo_root);
 
         return m_writer;
     }
@@ -93,13 +106,18 @@ public:
     }
 
 private:
-    void write_virtual_method(const parser::slot::Slot& slot)
+    std::expected<void, std::string> write_virtual_method(const parser::slot::Slot& slot)
     {
         m_writer += helper::format_method_signature(slot.get_name(), m_namespace_name);
 
-        write_cpp_parameter_list(slot.extract_parameters());
+        auto parameters_list = write_cpp_parameter_list(slot.extract_parameters());
+        if (!parameters_list.has_value()) {
+            return parameters_list;
+        }
 
-        m_writer += helper::format_virtual_method_end();
+        m_writer += helper::format_virtual_method_end(m_repo_root);
+
+        return {};
     }
 
     std::expected<void, std::string>
@@ -110,7 +128,15 @@ private:
                 m_writer += ", ";
             }
 
-            auto type_name = m_registry.get().find(std::string{parameter.get_pointee_name()});
+            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no
+            // pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through
+            // unchanged instead of looking them up in the registry.
+            if (!parameter.is_handle()) {
+                m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
+                continue;
+            }
+
+            auto type_name = m_registry.get().find(parameter.get_registry_key());
             if (!type_name.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
@@ -122,48 +148,82 @@ private:
                 parameter.get_name()
             );
         }
+
+        return {};
     }
 
-    void write_vtable_accessor(const parser::vtable::Model& model)
+    std::expected<void, std::string> write_vtable_accessor(const parser::vtable::Model& model)
     {
         m_writer += helper::format_vtable_accessor_start(
             model.get_struct_name(),
-            model.get_struct_size_macro()
+            model.get_struct_size_macro(),
+            m_repo_root
         );
 
         for (const parser::slot::Slot& slot: model.get_slots()) {
-            write_vtable_field(model, slot);
+            auto field = write_vtable_field(model, slot);
+            if (!field.has_value()) {
+                return field;
+            }
         }
 
-        m_writer += helper::format_vtable_accessor_end();
+        m_writer += helper::format_vtable_accessor_end(m_repo_root);
+
+        return {};
     }
 
-    void write_vtable_field(const parser::vtable::Model& model, const parser::slot::Slot& slot)
+    std::expected<void, std::string>
+    write_vtable_field(const parser::vtable::Model& model, const parser::slot::Slot& slot)
     {
         if (slot.is_destroy()) {
-            m_writer +=
-                helper::format_vtable_field_destroy(slot.get_name(), model.get_class_name());
+            m_writer += helper::format_vtable_field_destroy(
+                slot.get_name(),
+                model.get_class_name(),
+                m_repo_root
+            );
 
-            return;
+            return {};
         }
 
         if (slot.is_get_name()) {
-            m_writer +=
-                helper::format_vtable_field_get_name(slot.get_name(), model.get_class_name());
+            m_writer += helper::format_vtable_field_get_name(
+                slot.get_name(),
+                model.get_class_name(),
+                m_repo_root
+            );
 
-            return;
+            return {};
         }
 
         m_writer += helper::format_vtable_field_generic_start(slot.get_name());
 
         write_c_parameter_list(slot.get_parameters());
 
+        m_writer += helper::format_vtable_field_generic_middle(
+            model.get_class_name(),
+            slot.get_name(),
+            self_parameter_name(slot),
+            m_repo_root
+        );
+
+        auto call_arguments = write_call_arguments(slot);
+        if (!call_arguments.has_value()) {
+            return call_arguments;
+        }
+
         m_writer +=
-            helper::format_vtable_field_generic_middle(model.get_class_name(), slot.get_name());
+            helper::format_vtable_field_generic_end(failable_parameter_name(slot), m_repo_root);
 
-        write_call_arguments(slot);
+        return {};
+    }
 
-        m_writer += helper::format_vtable_field_generic_end(failable_parameter_name(slot));
+    // Position 0's declared name — "plugin_context" for a domain-level slot, or the
+    // owned instance handle's name for an instance-level slot (which drops the
+    // separate plugin_context param and takes only its own handle as self).
+    std::string_view self_parameter_name(const parser::slot::Slot& slot) const noexcept
+    {
+        auto parameters = slot.get_parameters();
+        return parameters.empty() ? std::string_view{"plugin_context"} : parameters.front().get_name();
     }
 
     void write_c_parameter_list(std::span<const parser::helper::Parameter> parameters)
@@ -186,7 +246,12 @@ private:
                 m_writer += ", ";
             }
 
-            auto model = m_registry.get().find(std::string{parameter.get_pointee_name()});
+            if (!parameter.is_handle()) {
+                m_writer += parameter.get_name();
+                continue;
+            }
+
+            auto model = m_registry.get().find(parameter.get_registry_key());
             if (!model.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
@@ -213,5 +278,6 @@ private:
     std::string m_writer;
     std::string m_namespace_name;
     std::reference_wrapper<const parser::Registry> m_registry;
+    std::filesystem::path m_repo_root;
 };
 } // namespace cc_abi_gen::generator::emitter

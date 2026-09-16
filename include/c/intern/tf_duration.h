@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_DURATION_H_
 #define TENSORFLOW_C_TF_DURATION_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -36,13 +36,13 @@ extern "C"
         );
 
         // The raw tick count, as given to new_duration.
-        int64_t (*get_ticks)(void* plugin_context, const TF_Duration_Handle* duration);
+        int64_t (*get_ticks)(const TF_Duration_Handle* duration);
 
         // The period's numerator, as given to new_duration.
-        int64_t (*get_ratio_num)(void* plugin_context, const TF_Duration_Handle* duration);
+        int64_t (*get_ratio_num)(const TF_Duration_Handle* duration);
 
         // The period's denominator, as given to new_duration.
-        int64_t (*get_ratio_den)(void* plugin_context, const TF_Duration_Handle* duration);
+        int64_t (*get_ratio_den)(const TF_Duration_Handle* duration);
 
         // Free a handle returned by new_duration.
         void (*destroy)(void* plugin_context, TF_Duration_Handle* duration);
@@ -51,7 +51,7 @@ extern "C"
 
 #define TF_DURATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Duration, destroy)
 
-    TF_CAPI_EXPORT void init_duration(TF_Duration** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_duration(TF_Duration** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

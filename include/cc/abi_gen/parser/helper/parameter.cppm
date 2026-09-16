@@ -61,9 +61,25 @@ public:
         return m_type;
     }
 
-    // Example: TF_Status
+    // Example: TF_Status_Handle
     std::string_view get_pointee_name() const noexcept
     {
+        return m_pointee_name;
+    }
+
+    // True for a pointer to an opaque "_Handle" type; false for raw scalar pointers (e.g. int64_t*) and by-value params.
+    bool is_handle() const noexcept
+    {
+        return !m_pointee_name.empty() && m_pointee_name.ends_with("_Handle");
+    }
+
+    // Owning Ops-struct name, with "_Handle" suffix stripped if present.
+    std::string get_registry_key() const noexcept
+    {
+        static constexpr std::string_view suffix = "_Handle";
+        if (m_pointee_name.size() > suffix.size() && m_pointee_name.ends_with(suffix)) {
+            return m_pointee_name.substr(0, m_pointee_name.size() - suffix.size());
+        }
         return m_pointee_name;
     }
 

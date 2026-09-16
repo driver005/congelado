@@ -1,0 +1,2 @@
+[[nodiscard]] virtual std::expected<{{ namespace_name }}::{{ type_class }}, {{ namespace_name }}::Status>
+{{ method_name }}(const {{ namespace_name }}::{{ type_class }}& {{ param_name }}) noexcept = 0;

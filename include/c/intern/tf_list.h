@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_LIST_H_
 #define TENSORFLOW_C_TF_LIST_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -37,25 +37,24 @@ extern "C"
 
         // Copy one element_size-byte element from value onto the front,
         // returning a handle to the new node.
-        TF_List_Node* (*push_front)(void* plugin_context, TF_List_Handle* list, const void* value);
+        TF_List_Node* (*push_front)(TF_List_Handle* list, const void* value);
 
         // Copy one element_size-byte element from value onto the back,
         // returning a handle to the new node.
-        TF_List_Node* (*push_back)(void* plugin_context, TF_List_Handle* list, const void* value);
+        TF_List_Node* (*push_back)(TF_List_Handle* list, const void* value);
 
         // Remove node from the list, invalidating it.
-        void (*erase)(void* plugin_context, TF_List_Handle* list, TF_List_Node* node);
+        void (*erase)(TF_List_Handle* list, TF_List_Node* node);
 
         // Call visitor(capture, element) once per element, front to back.
         void (*for_each)(
-            void* plugin_context,
             const TF_List_Handle* list,
             TF_ListVisitor visitor,
             void* capture
         );
 
         // Current element count.
-        size_t (*size)(void* plugin_context, const TF_List_Handle* list);
+        size_t (*size)(const TF_List_Handle* list);
 
         // Free a handle returned by new_list.
         void (*destroy)(void* plugin_context, TF_List_Handle* list);
@@ -64,7 +63,7 @@ extern "C"
 
 #define TF_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_List, destroy)
 
-    TF_CAPI_EXPORT void init_list(TF_List** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_list(TF_List** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

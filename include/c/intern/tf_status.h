@@ -16,14 +16,15 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_STATUS_H_
 #define TENSORFLOW_C_TF_STATUS_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
+
+#include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-    typedef struct TF_Status TF_Status;
 
     // --------------------------------------------------------------------------
     // TF_Code holds an error code.  The enum values here are identical to
@@ -63,40 +64,65 @@ extern "C"
 
     // --------------------------------------------------------------------------
 
-    // Return a new status object.
-    TF_CAPI_EXPORT TF_Status* new_status(void) noexcept;
+    // Opaque status object. Owned and laid out entirely by whichever backend's
+    // init_status() supplied the TF_Status ops below — callers never look inside it,
+    // only ever hold/pass a pointer.
+    typedef struct TF_Status_Handle TF_Status_Handle;
 
-    // Delete a previously created status object.
-    TF_CAPI_EXPORT void delete_status(TF_Status*) noexcept;
+    // Ops vtable for TF_Status_Handle — matches the intern/extern convention (struct_size
+    // first, every slot takes plugin_context first) instead of free functions, so this type
+    // registers with cc_abi_gen exactly like TF_Buffer/TF_Shape/TF_String.
+    typedef struct TF_Status
+    {
+        size_t struct_size;
 
-    // Record <code, msg> in *s.  Any previous information is lost.
-    // A common use is to clear a status: set_status(s, TF_OK, "");
-    TF_CAPI_EXPORT void set_status(TF_Status* s, TF_Code code, const char* msg) noexcept;
+        // Return a new status object.
+        TF_Status_Handle* (*new_status)(void* plugin_context);
 
-    // Record <key, value> as a payload in *s. The previous payload having the
-    // same key (if any) is overwritten. Payload will not be added if the Status
-    // is OK.
-    TF_CAPI_EXPORT void set_payload(TF_Status* s, const char* key, const char* value) noexcept;
+        // Delete a previously created status object.
+        void (*delete_status)(TF_Status_Handle* s);
 
-    // Iterates over the stored payloads and calls the `visitor(key, value)`
-    // callable for each one. `key` and `value` is only usable during the callback.
-    // `capture` will be passed to the callback without modification.
-    TF_CAPI_EXPORT void
-    for_each_payload(const TF_Status* s, TF_PayloadVisitor visitor, void* capture) noexcept;
+        // Record <code, msg> in *s.  Any previous information is lost.
+        // A common use is to clear a status: set_status(s, TF_OK, "");
+        void (*set_status)(TF_Status_Handle* s, TF_Code code, const char* msg);
 
-    // Convert from an I/O error code (e.g., errno) to a TF_Status value.
-    // Any previous information is lost. Prefer to use this instead of set_status
-    // when the error comes from I/O operations.
-    TF_CAPI_EXPORT void set_statusFromIOError(TF_Status* s, int error_code, const char* context) noexcept;
+        // Record <key, value> as a payload in *s. The previous payload having the
+        // same key (if any) is overwritten. Payload will not be added if the Status
+        // is OK.
+        void (*set_payload)(TF_Status_Handle* s, const char* key, const char* value);
 
-    // Return the code record in *s.
-    TF_CAPI_EXPORT TF_Code get_code(const TF_Status* s) noexcept;
+        // Iterates over the stored payloads and calls the `visitor(key, value)`
+        // callable for each one. `key` and `value` is only usable during the callback.
+        // `capture` will be passed to the callback without modification.
+        void (*for_each_payload)(
+            const TF_Status_Handle* s,
+            TF_PayloadVisitor visitor,
+            void* capture
+        );
 
-    // Return a pointer to the (null-terminated) error message in *s.  The
-    // return value points to memory that is only usable until the next
-    // mutation to *s.  Always returns an empty string if get_code(s) is
-    // TF_OK.
-    TF_CAPI_EXPORT const char* message(const TF_Status* s) noexcept;
+        // Convert from an I/O error code (e.g., errno) to a TF_Status value.
+        // Any previous information is lost. Prefer to use this instead of set_status
+        // when the error comes from I/O operations.
+        void (*set_status_from_io_error)(TF_Status_Handle* s, int error_code, const char* context);
+
+        // Return the code record in *s.
+        TF_Code (*get_code)(const TF_Status_Handle* s);
+
+        // Return a pointer to the (null-terminated) error message in *s.  The
+        // return value points to memory that is only usable until the next
+        // mutation to *s.  Always returns an empty string if get_code(s) is
+        // TF_OK.
+        const char* (*message)(const TF_Status_Handle* s);
+    } TF_Status;
+
+#define TF_STATUS_STRUCT_SIZE TF_OFFSET_OF_END(TF_Status, message)
+
+    // Declared-only, like init_buffer/init_shape/init_string: no default implementation
+    // lives under include/c/, graceful null-ops degradation expected. Same signature shape
+    // as every other init_* — status may be null on this call (nothing yet exists to have
+    // produced a non-null one), and callees must already tolerate that per the null-ops
+    // degradation contract.
+    TF_CAPI_EXPORT void init_status(TF_Status** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

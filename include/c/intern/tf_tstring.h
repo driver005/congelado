@@ -16,10 +16,10 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TSTRING_H_
 #define TENSORFLOW_C_TF_TSTRING_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
+#include "c/intern/tf_status.h"
 
 #include <stddef.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -35,57 +35,34 @@ extern "C"
         TF_TSTR_VIEW = 3
     } TF_TString_Type;
 
-    // Small-string-optimized string type.
-    // Inline for small strings, heap-allocated for large ones.
-    typedef union TF_TString
+    // Opaque small-string-optimized string storage. Owned and laid out entirely by whichever
+    // backend's init_string() supplied the TF_String ops below — callers never look inside it,
+    // only ever hold/pass a pointer.
+    typedef struct TF_String_Handle TF_String_Handle;
+
+    // Ops vtable for TF_String_Handle — matches the intern/extern convention (struct_size first,
+    // every slot takes plugin_context first) instead of free functions, so this type registers
+    // with cc_abi_gen exactly like TF_Buffer/TF_Shape/TF_Registration.
+    typedef struct TF_String
     {
-        struct
-        {
-            uint8_t size;
-            char data[23];
-        } small;
+        size_t struct_size;
 
-        struct
-        {
-            size_t size;
-            size_t capacity;
-            char* data;
-        } large;
+        TF_String_Handle* (*new_tstring)(void* plugin_context);
+        void (*init)(TF_String_Handle* t);
+        void (*copy)(TF_String_Handle* dst, const char* src, size_t size);
+        void (*assign_view)(TF_String_Handle* dst, const char* src, size_t size);
+        const char* (*get_data_pointer)(const TF_String_Handle* t);
+        TF_TString_Type (*get_type)(const TF_String_Handle* t);
+        size_t (*get_size)(const TF_String_Handle* t);
+        size_t (*get_capacity)(const TF_String_Handle* t);
+        void (*dealloc)(TF_String_Handle* t);
+    } TF_String;
 
-        struct
-        {
-            uint16_t offset;
-            uint16_t count;
-            uint32_t dummy;
-            const char* data;
-        } offset;
+#define TF_STRING_STRUCT_SIZE TF_OFFSET_OF_END(TF_String, dealloc)
 
-        struct
-        {
-            size_t size;
-            const char* data;
-            char dummy[16];
-        } view;
-    } TF_TString;
-
-    // Public C ABI spelling used by Congelado external interfaces.
-    typedef TF_TString TF_String;
-
-    TF_CAPI_EXPORT void string_init(TF_TString* t);
-
-    TF_CAPI_EXPORT void string_copy(TF_TString* dst, const char* src, size_t size);
-
-    TF_CAPI_EXPORT void string_assign_view(TF_TString* dst, const char* src, size_t size);
-
-    TF_CAPI_EXPORT const char* string_get_data_pointer(const TF_TString* tstr);
-
-    TF_CAPI_EXPORT TF_TString_Type string_get_type(const TF_TString* str);
-
-    TF_CAPI_EXPORT size_t string_get_size(const TF_TString* tstr);
-
-    TF_CAPI_EXPORT size_t string_get_capacity(const TF_TString* str);
-
-    TF_CAPI_EXPORT void string_dealloc(TF_TString* tstr);
+    // Declared-only, like init_buffer/init_shape: no default implementation lives anywhere in
+    // the repo, graceful null-ops degradation expected.
+    TF_CAPI_EXPORT void init_string(TF_String** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

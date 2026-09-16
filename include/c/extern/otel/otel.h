@@ -15,7 +15,7 @@ limitations under the License.
 #ifndef CONGELADO_C_OTEL_CONTROLLER_H_
 #define CONGELADO_C_OTEL_CONTROLLER_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/extern/otel/enums.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tstring.h"
@@ -37,53 +37,53 @@ extern "C"
         size_t struct_size;
         void (*destroy)(void* plugin_context);
         void (*get_name)(void* plugin_context, TF_String* out);
-        TF_Otel_Tracer* (*create_tracer)(void* plugin_context, TF_Status* status);
+        TF_Otel_Tracer* (*create_tracer)(void* plugin_context, TF_Status_Handle* status);
         void (*tracer_destroy)(TF_Otel_Tracer* tracer_context);
-        TF_Otel_Meter* (*create_meter)(void* plugin_context, TF_Status* status);
+        TF_Otel_Meter* (*create_meter)(void* plugin_context, TF_Status_Handle* status);
         void (*meter_destroy)(TF_Otel_Meter* meter_context);
         TF_Otel_Span* (*tracer_start_span)(
             TF_Otel_Tracer* tracer_context,
-            const TF_TString* name,
+            const TF_String_Handle* name,
             int kind,
-            TF_Status* status
+            TF_Status_Handle* status
         );
         void (*span_destroy)(TF_Otel_Span* span_context);
         void (*span_set_attribute)(
             TF_Otel_Span* span_context,
-            const TF_TString* key,
-            const TF_TString* value,
-            TF_Status* status
+            const TF_String_Handle* key,
+            const TF_String_Handle* value,
+            TF_Status_Handle* status
         );
         void (*span_set_status)(
             TF_Otel_Span* span_context,
             int status_code,
-            const TF_TString* description,
-            TF_Status* status
+            const TF_String_Handle* description,
+            TF_Status_Handle* status
         );
-        void (*span_end)(TF_Otel_Span* span_context, TF_Status* status);
+        void (*span_end)(TF_Otel_Span* span_context, TF_Status_Handle* status);
         TF_Otel_Counter* (*meter_create_counter)(
             TF_Otel_Meter* meter_context,
-            const TF_TString* name,
-            const TF_TString* description,
-            const TF_TString* unit,
-            TF_Status* status
+            const TF_String_Handle* name,
+            const TF_String_Handle* description,
+            const TF_String_Handle* unit,
+            TF_Status_Handle* status
         );
         void (*counter_destroy)(TF_Otel_Counter* counter_context);
-        void (*counter_add)(TF_Otel_Counter* counter_context, double value, TF_Status* status);
+        void (*counter_add)(TF_Otel_Counter* counter_context, double value, TF_Status_Handle* status);
         TF_Otel_Histogram* (*meter_create_histogram)(
             TF_Otel_Meter* meter_context,
-            const TF_TString* name,
-            const TF_TString* description,
-            const TF_TString* unit,
-            TF_Status* status
+            const TF_String_Handle* name,
+            const TF_String_Handle* description,
+            const TF_String_Handle* unit,
+            TF_Status_Handle* status
         );
         void (*histogram_destroy)(TF_Otel_Histogram* histogram_context);
-        void (*histogram_record)(TF_Otel_Histogram* histogram_context, double value, TF_Status* status);
+        void (*histogram_record)(TF_Otel_Histogram* histogram_context, double value, TF_Status_Handle* status);
     } TF_Otel;
 
 #define TF_OTEL_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel, histogram_record)
 
-    TF_CAPI_EXPORT void init_otel(TF_Otel** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_otel(TF_Otel** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_HIVE_H_
 #define TENSORFLOW_C_TF_HIVE_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -38,26 +38,25 @@ extern "C"
 
         // Copy one element_size-byte element from value into a newly
         // allocated slot, returning a stable handle to it.
-        TF_Hive_Slot* (*insert)(void* plugin_context, TF_Hive_Handle* hive, const void* value);
+        TF_Hive_Slot* (*insert)(TF_Hive_Handle* hive, const void* value);
 
         // Erase the element at slot, invalidating it.
-        void (*erase)(void* plugin_context, TF_Hive_Handle* hive, TF_Hive_Slot* slot);
+        void (*erase)(TF_Hive_Handle* hive, TF_Hive_Slot* slot);
 
         // Non-owning pointer to the element at slot; NULL if slot has been
         // erased.
-        const void* (*get)(void* plugin_context, const TF_Hive_Handle* hive, const TF_Hive_Slot* slot);
+        const void* (*get)(const TF_Hive_Handle* hive, const TF_Hive_Slot* slot);
 
         // Call visitor(capture, element) once per live element, in
         // unspecified order.
         void (*for_each)(
-            void* plugin_context,
             const TF_Hive_Handle* hive,
             TF_HiveVisitor visitor,
             void* capture
         );
 
         // Current live element count.
-        size_t (*size)(void* plugin_context, const TF_Hive_Handle* hive);
+        size_t (*size)(const TF_Hive_Handle* hive);
 
         // Free a handle returned by new_hive.
         void (*destroy)(void* plugin_context, TF_Hive_Handle* hive);
@@ -66,7 +65,7 @@ extern "C"
 
 #define TF_HIVE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Hive, destroy)
 
-    TF_CAPI_EXPORT void init_hive(TF_Hive** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_hive(TF_Hive** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */

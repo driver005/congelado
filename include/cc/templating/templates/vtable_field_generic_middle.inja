@@ -1,0 +1,4 @@
+
+            ) noexcept {{ trailing_return }} {
+                auto* self = {{ class_name }}::create({{ self_param_name }});
+                auto res = self->{{ slot_name }}(

@@ -9,14 +9,20 @@ export namespace cc_abi_gen::generator::emitter {
 class Sonic
 {
 public:
-    Sonic(const parser::Registry& registry) :
-        m_registry{registry}
+    Sonic(const parser::Registry& registry, std::filesystem::path repo_root) :
+        m_registry{registry},
+        m_repo_root{std::move(repo_root)}
     {
     }
 
-    Sonic(const parser::Registry& registry, std::string&& namespace_name) :
+    Sonic(
+        const parser::Registry& registry,
+        std::string&& namespace_name,
+        std::filesystem::path repo_root
+    ) :
         m_registry{registry},
-        m_namespace_name{std::move(namespace_name)}
+        m_namespace_name{std::move(namespace_name)},
+        m_repo_root{std::move(repo_root)}
     {
     }
 
@@ -47,6 +53,7 @@ public:
             model.get_domain_name(),
             model.get_class_name(),
             m_namespace_name,
+            m_repo_root,
             model.get_struct_name()
         );
 
@@ -61,7 +68,7 @@ public:
             }
         }
 
-        m_writer += helper::format_footer(helper::GenTarget::Sonic, m_namespace_name);
+        m_writer += helper::format_footer(helper::GenTarget::Sonic, m_namespace_name, m_repo_root);
 
         return m_writer;
     }
@@ -103,14 +110,14 @@ private:
             return parameters_list;
         }
 
-        m_writer += helper::format_method_body_start(slot.get_name(), m_namespace_name);
+        m_writer += helper::format_method_body_start(slot.get_name(), m_namespace_name, m_repo_root);
 
         auto call_arguments = write_call_arguments(middle);
         if (!call_arguments.has_value()) {
             return call_arguments;
         }
 
-        m_writer += helper::format_method_body_end();
+        m_writer += helper::format_method_body_end(m_repo_root);
 
         return {};
     }
@@ -123,7 +130,15 @@ private:
                 m_writer += ", ";
             }
 
-            auto model = m_registry.get().find(std::string{parameter.get_pointee_name()});
+            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no
+            // pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through
+            // unchanged instead of looking them up in the registry.
+            if (!parameter.is_handle()) {
+                m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
+                continue;
+            }
+
+            auto model = m_registry.get().find(parameter.get_registry_key());
             if (!model.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
@@ -143,7 +158,12 @@ private:
     write_call_arguments(std::span<const parser::helper::Parameter> parameters)
     {
         for (const parser::helper::Parameter& parameter: parameters) {
-            auto model = m_registry.get().find(std::string{parameter.get_pointee_name()});
+            if (!parameter.is_handle()) {
+                m_writer += std::string{parameter.get_name()} + ", ";
+                continue;
+            }
+
+            auto model = m_registry.get().find(parameter.get_registry_key());
             if (!model.has_value()) {
                 return std::unexpected(
                     std::format("Type {} not found in registry", parameter.get_pointee_name())
@@ -159,5 +179,6 @@ private:
     std::string m_writer;
     std::string m_namespace_name;
     std::reference_wrapper<const parser::Registry> m_registry;
+    std::filesystem::path m_repo_root;
 };
 } // namespace cc_abi_gen::generator::emitter

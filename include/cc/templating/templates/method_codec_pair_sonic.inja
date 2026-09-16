@@ -1,0 +1,12 @@
+
+[[nodiscard]] std::expected<{{ namespace_name }}::{{ type_class }}, {{ namespace_name }}::Status>
+{{ slot_name }}(const {{ namespace_name }}::{{ type_class }}& {{ param_name }}) noexcept
+{
+    {{ namespace_name }}::Status status;
+    {{ namespace_name }}::{{ type_class }} result;
+    m_ops->{{ slot_name }}(get_handle(), {{ param_name }}.get_handle(), result.get_handle(), status.get_handle());
+    if (!status.ok()) {
+        return std::unexpected{status};
+    }
+    return result;
+}

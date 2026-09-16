@@ -1,0 +1,7 @@
+
+                        explicit {{ class_name }}({{ struct_name }}* ops, void* plugin_context) noexcept
+                            : Runtime(ops, plugin_context)
+                        {
+                        }
+
+                        static constexpr std::string_view domain_name = "{{ domain_name }}";

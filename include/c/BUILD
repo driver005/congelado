@@ -5,7 +5,7 @@
 # the public API; `tf_c_headers` aggregates everything for C++ module consumers.
 #
 # include = ["."] adds this package directory (include/c/) to the system include
-# path for every dependent, so #include "abi/macros.h" resolves here.  The
+# path for every dependent, so #include "macros.h" resolves here.  The
 # copts "-Iinclude" in //bazel:copts.bzl makes "c/intern/tf_tensor.h" resolve
 # to this package too.
 
@@ -23,33 +23,7 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "c_api_macros_hdrs",
-    hdrs = ["abi/macros.h"],
-)
-
-cc_library(
-    name = "c_api_hdrs",
-    hdrs = ["abi/api.h"],
-    deps = [
-        ":c_api_macros_hdrs",
-        ":tf_attrtype_hdrs",
-        ":tf_buffer_hdrs",
-        ":tf_datatype_hdrs",
-        ":tf_status_hdrs",
-        ":tf_tensor_hdrs",
-    ],
-)
-
-cc_library(
-    name = "c_api_experimental_hdrs",
-    hdrs = ["abi/api_experimental.h"],
-    deps = [
-        ":c_api_hdrs",
-    ],
-)
-
-cc_library(
-    name = "platform_hdrs",
-    hdrs = ["abi/platform.h"],
+    hdrs = ["macros.h"],
 )
 
 # =============================================================================
@@ -59,6 +33,11 @@ cc_library(
 cc_library(
     name = "tf_attrtype_hdrs",
     hdrs = ["intern/tf_attrtype.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
+    ],
 )
 
 cc_library(
@@ -71,15 +50,6 @@ cc_library(
     name = "tf_status_hdrs",
     hdrs = ["intern/tf_status.h"],
     deps = [":c_api_macros_hdrs"],
-)
-
-# Backend for tf_status_hdrs — previously declarations-only.
-cc_library(
-    name = "tf_status_impl",
-    alwayslink = True,  # force TF_* symbols in for static links (build.cc/exec config)
-    srcs = ["intern/tf_status.cc"],
-    copts = congelado_copts(),
-    deps = [":tf_status_hdrs"],
 )
 
 cc_library(
@@ -118,20 +88,13 @@ cc_library(
     hdrs = ["intern/tf_tstring.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":tf_tensor_hdrs",
+        ":tf_status_hdrs",
     ],
 )
 
-# Backend for tf_tstring_hdrs — previously declarations-only; a prerequisite for
-# ice::String (cc/abi/intern/string.cppm), which the TF_Generator_* cc wrapper uses for its
-# string parameters.
-cc_library(
-    name = "tf_tstring_impl",
-    alwayslink = True,  # force TF_* symbols in for static links (build.cc/exec config)
-    srcs = ["intern/tf_tstring.cc"],
-    copts = congelado_copts(),
-    deps = [":tf_tstring_hdrs"],
-)
+# init_string, like init_buffer/init_shape, is declared-only — no default implementation
+# anywhere in the repo, graceful null-ops degradation expected. TF_String is an ops-vtable
+# (see tf_tstring.h), not a free-function API.
 
 # =============================================================================
 # Intern layer (intern/) — ported std-lib vocabulary types
@@ -150,6 +113,8 @@ cc_library(
     hdrs = ["intern/tf_hash.h"],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
     ],
 )
 
@@ -324,9 +289,15 @@ cc_library(
 
 cc_library(
     name = "extern_generator_hdrs",
-    hdrs = ["extern/generator/generator.h"],
+    hdrs = [
+        "extern/generator/function.h",
+        "extern/generator/generator.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tensor_hdrs",
+        ":tf_tstring_hdrs",
     ],
 )
 
@@ -423,15 +394,6 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_python_hdrs",
-    hdrs = ["extern/python/python.h"],
-    deps = [
-        ":c_api_hdrs",
-        ":tf_tstring_hdrs",
-    ],
-)
-
-cc_library(
     name = "extern_serde_hdrs",
     hdrs = ["extern/serde/serde.h"],
     deps = [
@@ -449,7 +411,6 @@ cc_library(
 cc_library(
     name = "c_api_headers",
     deps = [
-        ":c_api_hdrs",
         ":c_api_macros_hdrs",
         ":extern_client_hdrs",
         ":extern_filesystem_hdrs",
@@ -459,7 +420,6 @@ cc_library(
         ":extern_plugin_hdrs",
         ":extern_profiler_hdrs",
         ":extern_pubsub_hdrs",
-        ":extern_python_hdrs",
         # ":extern_registration_hdrs",  # include/c/extern/registration/ deleted, rule never re-added
         ":extern_request_hdrs",
         ":extern_response_hdrs",
@@ -500,7 +460,6 @@ cc_library(
     name = "tf_c_headers",
     deps = [
         ":c_api_headers",
-        ":platform_hdrs",
     ],
 )
 

@@ -1,7 +1,7 @@
 #ifndef TENSORFLOW_C_TF_BITSET_H_
 #define TENSORFLOW_C_TF_BITSET_H_
 
-#include "c/abi/macros.h"
+#include "c/macros.h"
 #include "c/intern/tf_status.h"
 
 #include <stddef.h>
@@ -28,22 +28,22 @@ extern "C"
         TF_BitSet_Handle* (*new_bitset)(void* plugin_context, size_t bit_count);
 
         // Set the bit at index to 1.
-        void (*set)(void* plugin_context, TF_BitSet_Handle* bitset, size_t index);
+        void (*set)(TF_BitSet_Handle* bitset, size_t index);
 
         // Set the bit at index to 0.
-        void (*clear)(void* plugin_context, TF_BitSet_Handle* bitset, size_t index);
+        void (*clear)(TF_BitSet_Handle* bitset, size_t index);
 
         // Non-zero if the bit at index is set.
-        int (*test)(void* plugin_context, const TF_BitSet_Handle* bitset, size_t index);
+        int (*test)(const TF_BitSet_Handle* bitset, size_t index);
 
         // Invert the bit at index.
-        void (*flip)(void* plugin_context, TF_BitSet_Handle* bitset, size_t index);
+        void (*flip)(TF_BitSet_Handle* bitset, size_t index);
 
         // Number of set bits.
-        size_t (*count)(void* plugin_context, const TF_BitSet_Handle* bitset);
+        size_t (*count)(const TF_BitSet_Handle* bitset);
 
         // Fixed bit count, as given to new_bitset.
-        size_t (*size)(void* plugin_context, const TF_BitSet_Handle* bitset);
+        size_t (*size)(const TF_BitSet_Handle* bitset);
 
         // Free a handle returned by new_bitset.
         void (*destroy)(void* plugin_context, TF_BitSet_Handle* bitset);
@@ -52,7 +52,7 @@ extern "C"
 
 #define TF_BITSET_STRUCT_SIZE TF_OFFSET_OF_END(TF_BitSet, destroy)
 
-    TF_CAPI_EXPORT void init_bitset(TF_BitSet** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void init_bitset(TF_BitSet** ops, void** plugin_context, TF_Status_Handle* status);
 
 #ifdef __cplusplus
 } /* end extern "C" */
