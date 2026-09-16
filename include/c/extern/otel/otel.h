@@ -31,14 +31,18 @@ extern "C"
     typedef struct TF_Otel_Counter TF_Otel_Counter;
     typedef struct TF_Otel_Histogram TF_Otel_Histogram;
 
+    typedef struct TF_Otel
+    {
+        void* plugin_data;
+    } TF_Otel;
+
     typedef struct TF_OtelOps
     {
         size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        TF_Otel_Tracer* (*create_tracer)(void* plugin_context, TF_Status* status);
+        void (*destroy)(TF_Otel* otel);
+        void (*get_name)(TF_Otel* otel, TF_String* out);
         void (*tracer_destroy)(TF_Otel_Tracer* tracer_context);
-        TF_Otel_Meter* (*create_meter)(void* plugin_context, TF_Status* status);
+        void (*meter_destroy)(TF_Otel_Meter* meter_context);
         void (*meter_destroy)(TF_Otel_Meter* meter_context);
         TF_Otel_Span* (*tracer_start_span)(
             TF_Otel_Tracer* tracer_context,

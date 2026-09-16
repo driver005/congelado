@@ -22,14 +22,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_RandomAccessFile* file);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        TF_RandomAccessFile* (*new_random_access_file)(
-            void* plugin_context,
-            const TF_String* path,
-            TF_Status* status
-        );
-
+        void (*get_name)(TF_RandomAccessFile* file, TF_String* out);
         int64_t (*read)(TF_RandomAccessFile* file, uint64_t offset, size_t n, char* buffer, TF_Status* status);
     } TF_RandomAccessFileOps;
 

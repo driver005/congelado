@@ -15,15 +15,15 @@ limitations under the License.
 #ifndef CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 #define CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 
-#include "c/macros.h"
 #include "c/extern/filesystem/option_types.h"
 #include "c/extern/filesystem/random_access_file.h"
-#include "c/extern/filesystem/writable_file.h"
 #include "c/extern/filesystem/read_only_memory_region.h"
+#include "c/extern/filesystem/writable_file.h"
 #include "c/intern/tf_file_statistics.h"
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tensor.h"
 #include "c/intern/tf_tstring.h"
+#include "c/macros.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -34,102 +34,6 @@ extern "C"
 {
 #endif
 
-    // Error channel: TF_Status* is the sole error channel for every fallible slot. For value-returning slots (bool, int64_t, ...) the returned value is the query result and is meaningful only when status is OK; on failure the value is unspecified and the error lives in *status. Slots with no TF_Status* parameter are pure accessors that cannot fail.
-
-    // Filesystem — one instance per URI scheme.
-    typedef struct TF_FilesystemOps
-    {
-        size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        // The only raw-array free here: entries arrays returned by the getters below (as TF_Tensor) are freed with the tensor runtime's delete.
-        void (*free_options)(void* plugin_context, TF_Filesystem_Option* options, int num_options);
-
-        void (*create_dir)(void* plugin_context, const TF_String* path, TF_Status* status);
-        void (*recursively_create_dir)(
-            void* plugin_context,
-            const TF_String* path,
-            TF_Status* status
-        );
-        void (*delete_file)(void* plugin_context, const TF_String* path, TF_Status* status);
-        void (*delete_dir)(void* plugin_context, const TF_String* path, TF_Status* status);
-        void (*delete_recursively)(
-            void* plugin_context,
-            const TF_String* path,
-            uint64_t* undeleted_files,
-            uint64_t* undeleted_dirs,
-            TF_Status* status
-        );
-        void (*rename_file)(
-            void* plugin_context,
-            const TF_String* src,
-            const TF_String* dst,
-            TF_Status* status
-        );
-        void (*copy_file)(
-            void* plugin_context,
-            const TF_String* src,
-            const TF_String* dst,
-            TF_Status* status
-        );
-        void (*path_exists)(void* plugin_context, const TF_String* path, TF_Status* status);
-        // `paths` points to `num_paths` strings. Fails with the first error; on success all paths exist.
-        void (*paths_exist)(
-            void* plugin_context,
-            const TF_String* paths,
-            int num_paths,
-            TF_Status* status
-        );
-        void (*stat)(
-            void* plugin_context,
-            const TF_String* path,
-            TF_FileStatistics* out_stats,
-            TF_Status* status
-        );
-        bool (*is_directory)(void* plugin_context, const TF_String* path, TF_Status* status);
-        int64_t (*get_file_size)(void* plugin_context, const TF_String* path, TF_Status* status);
-        void (*translate_name)(void* plugin_context, const TF_String* uri, TF_String* out);
-        // Entries arrays returned by the getters below are freed with free_options.
-        TF_Tensor* (*get_children)(
-            void* plugin_context,
-            const TF_String* path,
-            TF_Status* status
-        );
-        TF_Tensor* (*get_matching_paths)(
-            void* plugin_context,
-            const TF_String* glob,
-            TF_Status* status
-        );
-        void (*flush_caches)(void* plugin_context);
-        TF_Tensor* (*get_filesystem_configuration)(void* plugin_context, TF_Status* status);
-        void (*set_filesystem_configuration)(
-            void* plugin_context,
-            const TF_Tensor* options,
-            TF_Status* status
-        );
-        void (*get_filesystem_configuration_option)(
-            void* plugin_context,
-            const TF_String* key,
-            TF_Filesystem_Option* out_option,
-            TF_Status* status
-        );
-        void (*set_filesystem_configuration_option)(
-            void* plugin_context,
-            const TF_Filesystem_Option* option,
-            TF_Status* status
-        );
-        TF_Tensor* (*get_filesystem_configuration_keys)(
-            void* plugin_context,
-            TF_Status* status
-        );
-    } TF_FilesystemOps;
-
-#define TF_FILESYSTEM_STRUCT_SIZE TF_OFFSET_OF_END(TF_FilesystemOps, get_filesystem_configuration_keys)
-
-    TF_CAPI_EXPORT void
-    create_filesystem(TF_FilesystemOps** ops, void** plugin_context, TF_Status* status);
-    TF_CAPI_EXPORT void destroy_filesystem(void* plugin_context);
-
     typedef struct TF_Filesystem
     {
         void* plugin_data;
@@ -139,7 +43,105 @@ extern "C"
         const TF_ReadOnlyMemoryRegionOps* read_only_memory_region_ops;
     } TF_Filesystem;
 
-    // Real implementation, not declared-only — calls every filesystem/*.h create_x and fills in filesystem's ops fields.
+    typedef struct TF_FilesystemOps
+    {
+        size_t struct_size;
+        void (*destroy)(TF_Filesystem* filesystem);
+        void (*get_name)(TF_Filesystem* filesystem, TF_String* out);
+        void (*free_options)(
+            TF_Filesystem* filesystem,
+            TF_Filesystem_Option* options,
+            int num_options
+        );
+
+        void (*create_dir)(TF_Filesystem* filesystem, const TF_String* path, TF_Status* status);
+        void (*recursively_create_dir)(
+            TF_Filesystem* filesystem,
+            const TF_String* path,
+            TF_Status* status
+        );
+        void (*delete_file)(TF_Filesystem* filesystem, const TF_String* path, TF_Status* status);
+        void (*delete_dir)(TF_Filesystem* filesystem, const TF_String* path, TF_Status* status);
+        void (*delete_recursively)(
+            TF_Filesystem* filesystem,
+            const TF_String* path,
+            uint64_t* undeleted_files,
+            uint64_t* undeleted_dirs,
+            TF_Status* status
+        );
+        void (*rename_file)(
+            TF_Filesystem* filesystem,
+            const TF_String* src,
+            const TF_String* dst,
+            TF_Status* status
+        );
+        void (*copy_file)(
+            TF_Filesystem* filesystem,
+            const TF_String* src,
+            const TF_String* dst,
+            TF_Status* status
+        );
+        void (*path_exists)(TF_Filesystem* filesystem, const TF_String* path, TF_Status* status);
+        void (*paths_exist)(
+            TF_Filesystem* filesystem,
+            const TF_String* paths,
+            int num_paths,
+            TF_Status* status
+        );
+        void (*stat)(
+            TF_Filesystem* filesystem,
+            const TF_String* path,
+            TF_FileStatistics* out_stats,
+            TF_Status* status
+        );
+        bool (*is_directory)(TF_Filesystem* filesystem, const TF_String* path, TF_Status* status);
+        int64_t (*get_file_size)(
+            TF_Filesystem* filesystem,
+            const TF_String* path,
+            TF_Status* status
+        );
+        void (*translate_name)(TF_Filesystem* filesystem, const TF_String* uri, TF_String* out);
+        TF_Tensor* (*get_children)(
+            TF_Filesystem* filesystem,
+            const TF_String* path,
+            TF_Status* status
+        );
+        TF_Tensor* (*get_matching_paths)(
+            TF_Filesystem* filesystem,
+            const TF_String* glob,
+            TF_Status* status
+        );
+        void (*flush_caches)(TF_Filesystem* filesystem);
+        TF_Tensor* (*get_filesystem_configuration)(TF_Filesystem* filesystem, TF_Status* status);
+        void (*set_filesystem_configuration)(
+            TF_Filesystem* filesystem,
+            const TF_Tensor* options,
+            TF_Status* status
+        );
+        void (*get_filesystem_configuration_option)(
+            TF_Filesystem* filesystem,
+            const TF_String* key,
+            TF_Filesystem_Option* out_option,
+            TF_Status* status
+        );
+        void (*set_filesystem_configuration_option)(
+            TF_Filesystem* filesystem,
+            const TF_Filesystem_Option* option,
+            TF_Status* status
+        );
+        TF_Tensor* (*get_filesystem_configuration_keys)(
+            TF_Filesystem* filesystem,
+            TF_Status* status
+        );
+    } TF_FilesystemOps;
+
+#define TF_FILESYSTEM_STRUCT_SIZE                                                                  \
+    TF_OFFSET_OF_END(TF_FilesystemOps, get_filesystem_configuration_keys)
+
+    TF_CAPI_EXPORT void
+    create_filesystem(TF_FilesystemOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_filesystem(void* plugin_context);
+
     static inline void init_filesystem(TF_Filesystem* filesystem, TF_Status* status)
     {
         TF_FilesystemOps* filesystem_ops = NULL;
@@ -155,7 +157,11 @@ extern "C"
         filesystem->writable_file_ops = writable_file_ops;
 
         TF_ReadOnlyMemoryRegionOps* read_only_memory_region_ops = NULL;
-        create_read_only_memory_region(&read_only_memory_region_ops, &filesystem->plugin_data, status);
+        create_read_only_memory_region(
+            &read_only_memory_region_ops,
+            &filesystem->plugin_data,
+            status
+        );
         filesystem->read_only_memory_region_ops = read_only_memory_region_ops;
     }
 

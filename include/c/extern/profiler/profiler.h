@@ -28,17 +28,20 @@ extern "C"
 {
 #endif
 
+    typedef struct TF_Profiler
+    {
+        void* plugin_data;
+    } TF_Profiler;
 
     typedef struct TF_ProfilerOps
     {
         size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        void (*get_device_type)(void* plugin_context, TF_String* out);
-        void (*start)(void* plugin_context, TF_Status* status);
-        void (*stop)(void* plugin_context, TF_Status* status);
-        // Returns a plugin-allocated 1-D Uint8 tensor of the collected xspace data; ownership transfers to the caller (release with the tensor runtime's delete).
-        TF_Tensor* (*collect_data_xspace)(void* plugin_context, TF_Status* status);
+        void (*destroy)(TF_Profiler* profiler);
+        void (*get_name)(TF_Profiler* profiler, TF_String* out);
+        void (*get_device_type)(TF_Profiler* profiler, TF_String* out);
+        void (*start)(TF_Profiler* profiler, TF_Status* status);
+        void (*stop)(TF_Profiler* profiler, TF_Status* status);
+        TF_Tensor* (*collect_data_xspace)(TF_Profiler* profiler, TF_Status* status);
     } TF_ProfilerOps;
 
 #define TF_PROFILER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ProfilerOps, collect_data_xspace)

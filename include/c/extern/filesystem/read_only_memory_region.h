@@ -22,14 +22,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_ReadOnlyMemoryRegion* region);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        TF_ReadOnlyMemoryRegion* (*new_read_only_memory_region_from_file)(
-            void* plugin_context,
-            const TF_String* path,
-            TF_Status* status
-        );
-
+        void (*get_name)(TF_ReadOnlyMemoryRegion* region, TF_String* out);
         const void* (*data)(TF_ReadOnlyMemoryRegion* region);
         uint64_t (*length)(TF_ReadOnlyMemoryRegion* region);
     } TF_ReadOnlyMemoryRegionOps;

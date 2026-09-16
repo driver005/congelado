@@ -22,11 +22,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_WritableFile* file);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        TF_WritableFile* (*new_writable_file)(void* plugin_context, const TF_String* path, TF_Status* status);
-        TF_WritableFile* (*new_appendable_file)(void* plugin_context, const TF_String* path, TF_Status* status);
-
+        void (*get_name)(TF_WritableFile* file, TF_String* out);
         void (*append)(TF_WritableFile* file, const TF_String* buffer, TF_Status* status);
         int64_t (*tell)(TF_WritableFile* file, TF_Status* status);
         void (*flush)(TF_WritableFile* file, TF_Status* status);

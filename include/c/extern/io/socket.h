@@ -45,11 +45,9 @@ extern "C"
     {
         size_t struct_size;
 
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*destroy)(TF_Socket* socket);
+        void (*get_name)(TF_Socket* socket, TF_String* out);
 
-        // Client-side: resolves host/port and opens the socket. Server-side: opens the socket that bind/listen will use. protocol is fixed for the handle's lifetime, matching Socket<Protocol>'s compile-time parameter.
-        TF_Socket* (*new_socket)(void* plugin_context, TF_Socket_Protocol protocol, const TF_String* host, uint16_t port, TF_Status* status);
         void (*close_socket)(TF_Socket* socket);
 
         // Options.
@@ -62,7 +60,7 @@ extern "C"
 
         // TLS (TF_SOCKET_TLS/TF_SOCKET_QUIC only).
         void (*load_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* status);
-        void (*generate_certificate)(void* plugin_context, const TF_String* cert_path, const TF_String* key_path, TF_Status* status);
+        void (*generate_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* status);
         void (*set_verify_peer)(TF_Socket* socket, int enabled, TF_Status* status);
 
         // Server-side lifecycle.
