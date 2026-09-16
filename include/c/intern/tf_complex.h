@@ -12,23 +12,21 @@ extern "C"
 #endif
 
     // --------------------------------------------------------------------------
-    // TF_Complex — plugin vtable for a two-component complex number
-    // (std::complex<T> equivalent). Components are always carried as double;
-    // is_double, given at creation, records whether the logical precision is
-    // float or double for callers that care.
+    // TF_Complex — plugin vtable for a two-component complex number (std::complex<T> equivalent). Components are always carried as double; is_double, given at creation, records whether the logical precision is float or double for callers that care.
     //
-    // TF_Complex_Handle is an opaque pointer to a plugin-owned complex object.
-    typedef struct TF_Complex_Handle TF_Complex_Handle;
-
-    // Plugin-facing vtable registered via init_complex.
+    // TF_Complex is an opaque pointer to a plugin-owned complex object.
     typedef struct TF_Complex
+    {
+        void* plugin_data;
+    } TF_Complex;
+
+    // Plugin-facing vtable registered via create_complex.
+    typedef struct TF_ComplexOps
     {
         size_t struct_size;
 
-        // Allocate a new complex number real + imag*i. is_double is
-        // non-zero if the logical precision is double rather than float.
-        // Must be freed with destroy.
-        TF_Complex_Handle* (*new_complex)(
+        // Allocate a new complex number real + imag*i. is_double is non-zero if the logical precision is double rather than float. Must be freed with destroy.
+        TF_Complex* (*new_complex)(
             void* plugin_context,
             int is_double,
             double real,
@@ -36,25 +34,26 @@ extern "C"
         );
 
         // The real component.
-        double (*get_real)(const TF_Complex_Handle* complex_value);
+        double (*get_real)(const TF_Complex* complex_value);
 
         // The imaginary component.
-        double (*get_imag)(const TF_Complex_Handle* complex_value);
+        double (*get_imag)(const TF_Complex* complex_value);
 
         // Overwrite the real component.
-        void (*set_real)(TF_Complex_Handle* complex_value, double real);
+        void (*set_real)(TF_Complex* complex_value, double real);
 
         // Overwrite the imaginary component.
-        void (*set_imag)(TF_Complex_Handle* complex_value, double imag);
+        void (*set_imag)(TF_Complex* complex_value, double imag);
 
         // Free a handle returned by new_complex.
-        void (*destroy)(void* plugin_context, TF_Complex_Handle* complex_value);
+        void (*destroy)(TF_Complex* complex_value);
 
-    } TF_Complex;
+    } TF_ComplexOps;
 
-#define TF_COMPLEX_STRUCT_SIZE TF_OFFSET_OF_END(TF_Complex, destroy)
+#define TF_COMPLEX_STRUCT_SIZE TF_OFFSET_OF_END(TF_ComplexOps, destroy)
 
-    TF_CAPI_EXPORT void init_complex(TF_Complex** ops, void** plugin_context, TF_Status_Handle* status);
+    TF_CAPI_EXPORT void create_complex(TF_ComplexOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_complex(void* plugin_context);
 
 #ifdef __cplusplus
 } /* end extern "C" */

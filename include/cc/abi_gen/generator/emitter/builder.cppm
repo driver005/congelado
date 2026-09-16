@@ -128,19 +128,14 @@ private:
                 m_writer += ", ";
             }
 
-            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no
-            // pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through
-            // unchanged instead of looking them up in the registry.
-            if (!parameter.is_handle()) {
+            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through unchanged instead of looking them up in the registry. A struct-pointer parameter whose pointee isn't a registered domain (e.g. TF_Job_Options*) passes through the same way — not every pointee is a wrapped handle.
+            auto type_name = parameter.has_pointee()
+                ? m_registry.get().find(parameter.get_registry_key())
+                : std::nullopt;
+
+            if (!type_name.has_value()) {
                 m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
                 continue;
-            }
-
-            auto type_name = m_registry.get().find(parameter.get_registry_key());
-            if (!type_name.has_value()) {
-                return std::unexpected(
-                    std::format("Type {} not found in registry", parameter.get_pointee_name())
-                );
             }
 
             m_writer += helper::format_parameter(
@@ -217,9 +212,7 @@ private:
         return {};
     }
 
-    // Position 0's declared name — "plugin_context" for a domain-level slot, or the
-    // owned instance handle's name for an instance-level slot (which drops the
-    // separate plugin_context param and takes only its own handle as self).
+    // Position 0's declared name — "plugin_context" for a domain-level slot, or the owned instance handle's name for an instance-level slot (which drops the separate plugin_context param and takes only its own handle as self).
     std::string_view self_parameter_name(const parser::slot::Slot& slot) const noexcept
     {
         auto parameters = slot.get_parameters();
@@ -246,16 +239,13 @@ private:
                 m_writer += ", ";
             }
 
-            if (!parameter.is_handle()) {
+            auto model = parameter.has_pointee()
+                ? m_registry.get().find(parameter.get_registry_key())
+                : std::nullopt;
+
+            if (!model.has_value()) {
                 m_writer += parameter.get_name();
                 continue;
-            }
-
-            auto model = m_registry.get().find(parameter.get_registry_key());
-            if (!model.has_value()) {
-                return std::unexpected(
-                    std::format("Type {} not found in registry", parameter.get_pointee_name())
-                );
             }
 
             m_writer += model->get().wrape_type(m_namespace_name, parameter.get_name());

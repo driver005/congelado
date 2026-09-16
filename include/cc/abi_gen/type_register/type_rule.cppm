@@ -6,14 +6,9 @@ export namespace cc_abi_gen::type_register {
 
 // How one raw-C pointee type (e.g. TF_TString, TF_Worker) crosses the raw/C++ boundary.
 //
-// Intern: a hand-written primitive under a fixed namespace (ice::String, ice::Status,
-// ice::TensorHandle) — wrap/unwrap expressions are plain prefix+argument+suffix concatenation,
-// not routed through TemplateRenderer, since a literal expression like "ice::TensorHandle{{{
-// argument }}}" would collide with TemplateRenderer's own "{{ }}" delimiters.
+// Intern: a hand-written primitive under a fixed namespace (ice::String, ice::Status, ice::TensorHandle) — wrap/unwrap expressions are plain prefix+argument+suffix concatenation, not routed through TemplateRenderer, since a literal expression like "ice::TensorHandle{{{ argument }}}" would collide with TemplateRenderer's own "{{ }}" delimiters.
 //
-// VtableModel: another domain's own generated wrapper class (namespace_name::ClassName), whose
-// wrap/unwrap follows the one fixed "{{ namespace }}::{{ class }}::wrap(arg)" / "arg.get_handle()"
-// pattern every generated class shares.
+// VtableModel: another domain's own generated wrapper class (namespace_name::ClassName), whose wrap/unwrap follows the one fixed "{{ namespace }}::{{ class }}::wrap(arg)" / "arg.get_handle()" pattern every generated class shares.
 class TypeRule
 {
 public:

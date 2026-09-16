@@ -17,6 +17,8 @@ limitations under the License.
 #define TENSORFLOW_C_TF_FILE_STATISTICS_H_
 
 #include "c/macros.h"
+#include "c/intern/tf_status.h"
+#include "c/intern/tf_tstring.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -26,22 +28,51 @@ extern "C"
 {
 #endif
 
+    // TF_FileStatistics — plugin vtable for one file/directory's stat() result.
+    typedef struct TF_FileStatisticsOps TF_FileStatisticsOps;
+
     typedef struct TF_FileStatistics
     {
-        size_t struct_size;
-        int is_directory;
-        int64_t length;
-        int64_t mtime_nsec;
+        void* plugin_data;
+        const TF_FileStatisticsOps* ops;
     } TF_FileStatistics;
 
-#define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatistics, mtime_nsec)
-
-    static inline void file_statistics_init(TF_FileStatistics* stats)
+    // Plugin-facing vtable registered via create_file_statistics.
+    typedef struct TF_FileStatisticsOps
     {
-        stats->struct_size = TF_FILE_STATISTICS_STRUCT_SIZE;
-        stats->is_directory = 0;
-        stats->length = 0;
-        stats->mtime_nsec = 0;
+        size_t struct_size;
+
+        // Return the backend's name (e.g. "file_statistics") into *out.
+        void (*get_name)(TF_FileStatistics* stats, TF_String* out);
+
+        // Non-zero if the entry is a directory.
+        int (*is_directory)(const TF_FileStatistics* stats);
+        void (*set_is_directory)(TF_FileStatistics* stats, int is_directory);
+
+        // File length in bytes.
+        int64_t (*length)(const TF_FileStatistics* stats);
+        void (*set_length)(TF_FileStatistics* stats, int64_t length);
+
+        // Last modification time, in nanoseconds since the epoch.
+        int64_t (*mtime_nsec)(const TF_FileStatistics* stats);
+        void (*set_mtime_nsec)(TF_FileStatistics* stats, int64_t mtime_nsec);
+
+        void (*destroy)(TF_FileStatistics* stats);
+
+    } TF_FileStatisticsOps;
+
+#define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatisticsOps, destroy)
+
+    TF_CAPI_EXPORT void
+    create_file_statistics(TF_FileStatisticsOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_file_statistics(void* plugin_context);
+
+    // Real implementation, not declared-only — calls create_file_statistics and fills in stats->ops.
+    static inline void init_file_statistics(TF_FileStatistics* stats, TF_Status* status)
+    {
+        TF_FileStatisticsOps* ops = NULL;
+        create_file_statistics(&ops, &stats->plugin_data, status);
+        stats->ops = ops;
     }
 
 #ifdef __cplusplus

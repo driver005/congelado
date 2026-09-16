@@ -28,7 +28,7 @@ public:
     template<typename HandleT>
     static Job* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Job*>(handle);
+        return static_cast<Job*>(handle->plugin_data);
     }
 
     virtual ~Job() = default;
@@ -83,12 +83,11 @@ public:
     cancel_task(const ice::sonic::String& node_ref) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
     list(const ice::sonic::Map& filters, const ice::sonic::Vector& out_job_ids) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> destroy_job() noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Job* get_generic_vtable()
+    static TF_JobOps* get_generic_vtable()
     {
-        static TF_Job vtable = {
+        static TF_JobOps vtable = {
             .struct_size = TF_JOB_STRUCT_SIZE,
 
             .destroy =
@@ -106,9 +105,9 @@ public:
             },
             .execute =
                 [](void* plugin_context,
-                   const TF_String_Handle* input,
-                   TF_String_Handle* out_output,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* input,
+                   TF_String* out_output,
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(plugin_context);
                 auto res = self->execute(
@@ -121,9 +120,9 @@ public:
             },
             .submit =
                 [](void* plugin_context,
-                   const TF_String_Handle* input,
+                   const TF_String* input,
                    const TF_Job_Options* options,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(plugin_context);
                 auto res = self->submit(ice::sonic::String::wrap(input), options);
@@ -132,7 +131,7 @@ public:
                 }
             },
             .resubmit =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->resubmit();
@@ -141,11 +140,11 @@ public:
                 }
             },
             .wait =
-                [](TF_Job_Handle* job,
+                [](TF_Job* job,
                    int64_t timeout_ms,
                    TF_Job_ResultFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->wait(timeout_ms, completion, user_data);
@@ -154,7 +153,7 @@ public:
                 }
             },
             .on_complete =
-                [](TF_Job_Handle* job, TF_Job_CompletionFn completion, void* user_data) noexcept
+                [](TF_Job* job, TF_Job_CompletionFn completion, void* user_data) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->on_complete(completion, user_data);
@@ -163,7 +162,7 @@ public:
                 }
             },
             .on_progress =
-                [](TF_Job_Handle* job, TF_Job_ProgressFn progress, void* user_data) noexcept
+                [](TF_Job* job, TF_Job_ProgressFn progress, void* user_data) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->on_progress(progress, user_data);
@@ -172,10 +171,10 @@ public:
                 }
             },
             .get_status =
-                [](TF_Job_Handle* job,
+                [](TF_Job* job,
                    TF_Job_StatusFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_status(completion, user_data);
@@ -184,10 +183,10 @@ public:
                 }
             },
             .get_result =
-                [](TF_Job_Handle* job,
+                [](TF_Job* job,
                    TF_Job_ResultFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_result(completion, user_data);
@@ -196,9 +195,7 @@ public:
                 }
             },
             .get_history =
-                [](TF_Job_Handle* job,
-                   TF_Vector_Handle* out_transitions,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Vector* out_transitions, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_history(ice::sonic::Vector::wrap(out_transitions));
@@ -207,9 +204,7 @@ public:
                 }
             },
             .get_metrics =
-                [](TF_Job_Handle* job,
-                   TF_Map_Handle* out_metrics,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Map* out_metrics, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_metrics(ice::sonic::Map::wrap(out_metrics));
@@ -218,9 +213,7 @@ public:
                 }
             },
             .get_logs =
-                [](TF_Job_Handle* job,
-                   TF_Vector_Handle* out_lines,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Vector* out_lines, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_logs(ice::sonic::Vector::wrap(out_lines));
@@ -229,9 +222,7 @@ public:
                 }
             },
             .get_options =
-                [](TF_Job_Handle* job,
-                   TF_Job_Options* out_options,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Job_Options* out_options, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->get_options(out_options);
@@ -240,9 +231,7 @@ public:
                 }
             },
             .update_options =
-                [](TF_Job_Handle* job,
-                   const TF_Job_Options* options,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, const TF_Job_Options* options, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->update_options(options);
@@ -251,7 +240,7 @@ public:
                 }
             },
             .set_priority =
-                [](TF_Job_Handle* job, int priority, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, int priority, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->set_priority(priority);
@@ -260,7 +249,7 @@ public:
                 }
             },
             .add_dependency =
-                [](TF_Job_Handle* job, TF_Job_Handle* depends_on, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Job* depends_on, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->add_dependency(ice::sonic::Job::wrap(depends_on));
@@ -269,9 +258,7 @@ public:
                 }
             },
             .list_dependencies =
-                [](TF_Job_Handle* job,
-                   TF_Vector_Handle* out_job_ids,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Vector* out_job_ids, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->list_dependencies(ice::sonic::Vector::wrap(out_job_ids));
@@ -280,7 +267,7 @@ public:
                 }
             },
             .pause =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->pause();
@@ -289,7 +276,7 @@ public:
                 }
             },
             .resume =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->resume();
@@ -298,7 +285,7 @@ public:
                 }
             },
             .cancel =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->cancel();
@@ -307,7 +294,7 @@ public:
                 }
             },
             .stop =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->stop();
@@ -316,10 +303,10 @@ public:
                 }
             },
             .signal =
-                [](TF_Job_Handle* job,
-                   const TF_String_Handle* signal_name,
-                   const TF_String_Handle* payload,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job,
+                   const TF_String* signal_name,
+                   const TF_String* payload,
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->signal(
@@ -331,10 +318,10 @@ public:
                 }
             },
             .checkpoint =
-                [](TF_Job_Handle* job,
+                [](TF_Job* job,
                    TF_Job_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->checkpoint(completion, user_data);
@@ -343,7 +330,7 @@ public:
                 }
             },
             .restore_checkpoint =
-                [](TF_Job_Handle* job, TF_Status_Handle* status) noexcept
+                [](TF_Job* job, TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->restore_checkpoint();
@@ -352,10 +339,10 @@ public:
                 }
             },
             .complete =
-                [](TF_Job_Handle* job,
-                   const TF_String_Handle* node_ref,
-                   const TF_String_Handle* output,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* job,
+                   const TF_String* node_ref,
+                   const TF_String* output,
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(job);
                 auto res = self->complete(
@@ -367,10 +354,10 @@ public:
                 }
             },
             .create_task =
-                [](TF_Job_Handle* parent,
-                   const TF_String_Handle* node_ref,
-                   const TF_String_Handle* input,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* parent,
+                   const TF_String* node_ref,
+                   const TF_String* input,
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(parent);
                 auto res = self->create_task(
@@ -382,9 +369,7 @@ public:
                 }
             },
             .get_task =
-                [](TF_Job_Handle* parent,
-                   const TF_String_Handle* node_ref,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* parent, const TF_String* node_ref, TF_Status* status) noexcept
             {
                 auto* self = Job::create(parent);
                 auto res = self->get_task(ice::sonic::String::wrap(node_ref));
@@ -393,9 +378,7 @@ public:
                 }
             },
             .list_tasks =
-                [](TF_Job_Handle* parent,
-                   TF_Vector_Handle* out_node_refs,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* parent, TF_Vector* out_node_refs, TF_Status* status) noexcept
             {
                 auto* self = Job::create(parent);
                 auto res = self->list_tasks(ice::sonic::Vector::wrap(out_node_refs));
@@ -404,9 +387,7 @@ public:
                 }
             },
             .cancel_task =
-                [](TF_Job_Handle* parent,
-                   const TF_String_Handle* node_ref,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Job* parent, const TF_String* node_ref, TF_Status* status) noexcept
             {
                 auto* self = Job::create(parent);
                 auto res = self->cancel_task(ice::sonic::String::wrap(node_ref));
@@ -416,24 +397,15 @@ public:
             },
             .list =
                 [](void* plugin_context,
-                   const TF_Map_Handle* filters,
-                   TF_Vector_Handle* out_job_ids,
-                   TF_Status_Handle* status) noexcept
+                   const TF_Map* filters,
+                   TF_Vector* out_job_ids,
+                   TF_Status* status) noexcept
             {
                 auto* self = Job::create(plugin_context);
                 auto res = self->list(
                     ice::sonic::Map::wrap(filters),
                     ice::sonic::Vector::wrap(out_job_ids)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .destroy_job =
-                [](TF_Job_Handle* job) noexcept
-            {
-                auto* self = Job::create(job);
-                auto res = self->destroy_job();
                 if (!res) {
                     res.error().to_c(status);
                 }

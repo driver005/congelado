@@ -6,10 +6,7 @@ import :type_rule;
 
 export namespace cc_abi_gen::type_register {
 
-// Replaces and absorbs the old parser::Registry entirely: one struct-name -> vtable::Model map
-// (built from a full up-front scan of every domain header, so a type used by one domain but
-// defined in another stays visible regardless of parse order), plus a pointee-name -> TypeRule
-// map used by the emitters to classify slot parameters.
+// Replaces and absorbs the old parser::Registry entirely: one struct-name -> vtable::Model map (built from a full up-front scan of every domain header, so a type used by one domain but defined in another stays visible regardless of parse order), plus a pointee-name -> TypeRule map used by the emitters to classify slot parameters.
 class TypeRegister
 {
 public:
@@ -27,9 +24,7 @@ public:
     TypeRegister(TypeRegister&&) = default;
     TypeRegister& operator=(TypeRegister&&) = default;
 
-    // Absorbs every vtable::Model discovered while parsing one header (or a whole domain scan),
-    // registering each one both by struct name (for cli_runner's generate/check loop) and as a
-    // VtableModel TypeRule (for cross-domain slot parameters referencing another domain's class).
+    // Absorbs every vtable::Model discovered while parsing one header (or a whole domain scan), registering each one both by struct name (for cli_runner's generate/check loop) and as a VtableModel TypeRule (for cross-domain slot parameters referencing another domain's class).
     void absorb(std::vector<parser::vtable::Model>&& models) noexcept
     {
         for (parser::vtable::Model& model: models) {
@@ -90,10 +85,7 @@ public:
     }
 
 private:
-    // Hand-authored C++ wrapper idioms for the intern value types slots reference — these aren't
-    // structurally derivable from the C headers alone (they're primitives under include/cc/abi/
-    // primitives/, not generated vtable classes), so they're seeded manually. Verified directly
-    // against include/cc/abi/primitives/{status,string,tensor_handle}.cppm.
+    // Hand-authored C++ wrapper idioms for the intern value types slots reference — these aren't structurally derivable from the C headers alone (they're primitives under include/cc/abi/ primitives/, not generated vtable classes), so they're seeded manually. Verified directly against include/cc/abi/primitives/{status,string,tensor_handle}.cppm.
     void seed_intern_types() noexcept
     {
         m_type_rules.insert_or_assign(
@@ -116,8 +108,7 @@ private:
             TypeRule::make_intern("TensorHandle", "ice::TensorHandle{", "}")
         );
 
-        // FilesystemOption::create takes a reference, not a pointer, unlike the other
-        // seeded intern types — hence the explicit deref in the wrap prefix.
+        // FilesystemOption::create takes a reference, not a pointer, unlike the other seeded intern types — hence the explicit deref in the wrap prefix.
         m_type_rules.insert_or_assign(
             "TF_Filesystem_Option",
             TypeRule::make_intern("FilesystemOption", "ice::FilesystemOption::create(*", ")")

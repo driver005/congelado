@@ -67,20 +67,16 @@ public:
         return m_pointee_name;
     }
 
-    // True for a pointer to an opaque "_Handle" type; false for raw scalar pointers (e.g. int64_t*) and by-value params.
-    bool is_handle() const noexcept
+    // True for a pointer to a struct/record type (e.g. TF_Status, TF_Buffer); false for raw scalar pointers (e.g. int64_t*) and by-value params, which have no pointee at all. Handle types no longer carry a distinguishing suffix — whether a given pointee actually names a registered domain (as opposed to a plain value struct like TF_Job_Options) is decided by looking it up in the registry, not by this check alone.
+    bool has_pointee() const noexcept
     {
-        return !m_pointee_name.empty() && m_pointee_name.ends_with("_Handle");
+        return !m_pointee_name.empty();
     }
 
-    // Owning Ops-struct name, with "_Handle" suffix stripped if present.
+    // Registry lookup key for this parameter's pointee. The registry is keyed by the Ops struct's own tag (e.g. "TF_StatusOps"), but a parameter referencing that domain names its handle instead (e.g. "TF_Status* status") — appending "Ops" bridges the two.
     std::string get_registry_key() const noexcept
     {
-        static constexpr std::string_view suffix = "_Handle";
-        if (m_pointee_name.size() > suffix.size() && m_pointee_name.ends_with(suffix)) {
-            return m_pointee_name.substr(0, m_pointee_name.size() - suffix.size());
-        }
-        return m_pointee_name;
+        return m_pointee_name + "Ops";
     }
 
     // Example: argument_name

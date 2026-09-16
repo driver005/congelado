@@ -7,11 +7,7 @@ import :registry;
 
 export namespace cc_abi_gen::type_register {
 
-// Which hand-written idiom a slot's generated method/vtable-field should follow, classified by
-// shape (parameter count/constness/failability) rather than by slot name — replaces the old
-// pure name-based is_get_name() special case with a generalization that also covers
-// get_content_type/get_format_name/get_device_type (StringAccessor), encode/decode (CodecPair),
-// and collect_data_xspace (TypedReturn).
+// Which hand-written idiom a slot's generated method/vtable-field should follow, classified by shape (parameter count/constness/failability) rather than by slot name — replaces the old pure name-based is_get_name() special case with a generalization that also covers get_content_type/get_format_name/get_device_type (StringAccessor), encode/decode (CodecPair), and collect_data_xspace (TypedReturn).
 enum class SlotShape
 {
     Destroy,

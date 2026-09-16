@@ -28,7 +28,7 @@ public:
     template<typename HandleT>
     static Pubsub* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Pubsub*>(handle);
+        return static_cast<Pubsub*>(handle->plugin_data);
     }
 
     virtual ~Pubsub() = default;
@@ -106,9 +106,9 @@ public:
     list_subscriptions(const ice::sonic::Vector& out_patterns) noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_PubSub* get_generic_vtable()
+    static TF_PubSubOps* get_generic_vtable()
     {
-        static TF_PubSub vtable = {
+        static TF_PubSubOps vtable = {
             .struct_size = TF_PUBSUB_STRUCT_SIZE,
 
             .destroy =
@@ -135,10 +135,10 @@ public:
             },
             .publish =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
-                   const TF_String_Handle* payload,
+                   const TF_String* channel,
+                   const TF_String* payload,
                    int retain,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->publish(
@@ -152,11 +152,11 @@ public:
             },
             .publish_batch =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
-                   const TF_Vector_Handle* payloads,
+                   const TF_String* channel,
+                   const TF_Vector* payloads,
                    TF_PubSub_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->publish_batch(
@@ -173,7 +173,7 @@ public:
                 [](void* plugin_context,
                    TF_PubSub_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->flush(completion, user_data);
@@ -183,10 +183,10 @@ public:
             },
             .subscribe =
                 [](void* plugin_context,
-                   const TF_String_Handle* pattern,
+                   const TF_String* pattern,
                    TF_PubSub_Handler handler,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->subscribe(ice::sonic::String::wrap(pattern), handler, user_data);
@@ -196,11 +196,11 @@ public:
             },
             .subscribe_group =
                 [](void* plugin_context,
-                   const TF_String_Handle* pattern,
-                   const TF_String_Handle* group_id,
+                   const TF_String* pattern,
+                   const TF_String* group_id,
                    TF_PubSub_Handler handler,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->subscribe_group(
@@ -215,10 +215,10 @@ public:
             },
             .subscribe_once =
                 [](void* plugin_context,
-                   const TF_String_Handle* pattern,
+                   const TF_String* pattern,
                    TF_PubSub_Handler handler,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res =
@@ -237,7 +237,7 @@ public:
                 }
             },
             .ack =
-                [](TF_PubSub_Subscription* subscription, TF_Status_Handle* status) noexcept
+                [](TF_PubSub_Subscription* subscription, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(subscription);
                 auto res = self->ack();
@@ -246,7 +246,7 @@ public:
                 }
             },
             .nack =
-                [](TF_PubSub_Subscription* subscription, TF_Status_Handle* status) noexcept
+                [](TF_PubSub_Subscription* subscription, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(subscription);
                 auto res = self->nack();
@@ -256,8 +256,8 @@ public:
             },
             .seek =
                 [](TF_PubSub_Subscription* subscription,
-                   const TF_String_Handle* position,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* position,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(subscription);
                 auto res = self->seek(ice::sonic::String::wrap(position));
@@ -269,7 +269,7 @@ public:
                 [](TF_PubSub_Subscription* subscription,
                    TF_PubSub_IntFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(subscription);
                 auto res = self->get_subscription_lag(completion, user_data);
@@ -279,10 +279,10 @@ public:
             },
             .get_retained =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
+                   const TF_String* channel,
                    TF_PubSub_RetainedFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res =
@@ -293,9 +293,9 @@ public:
             },
             .create_channel =
                 [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   const TF_Map_Handle* config,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* name,
+                   const TF_Map* config,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->create_channel(
@@ -307,9 +307,7 @@ public:
                 }
             },
             .delete_channel =
-                [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* name, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->delete_channel(ice::sonic::String::wrap(name));
@@ -319,9 +317,9 @@ public:
             },
             .get_channel_config =
                 [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Map_Handle* out_config,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* name,
+                   TF_Map* out_config,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->get_channel_config(
@@ -334,9 +332,9 @@ public:
             },
             .set_channel_config =
                 [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   const TF_Map_Handle* config,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* name,
+                   const TF_Map* config,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->set_channel_config(
@@ -349,9 +347,9 @@ public:
             },
             .get_channel_stats =
                 [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Map_Handle* out_stats,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* name,
+                   TF_Map* out_stats,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->get_channel_stats(
@@ -363,9 +361,7 @@ public:
                 }
             },
             .purge_channel =
-                [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* name, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->purge_channel(ice::sonic::String::wrap(name));
@@ -375,9 +371,9 @@ public:
             },
             .set_dead_letter_channel =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
-                   const TF_String_Handle* dead_letter_channel,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* channel,
+                   const TF_String* dead_letter_channel,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->set_dead_letter_channel(
@@ -390,9 +386,9 @@ public:
             },
             .list_dead_letters =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
-                   TF_Vector_Handle* out_payloads,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* channel,
+                   TF_Vector* out_payloads,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->list_dead_letters(
@@ -405,9 +401,9 @@ public:
             },
             .requeue_dead_letter =
                 [](void* plugin_context,
-                   const TF_String_Handle* channel,
-                   const TF_String_Handle* payload,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* channel,
+                   const TF_String* payload,
+                   TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->requeue_dead_letter(
@@ -419,9 +415,7 @@ public:
                 }
             },
             .list_channels =
-                [](void* plugin_context,
-                   TF_Vector_Handle* out_channels,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Vector* out_channels, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->list_channels(ice::sonic::Vector::wrap(out_channels));
@@ -430,9 +424,7 @@ public:
                 }
             },
             .list_subscriptions =
-                [](void* plugin_context,
-                   TF_Vector_Handle* out_patterns,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Vector* out_patterns, TF_Status* status) noexcept
             {
                 auto* self = Pubsub::create(plugin_context);
                 auto res = self->list_subscriptions(ice::sonic::Vector::wrap(out_patterns));

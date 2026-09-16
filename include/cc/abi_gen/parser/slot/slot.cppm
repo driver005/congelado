@@ -71,7 +71,7 @@ public:
 
     bool is_failable() const
     {
-        return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status_Handle";
+        return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status";
     }
 
     bool is_destroy() const

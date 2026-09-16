@@ -16,20 +16,21 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Profiler : public ice::sonic::Runtime<Profiler, TF_Profiler>
+class Profiler : public ice::sonic::Runtime<Profiler, TF_ProfilerOps>
 {
 public:
-    explicit Profiler(TF_Profiler* ops, void* plugin_context) noexcept :
+    explicit Profiler(TF_ProfilerOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "profiler";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_device_type(TF_String* out) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_device_type(const ice::sonic::String& out) noexcept
     {
         ice::Status status;
-        m_ops->get_device_type(get_handle(), out, status.get_handle());
+        m_ops->get_device_type(get_handle(), out.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

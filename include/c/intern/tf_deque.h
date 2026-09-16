@@ -11,49 +11,56 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
-    // TF_Deque — plugin vtable for a type-erased double-ended growable
-    // collection (std::deque<T> equivalent), fixed to element_size bytes per
-    // element at creation.
-    //
-    // TF_Deque_Handle is an opaque pointer to a plugin-owned deque object.
-    typedef struct TF_Deque_Handle TF_Deque_Handle;
+    // TF_Deque — plugin vtable for a type-erased double-ended growable collection (std::deque<T> equivalent), fixed to element_size bytes per element at creation.
+    typedef struct TF_DequeOps TF_DequeOps;
 
-    // Plugin-facing vtable registered via init_deque.
     typedef struct TF_Deque
+    {
+        void* plugin_data;
+        const TF_DequeOps* ops;
+    } TF_Deque;
+
+    // Plugin-facing vtable registered via create_deque.
+    typedef struct TF_DequeOps
     {
         size_t struct_size;
 
-        // Allocate a new, empty deque of element_size-byte elements. Must be
-        // freed with destroy.
-        TF_Deque_Handle* (*new_deque)(void* plugin_context, size_t element_size);
+        void (*set_element_size)(TF_Deque* deque, size_t element_size);
 
         // Copy one element_size-byte element from value onto the front.
-        void (*push_front)(TF_Deque_Handle* deque, const void* value);
+        void (*push_front)(TF_Deque* deque, const void* value);
 
         // Copy one element_size-byte element from value onto the back.
-        void (*push_back)(TF_Deque_Handle* deque, const void* value);
+        void (*push_back)(TF_Deque* deque, const void* value);
 
         // Remove the front element. No-op if empty.
-        void (*pop_front)(TF_Deque_Handle* deque);
+        void (*pop_front)(TF_Deque* deque);
 
         // Remove the back element. No-op if empty.
-        void (*pop_back)(TF_Deque_Handle* deque);
+        void (*pop_back)(TF_Deque* deque);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(const TF_Deque_Handle* deque, size_t index);
+        const void* (*get)(const TF_Deque* deque, size_t index);
 
         // Current element count.
-        size_t (*size)(const TF_Deque_Handle* deque);
+        size_t (*size)(const TF_Deque* deque);
 
-        // Free a handle returned by new_deque.
-        void (*destroy)(void* plugin_context, TF_Deque_Handle* deque);
+        void (*destroy)(TF_Deque* deque);
 
-    } TF_Deque;
+    } TF_DequeOps;
 
-#define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Deque, destroy)
+#define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DequeOps, destroy)
 
-    TF_CAPI_EXPORT void init_deque(TF_Deque** ops, void** plugin_context, TF_Status_Handle* status);
+    TF_CAPI_EXPORT void create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_deque(void* plugin_context);
+
+    // Real implementation, not declared-only — calls create_deque and fills in deque->ops.
+    static inline void init_deque(TF_Deque* deque, TF_Status* status)
+    {
+        TF_DequeOps* ops = NULL;
+        create_deque(&ops, &deque->plugin_data, status);
+        deque->ops = ops;
+    }
 
 #ifdef __cplusplus
 } /* end extern "C" */

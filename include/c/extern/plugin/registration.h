@@ -8,18 +8,15 @@ extern "C"
 {
 #endif
 
-    // A plugin's own identity, filled in by its init_plugin.
+    // A plugin's own identity, filled in by its create_plugin.
     typedef struct TF_PluginInfo
     {
         const char* name;
         const char* version;
     } TF_PluginInfo;
 
-    // Initializes a plugin. Must be present in the plugin's shared object — the host dlopen's
-    // the library, dlsym's this symbol, and calls it, handing it a pointer to an empty
-    // TF_PluginInfo the plugin fills in place. Returns nothing; the host reads the same struct
-    // back afterward.
-    TF_CAPI_EXPORT void init_plugin(TF_PluginInfo* plugin_info);
+    // Initializes a plugin. Must be present in the plugin's shared object — the host dlopen's the library, dlsym's this symbol, and calls it, handing it a pointer to an empty TF_PluginInfo the plugin fills in place. Returns nothing; the host reads the same struct back afterward.
+    TF_CAPI_EXPORT void create_plugin(TF_PluginInfo* plugin_info);
 
 #ifdef __cplusplus
 }

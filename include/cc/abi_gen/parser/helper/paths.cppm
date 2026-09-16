@@ -9,8 +9,7 @@ class DomainPaths
 public:
     DomainPaths() = default;
 
-    // is_extern_domain only picks the output folder (extern/ vs intern/) for on-disk browsing — it
-    // never reaches the generated namespace, which stays ice::builder/ice::sonic either way.
+    // is_extern_domain only picks the output folder (extern/ vs intern/) for on-disk browsing — it never reaches the generated namespace, which stays ice::builder/ice::sonic either way.
     DomainPaths(
         const std::string&& domain,
         const std::filesystem::path&& repo_root,
@@ -90,8 +89,7 @@ public:
 
 
 private:
-    // Counts *.h files directly under include/c/extern/<domain> — more than one means the
-    // domain's output gets its own builder/sonic subfolders instead of flat files.
+    // Counts *.h files directly under include/c/extern/<domain> — more than one means the domain's output gets its own builder/sonic subfolders instead of flat files.
     std::size_t count_headers(const std::filesystem::path& repo_root, const std::string& domain)
         const
     {

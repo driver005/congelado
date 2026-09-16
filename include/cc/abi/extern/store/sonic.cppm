@@ -16,10 +16,10 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Store : public ice::sonic::Runtime<Store, TF_Store>
+class Store : public ice::sonic::Runtime<Store, TF_StoreOps>
 {
 public:
-    explicit Store(TF_Store* ops, void* plugin_context) noexcept :
+    explicit Store(TF_StoreOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }

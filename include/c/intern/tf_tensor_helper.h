@@ -30,11 +30,11 @@ extern "C"
 
     // tensor_bitcast_from changes the data type of a tensor without copying data.
     TF_CAPI_EXPORT void
-    tensor_bitcast_from(TF_Tensor_Handle* src, TF_DataType_Enum dtype, TF_Tensor_Handle** out);
+    tensor_bitcast_from(TF_Tensor* src, TF_DataType_Enum dtype, TF_Tensor** out);
 
     // tensor_bitcast_to changes the data type of a tensor without copying data.
     TF_CAPI_EXPORT void
-    tensor_bitcast_to(const TF_Tensor_Handle* src, TF_DataType_Enum dtype, TF_Tensor_Handle** out);
+    tensor_bitcast_to(const TF_Tensor* src, TF_DataType_Enum dtype, TF_Tensor** out);
 
 #ifdef __cplusplus
 } /* end extern "C" */

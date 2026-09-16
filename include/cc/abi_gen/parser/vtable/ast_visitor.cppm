@@ -69,6 +69,11 @@ public:
             slots.push_back(m_reader.read(field));
         }
 
+        // A struct_size-first struct with no function-pointer fields is a plain versioned value type (e.g. TF_Job_Options, TF_Shape_Data), not an Ops vtable — registering it as a domain would make its bare name collide with real handle lookups once handle types drop their "_Handle" suffix.
+        if (slots.empty()) {
+            return std::nullopt;
+        }
+
         std::string struct_name = record_decl->getNameAsString();
         std::string domain_name = m_naming.domain_name(struct_name);
 

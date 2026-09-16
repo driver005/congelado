@@ -28,33 +28,12 @@ public:
     template<typename HandleT>
     static Filesystem* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Filesystem*>(handle);
+        return static_cast<Filesystem*>(handle->plugin_data);
     }
 
     virtual ~Filesystem() = default;
     [[nodiscard]] std::expected<void, ice::Status>
     free_options(TF_Filesystem_Option* options, int num_options) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_random_access_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> random_access_file_destroy() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    random_access_file_read(uint64_t offset, size_t n, char* buffer) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_writable_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_appendable_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_destroy() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    writable_file_append(const ice::sonic::String& buffer) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_tell() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_flush() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_sync() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_close() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_read_only_memory_region_from_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_destroy() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_data() noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_length() noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
     create_dir(const ice::sonic::String& path) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
@@ -77,13 +56,13 @@ public:
     [[nodiscard]] std::expected<void, ice::Status>
     paths_exist(const ice::sonic::String& paths, int num_paths) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
-    stat(const ice::sonic::String& path, TF_FileStatistics* out_stats) noexcept = 0;
+    stat(const ice::sonic::String& path, const ice::sonic::Filestatistics& out_stats) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
     is_directory(const ice::sonic::String& path) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
     get_file_size(const ice::sonic::String& path) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
-    translate_name(const ice::sonic::String& uri, TF_String* out) noexcept = 0;
+    translate_name(const ice::sonic::String& uri, const ice::sonic::String& out) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
     get_children(const ice::sonic::String& path) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
@@ -101,9 +80,9 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_filesystem_configuration_keys() noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Filesystem* get_generic_vtable()
+    static TF_FilesystemOps* get_generic_vtable()
     {
-        static TF_Filesystem vtable = {
+        static TF_FilesystemOps vtable = {
             .struct_size = TF_FILESYSTEM_STRUCT_SIZE,
 
             .destroy =
@@ -128,160 +107,8 @@ public:
                     res.error().to_c(status);
                 }
             },
-            .create_random_access_file =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->create_random_access_file(ice::sonic::String::wrap(path));
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .random_access_file_destroy =
-                [](TF_RandomAccessFile* file_context) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->random_access_file_destroy();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .random_access_file_read =
-                [](TF_RandomAccessFile* file_context,
-                   uint64_t offset,
-                   size_t n,
-                   char* buffer,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->random_access_file_read(offset, n, buffer);
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .create_writable_file =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->create_writable_file(ice::sonic::String::wrap(path));
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .create_appendable_file =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(plugin_context);
-                auto res = self->create_appendable_file(ice::sonic::String::wrap(path));
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_destroy =
-                [](TF_WritableFile* file_context) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_destroy();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_append =
-                [](TF_WritableFile* file_context,
-                   const TF_String_Handle* buffer,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_append(ice::sonic::String::wrap(buffer));
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_tell =
-                [](TF_WritableFile* file_context, TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_tell();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_flush =
-                [](TF_WritableFile* file_context, TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_flush();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_sync =
-                [](TF_WritableFile* file_context, TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_sync();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .writable_file_close =
-                [](TF_WritableFile* file_context, TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(file_context);
-                auto res = self->writable_file_close();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .create_read_only_memory_region_from_file =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
-            {
-                auto* self = Filesystem::create(plugin_context);
-                auto res =
-                    self->create_read_only_memory_region_from_file(ice::sonic::String::wrap(path));
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .read_only_memory_region_destroy =
-                [](TF_ReadOnlyMemoryRegion* region_context) noexcept
-            {
-                auto* self = Filesystem::create(region_context);
-                auto res = self->read_only_memory_region_destroy();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .read_only_memory_region_data =
-                [](TF_ReadOnlyMemoryRegion* region_context) noexcept
-            {
-                auto* self = Filesystem::create(region_context);
-                auto res = self->read_only_memory_region_data();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .read_only_memory_region_length =
-                [](TF_ReadOnlyMemoryRegion* region_context) noexcept
-            {
-                auto* self = Filesystem::create(region_context);
-                auto res = self->read_only_memory_region_length();
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
             .create_dir =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->create_dir(ice::sonic::String::wrap(path));
@@ -290,9 +117,7 @@ public:
                 }
             },
             .recursively_create_dir =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->recursively_create_dir(ice::sonic::String::wrap(path));
@@ -301,9 +126,7 @@ public:
                 }
             },
             .delete_file =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->delete_file(ice::sonic::String::wrap(path));
@@ -312,9 +135,7 @@ public:
                 }
             },
             .delete_dir =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->delete_dir(ice::sonic::String::wrap(path));
@@ -324,10 +145,10 @@ public:
             },
             .delete_recursively =
                 [](void* plugin_context,
-                   const TF_String_Handle* path,
+                   const TF_String* path,
                    uint64_t* undeleted_files,
                    uint64_t* undeleted_dirs,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->delete_recursively(
@@ -341,9 +162,9 @@ public:
             },
             .rename_file =
                 [](void* plugin_context,
-                   const TF_String_Handle* src,
-                   const TF_String_Handle* dst,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* src,
+                   const TF_String* dst,
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res =
@@ -354,9 +175,9 @@ public:
             },
             .copy_file =
                 [](void* plugin_context,
-                   const TF_String_Handle* src,
-                   const TF_String_Handle* dst,
-                   TF_Status_Handle* status) noexcept
+                   const TF_String* src,
+                   const TF_String* dst,
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res =
@@ -366,9 +187,7 @@ public:
                 }
             },
             .path_exists =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->path_exists(ice::sonic::String::wrap(path));
@@ -378,9 +197,9 @@ public:
             },
             .paths_exist =
                 [](void* plugin_context,
-                   const TF_String_Handle* paths,
+                   const TF_String* paths,
                    int num_paths,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->paths_exist(ice::sonic::String::wrap(paths), num_paths);
@@ -390,20 +209,21 @@ public:
             },
             .stat =
                 [](void* plugin_context,
-                   const TF_String_Handle* path,
+                   const TF_String* path,
                    TF_FileStatistics* out_stats,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
-                auto res = self->stat(ice::sonic::String::wrap(path), out_stats);
+                auto res = self->stat(
+                    ice::sonic::String::wrap(path),
+                    ice::sonic::Filestatistics::wrap(out_stats)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .is_directory =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->is_directory(ice::sonic::String::wrap(path));
@@ -412,9 +232,7 @@ public:
                 }
             },
             .get_file_size =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_file_size(ice::sonic::String::wrap(path));
@@ -423,18 +241,19 @@ public:
                 }
             },
             .translate_name =
-                [](void* plugin_context, const TF_String_Handle* uri, TF_String* out) noexcept
+                [](void* plugin_context, const TF_String* uri, TF_String* out) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
-                auto res = self->translate_name(ice::sonic::String::wrap(uri), out);
+                auto res = self->translate_name(
+                    ice::sonic::String::wrap(uri),
+                    ice::sonic::String::wrap(out)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .get_children =
-                [](void* plugin_context,
-                   const TF_String_Handle* path,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* path, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_children(ice::sonic::String::wrap(path));
@@ -443,9 +262,7 @@ public:
                 }
             },
             .get_matching_paths =
-                [](void* plugin_context,
-                   const TF_String_Handle* glob,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* glob, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_matching_paths(ice::sonic::String::wrap(glob));
@@ -463,7 +280,7 @@ public:
                 }
             },
             .get_filesystem_configuration =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_filesystem_configuration();
@@ -472,9 +289,7 @@ public:
                 }
             },
             .set_filesystem_configuration =
-                [](void* plugin_context,
-                   const TF_Tensor_Handle* options,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_Tensor* options, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->set_filesystem_configuration(ice::sonic::Tensor::wrap(options));
@@ -484,9 +299,9 @@ public:
             },
             .get_filesystem_configuration_option =
                 [](void* plugin_context,
-                   const TF_String_Handle* key,
+                   const TF_String* key,
                    TF_Filesystem_Option* out_option,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_filesystem_configuration_option(
@@ -500,7 +315,7 @@ public:
             .set_filesystem_configuration_option =
                 [](void* plugin_context,
                    const TF_Filesystem_Option* option,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->set_filesystem_configuration_option(option);
@@ -509,7 +324,7 @@ public:
                 }
             },
             .get_filesystem_configuration_keys =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Filesystem::create(plugin_context);
                 auto res = self->get_filesystem_configuration_keys();

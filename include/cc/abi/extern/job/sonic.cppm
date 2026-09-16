@@ -16,10 +16,10 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Job : public ice::sonic::Runtime<Job, TF_Job>
+class Job : public ice::sonic::Runtime<Job, TF_JobOps>
 {
 public:
-    explicit Job(TF_Job* ops, void* plugin_context) noexcept :
+    explicit Job(TF_JobOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -384,17 +384,6 @@ public:
             out_job_ids.get_handle(),
             status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> destroy_job() noexcept
-    {
-        ice::Status status;
-        m_ops->destroy_job(get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

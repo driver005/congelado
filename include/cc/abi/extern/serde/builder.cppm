@@ -28,21 +28,24 @@ public:
     template<typename HandleT>
     static Serde* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Serde*>(handle);
+        return static_cast<Serde*>(handle->plugin_data);
     }
 
     virtual ~Serde() = default;
-    [[nodiscard]] std::expected<void, ice::Status> get_content_type(TF_String* out) noexcept = 0;
-    [[nodiscard]] std::expected<void, ice::Status> get_format_name(TF_String* out) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
-    encode(const ice::sonic::String& value_json, TF_String* out_encoded) noexcept = 0;
+    get_content_type(const ice::sonic::String& out) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status>
-    decode(const ice::sonic::String& data, TF_String* out_json) noexcept = 0;
+    get_format_name(const ice::sonic::String& out) noexcept = 0;
+    [[nodiscard]] std::expected<void, ice::Status>
+    encode(const ice::sonic::String& value_json, const ice::sonic::String& out_encoded) noexcept =
+        0;
+    [[nodiscard]] std::expected<void, ice::Status>
+    decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Serde* get_generic_vtable()
+    static TF_SerdeOps* get_generic_vtable()
     {
-        static TF_Serde vtable = {
+        static TF_SerdeOps vtable = {
             .struct_size = TF_SERDE_STRUCT_SIZE,
 
             .destroy =
@@ -62,7 +65,7 @@ public:
                 [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Serde::create(plugin_context);
-                auto res = self->get_content_type(out);
+                auto res = self->get_content_type(ice::sonic::String::wrap(out));
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -71,31 +74,37 @@ public:
                 [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Serde::create(plugin_context);
-                auto res = self->get_format_name(out);
+                auto res = self->get_format_name(ice::sonic::String::wrap(out));
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .encode =
                 [](void* plugin_context,
-                   const TF_String_Handle* value_json,
+                   const TF_String* value_json,
                    TF_String* out_encoded,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Serde::create(plugin_context);
-                auto res = self->encode(ice::sonic::String::wrap(value_json), out_encoded);
+                auto res = self->encode(
+                    ice::sonic::String::wrap(value_json),
+                    ice::sonic::String::wrap(out_encoded)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .decode =
                 [](void* plugin_context,
-                   const TF_String_Handle* data,
+                   const TF_String* data,
                    TF_String* out_json,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Serde::create(plugin_context);
-                auto res = self->decode(ice::sonic::String::wrap(data), out_json);
+                auto res = self->decode(
+                    ice::sonic::String::wrap(data),
+                    ice::sonic::String::wrap(out_json)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
