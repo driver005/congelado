@@ -33,9 +33,7 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Client* client);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        TF_Client* (*new_client)(void* plugin_context, const TF_String* host, uint16_t port, TF_Status* status);
+        void (*get_name)(TF_Client* client, TF_String* out);
 
         void (*connect)(TF_Client* client, int64_t timeout_ms, TF_Status* status);
         void (*connect_async)(

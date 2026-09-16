@@ -27,9 +27,7 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Request* request);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        TF_Request* (*new_request)(void* plugin_context, uint32_t stream_id, TF_Status* status);
+        void (*get_name)(TF_Request* request, TF_String* out);
 
         void (*set_method)(TF_Request* request, const TF_String* method, TF_Status* status);
         void (*get_method)(TF_Request* request, TF_String* out);

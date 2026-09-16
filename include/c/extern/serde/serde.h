@@ -26,24 +26,26 @@ extern "C"
 {
 #endif
 
-
-    // encode/decode write their result into a caller-supplied TF_String (by-value output parameter).  No heap allocation, no free_string needed.
+    typedef struct TF_Serde
+    {
+        void* plugin_data;
+    } TF_Serde;
 
     typedef struct TF_SerdeOps
     {
         size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        void (*get_content_type)(void* plugin_context, TF_String* out);
-        void (*get_format_name)(void* plugin_context, TF_String* out);
+        void (*destroy)(TF_Serde* serde);
+        void (*get_name)(TF_Serde* serde, TF_String* out);
+        void (*get_content_type)(TF_Serde* serde, TF_String* out);
+        void (*get_format_name)(TF_Serde* serde, TF_String* out);
         void (*encode)(
-            void* plugin_context,
+            TF_Serde* serde,
             const TF_String* value_json,
             TF_String* out_encoded,
             TF_Status* status
         );
         void (*decode)(
-            void* plugin_context,
+            TF_Serde* serde,
             const TF_String* data,
             TF_String* out_json,
             TF_Status* status

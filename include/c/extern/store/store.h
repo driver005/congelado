@@ -44,15 +44,13 @@ extern "C"
     {
         size_t struct_size;
 
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        int (*is_connected)(void* plugin_context);
+        void (*destroy)(TF_Store* store);
+        void (*get_name)(TF_Store* store, TF_String* out);
+        int (*is_connected)(TF_Store* store);
 
-        // Collections/tables/indices.
-        TF_Store* (*open_collection)(void* plugin_context, const TF_String* name, TF_Status* status);
         void (*close_collection)(TF_Store* collection);
-        void (*list_collections)(void* plugin_context, TF_Vector* out_names, TF_Status* status);
-        void (*drop_collection)(void* plugin_context, const TF_String* name, TF_Status* status);
+        void (*list_collections)(TF_Store* store, TF_Vector* out_names, TF_Status* status);
+        void (*drop_collection)(TF_Store* store, const TF_String* name, TF_Status* status);
 
         // out_stats keys such as item_count/size_bytes are a documented convention, not enforced by this header.
         void (*get_collection_stats)(
@@ -167,7 +165,6 @@ extern "C"
         void (*persist)(TF_Store* collection, const TF_String* key, TF_Store_AckFn completion, void* user_data, TF_Status* status);
 
         // Transactions.
-        TF_Store_Transaction* (*begin_transaction)(void* plugin_context, TF_Status* status);
         void (*commit_transaction)(TF_Store_Transaction* transaction, TF_Store_AckFn completion, void* user_data, TF_Status* status);
         void (*rollback_transaction)(TF_Store_Transaction* transaction);
 
@@ -205,8 +202,8 @@ extern "C"
         );
 
         // Operations.
-        void (*backup)(void* plugin_context, const TF_String* destination, TF_Store_AckFn completion, void* user_data, TF_Status* status);
-        void (*restore)(void* plugin_context, const TF_String* source, TF_Store_AckFn completion, void* user_data, TF_Status* status);
+        void (*backup)(TF_Store* store, const TF_String* destination, TF_Store_AckFn completion, void* user_data, TF_Status* status);
+        void (*restore)(TF_Store* store, const TF_String* source, TF_Store_AckFn completion, void* user_data, TF_Status* status);
 
     } TF_StoreOps;
 

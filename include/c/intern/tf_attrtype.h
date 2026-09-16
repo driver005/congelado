@@ -27,7 +27,6 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
     // TF_AttrType_Enum describes the type of the value of an attribute on an operation.
     typedef enum TF_AttrType_Enum
     {
@@ -42,17 +41,19 @@ extern "C"
         TF_ATTR_FUNC = 8,
     } TF_AttrType_Enum;
 
-    // --------------------------------------------------------------------------
-    // TF_AttrType — plugin vtable for attr-type operations.
+    typedef struct TF_AttrType
+    {
+        void* plugin_data;
+    } TF_AttrType;
+
     typedef struct TF_AttrTypeOps
     {
         size_t struct_size;
 
-        // Return the backend's name (e.g. "attrtype") into *out.
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*get_name)(TF_AttrType* attrtype, TF_String* out);
 
         // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING) into *out.
-        void (*attrtype_name)(void* plugin_context, TF_AttrType_Enum type, TF_String* out);
+        void (*attrtype_name)(TF_AttrType* attrtype, TF_AttrType_Enum type, TF_String* out);
 
     } TF_AttrTypeOps;
 

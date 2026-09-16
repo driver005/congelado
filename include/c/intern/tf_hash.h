@@ -12,20 +12,22 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
-    // TF_Hash — plugin vtable for default hashing helpers (std::hash equivalent) for callers of TF_Map / TF_Set that don't need a specialized hash_fn of their own.
+    typedef struct TF_Hash
+    {
+        void* plugin_data;
+    } TF_Hash;
+
     typedef struct TF_HashOps
     {
         size_t struct_size;
 
-        // Return the backend's name (e.g. "hash") into *out.
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*get_name)(TF_Hash* hash, TF_String* out);
 
-        // FNV-1a hash of size bytes starting at data. Suitable as a TF_MapHashFn/TF_SetHashFn (see tf_map.h/tf_set.h) for byte-comparable keys (integers, fixed-layout structs, raw buffers).
-        size_t (*hash_bytes)(void* plugin_context, const void* data, size_t size);
+        // FNV-1a hash of size bytes starting at data.
+        size_t (*hash_bytes)(TF_Hash* hash, const void* data, size_t size);
 
-        // Combine an existing hash (seed) with the hash of one more field, in the style of boost::hash_combine. Use to build a hash_fn for a key made of several fields, each hashed with hash_bytes (or itself) and folded together in field order.
-        size_t (*hash_combine)(void* plugin_context, size_t seed, size_t value);
+        // Combine an existing hash (seed) with the hash of one more field.
+        size_t (*hash_combine)(TF_Hash* hash, size_t seed, size_t value);
 
     } TF_HashOps;
 

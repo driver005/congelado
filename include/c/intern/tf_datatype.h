@@ -27,7 +27,6 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
     // TF_DataType_Enum — scalar element type for tensors. Values are identical to the corresponding entries in types.proto.
     typedef enum TF_DataType_Enum
     {
@@ -70,17 +69,19 @@ extern "C"
     // Global helper (non-vtable path).
     TF_CAPI_EXPORT size_t datatype_size(TF_DataType_Enum dt);
 
-    // --------------------------------------------------------------------------
-    // TF_DataType — plugin vtable for data-type operations.
+    typedef struct TF_DataType
+    {
+        void* plugin_data;
+    } TF_DataType;
+
     typedef struct TF_DataTypeOps
     {
         size_t struct_size;
 
-        // Return the backend's name (e.g. "datatype") into *out.
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*get_name)(TF_DataType* datatype, TF_String* out);
 
         // Return the byte size of one scalar element of the given type. Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
-        size_t (*datatype_size)(void* plugin_context, TF_DataType_Enum dt);
+        size_t (*datatype_size)(TF_DataType* datatype, TF_DataType_Enum dt);
 
     } TF_DataTypeOps;
 

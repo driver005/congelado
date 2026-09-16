@@ -56,13 +56,10 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Job* job);
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*get_name)(TF_Job* job, TF_String* out);
 
-        // Synchronous: blocks, returns output directly. Restores worker.execute's original call shape; independent of submit/on_complete below.
-        void (*execute)(void* plugin_context, const TF_String* input, TF_String* out_output, TF_Status* status);
-
-        // options may be NULL for "run once now, default priority, no retry/timeout".
-        TF_Job* (*submit)(void* plugin_context, const TF_String* input, const TF_Job_Options* options, TF_Status* status);
+        // Synchronous: blocks, returns output directly.
+        void (*execute)(TF_Job* job, const TF_String* input, TF_String* out_output, TF_Status* status);
 
         // Manual retry of a failed job.
         void (*resubmit)(TF_Job* job, TF_Status* status);
@@ -112,7 +109,7 @@ extern "C"
         void (*list_tasks)(TF_Job* parent, TF_Vector* out_node_refs, TF_Status* status);
         void (*cancel_task)(TF_Job* parent, const TF_String* node_ref, TF_Status* status);
 
-        void (*list)(void* plugin_context, const TF_Map* filters, TF_Vector* out_job_ids, TF_Status* status);
+        void (*list)(TF_Job* job, const TF_Map* filters, TF_Vector* out_job_ids, TF_Status* status);
 
     } TF_JobOps;
 

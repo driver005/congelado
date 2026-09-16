@@ -40,15 +40,13 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Server* server);
-        void (*get_name)(void* plugin_context, TF_String* out);
+        void (*get_name)(TF_Server* server, TF_String* out);
 
         // Bind configuration.
-        void (*get_bind_host)(void* plugin_context, TF_String* out);
-        uint16_t (*get_bind_port)(void* plugin_context);
-        void (*get_tls_cert)(void* plugin_context, TF_String* out);
-        void (*get_tls_key)(void* plugin_context, TF_String* out);
-
-        TF_Server* (*new_server)(void* plugin_context, TF_Status* status);
+        void (*get_bind_host)(TF_Server* server, TF_String* out);
+        uint16_t (*get_bind_port)(TF_Server* server);
+        void (*get_tls_cert)(TF_Server* server, TF_String* out);
+        void (*get_tls_key)(TF_Server* server, TF_String* out);
 
         void (*set_request_handler)(TF_Server* server, TF_Server_RequestHandler handler, void* user_data);
         void (*on_connect)(TF_Server* server, TF_Server_ConnectFn handler, void* user_data);

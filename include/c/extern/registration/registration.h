@@ -24,10 +24,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Registration* registration);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        // Allocate a new, empty registry. Must be freed with destroy_registration.
-        TF_Registration* (*new_registration)(void* plugin_context);
+        void (*get_name)(TF_Registration* registration, TF_String* out);
 
         void (*register_op)(
             TF_Registration* registration,

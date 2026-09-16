@@ -11,41 +11,19 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
-    // TF_Complex — plugin vtable for a two-component complex number (std::complex<T> equivalent). Components are always carried as double; is_double, given at creation, records whether the logical precision is float or double for callers that care.
-    //
-    // TF_Complex is an opaque pointer to a plugin-owned complex object.
     typedef struct TF_Complex
     {
         void* plugin_data;
     } TF_Complex;
 
-    // Plugin-facing vtable registered via create_complex.
     typedef struct TF_ComplexOps
     {
         size_t struct_size;
 
-        // Allocate a new complex number real + imag*i. is_double is non-zero if the logical precision is double rather than float. Must be freed with destroy.
-        TF_Complex* (*new_complex)(
-            void* plugin_context,
-            int is_double,
-            double real,
-            double imag
-        );
-
-        // The real component.
         double (*get_real)(const TF_Complex* complex_value);
-
-        // The imaginary component.
         double (*get_imag)(const TF_Complex* complex_value);
-
-        // Overwrite the real component.
         void (*set_real)(TF_Complex* complex_value, double real);
-
-        // Overwrite the imaginary component.
         void (*set_imag)(TF_Complex* complex_value, double imag);
-
-        // Free a handle returned by new_complex.
         void (*destroy)(TF_Complex* complex_value);
 
     } TF_ComplexOps;
