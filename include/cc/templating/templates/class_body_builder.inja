@@ -7,7 +7,7 @@
                         template<typename HandleT>
                         static {{ class_name }}* create(HandleT* handle) noexcept
                         {
-                            return reinterpret_cast<{{ class_name }}*>(handle);
+                            return static_cast<{{ class_name }}*>(handle->plugin_data);
                         }
 
                         {{ extra_ctor }}

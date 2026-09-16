@@ -16,15 +16,26 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Registration : public ice::sonic::Runtime<Registration, TF_Registration>
+class Registration : public ice::sonic::Runtime<Registration, TF_RegistrationOps>
 {
 public:
-    explicit Registration(TF_Registration* ops, void* plugin_context) noexcept :
+    explicit Registration(TF_RegistrationOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "registration";
+
+    [[nodiscard]] std::expected<void, ice::Status> new_registration() noexcept
+    {
+        ice::Status status;
+        m_ops->new_registration(get_handle(), status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
 
     [[nodiscard]] std::expected<void, ice::Status> register_op(
         const ice::sonic::String& type,

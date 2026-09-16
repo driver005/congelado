@@ -67,7 +67,11 @@ cc_library(
 cc_library(
     name = "tf_file_statistics_hdrs",
     hdrs = ["intern/tf_file_statistics.h"],
-    deps = [":c_api_macros_hdrs"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
+    ],
 )
 
 cc_library(
@@ -92,7 +96,7 @@ cc_library(
     ],
 )
 
-# init_string, like init_buffer/init_shape, is declared-only — no default implementation
+# create_string, like create_buffer/create_shape, is declared-only — no default implementation
 # anywhere in the repo, graceful null-ops degradation expected. TF_String is an ops-vtable
 # (see tf_tstring.h), not a free-function API.
 
@@ -281,17 +285,31 @@ cc_library(
     hdrs = [
         "extern/filesystem/filesystem.h",
         "extern/filesystem/option_types.h",
+        "extern/filesystem/random_access_file.h",
+        "extern/filesystem/writable_file.h",
+        "extern/filesystem/read_only_memory_region.h",
     ],
     deps = [
         ":c_api_macros_hdrs",
+        ":tf_file_statistics_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tensor_hdrs",
+        ":tf_tstring_hdrs",
     ],
 )
 
 cc_library(
     name = "extern_generator_hdrs",
     hdrs = [
+        "extern/generator/attribute.h",
+        "extern/generator/block.h",
+        "extern/generator/definition.h",
         "extern/generator/function.h",
         "extern/generator/generator.h",
+        "extern/generator/module.h",
+        "extern/generator/node.h",
+        "extern/generator/parameter.h",
+        "extern/generator/typeinfo.h",
     ],
     deps = [
         ":c_api_macros_hdrs",
@@ -363,8 +381,17 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_otel_enums_hdrs",
-    hdrs = ["extern/otel/enums.h"],
+    name = "extern_io_hdrs",
+    hdrs = ["extern/io/io.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":extern_client_hdrs",
+        ":extern_request_hdrs",
+        ":extern_response_hdrs",
+        ":extern_server_hdrs",
+        ":extern_socket_hdrs",
+        ":tf_status_hdrs",
+    ],
 )
 
 cc_library(
@@ -372,7 +399,6 @@ cc_library(
     hdrs = ["extern/otel/otel.h"],
     deps = [
         ":c_api_macros_hdrs",
-        ":extern_otel_enums_hdrs",
     ],
 )
 
@@ -403,6 +429,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "extern_registration_hdrs",
+    hdrs = ["extern/registration/registration.h"],
+    deps = [
+        ":c_api_macros_hdrs",
+        ":tf_status_hdrs",
+        ":tf_tstring_hdrs",
+    ],
+)
+
 
 # =============================================================================
 # Aggregate: c_api_headers — the public TF C API surface
@@ -415,12 +451,13 @@ cc_library(
         ":extern_client_hdrs",
         ":extern_filesystem_hdrs",
         ":extern_generator_hdrs",
+        ":extern_io_hdrs",
         ":extern_job_hdrs",
         ":extern_otel_hdrs",
         ":extern_plugin_hdrs",
         ":extern_profiler_hdrs",
         ":extern_pubsub_hdrs",
-        # ":extern_registration_hdrs",  # include/c/extern/registration/ deleted, rule never re-added
+        ":extern_registration_hdrs",
         ":extern_request_hdrs",
         ":extern_response_hdrs",
         ":extern_serde_hdrs",

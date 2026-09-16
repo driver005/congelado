@@ -27,10 +27,9 @@ extern "C"
 #endif
 
 
-    // encode/decode write their result into a caller-supplied TF_String_Handle (by-value output
-    // parameter).  No heap allocation, no free_string needed.
+    // encode/decode write their result into a caller-supplied TF_String (by-value output parameter).  No heap allocation, no free_string needed.
 
-    typedef struct TF_Serde
+    typedef struct TF_SerdeOps
     {
         size_t struct_size;
         void (*destroy)(void* plugin_context);
@@ -39,21 +38,22 @@ extern "C"
         void (*get_format_name)(void* plugin_context, TF_String* out);
         void (*encode)(
             void* plugin_context,
-            const TF_String_Handle* value_json,
+            const TF_String* value_json,
             TF_String* out_encoded,
-            TF_Status_Handle* status
+            TF_Status* status
         );
         void (*decode)(
             void* plugin_context,
-            const TF_String_Handle* data,
+            const TF_String* data,
             TF_String* out_json,
-            TF_Status_Handle* status
+            TF_Status* status
         );
-    } TF_Serde;
+    } TF_SerdeOps;
 
-#define TF_SERDE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Serde, decode)
+#define TF_SERDE_STRUCT_SIZE TF_OFFSET_OF_END(TF_SerdeOps, decode)
 
-    TF_CAPI_EXPORT void init_serde(TF_Serde** ops, void** plugin_context, TF_Status_Handle* status);
+    TF_CAPI_EXPORT void create_serde(TF_SerdeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_serde(void* plugin_context);
 
 #ifdef __cplusplus
 }

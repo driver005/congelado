@@ -28,7 +28,7 @@ public:
     template<typename HandleT>
     static Store* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Store*>(handle);
+        return static_cast<Store*>(handle->plugin_data);
     }
 
     virtual ~Store() = default;
@@ -139,9 +139,9 @@ public:
         0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Store* get_generic_vtable()
+    static TF_StoreOps* get_generic_vtable()
     {
-        static TF_Store vtable = {
+        static TF_StoreOps vtable = {
             .struct_size = TF_STORE_STRUCT_SIZE,
 
             .destroy =
@@ -167,9 +167,7 @@ public:
                 }
             },
             .open_collection =
-                [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* name, TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res = self->open_collection(ice::sonic::String::wrap(name));
@@ -178,7 +176,7 @@ public:
                 }
             },
             .close_collection =
-                [](TF_Store_Handle* collection) noexcept
+                [](TF_Store* collection) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->close_collection();
@@ -187,9 +185,7 @@ public:
                 }
             },
             .list_collections =
-                [](void* plugin_context,
-                   TF_Vector_Handle* out_names,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Vector* out_names, TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res = self->list_collections(ice::sonic::Vector::wrap(out_names));
@@ -198,9 +194,7 @@ public:
                 }
             },
             .drop_collection =
-                [](void* plugin_context,
-                   const TF_String_Handle* name,
-                   TF_Status_Handle* status) noexcept
+                [](void* plugin_context, const TF_String* name, TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res = self->drop_collection(ice::sonic::String::wrap(name));
@@ -209,9 +203,7 @@ public:
                 }
             },
             .get_collection_stats =
-                [](TF_Store_Handle* collection,
-                   TF_Map_Handle* out_stats,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Store* collection, TF_Map* out_stats, TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->get_collection_stats(ice::sonic::Map::wrap(out_stats));
@@ -220,11 +212,11 @@ public:
                 }
             },
             .get =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    TF_Store_GetCompletionFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->get(ice::sonic::String::wrap(key), completion, user_data);
@@ -233,11 +225,11 @@ public:
                 }
             },
             .multi_get =
-                [](TF_Store_Handle* collection,
-                   const TF_Vector_Handle* keys,
+                [](TF_Store* collection,
+                   const TF_Vector* keys,
                    TF_Store_MultiGetCompletionFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->multi_get(ice::sonic::Vector::wrap(keys), completion, user_data);
@@ -246,13 +238,13 @@ public:
                 }
             },
             .set =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
-                   const TF_String_Handle* value,
+                [](TF_Store* collection,
+                   const TF_String* key,
+                   const TF_String* value,
                    int64_t ttl_seconds,
                    TF_Store_SetCompletionFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->set(
@@ -267,12 +259,12 @@ public:
                 }
             },
             .multi_set =
-                [](TF_Store_Handle* collection,
-                   const TF_Map_Handle* entries,
+                [](TF_Store* collection,
+                   const TF_Map* entries,
                    int64_t ttl_seconds,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->multi_set(
@@ -286,11 +278,11 @@ public:
                 }
             },
             .remove =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->remove(ice::sonic::String::wrap(key), completion, user_data);
@@ -299,11 +291,11 @@ public:
                 }
             },
             .multi_remove =
-                [](TF_Store_Handle* collection,
-                   const TF_Vector_Handle* keys,
+                [](TF_Store* collection,
+                   const TF_Vector* keys,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res =
@@ -313,11 +305,11 @@ public:
                 }
             },
             .exists =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    TF_Store_ExistsFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->exists(ice::sonic::String::wrap(key), completion, user_data);
@@ -326,12 +318,12 @@ public:
                 }
             },
             .rename =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* old_key,
-                   const TF_String_Handle* new_key,
+                [](TF_Store* collection,
+                   const TF_String* old_key,
+                   const TF_String* new_key,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->rename(
@@ -345,10 +337,10 @@ public:
                 }
             },
             .clear =
-                [](TF_Store_Handle* collection,
+                [](TF_Store* collection,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->clear(completion, user_data);
@@ -357,12 +349,12 @@ public:
                 }
             },
             .increment =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    int64_t delta,
                    TF_Store_IntFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res =
@@ -372,13 +364,13 @@ public:
                 }
             },
             .compare_and_swap =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
-                   const TF_String_Handle* expected_value,
-                   const TF_String_Handle* new_value,
+                [](TF_Store* collection,
+                   const TF_String* key,
+                   const TF_String* expected_value,
+                   const TF_String* new_value,
                    TF_Store_BoolFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->compare_and_swap(
@@ -393,12 +385,12 @@ public:
                 }
             },
             .expire =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    int64_t ttl_seconds,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res =
@@ -408,11 +400,11 @@ public:
                 }
             },
             .get_ttl =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    TF_Store_IntFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->get_ttl(ice::sonic::String::wrap(key), completion, user_data);
@@ -421,11 +413,11 @@ public:
                 }
             },
             .persist =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key,
+                [](TF_Store* collection,
+                   const TF_String* key,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->persist(ice::sonic::String::wrap(key), completion, user_data);
@@ -434,7 +426,7 @@ public:
                 }
             },
             .begin_transaction =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res = self->begin_transaction();
@@ -446,7 +438,7 @@ public:
                 [](TF_Store_Transaction* transaction,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(transaction);
                 auto res = self->commit_transaction(completion, user_data);
@@ -464,10 +456,10 @@ public:
                 }
             },
             .create_index =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* name,
-                   const TF_Map_Handle* field_config,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Store* collection,
+                   const TF_String* name,
+                   const TF_Map* field_config,
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->create_index(
@@ -479,9 +471,7 @@ public:
                 }
             },
             .drop_index =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* name,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Store* collection, const TF_String* name, TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->drop_index(ice::sonic::String::wrap(name));
@@ -490,9 +480,7 @@ public:
                 }
             },
             .list_indexes =
-                [](TF_Store_Handle* collection,
-                   TF_Vector_Handle* out_names,
-                   TF_Status_Handle* status) noexcept
+                [](TF_Store* collection, TF_Vector* out_names, TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->list_indexes(ice::sonic::Vector::wrap(out_names));
@@ -501,11 +489,11 @@ public:
                 }
             },
             .watch =
-                [](TF_Store_Handle* collection,
-                   const TF_String_Handle* key_prefix,
+                [](TF_Store* collection,
+                   const TF_String* key_prefix,
                    TF_Store_WatchFn handler,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->watch(ice::sonic::String::wrap(key_prefix), handler, user_data);
@@ -523,15 +511,15 @@ public:
                 }
             },
             .query =
-                [](TF_Store_Handle* collection,
-                   const TF_Map_Handle* filters,
-                   const TF_String_Handle* free_text,
-                   const TF_String_Handle* sort,
+                [](TF_Store* collection,
+                   const TF_Map* filters,
+                   const TF_String* free_text,
+                   const TF_String* sort,
                    size_t offset,
                    size_t limit,
                    TF_Store_QueryFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(collection);
                 auto res = self->query(
@@ -549,10 +537,10 @@ public:
             },
             .backup =
                 [](void* plugin_context,
-                   const TF_String_Handle* destination,
+                   const TF_String* destination,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res =
@@ -563,10 +551,10 @@ public:
             },
             .restore =
                 [](void* plugin_context,
-                   const TF_String_Handle* source,
+                   const TF_String* source,
                    TF_Store_AckFn completion,
                    void* user_data,
-                   TF_Status_Handle* status) noexcept
+                   TF_Status* status) noexcept
             {
                 auto* self = Store::create(plugin_context);
                 auto res = self->restore(ice::sonic::String::wrap(source), completion, user_data);

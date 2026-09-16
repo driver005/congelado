@@ -12,26 +12,47 @@ extern "C"
 {
 #endif
 
-    // Generic process-wide named-value registry, shared across every dynamically loaded
-    // plugin .so and the host process (this header's implementation is built as its own
-    // linkshared target, so there is genuinely one instance of the backing storage — see
-    // registration.cc). Used for things like ice::sonic::Generator's in-process
-    // lookup of a generator factory function pointer under type="generator", name="stablehlo".
-
+    // Generic named-value registry. Used for things like ice::sonic::Generator's in-process lookup of a generator factory function pointer under type="generator", name="stablehlo".
+    //
+    // TF_Registration is an opaque pointer to one plugin-owned registry instance. Callers that want a single process-wide registry just allocate one handle up front and share it everywhere; nothing here forces that — multiple independent registries are equally valid.
     typedef struct TF_Registration
     {
-        size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-        void (*register_op)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name, void* value);
-        void* (*get)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name);
-        void (*unregister)(void* plugin_context, const TF_String_Handle* type, const TF_String_Handle* name);
+        void* plugin_data;
     } TF_Registration;
 
-#define TF_REGISTRATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Registration, unregister)
+    typedef struct TF_RegistrationOps
+    {
+        size_t struct_size;
+        void (*destroy)(TF_Registration* registration);
+        void (*get_name)(void* plugin_context, TF_String* out);
+
+        // Allocate a new, empty registry. Must be freed with destroy_registration.
+        TF_Registration* (*new_registration)(void* plugin_context);
+
+        void (*register_op)(
+            TF_Registration* registration,
+            const TF_String* type,
+            const TF_String* name,
+            void* value
+        );
+        void* (*get)(
+            const TF_Registration* registration,
+            const TF_String* type,
+            const TF_String* name
+        );
+        void (*unregister)(
+            TF_Registration* registration,
+            const TF_String* type,
+            const TF_String* name
+        );
+
+    } TF_RegistrationOps;
+
+#define TF_REGISTRATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_RegistrationOps, unregister)
 
     TF_CAPI_EXPORT void
-    init_registration(TF_Registration** ops, void** plugin_context, TF_Status_Handle* status);
+    create_registration(TF_RegistrationOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_registration(void* plugin_context);
 
 #ifdef __cplusplus
 }

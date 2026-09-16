@@ -11,44 +11,51 @@ extern "C"
 {
 #endif
 
-    // --------------------------------------------------------------------------
-    // TF_Array — plugin vtable for a type-erased fixed-size, contiguous
-    // collection (std::array<T, N> equivalent). Both element_size and element
-    // count are fixed at creation; unlike TF_Vector, it never grows.
-    //
-    // TF_Array_Handle is an opaque pointer to a plugin-owned array object.
-    typedef struct TF_Array_Handle TF_Array_Handle;
+    // TF_Array — plugin vtable for a type-erased fixed-size, contiguous collection (std::array<T, N> equivalent). Both element_size and element count are fixed at creation; unlike TF_Vector, it never grows.
+    typedef struct TF_ArrayOps TF_ArrayOps;
 
-    // Plugin-facing vtable registered via init_array.
     typedef struct TF_Array
+    {
+        void* plugin_data;
+        const TF_ArrayOps* ops;
+    } TF_Array;
+
+    // Plugin-facing vtable registered via create_array.
+    typedef struct TF_ArrayOps
     {
         size_t struct_size;
 
-        // Allocate a new array of count element_size-byte elements,
-        // value-initialized to zero. Must be freed with destroy.
-        TF_Array_Handle* (*new_array)(void* plugin_context, size_t element_size, size_t count);
+        void (*set_element_size)(TF_Array* array, size_t element_size);
+        void (*set_count)(TF_Array* array, size_t count);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(const TF_Array_Handle* array, size_t index);
+        const void* (*get)(const TF_Array* array, size_t index);
 
-        // Copy one element_size-byte element from value over the element at
-        // index.
-        void (*set)(TF_Array_Handle* array, size_t index, const void* value);
+        // Copy one element_size-byte element from value over the element at index.
+        void (*set)(TF_Array* array, size_t index, const void* value);
 
-        // Fixed element count, as given to new_array.
-        size_t (*size)(const TF_Array_Handle* array);
+        // Element count, as given via set_count.
+        size_t (*size)(const TF_Array* array);
 
         // Non-owning pointer to the contiguous backing storage.
-        void* (*data)(TF_Array_Handle* array);
+        void* (*data)(TF_Array* array);
 
-        // Free a handle returned by new_array.
-        void (*destroy)(void* plugin_context, TF_Array_Handle* array);
+        void (*destroy)(TF_Array* array);
 
-    } TF_Array;
+    } TF_ArrayOps;
 
-#define TF_ARRAY_STRUCT_SIZE TF_OFFSET_OF_END(TF_Array, destroy)
+#define TF_ARRAY_STRUCT_SIZE TF_OFFSET_OF_END(TF_ArrayOps, destroy)
 
-    TF_CAPI_EXPORT void init_array(TF_Array** ops, void** plugin_context, TF_Status_Handle* status);
+    TF_CAPI_EXPORT void create_array(TF_ArrayOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_array(void* plugin_context);
+
+    // Real implementation, not declared-only — calls create_array and fills in array->ops.
+    static inline void init_array(TF_Array* array, TF_Status* status)
+    {
+        TF_ArrayOps* ops = NULL;
+        create_array(&ops, &array->plugin_data, status);
+        array->ops = ops;
+    }
 
 #ifdef __cplusplus
 } /* end extern "C" */

@@ -37,8 +37,7 @@ limitations under the License.
 #    endif     // _WIN32
 #endif         // SWIG
 
-// Macro used to calculate struct size for maintaining ABI stability across
-// different struct implementations.
+// Macro used to calculate struct size for maintaining ABI stability across different struct implementations.
 #ifndef TF_OFFSET_OF_END
 #    define TF_OFFSET_OF_END(TYPE, MEMBER) (offsetof(TYPE, MEMBER) + sizeof(((TYPE*)0)->MEMBER))
 #endif // TF_OFFSET_OF_END

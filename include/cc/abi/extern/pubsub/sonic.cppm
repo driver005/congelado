@@ -16,10 +16,10 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Pubsub : public ice::sonic::Runtime<Pubsub, TF_PubSub>
+class Pubsub : public ice::sonic::Runtime<Pubsub, TF_PubSubOps>
 {
 public:
-    explicit Pubsub(TF_PubSub* ops, void* plugin_context) noexcept :
+    explicit Pubsub(TF_PubSubOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }

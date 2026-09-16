@@ -28,19 +28,20 @@ public:
     template<typename HandleT>
     static Profiler* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Profiler*>(handle);
+        return static_cast<Profiler*>(handle->plugin_data);
     }
 
     virtual ~Profiler() = default;
-    [[nodiscard]] std::expected<void, ice::Status> get_device_type(TF_String* out) noexcept = 0;
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_device_type(const ice::sonic::String& out) noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status> start() noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status> stop() noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status> collect_data_xspace() noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Profiler* get_generic_vtable()
+    static TF_ProfilerOps* get_generic_vtable()
     {
-        static TF_Profiler vtable = {
+        static TF_ProfilerOps vtable = {
             .struct_size = TF_PROFILER_STRUCT_SIZE,
 
             .destroy =
@@ -60,13 +61,13 @@ public:
                 [](void* plugin_context, TF_String* out) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
-                auto res = self->get_device_type(out);
+                auto res = self->get_device_type(ice::sonic::String::wrap(out));
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .start =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->start();
@@ -75,7 +76,7 @@ public:
                 }
             },
             .stop =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->stop();
@@ -84,7 +85,7 @@ public:
                 }
             },
             .collect_data_xspace =
-                [](void* plugin_context, TF_Status_Handle* status) noexcept
+                [](void* plugin_context, TF_Status* status) noexcept
             {
                 auto* self = Profiler::create(plugin_context);
                 auto res = self->collect_data_xspace();

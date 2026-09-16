@@ -130,19 +130,14 @@ private:
                 m_writer += ", ";
             }
 
-            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no
-            // pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through
-            // unchanged instead of looking them up in the registry.
-            if (!parameter.is_handle()) {
+            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through unchanged instead of looking them up in the registry. A struct-pointer parameter whose pointee isn't a registered domain (e.g. TF_Job_Options*) passes through the same way — not every pointee is a wrapped handle.
+            auto model = parameter.has_pointee()
+                ? m_registry.get().find(parameter.get_registry_key())
+                : std::nullopt;
+
+            if (!model.has_value()) {
                 m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
                 continue;
-            }
-
-            auto model = m_registry.get().find(parameter.get_registry_key());
-            if (!model.has_value()) {
-                return std::unexpected(
-                    std::format("Type {} not found in registry", parameter.get_pointee_name())
-                );
             }
 
             m_writer += helper::format_parameter(
@@ -158,16 +153,13 @@ private:
     write_call_arguments(std::span<const parser::helper::Parameter> parameters)
     {
         for (const parser::helper::Parameter& parameter: parameters) {
-            if (!parameter.is_handle()) {
+            auto model = parameter.has_pointee()
+                ? m_registry.get().find(parameter.get_registry_key())
+                : std::nullopt;
+
+            if (!model.has_value()) {
                 m_writer += std::string{parameter.get_name()} + ", ";
                 continue;
-            }
-
-            auto model = m_registry.get().find(parameter.get_registry_key());
-            if (!model.has_value()) {
-                return std::unexpected(
-                    std::format("Type {} not found in registry", parameter.get_pointee_name())
-                );
             }
 
             m_writer += model->get().unwrape_type(parameter.get_name()) + ", ";

@@ -5,6 +5,10 @@
 #include "c/intern/tf_status.h"
 #include "c/intern/tf_tensor.h"
 #include "c/intern/tf_tstring.h"
+#include "c/extern/generator/definition.h"
+#include "c/extern/generator/parameter.h"
+#include "c/extern/generator/attribute.h"
+#include "c/extern/generator/block.h"
 
 #include <stddef.h>
 
@@ -13,47 +17,66 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator_Definition TF_Generator_Definition;
-    typedef struct TF_Generator_Parameter TF_Generator_Parameter;
-
-    // --------------------------------------------------------------------------
-    // TF_Generator_Function — in-progress function body being built by a
-    // TF_Generator (via its create_function slot).
-    typedef struct TF_Generator_Function_Handle TF_Generator_Function_Handle;
-
-    // Plugin-facing vtable registered via init_generator_function.
     typedef struct TF_Generator_Function
     {
-        size_t struct_size;
-        void (*destroy)(void* plugin_context);
-        void (*get_name)(void* plugin_context, TF_String* out);
-
-        void (*destroy_function)(TF_Generator_Function_Handle* function);
-        TF_Generator_Parameter* (*add_parameter)(
-            TF_Generator_Function_Handle* function,
-            const TF_String_Handle* name,
-            const TF_String_Handle* type_text,
-            TF_Status_Handle* status
-        );
-        void (*add_node)(
-            TF_Generator_Function_Handle* function,
-            const TF_Generator_Definition* def_context,
-            const TF_Tensor_Handle* operands,
-            const TF_Tensor_Handle* attrs,
-            TF_Tensor_Handle* out_results,
-            TF_Status_Handle* status
-        );
-        void (*finish)(
-            TF_Generator_Function_Handle* function,
-            const TF_Tensor_Handle* outputs,
-            TF_Status_Handle* status
-        );
+        void* plugin_data;
     } TF_Generator_Function;
 
-#define TF_GENERATOR_FUNCTION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_Function, finish)
+    typedef struct TF_Generator_FunctionOps
+    {
+        size_t struct_size;
+        void (*destroy)(TF_Generator_Function* function);
+        void (*get_name)(TF_Generator_Function* function, TF_String* out);
+
+        void (*add_parameter)(
+            TF_Generator_Function* function,
+            TF_Generator_Parameter* parameter,
+            TF_Status* status
+        );
+        void (*add_attribute)(
+            TF_Generator_Function* function,
+            TF_Generator_Attribute* attribute,
+            TF_Status* status
+        );
+        void (*add_definition)(
+            TF_Generator_Function* function,
+            TF_Generator_Definition* definition,
+            TF_Status* status
+        );
+        void (*add_block)(
+            TF_Generator_Function* function,
+            TF_Generator_Block* block,
+            TF_Status* status
+        );
+
+        TF_Generator_Parameter* (*get_parameter)(
+            TF_Generator_Function* function,
+            const TF_String* name
+        );
+        TF_Generator_Attribute* (*get_attribute)(
+            TF_Generator_Function* function,
+            const TF_String* name
+        );
+        TF_Generator_Definition* (*get_definition)(TF_Generator_Function* function, const TF_String* name);
+        TF_Generator_Block* (*get_block)(TF_Generator_Function* function, const TF_String* name);
+
+        TF_Tensor* (*list_parameters)(TF_Generator_Function* function, TF_Status* status);
+        TF_Tensor* (*list_attributes)(TF_Generator_Function* function, TF_Status* status);
+        TF_Tensor* (*list_definitions)(TF_Generator_Function* function, TF_Status* status);
+        TF_Tensor* (*list_blocks)(TF_Generator_Function* function, TF_Status* status);
+
+        void (*finish)(
+            TF_Generator_Function* function,
+            const TF_Tensor* outputs,
+            TF_Status* status
+        );
+    } TF_Generator_FunctionOps;
+
+#define TF_GENERATOR_FUNCTION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_FunctionOps, finish)
 
     TF_CAPI_EXPORT void
-    init_generator_function(TF_Generator_Function** ops, void** plugin_context, TF_Status_Handle* status);
+    create_generator_function(TF_Generator_FunctionOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_generator_function(void* plugin_context);
 
 #ifdef __cplusplus
 } /* end extern "C" */

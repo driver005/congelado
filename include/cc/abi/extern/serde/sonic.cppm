@@ -16,31 +16,21 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Serde : public ice::sonic::Runtime<Serde, TF_Serde>
+class Serde : public ice::sonic::Runtime<Serde, TF_SerdeOps>
 {
 public:
-    explicit Serde(TF_Serde* ops, void* plugin_context) noexcept :
+    explicit Serde(TF_SerdeOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "serde";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_content_type(TF_String* out) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_content_type(const ice::sonic::String& out) noexcept
     {
         ice::Status status;
-        m_ops->get_content_type(get_handle(), out, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> get_format_name(TF_String* out) noexcept
-    {
-        ice::Status status;
-        m_ops->get_format_name(get_handle(), out, status.get_handle());
+        m_ops->get_content_type(get_handle(), out.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,10 +39,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    encode(const ice::sonic::String& value_json, TF_String* out_encoded) noexcept
+    get_format_name(const ice::sonic::String& out) noexcept
     {
         ice::Status status;
-        m_ops->encode(get_handle(), value_json.get_handle(), out_encoded, status.get_handle());
+        m_ops->get_format_name(get_handle(), out.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,10 +51,27 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    decode(const ice::sonic::String& data, TF_String* out_json) noexcept
+    encode(const ice::sonic::String& value_json, const ice::sonic::String& out_encoded) noexcept
     {
         ice::Status status;
-        m_ops->decode(get_handle(), data.get_handle(), out_json, status.get_handle());
+        m_ops->encode(
+            get_handle(),
+            value_json.get_handle(),
+            out_encoded.get_handle(),
+            status.get_handle()
+        );
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept
+    {
+        ice::Status status;
+        m_ops->decode(get_handle(), data.get_handle(), out_json.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

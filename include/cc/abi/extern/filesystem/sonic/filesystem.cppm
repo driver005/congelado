@@ -16,10 +16,10 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class Filesystem : public ice::sonic::Runtime<Filesystem, TF_Filesystem>
+class Filesystem : public ice::sonic::Runtime<Filesystem, TF_FilesystemOps>
 {
 public:
-    explicit Filesystem(TF_Filesystem* ops, void* plugin_context) noexcept :
+    explicit Filesystem(TF_FilesystemOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -31,181 +31,6 @@ public:
     {
         ice::Status status;
         m_ops->free_options(get_handle(), options, num_options, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_random_access_file(const ice::sonic::String& path) noexcept
-    {
-        ice::Status status;
-        m_ops->create_random_access_file(get_handle(), path.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> random_access_file_destroy() noexcept
-    {
-        ice::Status status;
-        m_ops->random_access_file_destroy(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    random_access_file_read(uint64_t offset, size_t n, char* buffer) noexcept
-    {
-        ice::Status status;
-        m_ops->random_access_file_read(get_handle(), offset, n, buffer, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_writable_file(const ice::sonic::String& path) noexcept
-    {
-        ice::Status status;
-        m_ops->create_writable_file(get_handle(), path.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_appendable_file(const ice::sonic::String& path) noexcept
-    {
-        ice::Status status;
-        m_ops->create_appendable_file(get_handle(), path.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_destroy() noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_destroy(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    writable_file_append(const ice::sonic::String& buffer) noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_append(get_handle(), buffer.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_tell() noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_tell(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_flush() noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_flush(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_sync() noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_sync(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> writable_file_close() noexcept
-    {
-        ice::Status status;
-        m_ops->writable_file_close(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status>
-    create_read_only_memory_region_from_file(const ice::sonic::String& path) noexcept
-    {
-        ice::Status status;
-        m_ops->create_read_only_memory_region_from_file(
-            get_handle(),
-            path.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_destroy() noexcept
-    {
-        ice::Status status;
-        m_ops->read_only_memory_region_destroy(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_data() noexcept
-    {
-        ice::Status status;
-        m_ops->read_only_memory_region_data(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> read_only_memory_region_length() noexcept
-    {
-        ice::Status status;
-        m_ops->read_only_memory_region_length(get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -331,10 +156,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    stat(const ice::sonic::String& path, TF_FileStatistics* out_stats) noexcept
+    stat(const ice::sonic::String& path, const ice::sonic::Filestatistics& out_stats) noexcept
     {
         ice::Status status;
-        m_ops->stat(get_handle(), path.get_handle(), out_stats, status.get_handle());
+        m_ops->stat(get_handle(), path.get_handle(), out_stats.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -367,10 +192,11 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    translate_name(const ice::sonic::String& uri, TF_String* out) noexcept
+    translate_name(const ice::sonic::String& uri, const ice::sonic::String& out) noexcept
     {
         ice::Status status;
-        m_ops->translate_name(get_handle(), uri.get_handle(), out, status.get_handle());
+        m_ops
+            ->translate_name(get_handle(), uri.get_handle(), out.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -28,8 +28,7 @@ extern "C"
 #endif
 
     // --------------------------------------------------------------------------
-    // TF_DataType_Enum — scalar element type for tensors.
-    // Values are identical to the corresponding entries in types.proto.
+    // TF_DataType_Enum — scalar element type for tensors. Values are identical to the corresponding entries in types.proto.
     typedef enum TF_DataType_Enum
     {
         TF_FLOAT = 1,
@@ -73,22 +72,22 @@ extern "C"
 
     // --------------------------------------------------------------------------
     // TF_DataType — plugin vtable for data-type operations.
-    typedef struct TF_DataType
+    typedef struct TF_DataTypeOps
     {
         size_t struct_size;
 
         // Return the backend's name (e.g. "datatype") into *out.
         void (*get_name)(void* plugin_context, TF_String* out);
 
-        // Return the byte size of one scalar element of the given type.
-        // Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
+        // Return the byte size of one scalar element of the given type. Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
         size_t (*datatype_size)(void* plugin_context, TF_DataType_Enum dt);
 
-    } TF_DataType;
+    } TF_DataTypeOps;
 
-#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataType, datatype_size)
+#define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataTypeOps, datatype_size)
 
-    TF_CAPI_EXPORT void init_datatype(TF_DataType** ops, void** plugin_context, TF_Status_Handle* status);
+    TF_CAPI_EXPORT void create_datatype(TF_DataTypeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void destroy_datatype(void* plugin_context);
 
 #ifdef __cplusplus
 } /* end extern "C" */

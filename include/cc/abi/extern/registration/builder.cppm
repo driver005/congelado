@@ -28,10 +28,11 @@ public:
     template<typename HandleT>
     static Registration* create(HandleT* handle) noexcept
     {
-        return reinterpret_cast<Registration*>(handle);
+        return static_cast<Registration*>(handle->plugin_data);
     }
 
     virtual ~Registration() = default;
+    [[nodiscard]] std::expected<void, ice::Status> new_registration() noexcept = 0;
     [[nodiscard]] std::expected<void, ice::Status> register_op(
         const ice::sonic::String& type,
         const ice::sonic::String& name,
@@ -43,9 +44,9 @@ public:
     unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept = 0;
     virtual ice::String get_name() const noexcept = 0;
 
-    static TF_Registration* get_generic_vtable()
+    static TF_RegistrationOps* get_generic_vtable()
     {
-        static TF_Registration vtable = {
+        static TF_RegistrationOps vtable = {
             .struct_size = TF_REGISTRATION_STRUCT_SIZE,
 
             .destroy =
@@ -61,13 +62,22 @@ public:
                 auto result = self->get_name();
                 result.to_c(out);
             },
-            .register_op =
-                [](void* plugin_context,
-                   const TF_String_Handle* type,
-                   const TF_String_Handle* name,
-                   void* value) noexcept
+            .new_registration =
+                [](void* plugin_context) noexcept
             {
                 auto* self = Registration::create(plugin_context);
+                auto res = self->new_registration();
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .register_op =
+                [](TF_Registration* registration,
+                   const TF_String* type,
+                   const TF_String* name,
+                   void* value) noexcept
+            {
+                auto* self = Registration::create(registration);
                 auto res = self->register_op(
                     ice::sonic::String::wrap(type),
                     ice::sonic::String::wrap(name),
@@ -78,11 +88,11 @@ public:
                 }
             },
             .get =
-                [](void* plugin_context,
-                   const TF_String_Handle* type,
-                   const TF_String_Handle* name) noexcept
+                [](const TF_Registration* registration,
+                   const TF_String* type,
+                   const TF_String* name) noexcept
             {
-                auto* self = Registration::create(plugin_context);
+                auto* self = Registration::create(registration);
                 auto res =
                     self->get(ice::sonic::String::wrap(type), ice::sonic::String::wrap(name));
                 if (!res) {
@@ -90,11 +100,11 @@ public:
                 }
             },
             .unregister =
-                [](void* plugin_context,
-                   const TF_String_Handle* type,
-                   const TF_String_Handle* name) noexcept
+                [](TF_Registration* registration,
+                   const TF_String* type,
+                   const TF_String* name) noexcept
             {
-                auto* self = Registration::create(plugin_context);
+                auto* self = Registration::create(registration);
                 auto res = self->unregister(
                     ice::sonic::String::wrap(type),
                     ice::sonic::String::wrap(name)

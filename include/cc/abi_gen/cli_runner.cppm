@@ -14,8 +14,7 @@ import cc_utils_cli_parser;
 
 export namespace cc_abi_gen {
 
-// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and
-// `check` (dry-run diff, --pilot only).
+// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and `check` (dry-run diff, --pilot only).
 class CliRunner
 {
 public:
@@ -51,8 +50,7 @@ public:
     }
 
 private:
-    // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see
-    // helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
+    // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
     static constexpr std::string_view NAMESPACE_NAME = "ice";
 
     std::string usage()
@@ -174,11 +172,7 @@ private:
         return repo_root / "include/cc/abi";
     }
 
-    // Pilot domains are discovered by convention, not hardcoded: any subdirectory of
-    // include/c/extern/ whose name matches its own header (include/c/extern/<name>/<name>.h) is
-    // one of parser::helper::DomainPaths's inputs. Keeps the pilot set in sync with the tree
-    // instead of a list that silently drifts (see git history: an earlier hardcoded list named a
-    // domain whose header had since moved).
+    // Pilot domains are discovered by convention, not hardcoded: any subdirectory of include/c/extern/ whose name matches its own header (include/c/extern/<name>/<name>.h) is one of parser::helper::DomainPaths's inputs. Keeps the pilot set in sync with the tree instead of a list that silently drifts (see git history: an earlier hardcoded list named a domain whose header had since moved).
     std::vector<std::string> discover_pilot_domains(const std::filesystem::path& repo_root)
     {
         std::vector<std::string> domains;
@@ -202,9 +196,7 @@ private:
         return domains;
     }
 
-    // Intern headers are parsed into the shared registry for cross-reference resolution only —
-    // they never drive their own generation (see parse_pilot_domains); the wrapper classes for
-    // these types are hand-written under include/cc/abi/primitives.
+    // Intern headers are parsed into the shared registry for cross-reference resolution only — they never drive their own generation (see parse_pilot_domains); the wrapper classes for these types are hand-written under include/cc/abi/primitives.
     std::vector<std::filesystem::path> discover_intern_headers(const std::filesystem::path& repo_root)
     {
         std::vector<std::filesystem::path> headers;
@@ -241,9 +233,7 @@ private:
         return builder_emitter.render(model);
     }
 
-    // Parses every domain header discovered by discover_pilot_domains() into one shared
-    // parser::Parser (and therefore one shared parser::Registry) — every domain's types stay
-    // visible to every other domain's slot parameters, regardless of parse order.
+    // Parses every domain header discovered by discover_pilot_domains() into one shared parser::Parser (and therefore one shared parser::Registry) — every domain's types stay visible to every other domain's slot parameters, regardless of parse order.
     std::expected<std::vector<std::string>, std::string>
     parse_pilot_domains(parser::Parser& parser_instance, const std::filesystem::path& repo_root)
     {
@@ -269,9 +259,7 @@ private:
             }
         }
 
-        // Intern headers register their types (e.g. TF_String, TF_Status, TF_Array) into the same
-        // registry so extern domains can cross-reference them, but they are not part of `domains`
-        // returned below — intern types get no generated wrapper of their own.
+        // Intern headers register their types (e.g. TF_String, TF_Status, TF_Array) into the same registry so extern domains can cross-reference them, but they are not part of `domains` returned below — intern types get no generated wrapper of their own.
         for (const std::filesystem::path& header: discover_intern_headers(repo_root)) {
             std::println(stderr, "[cc_abi_gen] parsing {}", header.string());
 
@@ -405,11 +393,16 @@ private:
         std::vector<std::string> succeeded;
 
         for (const auto& [struct_name, model]: registry) {
+            // Intern types are parsed for cross-reference resolution only — see discover_intern_headers's doc comment. They never get a generated wrapper of their own; only the pilot-discovered extern domains do.
+            if (!std::ranges::binary_search(*domains, model.get_domain_name())) {
+                continue;
+            }
+
             parser::helper::DomainPaths output_paths{
                 std::string{model.get_domain_name()},
                 std::filesystem::path{repo_root},
                 std::filesystem::path{output_root},
-                std::ranges::binary_search(*domains, model.get_domain_name())
+                true
             };
 
             bool domain_ok = true;
@@ -500,11 +493,16 @@ private:
         bool all_identical = true;
 
         for (const auto& [struct_name, model]: registry) {
+            // Intern types are parsed for cross-reference resolution only — see discover_intern_headers's doc comment. They never get a generated wrapper of their own; only the pilot-discovered extern domains do.
+            if (!std::ranges::binary_search(*domains, model.get_domain_name())) {
+                continue;
+            }
+
             parser::helper::DomainPaths real_paths{
                 std::string{model.get_domain_name()},
                 std::filesystem::path{repo_root},
                 std::filesystem::path{repo_root / "include/cc/abi"},
-                std::ranges::binary_search(*domains, model.get_domain_name())
+                true
             };
 
             for (bool sonic_tier: {false, true}) {

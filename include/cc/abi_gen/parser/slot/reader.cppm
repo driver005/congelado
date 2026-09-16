@@ -60,8 +60,7 @@ public:
     }
 
 private:
-    // Bare pointee type name, read structurally off clang's QualType instead of guessed back
-    // out of a formatted type string. Empty for void* and for non-pointer parameters.
+    // Bare pointee type name, read structurally off clang's QualType instead of guessed back out of a formatted type string. Empty for void* and for non-pointer parameters.
     std::string resolve_pointee_name(clang::QualType parameter_type) noexcept
     {
         if (!parameter_type->isPointerType()) {
@@ -78,25 +77,19 @@ private:
 
     clang::FunctionProtoTypeLoc resolve_function_loc(clang::FieldDecl* field) noexcept
     {
-        // Gets the object containing the exact physical locations of the type's tokens in the
-        // original source code.
-        // NOTE: Defines a Token, as the smallest meaningful building block of source code such as
-        // keywords, identifiers, literals, operators, and punctuation.
+        // Gets the object containing the exact physical locations of the type's tokens in the original source code. NOTE: Defines a Token, as the smallest meaningful building block of source code such as keywords, identifiers, literals, operators, and punctuation.
         clang::TypeSourceInfo* type_source_info = field->getTypeSourceInfo();
         if (type_source_info == nullptr) {
             return clang::FunctionProtoTypeLoc{};
         }
 
-        // Extracts the type's source location, bypass transparent syntax (e.g. parentheses), and
-        // cast it to a pointer location.
+        // Extracts the type's source location, bypass transparent syntax (e.g. parentheses), and cast it to a pointer location.
         auto pointer_loc = type_source_info->getTypeLoc().getAsAdjusted<clang::PointerTypeLoc>();
         if (pointer_loc.isNull()) {
             return clang::FunctionProtoTypeLoc{};
         }
 
-        // Retrieve the source location of the targets, bypass transparent syntax (e.g.
-        // parentheses), cast it into a function prototype location, returning null if it is
-        // not a function.
+        // Retrieve the source location of the targets, bypass transparent syntax (e.g. parentheses), cast it into a function prototype location, returning null if it is not a function.
         return pointer_loc.getPointeeLoc().getAsAdjusted<clang::FunctionProtoTypeLoc>();
     }
 
