@@ -39,8 +39,10 @@ public:
         CliOptions options = parse_options(parser);
 
         auto repo_root = resolve_repo_root(options);
+        auto output_dir = resolve_output_dir(options);
 
         m_runtime.set_repo_root(std::move(repo_root));
+        m_runtime.set_output_dir(std::move(output_dir));
 
         auto current_cmd_opt = parser.get_invocation().current_command();
         if (!current_cmd_opt) {
@@ -169,14 +171,13 @@ private:
         return std::filesystem::current_path();
     }
 
-    std::filesystem::path
-    resolve_output_root(const CliOptions& options, const std::filesystem::path& repo_root)
+    std::filesystem::path resolve_output_dir(const CliOptions& options)
     {
         if (options.m_out_dir) {
             return *options.m_out_dir;
         }
 
-        return repo_root;
+        return "include/cc/";
     }
 
     // Explicit single-file mode: what the genrule wiring invokes.

@@ -112,67 +112,31 @@ public:
         return *this;
     }
 
-    std::expected<std::string, std::string>
-    render(std::filesystem::path& root, const parser::vtable::Model& model, const Mode& mode)
-    {
-        m_writer.clear();
-
-        m_writer += helper::format_header(
-            to_gen_target(mode),
-            model.get_domain_name(),
-            model.get_header_path(),
-            model.get_class_name(),
-            m_namespace_name,
-            root,
-            model.get_struct_name()
-        );
-
-        for (const parser::slot::Slot& slot: model.get_slots()) {
-            if (slot.is_destroy() || slot.is_get_name()) {
-                continue;
-            }
-
-            auto method = write_method(root, slot, mode);
-            if (!method.has_value()) {
-                return std::unexpected(method.error());
-            }
-        }
-
-        if (mode == Mode::Sonic) {
-            m_writer += helper::format_get_name_decl(m_namespace_name, root);
-        } else if (mode == Mode::Builder) {
-            auto accessor = write_vtable_accessor(root, model, mode);
-            if (!accessor.has_value()) {
-                return std::unexpected(accessor.error());
-            }
-        } else {
-            return std::unexpected(std::format("Invalid mode for render function: {}", mode));
-        }
-
-        m_writer += helper::format_footer(to_gen_target(mode), m_namespace_name, root);
-
-        return m_writer;
-    }
-
     // Unified generate method - uses root for path resolution
-    std::expected<void, std::string>
-    generate(std::filesystem::path& root, const parser::vtable::Model& model, const Mode& mode)
+    std::expected<void, std::string> generate(
+        std::filesystem::path& root,
+        std::string_view out_dir,
+        const parser::vtable::Model& model,
+        const Mode& mode
+    )
     {
         if (mode == Mode::Both) {
-            auto result = generate(root, model, Mode::Builder);
+            auto result = generate(root, out_dir, model, Mode::Builder);
             if (!result) {
                 return result;
             }
 
-            return generate(root, model, Mode::Sonic);
+            return generate(root, out_dir, model, Mode::Sonic);
         }
 
-        auto rendered = render(root, model, mode);
+        auto base_path = root / out_dir;
+
+        auto rendered = render(base_path, model, mode);
         if (!rendered) {
             return std::unexpected(rendered.error());
         }
 
-        auto path = resolve_output_path(root, model, mode);
+        auto path = resolve_output_path(base_path, model, mode);
         if (!path) {
             return std::unexpected(path.error());
         }
@@ -180,11 +144,15 @@ public:
         return m_file_writer.write(*rendered, *path, root);
     }
 
-    std::expected<bool, std::string>
-    check(std::filesystem::path& root, const parser::vtable::Model& model, const Mode& mode)
+    std::expected<bool, std::string> check(
+        std::filesystem::path& root,
+        std::string_view out_dir,
+        const parser::vtable::Model& model,
+        const Mode& mode
+    )
     {
         if (mode == Mode::Both) {
-            auto result = check(root, model, Mode::Builder);
+            auto result = check(root, out_dir, model, Mode::Builder);
             if (!result) {
                 return result;
             }
@@ -193,20 +161,21 @@ public:
                 return false;
             }
 
-            return check(root, model, Mode::Sonic);
+            return check(root, out_dir, model, Mode::Sonic);
         }
 
+        auto base_path = root / out_dir;
 
-        auto rendered = render(root, model, mode);
+        auto rendered = render(base_path, model, mode);
         if (!rendered) {
             return std::unexpected{std::move(rendered.error())};
         }
 
-        auto real_path = resolve_output_path(root, model, mode);
+        auto real_path = resolve_output_path(base_path, model, mode);
         if (!real_path.has_value()) {
             return std::unexpected{std::move(real_path.error())};
         }
-        auto diff_result = m_file_writer.diff(*rendered, *real_path, root);
+        auto diff_result = m_file_writer.diff(*rendered, *real_path, base_path);
         if (!diff_result) {
             return std::unexpected{std::move(diff_result.error())};
         }
@@ -273,6 +242,48 @@ public:
     }
 
 private:
+    std::expected<std::string, std::string>
+    render(std::filesystem::path& root, const parser::vtable::Model& model, const Mode& mode)
+    {
+        m_writer.clear();
+
+        m_writer += helper::format_header(
+            to_gen_target(mode),
+            model.get_domain_name(),
+            model.get_header_path(),
+            model.get_class_name(),
+            m_namespace_name,
+            root,
+            model.get_struct_name()
+        );
+
+        for (const parser::slot::Slot& slot: model.get_slots()) {
+            if (slot.is_destroy() || slot.is_get_name()) {
+                continue;
+            }
+
+            auto method = write_method(root, slot, mode);
+            if (!method.has_value()) {
+                return std::unexpected(method.error());
+            }
+        }
+
+        if (mode == Mode::Sonic) {
+            m_writer += helper::format_get_name_decl(m_namespace_name, root);
+        } else if (mode == Mode::Builder) {
+            auto accessor = write_vtable_accessor(root, model, mode);
+            if (!accessor.has_value()) {
+                return std::unexpected(accessor.error());
+            }
+        } else {
+            return std::unexpected(std::format("Invalid mode for render function: {}", mode));
+        }
+
+        m_writer += helper::format_footer(to_gen_target(mode), m_namespace_name, root);
+
+        return m_writer;
+    }
+
     static helper::GenTarget to_gen_target(Mode mode) noexcept
     {
         switch (mode) {
