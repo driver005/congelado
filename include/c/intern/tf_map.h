@@ -24,11 +24,11 @@ extern "C"
     {
         size_t struct_size;
 
-        int (*insert)(TF_Map* map, const void* key, const void* value);
-        const void* (*find)(const TF_Map* map, const void* key);
-        int (*erase)(TF_Map* map, const void* key);
-        int (*contains)(const TF_Map* map, const void* key);
-        size_t (*size)(const TF_Map* map);
+        void (*insert)(TF_Map* map, const void* key, const void* value, TF_Status* out_status);
+        void (*find)(const TF_Map* map, const void* key, const void** out_value, TF_Status* out_status);
+        void (*erase)(TF_Map* map, const void* key, TF_Status* out_status);
+        void (*contains)(TF_Map* map, const void* key, int* out_found, TF_Status* out_status);
+        void (*size)(const TF_Map* map, size_t* out_size);
         void (*for_each)(const TF_Map* map, TF_MapVisitor visitor, void* capture);
         void (*destroy)(TF_Map* map);
 
@@ -36,7 +36,7 @@ extern "C"
 
 #define TF_MAP_STRUCT_SIZE TF_OFFSET_OF_END(TF_MapOps, destroy)
 
-    TF_CAPI_EXPORT void create_map(TF_MapOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_map(TF_MapOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_map(void* plugin_context);
 
 #ifdef __cplusplus

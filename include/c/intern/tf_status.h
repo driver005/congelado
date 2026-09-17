@@ -60,12 +60,10 @@ extern "C"
     );
 
     // Opaque status object. Owned and laid out entirely by whichever backend's create_status() supplied the TF_Status ops below — callers never look inside it, only ever hold/pass a pointer.
-    typedef struct TF_StatusOps TF_StatusOps;
 
     typedef struct TF_Status
     {
         void* plugin_data;
-        const TF_StatusOps* ops;
     } TF_Status;
 
     // Ops vtable for TF_Status — matches the intern/extern convention (struct_size first) instead of free functions, so this type registers with cc_abi_gen exactly like TF_Buffer/TF_Shape/TF_String.
@@ -93,24 +91,23 @@ extern "C"
         void (*set_status_from_io_error)(TF_Status* s, int error_code, const char* context);
 
         // Return the code record in *s.
-        TF_Code (*get_code)(const TF_Status* s);
+        void (*get_code)(const TF_Status* s, TF_Code* out_code);
 
-        // Return a pointer to the (null-terminated) error message in *s.  The return value points to memory that is only usable until the next mutation to *s.  Always returns an empty string if get_code(s) is TF_OK.
-        const char* (*message)(const TF_Status* s);
+        // Return a pointer to the (null-terminated) error message in *s.
+        void (*message)(const TF_Status* s, const char** out_message);
     } TF_StatusOps;
 
 #define TF_STATUS_STRUCT_SIZE TF_OFFSET_OF_END(TF_StatusOps, message)
 
     // Declared-only, like create_buffer/create_shape/create_string: no default implementation lives under include/c/, graceful null-ops degradation expected. status may be null on this call (nothing yet exists to have produced a non-null one), and callees must already tolerate that per the null-ops degradation contract.
-    TF_CAPI_EXPORT void create_status(TF_StatusOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_status(TF_StatusOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_status(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_status and fills in s->ops. status may be null, same bootstrap exemption as create_status.
-    static inline void init_status(TF_Status* s, TF_Status* status)
+    // Real implementation, not declared-only — calls create_status status may be null, same bootstrap exemption as create_status.
+    static inline void init_status(TF_Status* s, TF_Status* out_status)
     {
         TF_StatusOps* ops = NULL;
-        create_status(&ops, &s->plugin_data, status);
-        s->ops = ops;
+        create_status(&ops, &s->plugin_data, out_status);
     }
 
 #ifdef __cplusplus

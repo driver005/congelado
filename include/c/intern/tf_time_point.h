@@ -22,7 +22,7 @@ extern "C"
     {
         size_t struct_size;
 
-        TF_Duration* (*get_duration_since_epoch)(const TF_TimePoint* time_point);
+        void (*get_duration_since_epoch)(const TF_TimePoint* time_point, TF_Duration* out_duration);
         void (*destroy)(TF_TimePoint* time_point);
 
     } TF_TimePointOps;
@@ -30,7 +30,7 @@ extern "C"
 #define TF_TIME_POINT_STRUCT_SIZE TF_OFFSET_OF_END(TF_TimePointOps, destroy)
 
     TF_CAPI_EXPORT void
-    create_time_point(TF_TimePointOps** ops, void** plugin_context, TF_Status* status);
+    create_time_point(TF_TimePointOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_time_point(void* plugin_context);
 
 #ifdef __cplusplus

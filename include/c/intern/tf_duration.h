@@ -21,16 +21,16 @@ extern "C"
     {
         size_t struct_size;
 
-        int64_t (*get_ticks)(const TF_Duration* duration);
-        int64_t (*get_ratio_num)(const TF_Duration* duration);
-        int64_t (*get_ratio_den)(const TF_Duration* duration);
+        void (*get_ticks)(const TF_Duration* duration, int64_t* out_ticks);
+        void (*get_ratio_num)(const TF_Duration* duration, int64_t* out_num);
+        void (*get_ratio_den)(const TF_Duration* duration, int64_t* out_den);
         void (*destroy)(TF_Duration* duration);
 
     } TF_DurationOps;
 
 #define TF_DURATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_DurationOps, destroy)
 
-    TF_CAPI_EXPORT void create_duration(TF_DurationOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_duration(TF_DurationOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_duration(void* plugin_context);
 
 #ifdef __cplusplus

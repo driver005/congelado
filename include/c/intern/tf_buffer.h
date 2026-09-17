@@ -45,12 +45,10 @@ extern "C"
     TF_CAPI_EXPORT const TF_Buffer_Data* get_buffer(const TF_Buffer_Data* buffer);
 
     // TF_Buffer — plugin vtable for buffer operations.
-    typedef struct TF_BufferOps TF_BufferOps;
 
     typedef struct TF_Buffer
     {
         void* plugin_data;
-        const TF_BufferOps* ops;
     } TF_Buffer;
 
     // Plugin-facing vtable registered via create_buffer so the mainframe can drive buffer operations across the C ABI.
@@ -59,7 +57,7 @@ extern "C"
         size_t struct_size;
 
         // Return the backend's name (e.g. "buffer") into *out.
-        void (*get_name)(TF_Buffer* buffer, TF_String* out);
+        void (*get_name)(TF_Buffer* buffer, TF_String* out_name);
 
         // Copy proto[0..proto_len) into buffer, replacing any existing contents.
         void (*assign_from_string)(TF_Buffer* buffer, const void* proto, size_t proto_len);
@@ -67,21 +65,20 @@ extern "C"
         void (*delete_buffer)(TF_Buffer* buffer);
 
         // Return a non-owning TF_Buffer_Data view of the handle's contents.
-        TF_Buffer_Data (*get_buffer)(TF_Buffer* buffer);
+        void (*get_buffer)(TF_Buffer* buffer, TF_Buffer_Data* out_buffer);
 
     } TF_BufferOps;
 
 #define TF_BUFFER_STRUCT_SIZE TF_OFFSET_OF_END(TF_BufferOps, get_buffer)
 
-    TF_CAPI_EXPORT void create_buffer(TF_BufferOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_buffer(TF_BufferOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_buffer(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_buffer and fills in buffer->ops.
-    static inline void init_buffer(TF_Buffer* buffer, TF_Status* status)
+    // Real implementation, not declared-only — calls create_buffer
+    static inline void init_buffer(TF_Buffer* buffer, TF_Status* out_status)
     {
         TF_BufferOps* ops = NULL;
-        create_buffer(&ops, &buffer->plugin_data, status);
-        buffer->ops = ops;
+        create_buffer(&ops, &buffer->plugin_data, out_status);
     }
 
 #ifdef __cplusplus

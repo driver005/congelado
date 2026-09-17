@@ -21,19 +21,19 @@ extern "C"
     {
         size_t struct_size;
 
-        void (*get_name)(TF_Hash* hash, TF_String* out);
+        void (*get_name)(TF_Hash* hash, TF_String* out_name);
 
         // FNV-1a hash of size bytes starting at data.
-        size_t (*hash_bytes)(TF_Hash* hash, const void* data, size_t size);
+        void (*hash_bytes)(TF_Hash* hash, const void* data, size_t size, size_t* out_hash, TF_Status* out_status);
 
         // Combine an existing hash (seed) with the hash of one more field.
-        size_t (*hash_combine)(TF_Hash* hash, size_t seed, size_t value);
+        void (*hash_combine)(TF_Hash* hash, size_t seed, size_t value, size_t* out_hash, TF_Status* out_status);
 
     } TF_HashOps;
 
 #define TF_HASH_STRUCT_SIZE TF_OFFSET_OF_END(TF_HashOps, hash_combine)
 
-    TF_CAPI_EXPORT void create_hash(TF_HashOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_hash(TF_HashOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_hash(void* plugin_context);
 
 #ifdef __cplusplus

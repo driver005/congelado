@@ -35,26 +35,26 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Serde* serde);
-        void (*get_name)(TF_Serde* serde, TF_String* out);
-        void (*get_content_type)(TF_Serde* serde, TF_String* out);
-        void (*get_format_name)(TF_Serde* serde, TF_String* out);
+        void (*get_name)(TF_Serde* serde, TF_String* out_name);
+        void (*get_content_type)(TF_Serde* serde, TF_String* out_content_type);
+        void (*get_format_name)(TF_Serde* serde, TF_String* out_format_name);
         void (*encode)(
             TF_Serde* serde,
             const TF_String* value_json,
             TF_String* out_encoded,
-            TF_Status* status
+            TF_Status* out_status
         );
         void (*decode)(
             TF_Serde* serde,
             const TF_String* data,
             TF_String* out_json,
-            TF_Status* status
+            TF_Status* out_status
         );
     } TF_SerdeOps;
 
 #define TF_SERDE_STRUCT_SIZE TF_OFFSET_OF_END(TF_SerdeOps, decode)
 
-    TF_CAPI_EXPORT void create_serde(TF_SerdeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_serde(TF_SerdeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_serde(void* plugin_context);
 
 #ifdef __cplusplus
