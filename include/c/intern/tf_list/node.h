@@ -6,10 +6,10 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_List_Node
+    typedef struct TFListNode
     {
         void* plugin_data;
-    } TF_List_Node;
+    } TFListNode;
 
 #ifdef __cplusplus
 }

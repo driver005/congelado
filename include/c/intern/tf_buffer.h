@@ -27,22 +27,22 @@ extern "C"
 {
 #endif
 
-    // TF_Buffer_Data — passive value type holding a pointer to a block of data and its length.  Typically the data is a serialised protocol buffer. By default TF_Buffer_Data does not manage the pointed-to memory; set data_deallocator if the block needs freeing.
-    typedef struct TF_Buffer_Data
+    // TFBufferData — passive value type holding a pointer to a block of data and its length.  Typically the data is a serialised protocol buffer. By default TFBufferData does not manage the pointed-to memory; set data_deallocator if the block needs freeing.
+    typedef struct TFBufferData
     {
         const void* data;
         size_t length;
         void (*data_deallocator)(void* data, size_t length);
-    } TF_Buffer_Data;
+    } TFBufferData;
 
     // Legacy alias kept so existing call sites that use TF_Buffer as a value type continue to compile without changes.
-    typedef TF_Buffer_Data TF_Buffer_Value;
+    typedef TFBufferData TFBufferValue;
 
-    // Global helper functions that operate on TF_Buffer_Data values.
-    TF_CAPI_EXPORT TF_Buffer_Data* new_buffer_from_string(const void* proto, size_t proto_len);
-    TF_CAPI_EXPORT TF_Buffer_Data* new_buffer(void);
-    TF_CAPI_EXPORT void delete_buffer(TF_Buffer_Data*);
-    TF_CAPI_EXPORT const TF_Buffer_Data* get_buffer(const TF_Buffer_Data* buffer);
+    // Global helper functions that operate on TFBufferData values.
+    TF_CAPI_EXPORT TFBufferData* new_buffer_from_string(const void* proto, size_t proto_len);
+    TF_CAPI_EXPORT TFBufferData* new_buffer(void);
+    TF_CAPI_EXPORT void delete_buffer(TFBufferData*);
+    TF_CAPI_EXPORT const TFBufferData* get_buffer(const TFBufferData* buffer);
 
     // TF_Buffer — plugin vtable for buffer operations.
 
@@ -64,8 +64,8 @@ extern "C"
 
         void (*delete_buffer)(TF_Buffer* buffer);
 
-        // Return a non-owning TF_Buffer_Data view of the handle's contents.
-        void (*get_buffer)(TF_Buffer* buffer, TF_Buffer_Data* out_buffer);
+        // Return a non-owning TFBufferData view of the handle's contents.
+        void (*get_buffer)(TF_Buffer* buffer, TFBufferData* out_buffer);
 
     } TF_BufferOps;
 

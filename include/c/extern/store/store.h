@@ -19,11 +19,11 @@ extern "C"
     typedef struct TF_Store
     {
         void* plugin_data;
-        const TF_Store_CollectionOps* collection_ops;
-        const TF_Store_TransactionOps* transaction_ops;
-        const TF_Store_WatchOps* watch_ops;
-        const TF_Store_IndexOps* index_ops;
-        const TF_Store_QueryOps* query_ops;
+        const TFStoreCollectionOps* collection_ops;
+        const TFStoreTransactionOps* transaction_ops;
+        const TFStoreWatchOps* watch_ops;
+        const TFStoreIndexOps* index_ops;
+        const TFStoreQueryOps* query_ops;
     } TF_Store;
 
     typedef struct TF_StoreOps
@@ -35,8 +35,8 @@ extern "C"
         void (*is_connected)(TF_Store* store, int* out_connected);
 
         // Operations.
-        void (*backup)(TF_Store* store, const TF_String* destination, TF_Store_AckFn completion, void* user_data, TF_Status* out_status);
-        void (*restore)(TF_Store* store, const TF_String* source, TF_Store_AckFn completion, void* user_data, TF_Status* out_status);
+        void (*backup)(TF_Store* store, const TF_String* destination, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
+        void (*restore)(TF_Store* store, const TF_String* source, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
 
     } TF_StoreOps;
 
@@ -49,23 +49,23 @@ extern "C"
     {
         create_store(ops, &store->plugin_data, out_status);
 
-        TF_Store_CollectionOps* collection_ops = NULL;
+        TFStoreCollectionOps* collection_ops = NULL;
         create_store_collection(&collection_ops, &store->plugin_data, out_status);
         store->collection_ops = collection_ops;
 
-        TF_Store_TransactionOps* transaction_ops = NULL;
+        TFStoreTransactionOps* transaction_ops = NULL;
         create_store_transaction(&transaction_ops, &store->plugin_data, out_status);
         store->transaction_ops = transaction_ops;
 
-        TF_Store_WatchOps* watch_ops = NULL;
+        TFStoreWatchOps* watch_ops = NULL;
         create_store_watch(&watch_ops, &store->plugin_data, out_status);
         store->watch_ops = watch_ops;
 
-        TF_Store_IndexOps* index_ops = NULL;
+        TFStoreIndexOps* index_ops = NULL;
         create_store_index(&index_ops, &store->plugin_data, out_status);
         store->index_ops = index_ops;
 
-        TF_Store_QueryOps* query_ops = NULL;
+        TFStoreQueryOps* query_ops = NULL;
         create_store_query(&query_ops, &store->plugin_data, out_status);
         store->query_ops = query_ops;
     }

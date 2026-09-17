@@ -33,10 +33,10 @@ extern "C"
     typedef struct TF_Otel
     {
         void* plugin_data;
-        const TF_Otel_TracerOps* tracer_ops;
-        const TF_Otel_MeterOps* meter_ops;
-        const TF_Otel_CounterOps* counter_ops;
-        const TF_Otel_HistogramOps* histogram_ops;
+        const TFOtelTracerOps* tracer_ops;
+        const TFOtelMeterOps* meter_ops;
+        const TFOtelCounterOps* counter_ops;
+        const TFOtelHistogramOps* histogram_ops;
     } TF_Otel;
 
     typedef struct TF_OtelOps
@@ -55,19 +55,19 @@ extern "C"
     {
         create_otel(ops, &otel->plugin_data, out_status);
 
-        TF_Otel_TracerOps* tracer_ops = NULL;
+        TFOtelTracerOps* tracer_ops = NULL;
         create_otel_tracer(&tracer_ops, &otel->plugin_data, out_status);
         otel->tracer_ops = tracer_ops;
 
-        TF_Otel_MeterOps* meter_ops = NULL;
+        TFOtelMeterOps* meter_ops = NULL;
         create_otel_meter(&meter_ops, &otel->plugin_data, out_status);
         otel->meter_ops = meter_ops;
 
-        TF_Otel_CounterOps* counter_ops = NULL;
+        TFOtelCounterOps* counter_ops = NULL;
         create_otel_counter(&counter_ops, &otel->plugin_data, out_status);
         otel->counter_ops = counter_ops;
 
-        TF_Otel_HistogramOps* histogram_ops = NULL;
+        TFOtelHistogramOps* histogram_ops = NULL;
         create_otel_histogram(&histogram_ops, &otel->plugin_data, out_status);
         otel->histogram_ops = histogram_ops;
     }

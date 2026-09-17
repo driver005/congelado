@@ -13,27 +13,27 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Store_Transaction
+    typedef struct TFStoreTransaction
     {
         void* plugin_data;
-    } TF_Store_Transaction;
+    } TFStoreTransaction;
 
-    typedef struct TF_Store_TransactionOps
+    typedef struct TFStoreTransactionOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Store_Transaction* transaction);
-        void (*begin)(TF_Store_Transaction* transaction, TF_Status* out_status);
-        void (*add_collection)(TF_Store_Transaction* transaction, TF_Store_Collection* collection, TF_Status* out_status);
-        void (*get_collection)(TF_Store_Transaction* transaction, const TF_String* name, TF_Store_Collection* out_collection);
-        void (*list_collections)(TF_Store_Transaction* transaction, TF_Tensor** out_collections, TF_Status* out_status);
-        void (*commit)(TF_Store_Transaction* transaction, TF_Store_AckFn completion, void* user_data, TF_Status* out_status);
-        void (*rollback)(TF_Store_Transaction* transaction);
-    } TF_Store_TransactionOps;
+        void (*destroy)(TFStoreTransaction* transaction);
+        void (*begin)(TFStoreTransaction* transaction, TF_Status* out_status);
+        void (*add_collection)(TFStoreTransaction* transaction, TFStoreCollection* collection, TF_Status* out_status);
+        void (*get_collection)(TFStoreTransaction* transaction, const TF_String* name, TFStoreCollection* out_collection);
+        void (*list_collections)(TFStoreTransaction* transaction, TF_Tensor** out_collections, TF_Status* out_status);
+        void (*commit)(TFStoreTransaction* transaction, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
+        void (*rollback)(TFStoreTransaction* transaction);
+    } TFStoreTransactionOps;
 
-#define TF_STORE_TRANSACTION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Store_TransactionOps, rollback)
+#define TF_STORE_TRANSACTION_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreTransactionOps, rollback)
 
     TF_CAPI_EXPORT void create_store_transaction(
-        TF_Store_TransactionOps** ops,
+        TFStoreTransactionOps** ops,
         void** plugin_context,
         TF_Status* out_status
     );

@@ -12,39 +12,39 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Otel_Meter
+    typedef struct TFOtelMeter
     {
         void* plugin_data;
-    } TF_Otel_Meter;
+    } TFOtelMeter;
 
-    typedef struct TF_Otel_MeterOps
+    typedef struct TFOtelMeterOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Otel_Meter* meter);
-        void (*get_name)(TF_Otel_Meter* meter, TF_String* out_name);
+        void (*destroy)(TFOtelMeter* meter);
+        void (*get_name)(TFOtelMeter* meter, TF_String* out_name);
 
         void (*create_counter)(
-            TF_Otel_Meter* meter,
+            TFOtelMeter* meter,
             const TF_String* name,
             const TF_String* description,
             const TF_String* unit,
-            TF_Otel_Counter* out_counter,
+            TFOtelCounter* out_counter,
             TF_Status* out_status
         );
         void (*create_histogram)(
-            TF_Otel_Meter* meter,
+            TFOtelMeter* meter,
             const TF_String* name,
             const TF_String* description,
             const TF_String* unit,
-            TF_Otel_Histogram* out_histogram,
+            TFOtelHistogram* out_histogram,
             TF_Status* out_status
         );
-    } TF_Otel_MeterOps;
+    } TFOtelMeterOps;
 
-#define TF_OTEL_METER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel_MeterOps, create_histogram)
+#define TF_OTEL_METER_STRUCT_SIZE TF_OFFSET_OF_END(TFOtelMeterOps, create_histogram)
 
     TF_CAPI_EXPORT void
-    create_otel_meter(TF_Otel_MeterOps** ops, void** plugin_context, TF_Status* out_status);
+    create_otel_meter(TFOtelMeterOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_otel_meter(void* plugin_context);
 
 #ifdef __cplusplus

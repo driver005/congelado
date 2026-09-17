@@ -30,13 +30,13 @@ extern "C"
         void (*set_element_size)(TF_List* list, size_t element_size);
 
         // Copy one element_size-byte element from value onto the front, returning a handle to the new node.
-        void (*push_front)(TF_List* list, const void* value, TF_List_Node* out_node, TF_Status* out_status);
+        void (*push_front)(TF_List* list, const void* value, TFListNode* out_node, TF_Status* out_status);
 
         // Copy one element_size-byte element from value onto the back, returning a handle to the new node.
-        void (*push_back)(TF_List* list, const void* value, TF_List_Node* out_node, TF_Status* out_status);
+        void (*push_back)(TF_List* list, const void* value, TFListNode* out_node, TF_Status* out_status);
 
         // Remove node from the list, invalidating it.
-        void (*erase)(TF_List* list, TF_List_Node* node);
+        void (*erase)(TF_List* list, TFListNode* node);
 
         // Call visitor(capture, element) once per element, front to back.
         void (*for_each)(

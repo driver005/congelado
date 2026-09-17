@@ -30,13 +30,13 @@ extern "C"
         void (*set_element_size)(TF_Hive* hive, size_t element_size);
 
         // Copy one element_size-byte element from value into a newly allocated slot, returning a stable handle to it.
-        void (*insert)(TF_Hive* hive, const void* value, TF_Hive_Slot* out_slot, TF_Status* out_status);
+        void (*insert)(TF_Hive* hive, const void* value, TFHiveSlot* out_slot, TF_Status* out_status);
 
         // Erase the element at slot, invalidating it.
-        void (*erase)(TF_Hive* hive, TF_Hive_Slot* slot, TF_Status* out_status);
+        void (*erase)(TF_Hive* hive, TFHiveSlot* slot, TF_Status* out_status);
 
         // Non-owning pointer to the element at slot; NULL if slot has been erased.
-        void (*get)(const TF_Hive* hive, const TF_Hive_Slot* slot, const void** out_value, TF_Status* out_status);
+        void (*get)(const TF_Hive* hive, const TFHiveSlot* slot, const void** out_value, TF_Status* out_status);
 
         // Call visitor(capture, element) once per live element, in unspecified order.
         void (*for_each)(

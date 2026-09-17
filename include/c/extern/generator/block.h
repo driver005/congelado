@@ -13,35 +13,35 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator_Block
+    typedef struct TFGeneratorBlock
     {
         void* plugin_data;
-    } TF_Generator_Block;
+    } TFGeneratorBlock;
 
-    typedef struct TF_Generator_BlockOps
+    typedef struct TFGeneratorBlockOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Generator_Block* block);
-        void (*get_name)(TF_Generator_Block* block, TF_String* out_name);
+        void (*destroy)(TFGeneratorBlock* block);
+        void (*get_name)(TFGeneratorBlock* block, TF_String* out_name);
 
         void (*add_node)(
-            TF_Generator_Block* block,
-            TF_Generator_Definition* definition,
-            TF_Generator_Node* out_node,
+            TFGeneratorBlock* block,
+            TFGeneratorDefinition* definition,
+            TFGeneratorNode* out_node,
             TF_Status* out_status
         );
 
-        void (*get_node)(TF_Generator_Block* block, int index, TF_Generator_Node* out_node, TF_Status* out_status);
+        void (*get_node)(TFGeneratorBlock* block, int index, TFGeneratorNode* out_node, TF_Status* out_status);
 
-        void (*list_nodes)(TF_Generator_Block* block, TF_Tensor** out_nodes, TF_Status* out_status);
+        void (*list_nodes)(TFGeneratorBlock* block, TF_Tensor** out_nodes, TF_Status* out_status);
 
-        void (*set_name)(TF_Generator_Block* block, const TF_String* name);
-    } TF_Generator_BlockOps;
+        void (*set_name)(TFGeneratorBlock* block, const TF_String* name);
+    } TFGeneratorBlockOps;
 
-#define TF_GENERATOR_BLOCK_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_BlockOps, set_name)
+#define TF_GENERATOR_BLOCK_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorBlockOps, set_name)
 
     TF_CAPI_EXPORT void
-    create_generator_block(TF_Generator_BlockOps** ops, void** plugin_context, TF_Status* out_status);
+    create_generator_block(TFGeneratorBlockOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator_block(void* plugin_context);
 
 #ifdef __cplusplus

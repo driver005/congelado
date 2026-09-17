@@ -11,7 +11,7 @@ extern "C"
 {
 #endif
 
-    typedef void (*TF_Durable_AckFn)(void* user_data, TF_Status* out_status);
+    typedef void (*TFDurableAckFn)(void* user_data, TF_Status* out_status);
 
     typedef struct TF_Durable
     {
@@ -25,7 +25,7 @@ extern "C"
         void (*destroy)(TF_Durable* durable);
 
         void (*signal)(TF_Durable* durable, TF_Job* job, const TF_String* signal_name, const TF_String* payload, TF_Status* out_status);
-        void (*checkpoint)(TF_Durable* durable, TF_Job* job, TF_Durable_AckFn completion, void* user_data, TF_Status* out_status);
+        void (*checkpoint)(TF_Durable* durable, TF_Job* job, TFDurableAckFn completion, void* user_data, TF_Status* out_status);
         void (*restore_checkpoint)(TF_Durable* durable, TF_Job* job, TF_Status* out_status);
 
     } TF_DurableOps;

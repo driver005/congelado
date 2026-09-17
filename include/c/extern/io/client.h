@@ -23,9 +23,9 @@ extern "C"
     {
         void* plugin_data;
     } TF_Client;
-    typedef void (*TF_Client_ResponseFn)(void* user_data, TF_Response* response, TF_Status* out_status);
-    typedef void (*TF_Client_ConnectFn)(void* user_data, TF_Status* out_status);
-    typedef void (*TF_Client_DisconnectFn)(void* user_data);
+    typedef void (*TFClientResponseFn)(void* user_data, TF_Response* response, TF_Status* out_status);
+    typedef void (*TFClientConnectFn)(void* user_data, TF_Status* out_status);
+    typedef void (*TFClientDisconnectFn)(void* user_data);
 
     // Plugin-facing vtable registered via create_client.
     typedef struct TF_ClientOps
@@ -39,7 +39,7 @@ extern "C"
         void (*connect_async)(
             TF_Client* client,
             int64_t timeout_ms,
-            TF_Client_ConnectFn completion,
+            TFClientConnectFn completion,
             void* user_data,
             TF_Status* out_status
         );
@@ -47,7 +47,7 @@ extern "C"
 
         // Disconnect then connect again using the same host/port/config.
         void (*reconnect)(TF_Client* client, TF_Status* out_status);
-        void (*on_disconnect)(TF_Client* client, TF_Client_DisconnectFn handler, void* user_data);
+        void (*on_disconnect)(TF_Client* client, TFClientDisconnectFn handler, void* user_data);
         void (*is_connected)(TF_Client* client, int* out_connected);
         void (*get_remote_endpoint)(TF_Client* client, TF_String* out_host, uint16_t* out_port);
 
@@ -60,7 +60,7 @@ extern "C"
         void (*send_async)(
             TF_Client* client,
             TF_Request* request,
-            TF_Client_ResponseFn completion,
+            TFClientResponseFn completion,
             void* user_data,
             TF_Status* out_status
         );
@@ -69,7 +69,7 @@ extern "C"
         void (*get_pending_request_count)(TF_Client* client, size_t* out_count);
 
         // A lightweight liveness probe distinct from a real request/response round trip (e.g. a transport-level ping frame where the protocol supports one).
-        void (*ping)(TF_Client* client, TF_Client_ConnectFn completion, void* user_data, TF_Status* out_status);
+        void (*ping)(TF_Client* client, TFClientConnectFn completion, void* user_data, TF_Status* out_status);
 
         void (*retry)(TF_Client* client, TF_Status* out_status);
         void (*set_max_retries)(TF_Client* client, int max_retries, TF_Status* out_status);
@@ -77,7 +77,7 @@ extern "C"
         void (*set_timeout)(TF_Client* client, int64_t timeout_ms, TF_Status* out_status);
 
         // Reuses the status-carrying connect-style signature.
-        void (*on_error)(TF_Client* client, TF_Client_ConnectFn handler, void* user_data);
+        void (*on_error)(TF_Client* client, TFClientConnectFn handler, void* user_data);
         void (*get_last_error)(TF_Client* client, TF_Status* out_status);
         void (*get_stats)(TF_Client* client, TF_Map* out_stats, TF_Status* out_status);
 

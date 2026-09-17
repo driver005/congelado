@@ -12,36 +12,36 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator_Module
+    typedef struct TFGeneratorModule
     {
         void* plugin_data;
-    } TF_Generator_Module;
+    } TFGeneratorModule;
 
-    typedef struct TF_Generator_ModuleOps
+    typedef struct TFGeneratorModuleOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Generator_Module* module);
-        void (*get_name)(TF_Generator_Module* module, TF_String* out_name);
+        void (*destroy)(TFGeneratorModule* module);
+        void (*get_name)(TFGeneratorModule* module, TF_String* out_name);
 
         void (*add_function)(
-            TF_Generator_Module* module,
-            TF_Generator_Function* function,
+            TFGeneratorModule* module,
+            TFGeneratorFunction* function,
             TF_Status* out_status
         );
 
-        void (*get_function)(TF_Generator_Module* module, const TF_String* name, TF_Generator_Function* out_function, TF_Status* out_status);
+        void (*get_function)(TFGeneratorModule* module, const TF_String* name, TFGeneratorFunction* out_function, TF_Status* out_status);
 
-        void (*list_functions)(TF_Generator_Module* module, TF_Tensor** out_functions, TF_Status* out_status);
+        void (*list_functions)(TFGeneratorModule* module, TF_Tensor** out_functions, TF_Status* out_status);
 
-        void (*set_name)(TF_Generator_Module* module, const TF_String* name);
-        void (*validate)(TF_Generator_Module* module, TF_Status* out_status);
-        void (*emit)(TF_Generator_Module* module, TF_String* out_code, TF_Status* out_status);
-    } TF_Generator_ModuleOps;
+        void (*set_name)(TFGeneratorModule* module, const TF_String* name);
+        void (*validate)(TFGeneratorModule* module, TF_Status* out_status);
+        void (*emit)(TFGeneratorModule* module, TF_String* out_code, TF_Status* out_status);
+    } TFGeneratorModuleOps;
 
-#define TF_GENERATOR_MODULE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_ModuleOps, emit)
+#define TF_GENERATOR_MODULE_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorModuleOps, emit)
 
     TF_CAPI_EXPORT void
-    create_generator_module(TF_Generator_ModuleOps** ops, void** plugin_context, TF_Status* out_status);
+    create_generator_module(TFGeneratorModuleOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator_module(void* plugin_context);
 
 #ifdef __cplusplus

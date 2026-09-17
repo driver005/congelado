@@ -6,10 +6,10 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Server_Connection
+    typedef struct TFServerConnection
     {
         void* plugin_data;
-    } TF_Server_Connection;
+    } TFServerConnection;
 
 #ifdef __cplusplus
 }

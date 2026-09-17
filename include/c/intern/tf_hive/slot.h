@@ -6,10 +6,10 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Hive_Slot
+    typedef struct TFHiveSlot
     {
         void* plugin_data;
-    } TF_Hive_Slot;
+    } TFHiveSlot;
 
 #ifdef __cplusplus
 }

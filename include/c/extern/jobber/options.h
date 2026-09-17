@@ -14,16 +14,16 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Job_Options
+    typedef struct TFJobOptions
     {
         size_t struct_size;
         const TF_String* cron_expression;
         int priority;
         int max_retries;
         int64_t timeout_ms;
-    } TF_Job_Options;
+    } TFJobOptions;
 
-#define TF_JOB_OPTIONS_STRUCT_SIZE TF_OFFSET_OF_END(TF_Job_Options, timeout_ms)
+#define TF_JOB_OPTIONS_STRUCT_SIZE TF_OFFSET_OF_END(TFJobOptions, timeout_ms)
 
     typedef struct TF_Options
     {
@@ -36,8 +36,8 @@ extern "C"
 
         void (*destroy)(TF_Options* options);
 
-        void (*get_options)(TF_Options* options, TF_Job* job, TF_Job_Options* out_options, TF_Status* out_status);
-        void (*update_options)(TF_Options* options, TF_Job* job, const TF_Job_Options* new_options, TF_Status* out_status);
+        void (*get_options)(TF_Options* options, TF_Job* job, TFJobOptions* out_options, TF_Status* out_status);
+        void (*update_options)(TF_Options* options, TF_Job* job, const TFJobOptions* new_options, TF_Status* out_status);
         void (*set_priority)(TF_Options* options, TF_Job* job, int priority, TF_Status* out_status);
 
     } TF_OptionsOps;

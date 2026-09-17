@@ -24,16 +24,16 @@ extern "C"
 {
 #endif
 
-    typedef enum TF_Filesystem_Option_Type
+    typedef enum TFFilesystemOptionType
     {
         TF_FILESYSTEM_OPTION_TYPE_INT = 0,
         TF_FILESYSTEM_OPTION_TYPE_REAL = 1,
         TF_FILESYSTEM_OPTION_TYPE_BUFFER = 2,
-    } TF_Filesystem_Option_Type;
+    } TFFilesystemOptionType;
 
-    typedef struct TF_Filesystem_Option_Value
+    typedef struct TFFilesystemOptionValue
     {
-        TF_Filesystem_Option_Type type;
+        TFFilesystemOptionType type;
 
         union
         {
@@ -46,15 +46,15 @@ extern "C"
                 size_t size;
             } buffer_value;
         };
-    } TF_Filesystem_Option_Value;
+    } TFFilesystemOptionValue;
 
-    typedef struct TF_Filesystem_Option
+    typedef struct TFFilesystemOption
     {
-        TF_Filesystem_Option_Type type_tag;
+        TFFilesystemOptionType type_tag;
         const char* name;
         const char* description;
-        TF_Filesystem_Option_Value value;
-    } TF_Filesystem_Option;
+        TFFilesystemOptionValue value;
+    } TFFilesystemOption;
 
 #ifdef __cplusplus
 }
