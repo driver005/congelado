@@ -2,6 +2,7 @@
 #define TENSORFLOW_C_EXTERN_SERVER_H_
 
 #include "c/macros.h"
+#include "c/extern/io/connection.h"
 #include "c/extern/io/request.h"
 #include "c/extern/io/response.h"
 #include "c/intern/tf_map.h"
@@ -23,8 +24,6 @@ extern "C"
     {
         void* plugin_data;
     } TF_Server;
-    typedef struct TF_Server_Connection TF_Server_Connection;
-
     typedef void (*TF_Server_RequestHandler)(
         void* user_data,
         TF_Server_Connection* connection,
@@ -40,73 +39,73 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Server* server);
-        void (*get_name)(TF_Server* server, TF_String* out);
+        void (*get_name)(TF_Server* server, TF_String* out_name);
 
         // Bind configuration.
-        void (*get_bind_host)(TF_Server* server, TF_String* out);
-        uint16_t (*get_bind_port)(TF_Server* server);
-        void (*get_tls_cert)(TF_Server* server, TF_String* out);
-        void (*get_tls_key)(TF_Server* server, TF_String* out);
+        void (*get_bind_host)(TF_Server* server, TF_String* out_host);
+        void (*get_bind_port)(TF_Server* server, uint16_t* out_port);
+        void (*get_tls_cert)(TF_Server* server, TF_String* out_cert);
+        void (*get_tls_key)(TF_Server* server, TF_String* out_key);
 
         void (*set_request_handler)(TF_Server* server, TF_Server_RequestHandler handler, void* user_data);
         void (*on_connect)(TF_Server* server, TF_Server_ConnectFn handler, void* user_data);
         void (*on_disconnect)(TF_Server* server, TF_Server_DisconnectFn handler, void* user_data);
 
-        void (*start)(TF_Server* server, TF_Status* status);
+        void (*start)(TF_Server* server, TF_Status* out_status);
 
         // Graceful drain.
-        void (*stop)(TF_Server* server, TF_Status* status);
+        void (*stop)(TF_Server* server, TF_Status* out_status);
 
         // Stop new connections, keep serving existing ones.
-        void (*stop_accepting)(TF_Server* server, TF_Status* status);
+        void (*stop_accepting)(TF_Server* server, TF_Status* out_status);
 
         // Pairs with stop_accepting.
-        void (*resume_accepting)(TF_Server* server, TF_Status* status);
-        int (*is_running)(TF_Server* server);
+        void (*resume_accepting)(TF_Server* server, TF_Status* out_status);
+        void (*is_running)(TF_Server* server, int* out_running);
 
         // No active connections.
-        int (*is_idle)(TF_Server* server);
+        void (*is_idle)(TF_Server* server, int* out_idle);
 
         // Connection limits and lookup.
-        void (*set_max_connections)(TF_Server* server, size_t max_connections, TF_Status* status);
-        size_t (*get_max_connections)(TF_Server* server);
-        TF_Server_Connection* (*find_connection)(TF_Server* server, const TF_String* connection_id);
-        void (*get_connection_id)(TF_Server_Connection* connection, TF_String* out);
+        void (*set_max_connections)(TF_Server* server, size_t max_connections, TF_Status* out_status);
+        void (*get_max_connections)(TF_Server* server, size_t* out_max_connections);
+        void (*find_connection)(TF_Server* server, const TF_String* connection_id, TF_Server_Connection* out_connection, TF_Status* out_status);
+        void (*get_connection_id)(TF_Server_Connection* connection, TF_String* out_connection_id);
 
-        void (*send_response)(TF_Server_Connection* connection, TF_Response* response, TF_Status* status);
+        void (*send_response)(TF_Server_Connection* connection, TF_Response* response, TF_Status* out_status);
 
         // Send the same response to every currently active connection.
-        void (*broadcast)(TF_Server* server, TF_Response* response, TF_Status* status);
-        void (*close_connection)(TF_Server_Connection* connection, TF_Status* status);
-        void (*list_connections)(TF_Server* server, TF_Vector* out_connections, TF_Status* status);
-        size_t (*get_connection_count)(TF_Server* server);
+        void (*broadcast)(TF_Server* server, TF_Response* response, TF_Status* out_status);
+        void (*close_connection)(TF_Server_Connection* connection, TF_Status* out_status);
+        void (*list_connections)(TF_Server* server, TF_Vector* out_connections, TF_Status* out_status);
+        void (*get_connection_count)(TF_Server* server, size_t* out_count);
 
         // out_stats keys such as total_requests/bytes_sent/bytes_received/ uptime_ms are a documented convention, not enforced by this header.
-        void (*get_stats)(TF_Server* server, TF_Map* out_stats, TF_Status* status);
+        void (*get_stats)(TF_Server* server, TF_Map* out_stats, TF_Status* out_status);
 
         // Extension management (matches the real Server's HttpExtensionRegistry).
         void (*register_extension)(
             TF_Server* server,
             const TF_String* name,
             const TF_Map* config,
-            TF_Status* status
+            TF_Status* out_status
         );
-        void (*unregister_extension)(TF_Server* server, const TF_String* name, TF_Status* status);
-        void (*list_extensions)(TF_Server* server, TF_Vector* out_names, TF_Status* status);
+        void (*unregister_extension)(TF_Server* server, const TF_String* name, TF_Status* out_status);
+        void (*list_extensions)(TF_Server* server, TF_Vector* out_names, TF_Status* out_status);
 
         // Hot cert rotation without a restart.
         void (*reload_certificate)(
             TF_Server* server,
             const TF_String* cert_path,
             const TF_String* key_path,
-            TF_Status* status
+            TF_Status* out_status
         );
 
     } TF_ServerOps;
 
 #define TF_SERVER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ServerOps, reload_certificate)
 
-    TF_CAPI_EXPORT void create_server(TF_ServerOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_server(TF_ServerOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_server(void* plugin_context);
 
 #ifdef __cplusplus

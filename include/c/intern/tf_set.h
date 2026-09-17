@@ -24,11 +24,11 @@ extern "C"
     {
         size_t struct_size;
 
-        int (*insert)(TF_Set* set, const void* key);
-        const void* (*find)(const TF_Set* set, const void* key);
-        int (*erase)(TF_Set* set, const void* key);
-        int (*contains)(const TF_Set* set, const void* key);
-        size_t (*size)(const TF_Set* set);
+        void (*insert)(TF_Set* set, const void* key, TF_Status* out_status);
+        void (*find)(const TF_Set* set, const void* key, const void** out_value, TF_Status* out_status);
+        void (*erase)(TF_Set* set, const void* key, TF_Status* out_status);
+        void (*contains)(const TF_Set* set, const void* key, int* out_found, TF_Status* out_status);
+        void (*size)(const TF_Set* set, size_t* out_size);
         void (*for_each)(const TF_Set* set, TF_SetVisitor visitor, void* capture);
         void (*destroy)(TF_Set* set);
 
@@ -36,7 +36,7 @@ extern "C"
 
 #define TF_SET_STRUCT_SIZE TF_OFFSET_OF_END(TF_SetOps, destroy)
 
-    TF_CAPI_EXPORT void create_set(TF_SetOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_set(TF_SetOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_set(void* plugin_context);
 
 #ifdef __cplusplus

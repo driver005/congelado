@@ -22,17 +22,18 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Generator_Block* block);
-        void (*get_name)(TF_Generator_Block* block, TF_String* out);
+        void (*get_name)(TF_Generator_Block* block, TF_String* out_name);
 
-        TF_Generator_Node* (*add_node)(
+        void (*add_node)(
             TF_Generator_Block* block,
             TF_Generator_Definition* definition,
-            TF_Status* status
+            TF_Generator_Node* out_node,
+            TF_Status* out_status
         );
 
-        TF_Generator_Node* (*get_node)(TF_Generator_Block* block, int index);
+        void (*get_node)(TF_Generator_Block* block, int index, TF_Generator_Node* out_node, TF_Status* out_status);
 
-        TF_Tensor* (*list_nodes)(TF_Generator_Block* block, TF_Status* status);
+        void (*list_nodes)(TF_Generator_Block* block, TF_Tensor** out_nodes, TF_Status* out_status);
 
         void (*set_name)(TF_Generator_Block* block, const TF_String* name);
     } TF_Generator_BlockOps;
@@ -40,7 +41,7 @@ extern "C"
 #define TF_GENERATOR_BLOCK_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_BlockOps, set_name)
 
     TF_CAPI_EXPORT void
-    create_generator_block(TF_Generator_BlockOps** ops, void** plugin_context, TF_Status* status);
+    create_generator_block(TF_Generator_BlockOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator_block(void* plugin_context);
 
 #ifdef __cplusplus

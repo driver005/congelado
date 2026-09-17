@@ -50,17 +50,17 @@ extern "C"
     {
         size_t struct_size;
 
-        void (*get_name)(TF_AttrType* attrtype, TF_String* out);
+        void (*get_name)(TF_AttrType* attrtype, TF_String* out_name);
 
-        // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING) into *out.
-        void (*attrtype_name)(TF_AttrType* attrtype, TF_AttrType_Enum type, TF_String* out);
+        // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING) into *out_type_name.
+        void (*attrtype_name)(TF_AttrType* attrtype, TF_AttrType_Enum type, TF_String* out_type_name);
 
     } TF_AttrTypeOps;
 
 #define TF_ATTRTYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_AttrTypeOps, attrtype_name)
 
     TF_CAPI_EXPORT void
-    create_attrtype(TF_AttrTypeOps** ops, void** plugin_context, TF_Status* status);
+    create_attrtype(TF_AttrTypeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_attrtype(void* plugin_context);
 
 #ifdef __cplusplus

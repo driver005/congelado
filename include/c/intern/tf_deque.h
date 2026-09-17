@@ -12,12 +12,10 @@ extern "C"
 #endif
 
     // TF_Deque — plugin vtable for a type-erased double-ended growable collection (std::deque<T> equivalent), fixed to element_size bytes per element at creation.
-    typedef struct TF_DequeOps TF_DequeOps;
 
     typedef struct TF_Deque
     {
         void* plugin_data;
-        const TF_DequeOps* ops;
     } TF_Deque;
 
     // Plugin-facing vtable registered via create_deque.
@@ -40,10 +38,10 @@ extern "C"
         void (*pop_back)(TF_Deque* deque);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(const TF_Deque* deque, size_t index);
+        void (*get)(const TF_Deque* deque, size_t index, const void** out_value, TF_Status* out_status);
 
         // Current element count.
-        size_t (*size)(const TF_Deque* deque);
+        void (*size)(const TF_Deque* deque, size_t* out_size);
 
         void (*destroy)(TF_Deque* deque);
 
@@ -51,15 +49,14 @@ extern "C"
 
 #define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DequeOps, destroy)
 
-    TF_CAPI_EXPORT void create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_deque(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_deque and fills in deque->ops.
-    static inline void init_deque(TF_Deque* deque, TF_Status* status)
+    // Real implementation, not declared-only — calls create_deque
+    static inline void init_deque(TF_Deque* deque, TF_Status* out_status)
     {
         TF_DequeOps* ops = NULL;
-        create_deque(&ops, &deque->plugin_data, status);
-        deque->ops = ops;
+        create_deque(&ops, &deque->plugin_data, out_status);
     }
 
 #ifdef __cplusplus

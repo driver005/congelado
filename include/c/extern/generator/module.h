@@ -21,27 +21,27 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Generator_Module* module);
-        void (*get_name)(TF_Generator_Module* module, TF_String* out);
+        void (*get_name)(TF_Generator_Module* module, TF_String* out_name);
 
         void (*add_function)(
             TF_Generator_Module* module,
             TF_Generator_Function* function,
-            TF_Status* status
+            TF_Status* out_status
         );
 
-        TF_Generator_Function* (*get_function)(TF_Generator_Module* module, const TF_String* name);
+        void (*get_function)(TF_Generator_Module* module, const TF_String* name, TF_Generator_Function* out_function, TF_Status* out_status);
 
-        TF_Tensor* (*list_functions)(TF_Generator_Module* module, TF_Status* status);
+        void (*list_functions)(TF_Generator_Module* module, TF_Tensor** out_functions, TF_Status* out_status);
 
         void (*set_name)(TF_Generator_Module* module, const TF_String* name);
-        void (*validate)(TF_Generator_Module* module, TF_Status* status);
-        void (*emit)(TF_Generator_Module* module, TF_String* out, TF_Status* status);
+        void (*validate)(TF_Generator_Module* module, TF_Status* out_status);
+        void (*emit)(TF_Generator_Module* module, TF_String* out_code, TF_Status* out_status);
     } TF_Generator_ModuleOps;
 
 #define TF_GENERATOR_MODULE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_ModuleOps, emit)
 
     TF_CAPI_EXPORT void
-    create_generator_module(TF_Generator_ModuleOps** ops, void** plugin_context, TF_Status* status);
+    create_generator_module(TF_Generator_ModuleOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator_module(void* plugin_context);
 
 #ifdef __cplusplus

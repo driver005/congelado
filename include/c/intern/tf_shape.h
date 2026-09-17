@@ -65,12 +65,10 @@ extern "C"
     TF_CAPI_EXPORT int64_t shape_data_dim(const TF_Shape_Data* shape, int index);
 
     // TF_Shape — plugin vtable for shape operations.
-    typedef struct TF_ShapeOps TF_ShapeOps;
 
     typedef struct TF_Shape
     {
         void* plugin_data;
-        const TF_ShapeOps* ops;
     } TF_Shape;
 
     // Plugin-facing vtable registered via create_shape.
@@ -79,7 +77,7 @@ extern "C"
         size_t struct_size;
 
         // Return the backend's name (e.g. "shape") into *out.
-        void (*get_name)(TF_Shape* shape, TF_String* out);
+        void (*get_name)(TF_Shape* shape, TF_String* out_name);
 
         // Set the dims (pass dims=NULL/num_dims=0 for scalar).
         void (*set_dims)(TF_Shape* shape, const int64_t* dims, int num_dims);
@@ -87,24 +85,23 @@ extern "C"
         void (*delete_shape)(TF_Shape* shape);
 
         // Return the number of dimensions (-1 for unknown rank).
-        int (*shape_num_dims)(const TF_Shape* shape);
+        void (*shape_num_dims)(const TF_Shape* shape, int* out_num_dims);
 
         // Return the size of the given dimension (-1 for unknown).
-        int64_t (*shape_dim)(const TF_Shape* shape, int index);
+        void (*shape_dim)(const TF_Shape* shape, int index, int64_t* out_dim);
 
     } TF_ShapeOps;
 
 #define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ShapeOps, shape_dim)
 
-    TF_CAPI_EXPORT void create_shape(TF_ShapeOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_shape(TF_ShapeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_shape(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_shape and fills in shape->ops.
-    static inline void init_shape(TF_Shape* shape, TF_Status* status)
+    // Real implementation, not declared-only — calls create_shape
+    static inline void init_shape(TF_Shape* shape, TF_Status* out_status)
     {
         TF_ShapeOps* ops = NULL;
-        create_shape(&ops, &shape->plugin_data, status);
-        shape->ops = ops;
+        create_shape(&ops, &shape->plugin_data, out_status);
     }
 
 #ifdef __cplusplus

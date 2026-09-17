@@ -27,26 +27,26 @@ extern "C"
     } TF_Io;
 
     // Real implementation, not declared-only — calls every io/*.h create_x and fills in io's ops fields.
-    static inline void init_io(TF_Io* io, TF_Status* status)
+    static inline void init_io(TF_Io* io, TF_Status* out_status)
     {
         TF_ClientOps* client_ops = NULL;
-        create_client(&client_ops, &io->plugin_data, status);
+        create_client(&client_ops, &io->plugin_data, out_status);
         io->client_ops = client_ops;
 
         TF_RequestOps* request_ops = NULL;
-        create_request(&request_ops, &io->plugin_data, status);
+        create_request(&request_ops, &io->plugin_data, out_status);
         io->request_ops = request_ops;
 
         TF_ResponseOps* response_ops = NULL;
-        create_response(&response_ops, &io->plugin_data, status);
+        create_response(&response_ops, &io->plugin_data, out_status);
         io->response_ops = response_ops;
 
         TF_ServerOps* server_ops = NULL;
-        create_server(&server_ops, &io->plugin_data, status);
+        create_server(&server_ops, &io->plugin_data, out_status);
         io->server_ops = server_ops;
 
         TF_SocketOps* socket_ops = NULL;
-        create_socket(&socket_ops, &io->plugin_data, status);
+        create_socket(&socket_ops, &io->plugin_data, out_status);
         io->socket_ops = socket_ops;
     }
 

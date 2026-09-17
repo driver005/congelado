@@ -151,7 +151,10 @@ cc_library(
 
 cc_library(
     name = "tf_list_hdrs",
-    hdrs = ["intern/tf_list.h"],
+    hdrs = [
+        "intern/tf_list/list.h",
+        "intern/tf_list/node.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_status_hdrs",
@@ -160,7 +163,10 @@ cc_library(
 
 cc_library(
     name = "tf_forward_list_hdrs",
-    hdrs = ["intern/tf_forward_list.h"],
+    hdrs = [
+        "intern/tf_forward_list/forward_list.h",
+        "intern/tf_forward_list/node.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_status_hdrs",
@@ -169,7 +175,10 @@ cc_library(
 
 cc_library(
     name = "tf_hive_hdrs",
-    hdrs = ["intern/tf_hive.h"],
+    hdrs = [
+        "intern/tf_hive/hive.h",
+        "intern/tf_hive/slot.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_status_hdrs",
@@ -269,8 +278,16 @@ cc_library(
 )
 
 cc_library(
-    name = "extern_job_hdrs",
-    hdrs = ["extern/job/job.h"],
+    name = "extern_jobber_hdrs",
+    hdrs = [
+        "extern/jobber/jobber.h",
+        "extern/jobber/job.h",
+        "extern/jobber/task.h",
+        "extern/jobber/schedule.h",
+        "extern/jobber/observe.h",
+        "extern/jobber/options.h",
+        "extern/jobber/durable.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":tf_map_hdrs",
@@ -354,7 +371,10 @@ cc_library(
 
 cc_library(
     name = "extern_server_hdrs",
-    hdrs = ["extern/io/server.h"],
+    hdrs = [
+        "extern/io/connection.h",
+        "extern/io/server.h",
+    ],
     deps = [
         ":c_api_macros_hdrs",
         ":extern_request_hdrs",
@@ -452,7 +472,7 @@ cc_library(
         ":extern_filesystem_hdrs",
         ":extern_generator_hdrs",
         ":extern_io_hdrs",
-        ":extern_job_hdrs",
+        ":extern_jobber_hdrs",
         ":extern_otel_hdrs",
         ":extern_plugin_hdrs",
         ":extern_profiler_hdrs",

@@ -36,9 +36,9 @@ extern "C"
     {
         void* plugin_data;
     } TF_Socket;
-    typedef void (*TF_Socket_AckFn)(void* user_data, TF_Status* status);
-    typedef void (*TF_Socket_AcceptFn)(void* user_data, TF_Socket* accepted, TF_Status* status);
-    typedef void (*TF_Socket_TransferFn)(void* user_data, size_t bytes, TF_Status* status);
+    typedef void (*TF_Socket_AckFn)(void* user_data, TF_Status* out_status);
+    typedef void (*TF_Socket_AcceptFn)(void* user_data, TF_Socket* accepted, TF_Status* out_status);
+    typedef void (*TF_Socket_TransferFn)(void* user_data, size_t bytes, TF_Status* out_status);
 
     // Plugin-facing vtable registered via create_socket.
     typedef struct TF_SocketOps
@@ -46,55 +46,55 @@ extern "C"
         size_t struct_size;
 
         void (*destroy)(TF_Socket* socket);
-        void (*get_name)(TF_Socket* socket, TF_String* out);
+        void (*get_name)(TF_Socket* socket, TF_String* out_name);
 
         void (*close_socket)(TF_Socket* socket);
 
         // Options.
-        void (*set_non_blocking)(TF_Socket* socket, int enabled, TF_Status* status);
-        void (*set_reuse_address)(TF_Socket* socket, int enabled, TF_Status* status);
-        void (*set_broadcast)(TF_Socket* socket, int enabled, TF_Status* status);
+        void (*set_non_blocking)(TF_Socket* socket, int enabled, TF_Status* out_status);
+        void (*set_reuse_address)(TF_Socket* socket, int enabled, TF_Status* out_status);
+        void (*set_broadcast)(TF_Socket* socket, int enabled, TF_Status* out_status);
 
         // No-op for UDP.
-        void (*set_tcp_no_delay)(TF_Socket* socket, int enabled, TF_Status* status);
+        void (*set_tcp_no_delay)(TF_Socket* socket, int enabled, TF_Status* out_status);
 
         // TLS (TF_SOCKET_TLS/TF_SOCKET_QUIC only).
-        void (*load_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* status);
-        void (*generate_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* status);
-        void (*set_verify_peer)(TF_Socket* socket, int enabled, TF_Status* status);
+        void (*load_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* out_status);
+        void (*generate_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* out_status);
+        void (*set_verify_peer)(TF_Socket* socket, int enabled, TF_Status* out_status);
 
         // Server-side lifecycle.
-        void (*bind)(TF_Socket* socket, int allow_unauthorized, TF_Status* status);
-        void (*listen)(TF_Socket* socket, int backlog, TF_Status* status);
+        void (*bind)(TF_Socket* socket, int allow_unauthorized, TF_Status* out_status);
+        void (*listen)(TF_Socket* socket, int backlog, TF_Status* out_status);
 
         // UDP only.
-        void (*join_multicast)(TF_Socket* socket, const TF_String* group, TF_Status* status);
+        void (*join_multicast)(TF_Socket* socket, const TF_String* group, TF_Status* out_status);
 
-        void (*accept)(TF_Socket* socket, TF_Socket** out_accepted, TF_Status* status);
-        void (*accept_async)(TF_Socket* socket, TF_Socket_AcceptFn completion, void* user_data, TF_Status* status);
+        void (*accept)(TF_Socket* socket, TF_Socket* out_accepted, TF_Status* out_status);
+        void (*accept_async)(TF_Socket* socket, TF_Socket_AcceptFn completion, void* user_data, TF_Status* out_status);
 
         // Client-side lifecycle.
-        void (*connect)(TF_Socket* socket, int64_t timeout_ms, TF_Status* status);
-        void (*connect_async)(TF_Socket* socket, int64_t timeout_ms, TF_Socket_AckFn completion, void* user_data, TF_Status* status);
+        void (*connect)(TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status);
+        void (*connect_async)(TF_Socket* socket, int64_t timeout_ms, TF_Socket_AckFn completion, void* user_data, TF_Status* out_status);
 
         // Data transfer (connected sockets: TCP/TLS/QUIC, or a UDP socket that has itself called connect()).
-        void (*send)(TF_Socket* socket, const void* data, size_t length, size_t* out_bytes_sent, TF_Status* status);
+        void (*send)(TF_Socket* socket, const void* data, size_t length, size_t* out_bytes_sent, TF_Status* out_status);
         void (*send_async)(
             TF_Socket* socket,
             const void* data,
             size_t length,
             TF_Socket_TransferFn completion,
             void* user_data,
-            TF_Status* status
+            TF_Status* out_status
         );
-        void (*receive)(TF_Socket* socket, void* out_buffer, size_t buffer_size, size_t* out_bytes_received, TF_Status* status);
+        void (*receive)(TF_Socket* socket, void* out_buffer, size_t buffer_size, size_t* out_bytes_received, TF_Status* out_status);
         void (*receive_async)(
             TF_Socket* socket,
             void* out_buffer,
             size_t buffer_size,
             TF_Socket_TransferFn completion,
             void* user_data,
-            TF_Status* status
+            TF_Status* out_status
         );
 
         // Connectionless data transfer (UDP without connect()) — explicit per-datagram destination/sender, matching sendto/recvfrom.
@@ -105,7 +105,7 @@ extern "C"
             const TF_String* dest_host,
             uint16_t dest_port,
             size_t* out_bytes_sent,
-            TF_Status* status
+            TF_Status* out_status
         );
         void (*receive_from)(
             TF_Socket* socket,
@@ -114,37 +114,36 @@ extern "C"
             size_t* out_bytes_received,
             TF_String* out_sender_host,
             uint16_t* out_sender_port,
-            TF_Status* status
+            TF_Status* out_status
         );
 
         // Timeouts, shutdown, and status/error introspection.
-        void (*set_send_timeout)(TF_Socket* socket, int64_t timeout_ms, TF_Status* status);
-        void (*set_receive_timeout)(TF_Socket* socket, int64_t timeout_ms, TF_Status* status);
+        void (*set_send_timeout)(TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status);
+        void (*set_receive_timeout)(TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status);
 
         // how: 0=read, 1=write, 2=both. Half-close, distinct from close_socket.
-        void (*shutdown)(TF_Socket* socket, int how, TF_Status* status);
+        void (*shutdown)(TF_Socket* socket, int how, TF_Status* out_status);
 
-        // Returns a TF_Socket_Status value.
-        int (*get_status)(TF_Socket* socket);
+        void (*get_status)(TF_Socket* socket, int* out_status);
 
         // OS/SSL error code behind the last errored status.
-        int (*get_error_code)(TF_Socket* socket);
+        void (*get_error_code)(TF_Socket* socket, int* out_error_code);
 
         // Introspection.
-        void (*get_local_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* status);
-        void (*get_remote_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* status);
-        TF_Socket_Protocol (*get_protocol)(TF_Socket* socket);
+        void (*get_local_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* out_status);
+        void (*get_remote_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* out_status);
+        void (*get_protocol)(TF_Socket* socket, TF_Socket_Protocol* out_protocol);
 
         // Raw OS handle, for interop/leverager registration.
-        intptr_t (*get_fd)(TF_Socket* socket);
+        void (*get_fd)(TF_Socket* socket, intptr_t* out_fd);
 
-        int (*is_valid)(TF_Socket* socket);
+        void (*is_valid)(TF_Socket* socket, int* out_valid);
 
     } TF_SocketOps;
 
 #define TF_SOCKET_STRUCT_SIZE TF_OFFSET_OF_END(TF_SocketOps, is_valid)
 
-    TF_CAPI_EXPORT void create_socket(TF_SocketOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_socket(TF_SocketOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_socket(void* plugin_context);
 
 #ifdef __cplusplus

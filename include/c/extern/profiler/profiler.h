@@ -37,16 +37,16 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Profiler* profiler);
-        void (*get_name)(TF_Profiler* profiler, TF_String* out);
-        void (*get_device_type)(TF_Profiler* profiler, TF_String* out);
-        void (*start)(TF_Profiler* profiler, TF_Status* status);
-        void (*stop)(TF_Profiler* profiler, TF_Status* status);
-        TF_Tensor* (*collect_data_xspace)(TF_Profiler* profiler, TF_Status* status);
+        void (*get_name)(TF_Profiler* profiler, TF_String* out_name);
+        void (*get_device_type)(TF_Profiler* profiler, TF_String* out_device_type);
+        void (*start)(TF_Profiler* profiler, TF_Status* out_status);
+        void (*stop)(TF_Profiler* profiler, TF_Status* out_status);
+        void (*collect_data_xspace)(TF_Profiler* profiler, TF_Tensor** out_data, TF_Status* out_status);
     } TF_ProfilerOps;
 
 #define TF_PROFILER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ProfilerOps, collect_data_xspace)
 
-    TF_CAPI_EXPORT void create_profiler(TF_ProfilerOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_profiler(TF_ProfilerOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_profiler(void* plugin_context);
 
 #ifdef __cplusplus

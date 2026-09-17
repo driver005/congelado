@@ -24,7 +24,7 @@ extern "C"
     {
         size_t struct_size;
         void (*destroy)(TF_Registration* registration);
-        void (*get_name)(TF_Registration* registration, TF_String* out);
+        void (*get_name)(TF_Registration* registration, TF_String* out_name);
 
         void (*register_op)(
             TF_Registration* registration,
@@ -32,10 +32,11 @@ extern "C"
             const TF_String* name,
             void* value
         );
-        void* (*get)(
+        void (*get)(
             const TF_Registration* registration,
             const TF_String* type,
-            const TF_String* name
+            const TF_String* name,
+            void** out_value
         );
         void (*unregister)(
             TF_Registration* registration,
@@ -48,7 +49,7 @@ extern "C"
 #define TF_REGISTRATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_RegistrationOps, unregister)
 
     TF_CAPI_EXPORT void
-    create_registration(TF_RegistrationOps** ops, void** plugin_context, TF_Status* status);
+    create_registration(TF_RegistrationOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_registration(void* plugin_context);
 
 #ifdef __cplusplus

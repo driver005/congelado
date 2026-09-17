@@ -12,12 +12,10 @@ extern "C"
 #endif
 
     // TF_Vector — plugin vtable for a type-erased growable, contiguous collection (std::vector<T> equivalent), fixed to element_size bytes per element at creation.
-    typedef struct TF_VectorOps TF_VectorOps;
 
     typedef struct TF_Vector
     {
         void* plugin_data;
-        const TF_VectorOps* ops;
     } TF_Vector;
 
     // Plugin-facing vtable registered via create_vector.
@@ -31,26 +29,27 @@ extern "C"
         void (*push_back)(TF_Vector* vector, const void* value);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        const void* (*get)(const TF_Vector* vector, size_t index);
+        void (*get)(const TF_Vector* vector, size_t index, const void** out_value, TF_Status* out_status);
 
         // Copy one element_size-byte element from value over the element at index.
         void (*set)(
             TF_Vector* vector,
             size_t index,
-            const void* value
+            const void* value,
+            TF_Status* out_status
         );
 
         // Current element count.
-        size_t (*size)(const TF_Vector* vector);
+        void (*size)(const TF_Vector* vector, size_t* out_size);
 
         // Current storage capacity in elements.
-        size_t (*capacity)(const TF_Vector* vector);
+        void (*capacity)(const TF_Vector* vector, size_t* out_capacity);
 
         // Ensure capacity for at least new_capacity elements.
-        void (*reserve)(TF_Vector* vector, size_t new_capacity);
+        void (*reserve)(TF_Vector* vector, size_t new_capacity, TF_Status* out_status);
 
         // Non-owning pointer to the contiguous backing storage.
-        void* (*data)(TF_Vector* vector);
+        void (*data)(TF_Vector* vector, void** out_data);
 
         void (*destroy)(TF_Vector* vector);
 
@@ -58,15 +57,14 @@ extern "C"
 
 #define TF_VECTOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_VectorOps, destroy)
 
-    TF_CAPI_EXPORT void create_vector(TF_VectorOps** ops, void** plugin_context, TF_Status* status);
+    TF_CAPI_EXPORT void create_vector(TF_VectorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_vector(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_vector and fills in vector->ops.
-    static inline void init_vector(TF_Vector* vector, TF_Status* status)
+    // Real implementation, not declared-only — calls create_vector
+    static inline void init_vector(TF_Vector* vector, TF_Status* out_status)
     {
         TF_VectorOps* ops = NULL;
-        create_vector(&ops, &vector->plugin_data, status);
-        vector->ops = ops;
+        create_vector(&ops, &vector->plugin_data, out_status);
     }
 
 #ifdef __cplusplus
