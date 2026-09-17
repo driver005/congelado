@@ -33,14 +33,14 @@ extern "C"
         void (*push_front)(
             TF_ForwardList* list,
             const void* value,
-            TF_ForwardList_Node* out_node,
+            TFForwardListNode* out_node,
             TF_Status* out_status
         );
 
         // Erase the node immediately following node (or the front node, if node is NULL). Matches std::forward_list::erase_after semantics.
         void (*erase_after)(
             TF_ForwardList* list,
-            TF_ForwardList_Node* node
+            TFForwardListNode* node
         );
 
         // Call visitor(capture, element) once per element, front to back.

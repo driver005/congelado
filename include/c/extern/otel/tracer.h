@@ -11,30 +11,30 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Otel_Tracer
+    typedef struct TFOtelTracer
     {
         void* plugin_data;
-    } TF_Otel_Tracer;
+    } TFOtelTracer;
 
-    typedef struct TF_Otel_TracerOps
+    typedef struct TFOtelTracerOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Otel_Tracer* tracer);
-        void (*get_name)(TF_Otel_Tracer* tracer, TF_String* out_name);
+        void (*destroy)(TFOtelTracer* tracer);
+        void (*get_name)(TFOtelTracer* tracer, TF_String* out_name);
 
         void (*start_span)(
-            TF_Otel_Tracer* tracer,
+            TFOtelTracer* tracer,
             const TF_String* name,
             int kind,
-            TF_Otel_Span* out_span,
+            TFOtelSpan* out_span,
             TF_Status* out_status
         );
-    } TF_Otel_TracerOps;
+    } TFOtelTracerOps;
 
-#define TF_OTEL_TRACER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel_TracerOps, start_span)
+#define TF_OTEL_TRACER_STRUCT_SIZE TF_OFFSET_OF_END(TFOtelTracerOps, start_span)
 
     TF_CAPI_EXPORT void
-    create_otel_tracer(TF_Otel_TracerOps** ops, void** plugin_context, TF_Status* out_status);
+    create_otel_tracer(TFOtelTracerOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_otel_tracer(void* plugin_context);
 
 #ifdef __cplusplus

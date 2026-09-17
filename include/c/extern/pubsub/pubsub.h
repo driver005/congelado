@@ -17,9 +17,9 @@ extern "C"
     typedef struct TF_PubSub
     {
         void* plugin_data;
-        const TF_PubSub_SubscriptionOps* subscription_ops;
-        const TF_PubSub_ChannelOps* channel_ops;
-        const TF_PubSub_PublishOps* publish_ops;
+        const TFPubSubSubscriptionOps* subscription_ops;
+        const TFPubSubChannelOps* channel_ops;
+        const TFPubSubPublishOps* publish_ops;
     } TF_PubSub;
 
     typedef struct TF_PubSubOps
@@ -38,15 +38,15 @@ extern "C"
     {
         create_pubsub(ops, &pubsub->plugin_data, out_status);
 
-        TF_PubSub_SubscriptionOps* subscription_ops = NULL;
+        TFPubSubSubscriptionOps* subscription_ops = NULL;
         create_pubsub_subscription(&subscription_ops, &pubsub->plugin_data, out_status);
         pubsub->subscription_ops = subscription_ops;
 
-        TF_PubSub_ChannelOps* channel_ops = NULL;
+        TFPubSubChannelOps* channel_ops = NULL;
         create_pubsub_channel(&channel_ops, &pubsub->plugin_data, out_status);
         pubsub->channel_ops = channel_ops;
 
-        TF_PubSub_PublishOps* publish_ops = NULL;
+        TFPubSubPublishOps* publish_ops = NULL;
         create_pubsub_publish(&publish_ops, &pubsub->plugin_data, out_status);
         pubsub->publish_ops = publish_ops;
     }

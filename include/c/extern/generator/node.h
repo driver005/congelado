@@ -11,46 +11,46 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Generator_Node
+    typedef struct TFGeneratorNode
     {
         void* plugin_data;
-    } TF_Generator_Node;
+    } TFGeneratorNode;
 
-    typedef struct TF_Generator_NodeOps
+    typedef struct TFGeneratorNodeOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Generator_Node* node_context);
-        void (*get_name)(TF_Generator_Node* node_context, TF_String* out_name);
+        void (*destroy)(TFGeneratorNode* node_context);
+        void (*get_name)(TFGeneratorNode* node_context, TF_String* out_name);
 
         void (*set_operand)(
-            TF_Generator_Node* node_context,
+            TFGeneratorNode* node_context,
             int index,
             const TF_String* var_name,
             TF_Status* out_status
         );
         void (*set_output_name)(
-            TF_Generator_Node* node_context,
+            TFGeneratorNode* node_context,
             int index,
             const TF_String* var_name,
             TF_Status* out_status
         );
         void (*set_attr)(
-            TF_Generator_Node* node_context,
+            TFGeneratorNode* node_context,
             const TF_String* name,
             const void* value,
             size_t value_size,
             TF_Status* out_status
         );
 
-        void (*get_operand)(TF_Generator_Node* node_context, int index, TF_String* out_operand);
-        void (*get_output_name)(TF_Generator_Node* node_context, int index, TF_String* out_output_name);
-        void (*get_definition)(TF_Generator_Node* node_context, TF_Generator_Definition* out_definition, TF_Status* out_status);
-    } TF_Generator_NodeOps;
+        void (*get_operand)(TFGeneratorNode* node_context, int index, TF_String* out_operand);
+        void (*get_output_name)(TFGeneratorNode* node_context, int index, TF_String* out_output_name);
+        void (*get_definition)(TFGeneratorNode* node_context, TFGeneratorDefinition* out_definition, TF_Status* out_status);
+    } TFGeneratorNodeOps;
 
-#define TF_GENERATOR_NODE_STRUCT_SIZE TF_OFFSET_OF_END(TF_Generator_NodeOps, get_definition)
+#define TF_GENERATOR_NODE_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorNodeOps, get_definition)
 
     TF_CAPI_EXPORT void
-    create_generator_node(TF_Generator_NodeOps** ops, void** plugin_context, TF_Status* out_status);
+    create_generator_node(TFGeneratorNodeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator_node(void* plugin_context);
 
 #ifdef __cplusplus

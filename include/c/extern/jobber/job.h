@@ -16,7 +16,7 @@ extern "C"
 #endif
 
 
-    typedef enum TF_Job_Status
+    typedef enum TFJobStatus
     {
         TF_JOB_PENDING = 0,
         TF_JOB_RUNNING = 1,
@@ -24,14 +24,14 @@ extern "C"
         TF_JOB_COMPLETED = 3,
         TF_JOB_FAILED = 4,
         TF_JOB_CANCELLED = 5
-    } TF_Job_Status;
+    } TFJobStatus;
 
-    typedef void (*TF_Job_CompletionFn)(
+    typedef void (*TFJobCompletionFn)(
         void* user_data,
         const TF_String* output,
         TF_Status* out_status
     );
-    typedef void (*TF_Job_ProgressFn)(void* user_data, const TF_String* progress_payload);
+    typedef void (*TFJobProgressFn)(void* user_data, const TF_String* progress_payload);
 
     typedef struct TF_Job
     {
@@ -55,13 +55,13 @@ extern "C"
         void (*wait)(
             TF_Job* job,
             int64_t timeout_ms,
-            TF_Job_CompletionFn completion,
+            TFJobCompletionFn completion,
             void* user_data,
             TF_Status* out_status
         );
 
-        void (*on_complete)(TF_Job* job, TF_Job_CompletionFn completion, void* user_data);
-        void (*on_progress)(TF_Job* job, TF_Job_ProgressFn progress, void* user_data);
+        void (*on_complete)(TF_Job* job, TFJobCompletionFn completion, void* user_data);
+        void (*on_progress)(TF_Job* job, TFJobProgressFn progress, void* user_data);
 
         void (*list)(
             TF_Job* job,

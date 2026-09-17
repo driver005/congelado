@@ -27,8 +27,8 @@ extern "C"
 {
 #endif
 
-    // TF_AttrType_Enum describes the type of the value of an attribute on an operation.
-    typedef enum TF_AttrType_Enum
+    // TFAttrTypeEnum describes the type of the value of an attribute on an operation.
+    typedef enum TFAttrTypeEnum
     {
         TF_ATTR_STRING = 0,
         TF_ATTR_INT = 1,
@@ -39,7 +39,7 @@ extern "C"
         TF_ATTR_TENSOR = 6,
         TF_ATTR_PLACEHOLDER = 7,
         TF_ATTR_FUNC = 8,
-    } TF_AttrType_Enum;
+    } TFAttrTypeEnum;
 
     typedef struct TF_AttrType
     {
@@ -53,7 +53,7 @@ extern "C"
         void (*get_name)(TF_AttrType* attrtype, TF_String* out_name);
 
         // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING) into *out_type_name.
-        void (*attrtype_name)(TF_AttrType* attrtype, TF_AttrType_Enum type, TF_String* out_type_name);
+        void (*attrtype_name)(TF_AttrType* attrtype, TFAttrTypeEnum type, TF_String* out_type_name);
 
     } TF_AttrTypeOps;
 

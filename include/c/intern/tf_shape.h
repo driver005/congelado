@@ -29,27 +29,27 @@ extern "C"
 {
 #endif
 
-    // TF_Shape_Data — passive value type carrying a shape's dimensions.
-    typedef struct TF_Shape_Data
+    // TFShapeData — passive value type carrying a shape's dimensions.
+    typedef struct TFShapeData
     {
         size_t struct_size;
         int64_t* dims;
         int num_dims;
-    } TF_Shape_Data;
+    } TFShapeData;
 
-#define TF_SHAPE_DATA_STRUCT_SIZE TF_OFFSET_OF_END(TF_Shape_Data, num_dims)
+#define TF_SHAPE_DATA_STRUCT_SIZE TF_OFFSET_OF_END(TFShapeData, num_dims)
 
     // Legacy alias kept for call sites that refer to the data struct as TF_Shape.
-    typedef TF_Shape_Data TF_Shape_Value;
+    typedef TFShapeData TFShapeValue;
 
-    static inline void shape_data_init(TF_Shape_Data* shape)
+    static inline void shape_data_init(TFShapeData* shape)
     {
         shape->struct_size = TF_SHAPE_DATA_STRUCT_SIZE;
         shape->dims = NULL;
         shape->num_dims = 0;
     }
 
-    static inline void shape_data_dealloc(TF_Shape_Data* shape)
+    static inline void shape_data_dealloc(TFShapeData* shape)
     {
         if (!shape) {
             return;
@@ -58,11 +58,11 @@ extern "C"
         free(shape);
     }
 
-    // Global helper functions that operate on TF_Shape_Data values.
-    TF_CAPI_EXPORT TF_Shape_Data* new_shape_data(const int64_t* dims, int num_dims);
-    TF_CAPI_EXPORT void delete_shape_data(TF_Shape_Data* shape);
-    TF_CAPI_EXPORT int shape_data_num_dims(const TF_Shape_Data* shape);
-    TF_CAPI_EXPORT int64_t shape_data_dim(const TF_Shape_Data* shape, int index);
+    // Global helper functions that operate on TFShapeData values.
+    TF_CAPI_EXPORT TFShapeData* new_shape_data(const int64_t* dims, int num_dims);
+    TF_CAPI_EXPORT void delete_shape_data(TFShapeData* shape);
+    TF_CAPI_EXPORT int shape_data_num_dims(const TFShapeData* shape);
+    TF_CAPI_EXPORT int64_t shape_data_dim(const TFShapeData* shape, int index);
 
     // TF_Shape — plugin vtable for shape operations.
 

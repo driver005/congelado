@@ -37,7 +37,6 @@ extern "C"
     typedef struct TF_Filesystem
     {
         void* plugin_data;
-        const TF_FilesystemOps* filesystem_ops;
         const TF_RandomAccessFileOps* random_access_file_ops;
         const TF_WritableFileOps* writable_file_ops;
         const TF_ReadOnlyMemoryRegionOps* read_only_memory_region_ops;
@@ -50,7 +49,7 @@ extern "C"
         void (*get_name)(TF_Filesystem* filesystem, TF_String* out_name);
         void (*free_options)(
             TF_Filesystem* filesystem,
-            TF_Filesystem_Option* options,
+            TFFilesystemOption* options,
             int num_options
         );
 
@@ -124,12 +123,12 @@ extern "C"
         void (*get_filesystem_configuration_option)(
             TF_Filesystem* filesystem,
             const TF_String* key,
-            TF_Filesystem_Option* out_option,
+            TFFilesystemOption* out_option,
             TF_Status* out_status
         );
         void (*set_filesystem_configuration_option)(
             TF_Filesystem* filesystem,
-            const TF_Filesystem_Option* option,
+            const TFFilesystemOption* option,
             TF_Status* out_status
         );
         void (*get_filesystem_configuration_keys)(
@@ -146,11 +145,9 @@ extern "C"
     create_filesystem(TF_FilesystemOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_filesystem(void* plugin_context);
 
-    static inline void init_filesystem(TF_Filesystem* filesystem, TF_Status* out_status)
+    static inline void init_filesystem(TF_FilesystemOps** ops, TF_Filesystem* filesystem, TF_Status* out_status)
     {
-        TF_FilesystemOps* filesystem_ops = NULL;
-        create_filesystem(&filesystem_ops, &filesystem->plugin_data, out_status);
-        filesystem->filesystem_ops = filesystem_ops;
+        create_filesystem(ops, &filesystem->plugin_data, out_status);
 
         TF_RandomAccessFileOps* random_access_file_ops = NULL;
         create_random_access_file(&random_access_file_ops, &filesystem->plugin_data, out_status);
@@ -164,7 +161,7 @@ extern "C"
         create_read_only_memory_region(
             &read_only_memory_region_ops,
             &filesystem->plugin_data,
-            status
+            out_status
         );
         filesystem->read_only_memory_region_ops = read_only_memory_region_ops;
     }

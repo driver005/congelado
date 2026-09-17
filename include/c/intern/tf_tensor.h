@@ -44,14 +44,14 @@ extern "C"
         // Return the backend's name (e.g. "tensor") into *out.
         void (*get_name)(TF_Tensor* tensor, TF_String* out_name);
 
-        void (*set_dtype)(TF_Tensor* tensor, TF_DataType_Enum dtype);
+        void (*set_dtype)(TF_Tensor* tensor, TFDataTypeEnum dtype);
         void (*set_dims)(TF_Tensor* tensor, const int64_t* dims, int num_dims);
         void (*set_byte_size)(TF_Tensor* tensor, size_t len);
 
         void (*delete_tensor)(TF_Tensor* tensor);
 
         // Return the element data type of the tensor.
-        void (*tensor_type)(const TF_Tensor* tensor, TF_DataType_Enum* out_dtype);
+        void (*tensor_type)(const TF_Tensor* tensor, TFDataTypeEnum* out_dtype);
 
         // Return the number of dimensions.
         void (*num_dims)(const TF_Tensor* tensor, int* out_num_dims);
@@ -71,7 +71,7 @@ extern "C"
         // Reinterpret src's buffer as dtype and write result into *out_tensor. *out_tensor must be freed with TF_DeleteTensor.
         void (*tensor_bitcast_from)(
             TF_Tensor* src,
-            TF_DataType_Enum dtype,
+            TFDataTypeEnum dtype,
             TF_Tensor** out_tensor,
             TF_Status* out_status
         );
@@ -79,7 +79,7 @@ extern "C"
         // Same as tensor_bitcast_from but src is const.
         void (*tensor_bitcast_to)(
             const TF_Tensor* src,
-            TF_DataType_Enum dtype,
+            TFDataTypeEnum dtype,
             TF_Tensor** out_tensor,
             TF_Status* out_status
         );

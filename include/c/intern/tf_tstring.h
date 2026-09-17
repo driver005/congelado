@@ -27,13 +27,13 @@ extern "C"
 #endif
 
     // TF_TString types for small-string optimization.
-    typedef enum TF_TString_Type
+    typedef enum TFTStringType
     {
         TF_TSTR_SMALL = 0,
         TF_TSTR_LARGE = 1,
         TF_TSTR_OFFSET = 2,
         TF_TSTR_VIEW = 3
-    } TF_TString_Type;
+    } TFTStringType;
 
     // Opaque small-string-optimized string storage. Owned and laid out entirely by whichever backend's create_string() supplied the TF_String ops below — callers never look inside it, only ever hold/pass a pointer.
 
@@ -51,7 +51,7 @@ extern "C"
         void (*copy)(TF_String* dst, const char* src, size_t size);
         void (*assign_view)(TF_String* dst, const char* src, size_t size);
         void (*get_data_pointer)(const TF_String* t, const char** out_data);
-        void (*get_type)(const TF_String* t, TF_TString_Type* out_type);
+        void (*get_type)(const TF_String* t, TFTStringType* out_type);
         void (*get_size)(const TF_String* t, size_t* out_size);
         void (*get_capacity)(const TF_String* t, size_t* out_capacity);
         void (*dealloc)(TF_String* t);

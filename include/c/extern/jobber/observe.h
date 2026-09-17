@@ -12,8 +12,8 @@ extern "C"
 {
 #endif
 
-    typedef void (*TF_Observe_StatusFn)(void* user_data, TF_Job_Status job_status, TF_Status* out_status);
-    typedef void (*TF_Observe_ResultFn)(void* user_data, const TF_String* output, TF_Status* out_status);
+    typedef void (*TFObserveStatusFn)(void* user_data, TFJobStatus job_status, TF_Status* out_status);
+    typedef void (*TFObserveResultFn)(void* user_data, const TF_String* output, TF_Status* out_status);
 
     typedef struct TF_Observe
     {
@@ -26,8 +26,8 @@ extern "C"
 
         void (*destroy)(TF_Observe* observe);
 
-        void (*get_status)(TF_Observe* observe, TF_Job* job, TF_Observe_StatusFn completion, void* user_data, TF_Status* out_status);
-        void (*get_result)(TF_Observe* observe, TF_Job* job, TF_Observe_ResultFn completion, void* user_data, TF_Status* out_status);
+        void (*get_status)(TF_Observe* observe, TF_Job* job, TFObserveStatusFn completion, void* user_data, TF_Status* out_status);
+        void (*get_result)(TF_Observe* observe, TF_Job* job, TFObserveResultFn completion, void* user_data, TF_Status* out_status);
 
         void (*get_history)(TF_Observe* observe, TF_Job* job, TF_Vector* out_transitions, TF_Status* out_status);
         void (*get_metrics)(TF_Observe* observe, TF_Job* job, TF_Map* out_metrics, TF_Status* out_status);

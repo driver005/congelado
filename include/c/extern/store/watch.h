@@ -11,24 +11,24 @@ extern "C"
 #endif
 
     // new_value is NULL when the change being reported is a delete.
-    typedef void (*TF_Store_WatchFn)(void* user_data, const TF_String* key, const TF_String* new_value);
+    typedef void (*TFStoreWatchFn)(void* user_data, const TF_String* key, const TF_String* new_value);
 
-    typedef struct TF_Store_Watch
+    typedef struct TFStoreWatch
     {
         void* plugin_data;
-    } TF_Store_Watch;
+    } TFStoreWatch;
 
-    typedef struct TF_Store_WatchOps
+    typedef struct TFStoreWatchOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Store_Watch* watch);
-        void (*cancel)(TF_Store_Watch* watch);
-    } TF_Store_WatchOps;
+        void (*destroy)(TFStoreWatch* watch);
+        void (*cancel)(TFStoreWatch* watch);
+    } TFStoreWatchOps;
 
-#define TF_STORE_WATCH_STRUCT_SIZE TF_OFFSET_OF_END(TF_Store_WatchOps, cancel)
+#define TF_STORE_WATCH_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreWatchOps, cancel)
 
     TF_CAPI_EXPORT void create_store_watch(
-        TF_Store_WatchOps** ops,
+        TFStoreWatchOps** ops,
         void** plugin_context,
         TF_Status* out_status
     );

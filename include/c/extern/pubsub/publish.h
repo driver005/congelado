@@ -11,53 +11,53 @@ extern "C"
 {
 #endif
 
-    typedef void (*TF_PubSub_RetainedFn)(void* user_data, const TF_String* payload, TF_Status* out_status);
-    typedef void (*TF_PubSub_AckFn)(void* user_data, TF_Status* out_status);
+    typedef void (*TFPubSubRetainedFn)(void* user_data, const TF_String* payload, TF_Status* out_status);
+    typedef void (*TFPubSubAckFn)(void* user_data, TF_Status* out_status);
 
-    typedef struct TF_PubSub_Publish
+    typedef struct TFPubSubPublish
     {
         void* plugin_data;
-    } TF_PubSub_Publish;
+    } TFPubSubPublish;
 
-    typedef struct TF_PubSub_PublishOps
+    typedef struct TFPubSubPublishOps
     {
         size_t struct_size;
-        void (*destroy)(TF_PubSub_Publish* publish);
+        void (*destroy)(TFPubSubPublish* publish);
 
         void (*publish)(
-            TF_PubSub_Publish* publish,
+            TFPubSubPublish* publish,
             const TF_String* channel,
             const TF_String* payload,
             int retain,
             TF_Status* out_status
         );
         void (*publish_batch)(
-            TF_PubSub_Publish* publish,
+            TFPubSubPublish* publish,
             const TF_String* channel,
             const TF_Vector* payloads,
-            TF_PubSub_AckFn completion,
+            TFPubSubAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*flush)(
-            TF_PubSub_Publish* publish,
-            TF_PubSub_AckFn completion,
+            TFPubSubPublish* publish,
+            TFPubSubAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*get_retained)(
-            TF_PubSub_Publish* publish,
+            TFPubSubPublish* publish,
             const TF_String* channel,
-            TF_PubSub_RetainedFn completion,
+            TFPubSubRetainedFn completion,
             void* user_data,
             TF_Status* out_status
         );
-    } TF_PubSub_PublishOps;
+    } TFPubSubPublishOps;
 
-#define TF_PUBSUB_PUBLISH_STRUCT_SIZE TF_OFFSET_OF_END(TF_PubSub_PublishOps, get_retained)
+#define TF_PUBSUB_PUBLISH_STRUCT_SIZE TF_OFFSET_OF_END(TFPubSubPublishOps, get_retained)
 
     TF_CAPI_EXPORT void create_pubsub_publish(
-        TF_PubSub_PublishOps** ops,
+        TFPubSubPublishOps** ops,
         void** plugin_context,
         TF_Status* out_status
     );

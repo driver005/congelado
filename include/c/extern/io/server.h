@@ -24,14 +24,14 @@ extern "C"
     {
         void* plugin_data;
     } TF_Server;
-    typedef void (*TF_Server_RequestHandler)(
+    typedef void (*TFServerRequestHandler)(
         void* user_data,
-        TF_Server_Connection* connection,
+        TFServerConnection* connection,
         TF_Request* request,
         TF_Response* response
     );
-    typedef void (*TF_Server_ConnectFn)(void* user_data, TF_Server_Connection* connection);
-    typedef void (*TF_Server_DisconnectFn)(void* user_data, TF_Server_Connection* connection);
+    typedef void (*TFServerConnectFn)(void* user_data, TFServerConnection* connection);
+    typedef void (*TFServerDisconnectFn)(void* user_data, TFServerConnection* connection);
 
     // Plugin-facing vtable registered via create_server.
     typedef struct TF_ServerOps
@@ -47,9 +47,9 @@ extern "C"
         void (*get_tls_cert)(TF_Server* server, TF_String* out_cert);
         void (*get_tls_key)(TF_Server* server, TF_String* out_key);
 
-        void (*set_request_handler)(TF_Server* server, TF_Server_RequestHandler handler, void* user_data);
-        void (*on_connect)(TF_Server* server, TF_Server_ConnectFn handler, void* user_data);
-        void (*on_disconnect)(TF_Server* server, TF_Server_DisconnectFn handler, void* user_data);
+        void (*set_request_handler)(TF_Server* server, TFServerRequestHandler handler, void* user_data);
+        void (*on_connect)(TF_Server* server, TFServerConnectFn handler, void* user_data);
+        void (*on_disconnect)(TF_Server* server, TFServerDisconnectFn handler, void* user_data);
 
         void (*start)(TF_Server* server, TF_Status* out_status);
 
@@ -69,14 +69,14 @@ extern "C"
         // Connection limits and lookup.
         void (*set_max_connections)(TF_Server* server, size_t max_connections, TF_Status* out_status);
         void (*get_max_connections)(TF_Server* server, size_t* out_max_connections);
-        void (*find_connection)(TF_Server* server, const TF_String* connection_id, TF_Server_Connection* out_connection, TF_Status* out_status);
-        void (*get_connection_id)(TF_Server_Connection* connection, TF_String* out_connection_id);
+        void (*find_connection)(TF_Server* server, const TF_String* connection_id, TFServerConnection* out_connection, TF_Status* out_status);
+        void (*get_connection_id)(TFServerConnection* connection, TF_String* out_connection_id);
 
-        void (*send_response)(TF_Server_Connection* connection, TF_Response* response, TF_Status* out_status);
+        void (*send_response)(TFServerConnection* connection, TF_Response* response, TF_Status* out_status);
 
         // Send the same response to every currently active connection.
         void (*broadcast)(TF_Server* server, TF_Response* response, TF_Status* out_status);
-        void (*close_connection)(TF_Server_Connection* connection, TF_Status* out_status);
+        void (*close_connection)(TFServerConnection* connection, TF_Status* out_status);
         void (*list_connections)(TF_Server* server, TF_Vector* out_connections, TF_Status* out_status);
         void (*get_connection_count)(TF_Server* server, size_t* out_count);
 

@@ -9,23 +9,23 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Otel_Counter
+    typedef struct TFOtelCounter
     {
         void* plugin_data;
-    } TF_Otel_Counter;
+    } TFOtelCounter;
 
-    typedef struct TF_Otel_CounterOps
+    typedef struct TFOtelCounterOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Otel_Counter* counter);
-        void (*get_name)(TF_Otel_Counter* counter, TF_String* out_name);
-        void (*add)(TF_Otel_Counter* counter, double value, TF_Status* out_status);
-    } TF_Otel_CounterOps;
+        void (*destroy)(TFOtelCounter* counter);
+        void (*get_name)(TFOtelCounter* counter, TF_String* out_name);
+        void (*add)(TFOtelCounter* counter, double value, TF_Status* out_status);
+    } TFOtelCounterOps;
 
-#define TF_OTEL_COUNTER_STRUCT_SIZE TF_OFFSET_OF_END(TF_Otel_CounterOps, add)
+#define TF_OTEL_COUNTER_STRUCT_SIZE TF_OFFSET_OF_END(TFOtelCounterOps, add)
 
     TF_CAPI_EXPORT void
-    create_otel_counter(TF_Otel_CounterOps** ops, void** plugin_context, TF_Status* out_status);
+    create_otel_counter(TFOtelCounterOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_otel_counter(void* plugin_context);
 
 #ifdef __cplusplus

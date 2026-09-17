@@ -12,24 +12,24 @@ extern "C"
 {
 #endif
 
-    typedef struct TF_Store_Index
+    typedef struct TFStoreIndex
     {
         void* plugin_data;
-    } TF_Store_Index;
+    } TFStoreIndex;
 
-    typedef struct TF_Store_IndexOps
+    typedef struct TFStoreIndexOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Store_Index* index);
-        void (*create)(TF_Store_Index* index, const TF_String* name, const TF_Map* field_config, TF_Status* out_status);
-        void (*drop)(TF_Store_Index* index, const TF_String* name, TF_Status* out_status);
-        void (*list)(TF_Store_Index* index, TF_Vector* out_names, TF_Status* out_status);
-    } TF_Store_IndexOps;
+        void (*destroy)(TFStoreIndex* index);
+        void (*create)(TFStoreIndex* index, const TF_String* name, const TF_Map* field_config, TF_Status* out_status);
+        void (*drop)(TFStoreIndex* index, const TF_String* name, TF_Status* out_status);
+        void (*list)(TFStoreIndex* index, TF_Vector* out_names, TF_Status* out_status);
+    } TFStoreIndexOps;
 
-#define TF_STORE_INDEX_STRUCT_SIZE TF_OFFSET_OF_END(TF_Store_IndexOps, list)
+#define TF_STORE_INDEX_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreIndexOps, list)
 
     TF_CAPI_EXPORT void create_store_index(
-        TF_Store_IndexOps** ops,
+        TFStoreIndexOps** ops,
         void** plugin_context,
         TF_Status* out_status
     );

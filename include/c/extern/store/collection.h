@@ -15,132 +15,132 @@ extern "C"
 {
 #endif
 
-    typedef void (*TF_Store_GetCompletionFn)(void* user_data, const TF_String* value, TF_Status* out_status);
-    typedef void (*TF_Store_MultiGetCompletionFn)(void* user_data, const TF_Map* results, TF_Status* out_status);
-    typedef void (*TF_Store_SetCompletionFn)(void* user_data, const TF_String* key, TF_Status* out_status);
-    typedef void (*TF_Store_AckFn)(void* user_data, TF_Status* out_status);
-    typedef void (*TF_Store_ExistsFn)(void* user_data, int exists, TF_Status* out_status);
-    typedef void (*TF_Store_CountFn)(void* user_data, size_t count, TF_Status* out_status);
-    typedef void (*TF_Store_IntFn)(void* user_data, int64_t value, TF_Status* out_status);
-    typedef void (*TF_Store_BoolFn)(void* user_data, int success, TF_Status* out_status);
+    typedef void (*TFStoreGetCompletionFn)(void* user_data, const TF_String* value, TF_Status* out_status);
+    typedef void (*TFStoreMultiGetCompletionFn)(void* user_data, const TF_Map* results, TF_Status* out_status);
+    typedef void (*TFStoreSetCompletionFn)(void* user_data, const TF_String* key, TF_Status* out_status);
+    typedef void (*TFStoreAckFn)(void* user_data, TF_Status* out_status);
+    typedef void (*TFStoreExistsFn)(void* user_data, int exists, TF_Status* out_status);
+    typedef void (*TFStoreCountFn)(void* user_data, size_t count, TF_Status* out_status);
+    typedef void (*TFStoreIntFn)(void* user_data, int64_t value, TF_Status* out_status);
+    typedef void (*TFStoreBoolFn)(void* user_data, int success, TF_Status* out_status);
 
-    typedef struct TF_Store_Collection
+    typedef struct TFStoreCollection
     {
         void* plugin_data;
-    } TF_Store_Collection;
+    } TFStoreCollection;
 
-    typedef struct TF_Store_CollectionOps
+    typedef struct TFStoreCollectionOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Store_Collection* collection);
+        void (*destroy)(TFStoreCollection* collection);
 
         // Collection lifecycle.
-        void (*close)(TF_Store_Collection* collection);
-        void (*list)(TF_Store_Collection* store, TF_Vector* out_names, TF_Status* out_status);
-        void (*drop)(TF_Store_Collection* store, const TF_String* name, TF_Status* out_status);
-        void (*get_stats)(TF_Store_Collection* collection, TF_Map* out_stats, TF_Status* out_status);
+        void (*close)(TFStoreCollection* collection);
+        void (*list)(TFStoreCollection* store, TF_Vector* out_names, TF_Status* out_status);
+        void (*drop)(TFStoreCollection* store, const TF_String* name, TF_Status* out_status);
+        void (*get_stats)(TFStoreCollection* collection, TF_Map* out_stats, TF_Status* out_status);
 
         // Core CRUD, single + batch.
         void (*get)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
-            TF_Store_GetCompletionFn completion,
+            TFStoreGetCompletionFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*multi_get)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_Vector* keys,
-            TF_Store_MultiGetCompletionFn completion,
+            TFStoreMultiGetCompletionFn completion,
             void* user_data,
             TF_Status* out_status
         );
         // key may be NULL to request a plugin-generated key; completion always receives the effective key. ttl_seconds == 0 means no expiry.
         void (*set)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
             const TF_String* value,
             int64_t ttl_seconds,
-            TF_Store_SetCompletionFn completion,
+            TFStoreSetCompletionFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*multi_set)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_Map* entries,
             int64_t ttl_seconds,
-            TF_Store_AckFn completion,
+            TFStoreAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
-        void (*remove)(
-            TF_Store_Collection* collection,
+        void (*erase)(
+            TFStoreCollection* collection,
             const TF_String* key,
-            TF_Store_AckFn completion,
+            TFStoreAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
-        void (*multi_remove)(
-            TF_Store_Collection* collection,
+        void (*multi_erase)(
+            TFStoreCollection* collection,
             const TF_Vector* keys,
-            TF_Store_AckFn completion,
+            TFStoreAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*exists)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
-            TF_Store_ExistsFn completion,
+            TFStoreExistsFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*rename)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* old_key,
             const TF_String* new_key,
-            TF_Store_AckFn completion,
+            TFStoreAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
-        void (*clear)(TF_Store_Collection* collection, TF_Store_AckFn completion, void* user_data, TF_Status* out_status);
+        void (*clear)(TFStoreCollection* collection, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
 
         // Atomic primitives.
         void (*increment)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
             int64_t delta,
-            TF_Store_IntFn completion,
+            TFStoreIntFn completion,
             void* user_data,
             TF_Status* out_status
         );
         void (*compare_and_swap)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
             const TF_String* expected_value,
             const TF_String* new_value,
-            TF_Store_BoolFn completion,
+            TFStoreBoolFn completion,
             void* user_data,
             TF_Status* out_status
         );
 
         // TTL lifecycle.
         void (*expire)(
-            TF_Store_Collection* collection,
+            TFStoreCollection* collection,
             const TF_String* key,
             int64_t ttl_seconds,
-            TF_Store_AckFn completion,
+            TFStoreAckFn completion,
             void* user_data,
             TF_Status* out_status
         );
-        void (*get_ttl)(TF_Store_Collection* collection, const TF_String* key, TF_Store_IntFn completion, void* user_data, TF_Status* out_status);
-        void (*persist)(TF_Store_Collection* collection, const TF_String* key, TF_Store_AckFn completion, void* user_data, TF_Status* out_status);
+        void (*get_ttl)(TFStoreCollection* collection, const TF_String* key, TFStoreIntFn completion, void* user_data, TF_Status* out_status);
+        void (*persist)(TFStoreCollection* collection, const TF_String* key, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
 
-    } TF_Store_CollectionOps;
+    } TFStoreCollectionOps;
 
-#define TF_STORE_COLLECTION_STRUCT_SIZE TF_OFFSET_OF_END(TF_Store_CollectionOps, persist)
+#define TF_STORE_COLLECTION_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreCollectionOps, persist)
 
     TF_CAPI_EXPORT void create_store_collection(
-        TF_Store_CollectionOps** ops,
+        TFStoreCollectionOps** ops,
         void** plugin_context,
         TF_Status* out_status
     );
