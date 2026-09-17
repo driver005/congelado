@@ -120,7 +120,7 @@ public:
     }
 
 private:
-    cc_utils::cli::Runner m_runner;
+    cc_utils::cli::Runner m_runner{};
 };
 
 } // namespace cc_abi_gen::parser::helper

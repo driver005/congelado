@@ -29,7 +29,11 @@ public:
 
         // Gets the obj representation and casts it to a function type, so we can inspect it.
         auto* function_type =
-            field->getType()->getPointeeType()->castAs<clang::FunctionProtoType>();
+            field->getType()->getPointeeType()->getAs<clang::FunctionProtoType>();
+
+        if (!function_type) {
+            return Slot{};
+        }
 
         auto function_loc = resolve_function_loc(field);
 

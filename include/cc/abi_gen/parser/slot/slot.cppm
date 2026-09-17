@@ -21,6 +21,8 @@ public:
     {
     }
 
+    Slot() = default;
+
     ~Slot() = default;
     Slot(const Slot&) = delete;
     Slot& operator=(const Slot&) = delete;
