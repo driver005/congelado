@@ -15,15 +15,15 @@ limitations under the License.
 #ifndef CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 #define CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 
-#include "c/extern/filesystem/option_types.h"
-#include "c/extern/filesystem/random_access_file.h"
-#include "c/extern/filesystem/read_only_memory_region.h"
-#include "c/extern/filesystem/writable_file.h"
-#include "c/intern/tf_file_statistics.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tensor.h"
-#include "c/intern/tf_tstring.h"
-#include "c/macros.h"
+#include "include/c/extern/filesystem/option_types.h"
+#include "include/c/extern/filesystem/random_access_file.h"
+#include "include/c/extern/filesystem/read_only_memory_region.h"
+#include "include/c/extern/filesystem/writable_file.h"
+#include "include/c/intern/file_statistics.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tensor.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stdbool.h>
 #include <stddef.h>

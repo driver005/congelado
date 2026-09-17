@@ -16,7 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_C_C_OP_REQUIRES_H_
 #define TENSORFLOW_C_C_OP_REQUIRES_H_
 
-#include "c/intern/tf_status.h"
+#include "include/c/intern/status.h"
 
 // Convenience macros for asserting and handling exceptional conditions, for C structs, including `TF_OpKernelContext`, `TF_Status`, etc. This is analogous to the macros in tensorflow/core/framework/op_requires.h. Provided for plugin OpKernel developer's convenience.
 //

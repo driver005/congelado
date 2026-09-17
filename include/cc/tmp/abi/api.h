@@ -16,13 +16,6 @@ limitations under the License.
 #ifndef TENSORFLOW_C_C_API_H_
 #define TENSORFLOW_C_C_API_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_attrtype.h"
-#include "c/intern/tf_buffer.h"
-#include "c/intern/tf_datatype.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tensor.h"
-#include "c/intern/tf_tstring.h"
 
 #include <stddef.h>
 #include <stdint.h>

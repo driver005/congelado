@@ -14,6 +14,7 @@ enum class GenTarget
 struct HeaderConfig
 {
     std::string target_name;
+    std::string header_path;
     std::string extra_includes;
     std::string extra_imports;
     std::string inheritance;
@@ -23,6 +24,7 @@ struct HeaderConfig
 inline HeaderConfig build_header_config(
     GenTarget target,
     std::string_view domain_name,
+    std::string_view header_path,
     std::string_view cc_class_name,
     std::string_view namespace_name,
     [[maybe_unused]] const std::filesystem::path& repo_root,
@@ -32,8 +34,7 @@ inline HeaderConfig build_header_config(
     if (target == GenTarget::Builder) {
         return {
             .target_name = "builder",
-            .extra_includes = "#include \"c/intern/tf_status.h\"\n"
-                               "#include \"c/intern/tf_tstring.h\"\n",
+            .header_path = std::string{header_path},
             .extra_imports = "",
             .inheritance = "",
             .class_body = cc::templating::TemplateRenderer::render_template(
@@ -48,6 +49,7 @@ inline HeaderConfig build_header_config(
 
     return {
         .target_name = "sonic",
+        .header_path = std::string{header_path},
         .extra_includes = "",
         .extra_imports = "import cc_abi_sonic_registration;\n",
         .inheritance = cc::templating::TemplateRenderer::render_template(
@@ -72,6 +74,7 @@ inline HeaderConfig build_header_config(
 inline std::string format_header(
     GenTarget target,
     std::string_view domain_name,
+    std::string_view header_path,
     std::string_view cc_class_name,
     std::string_view namespace_name,
     const std::filesystem::path& repo_root,
@@ -79,12 +82,13 @@ inline std::string format_header(
 )
 {
     const HeaderConfig config =
-        build_header_config(target, domain_name, cc_class_name, namespace_name, repo_root, c_struct_name);
+        build_header_config(target, domain_name, header_path, cc_class_name, namespace_name, repo_root, c_struct_name);
 
     return cc::templating::TemplateRenderer::render_template(
         "module_header",
         {
             {"domain_name", std::string{domain_name}},
+            {"header_path", config.header_path},
             {"extra_includes", config.extra_includes},
             {"target_name", config.target_name},
             {"extra_imports", config.extra_imports},

@@ -1,6 +1,6 @@
 module;
 
-#include "c/extern/plugin/registration.h"
+#include "include/c/extern/plugin/registration.h"
 
 export module yoshi_lucki_plugin:plugin_loader;
 

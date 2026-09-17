@@ -51,6 +51,7 @@ public:
         m_writer += helper::format_header(
             helper::GenTarget::Builder,
             model.get_domain_name(),
+            model.get_header_path(),
             model.get_class_name(),
             m_namespace_name,
             m_repo_root,
@@ -75,7 +76,8 @@ public:
             return std::unexpected(accessor.error());
         }
 
-        m_writer += helper::format_footer(helper::GenTarget::Builder, m_namespace_name, m_repo_root);
+        m_writer +=
+            helper::format_footer(helper::GenTarget::Builder, m_namespace_name, m_repo_root);
 
         return m_writer;
     }
@@ -128,10 +130,9 @@ private:
                 m_writer += ", ";
             }
 
-            // Scalar/by-value parameters (int64_t, size_t, an enum passed by value, ...) have no pointee — they carry no opaque handle to wrap/unwrap, so pass their raw type through unchanged instead of looking them up in the registry. A struct-pointer parameter whose pointee isn't a registered domain (e.g. TF_Job_Options*) passes through the same way — not every pointee is a wrapped handle.
             auto type_name = parameter.has_pointee()
-                ? m_registry.get().find(parameter.get_registry_key())
-                : std::nullopt;
+                                 ? m_registry.get().find(parameter.get_registry_key())
+                                 : std::nullopt;
 
             if (!type_name.has_value()) {
                 m_writer += helper::format_parameter(parameter.get_type(), parameter.get_name());
@@ -139,7 +140,7 @@ private:
             }
 
             m_writer += helper::format_parameter(
-                type_name->get().get_pointee_type(m_namespace_name),
+                type_name->get().to_pointee_type(m_namespace_name),
                 parameter.get_name()
             );
         }
@@ -212,11 +213,14 @@ private:
         return {};
     }
 
-    // Position 0's declared name — "plugin_context" for a domain-level slot, or the owned instance handle's name for an instance-level slot (which drops the separate plugin_context param and takes only its own handle as self).
+    // Position 0's declared name — "plugin_context" for a domain-level slot, or the owned instance
+    // handle's name for an instance-level slot (which drops the separate plugin_context param and
+    // takes only its own handle as self).
     std::string_view self_parameter_name(const parser::slot::Slot& slot) const noexcept
     {
         auto parameters = slot.get_parameters();
-        return parameters.empty() ? std::string_view{"plugin_context"} : parameters.front().get_name();
+        return parameters.empty() ? std::string_view{"plugin_context"}
+                                  : parameters.front().get_name();
     }
 
     void write_c_parameter_list(std::span<const parser::helper::Parameter> parameters)
@@ -240,8 +244,8 @@ private:
             }
 
             auto model = parameter.has_pointee()
-                ? m_registry.get().find(parameter.get_registry_key())
-                : std::nullopt;
+                             ? m_registry.get().find(parameter.get_registry_key())
+                             : std::nullopt;
 
             if (!model.has_value()) {
                 m_writer += parameter.get_name();

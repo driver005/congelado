@@ -1,14 +1,14 @@
 #ifndef CONGELADO_C_GENERATOR_FUNCTION_H_
 #define CONGELADO_C_GENERATOR_FUNCTION_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tensor.h"
-#include "c/intern/tf_tstring.h"
-#include "c/extern/generator/definition.h"
-#include "c/extern/generator/parameter.h"
-#include "c/extern/generator/attribute.h"
-#include "c/extern/generator/block.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tensor.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/extern/generator/definition.h"
+#include "include/c/extern/generator/parameter.h"
+#include "include/c/extern/generator/attribute.h"
+#include "include/c/extern/generator/block.h"
 
 #include <stddef.h>
 

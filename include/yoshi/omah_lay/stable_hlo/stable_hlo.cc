@@ -12,8 +12,8 @@ import cc_abi_sonic_registration;
 import cc_abi_primitives;
 import cc_abi_sonic_intern;
 
-#include "c/extern/generator/generator.h"
-#include "c/extern/plugin/registration.h"
+#include "include/c/extern/generator/generator.h"
+#include "include/c/extern/plugin/registration.h"
 
 namespace {
 

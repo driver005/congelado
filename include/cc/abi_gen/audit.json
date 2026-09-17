@@ -1,0 +1,21 @@
+{
+    "keepSettings": {
+        "type": 1,
+        "amount": 30
+    },
+    "auditFilename": "audit.json",
+    "hashType": "md5",
+    "extension": ".log",
+    "files": [
+        {
+            "date": 1789660486359,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.0.log",
+            "hash": "b1f2c508c107fce700fe419623f776ff"
+        },
+        {
+            "date": 1789662099714,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.1.log",
+            "hash": "ea92b9c1774683caf978b742869a0733"
+        }
+    ]
+}

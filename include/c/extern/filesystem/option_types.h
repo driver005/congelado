@@ -15,7 +15,7 @@ limitations under the License.
 #ifndef CONGELADO_C_FILESYSTEM_OPTION_TYPES_H_
 #define CONGELADO_C_FILESYSTEM_OPTION_TYPES_H_
 
-#include "c/macros.h"
+#include "include/c/macros.h"
 
 #include <stdint.h>
 

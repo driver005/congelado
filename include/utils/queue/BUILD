@@ -11,43 +11,43 @@ congelado_module_library(
 congelado_module_library(
     name = "atomic_list",
     primary_interface = "atomic_list.cppm",
+    visibility = ["//visibility:public"],
     deps = [
         ":node",
         "//include/utils:consts",
     ],
-    visibility = ["//visibility:public"],
 )
 
 congelado_module_library(
     name = "page",
     primary_interface = "page.cppm",
+    visibility = ["//visibility:public"],
     deps = [
         ":node",
         "//include/utils:consts",
         "//include/utils:helper",
     ],
-    visibility = ["//visibility:public"],
 )
 
 congelado_module_library(
     name = "pager",
     primary_interface = "pager.cppm",
-    deps = [
-        "//include/utils:consts",
-        ":page",
-        ":atomic_list",
-    ],
     visibility = ["//visibility:public"],
+    deps = [
+        ":atomic_list",
+        ":page",
+        "//include/utils:consts",
+    ],
 )
 
 congelado_module_library(
     name = "queue",
     primary_interface = "queue.cppm",
+    visibility = ["//visibility:public"],
     deps = [
-        ":pager",
-        ":node",
         ":atomic_list",
+        ":node",
+        ":pager",
         "//include/utils:consts",
     ],
-    visibility = ["//visibility:public"],
 )

@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_PUBSUB_SUBSCRIPTION_H_
 #define CONGELADO_C_PUBSUB_SUBSCRIPTION_H_
 
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
-#include "c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stdint.h>
 

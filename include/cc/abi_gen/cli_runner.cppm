@@ -1,6 +1,7 @@
 module;
 
 #include <cstdio>
+#include <string_view>
 
 export module cc_abi_gen:cli_runner;
 
@@ -14,7 +15,8 @@ import cc_utils_cli_parser;
 
 export namespace cc_abi_gen {
 
-// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and `check` (dry-run diff, --pilot only).
+// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and
+// `check` (dry-run diff, --pilot only).
 class CliRunner
 {
 public:
@@ -50,7 +52,8 @@ public:
     }
 
 private:
-    // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
+    // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see
+    // helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
     static constexpr std::string_view NAMESPACE_NAME = "ice";
 
     std::string usage()
@@ -172,106 +175,80 @@ private:
         return repo_root / "include/cc/abi";
     }
 
-    // Pilot domains are discovered by convention, not hardcoded: any subdirectory of include/c/extern/ whose name matches its own header (include/c/extern/<name>/<name>.h) is one of parser::helper::DomainPaths's inputs. Keeps the pilot set in sync with the tree instead of a list that silently drifts (see git history: an earlier hardcoded list named a domain whose header had since moved).
-    std::vector<std::string> discover_pilot_domains(const std::filesystem::path& repo_root)
+    // Discovers every C header under include/c/extern/ and include/c/intern/. Each header's file
+    // stem becomes its domain name (tf_ prefix stripped for intern files).
+    std::vector<std::filesystem::path> discover_all_headers(const std::filesystem::path& repo_root)
     {
-        std::vector<std::string> domains;
-
+        std::vector<std::filesystem::path> headers;
         std::error_code error;
+
+        // Extern: recursively find all .h files
         std::filesystem::path extern_root = repo_root / "include/c/extern";
-
-        for (const auto& entry: std::filesystem::directory_iterator{extern_root, error}) {
-            if (!entry.is_directory()) {
-                continue;
-            }
-
-            std::string name = entry.path().filename().string();
-            if (std::filesystem::exists(entry.path() / (name + ".h"))) {
-                domains.push_back(std::move(name));
+        if (std::filesystem::exists(extern_root)) {
+            for (const auto& entry:
+                 std::filesystem::recursive_directory_iterator{extern_root, error}) {
+                if (entry.is_regular_file() && entry.path().extension() == ".h") {
+                    headers.push_back(entry.path());
+                }
             }
         }
 
+        // Intern: find all tf_*.h files
+        std::filesystem::path intern_root = repo_root / "include/c/intern";
+        if (std::filesystem::exists(intern_root)) {
+            for (const auto& entry: std::filesystem::directory_iterator{intern_root, error}) {
+                if (entry.is_regular_file() && entry.path().extension() == ".h") {
+                    headers.push_back(entry.path());
+                }
+            }
+        }
+
+        std::ranges::sort(headers);
+        return headers;
+    }
+
+    // Derives a domain name from a header file stem: "tf_string" → "string", "span" → "span",
+    // "pub_sub" → "pub_sub"
+    std::string domain_from_stem(const std::filesystem::path& header)
+    {
+        auto stem = header.stem().string();
+        if (stem.starts_with("tf_")) {
+            return stem.substr(3);
+        }
+        return stem;
+    }
+
+    // Parses every C header discovered by discover_all_headers() into one shared parser::Parser.
+    // Each file's stem becomes the domain name for structs defined in that file.
+    std::expected<std::vector<std::string>, std::string>
+    parse_all_headers(parser::Parser& parser_instance, const std::filesystem::path& repo_root)
+    {
+        auto headers = discover_all_headers(repo_root);
+        if (headers.empty()) {
+            return std::unexpected{"no headers found under include/c/"};
+        }
+
+        for (const auto& header: headers) {
+            auto parse_result = parser_instance.parse_file(header, repo_root);
+            if (!parse_result) {
+                // Skip files without vtable structs (e.g. option_types.h)
+                std::println(stderr, "[cc_abi_gen]   skipped: {}", parse_result.error());
+                continue;
+            }
+        }
+
+        // Collect domain names from registry (last parse wins for each struct)
+        std::vector<std::string> domains;
+        const auto& registry = parser_instance.get_registry();
+        for (const auto& [struct_name, model]: registry) {
+            domains.push_back(model.get_domain_name());
+        }
         std::ranges::sort(domains);
 
         return domains;
     }
 
-    // Intern headers are parsed into the shared registry for cross-reference resolution only — they never drive their own generation (see parse_pilot_domains); the wrapper classes for these types are hand-written under include/cc/abi/primitives.
-    std::vector<std::filesystem::path> discover_intern_headers(const std::filesystem::path& repo_root)
-    {
-        std::vector<std::filesystem::path> headers;
-
-        std::error_code error;
-        std::filesystem::path intern_root = repo_root / "include/c/intern";
-
-        for (const auto& entry: std::filesystem::directory_iterator{intern_root, error}) {
-            if (!entry.is_regular_file()) {
-                continue;
-            }
-
-            if (entry.path().extension() == ".h") {
-                headers.push_back(entry.path());
-            }
-        }
-
-        std::ranges::sort(headers);
-
-        return headers;
-    }
-
-    std::expected<std::string, std::string> render(
-        generator::emitter::Builder& builder_emitter,
-        generator::emitter::Sonic& sonic_emitter,
-        const parser::vtable::Model& model,
-        bool sonic_tier
-    )
-    {
-        if (sonic_tier) {
-            return sonic_emitter.render(model);
-        }
-
-        return builder_emitter.render(model);
-    }
-
-    // Parses every domain header discovered by discover_pilot_domains() into one shared parser::Parser (and therefore one shared parser::Registry) — every domain's types stay visible to every other domain's slot parameters, regardless of parse order.
-    std::expected<std::vector<std::string>, std::string>
-    parse_pilot_domains(parser::Parser& parser_instance, const std::filesystem::path& repo_root)
-    {
-        std::vector<std::string> domains = discover_pilot_domains(repo_root);
-        if (domains.empty()) {
-            return std::unexpected{"no pilot domains found under include/c/extern"};
-        }
-
-        for (const std::string& domain: domains) {
-            parser::helper::DomainPaths input_paths{
-                std::string{domain},
-                std::filesystem::path{repo_root},
-                std::filesystem::path{repo_root / "include/cc/abi"},
-                true
-            };
-
-            std::println(stderr, "[cc_abi_gen] parsing {}", input_paths.get_header().string());
-
-            auto parse_result =
-                parser_instance.parse_file(input_paths.get_header(), repo_root / "include");
-            if (!parse_result) {
-                return std::unexpected{std::move(parse_result.error())};
-            }
-        }
-
-        // Intern headers register their types (e.g. TF_String, TF_Status, TF_Array) into the same registry so extern domains can cross-reference them, but they are not part of `domains` returned below — intern types get no generated wrapper of their own.
-        for (const std::filesystem::path& header: discover_intern_headers(repo_root)) {
-            std::println(stderr, "[cc_abi_gen] parsing {}", header.string());
-
-            auto parse_result = parser_instance.parse_file(header, repo_root / "include");
-            if (!parse_result) {
-                return std::unexpected{std::move(parse_result.error())};
-            }
-        }
-
-        return domains;
-    }
-
+    // Derives all output paths from the header path stored in the model.
     int write_tier(
         writer::Writer& writer,
         const std::string& rendered,
@@ -335,7 +312,7 @@ private:
         }
 
         // Use the -> operator to access the parser methods
-        auto parse_result = parser_instance->parse_file(*options.m_header, repo_root / "include");
+        auto parse_result = parser_instance->parse_file(*options.m_header, repo_root);
         if (!parse_result) {
             std::println(stderr, "{}", parse_result.error());
             return 1;
@@ -356,13 +333,40 @@ private:
         };
         generator::emitter::Sonic sonic_emitter{registry, std::string{NAMESPACE_NAME}, repo_root};
 
-        auto rendered = render(builder_emitter, sonic_emitter, model, *options.m_tier == "sonic");
+        auto header_relative = std::filesystem::path{*options.m_header};
+        auto include_pos = header_relative.string().find("include/");
+        if (include_pos != std::string::npos) {
+            header_relative = header_relative.string().substr(include_pos + 8);
+        }
+
+        auto rendered = render(
+            builder_emitter,
+            sonic_emitter,
+            model,
+            header_relative.string(),
+            *options.m_tier == "sonic"
+        );
         if (!rendered) {
             std::println(stderr, "{}", rendered.error());
             return 1;
         }
 
         return write_tier(m_writer, *rendered, *options.m_out, repo_root);
+    }
+
+    std::expected<std::string, std::string> render(
+        generator::emitter::Builder& builder_emitter,
+        generator::emitter::Sonic& sonic_emitter,
+        const parser::vtable::Model& model,
+        const std::string& header_path,
+        bool sonic_tier
+    )
+    {
+        if (sonic_tier) {
+            return sonic_emitter.render(model);
+        }
+
+        return builder_emitter.render(model);
     }
 
     int run_generate(const CliOptions& options)
@@ -376,7 +380,11 @@ private:
 
         parser::Parser parser_instance{"clang++", "pilot"};
 
-        auto domains = parse_pilot_domains(parser_instance, repo_root);
+        auto domains = parser_instance.parse_directory(
+            repo_root,
+            "include/c",
+            std::array<std::string_view, 2>{".h", ".hpp"}
+        );
         if (!domains) {
             std::println(stderr, "{}", domains.error());
             return 1;
@@ -393,31 +401,44 @@ private:
         std::vector<std::string> succeeded;
 
         for (const auto& [struct_name, model]: registry) {
-            // Intern types are parsed for cross-reference resolution only — see discover_intern_headers's doc comment. They never get a generated wrapper of their own; only the pilot-discovered extern domains do.
-            if (!std::ranges::binary_search(*domains, model.get_domain_name())) {
-                continue;
+            auto tier = model.to_tier();
+            if (!tier.has_value()) {
+                std::println(stderr, "{}", tier.error());
+                return 1;
+            }
+            auto file_name = model.to_file_name();
+            if (!file_name.has_value()) {
+                std::println(stderr, "{}", file_name.error());
+                return 1;
             }
 
-            parser::helper::DomainPaths output_paths{
-                std::string{model.get_domain_name()},
-                std::filesystem::path{repo_root},
-                std::filesystem::path{output_root},
-                true
-            };
+            auto domain_root = output_root / *tier / model.get_domain_name();
+            auto builder = domain_root / "builder" / (std::string{*file_name} + ".cppm");
+            auto sonic = domain_root / "sonic" / (std::string{*file_name} + ".cppm");
 
             bool domain_ok = true;
             std::string domain_error;
 
             for (bool sonic_tier: {false, true}) {
-                auto rendered = render(builder_emitter, sonic_emitter, model, sonic_tier);
+                auto rendered = render(
+                    builder_emitter,
+                    sonic_emitter,
+                    model,
+                    model.get_header_path(),
+                    sonic_tier
+                );
                 if (!rendered) {
                     domain_ok = false;
                     domain_error = std::move(rendered.error());
                     break;
                 }
 
-                const std::filesystem::path& out_path =
-                    sonic_tier ? output_paths.get_sonic_cppm() : output_paths.get_builder_cppm();
+                std::filesystem::path out_path;
+                if (sonic_tier) {
+                    out_path = sonic;
+                } else {
+                    out_path = builder;
+                }
 
                 if (int status = write_tier(m_writer, *rendered, out_path, repo_root);
                     status != 0) {
@@ -431,7 +452,8 @@ private:
                 succeeded.emplace_back(model.get_domain_name());
             } else {
                 std::error_code error;
-                std::filesystem::remove_all(output_root / model.get_domain_name(), error);
+                std::filesystem::remove(builder, error);
+                std::filesystem::remove(sonic, error);
 
                 std::println(
                     stderr,
@@ -476,7 +498,7 @@ private:
 
         parser::Parser parser_instance{"clang++", "pilot"};
 
-        auto domains = parse_pilot_domains(parser_instance, repo_root);
+        auto domains = parse_all_headers(parser_instance, repo_root);
         if (!domains) {
             std::println(stderr, "{}", domains.error());
             return 1;
@@ -493,40 +515,67 @@ private:
         bool all_identical = true;
 
         for (const auto& [struct_name, model]: registry) {
-            // Intern types are parsed for cross-reference resolution only — see discover_intern_headers's doc comment. They never get a generated wrapper of their own; only the pilot-discovered extern domains do.
-            if (!std::ranges::binary_search(*domains, model.get_domain_name())) {
-                continue;
+            auto& hp = model.get_header_path();
+            auto include_pos = hp.find("include/");
+            std::string header_rel;
+            if (include_pos != std::string::npos) {
+                header_rel = hp.substr(include_pos + 8);
+            } else {
+                header_rel = hp;
             }
 
-            parser::helper::DomainPaths real_paths{
-                std::string{model.get_domain_name()},
-                std::filesystem::path{repo_root},
-                std::filesystem::path{repo_root / "include/cc/abi"},
-                true
-            };
+            constexpr auto ext = "/include/c/extern/";
+            bool is_extern = hp.find(ext) != std::string::npos;
+            std::string out_domain;
+            if (is_extern) {
+                out_domain = hp.substr(hp.find(ext) + std::string(ext).size());
+            } else {
+                out_domain = model.get_domain_name();
+            }
+            out_domain = out_domain.substr(0, out_domain.find('/'));
+
+            std::string tier;
+            if (is_extern) {
+                tier = "extern";
+            } else {
+                tier = "intern";
+            }
+            auto domain_root = repo_root / "include/cc/abi" / tier / out_domain;
+            auto builder =
+                domain_root / "builder" / (std::string{model.get_domain_name()} + ".cppm");
+            auto sonic = domain_root / "sonic" / (std::string{model.get_domain_name()} + ".cppm");
 
             for (bool sonic_tier: {false, true}) {
-                auto rendered = render(builder_emitter, sonic_emitter, model, sonic_tier);
+                auto rendered =
+                    render(builder_emitter, sonic_emitter, model, header_rel, sonic_tier);
                 if (!rendered) {
                     std::println(stderr, "{}", rendered.error());
                     return 1;
                 }
 
-                const std::filesystem::path& real_path =
-                    sonic_tier ? real_paths.get_sonic_cppm() : real_paths.get_builder_cppm();
+                std::filesystem::path real_path;
+                if (sonic_tier) {
+                    real_path = sonic;
+                } else {
+                    real_path = builder;
+                }
 
                 all_identical =
                     diff_tier(m_writer, *rendered, real_path, repo_root) && all_identical;
             }
         }
 
-        std::println(
-            stderr,
-            "[cc_abi_gen] done: {}",
-            all_identical ? "all up to date" : "differences found"
-        );
+        if (all_identical) {
+            std::println(stderr, "[cc_abi_gen] done: all up to date");
+        } else {
+            std::println(stderr, "[cc_abi_gen] done: differences found");
+        }
 
-        return all_identical ? 0 : 1;
+        if (all_identical) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     writer::Writer m_writer;

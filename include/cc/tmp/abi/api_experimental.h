@@ -16,8 +16,6 @@ limitations under the License.
 #ifndef TENSORFLOW_C_C_API_EXPERIMENTAL_H_
 #define TENSORFLOW_C_C_API_EXPERIMENTAL_H_
 
-#include "c/abi/api.h"
-#include "c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>

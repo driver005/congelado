@@ -4,6 +4,8 @@ module;
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
 #include <span>
+#include <string>
+#include <string_view>
 
 export module cc_abi_gen_parser:parser;
 
@@ -71,13 +73,29 @@ public:
         return *this;
     }
 
-    std::expected<void, std::string> parse_directory(const std::filesystem::path& directory_path)
-
+    std::expected<void, std::string> parse_directory(
+        const std::filesystem::path& root_path,
+        const std::string_view headers_path,
+        std::span<const std::string_view> extensions
+    )
     {
-        for (const auto& header_path: std::filesystem::directory_iterator{directory_path}) {
-            auto model = parse_file(header_path.path(), directory_path);
+        for (const auto& entry:
+             std::filesystem::recursive_directory_iterator{root_path / headers_path}) {
+            // Skip directories, symlinks, etc.
+            if (!entry.is_regular_file()) {
+                continue;
+            }
 
-            if (!model.has_value()) {
+            // Skip non-header files (like README.md or BUILD)
+            auto ext = entry.path().extension();
+            if (!std::ranges::contains(extensions, ext)) {
+                std::println("Skipping {}", entry.path().string());
+                continue;
+            }
+
+            auto model = parse_file(entry.path(), root_path);
+
+            if (!model) {
                 return std::unexpected{std::move(model.error())};
             }
         }
@@ -86,14 +104,14 @@ public:
     }
 
     std::expected<void, std::string>
-    parse_file(const std::filesystem::path& header_path, const std::filesystem::path& include_root)
+    parse_file(const std::filesystem::path& file_path, const std::filesystem::path& root_path)
     {
-        auto source = open_file(header_path);
+        auto source = open_file(file_path);
         if (!source.has_value()) {
             return std::unexpected{std::move(source.error())};
         }
 
-        auto arguments = parse_arguments(include_root);
+        auto arguments = parse_arguments(root_path);
         if (!arguments.has_value()) {
             return std::unexpected{std::move(arguments.error())};
         }
@@ -101,18 +119,26 @@ public:
         auto translation_unit = clang::tooling::buildASTFromCodeWithArgs(
             *source,
             *arguments,
-            header_path.string(),
+            file_path.string(),
             m_tool_name
         );
         if (!translation_unit) {
-            return std::unexpected{"failed to parse header: " + header_path.string()};
+            return std::unexpected{"failed to parse header: " + file_path.string()};
         }
 
         auto* tu_decl = translation_unit->getASTContext().getTranslationUnitDecl();
+        auto& sm = translation_unit->getASTContext().getSourceManager();
 
-        auto nothing = collect_records(tu_decl);
+        auto header_path = remove_base_path(file_path, root_path);
+        if (!header_path.has_value()) {
+            return std::unexpected{std::move(header_path.error())};
+        }
+
+        auto nothing = collect_records(tu_decl, *header_path, sm);
         if (nothing) {
-            return std::unexpected{"no vtable struct found in: " + header_path.string()};
+            // TODO: make warning only
+            // return std::unexpected{"no vtable struct found in: " + header_path.string()};
+            std::println("no vtable struct found in: {}", file_path.string());
         }
 
         return {};
@@ -179,22 +205,29 @@ public:
     }
 
 private:
-    bool collect_records(clang::DeclContext* context)
+    bool collect_records(
+        clang::DeclContext* context,
+        const std::string_view header_path,
+        const clang::SourceManager& sm
+    )
     {
         bool nothing = true;
 
-        // Iterate through all top-level declarations in the file
         for (clang::Decl* decl: context->decls()) {
-            // Check if the declaration is a struct/class (RecordDecl)
+            // Skip declarations from included files — only register structs defined in the current
+            // file
+            if (!sm.isInMainFile(decl->getLocation())) {
+                continue;
+            }
+
             if (auto* record_decl = clang::dyn_cast<clang::RecordDecl>(decl)) {
-                auto model = m_visitor.traverse_record_decl(record_decl);
+                auto model = m_visitor.traverse_record_decl(record_decl, header_path);
                 if (model.has_value()) {
                     nothing = false;
                     m_registry.append_model(std::move(*model));
                 }
-                // Check if it's an extern "C" block containing nested declarations
             } else if (auto* spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl)) {
-                if (!collect_records(spec_decl)) {
+                if (!collect_records(spec_decl, header_path, sm)) {
                     nothing = false;
                 }
             }
@@ -253,6 +286,30 @@ private:
     {
         cc_utils::cli::Executable executable{std::string{compiler_path}};
         return executable.is_found() ? executable.get_path() : std::string{compiler_path};
+    }
+
+    std::expected<std::string, std::string> remove_base_path(
+        const std::filesystem::path& header_path,
+        const std::filesystem::path& base_path
+    ) const
+    {
+        // Normalize to strip trailing slashes or redundant '.' segments
+        auto norm_header = header_path.lexically_normal();
+        auto norm_base = base_path.lexically_normal();
+
+        // Range-first: Search for base_path components inside header_path
+        auto match = std::ranges::search(norm_header, norm_base);
+        if (match.empty()) {
+            return std::unexpected(std::string{"header path does not contain base path"});
+        }
+
+        // Accumulate the remaining components after the matched base path
+        std::filesystem::path rest;
+        for (const auto& comp: std::ranges::subrange(match.end(), norm_header.end())) {
+            rest /= comp;
+        }
+
+        return rest.generic_string();
     }
 
     Registry m_registry;

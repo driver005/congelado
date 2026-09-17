@@ -1,6 +1,6 @@
 module;
 
-#include "c/intern/tf_datatype.h"
+#include "include/c/intern/datatype.h"
 
 export module yoshi_omah_lay_stable_hlo:dtype;
 
@@ -174,7 +174,7 @@ public:
     // --- ice::builder::TypeInfo — see class comment ---
 
     // Maps this element type onto the shared TF_DataType_Enum vocabulary the C ABI already carries
-    // (c/intern/tf_datatype.h) — e.g. F32 -> TF_FLOAT, I32 -> TF_INT32 — instead of leaking
+    // (c/intern/datatype.h) — e.g. F32 -> TF_FLOAT, I32 -> TF_INT32 — instead of leaking
     // Kind's own internal ordering across the ABI, which would mean nothing to a caller on the
     // other side. I1 maps to TF_BOOL: StableHLO's i1 is its boolean/predicate type, not a
     // general 1-bit int, and TF_DataType_Enum has no bare "1-bit int" entry.

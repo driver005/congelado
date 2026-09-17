@@ -12,7 +12,7 @@ Status: ✅ COMPLETE — all 12 decisions applied, formatted, and verified. See 
   `TF_Status*` with paths as a contiguous `const TF_TString*` array; `get_name` slot added;
   44 trailing-whitespace lines + whitespace-only runs removed.
 - `c/extern/io/io.h`, `c/extern/otel/otel.h`: `get_name` slots added.
-- `c/intern/tf_{tensor,buffer,shape,datatype}.h`: `TF_GetName` slots added.
+- `c/intern/{tensor,buffer,shape,datatype}.h`: `TF_GetName` slots added.
 - Pre-existing typedef conflicts fixed: vtable structs renamed `TF_Tensor`→`TF_TensorOps`,
   `TF_DataType`→`TF_DataTypeOps` (they had stolen the legacy public type names — files
   could not compile). Circular include `tf_tstring.h`→`tf_tensor.h` removed.
@@ -234,7 +234,7 @@ Evidence: `include/cc/abi/builder/generator/function.cppm` (all three in one fil
 
 ### B. Parameter alignment / wrapping
 - `AlignAfterOpenBracket: BlockIndent` (one param per line) vs hand-aligned columns
-  (`c/intern/tf_tensor.h` `TF_AllocateTensor` aligns `dims/num_dims/len` in a column) vs
+  (`c/intern/tensor.h` `TF_AllocateTensor` aligns `dims/num_dims/len` in a column) vs
   packed 2-per-line (`builder/filesystem/filesystem.cppm` `allocate_tensor(... String, &count, 1,`).
 - Lambda continuation indent varies: 3-space (`builder/cache/cache.cppm`), aligned-under-first-param
   (`builder/generator/generator.cppm`), 4-space (`builder/filesystem/filesystem.cppm`).
@@ -281,7 +281,6 @@ Also: `get_generic_vtable()` return type differs per file — `TF_Generator*` (g
   (ill-formed) and has triple blank lines.
 - `import std;` placement: mostly first import, but `sonic/filesystem/filesystem.cppm` places it after
   imports; some files omit it entirely (`tensor_handle.cppm`, `registration.cppm`).
-- Include grouping violations: `env.h` has `#include "c/intern/tf_tstring.h"` after `<stdint.h>`.
 
 ### H. Brace style
 - K&R vs Allman within the same file: `primitives/status.cppm` (`inline TF_Code status_code_to_c(...) {`
