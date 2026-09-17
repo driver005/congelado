@@ -1,10 +1,10 @@
 #ifndef CONGELADO_C_OTEL_TRACER_H_
 #define CONGELADO_C_OTEL_TRACER_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
-#include "c/extern/otel/span.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/extern/otel/span.h"
 
 #ifdef __cplusplus
 extern "C"

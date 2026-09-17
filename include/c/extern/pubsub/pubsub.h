@@ -1,13 +1,13 @@
 #ifndef TENSORFLOW_C_EXTERN_PUBSUB_H_
 #define TENSORFLOW_C_EXTERN_PUBSUB_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
-#include "c/extern/pubsub/subscription.h"
-#include "c/extern/pubsub/channel.h"
-#include "c/extern/pubsub/publish.h"
+#include "include/c/extern/pubsub/subscription.h"
+#include "include/c/extern/pubsub/channel.h"
+#include "include/c/extern/pubsub/publish.h"
 
 #ifdef __cplusplus
 extern "C"

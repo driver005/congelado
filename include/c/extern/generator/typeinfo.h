@@ -1,8 +1,9 @@
 #ifndef CONGELADO_C_GENERATOR_TYPEINFO_H_
 #define CONGELADO_C_GENERATOR_TYPEINFO_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_tstring.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 #include <stdbool.h>
 

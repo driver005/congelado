@@ -1,7 +1,7 @@
 #ifndef CONGELADO_C_PLUGIN_REGISTRATION_H_
 #define CONGELADO_C_PLUGIN_REGISTRATION_H_
 
-#include "c/macros.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"

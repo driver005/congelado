@@ -1,10 +1,10 @@
 #ifndef CONGELADO_C_EXTERN_JOB_DURABLE_H_
 #define CONGELADO_C_EXTERN_JOB_DURABLE_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
-#include "c/extern/jobber/job.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/extern/jobber/job.h"
 
 #ifdef __cplusplus
 extern "C"

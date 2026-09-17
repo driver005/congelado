@@ -15,9 +15,9 @@ limitations under the License.
 #ifndef CONGELADO_C_SERDE_CONTROLLER_H_
 #define CONGELADO_C_SERDE_CONTROLLER_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 #include <stddef.h>
 

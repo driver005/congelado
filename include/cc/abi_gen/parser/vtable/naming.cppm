@@ -26,18 +26,7 @@ public:
         return m_scratch_text;
     }
 
-    // "TF_Cache" -> "cache"; "TF_CacheOps" -> "cache"
-    std::string domain_name(const std::string& struct_name)
-    {
-        m_scratch_text = strip_ops_suffix(struct_name).substr(3);
-        for (char& character: m_scratch_text) {
-            character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
-        }
-
-        return m_scratch_text;
-    }
-
-    // "cache" -> "Cache"
+    // "TF_Cache" -> "Cache"; "TF_CacheOps" -> "Cache"
     std::string class_name(const std::string& domain)
     {
         m_scratch_text = domain;

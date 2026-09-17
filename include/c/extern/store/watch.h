@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_STORE_WATCH_H_
 #define CONGELADO_C_STORE_WATCH_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 #ifdef __cplusplus
 extern "C"

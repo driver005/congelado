@@ -6,7 +6,6 @@ congelado_module_library(
     partitions = [
         "helper/parameter.cppm",
         "helper/include_finder.cppm",
-        "helper/paths.cppm",
         "slot/reader.cppm",
         "slot/slot.cppm",
         "vtable/model.cppm",

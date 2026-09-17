@@ -6,7 +6,7 @@
 #
 # include = ["."] adds this package directory (include/c/) to the system include
 # path for every dependent, so #include "macros.h" resolves here.  The
-# copts "-Iinclude" in //bazel:copts.bzl makes "c/intern/tf_tensor.h" resolve
+# copts "-Iinclude" in //bazel:copts.bzl makes "c/intern/tensor.h" resolve
 # to this package too.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")

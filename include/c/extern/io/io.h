@@ -1,13 +1,13 @@
 #ifndef TENSORFLOW_C_EXTERN_IO_H_
 #define TENSORFLOW_C_EXTERN_IO_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/extern/io/client.h"
-#include "c/extern/io/request.h"
-#include "c/extern/io/response.h"
-#include "c/extern/io/server.h"
-#include "c/extern/io/socket.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/extern/io/client.h"
+#include "include/c/extern/io/request.h"
+#include "include/c/extern/io/response.h"
+#include "include/c/extern/io/server.h"
+#include "include/c/extern/io/socket.h"
 
 #include <stddef.h>
 

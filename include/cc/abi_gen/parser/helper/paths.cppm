@@ -2,6 +2,88 @@ export module cc_abi_gen_parser:helper_paths;
 
 import std;
 
+namespace cc_abi_gen::parser::detail {
+
+struct HeaderIndex
+{
+    std::unordered_map<std::string, std::filesystem::path> exact;
+    std::unordered_map<std::string, std::filesystem::path> flat;
+    std::unordered_map<std::string, std::filesystem::path> extern_dirs;
+};
+
+inline const HeaderIndex& get_header_index(const std::filesystem::path& repo_root)
+{
+    static HeaderIndex index;
+    static bool built = false;
+
+    if (built) {
+        return index;
+    }
+
+    std::error_code ec;
+    auto extern_root = repo_root / "include/c/extern";
+    auto intern_root = repo_root / "include/c/intern";
+
+    if (std::filesystem::exists(extern_root)) {
+        for (const auto& dir: std::filesystem::directory_iterator{extern_root, ec}) {
+            if (!dir.is_directory()) {
+                continue;
+            }
+
+            auto dir_name = dir.path().filename().string();
+            index.extern_dirs[dir_name] = dir.path();
+
+            for (const auto& h: std::filesystem::directory_iterator{dir.path(), ec}) {
+                if (!h.is_regular_file() || h.path().extension() != ".h") {
+                    continue;
+                }
+                auto stem = h.path().stem().string();
+                index.exact[stem] = h.path();
+
+                std::string flat_stem;
+                flat_stem.reserve(stem.size());
+                for (char c: stem) {
+                    if (c != '_') {
+                        flat_stem += c;
+                    }
+                }
+                index.flat[flat_stem] = h.path();
+            }
+        }
+    }
+
+    if (std::filesystem::exists(intern_root)) {
+        for (const auto& h: std::filesystem::directory_iterator{intern_root, ec}) {
+            if (!h.is_regular_file() || h.path().extension() != ".h") {
+                continue;
+            }
+            auto stem = h.path().stem().string();
+            if (stem.starts_with("tf_")) {
+                auto domain = stem.substr(3);
+                if (!index.exact.contains(domain)) {
+                    index.exact[domain] = h.path();
+                }
+
+                std::string flat_domain;
+                flat_domain.reserve(domain.size());
+                for (char c: domain) {
+                    if (c != '_') {
+                        flat_domain += c;
+                    }
+                }
+                if (!index.flat.contains(flat_domain)) {
+                    index.flat[flat_domain] = h.path();
+                }
+            }
+        }
+    }
+
+    built = true;
+    return index;
+}
+
+} // namespace cc_abi_gen::parser::detail
+
 export namespace cc_abi_gen::parser::helper {
 
 class DomainPaths
@@ -9,25 +91,53 @@ class DomainPaths
 public:
     DomainPaths() = default;
 
-    // is_extern_domain only picks the output folder (extern/ vs intern/) for on-disk browsing — it never reaches the generated namespace, which stays ice::builder/ice::sonic either way.
     DomainPaths(
         const std::string&& domain,
         const std::filesystem::path&& repo_root,
         const std::filesystem::path&& output_root,
-        bool is_extern_domain
+        bool /*is_extern_domain*/
     ) :
-        m_header{repo_root / "include/c/extern" / domain / (domain + ".h")}
+        m_domain{domain}
     {
-        const std::filesystem::path domain_root =
-            output_root / (is_extern_domain ? "extern" : "intern") / domain;
+        const auto& idx = detail::get_header_index(repo_root);
 
-        if (count_headers(repo_root, domain) > 1) {
-            m_builder_cppm = domain_root / "builder" / (domain + ".cppm");
-            m_sonic_cppm = domain_root / "sonic" / (domain + ".cppm");
+        // 1. Exact stem match
+        if (auto it = idx.exact.find(domain); it != idx.exact.end()) {
+            m_header = it->second;
         } else {
-            m_builder_cppm = domain_root / "builder.cppm";
-            m_sonic_cppm = domain_root / "sonic.cppm";
+            // 2. Flatten match (e.g. "pub_sub" → "pubsub")
+            std::string flat_domain;
+            flat_domain.reserve(domain.size());
+            for (char c: domain) {
+                if (c != '_') {
+                    flat_domain += c;
+                }
+            }
+            if (auto it = idx.flat.find(flat_domain); it != idx.flat.end()) {
+                m_header = it->second;
+            }
         }
+
+        // 3. Determine m_extern_dir from header path
+        auto header_str = m_header.string();
+        constexpr auto prefix = "/include/c/extern/";
+        auto pos = header_str.find(prefix);
+        if (pos != std::string::npos) {
+            m_is_extern = true;
+            auto rest = header_str.substr(pos + std::string(prefix).size());
+            auto slash = rest.find('/');
+            if (slash != std::string::npos) {
+                m_extern_dir = rest.substr(0, slash);
+            }
+        }
+
+        // 4. Output directory
+        auto out_domain = m_extern_dir.empty() ? domain : m_extern_dir;
+        const std::filesystem::path domain_root =
+            output_root / (m_is_extern ? "extern" : "intern") / out_domain;
+
+        m_builder_cppm = domain_root / "builder" / (domain + ".cppm");
+        m_sonic_cppm = domain_root / "sonic" / (domain + ".cppm");
     }
 
     ~DomainPaths() = default;
@@ -69,48 +179,34 @@ public:
         m_sonic_cppm = std::move(sonic_cppm);
     }
 
-    // Example: include/c/extern/string/string.h
     const std::filesystem::path& get_header() const noexcept
     {
         return m_header;
     }
 
-    // Example: include/cc/abi/intern/string/builder.cppm (or include/cc/abi/extern/io/builder/io.cppm)
     const std::filesystem::path& get_builder_cppm() const noexcept
     {
         return m_builder_cppm;
     }
 
-    // Example: include/cc/abi/intern/string/sonic.cppm (or include/cc/abi/extern/io/sonic/io.cppm)
     const std::filesystem::path& get_sonic_cppm() const noexcept
     {
         return m_sonic_cppm;
     }
 
-
-private:
-    // Counts *.h files directly under include/c/extern/<domain> — more than one means the domain's output gets its own builder/sonic subfolders instead of flat files.
-    std::size_t count_headers(const std::filesystem::path& repo_root, const std::string& domain)
-        const
+    bool is_extern() const noexcept
     {
-        std::size_t count = 0;
-
-        std::error_code error;
-        std::filesystem::path domain_extern_root = repo_root / "include/c/extern" / domain;
-
-        for (const auto& entry:
-             std::filesystem::directory_iterator{domain_extern_root, error}) {
-            if (entry.is_regular_file() && entry.path().extension() == ".h") {
-                ++count;
-            }
-        }
-
-        return count;
+        return m_is_extern;
     }
 
+
+private:
+    std::string m_domain;
+    std::string m_extern_dir;
     std::filesystem::path m_header;
     std::filesystem::path m_builder_cppm;
     std::filesystem::path m_sonic_cppm;
+    bool m_is_extern{false};
 };
 
 } // namespace cc_abi_gen::parser::helper

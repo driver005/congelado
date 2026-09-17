@@ -1,15 +1,15 @@
 #ifndef TENSORFLOW_C_EXTERN_STORE_H_
 #define TENSORFLOW_C_EXTERN_STORE_H_
 
-#include "c/macros.h"
-#include "c/intern/tf_status.h"
-#include "c/intern/tf_tstring.h"
+#include "include/c/macros.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
-#include "c/extern/store/collection.h"
-#include "c/extern/store/transaction.h"
-#include "c/extern/store/watch.h"
-#include "c/extern/store/index.h"
-#include "c/extern/store/query.h"
+#include "include/c/extern/store/collection.h"
+#include "include/c/extern/store/transaction.h"
+#include "include/c/extern/store/watch.h"
+#include "include/c/extern/store/index.h"
+#include "include/c/extern/store/query.h"
 
 #ifdef __cplusplus
 extern "C"

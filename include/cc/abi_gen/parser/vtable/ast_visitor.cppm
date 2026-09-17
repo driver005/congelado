@@ -36,24 +36,25 @@ public:
         return *this;
     }
 
-    std::optional<Model> traverse_record_decl(clang::RecordDecl* record_decl)
+    std::expected<Model, std::string>
+    traverse_record_decl(clang::RecordDecl* record_decl, const std::string_view header_path)
     {
         // Check that the struct is a declation as well
         if (!record_decl->isCompleteDefinition()) {
-            return std::nullopt;
+            return std::unexpected("Record declaration is not a complete definition");
         }
 
         // Returns an iterator pointing to the member variables of the record.
         auto field_iterator = record_decl->field_begin();
         if (field_iterator == record_decl->field_end()) {
-            return std::nullopt;
+            return std::unexpected("Record declaration has no fields");
         }
 
         clang::FieldDecl* first_field = *field_iterator;
 
         // Extracts the identifier name of the declaration
         if (first_field->getNameAsString() != "struct_size") {
-            return std::nullopt;
+            return std::unexpected("Record declaration does not have a struct_size field");
         }
 
         std::vector<slot::Slot> slots;
@@ -69,19 +70,27 @@ public:
             slots.push_back(m_reader.read(field));
         }
 
-        // A struct_size-first struct with no function-pointer fields is a plain versioned value type (e.g. TF_Job_Options, TF_Shape_Data), not an Ops vtable — registering it as a domain would make its bare name collide with real handle lookups once handle types drop their "_Handle" suffix.
         if (slots.empty()) {
-            return std::nullopt;
+            return std::unexpected("Record declaration does not have any slots");
         }
 
         std::string struct_name = record_decl->getNameAsString();
-        std::string domain_name = m_naming.domain_name(struct_name);
+        auto domain = extract_domain(header_path);
+        if (!domain.has_value()) {
+            return std::unexpected("Could not extract domain name from header path");
+        }
+
+        auto domain_name = std::string{domain.value()};
+
+
+        std::println("[cc_abi_gen] parsing: {} (domain {})", header_path, domain_name);
 
         return Model{
             std::move(struct_name),
             std::move(m_naming.struct_size_macro(struct_name)),
             std::move(domain_name),
-            std::move(m_naming.class_name(domain_name)),
+            std::move(m_naming.class_name(struct_name)),
+            std::string{header_path},
             std::move(slots)
         };
     }
@@ -108,6 +117,38 @@ public:
 
 
 private:
+    std::expected<std::string, std::string> extract_domain(std::string_view header_path) const
+    {
+        auto rev_path = header_path | std::views::reverse;
+        auto last_slash = std::ranges::find(rev_path, '/');
+
+        if (last_slash == rev_path.end()) {
+            return std::string{};
+        }
+
+        auto second_slash = std::ranges::find(std::ranges::next(last_slash), rev_path.end(), '/');
+
+        std::string_view domain_view;
+        if (second_slash == rev_path.end()) {
+            // Only 1 slash: from the char right after the '/' to the end
+            domain_view = std::string_view(last_slash.base(), header_path.end());
+        } else {
+            // 2+ slashes: from the char right after the 2nd-to-last '/', up to the last '/'
+            domain_view = std::string_view(second_slash.base(), last_slash.base() - 1);
+        }
+
+        // Strip extension natively using Range-first iterators
+        auto rev_domain = domain_view | std::views::reverse;
+        auto dot = std::ranges::find(rev_domain, '.');
+
+        if (dot != rev_domain.end()) {
+            // dot.base() - 1 points exactly to the '.'
+            domain_view = std::string_view(domain_view.begin(), dot.base() - 1);
+        }
+
+        return std::string{domain_view};
+    }
+
     Naming m_naming;
     slot::Reader m_reader;
 };
