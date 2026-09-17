@@ -64,8 +64,7 @@ struct std::formatter<cc_abi_gen::generator::emitter::Mode> : std::formatter<std
 
 export namespace cc_abi_gen::generator::emitter {
 
-using PathCallback =
-    std::function<std::filesystem::path(const parser::vtable::Model& model, Mode mode)>;
+using PathCallback = std::function<void(std::filesystem::path& model)>;
 
 class Emitter
 {
@@ -324,7 +323,11 @@ private:
             };
         }
 
-        return root / *tier / domain / mode_str / (*file + ".cppm");
+        auto calculated_path = root / *tier / domain / mode_str / (*file + ".cppm");
+        if (m_path_callback) {
+            m_path_callback(calculated_path);
+        }
+        return calculated_path;
     }
 
     std::expected<void, std::string>
