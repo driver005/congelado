@@ -13,6 +13,18 @@ import cc_abi_gen_writer;
 import cc_utils_cli;
 import cc_utils_cli_parser;
 
+void replace_all(std::string& source, std::string_view from, std::string_view to)
+{
+    if (from.empty()) {
+        return;
+    }
+    size_t start_pos = 0;
+    while ((start_pos = source.find(from, start_pos)) != std::string::npos) {
+        source.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Advance past the replaced segment
+    }
+}
+
 export namespace cc_abi_gen {
 
 // Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and
@@ -20,6 +32,49 @@ export namespace cc_abi_gen {
 class CliRunner
 {
 public:
+    CliRunner()
+    {
+        m_runtime.overwrite_path_callback(
+            [](std::filesystem::path& out_path)
+            {
+                constexpr std::array<std::string_view, 2> target_sequence{"include", "c"};
+
+                std::filesystem::path new_path;
+
+                // Create a view over the remaining path components to process
+                auto current_view = std::ranges::subrange(out_path.begin(), out_path.end());
+
+                while (true) {
+                    // Range-first: Search for {"include", "c"} inside the current path view
+                    auto match = std::ranges::search(current_view, target_sequence);
+
+                    if (match.empty()) {
+                        // No more matches. Append the remaining components and exit.
+                        for (const auto& comp: current_view) {
+                            new_path /= comp;
+                        }
+                        break;
+                    }
+
+                    // 1. Append everything before the match
+                    for (const auto& comp:
+                         std::ranges::subrange(current_view.begin(), match.begin())) {
+                        new_path /= comp;
+                    }
+
+                    // 2. Append our replacement
+                    new_path /= "abi";
+
+                    // 3. Advance the view to start immediately after the match
+                    current_view = std::ranges::subrange(match.end(), current_view.end());
+                }
+
+                // Mutate the caller's path in-place
+                out_path = new_path;
+            }
+        );
+    };
+
     int run(int argc, char** argv)
     {
         cc_utils::cli::Parser parser{build_command_schema()};
@@ -65,7 +120,8 @@ private:
     std::string usage()
     {
         return "usage: cc_abi_gen generate --pilot [--out-dir <dir>] | "
-               "cc_abi_gen generate --tier <builder|sonic|both> --domain <name> --header <path> "
+               "cc_abi_gen generate --tier <builder|sonic|both> --domain <name> --header "
+               "<path> "
                "[--out <path>] | "
                "cc_abi_gen check --pilot";
     }

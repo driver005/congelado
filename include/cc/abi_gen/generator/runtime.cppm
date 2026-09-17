@@ -59,6 +59,11 @@ public:
         return *this;
     }
 
+    void overwrite_path_callback(emitter::PathCallback&& callback)
+    {
+        m_emitter.add_path_callback(std::move(callback));
+    }
+
     std::expected<void, std::string> parse_file(const std::filesystem::path& header_path)
     {
         if (m_repo_root.empty()) {
