@@ -203,9 +203,9 @@ public:
 private:
     std::string m_domain;
     std::string m_extern_dir;
-    std::filesystem::path m_header;
-    std::filesystem::path m_builder_cppm;
-    std::filesystem::path m_sonic_cppm;
+    std::filesystem::path m_header{};
+    std::filesystem::path m_builder_cppm{};
+    std::filesystem::path m_sonic_cppm{};
     bool m_is_extern{false};
 };
 

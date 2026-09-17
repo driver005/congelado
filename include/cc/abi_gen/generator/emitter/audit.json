@@ -1,0 +1,46 @@
+{
+    "keepSettings": {
+        "type": 1,
+        "amount": 30
+    },
+    "auditFilename": "audit.json",
+    "hashType": "md5",
+    "extension": ".log",
+    "files": [
+        {
+            "date": 1789677585286,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.0.log",
+            "hash": "679493c484894e16d488c445e80572b1"
+        },
+        {
+            "date": 1789678335483,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.1.log",
+            "hash": "cdc6f85bf9abadf048518b99397d0282"
+        },
+        {
+            "date": 1789678365104,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.2.log",
+            "hash": "5bce4b297a4ff7649dff16c7ef5f6f00"
+        },
+        {
+            "date": 1789679615397,
+            "name": "/home/default/.tabby-client/agent/logs/20260917.3.log",
+            "hash": "9bf4e35e0186e388a2ed7b93c94b3192"
+        },
+        {
+            "date": 1789685182331,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.0.log",
+            "hash": "2c723a0e95c21726c6eac1475ab16fc9"
+        },
+        {
+            "date": 1789685183722,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.1.log",
+            "hash": "98e5b016ca41053c6a5698ca04c2b8b5"
+        },
+        {
+            "date": 1789685227423,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.2.log",
+            "hash": "2b1db2189c85afc63b4e35e76211d412"
+        }
+    ]
+}

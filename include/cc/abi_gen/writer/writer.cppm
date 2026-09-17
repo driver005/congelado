@@ -14,9 +14,9 @@ public:
     ~Writer() = default;
 
     Writer(const Writer&) = delete;
-    Writer(Writer&&) = delete;
     Writer& operator=(const Writer&) = delete;
-    Writer& operator=(Writer&&) = delete;
+    Writer(Writer&&) = default;
+    Writer& operator=(Writer&&) = default;
 
     Writer& add_formater(Formatter&& formatter) noexcept
     {
@@ -50,6 +50,8 @@ public:
         }
         out << *formatted;
 
+        std::println("[cc_abi_gen] wrote: {}", out_path.string());
+
         return {};
     }
 
@@ -77,12 +79,12 @@ public:
         m_diff = std::move(differ);
     }
 
-    const Formatter& get_formatter() const noexcept
+    [[nodiscard]] const Formatter& get_formatter() const noexcept
     {
         return m_formatter;
     }
 
-    const Diff& get_diff_reporter() const noexcept
+    [[nodiscard]] const Diff& get_diff_reporter() const noexcept
     {
         return m_diff;
     }

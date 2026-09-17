@@ -67,7 +67,10 @@ public:
                 continue;
             }
 
-            slots.push_back(m_reader.read(field));
+            auto slot = m_reader.read(field);
+            if (!slot.get_name().empty()) {
+                slots.push_back(std::move(slot));
+            }
         }
 
         if (slots.empty()) {
@@ -149,8 +152,8 @@ private:
         return std::string{domain_view};
     }
 
-    Naming m_naming;
-    slot::Reader m_reader;
+    Naming m_naming{};
+    slot::Reader m_reader{};
 };
 
 } // namespace cc_abi_gen::parser::vtable

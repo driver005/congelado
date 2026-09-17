@@ -9,10 +9,10 @@ class Parameter
 public:
     Parameter() = default;
 
-    Parameter(std::string type, std::string pointee_name, std::string name) :
-        m_type(type),
-        m_pointee_name(pointee_name),
-        m_name(name)
+    Parameter(std::string&& type, std::string&& pointee_name, std::string&& name) :
+        m_type(std::move(type)),
+        m_pointee_name(std::move(pointee_name)),
+        m_name(std::move(name))
     {
     }
 
@@ -67,13 +67,19 @@ public:
         return m_pointee_name;
     }
 
-    // True for a pointer to a struct/record type (e.g. TF_Status, TF_Buffer); false for raw scalar pointers (e.g. int64_t*) and by-value params, which have no pointee at all. Handle types no longer carry a distinguishing suffix — whether a given pointee actually names a registered domain (as opposed to a plain value struct like TF_Job_Options) is decided by looking it up in the registry, not by this check alone.
+    // True for a pointer to a struct/record type (e.g. TF_Status, TF_Buffer); false for raw scalar
+    // pointers (e.g. int64_t*) and by-value params, which have no pointee at all. Handle types no
+    // longer carry a distinguishing suffix — whether a given pointee actually names a registered
+    // domain (as opposed to a plain value struct like TF_Job_Options) is decided by looking it up
+    // in the registry, not by this check alone.
     bool has_pointee() const noexcept
     {
         return !m_pointee_name.empty();
     }
 
-    // Registry lookup key for this parameter's pointee. The registry is keyed by the Ops struct's own tag (e.g. "TF_StatusOps"), but a parameter referencing that domain names its handle instead (e.g. "TF_Status* status") — appending "Ops" bridges the two.
+    // Registry lookup key for this parameter's pointee. The registry is keyed by the Ops struct's
+    // own tag (e.g. "TF_StatusOps"), but a parameter referencing that domain names its handle
+    // instead (e.g. "TF_Status* status") — appending "Ops" bridges the two.
     std::string get_registry_key() const noexcept
     {
         return m_pointee_name + "Ops";

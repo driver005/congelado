@@ -3,6 +3,7 @@ module;
 #include <clang/AST/DeclCXX.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
+#include <functional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -21,8 +22,8 @@ export namespace cc_abi_gen::parser {
 class Parser
 {
 public:
-    Parser(std::string_view compiler_path, std::string_view domain) :
-        m_domain{domain},
+    Parser(std::string_view compiler_path, Registry& registry) :
+        m_registry{registry},
         m_tool_name{resolve_tool_name(compiler_path)}
     {
         auto result = cache_system_arguments();
@@ -37,9 +38,9 @@ public:
     Parser(Parser&&) = default;
     Parser& operator=(Parser&&) = default;
 
-    Parser& add_registry(Registry&& registry) noexcept
+    Parser& add_registry(Registry& registry) noexcept
     {
-        m_registry = std::move(registry);
+        m_registry = registry;
         return *this;
     }
 
@@ -144,9 +145,9 @@ public:
         return {};
     }
 
-    void set_registry(Registry&& registry) noexcept
+    void set_registry(Registry& registry) noexcept
     {
-        m_registry = std::move(registry);
+        m_registry = registry;
     }
 
     void set_include_finder(helper::IncludeFinder&& finder) noexcept
@@ -224,7 +225,7 @@ private:
                 auto model = m_visitor.traverse_record_decl(record_decl, header_path);
                 if (model.has_value()) {
                     nothing = false;
-                    m_registry.append_model(std::move(*model));
+                    m_registry.get().append_model(std::move(*model));
                 }
             } else if (auto* spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl)) {
                 if (!collect_records(spec_decl, header_path, sm)) {
@@ -312,9 +313,9 @@ private:
         return rest.generic_string();
     }
 
-    Registry m_registry;
-    helper::IncludeFinder m_include_finder;
-    vtable::AstVisitor m_visitor;
+    std::reference_wrapper<Registry> m_registry;
+    helper::IncludeFinder m_include_finder{};
+    vtable::AstVisitor m_visitor{};
     std::vector<std::string> m_system_arguments;
     std::string m_domain;
     std::string m_tool_name;
