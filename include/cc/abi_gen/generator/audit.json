@@ -36,6 +36,11 @@
             "date": 1789685180752,
             "name": "/home/default/.tabby-client/agent/logs/20260918.2.log",
             "hash": "413d4bcbb10fc9886a43725a402ce88f"
+        },
+        {
+            "date": 1789686520672,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.3.log",
+            "hash": "79e076cf1d6a293c288ffb9ee29f5a92"
         }
     ]
 }
