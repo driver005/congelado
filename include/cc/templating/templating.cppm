@@ -77,6 +77,7 @@ private:
             {"module_header", cc_templating_generated::k_module_header},
             {"module_footer", cc_templating_generated::k_module_footer},
             {"module_base", cc_templating_generated::k_module_base},
+            {"build_domain", cc_templating_generated::k_build_domain},
             {"parameter", cc_templating_generated::k_parameter},
             {"method_signature", cc_templating_generated::k_method_signature},
             {"vtable_accessor_start", cc_templating_generated::k_vtable_accessor_start},

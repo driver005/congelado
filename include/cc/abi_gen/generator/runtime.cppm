@@ -16,9 +16,8 @@ export namespace cc_abi_gen::generator::runtime {
 class Runtime
 {
 public:
-    Runtime() = default;
-
-    Runtime(std::filesystem::path&& path) :
+    Runtime(std::filesystem::path&& path, std::string&& base_folder, std::string&& name_space) :
+        m_emitter{m_registry, std::move(base_folder), std::move(name_space)},
         m_repo_root{std::move(path)}
     {
     }
@@ -56,6 +55,18 @@ public:
     Runtime& add_output_dir(std::string&& out_dir) noexcept
     {
         m_output_dir = std::move(out_dir);
+        return *this;
+    }
+
+    Runtime& add_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_emitter.add_namespace_name(std::move(namespace_name));
+        return *this;
+    }
+
+    Runtime& add_base_folder(std::string&& base_folder) noexcept
+    {
+        m_emitter.add_base_folder(std::move(base_folder));
         return *this;
     }
 
@@ -166,6 +177,16 @@ public:
         m_output_dir = std::move(out_dir);
     }
 
+    void set_namespace_name(std::string&& namespace_name) noexcept
+    {
+        m_emitter.add_namespace_name(std::move(namespace_name));
+    }
+
+    void set_base_folder(std::string&& base_folder) noexcept
+    {
+        m_emitter.add_base_folder(std::move(base_folder));
+    }
+
     const parser::Registry& get_registry() const noexcept
     {
         return m_registry;
@@ -195,7 +216,7 @@ public:
 private:
     parser::Registry m_registry;
     parser::Parser m_parser{"clang++", m_registry};
-    emitter::Emitter m_emitter{m_registry, "ice"};
+    emitter::Emitter m_emitter;
     std::filesystem::path m_repo_root{};
     std::string m_output_dir;
 };

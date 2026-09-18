@@ -29,16 +29,16 @@ struct HeaderConfig
 
 inline HeaderConfig build_header_config(
     GenTarget target,
-    std::string_view domain_name,        // actual domain (e.g., "cache")
+    std::string_view domain_name, // actual domain (e.g., "cache")
     std::string_view header_path,
     std::string_view cc_class_name,
     std::string_view namespace_name,
     [[maybe_unused]] const std::filesystem::path& repo_root,
     std::string_view c_struct_name,
-    std::string_view mode_name           // "builder" or "sonic"
+    std::string_view mode_name // "builder" or "sonic"
 )
 {
-    std::string_view target_name = domain_name;  // actual domain for module name pos 2
+    std::string_view target_name = domain_name; // actual domain for module name pos 2
     std::string_view extra_imports = "";
     std::string_view inheritance = "";
     std::string class_body;
@@ -88,7 +88,8 @@ inline HeaderConfig build_header_config(
 
 inline std::expected<std::string, std::string> format_header(
     GenTarget target,
-    std::string_view domain_name,       // actual domain (cache, logger)
+    std::string_view folder_name,
+    std::string_view domain_name, // actual domain (cache, logger)
     std::string_view header_path,
     std::string_view cc_class_name,
     std::string_view namespace_name,
@@ -112,10 +113,11 @@ inline std::expected<std::string, std::string> format_header(
 
     return cc::templating::TemplateRenderer::render_template(
         "module_header",
-        {{"domain_name", std::string{config.mode_name}},   // builder/sonic for namespace
+        {{"folder_name", std::string{folder_name}},
+         {"domain_name", std::string{config.mode_name}}, // builder/sonic for namespace
          {"header_path", config.header_path},
          {"extra_includes", config.extra_includes},
-         {"target_name", config.target_name},              // actual domain for module name
+         {"target_name", config.target_name}, // actual domain for module name
          {"extra_imports", config.extra_imports},
          {"extra_pre_class", ""},
          {"class_name", std::string{cc_class_name}},
@@ -126,10 +128,8 @@ inline std::expected<std::string, std::string> format_header(
     );
 }
 
-inline std::expected<std::string, std::string> format_footer(
-    GenTarget target,
-    [[maybe_unused]] const std::filesystem::path& repo_root
-) noexcept
+inline std::expected<std::string, std::string>
+format_footer(GenTarget target, [[maybe_unused]] const std::filesystem::path& repo_root) noexcept
 {
     std::string_view mode_name = (target == GenTarget::Builder) ? "builder" : "sonic";
 
@@ -150,7 +150,8 @@ inline std::expected<std::string, std::string> format_footer(
     );
 }
 
-inline std::expected<std::string, std::string> format_parameter(std::string_view type, std::string_view name) noexcept
+inline std::expected<std::string, std::string>
+format_parameter(std::string_view type, std::string_view name) noexcept
 {
     return cc::templating::TemplateRenderer::render_template(
         "parameter",
@@ -236,7 +237,8 @@ inline std::expected<std::string, std::string> format_vtable_field_get_name(
     );
 }
 
-inline std::expected<std::string, std::string> format_vtable_field_generic_start(std::string_view slot_name) noexcept
+inline std::expected<std::string, std::string>
+format_vtable_field_generic_start(std::string_view slot_name) noexcept
 {
     return cc::templating::TemplateRenderer::render_template(
         "vtable_field_generic_start",
@@ -296,25 +298,41 @@ inline std::string format_method_body_end([[maybe_unused]] const std::filesystem
 }
 
 inline std::expected<std::string, std::string> format_base_module(
+    std::string_view folder_name,
     std::string_view domain_name,
     std::string_view target_name,
-    std::string_view header_path,
-    std::string_view extra_includes,
-    std::string_view extra_imports,
     std::string_view namespace_name,
     const std::vector<std::string>& partitions
 ) noexcept
 {
     nlohmann::json data;
+    data["folder_name"] = std::string{folder_name};
     data["domain_name"] = std::string{domain_name};
     data["target_name"] = std::string{target_name};
-    data["header_path"] = std::string{header_path};
-    data["extra_includes"] = std::string{extra_includes};
-    data["extra_imports"] = std::string{extra_imports};
     data["namespace_name"] = std::string{namespace_name};
     data["partitions"] = partitions;
 
     return cc::templating::TemplateRenderer::render_template_json("module_base", data);
+}
+
+inline std::expected<std::string, std::string> format_build_file(
+    std::string_view folder_name,
+    std::string_view tier,
+    std::string_view domain_name,
+    std::string_view namespace_name,
+    const std::vector<std::string>& builder_partitions,
+    const std::vector<std::string>& sonic_partitions
+) noexcept
+{
+    nlohmann::json data;
+    data["folder_name"] = std::string{folder_name};
+    data["tier"] = std::string{tier};
+    data["domain_name"] = std::string{domain_name};
+    data["namespace_name"] = std::string{namespace_name};
+    data["builder_partitions"] = builder_partitions;
+    data["sonic_partitions"] = sonic_partitions;
+
+    return cc::templating::TemplateRenderer::render_template_json("build_domain", data);
 }
 
 } // namespace cc_abi_gen::helper

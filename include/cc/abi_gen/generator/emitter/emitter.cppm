@@ -1,6 +1,7 @@
 module;
 
 #include <stdio.h>
+#include <string>
 
 export module cc_abi_gen_generator:emitter;
 
@@ -66,11 +67,20 @@ export namespace cc_abi_gen::generator::emitter {
 
 using PathCallback = std::function<void(std::filesystem::path& model)>;
 
+struct PathComponents
+{
+    std::string tier;
+    std::string domain;
+    std::string mode;
+    std::string file;
+};
+
 class Emitter
 {
 public:
-    Emitter(const parser::Registry& registry, std::string&& name_space) :
+    Emitter(const parser::Registry& registry, std::string&& base_folder, std::string&& name_space) :
         m_registry{registry},
+        m_base_folder{std::move(base_folder)},
         m_namespace_name{std::move(name_space)}
     {
     }
@@ -90,6 +100,12 @@ public:
     Emitter& add_namespace_name(std::string&& namespace_name) noexcept
     {
         m_namespace_name = std::move(namespace_name);
+        return *this;
+    }
+
+    Emitter& add_base_folder(std::string&& base_folder) noexcept
+    {
+        m_base_folder = std::move(base_folder);
         return *this;
     }
 
@@ -135,97 +151,138 @@ public:
             return std::unexpected(rendered.error());
         }
 
-        auto path = resolve_output_path(base_path, model, mode);
-        if (!path) {
-            return std::unexpected(path.error());
+        auto components = extract_path_components(model, mode);
+        if (!components) {
+            return std::unexpected(components.error());
         }
 
-        auto write_result = m_file_writer.write(*rendered, *path, root);
+        auto path = build_output_path(base_path, *components);
+
+        auto write_result = m_file_writer.write(*rendered, path, root);
         if (!write_result) {
             return write_result;
         }
 
-        // Track partition for base.cppm generation
-        track_partition(
-            path->parent_path(),
-            model.to_file_name().value_or(model.get_domain_name())
-        );
+
+        // Dynamically build the graph folder-by-folder explicitly from the model's structure
+        track_partition(base_path, *components);
 
         return {};
     }
 
-    // Generate base.cppm for all tracked folders
     std::expected<void, std::string>
     generate_base_modules(std::filesystem::path& root, std::string_view out_dir)
     {
-        auto base_path = root / out_dir;
+        auto output_root = root / out_dir;
 
-        for (const auto& [folder, partitions]: m_partitions_by_folder) {
-            // Get the model info from the first partition's folder path
-            // We need header_path, extra_includes, extra_imports from one of the models
-            // For now, derive from folder structure
-            auto rel_path = std::filesystem::relative(folder, base_path);
-            // rel_path format after path callback: [abi/]tier/mode/domain
-            std::vector<std::string> parts;
-            for (const auto& part: rel_path) {
-                parts.push_back(part.string());
-            }
+        // Traverse the naturally built directory graph and write a base.cppm and BUILD file for
+        // EVERY node
+        for (const auto& [dir_path, children]: m_partitions_by_folder) {
+            std::string domain_name = dir_path.filename().string();
+            std::string target_name = dir_path.parent_path().filename().string();
 
-            // Skip "abi" prefix if present (added by path callback)
-            std::size_t part_offset = 0;
-            if (!parts.empty() && parts[0] == "abi") {
-                part_offset = 1;
-            }
+            auto base_path = dir_path / "base.cppm";
 
-            if (parts.size() < part_offset + 3) {
-                continue;
-            }
+            std::string base_content;
 
-            std::string tier = parts[part_offset];
-            std::string mode_str = parts[part_offset + 1];
-            std::string domain = parts[part_offset + 2];
-
-            // Find a model to get header_path, etc.
-            const auto& registry = m_registry.get();
-            std::string header_path;
-            std::string extra_includes;
-            std::string extra_imports;
-
-            for (const auto& [struct_name, model]: registry) {
-                if (model.get_domain_name() == domain) {
-                    header_path = model.get_header_path();
-                    // Determine extra_includes/imports based on mode
-                    if (mode_str == "sonic") {
-                        extra_imports = "import cc_abi_sonic_registration;\n";
-                    }
-                    break;
+            // Gracefully handle the absolute root node name mapping
+            if (dir_path == output_root || target_name.empty()) {
+                auto local_children = children;
+                for (auto& child: local_children) {
+                    child.insert(0, std::format("{}_", m_base_folder));
                 }
+
+                auto base_rendered =
+                    helper::format_base_module(m_base_folder, "", "", "", local_children);
+                if (!base_rendered) {
+                    return std::unexpected(std::move(base_rendered.error()));
+                }
+
+                base_content = *base_rendered;
+            } else if (domain_name == m_namespace_name) {
+                auto local_children = children;
+                for (auto& child: local_children) {
+                    child.insert(0, std::format("{}_{}_", m_base_folder, m_namespace_name));
+                }
+
+                auto base_rendered = helper::format_base_module(
+                    m_base_folder,
+                    "",
+                    "",
+                    m_namespace_name,
+                    local_children
+                );
+                if (!base_rendered) {
+                    return std::unexpected(std::move(base_rendered.error()));
+                }
+
+                base_content = *base_rendered;
+            } else if (target_name == m_namespace_name) {
+                auto local_children = children;
+                for (auto& child: local_children) {
+                    child.insert(
+                        0,
+                        std::format("{}_{}_{}_", m_base_folder, m_namespace_name, domain_name)
+                    );
+                }
+
+                auto base_rendered = helper::format_base_module(
+                    m_base_folder,
+                    domain_name,
+                    "",
+                    m_namespace_name,
+                    local_children
+                );
+                if (!base_rendered) {
+                    return std::unexpected(std::move(base_rendered.error()));
+                }
+
+                base_content = *base_rendered;
+            } else {
+                auto local_children = children;
+                for (auto& child: local_children) {
+                    child.insert(0, ":");
+                }
+
+                auto base_rendered = helper::format_base_module(
+                    m_base_folder,
+                    domain_name,
+                    target_name,
+                    m_namespace_name,
+                    local_children
+                );
+                if (!base_rendered) {
+                    return std::unexpected(std::move(base_rendered.error()));
+                }
+
+                base_content = *base_rendered;
             }
 
-            if (header_path.empty()) {
-                continue;
-            }
 
-            std::string domain_name_for_template = mode_str; // "builder" or "sonic"
-            std::string target_name = domain;                // "cache", "logger"
-
-            auto base_rendered = helper::format_base_module(
-                domain_name_for_template,
-                target_name,
-                header_path,
-                extra_includes,
-                extra_imports,
-                m_namespace_name,
-                partitions
-            );
-            if (!base_rendered) {
-                return std::unexpected(base_rendered.error());
-            }
-
-            auto base_path = folder / "base.cppm";
-            auto write_result = m_file_writer.write(*base_rendered, base_path, root);
+            auto write_result = m_file_writer.write(base_content, base_path, root);
             if (!write_result) {
                 return write_result;
+            }
+
+            std::println("Generating base module for {}::{}", target_name, domain_name);
+
+            // Generate BUILD file for this hierarchy level.
+            auto build_rendered = helper::format_build_file(
+                m_base_folder,
+                target_name,
+                domain_name,
+                m_namespace_name,
+                children,
+                children
+            );
+            if (!build_rendered) {
+                return std::unexpected(std::move(build_rendered.error()));
+            }
+
+            auto build_path = dir_path / "BUILD";
+            auto build_write_result = m_file_writer.write(*build_rendered, build_path, root);
+            if (!build_write_result) {
+                return build_write_result;
             }
         }
 
@@ -259,19 +316,22 @@ public:
             return std::unexpected{std::move(rendered.error())};
         }
 
-        auto real_path = resolve_output_path(base_path, model, mode);
-        if (!real_path.has_value()) {
-            return std::unexpected{std::move(real_path.error())};
+        auto components = extract_path_components(model, mode);
+        if (!components) {
+            return std::unexpected(components.error());
         }
-        auto diff_result = m_file_writer.diff(*rendered, *real_path, base_path);
+
+        auto real_path = build_output_path(base_path, *components);
+
+        auto diff_result = m_file_writer.diff(*rendered, real_path, base_path);
         if (!diff_result) {
             return std::unexpected{std::move(diff_result.error())};
         }
 
         if (diff_result->get_identical()) {
-            std::println(stderr, "[cc_abi_gen] up to date: {}", real_path->string());
+            std::println(stderr, "[cc_abi_gen] up to date: {}", real_path.string());
         } else {
-            std::println("--- {} differs ---", real_path->string());
+            std::println("--- {} differs ---", real_path.string());
             std::print("{}", diff_result->get_unified_diff());
             return false;
         }
@@ -294,6 +354,11 @@ public:
         m_namespace_name = std::move(namespace_name);
     }
 
+    void set_base_folder(std::string&& base_folder) noexcept
+    {
+        m_base_folder = std::move(base_folder);
+    }
+
     void set_file_writer(writer::Writer&& file_writer) noexcept
     {
         m_file_writer = std::move(file_writer);
@@ -314,6 +379,11 @@ public:
         return m_namespace_name;
     }
 
+    const std::string& get_base_folder() noexcept
+    {
+        return m_base_folder;
+    }
+
     const writer::Writer& get_file_writer() noexcept
     {
         return m_file_writer;
@@ -330,9 +400,36 @@ public:
     }
 
 private:
-    void track_partition(const std::filesystem::path& folder, std::string_view partition)
+    void track_partition(const std::filesystem::path& output_root, const PathComponents& components)
     {
-        m_partitions_by_folder[folder].push_back(std::string(partition));
+        // Translate the strings directly into a path to leverage slash-by-slash iteration
+        std::filesystem::path base_path =
+            std::filesystem::path(components.tier) / components.domain / components.mode;
+
+        if (m_path_callback) {
+            m_path_callback(base_path);
+        }
+
+        std::filesystem::path current_node = output_root;
+
+        // Traverse each slash component and register it in the parent's vector
+        for (const auto& part: base_path) {
+            std::string child_name = part.string();
+            auto& children = m_partitions_by_folder[current_node];
+
+            if (std::ranges::find(children, child_name) == children.end()) {
+                children.push_back(child_name);
+            }
+
+            current_node /= part; // Step into the next folder level
+        }
+
+        // At the leaf node, register the actual file (partition)
+        std::string leaf_str = components.file;
+        auto& leaf_children = m_partitions_by_folder[current_node];
+        if (std::ranges::find(leaf_children, leaf_str) == leaf_children.end()) {
+            leaf_children.push_back(std::move(leaf_str));
+        }
     }
 
     std::expected<std::string, std::string>
@@ -347,6 +444,7 @@ private:
 
         auto header_result = helper::format_header(
             to_gen_target(mode),
+            m_base_folder,
             model.get_domain_name(),
             model.get_header_path(),
             model.get_class_name(),
@@ -409,21 +507,18 @@ private:
         }
     }
 
-    std::expected<std::filesystem::path, std::string> resolve_output_path(
-        std::filesystem::path& root,
-        const parser::vtable::Model& model,
-        const Mode& mode
-    ) const
+    std::expected<PathComponents, std::string>
+    extract_path_components(const parser::vtable::Model& model, const Mode& mode) const
     {
         auto tier = model.to_tier();
         if (!tier.has_value()) {
-            return std::unexpected{tier.value()};
+            return std::unexpected{tier.error()};
         }
 
         const auto domain = model.get_domain_name();
         auto file = model.to_file_name();
         if (!file.has_value()) {
-            return std::unexpected{std::move(file.value())};
+            return std::unexpected{std::move(file.error())};
         }
 
         std::string mode_str;
@@ -433,11 +528,24 @@ private:
             mode_str = "builder";
         } else {
             return std::unexpected{
-                std::format("Mode not supported in resolve_output_path `{}`", mode)
+                std::format("Mode not supported in extract_path_components `{}`", mode)
             };
         }
 
-        auto calculated_path = root / *tier / domain / mode_str / (*file + ".cppm");
+        return PathComponents{
+            .tier = *std::move(tier),
+            .domain = std::string{domain},
+            .mode = std::move(mode_str),
+            .file = *std::move(file)
+        };
+    }
+
+    std::filesystem::path
+    build_output_path(const std::filesystem::path& root, const PathComponents& components) const
+    {
+        auto calculated_path = root / components.tier / components.domain / components.mode /
+                               (components.file + ".cppm");
+
         if (m_path_callback) {
             m_path_callback(calculated_path);
         }
@@ -684,6 +792,7 @@ private:
 
     std::string m_writer;
     std::string m_namespace_name;
+    std::string m_base_folder;
     writer::Writer m_file_writer;
     std::reference_wrapper<const parser::Registry> m_registry;
     PathCallback m_path_callback;
