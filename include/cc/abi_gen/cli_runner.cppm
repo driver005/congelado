@@ -63,7 +63,7 @@ public:
                     }
 
                     // 2. Append our replacement
-                    new_path /= "abi";
+                    new_path /= NAMESPACE_NAME;
 
                     // 3. Advance the view to start immediately after the match
                     current_view = std::ranges::subrange(match.end(), current_view.end());
@@ -116,6 +116,7 @@ private:
     // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see
     // helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
     static constexpr std::string_view NAMESPACE_NAME = "ice";
+    static constexpr std::string_view FOLDER_NAME = "cc";
 
     std::string usage()
     {
@@ -367,7 +368,11 @@ private:
     }
 
     writer::Writer m_writer;
-    generator::runtime::Runtime m_runtime;
+    generator::runtime::Runtime m_runtime{
+        std::filesystem::path{},
+        std::string{FOLDER_NAME},
+        std::string{NAMESPACE_NAME}
+    };
 };
 
 } // namespace cc_abi_gen

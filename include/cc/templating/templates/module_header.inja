@@ -1,13 +1,13 @@
 // GENERATED FILE — DO NOT EDIT BY HAND.
-// Produced by cc_abi_gen from {{ header_path }}. Re-run
-// `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
+// Produced by {{ folder_name }}_abi_gen from {{ header_path }}. Re-run
+// `bazel run //include/{{ folder_name }}/abi_gen:{{ folder_name }}_abi_gen -- generate --pilot` (or `make gen-{{ folder_name }}-abi`) to
 // regenerate; edits made directly to this file will be overwritten.
 
 module;
 
 #include "{{ header_path }}"
 {{ extra_includes }}
-export module cc_{{ namespace_name }}_{{ domain_name }}_{{ target_name }}:{{ partition }};
+export module {{ folder_name }}_{{ namespace_name }}_{{ domain_name }}_{{ target_name }}:{{ partition }};
 
 import std;
 {{ extra_imports }}

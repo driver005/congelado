@@ -51,6 +51,26 @@
             "date": 1789693554459,
             "name": "/home/default/.tabby-client/agent/logs/20260918.4.log",
             "hash": "c74e7f7cc0995281120e610edf066f0e"
+        },
+        {
+            "date": 1789729192990,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.5.log",
+            "hash": "3b8b854e810365df8f7d5dd3bb10bf8a"
+        },
+        {
+            "date": 1789733382208,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.6.log",
+            "hash": "5c3072e841880b2a612e387aab31f4df"
+        },
+        {
+            "date": 1789734493877,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.7.log",
+            "hash": "f835efa4e8a8bef95181e69e93eff727"
+        },
+        {
+            "date": 1789735151146,
+            "name": "/home/default/.tabby-client/agent/logs/20260918.8.log",
+            "hash": "c38a1ed7dbfe805e9aef80f93bfe05bb"
         }
     ]
 }

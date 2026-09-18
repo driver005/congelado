@@ -1,8 +1,7 @@
-load("//bazel:build_defs.bzl", "congelado_cc_test", "congelado_module_library")
+load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
     name = "cc_abi_gen_parser",
-    primary_interface = "base.cppm",
     partitions = [
         "helper/parameter.cppm",
         "helper/include_finder.cppm",
@@ -12,9 +11,9 @@ congelado_module_library(
         "vtable/naming.cppm",
         "vtable/ast_visitor.cppm",
         "parser.cppm",
-        "registry.cppm"
+        "registry.cppm",
     ],
-    deps = ["//include/cc/utils/cli:cc_utils_cli"],
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = ["//include/cc/utils/cli:cc_utils_cli"],
 )
-
