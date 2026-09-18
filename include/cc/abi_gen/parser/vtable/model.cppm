@@ -99,18 +99,16 @@ public:
             return std::string{};
         }
 
-        // Look for the second slash from the back
+
         auto second_last_slash_it =
             std::ranges::find(std::ranges::next(last_slash_it), header_reverse.end(), '/');
 
         if (second_last_slash_it == header_reverse.end()) {
-            // Fallback for paths with only 1 slash (e.g. "tier/domain.h")
             std::size_t idx = m_header_path.size() - 1 -
                               std::ranges::distance(header_reverse.begin(), last_slash_it);
             return std::string{m_header_path.substr(0, idx)};
         }
 
-        // Everything up to the second-to-last slash forms the tier + sub-tiers
         std::size_t idx = m_header_path.size() - 1 -
                           std::ranges::distance(header_reverse.begin(), second_last_slash_it);
         return std::string{m_header_path.substr(0, idx)};

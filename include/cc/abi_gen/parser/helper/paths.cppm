@@ -1,3 +1,5 @@
+#include <expected>
+
 export module cc_abi_gen_parser:helper_paths;
 
 import std;
@@ -136,8 +138,10 @@ public:
         const std::filesystem::path domain_root =
             output_root / (m_is_extern ? "extern" : "intern") / out_domain;
 
-        m_builder_cppm = domain_root / "builder" / (domain + ".cppm");
-        m_sonic_cppm = domain_root / "sonic" / (domain + ".cppm");
+        // Use header stem for output filename (matches model.to_file_name())
+        auto file_stem = m_header.stem().string();
+        m_builder_cppm = domain_root / "builder" / (file_stem + ".cppm");
+        m_sonic_cppm = domain_root / "sonic" / (file_stem + ".cppm");
     }
 
     ~DomainPaths() = default;

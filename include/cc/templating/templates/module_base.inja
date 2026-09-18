@@ -7,15 +7,13 @@ module;
 
 #include "{{ header_path }}"
 {{ extra_includes }}
-export module cc_{{ namespace_name }}_{{ domain_name }}_{{ target_name }}:{{ partition }};
+export module cc_{{ namespace_name }}_{{ domain_name }}_{{ target_name }};
 
 import std;
 {{ extra_imports }}
 
-{{ extra_pre_class }}
 export namespace {{ namespace_name }}::{{ domain_name }} {
-
-class {{ class_name }}{{ inheritance }}
-{
-public:
-{{ class_body }}
+{% for partition in partitions %}
+export import :{{ partition }};
+{% endfor %}
+} // namespace {{ namespace_name }}::{{ domain_name }}
