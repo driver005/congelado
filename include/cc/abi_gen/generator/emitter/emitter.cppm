@@ -181,24 +181,25 @@ public:
             std::string domain_name = dir_path.filename().string();
             std::string target_name = dir_path.parent_path().filename().string();
 
-            auto base_path = dir_path / "base.cppm";
-
             std::string base_content;
 
             // Gracefully handle the absolute root node name mapping
             if (dir_path == output_root || target_name.empty()) {
-                auto local_children = children;
-                for (auto& child: local_children) {
-                    child.insert(0, std::format("{}_", m_base_folder));
-                }
+                // auto local_children = children;
+                // for (auto& child: local_children) {
+                //     child.insert(0, std::format("{}_", m_base_folder));
+                // }
 
-                auto base_rendered =
-                    helper::format_base_module(m_base_folder, "", "", "", local_children);
-                if (!base_rendered) {
-                    return std::unexpected(std::move(base_rendered.error()));
-                }
+                // auto base_rendered =
+                //     helper::format_base_module(m_base_folder, "", "", "", local_children);
+                // if (!base_rendered) {
+                //     return std::unexpected(std::move(base_rendered.error()));
+                // }
 
-                base_content = *base_rendered;
+                // base_content = *base_rendered;
+
+                // NOTE: in my currect setup that makes really no sence
+                continue;
             } else if (domain_name == m_namespace_name) {
                 auto local_children = children;
                 for (auto& child: local_children) {
@@ -258,13 +259,12 @@ public:
                 base_content = *base_rendered;
             }
 
+            auto base_path = dir_path / "base.cppm";
 
             auto write_result = m_file_writer.write(base_content, base_path, root);
             if (!write_result) {
                 return write_result;
             }
-
-            std::println("Generating base module for {}::{}", target_name, domain_name);
 
             // Generate BUILD file for this hierarchy level.
             auto build_rendered = helper::format_build_file(
@@ -280,6 +280,7 @@ public:
             }
 
             auto build_path = dir_path / "BUILD";
+
             auto build_write_result = m_file_writer.write(*build_rendered, build_path, root);
             if (!build_write_result) {
                 return build_write_result;
