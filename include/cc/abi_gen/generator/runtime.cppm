@@ -102,7 +102,9 @@ public:
                 return std::unexpected{std::move(result.error())};
             }
         }
-        return {};
+
+        // Generate base.cppm files for each folder
+        return m_emitter.generate_base_modules(m_repo_root, m_output_dir);
     }
 
     std::expected<bool, std::string>

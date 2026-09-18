@@ -4,4 +4,4 @@
                         {
                         }
 
-                        static constexpr std::string_view domain_name = "{{ domain_name }}";
+                        static constexpr std::string_view domain_name = "{{ target_name }}";
