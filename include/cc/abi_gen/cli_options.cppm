@@ -10,6 +10,8 @@ class CliOptions
 public:
     bool m_pilot = false;
     std::optional<std::string> m_tier;
+    std::optional<std::string> m_folder;
+    std::optional<std::string> m_namespace;
     std::optional<std::string> m_domain;
     std::optional<std::string> m_header;
     std::optional<std::string> m_out;

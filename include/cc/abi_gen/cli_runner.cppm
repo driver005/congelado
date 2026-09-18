@@ -62,7 +62,7 @@ public:
                         new_path /= comp;
                     }
 
-                    // 2. Append our replacement
+                    new_path /= FOLDER_NAME;
                     new_path /= NAMESPACE_NAME;
 
                     // 3. Advance the view to start immediately after the match
@@ -95,9 +95,13 @@ public:
 
         auto repo_root = resolve_repo_root(options);
         auto output_dir = resolve_output_dir(options);
+        auto folder = resolve_folder_name(options);
+        auto namespace_name = resolve_namespace_name(options);
 
         m_runtime.set_repo_root(std::move(repo_root));
         m_runtime.set_output_dir(std::move(output_dir));
+        m_runtime.set_base_folder(std::move(folder));
+        m_runtime.set_namespace_name(std::move(namespace_name));
 
         auto current_cmd_opt = parser.get_invocation().current_command();
         if (!current_cmd_opt) {
@@ -139,6 +143,8 @@ private:
                 Option{"generate", "Generate ABI"}
                     .add_flag(Flag{"pilot", "Pilot mode", FlagType::Boolean, {}})
                     .add_flag(Flag{"tier", "Tier", FlagType::String, {}})
+                    .add_flag(Flag{"folder", "Folder name", FlagType::String, {}})
+                    .add_flag(Flag{"namespace", "Namespace name", FlagType::String, {}})
                     .add_flag(Flag{"domain", "Domain name", FlagType::String, {}})
                     .add_flag(Flag{"header", "Header path", FlagType::String, {}})
                     .add_flag(Flag{"out", "Output path", FlagType::String, {}})
@@ -196,6 +202,12 @@ private:
         if (auto value = get_value("tier")) {
             options.m_tier = std::move(*value);
         }
+        if (auto value = get_value("folder")) {
+            options.m_folder = std::move(*value);
+        }
+        if (auto value = get_value("namespace")) {
+            options.m_namespace = std::move(*value);
+        }
         if (auto value = get_value("domain")) {
             options.m_domain = std::move(*value);
         }
@@ -228,13 +240,31 @@ private:
         return std::filesystem::current_path();
     }
 
+    std::string resolve_folder_name(const CliOptions& options)
+    {
+        if (options.m_folder) {
+            return *options.m_folder;
+        }
+
+        return FOLDER_NAME;
+    }
+
+    std::string resolve_namespace_name(const CliOptions& options)
+    {
+        if (options.m_namespace_name) {
+            return *options.m_namespace_name;
+        }
+
+        return NAMESPACE_NAME;
+    }
+
     std::filesystem::path resolve_output_dir(const CliOptions& options)
     {
         if (options.m_out_dir) {
             return *options.m_out_dir;
         }
 
-        return "include/cc/";
+        return "include/";
     }
 
     // Explicit single-file mode: what the genrule wiring invokes.
