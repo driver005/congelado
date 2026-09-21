@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/histogram.h"
 
-export module cc_ice_builder_otel:histogram;
+export module cc_ice_extern_otel_builder:histogram;
 
 import std;
 

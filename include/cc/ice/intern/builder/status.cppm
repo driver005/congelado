@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/status.h"
 
-export module cc_ice_builder_intern:status;
+export module cc_ice_intern_builder:status;
 
 import std;
 

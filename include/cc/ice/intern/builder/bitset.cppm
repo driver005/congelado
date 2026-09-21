@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/bitset.h"
 
-export module cc_ice_builder_intern:bitset;
+export module cc_ice_intern_builder:bitset;
 
 import std;
 

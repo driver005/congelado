@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/admin.h"
 
-export module cc_ice_builder_store:admin;
+export module cc_ice_extern_store_builder:admin;
 
 import std;
 

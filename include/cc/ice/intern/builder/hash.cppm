@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/hash.h"
 
-export module cc_ice_builder_intern:hash;
+export module cc_ice_intern_builder:hash;
 
 import std;
 

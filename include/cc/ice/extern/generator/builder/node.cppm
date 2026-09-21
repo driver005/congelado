@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/generator/node.h"
 
-export module cc_ice_builder_generator:node;
+export module cc_ice_extern_generator_builder:node;
 
 import std;
 

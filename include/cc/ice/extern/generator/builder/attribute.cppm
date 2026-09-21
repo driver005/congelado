@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/generator/attribute.h"
 
-export module cc_ice_builder_generator:attribute;
+export module cc_ice_extern_generator_builder:attribute;
 
 import std;
 

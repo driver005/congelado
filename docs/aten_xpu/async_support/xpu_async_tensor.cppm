@@ -1,16 +1,14 @@
-// Async Tensor Operations for XPU/SYCL — ice::builder integration
-// Provides async tensor operations using SYCL events and queues
-// Reference implementation for ice::builder::TF_TensorOps with async support
+// SYCL Tensor Backend — ice::builder::TF_TensorOps implementation
+// Implements the ice tensor interface using AdaptiveCpp SYCL USM device memory.
+// NO ATen / c10 / PyTorch dependencies.
 
 module;
 
+// SYCL must live in the global module fragment (not inside the module itself).
 #include <sycl/sycl.hpp>
-#include <ATen/xpu/XPUEvent.h>
-#include <ATen/xpu/XPUStream.h>
-#include <c10/xpu/XPUFunctions.h>
-#include <c10/xpu/XPUCachingAllocator.h>
+#include "include/c/intern/tensor.h"
 
-export module cc_ice_builder_intern:xpu_async_tensor;
+export module cc_ice_sycl_backend:tensor;
 
 import std;
 import cc_ice_builder_intern:tensor;
@@ -19,380 +17,390 @@ import cc_ice_builder_intern:datatype;
 
 export namespace ice::builder {
 
-// Forward declarations
-class XPU_AsyncTensorOps;
-class XPU_AsyncEvent;
+// ---------------------------------------------------------------------------
+// dtype helpers — map TFDataTypeEnum ↔ byte-width (no c10 required)
+// ---------------------------------------------------------------------------
+namespace detail {
 
-// Async operation result with SYCL event
+[[nodiscard]] constexpr size_t dtype_element_size(TFDataTypeEnum dt) noexcept {
+    switch (dt) {
+        case TF_FLOAT:      return 4;
+        case TF_DOUBLE:     return 8;
+        case TF_INT32:      return 4;
+        case TF_UINT32:     return 4;
+        case TF_INT64:      return 8;
+        case TF_UINT64:     return 8;
+        case TF_INT16:      return 2;
+        case TF_UINT16:     return 2;
+        case TF_INT8:       return 1;
+        case TF_UINT8:      return 1;
+        case TF_HALF:       return 2;
+        case TF_BFLOAT16:   return 2;
+        case TF_BOOL:       return 1;
+        case TF_COMPLEX64:  return 8;
+        case TF_COMPLEX128: return 16;
+        case TF_QINT8:      return 1;
+        case TF_QUINT8:     return 1;
+        case TF_QINT16:     return 2;
+        case TF_QUINT16:    return 2;
+        case TF_QINT32:     return 4;
+        default:            return 4;  // conservative fallback
+    }
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------
+// AsyncResult — lightweight future: sycl::event + ice::Status
+// ---------------------------------------------------------------------------
 struct AsyncResult {
     sycl::event event;
-    std::expected<void, Status> status;
-    
-    // Wait for completion and return status
-    std::expected<void, Status> wait() noexcept {
+    std::expected<void, ice::Status> status;
+
+    [[nodiscard]] std::expected<void, ice::Status> wait() noexcept {
         try {
-            event.wait();
+            event.wait_and_throw();
             return status;
         } catch (const sycl::exception& e) {
-            return std::unexpected(Status::from_sycl_error(e));
+            return std::unexpected(ice::Status::from_message(e.what()));
         }
-    }
-    
-    // Non-blocking check
-    bool is_ready() const noexcept {
-        return event.get_info<sycl::info::event::command_execution_status>() 
-               == sycl::info::event_command_status::complete;
-    }
-    
-    // Chain continuation
-    template<typename F>
-    auto then(F&& f) noexcept -> decltype(f(std::declval<AsyncResult>())) {
-        return event.then([f = std::forward<F>(f)](sycl::event e) mutable {
-            AsyncResult r{std::move(e), std::move(status)};
-            return f(std::move(r));
-        });
     }
 };
 
-// Async tensor operations vtable with full async support
-class XPU_AsyncTensorOps final : public TF_TensorOps {
-    at::Tensor tensor_;
-    c10::xpu::XPUStream stream_;
-    std::shared_ptr<sycl::queue> queue_;
-    
+// ---------------------------------------------------------------------------
+// SyclTensorImpl — owns USM device memory, shape, and dtype
+// ---------------------------------------------------------------------------
+class SyclTensorImpl {
 public:
-    // Constructor with optional stream/queue for async ops
-    explicit XPU_AsyncTensorOps(at::Tensor tensor = at::empty_xpu({}, at::kFloat),
-                                 c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream())
-        : tensor_(std::move(tensor)), stream_(stream), 
-          queue_(c10::xpu::getRawStream(stream_)) {}
-    
-    explicit XPU_AsyncTensorOps(const TensorOptions& options,
-                                 c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream())
-        : tensor_(at::empty_xpu({}, options)), stream_(stream),
-          queue_(c10::xpu::getRawStream(stream_)) {}
+    SyclTensorImpl() = default;
 
-    // --- Stream/Queue access ---
-    c10::xpu::XPUStream stream() const noexcept { return stream_; }
-    sycl::queue& queue() noexcept { return *queue_; }
-    const sycl::queue& queue() const noexcept { return *queue_; }
-    
-    void set_stream(c10::xpu::XPUStream s) noexcept {
-        stream_ = s;
-        queue_ = c10::xpu::getRawStream(s);
+    explicit SyclTensorImpl(sycl::queue& q) : queue_(&q) {}
+
+    ~SyclTensorImpl() { free_device_memory(); }
+
+    // Non-copyable; movable
+    SyclTensorImpl(const SyclTensorImpl&) = delete;
+    SyclTensorImpl& operator=(const SyclTensorImpl&) = delete;
+
+    SyclTensorImpl(SyclTensorImpl&& o) noexcept
+        : queue_(o.queue_), data_(o.data_), dims_(std::move(o.dims_)),
+          dtype_(o.dtype_) {
+        o.data_  = nullptr;
+        o.queue_ = nullptr;
     }
 
-    // --- Sync wrappers (required vtable) ---
-    std::expected<void, Status> set_dtype(TFDataTypeEnum dt) override {
-        auto st = from_ice_dtype(dt);
-        tensor_ = tensor_.to(st);
-        return {};
+    SyclTensorImpl& operator=(SyclTensorImpl&& o) noexcept {
+        if (this != &o) {
+            free_device_memory();
+            queue_ = o.queue_;
+            data_  = o.data_;
+            dims_  = std::move(o.dims_);
+            dtype_ = o.dtype_;
+            o.data_  = nullptr;
+            o.queue_ = nullptr;
+        }
+        return *this;
     }
-    
-    std::expected<void, Status> set_dims(const int64_t* dims, int n) override {
-        tensor_ = at::empty_xpu({dims, dims + n}, tensor_.options());
-        return {};
+
+    // ---- mutation ---------------------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_dtype(TFDataTypeEnum dt) noexcept {
+        dtype_ = dt;
+        return reallocate();
     }
-    
-    std::expected<void, Status> set_byte_size(size_t len) override {
-        auto* alloc = c10::GetAllocator(c10::kXPU);
-        auto storage = c10::Storage::create(len, alloc, true);
-        tensor_ = at::Tensor(std::move(storage)).view({-1});
-        return {};
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_dims(const int64_t* d, int n) noexcept {
+        dims_.assign(d, d + n);
+        return reallocate();
     }
-    
-    std::expected<void, Status> delete_tensor() override {
-        tensor_ = at::Tensor();
-        return {};
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_byte_size(size_t bytes) noexcept {
+        free_device_memory();
+        dims_ = {static_cast<int64_t>(bytes)};
+        dtype_ = TF_UINT8;  // treat as raw byte buffer
+        return alloc_bytes(bytes);
     }
-    
-    std::expected<void, Status> tensor_type(TFDataTypeEnum* out) override {
-        *out = to_ice_dtype(tensor_.scalar_type());
-        return {};
-    }
-    
-    std::expected<void, Status> num_dims(int* out) override {
-        *out = tensor_.dim();
-        return {};
-    }
-    
-    std::expected<void, Status> dim(int idx, int64_t* out) override {
-        *out = tensor_.size(idx);
-        return {};
-    }
-    
-    std::expected<void, Status> tensor_element_count(int64_t* out) override {
-        *out = tensor_.numel();
-        return {};
-    }
-    
-    std::expected<void, Status> tensor_byte_size(size_t* out) override {
-        *out = tensor_.nbytes();
-        return {};
-    }
-    
-    std::expected<void, Status> tensor_data(void** out) override {
-        *out = tensor_.data_ptr();
-        return {};
-    }
-    
-    std::expected<void, Status> tensor_bitcast_from(TFDataTypeEnum dt, TF_Tensor** out) override {
-        auto view = tensor_.view(from_ice_dtype(dt));
-        *out = wrap_in_tensor_ops(std::move(view));
-        return {};
-    }
-    
-    std::expected<void, Status> tensor_bitcast_to(TFDataTypeEnum dt, TF_Tensor** out) override {
-        return tensor_bitcast_from(dt, out);
-    }
-    
-    std::expected<void, Status> tensor_copy(const TF_TensorOps& dst) override {
-        auto* xpu_dst = dynamic_cast<const XPU_AsyncTensorOps*>(&dst);
-        if (!xpu_dst) return std::unexpected(Status::InvalidArgument);
-        
-        // Sync copy on current stream
-        tensor_.copy_(xpu_dst->tensor_);
+
+    [[nodiscard]] std::expected<void, ice::Status> delete_data() noexcept {
+        free_device_memory();
+        dims_.clear();
         return {};
     }
 
-    // ==================== ASYNC OPERATIONS ====================
-    
-    // Async copy with event return
-    [[nodiscard]] AsyncResult copy_async(const XPU_AsyncTensorOps& dst) noexcept {
+    // ---- query ------------------------------------------------------------
+
+    [[nodiscard]] TFDataTypeEnum dtype()    const noexcept { return dtype_; }
+    [[nodiscard]] int            ndim()     const noexcept { return static_cast<int>(dims_.size()); }
+    [[nodiscard]] int64_t        dim(int i) const noexcept { return dims_[i]; }
+    [[nodiscard]] void*          data()     const noexcept { return data_; }
+
+    [[nodiscard]] int64_t numel() const noexcept {
+        int64_t n = 1;
+        for (auto d : dims_) n *= d;
+        return n;
+    }
+
+    [[nodiscard]] size_t nbytes() const noexcept {
+        return static_cast<size_t>(numel()) * detail::dtype_element_size(dtype_);
+    }
+
+    [[nodiscard]] sycl::queue* queue() const noexcept { return queue_; }
+
+    // ---- async ops --------------------------------------------------------
+
+    [[nodiscard]] AsyncResult copy_to_host_async(void* dst, size_t bytes) noexcept {
+        if (!data_ || !queue_) return {sycl::event{}, std::unexpected(ice::Status::from_message("no allocation"))};
         try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                // Use SYCL memcpy for async copy
-                h.memcpy(dst.tensor_.mutable_data_ptr(), tensor_.data_ptr(), tensor_.nbytes());
-            });
-            return AsyncResult{event, {}};
+            auto ev = queue_->memcpy(dst, data_, bytes);
+            return {ev, {}};
         } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
+            return {sycl::event{}, std::unexpected(ice::Status::from_message(e.what()))};
         }
     }
-    
-    // Async copy to host
-    [[nodiscard]] AsyncResult copy_to_host_async(void* host_ptr, size_t bytes) noexcept {
+
+    [[nodiscard]] AsyncResult copy_from_host_async(const void* src, size_t bytes) noexcept {
+        if (!data_ || !queue_) return {sycl::event{}, std::unexpected(ice::Status::from_message("no allocation"))};
         try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                h.memcpy(host_ptr, tensor_.data_ptr(), bytes);
-            });
-            return AsyncResult{event, {}};
+            auto ev = queue_->memcpy(data_, src, bytes);
+            return {ev, {}};
         } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
+            return {sycl::event{}, std::unexpected(ice::Status::from_message(e.what()))};
         }
     }
-    
-    // Async copy from host
-    [[nodiscard]] AsyncResult copy_from_host_async(const void* host_ptr, size_t bytes) noexcept {
+
+    [[nodiscard]] AsyncResult copy_from_device_async(const SyclTensorImpl& src, size_t bytes) noexcept {
+        if (!data_ || !src.data_ || !queue_) return {sycl::event{}, std::unexpected(ice::Status::from_message("no allocation"))};
         try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                h.memcpy(tensor_.mutable_data_ptr(), host_ptr, bytes);
-            });
-            return AsyncResult{event, {}};
+            auto ev = queue_->memcpy(data_, src.data_, bytes);
+            return {ev, {}};
         } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
+            return {sycl::event{}, std::unexpected(ice::Status::from_message(e.what()))};
         }
     }
-    
-    // Async fill
-    [[nodiscard]] AsyncResult fill_async(const Scalar& value) noexcept {
+
+    [[nodiscard]] AsyncResult memset_async(int val, size_t bytes) noexcept {
+        if (!data_ || !queue_) return {sycl::event{}, std::unexpected(ice::Status::from_message("no allocation"))};
         try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                // Use parallel_for for fill
-                h.parallel_for(sycl::range<1>(tensor_.numel()), [=](sycl::id<1> idx) {
-                    // Type-specific fill would need template instantiation
-                    // This is a simplified version
-                });
-            });
-            return AsyncResult{event, {}};
+            auto ev = queue_->memset(data_, val, bytes);
+            return {ev, {}};
         } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
+            return {sycl::event{}, std::unexpected(ice::Status::from_message(e.what()))};
         }
     }
-    
-    // Async kernel launch (generic)
-    template<typename KernelFn>
-    [[nodiscard]] AsyncResult launch_kernel_async(KernelFn&& kernel, sycl::range<3> global, sycl::range<3> local = {}) noexcept {
-        try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                if (local.size() > 0) {
-                    h.parallel_for(sycl::nd_range<3>(global, local), std::forward<KernelFn>(kernel));
-                } else {
-                    h.parallel_for(global, std::forward<KernelFn>(kernel));
-                }
-            });
-            return AsyncResult{event, {}};
-        } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
-        }
-    }
-    
-    // Record event for synchronization
-    [[nodiscard]] sycl::event record_event() noexcept {
+
+    [[nodiscard]] sycl::event record_barrier() noexcept {
         return queue_->ext_oneapi_submit_barrier();
     }
-    
-    // Wait for all operations on this stream
-    void synchronize() noexcept {
-        queue_->wait_and_throw();
+
+    void synchronize() { queue_->wait_and_throw(); }
+
+private:
+    sycl::queue*              queue_ = nullptr;
+    void*                     data_  = nullptr;
+    std::vector<int64_t>      dims_;
+    TFDataTypeEnum            dtype_ = TF_FLOAT;
+
+    void free_device_memory() noexcept {
+        if (data_ && queue_) {
+            sycl::free(data_, *queue_);
+            data_ = nullptr;
+        }
     }
-    
-    // Factory
-    static TF_TensorOps* create() {
-        return new XPU_AsyncTensorOps();
+
+    [[nodiscard]] std::expected<void, ice::Status> reallocate() noexcept {
+        free_device_memory();
+        if (dims_.empty() || !queue_) return {};
+        return alloc_bytes(nbytes());
     }
-    
-    static void destroy(TF_TensorOps* ops) {
-        delete static_cast<XPU_AsyncTensorOps*>(ops);
+
+    [[nodiscard]] std::expected<void, ice::Status> alloc_bytes(size_t bytes) noexcept {
+        if (bytes == 0) return {};
+        data_ = sycl::malloc_device(bytes, *queue_);
+        if (!data_) return std::unexpected(ice::Status::from_message("sycl::malloc_device OOM"));
+        return {};
+    }
+};
+
+// ---------------------------------------------------------------------------
+// XPU_AsyncTensorOps — implements ice::builder::TF_TensorOps via SYCL
+// ---------------------------------------------------------------------------
+class XPU_AsyncTensorOps : public TF_TensorOps {
+public:
+    // Construct from an existing queue (borrowed; caller keeps queue alive)
+    explicit XPU_AsyncTensorOps(sycl::queue& q) : impl_(q) {}
+
+    // Default-constructible (queue set later via set_queue)
+    XPU_AsyncTensorOps() = default;
+
+    ~XPU_AsyncTensorOps() override = default;
+
+    // Non-copyable; movable
+    XPU_AsyncTensorOps(const XPU_AsyncTensorOps&) = delete;
+    XPU_AsyncTensorOps& operator=(const XPU_AsyncTensorOps&) = delete;
+    XPU_AsyncTensorOps(XPU_AsyncTensorOps&&) = default;
+    XPU_AsyncTensorOps& operator=(XPU_AsyncTensorOps&&) = default;
+
+    // ---- ice::builder::TF_TensorOps interface ----------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_dtype(TFDataTypeEnum dt) noexcept override {
+        return impl_.set_dtype(dt);
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_dims(const int64_t* dims, int n) noexcept override {
+        return impl_.set_dims(dims, n);
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_byte_size(size_t len) noexcept override {
+        return impl_.set_byte_size(len);
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    delete_tensor() noexcept override {
+        return impl_.delete_data();
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_type(TFDataTypeEnum* out) noexcept override {
+        *out = impl_.dtype();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    num_dims(int* out) noexcept override {
+        *out = impl_.ndim();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    dim(int idx, int64_t* out) noexcept override {
+        if (idx < 0 || idx >= impl_.ndim())
+            return std::unexpected(ice::Status::from_message("dim index out of range"));
+        *out = impl_.dim(idx);
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_element_count(int64_t* out) noexcept override {
+        *out = impl_.numel();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_byte_size(size_t* out) noexcept override {
+        *out = impl_.nbytes();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_data(void** out) noexcept override {
+        *out = impl_.data();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_bitcast_from(TFDataTypeEnum dt, TF_Tensor** out) noexcept override {
+        // Bitcast: wrap same device memory under a new dtype view.
+        // Caller is responsible for ensuring size compatibility.
+        auto* view = new XPU_AsyncTensorOps();
+        view->impl_ = SyclTensorImpl(*impl_.queue());  // same queue
+        // Reuse raw pointer without ownership transfer — shallow view.
+        // In a full impl this would share a refcounted USM buffer.
+        (void)dt; (void)out;
+        delete view;
+        return std::unexpected(ice::Status::from_message("bitcast not yet implemented in SYCL backend"));
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_bitcast_to(TFDataTypeEnum dt, TF_Tensor** out) noexcept override {
+        return tensor_bitcast_from(dt, out);
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    tensor_copy(const ice::sonic::TF_TensorOps& dst_sonic) noexcept override {
+        // Synchronous device-to-device copy via SYCL queue.
+        (void)dst_sonic;
+        // Full impl: extract plugin_data from dst_sonic, cast to XPU_AsyncTensorOps,
+        // then call impl_.copy_from_device_async(src.impl_, bytes).wait()
+        return std::unexpected(ice::Status::from_message("tensor_copy: cross-plugin dst not yet bridged"));
+    }
+
+    // ---- SYCL-specific async extensions ----------------------------------
+
+    [[nodiscard]] AsyncResult
+    copy_to_host_async(void* dst, size_t bytes) noexcept {
+        return impl_.copy_to_host_async(dst, bytes);
+    }
+
+    [[nodiscard]] AsyncResult
+    copy_from_host_async(const void* src, size_t bytes) noexcept {
+        return impl_.copy_from_host_async(src, bytes);
+    }
+
+    [[nodiscard]] AsyncResult
+    copy_from_device_async(const XPU_AsyncTensorOps& src, size_t bytes) noexcept {
+        return impl_.copy_from_device_async(src.impl_, bytes);
+    }
+
+    [[nodiscard]] AsyncResult memset_async(int val, size_t bytes) noexcept {
+        return impl_.memset_async(val, bytes);
+    }
+
+    [[nodiscard]] sycl::event record_barrier() noexcept {
+        return impl_.record_barrier();
+    }
+
+    void synchronize() { impl_.synchronize(); }
+
+    [[nodiscard]] sycl::queue* queue() const noexcept { return impl_.queue(); }
+
+    // ---- factory ----------------------------------------------------------
+
+    static XPU_AsyncTensorOps* make(sycl::queue& q) {
+        return new XPU_AsyncTensorOps(q);
     }
 
 private:
-    // Helper to wrap tensor in new ops instance
-    static TF_Tensor* wrap_in_tensor_ops(at::Tensor t) {
-        auto* ops = new XPU_AsyncTensorOps(std::move(t));
-        auto* tensor = new TF_Tensor{ops};
-        return tensor;
-    }
-    
-    // Dtype conversion helpers
-    static TFDataTypeEnum to_ice_dtype(c10::ScalarType t) {
-        switch (t) {
-            case c10::kFloat: return TF_FLOAT;
-            case c10::kDouble: return TF_DOUBLE;
-            case c10::kInt: return TF_INT32;
-            case c10::kLong: return TF_INT64;
-            case c10::kHalf: return TF_HALF;
-            case c10::kBFloat16: return TF_BFLOAT16;
-            case c10::kBool: return TF_BOOL;
-            case c10::kByte: return TF_UINT8;
-            case c10::kChar: return TF_INT8;
-            case c10::kShort: return TF_INT16;
-            case c10::kComplexHalf: return TF_COMPLEX64;
-            case c10::kComplexFloat: return TF_COMPLEX128;
-            case c10::kQInt8: return TF_QINT8;
-            case c10::kQUInt8: return TF_QUINT8;
-            case c10::kQInt32: return TF_QINT32;
-            case c10::kQUInt4x2: return TF_QUINT16;
-            case c10::kQUInt2x4: return TF_QUINT8;
-            default: return TF_FLOAT;
-        }
-    }
-    
-    static c10::ScalarType from_ice_dtype(TFDataTypeEnum dt) {
-        switch (dt) {
-            case TF_FLOAT: return c10::kFloat;
-            case TF_DOUBLE: return c10::kDouble;
-            case TF_INT32: return c10::kInt;
-            case TF_INT64: return c10::kLong;
-            case TF_HALF: return c10::kHalf;
-            case TF_BFLOAT16: return c10::kBFloat16;
-            case TF_BOOL: return c10::kBool;
-            case TF_UINT8: return c10::kByte;
-            case TF_INT8: return c10::kChar;
-            case TF_INT16: return c10::kShort;
-            case TF_COMPLEX64: return c10::kComplexHalf;
-            case TF_COMPLEX128: return c10::kComplexFloat;
-            case TF_QINT8: return c10::kQInt8;
-            case TF_QUINT8: return c10::kQUInt8;
-            case TF_QINT32: return c10::kQInt32;
-            default: return c10::kFloat;
-        }
-    }
+    SyclTensorImpl impl_;
 };
 
-// Async event wrapper for cross-operation synchronization
+// ---------------------------------------------------------------------------
+// Async event helper (no c10 dependency)
+// ---------------------------------------------------------------------------
 class XPU_AsyncEvent {
     sycl::event event_;
-    std::shared_ptr<sycl::queue> queue_;
-    
+
 public:
     XPU_AsyncEvent() = default;
-    explicit XPU_AsyncEvent(sycl::event e, std::shared_ptr<sycl::queue> q = nullptr)
-        : event_(std::move(e)), queue_(std::move(q)) {}
-    
+    explicit XPU_AsyncEvent(sycl::event e) : event_(std::move(e)) {}
+
     void wait() const { event_.wait(); }
-    
-    bool is_ready() const {
-        return event_.get_info<sycl::info::event::command_execution_status>() 
+
+    [[nodiscard]] bool is_ready() const {
+        return event_.get_info<sycl::info::event::command_execution_status>()
                == sycl::info::event_command_status::complete;
     }
-    
-    // Create event from current stream
-    static XPU_AsyncEvent record(c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        auto* q = c10::xpu::getRawStream(stream);
-        auto event = q->ext_oneapi_submit_barrier();
-        return XPU_AsyncEvent(event, std::shared_ptr<sycl::queue>(q, [](auto*){}));
+
+    [[nodiscard]] static XPU_AsyncEvent record(sycl::queue& q) {
+        return XPU_AsyncEvent(q.ext_oneapi_submit_barrier());
     }
-    
-    // Wait for this event on another stream
-    void wait_on(c10::xpu::XPUStream stream) {
-        auto* q = c10::xpu::getRawStream(stream);
-        q->wait(event_);
-    }
-    
-    // Chain: wait for this event, then execute on stream
+
+    void wait_on(sycl::queue& q) { q.wait(event_); }
+
     template<typename F>
-    void then_on(c10::xpu::XPUStream stream, F&& f) {
-        auto* q = c10::xpu::getRawStream(stream);
-        q->submit([&](sycl::handler& h) {
+    void then_on(sycl::queue& q, F&& f) {
+        q.submit([&](sycl::handler& h) {
             h.depends_on(event_);
             h.single_task(std::forward<F>(f));
         });
     }
-};
 
-// Async buffer operations for ice::builder::Buffer
-class XPU_AsyncBufferOps {
-    c10::DataPtr data_;
-    std::shared_ptr<sycl::queue> queue_;
-    
-public:
-    XPU_AsyncBufferOps() = default;
-    explicit XPU_AsyncBufferOps(size_t bytes, c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        queue_ = c10::xpu::getRawStream(stream);
-        data_ = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
-    }
-    
-    // Async allocate
-    [[nodiscard]] static AsyncResult allocate_async(size_t bytes, 
-                                                     c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        auto* q = c10::xpu::getRawStream(stream);
-        try {
-            auto event = q->submit([&](sycl::handler& h) {
-                // Allocation is sync, but we return event for chaining
-                h.single_task([]{});
-            });
-            auto ptr = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
-            return AsyncResult{event, ptr ? std::expected<void, Status>{} 
-                                          : std::unexpected(Status::OOM)};
-        } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
-        }
-    }
-    
-    // Async deallocate
-    [[nodiscard]] AsyncResult deallocate_async() noexcept {
-        if (!data_) return AsyncResult{sycl::event{}, {}};
-        try {
-            auto event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([ptr = data_.get()] { 
-                    c10::xpu::XPUCachingAllocator::raw_delete(ptr); 
-                });
-            });
-            data_ = nullptr;
-            return AsyncResult{event, {}};
-        } catch (const sycl::exception& e) {
-            return AsyncResult{sycl::event{}, std::unexpected(Status::from_sycl_error(e))};
-        }
-    }
-    
-    void* data() const noexcept { return data_.get(); }
-    size_t size() const noexcept { return data_ ? data_->size() : 0; }
-    bool empty() const noexcept { return !data_; }
-    
-    // Move support
-    XPU_AsyncBufferOps(XPU_AsyncBufferOps&&) = default;
-    XPU_AsyncBufferOps& operator=(XPU_AsyncBufferOps&&) = default;
+    [[nodiscard]] sycl::event native() const noexcept { return event_; }
 };
 
 } // namespace ice::builder

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/complex.h"
 
-export module cc_ice_builder_intern:complex;
+export module cc_ice_intern_builder:complex;
 
 import std;
 

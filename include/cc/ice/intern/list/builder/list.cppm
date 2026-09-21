@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/list/list.h"
 
-export module cc_ice_builder_list:list;
+export module cc_ice_intern_list_builder:list;
 
 import std;
 

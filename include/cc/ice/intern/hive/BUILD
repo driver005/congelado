@@ -6,30 +6,11 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "cc_ice_builder_hive",
-    partitions = [
-        "builder/builder.cppm",
-        "builder/sonic.cppm",
-    ],
-    primary_interface = "builder/base.cppm",
+    name = "cc_ice_intern_hive",
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
     deps = [
-        "//include/cc/ice/intern/builder:cc_ice_builder_builder",
-        "//include/cc/ice/intern/builder:cc_ice_builder_sonic",
-    ],
-)
-
-congelado_module_library(
-    name = "cc_ice_sonic_hive",
-    partitions = [
-        "sonic/builder.cppm",
-        "sonic/sonic.cppm",
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/intern/sonic:cc_ice_sonic_builder",
-        "//include/cc/ice/intern/sonic:cc_ice_sonic_sonic",
-        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
+        "//include/cc/ice/intern/hive/builder:cc_ice_intern_hive_builder",
+        "//include/cc/ice/intern/hive/sonic:cc_ice_intern_hive_sonic",
     ],
 )

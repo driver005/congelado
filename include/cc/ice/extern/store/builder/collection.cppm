@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/collection.h"
 
-export module cc_ice_builder_store:collection;
+export module cc_ice_extern_store_builder:collection;
 
 import std;
 

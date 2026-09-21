@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/hive/hive.h"
 
-export module cc_ice_builder_hive:hive;
+export module cc_ice_intern_hive_builder:hive;
 
 import std;
 

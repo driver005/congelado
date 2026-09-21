@@ -3,9 +3,10 @@
 // bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot (or make gen-cc-abi) to
 // regenerate; edits made directly to this file will be overwritten.
 
-export module cc_ice_sonic_grappler;
+export module cc_ice_extern_grappler_sonic;
 
 // clang-format off
+export import :device_graph;
 export import :function_library;
 export import :item;
 export import :optimizer;

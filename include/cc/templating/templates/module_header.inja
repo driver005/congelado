@@ -7,7 +7,7 @@ module;
 
 #include "{{ header_path }}"
 {{ extra_includes }}
-export module {{ folder_name }}_{{ namespace_name }}_{{ domain_name }}_{{ target_name }}:{{ partition }};
+export module {{ module_name }}:{{ partition }};
 
 import std;
 {{ extra_imports }}

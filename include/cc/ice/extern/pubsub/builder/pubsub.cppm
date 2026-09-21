@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/pubsub/pubsub.h"
 
-export module cc_ice_builder_pubsub:pubsub;
+export module cc_ice_extern_pubsub_builder:pubsub;
 
 import std;
 

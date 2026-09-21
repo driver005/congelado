@@ -21,11 +21,28 @@ extern "C" {
         TF_EVENT_COMPLETE,
     } TF_EventStatus;
 
+    typedef struct TF_EventOptions {
+        size_t struct_size;
+        bool enable_timing;
+        bool enable_ipc;
+        bool reusable;
+    } TF_EventOptions;
+
+    // Opaque cross-process handle for an event. data_size bytes of data are valid.
+    typedef struct TF_IpcEventHandle {
+        size_t struct_size;
+        uint8_t data[64];
+        uint64_t data_size;
+    } TF_IpcEventHandle;
+
     // TF_EventOps
     typedef struct TF_EventOps {
         size_t struct_size;
+        void (*elapsed_time)(TF_Event* start, TF_Event* end, float* out_milliseconds, TF_Status* out_status);
+        void (*export_ipc)(TF_Event* event, TF_IpcEventHandle* out_handle, TF_Status* out_status);
+        void (*get_native_handle)(TF_Event* event, void** out_handle);
     } TF_EventOps;
-    #define TF_EVENT_STRUCT_SIZE TF_OFFSET_OF_END(TF_EventOps, struct_size)
+    #define TF_EVENT_STRUCT_SIZE TF_OFFSET_OF_END(TF_EventOps, get_native_handle)
     
     TF_CAPI_EXPORT void create_event(TF_EventOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_event(void* plugin_context);

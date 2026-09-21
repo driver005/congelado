@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/grappler/grappler.h"
 
-export module cc_ice_builder_grappler:grappler;
+export module cc_ice_extern_grappler_builder:grappler;
 
 import std;
 
@@ -28,6 +28,13 @@ public:
     }
 
     virtual ~TF_GrapplerOps() = default;
+    [[nodiscard]] virtual std::expected<void, ice::Status> create_device_graph_internal(
+        const ice::sonic::TF_ExecutorOps& executor,
+        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::TFGrapplerDeviceGraphOps& out_graph
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept = 0;
 
     static TF_GrapplerOps* get_generic_vtable()
     {
@@ -46,6 +53,34 @@ public:
                 auto* self = TF_GrapplerOps::create(plugin_context);
                 auto result = self->get_name();
                 result.to_c(out);
+            },
+            .create_device_graph_internal =
+                [](TF_Grappler* grappler,
+                   TF_Executor* executor,
+                   TF_Device* device,
+                   TFGrapplerDeviceGraph* out_graph,
+                   TF_Status* out_status) noexcept
+            {
+                auto* self = TF_GrapplerOps::create(grappler);
+                auto res = self->create_device_graph_internal(
+                    ice::sonic::TF_ExecutorOps::wrap(executor),
+                    ice::sonic::TF_DeviceOps::wrap(device),
+                    ice::sonic::TFGrapplerDeviceGraphOps::wrap(out_graph)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
+            },
+            .destroy_device_graph_internal =
+                [](TF_Grappler* grappler, TFGrapplerDeviceGraph* graph) noexcept
+            {
+                auto* self = TF_GrapplerOps::create(grappler);
+                auto res = self->destroy_device_graph_internal(
+                    ice::sonic::TFGrapplerDeviceGraphOps::wrap(graph)
+                );
+                if (!res) {
+                    res.error().to_c(status);
+                }
             },
 
         };

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/ops/shape_inference_context.h"
 
-export module cc_ice_builder_ops:shape_inference_context;
+export module cc_ice_extern_ops_builder:shape_inference_context;
 
 import std;
 

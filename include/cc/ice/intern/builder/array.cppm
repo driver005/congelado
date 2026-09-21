@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/array.h"
 
-export module cc_ice_builder_intern:array;
+export module cc_ice_intern_builder:array;
 
 import std;
 

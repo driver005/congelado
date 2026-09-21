@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/grappler/function_library.h"
 
-export module cc_ice_builder_grappler:function_library;
+export module cc_ice_extern_grappler_builder:function_library;
 
 import std;
 

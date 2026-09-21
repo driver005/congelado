@@ -1,0 +1,104 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Produced by cc_abi_gen from include/c/extern/stream_executor/stream.h. Re-run
+// `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
+// regenerate; edits made directly to this file will be overwritten.
+
+module;
+
+#include "include/c/extern/stream_executor/stream.h"
+
+export module cc_ice_extern_stream_executor_sonic:stream;
+
+import std;
+import cc_abi_sonic_registration;
+
+export namespace ice::sonic {
+
+class TF_StreamOps : public ice::sonic::Runtime<TF_StreamOps, TF_StreamOps>
+{
+public:
+    explicit TF_StreamOps(TF_StreamOps* ops, void* plugin_context) noexcept :
+        Runtime(ops, plugin_context)
+    {
+    }
+
+    static constexpr std::string_view domain_name = "stream_executor";
+
+    [[nodiscard]] std::expected<void, ice::Status> get_priority(int32_t* out_priority) noexcept
+    {
+        ice::Status status;
+        m_ops->get_priority(get_handle(), out_priority status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> get_device_index(int* out_device_index) noexcept
+    {
+        ice::Status status;
+        m_ops->get_device_index(get_handle(), out_device_index status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> query(_Bool* out_idle) noexcept
+    {
+        ice::Status status;
+        m_ops->query(get_handle(), out_idle status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> synchronize() noexcept
+    {
+        ice::Status status;
+        m_ops->synchronize(get_handle(), status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_capture_status(TF_CaptureStatus* out_capture_status) noexcept
+    {
+        ice::Status status;
+        m_ops->get_capture_status(get_handle(), out_capture_status status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
+    {
+        ice::Status status;
+        m_ops->get_native_handle(get_handle(), out_handle status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    virtual ice::String get_name() const noexcept = 0;
+
+    sonic::String get_name() const noexcept
+    {
+        sonic::String result;
+        m_ops->get_name(get_handle(), result.get_handle());
+        return result;
+    }
+};
+
+} // namespace ice::sonic

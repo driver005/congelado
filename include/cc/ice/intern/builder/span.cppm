@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/span.h"
 
-export module cc_ice_builder_intern:span;
+export module cc_ice_intern_builder:span;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/counter.h"
 
-export module cc_ice_builder_otel:counter;
+export module cc_ice_extern_otel_builder:counter;
 
 import std;
 

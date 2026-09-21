@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/task.h"
 
-export module cc_ice_builder_jobber:task;
+export module cc_ice_extern_jobber_builder:task;
 
 import std;
 

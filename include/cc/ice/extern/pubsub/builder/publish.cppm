@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/pubsub/publish.h"
 
-export module cc_ice_builder_pubsub:publish;
+export module cc_ice_extern_pubsub_builder:publish;
 
 import std;
 

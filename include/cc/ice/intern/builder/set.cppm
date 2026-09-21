@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/set.h"
 
-export module cc_ice_builder_intern:set;
+export module cc_ice_intern_builder:set;
 
 import std;
 

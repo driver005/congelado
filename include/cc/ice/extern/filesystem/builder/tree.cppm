@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/filesystem/tree.h"
 
-export module cc_ice_builder_filesystem:tree;
+export module cc_ice_extern_filesystem_builder:tree;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/datatype.h"
 
-export module cc_ice_builder_intern:datatype;
+export module cc_ice_intern_builder:datatype;
 
 import std;
 

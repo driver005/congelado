@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/stream_executor/device.h"
 
-export module cc_ice_builder_stream_executor:device;
+export module cc_ice_extern_stream_executor_builder:device;
 
 import std;
 
@@ -40,6 +40,10 @@ public:
     get_device_vendor(const ice::sonic::TF_StringOps& out_vendor) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_pci_bus_id(const ice::sonic::TF_StringOps& out_pci_bus_id) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_device_properties(TF_DeviceProperties* out_properties) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_native_handle(void** out_handle) noexcept = 0;
 
     static TF_DeviceOps* get_generic_vtable()
     {
@@ -95,6 +99,26 @@ public:
             {
                 auto* self = TF_DeviceOps::create(device);
                 auto res = self->get_pci_bus_id(ice::sonic::TF_StringOps::wrap(out_pci_bus_id));
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .get_device_properties =
+                [](TF_Device* device,
+                   TF_DeviceProperties* out_properties,
+                   TF_Status* out_status) noexcept
+            {
+                auto* self = TF_DeviceOps::create(device);
+                auto res = self->get_device_properties(out_properties);
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
+            },
+            .get_native_handle =
+                [](TF_Device* device, void** out_handle) noexcept
+            {
+                auto* self = TF_DeviceOps::create(device);
+                auto res = self->get_native_handle(out_handle);
                 if (!res) {
                     res.error().to_c(status);
                 }

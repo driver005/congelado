@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/io/server.h"
 
-export module cc_ice_builder_io:server;
+export module cc_ice_extern_io_builder:server;
 
 import std;
 

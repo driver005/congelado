@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/file_statistics.h"
 
-export module cc_ice_builder_intern:file_statistics;
+export module cc_ice_intern_builder:file_statistics;
 
 import std;
 

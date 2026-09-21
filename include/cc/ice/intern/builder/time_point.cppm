@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/time_point.h"
 
-export module cc_ice_builder_intern:time_point;
+export module cc_ice_intern_builder:time_point;
 
 import std;
 

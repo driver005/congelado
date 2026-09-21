@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/stream_executor/stream_executor.h"
 
-export module cc_ice_builder_stream_executor:stream_executor;
+export module cc_ice_extern_stream_executor_builder:stream_executor;
 
 import std;
 

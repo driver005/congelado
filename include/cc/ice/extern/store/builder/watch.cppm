@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/watch.h"
 
-export module cc_ice_builder_store:watch;
+export module cc_ice_extern_store_builder:watch;
 
 import std;
 

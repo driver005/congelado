@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/duration.h"
 
-export module cc_ice_builder_intern:duration;
+export module cc_ice_intern_builder:duration;
 
 import std;
 

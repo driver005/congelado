@@ -87,9 +87,18 @@ extern "C"
         // Deep-copy src into dst (dst must already be allocated with matching shape/type).
         void (*tensor_copy)(TF_Tensor* src, TF_Tensor* dst);
 
+        // strides are in elements; storage offset is in elements from the data pointer
+        void (*set_strides)(TF_Tensor* tensor, const int64_t* strides, int num_strides);
+        void (*stride)(const TF_Tensor* tensor, int dim_index, int64_t* out_stride);
+        void (*set_storage_offset)(TF_Tensor* tensor, int64_t offset_elements);
+        void (*storage_offset)(const TF_Tensor* tensor, int64_t* out_offset_elements);
+        void (*set_device_index)(TF_Tensor* tensor, int device_index);
+        void (*get_device_index)(const TF_Tensor* tensor, int* out_device_index);
+        void (*tensor_view)(TF_Tensor* base, const int64_t* dims, int num_dims, const int64_t* strides, int64_t offset_elements, TF_Tensor** out_view, TF_Status* out_status);
+
     } TF_TensorOps;
 
-#define TF_TENSOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_TensorOps, tensor_copy)
+#define TF_TENSOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_TensorOps, tensor_view)
 
     TF_CAPI_EXPORT void create_tensor(TF_TensorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_tensor(void* plugin_context);

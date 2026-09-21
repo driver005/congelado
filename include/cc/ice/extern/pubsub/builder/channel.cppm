@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/pubsub/channel.h"
 
-export module cc_ice_builder_pubsub:channel;
+export module cc_ice_extern_pubsub_builder:channel;
 
 import std;
 

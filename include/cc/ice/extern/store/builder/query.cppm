@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/query.h"
 
-export module cc_ice_builder_store:query;
+export module cc_ice_extern_store_builder:query;
 
 import std;
 

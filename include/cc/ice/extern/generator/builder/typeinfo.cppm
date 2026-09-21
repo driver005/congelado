@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/generator/typeinfo.h"
 
-export module cc_ice_builder_generator:typeinfo;
+export module cc_ice_extern_generator_builder:typeinfo;
 
 import std;
 

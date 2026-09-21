@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/deque.h"
 
-export module cc_ice_builder_intern:deque;
+export module cc_ice_intern_builder:deque;
 
 import std;
 

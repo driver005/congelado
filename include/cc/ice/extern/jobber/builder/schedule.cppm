@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/schedule.h"
 
-export module cc_ice_builder_jobber:schedule;
+export module cc_ice_extern_jobber_builder:schedule;
 
 import std;
 

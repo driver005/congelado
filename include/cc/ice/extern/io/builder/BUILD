@@ -6,42 +6,14 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "cc_ice_builder_builder",
+    name = "cc_ice_extern_io_builder",
     partitions = [
-        "builder/socket.cppm",
-        "builder/server.cppm",
-        "builder/request.cppm",
-        "builder/response.cppm",
-        "builder/client.cppm",
+        "socket.cppm",
+        "server.cppm",
+        "request.cppm",
+        "response.cppm",
+        "client.cppm",
     ],
-    primary_interface = "builder/base.cppm",
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/io/builder:cc_ice_builder_socket",
-        "//include/cc/ice/io/builder:cc_ice_builder_server",
-        "//include/cc/ice/io/builder:cc_ice_builder_request",
-        "//include/cc/ice/io/builder:cc_ice_builder_response",
-        "//include/cc/ice/io/builder:cc_ice_builder_client",
-    ],
-)
-
-congelado_module_library(
-    name = "cc_ice_sonic_builder",
-    partitions = [
-        "sonic/socket.cppm",
-        "sonic/server.cppm",
-        "sonic/request.cppm",
-        "sonic/response.cppm",
-        "sonic/client.cppm",
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/io/sonic:cc_ice_sonic_socket",
-        "//include/cc/ice/io/sonic:cc_ice_sonic_server",
-        "//include/cc/ice/io/sonic:cc_ice_sonic_request",
-        "//include/cc/ice/io/sonic:cc_ice_sonic_response",
-        "//include/cc/ice/io/sonic:cc_ice_sonic_client",
-        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
-    ],
 )

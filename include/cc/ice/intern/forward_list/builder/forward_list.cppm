@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/forward_list/forward_list.h"
 
-export module cc_ice_builder_forward_list:forward_list;
+export module cc_ice_intern_forward_list_builder:forward_list;
 
 import std;
 

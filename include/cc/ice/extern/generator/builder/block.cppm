@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/generator/block.h"
 
-export module cc_ice_builder_generator:block;
+export module cc_ice_extern_generator_builder:block;
 
 import std;
 

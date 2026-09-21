@@ -3,9 +3,9 @@
 // bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot (or make gen-cc-abi) to
 // regenerate; edits made directly to this file will be overwritten.
 
-export module cc_ice_cc_include;
+export module cc;
 
 // clang-format off
-export import :ice;
+export import cc_ice;
 
 // clang-format on

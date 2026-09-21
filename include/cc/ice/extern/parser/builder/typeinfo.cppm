@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/typeinfo.h"
 
-export module cc_ice_builder_parser:typeinfo;
+export module cc_ice_extern_parser_builder:typeinfo;
 
 import std;
 
