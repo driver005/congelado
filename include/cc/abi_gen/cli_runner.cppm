@@ -206,7 +206,7 @@ private:
             options.m_folder = std::move(*value);
         }
         if (auto value = get_value("namespace")) {
-            options.m_namespace = std::move(*value);
+            options.m_namespace_name = std::move(*value);
         }
         if (auto value = get_value("domain")) {
             options.m_domain = std::move(*value);
@@ -246,7 +246,7 @@ private:
             return *options.m_folder;
         }
 
-        return FOLDER_NAME;
+        return std::string{FOLDER_NAME};
     }
 
     std::string resolve_namespace_name(const CliOptions& options)
@@ -255,7 +255,7 @@ private:
             return *options.m_namespace_name;
         }
 
-        return NAMESPACE_NAME;
+        return std::string{NAMESPACE_NAME};
     }
 
     std::filesystem::path resolve_output_dir(const CliOptions& options)

@@ -1,127 +1,69 @@
 module;
 
 #include <stdio.h>
-#include <string>
 
-export module cc_abi_gen_generator:emitter;
+export module cc_abi_gen_generator:vtable_emitter;
 
 import std;
 import cc_abi_gen_parser;
 import cc_abi_gen_writer;
-import :helper_formater;
+import :helper_formatter;
+import :helper_types;
 
 export namespace cc_abi_gen::generator::emitter {
 
-enum class Mode
-{
-    Builder,
-    Sonic,
-    Both
-};
 
-constexpr inline std::optional<Mode> from_string(std::string_view str) noexcept
-{
-    if (str == "builder") {
-        return Mode::Builder;
-    }
-    if (str == "sonic") {
-        return Mode::Sonic;
-    }
-    if (str == "both") {
-        return Mode::Both;
-    }
-    return std::nullopt;
-}
-
-} // namespace cc_abi_gen::generator::emitter
-
-template<>
-struct std::formatter<cc_abi_gen::generator::emitter::Mode> : std::formatter<std::string_view>
-{
-    auto format(cc_abi_gen::generator::emitter::Mode mode, std::format_context& ctx) const
-    {
-        // C++20: brings the enum values into the local scope
-        using enum cc_abi_gen::generator::emitter::Mode;
-
-        std::string_view name;
-        switch (mode) {
-            case Builder:
-                name = "Builder";
-                break;
-            case Sonic:
-                name = "Sonic";
-                break;
-            case Both:
-                name = "Both";
-                break;
-            default:
-                name = "Unknown";
-                break;
-        }
-
-        return std::formatter<std::string_view>::format(name, ctx);
-    }
-};
-
-export namespace cc_abi_gen::generator::emitter {
-
-using PathCallback = std::function<void(std::filesystem::path& model)>;
-
-struct PathComponents
-{
-    std::string tier;
-    std::string domain;
-    std::string mode;
-    std::string file;
-};
-
-class Emitter
+class VTableEmitter
 {
 public:
-    Emitter(const parser::Registry& registry, std::string&& base_folder, std::string&& name_space) :
+    VTableEmitter(
+        const parser::Registry& registry,
+        std::string&& base_folder,
+        std::string&& name_space
+    ) :
         m_registry{registry},
         m_base_folder{std::move(base_folder)},
         m_namespace_name{std::move(name_space)}
     {
     }
 
-    ~Emitter() = default;
-    Emitter(const Emitter&) = delete;
-    Emitter& operator=(const Emitter&) = delete;
-    Emitter(Emitter&&) = default;
-    Emitter& operator=(Emitter&&) = default;
+    ~VTableEmitter() = default;
+    VTableEmitter(const VTableEmitter&) = delete;
+    VTableEmitter& operator=(const VTableEmitter&) = delete;
+    VTableEmitter(VTableEmitter&&) = default;
+    VTableEmitter& operator=(VTableEmitter&&) = default;
 
-    Emitter& add_writer(std::string&& writer) noexcept
+    VTableEmitter& add_writer(std::string&& writer) noexcept
     {
         m_writer = std::move(writer);
         return *this;
     }
 
-    Emitter& add_namespace_name(std::string&& namespace_name) noexcept
+    VTableEmitter& add_namespace_name(std::string&& namespace_name) noexcept
     {
         m_namespace_name = std::move(namespace_name);
         return *this;
     }
 
-    Emitter& add_base_folder(std::string&& base_folder) noexcept
+    VTableEmitter& add_base_folder(std::string&& base_folder) noexcept
     {
         m_base_folder = std::move(base_folder);
         return *this;
     }
 
-    Emitter& add_file_writer(writer::Writer&& file_writer) noexcept
+    VTableEmitter& add_file_writer(writer::Writer&& file_writer) noexcept
     {
         m_file_writer = std::move(file_writer);
         return *this;
     }
 
-    Emitter& add_registry(const parser::Registry& registry) noexcept
+    VTableEmitter& add_registry(const parser::Registry& registry) noexcept
     {
         m_registry = registry;
         return *this;
     }
 
-    Emitter& add_path_callback(PathCallback&& path_callback) noexcept
+    VTableEmitter& add_path_callback(PathCallback&& path_callback) noexcept
     {
         m_path_callback = std::move(path_callback);
         return *this;

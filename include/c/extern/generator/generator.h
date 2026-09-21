@@ -5,12 +5,15 @@
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/extern/generator/catalog.h"
 #include "include/c/extern/generator/function.h"
 #include "include/c/extern/generator/definition.h"
 #include "include/c/extern/generator/parameter.h"
 #include "include/c/extern/generator/typeinfo.h"
 #include "include/c/extern/generator/attribute.h"
 #include "include/c/extern/generator/module.h"
+#include "include/c/extern/generator/block.h"
+#include "include/c/extern/generator/node.h"
 
 #include <stddef.h>
 
@@ -22,6 +25,7 @@ extern "C"
     typedef struct TF_Generator
     {
         void* plugin_data;
+        const TFGeneratorCatalogOps* catalog_ops;
         const TFGeneratorModuleOps* module_ops;
         const TFGeneratorFunctionOps* function_ops;
         const TFGeneratorParameterOps* parameter_ops;
@@ -37,21 +41,9 @@ extern "C"
         size_t struct_size;
         void (*destroy)(TF_Generator* generator);
         void (*get_name)(TF_Generator* generator, TF_String* out_name);
-
-        void (*add_module)(
-            TF_Generator* generator,
-            TFGeneratorModule* module,
-            TF_Status* out_status
-        );
-
-        void (*get_module)(TF_Generator* generator, const TF_String* name, TFGeneratorModule* out_module, TF_Status* out_status);
-
-        void (*list_modules)(TF_Generator* generator, TF_Tensor** out_modules, TF_Status* out_status);
-
-        void (*set_name)(TF_Generator* generator, const TF_String* name);
     } TF_GeneratorOps;
 
-#define TF_GENERATOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_GeneratorOps, set_name)
+#define TF_GENERATOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_GeneratorOps, get_name)
 
     TF_CAPI_EXPORT void
     create_generator(TF_GeneratorOps** ops, void** plugin_context, TF_Status* out_status);
@@ -61,6 +53,10 @@ extern "C"
     static inline void init_generator(TF_GeneratorOps** ops, TF_Generator* generator, TF_Status* out_status)
     {
         create_generator(ops, &generator->plugin_data, out_status);
+
+        TFGeneratorCatalogOps* catalog_ops = NULL;
+        create_generator_catalog(&catalog_ops, &generator->plugin_data, out_status);
+        generator->catalog_ops = catalog_ops;
 
         TFGeneratorModuleOps* module_ops = NULL;
         create_generator_module(&module_ops, &generator->plugin_data, out_status);

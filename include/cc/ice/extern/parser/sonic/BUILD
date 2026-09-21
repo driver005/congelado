@@ -1,0 +1,67 @@
+# GENERATED FILE — DO NOT EDIT BY HAND.
+# Produced by cc_abi_gen from cc/ice. Re-run
+# `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
+# regenerate; edits made directly to this file will be overwritten.
+
+load("//bazel:build_defs.bzl", "congelado_module_library")
+
+congelado_module_library(
+    name = "cc_ice_builder_sonic",
+    partitions = [
+        "builder/definition.cppm",
+        "builder/parameter.cppm",
+        "builder/function.cppm",
+        "builder/node.cppm",
+        "builder/catalog.cppm",
+        "builder/module.cppm",
+        "builder/block.cppm",
+        "builder/parser.cppm",
+        "builder/attribute.cppm",
+        "builder/typeinfo.cppm",
+    ],
+    primary_interface = "builder/base.cppm",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//include/cc/ice/parser/builder:cc_ice_builder_definition",
+        "//include/cc/ice/parser/builder:cc_ice_builder_parameter",
+        "//include/cc/ice/parser/builder:cc_ice_builder_function",
+        "//include/cc/ice/parser/builder:cc_ice_builder_node",
+        "//include/cc/ice/parser/builder:cc_ice_builder_catalog",
+        "//include/cc/ice/parser/builder:cc_ice_builder_module",
+        "//include/cc/ice/parser/builder:cc_ice_builder_block",
+        "//include/cc/ice/parser/builder:cc_ice_builder_parser",
+        "//include/cc/ice/parser/builder:cc_ice_builder_attribute",
+        "//include/cc/ice/parser/builder:cc_ice_builder_typeinfo",
+    ],
+)
+
+congelado_module_library(
+    name = "cc_ice_sonic_sonic",
+    partitions = [
+        "sonic/definition.cppm",
+        "sonic/parameter.cppm",
+        "sonic/function.cppm",
+        "sonic/node.cppm",
+        "sonic/catalog.cppm",
+        "sonic/module.cppm",
+        "sonic/block.cppm",
+        "sonic/parser.cppm",
+        "sonic/attribute.cppm",
+        "sonic/typeinfo.cppm",
+    ],
+    primary_interface = "sonic/base.cppm",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_definition",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_parameter",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_function",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_node",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_catalog",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_module",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_block",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_parser",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_attribute",
+        "//include/cc/ice/parser/sonic:cc_ice_sonic_typeinfo",
+        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
+    ],
+)

@@ -6,10 +6,10 @@
 export module cc_ice_builder_io;
 
 // clang-format off
-export import :server;
 export import :socket;
-export import :client;
+export import :server;
 export import :request;
 export import :response;
+export import :client;
 
 // clang-format on

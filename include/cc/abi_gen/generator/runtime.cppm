@@ -7,7 +7,7 @@ export module cc_abi_gen_generator:runtime;
 
 import std;
 import cc_abi_gen_parser;
-import :emitter;
+import :vtable_emitter;
 import cc_abi_gen_writer;
 
 export namespace cc_abi_gen::generator::runtime {
@@ -40,7 +40,7 @@ public:
         return *this;
     }
 
-    Runtime& add_emitter(emitter::Emitter&& emitter) noexcept
+    Runtime& add_emitter(emitter::VTableEmitter&& emitter) noexcept
     {
         m_emitter = std::move(emitter);
         return *this;
@@ -162,7 +162,7 @@ public:
         m_parser = std::move(parser);
     }
 
-    void set_emitter(emitter::Emitter&& emitter) noexcept
+    void set_emitter(emitter::VTableEmitter&& emitter) noexcept
     {
         m_emitter = std::move(emitter);
     }
@@ -197,7 +197,7 @@ public:
         return m_parser;
     }
 
-    const emitter::Emitter& get_emitter() const noexcept
+    const emitter::VTableEmitter& get_emitter() const noexcept
     {
         return m_emitter;
     }
@@ -216,7 +216,7 @@ public:
 private:
     parser::Registry m_registry;
     parser::Parser m_parser{"clang++", m_registry};
-    emitter::Emitter m_emitter;
+    emitter::VTableEmitter m_emitter;
     std::filesystem::path m_repo_root{};
     std::string m_output_dir;
 };

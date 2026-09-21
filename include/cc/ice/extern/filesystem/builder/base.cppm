@@ -6,9 +6,10 @@
 export module cc_ice_builder_filesystem;
 
 // clang-format off
-export import :random_access_file;
 export import :writable_file;
 export import :read_only_memory_region;
 export import :filesystem;
+export import :tree;
+export import :random_access_file;
 
 // clang-format on
