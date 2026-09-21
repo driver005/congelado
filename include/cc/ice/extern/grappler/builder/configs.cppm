@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/grappler/configs.h"
 
-export module cc_ice_builder_grappler:configs;
+export module cc_ice_extern_grappler_builder:configs;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/durable.h"
 
-export module cc_ice_builder_jobber:durable;
+export module cc_ice_extern_jobber_builder:durable;
 
 import std;
 

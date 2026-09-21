@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/kernel/construction.h"
 
-export module cc_ice_builder_kernel:construction;
+export module cc_ice_extern_kernel_builder:construction;
 
 import std;
 

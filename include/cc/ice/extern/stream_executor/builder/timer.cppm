@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/stream_executor/timer.h"
 
-export module cc_ice_builder_stream_executor:timer;
+export module cc_ice_extern_stream_executor_builder:timer;
 
 import std;
 

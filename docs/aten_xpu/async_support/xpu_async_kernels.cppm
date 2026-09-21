@@ -1,394 +1,600 @@
-// Async Kernel Dispatch for XPU/SYCL — ice::builder integration
-// Shows how to launch MKLDNN/oneDNN and transformer kernels asynchronously
+// SYCL Executor Backend — ice::builder::TF_ExecutorOps implementation
+// Maps the full StreamExecutor vtable to AdaptiveCpp SYCL primitives.
+// NO ATen / c10 / PyTorch dependencies.
 
 module;
 
 #include <sycl/sycl.hpp>
-#include <ATen/native/mkldnn/xpu/Attention.cpp>
-#include <ATen/native/mkldnn/xpu/Conv.cpp>
-#include <ATen/native/mkldnn/xpu/Linear.cpp>
-#include <ATen/native/mkldnn/xpu/RNN.cpp>
-#include <ATen/native/mkldnn/xpu/ScaledBlas.cpp>
-#include <ATen/native/transformers/xpu/attention.cpp>
-#include <ATen/native/transformers/xpu/sdp_utils.h>
-#include <c10/xpu/XPUStream.h>
+#include "include/c/extern/stream_executor/executor.h"
+#include "include/c/extern/stream_executor/device.h"
 
-export module cc_ice_builder_intern:xpu_async_kernels;
+export module cc_ice_sycl_backend:executor;
 
 import std;
-import cc_ice_builder_intern:xpu_async_tensor;
-import cc_ice_builder_intern:xpu_async_buffer;
+import cc_ice_builder_stream_executor:executor;
 import cc_ice_builder_intern:status;
+import cc_ice_sycl_backend:tensor;   // AsyncResult, XPU_AsyncEvent
 
 export namespace ice::builder {
 
-// Async kernel launcher base
-class XPU_AsyncKernelLauncher {
-protected:
-    std::shared_ptr<sycl::queue> queue_;
-    
-public:
-    explicit XPU_AsyncKernelLauncher(
-        c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream())
-        : queue_(c10::xpu::getRawStream(stream)) {}
-    
-    explicit XPU_AsyncKernelLauncher(std::shared_ptr<sycl::queue> q) : queue_(std::move(q)) {}
-    
-    sycl::queue& queue() noexcept { return *queue_; }
-    const sycl::queue& queue() const noexcept { return *queue_; }
-    
-    // Record event for synchronization
-    sycl::event record_event() {
-        return queue_->ext_oneapi_submit_barrier();
-    }
-    
-    void synchronize() {
-        queue_->wait_and_throw();
-    }
-    
-    // Wait for external event before launching
-    void wait_for(const sycl::event& event) {
-        queue_->wait(event);
-    }
-    
-    // Chain after external event
-    template<typename F>
-    sycl::event submit_after(const sycl::event& event, F&& kernel) {
-        return queue_->submit([&](sycl::handler& h) {
-            h.depends_on(event);
-            h.single_task(std::forward<F>(kernel));
-        });
-    }
-};
+// ---------------------------------------------------------------------------
+// SyclStreamHandle — wraps a sycl::queue* stored in TF_Stream::plugin_data
+// ---------------------------------------------------------------------------
+// Convention (matching StreamExecutor plugin contract):
+//   TF_Stream::plugin_data → sycl::queue* (owned by SyclExecutorImpl's pool)
+//   TF_Event::plugin_data  → sycl::event* (heap-allocated)
+//   TF_Timer::plugin_data  → std::pair<sycl::event,sycl::event>* (start/stop)
 
-// Attention async launcher (Flash Attention / SDPA)
-class XPU_AsyncAttention : public XPU_AsyncKernelLauncher {
+namespace detail {
+
+[[nodiscard]] inline sycl::queue* stream_queue(TF_Stream* s) noexcept {
+    return static_cast<sycl::queue*>(s->plugin_data);
+}
+
+[[nodiscard]] inline sycl::event* event_native(TF_Event* e) noexcept {
+    return static_cast<sycl::event*>(e->plugin_data);
+}
+
+[[nodiscard]] inline void* usm_ptr(const TF_DeviceMemoryBase* m) noexcept {
+    return m->opaque;
+}
+
+[[nodiscard]] inline void* usm_ptr(TF_DeviceMemoryBase* m) noexcept {
+    return m->opaque;
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------
+// SyclExecutorImpl — owns a sycl::device and queue pool; implements the
+//                    full TF_ExecutorOps abstract interface.
+// ---------------------------------------------------------------------------
+class SyclExecutorImpl : public TF_ExecutorOps {
 public:
-    using XPU_AsyncKernelLauncher::XPU_AsyncKernelLauncher;
-    
-    // Async scaled dot-product attention
-    // query: [batch, num_heads, seq_len, head_dim]
-    // key:   [batch, num_heads, seq_len, head_dim]
-    // value: [batch, num_heads, seq_len, head_dim]
-    struct AttentionResult {
-        sycl::event event;
-        XPU_AsyncTensorOps output;  // output tensor
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
-            try {
-                event.wait();
-                return status;
-            } catch (const sycl::exception& e) {
-                return std::unexpected(Status::from_sycl_error(e));
-            }
-        }
-    };
-    
-    [[nodiscard]] AttentionResult forward_async(
-        const XPU_AsyncTensorOps& query,
-        const XPU_AsyncTensorOps& key,
-        const XPU_AsyncTensorOps& value,
-        double dropout_p = 0.0,
-        bool is_causal = false,
-        const XPU_AsyncTensorOps* attn_mask = nullptr) {
-        
-        AttentionResult result;
-        result.output = XPU_AsyncTensorOps(query.tensor_.options()
-                                           .memory_format(c10::MemoryFormat::ChannelsLast));
-        
-        // Output shape matches query
-        result.output.set_dims(query.tensor_.sizes().data(), query.tensor_.dim());
-        
+    // Construct from a chosen SYCL device (e.g. gpu_selector_v or cpu_selector_v).
+    explicit SyclExecutorImpl(const sycl::device& dev)
+        : device_(dev),
+          default_context_(dev),
+          default_queue_(default_context_, dev,
+                         sycl::property::queue::in_order{}) {}
+
+    ~SyclExecutorImpl() override = default;
+
+    // ---- Device memory (USM device_alloc) ---------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> allocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        uint64_t size,
+        int64_t  /*memory_space*/,
+        TF_DeviceMemoryBase* mem) noexcept override {
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                // This would call the actual oneDNN/Flash Attention kernel
-                // Using the PyTorch XPU attention implementation
-                h.single_task([=]() {
-                    // Placeholder for actual kernel call:
-                    // at::native::xpu::attention_forward(
-                    //     query.tensor_, key.tensor_, value.tensor_,
-                    //     result.output.tensor_, dropout_p, is_causal, attn_mask);
+            mem->opaque = sycl::malloc_device(size, default_queue_);
+            mem->size   = size;
+            if (!mem->opaque)
+                return std::unexpected(ice::Status::from_message("sycl::malloc_device OOM"));
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> deallocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_DeviceMemoryBase* memory) noexcept override {
+        try {
+            sycl::free(memory->opaque, default_queue_);
+            memory->opaque = nullptr;
+            memory->size   = 0;
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Host-pinned memory (USM host_alloc) ------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> host_memory_allocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        uint64_t size,
+        void**   out_mem) noexcept override {
+        try {
+            *out_mem = sycl::malloc_host(size, default_queue_);
+            if (!*out_mem)
+                return std::unexpected(ice::Status::from_message("sycl::malloc_host OOM"));
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> host_memory_deallocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        void* mem) noexcept override {
+        try {
+            sycl::free(mem, default_queue_);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Shared (USM shared_alloc) ----------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> unified_memory_allocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        uint64_t bytes,
+        void**   out_location) noexcept override {
+        try {
+            *out_location = sycl::malloc_shared(bytes, default_queue_);
+            if (!*out_location)
+                return std::unexpected(ice::Status::from_message("sycl::malloc_shared OOM"));
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> unified_memory_deallocate(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        void* location) noexcept override {
+        try {
+            sycl::free(location, default_queue_);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Allocator stats -------------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> get_allocator_stats(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_AllocatorStats* stats,
+        _Bool* out_success) noexcept override {
+        // SYCL USM does not expose a caching allocator with stats natively.
+        // Populate with sentinel values so callers can detect "unsupported".
+        if (stats) {
+            stats->bytes_in_use       = -1;
+            stats->peak_bytes_in_use  = -1;
+            stats->largest_alloc_size = -1;
+            stats->bytes_limit        = -1;
+        }
+        if (out_success) *out_success = false;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> device_memory_usage(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        int64_t* out_free,
+        int64_t* out_total,
+        _Bool* out_success) noexcept override {
+        try {
+            // query via SYCL device info (not universally available)
+            auto total = static_cast<int64_t>(
+                device_.get_info<sycl::info::device::global_mem_size>());
+            if (out_total)   *out_total   = total;
+            if (out_free)    *out_free    = -1;  // free not directly queryable
+            if (out_success) *out_success = true;
+            return {};
+        } catch (const sycl::exception& e) {
+            if (out_success) *out_success = false;
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Stream management -----------------------------------------------
+    //
+    // Each TF_Stream wraps a heap-allocated sycl::queue (in-order by default).
+
+    [[nodiscard]] std::expected<void, ice::Status> create_stream_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream) noexcept override {
+        try {
+            auto* q = new sycl::queue(
+                default_context_, device_,
+                sycl::property::queue::in_order{});
+            stream->plugin_data = q;
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> destroy_stream_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream) noexcept override {
+        delete detail::stream_queue(stream);
+        stream->plugin_data = nullptr;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> create_stream_dependency(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* dependent,
+        TF_Stream* other) noexcept override {
+        // Implement a cross-queue dependency using a barrier event.
+        try {
+            auto* dep_q   = detail::stream_queue(dependent);
+            auto* other_q = detail::stream_queue(other);
+            auto  barrier = other_q->ext_oneapi_submit_barrier();
+            dep_q->submit([&](sycl::handler& h) {
+                h.depends_on(barrier);
+                h.single_task([]{});
+            });
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> get_stream_status(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream) noexcept override {
+        try {
+            // An in-order queue is "done" if no pending work — submit a no-op
+            // and wait to confirm the queue is drained.
+            detail::stream_queue(stream)->wait();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> create_stream_with_options(
+        const ice::sonic::TF_DeviceOps& device,
+        const TF_StreamOptions* /*options*/,
+        TF_Stream* stream) noexcept override {
+        // Options (priority, etc.) are not portable across SYCL implementations;
+        // fall back to the default in-order stream.
+        return create_stream_internal(device, stream);
+    }
+
+    // ---- Event management ------------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> create_event_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Event* event) noexcept override {
+        try {
+            event->plugin_data = new sycl::event();
+            return {};
+        } catch (...) {
+            return std::unexpected(ice::Status::from_message("failed to allocate sycl::event"));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> destroy_event_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Event* event) noexcept override {
+        delete detail::event_native(event);
+        event->plugin_data = nullptr;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> get_event_status(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Event* event,
+        TF_EventStatus* out_status) noexcept override {
+        auto* ev = detail::event_native(event);
+        auto  cs = ev->get_info<sycl::info::event::command_execution_status>();
+        *out_status = (cs == sycl::info::event_command_status::complete)
+                      ? TF_EventStatus::TF_EVENT_COMPLETE
+                      : TF_EventStatus::TF_EVENT_PENDING;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> record_event(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_Event* event) noexcept override {
+        try {
+            auto* q  = detail::stream_queue(stream);
+            auto* ev = detail::event_native(event);
+            *ev = q->ext_oneapi_submit_barrier();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> wait_for_event(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_Event* event) noexcept override {
+        try {
+            auto* q  = detail::stream_queue(stream);
+            auto* ev = detail::event_native(event);
+            q->submit([&](sycl::handler& h) {
+                h.depends_on(*ev);
+                h.single_task([]{});
+            });
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Timer management ------------------------------------------------
+    //
+    // SYCL timers are modelled as a pair<sycl::event, sycl::event> (start, stop).
+
+    [[nodiscard]] std::expected<void, ice::Status> create_timer_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        const ice::sonic::TF_TimerOps& timer) noexcept override {
+        using Pair = std::pair<sycl::event, sycl::event>;
+        timer.handle()->plugin_data = new Pair();
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> destroy_timer_internal(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        const ice::sonic::TF_TimerOps& timer) noexcept override {
+        using Pair = std::pair<sycl::event, sycl::event>;
+        delete static_cast<Pair*>(timer.handle()->plugin_data);
+        timer.handle()->plugin_data = nullptr;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> start_timer(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        const ice::sonic::TF_TimerOps& timer) noexcept override {
+        using Pair = std::pair<sycl::event, sycl::event>;
+        try {
+            auto* pair = static_cast<Pair*>(timer.handle()->plugin_data);
+            pair->first = detail::stream_queue(stream)->ext_oneapi_submit_barrier();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> stop_timer(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        const ice::sonic::TF_TimerOps& timer) noexcept override {
+        using Pair = std::pair<sycl::event, sycl::event>;
+        try {
+            auto* pair = static_cast<Pair*>(timer.handle()->plugin_data);
+            pair->second = detail::stream_queue(stream)->ext_oneapi_submit_barrier();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Memcpy: async (stream-ordered) ----------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> memcpy_dtoh(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        void* host_dst,
+        const TF_DeviceMemoryBase* device_src,
+        uint64_t size) noexcept override {
+        try {
+            detail::stream_queue(stream)->memcpy(host_dst, detail::usm_ptr(device_src), size);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> memcpy_htod(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_DeviceMemoryBase* device_dst,
+        const void* host_src,
+        uint64_t size) noexcept override {
+        try {
+            detail::stream_queue(stream)->memcpy(detail::usm_ptr(device_dst), host_src, size);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> memcpy_dtod(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_DeviceMemoryBase* device_dst,
+        const TF_DeviceMemoryBase* device_src,
+        uint64_t size) noexcept override {
+        try {
+            detail::stream_queue(stream)->memcpy(
+                detail::usm_ptr(device_dst),
+                detail::usm_ptr(device_src),
+                size);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Memcpy: synchronous --------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_dtoh(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        void* host_dst,
+        const TF_DeviceMemoryBase* device_src,
+        uint64_t size) noexcept override {
+        try {
+            default_queue_.memcpy(host_dst, detail::usm_ptr(device_src), size).wait();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_htod(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_DeviceMemoryBase* device_dst,
+        const void* host_src,
+        uint64_t size) noexcept override {
+        try {
+            default_queue_.memcpy(detail::usm_ptr(device_dst), host_src, size).wait();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_dtod(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_DeviceMemoryBase* device_dst,
+        const TF_DeviceMemoryBase* device_src,
+        uint64_t size) noexcept override {
+        try {
+            default_queue_.memcpy(
+                detail::usm_ptr(device_dst),
+                detail::usm_ptr(device_src),
+                size).wait();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Host synchronization -------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> block_host_for_event(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Event* event) noexcept override {
+        try {
+            detail::event_native(event)->wait();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> block_host_until_done(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream) noexcept override {
+        try {
+            detail::stream_queue(stream)->wait_and_throw();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> synchronize_all_activity(
+        const ice::sonic::TF_DeviceOps& /*device*/) noexcept override {
+        try {
+            default_queue_.wait_and_throw();
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    // ---- Memset ---------------------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> mem_zero(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_DeviceMemoryBase* location,
+        uint64_t size) noexcept override {
+        try {
+            detail::stream_queue(stream)->memset(detail::usm_ptr(location), 0, size);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> memset(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_DeviceMemoryBase* location,
+        uint8_t pattern,
+        uint64_t size) noexcept override {
+        try {
+            detail::stream_queue(stream)->memset(
+                detail::usm_ptr(location), static_cast<int>(pattern), size);
+            return {};
+        } catch (const sycl::exception& e) {
+            return std::unexpected(ice::Status::from_message(e.what()));
+        }
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status> memset32(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_DeviceMemoryBase* location,
+        uint32_t pattern,
+        uint64_t size) noexcept override {
+        // SYCL memset only supports byte patterns; fill 32-bit pattern manually.
+        try {
+            auto* q   = detail::stream_queue(stream);
+            auto* ptr = static_cast<uint32_t*>(detail::usm_ptr(location));
+            size_t count = size / sizeof(uint32_t);
+            q->submit([&](sycl::handler& h) {
+                h.parallel_for(sycl::range<1>(count), [=](sycl::id<1> idx) {
+                    ptr[idx] = pattern;
                 });
             });
-            result.status = std::expected<void, Status>{};
+            return {};
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            return std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
     }
-    
-    // Backward pass
-    struct AttentionBackwardResult {
-        sycl::event event;
-        XPU_AsyncTensorOps grad_query;
-        XPU_AsyncTensorOps grad_key;
-        XPU_AsyncTensorOps grad_value;
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
-            try {
-                event.wait();
-                return status;
-            } catch (const sycl::exception& e) {
-                return std::unexpected(Status::from_sycl_error(e));
-            }
-        }
-    };
-    
-    [[nodiscard]] AttentionBackwardResult backward_async(
-        const XPU_AsyncTensorOps& grad_output,
-        const XPU_AsyncTensorOps& query,
-        const XPU_AsyncTensorOps& key,
-        const XPU_AsyncTensorOps& value,
-        const XPU_AsyncTensorOps& output,
-        double dropout_p = 0.0,
-        bool is_causal = false,
-        const XPU_AsyncTensorOps* attn_mask = nullptr) {
-        
-        AttentionBackwardResult result;
-        result.grad_query = XPU_AsyncTensorOps(query.tensor_.options());
-        result.grad_key = XPU_AsyncTensorOps(key.tensor_.options());
-        result.grad_value = XPU_AsyncTensorOps(value.tensor_.options());
-        
-        result.grad_query.set_dims(query.tensor_.sizes().data(), query.tensor_.dim());
-        result.grad_key.set_dims(key.tensor_.sizes().data(), key.tensor_.dim());
-        result.grad_value.set_dims(value.tensor_.sizes().data(), value.tensor_.dim());
-        
+
+    // ---- Host callback ---------------------------------------------------
+
+    [[nodiscard]] std::expected<void, ice::Status> host_callback(
+        const ice::sonic::TF_DeviceOps& /*device*/,
+        TF_Stream* stream,
+        TF_StatusCallbackFn callback_fn,
+        void* callback_arg,
+        _Bool* out_success) noexcept override {
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([=]() {
-                    // Placeholder: at::native::xpu::attention_backward(...)
+            // Submit a host task after current in-order queue drains.
+            detail::stream_queue(stream)->submit([&](sycl::handler& h) {
+                h.host_task([=]() {
+                    callback_fn(callback_arg, nullptr);  // nullptr = OK status
                 });
             });
-            result.status = std::expected<void, Status>{};
+            if (out_success) *out_success = true;
+            return {};
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            if (out_success) *out_success = false;
+            return std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
     }
+
+    // ---- Accessors -------------------------------------------------------
+
+    [[nodiscard]] sycl::queue&   default_queue()   noexcept { return default_queue_; }
+    [[nodiscard]] sycl::device&  sycl_device()     noexcept { return device_; }
+    [[nodiscard]] sycl::context& sycl_context()    noexcept { return default_context_; }
+
+private:
+    sycl::device  device_;
+    sycl::context default_context_;
+    sycl::queue   default_queue_;
 };
 
-// Conv async launcher
-class XPU_AsyncConv : public XPU_AsyncKernelLauncher {
-public:
-    using XPU_AsyncKernelLauncher::XPU_AsyncKernelLauncher;
-    
-    struct ConvResult {
-        sycl::event event;
-        XPU_AsyncTensorOps output;
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
-            try { event.wait(); return status; }
-            catch (const sycl::exception& e) { return std::unexpected(Status::from_sycl_error(e)); }
-        }
-    };
-    
-    // Async convolution forward
-    // input: [N, C, H, W] or [N, C, D, H, W]
-    // weight: [O, C, kH, kW] or [O, C, kD, kH, kW]
-    [[nodiscard]] ConvResult forward_async(
-        const XPU_AsyncTensorOps& input,
-        const XPU_AsyncTensorOps& weight,
-        const XPU_AsyncTensorOps* bias,
-        std::array<int64_t, 2> stride,
-        std::array<int64_t, 2> padding,
-        std::array<int64_t, 2> dilation,
-        int64_t groups = 1) {
-        
-        ConvResult result;
-        // Compute output shape
-        auto in_sizes = input.tensor_.sizes();
-        auto w_sizes = weight.tensor_.sizes();
-        int64_t N = in_sizes[0], C = in_sizes[1];
-        int64_t H = in_sizes[2], W = in_sizes[3];
-        int64_t O = w_sizes[0];
-        int64_t kH = w_sizes[2], kW = w_sizes[3];
-        
-        int64_t OH = (H + 2 * padding[0] - dilation[0] * (kH - 1) - 1) / stride[0] + 1;
-        int64_t OW = (W + 2 * padding[1] - dilation[1] * (kW - 1) - 1) / stride[1] + 1;
-        
-        result.output = XPU_AsyncTensorOps(input.tensor_.options());
-        result.output.set_dims({N, O, OH, OW}, 4);
-        
-        try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([=]() {
-                    // Placeholder: at::native::xpu::convolution_forward(...)
-                    // Uses oneDNN convolution
-                });
-            });
-            result.status = std::expected<void, Status>{};
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
-    }
-};
+// ---------------------------------------------------------------------------
+// Factory helpers
+// ---------------------------------------------------------------------------
 
-// Linear (GEMM) async launcher
-class XPU_AsyncLinear : public XPU_AsyncKernelLauncher {
-public:
-    using XPU_AsyncKernelLauncher::XPU_AsyncKernelLauncher;
-    
-    struct LinearResult {
-        sycl::event event;
-        XPU_AsyncTensorOps output;
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
-            try { event.wait(); return status; }
-            catch (const sycl::exception& e) { return std::unexpected(Status::from_sycl_error(e)); }
-        }
-    };
-    
-    // Async linear: input @ weight.t() + bias
-    // input: [..., in_features]
-    // weight: [out_features, in_features]
-    // bias: [out_features] (optional)
-    [[nodiscard]] LinearResult forward_async(
-        const XPU_AsyncTensorOps& input,
-        const XPU_AsyncTensorOps& weight,
-        const XPU_AsyncTensorOps* bias = nullptr) {
-        
-        LinearResult result;
-        auto in_sizes = input.tensor_.sizes();
-        int64_t out_features = weight.tensor_.size(0);
-        
-        std::vector<int64_t> out_sizes(in_sizes.begin(), in_sizes.end() - 1);
-        out_sizes.push_back(out_features);
-        
-        result.output = XPU_AsyncTensorOps(input.tensor_.options());
-        result.output.set_dims(out_sizes.data(), out_sizes.size());
-        
-        try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([=]() {
-                    // Placeholder: at::native::xpu::linear_forward(...)
-                    // Uses oneDNN GEMM
-                });
-            });
-            result.status = std::expected<void, Status>{};
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
+// Create a SYCL executor targeting the first GPU found (falls back to CPU).
+[[nodiscard]] inline SyclExecutorImpl* make_gpu_executor() {
+    try {
+        return new SyclExecutorImpl(sycl::device(sycl::gpu_selector_v));
+    } catch (const sycl::exception&) {
+        return new SyclExecutorImpl(sycl::device(sycl::cpu_selector_v));
     }
-};
+}
 
-// RNN async launcher
-class XPU_AsyncRNN : public XPU_AsyncKernelLauncher {
-public:
-    using XPU_AsyncKernelLauncher::XPU_AsyncKernelLauncher;
-    
-    struct RNNResult {
-        sycl::event event;
-        XPU_AsyncTensorOps output;      // [seq_len, batch, hidden_size * num_directions]
-        XPU_AsyncTensorOps h_n;         // [num_layers * num_directions, batch, hidden_size]
-        XPU_AsyncTensorOps c_n;         // for LSTM: [num_layers * num_directions, batch, hidden_size]
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
-            try { event.wait(); return status; }
-            catch (const sycl::exception& e) { return std::unexpected(Status::from_sycl_error(e)); }
-        }
-    };
-    
-    // Supports RNN, LSTM, GRU
-    enum class Mode { RNN_TANH, RNN_RELU, LSTM, GRU };
-    
-    [[nodiscard]] RNNResult forward_async(
-        const XPU_AsyncTensorOps& input,      // [seq_len, batch, input_size]
-        const XPU_AsyncTensorOps& weight_ih,  // [num_layers * num_directions, hidden_size, input_size]
-        const XPU_AsyncTensorOps& weight_hh,  // [num_layers * num_directions, hidden_size, hidden_size]
-        const XPU_AsyncTensorOps* bias_ih,
-        const XPU_AsyncTensorOps* bias_hh,
-        const XPU_AsyncTensorOps& h_0,        // [num_layers * num_directions, batch, hidden_size]
-        const XPU_AsyncTensorOps* c_0,        // for LSTM
-        Mode mode,
-        int64_t num_layers,
-        bool bidirectional,
-        double dropout = 0.0) {
-        
-        RNNResult result;
-        int64_t seq_len = input.tensor_.size(0);
-        int64_t batch = input.tensor_.size(1);
-        int64_t hidden_size = h_0.tensor_.size(2);
-        int64_t num_directions = bidirectional ? 2 : 1;
-        
-        result.output = XPU_AsyncTensorOps(input.tensor_.options());
-        result.output.set_dims({seq_len, batch, hidden_size * num_directions}, 3);
-        
-        result.h_n = XPU_AsyncTensorOps(input.tensor_.options());
-        result.h_n.set_dims({num_layers * num_directions, batch, hidden_size}, 3);
-        
-        if (mode == Mode::LSTM) {
-            result.c_n = XPU_AsyncTensorOps(input.tensor_.options());
-            result.c_n.set_dims({num_layers * num_directions, batch, hidden_size}, 3);
-        }
-        
-        try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([=]() {
-                    // Placeholder: at::native::xpu::rnn_forward(...)
-                    // Uses oneDNN RNN
-                });
-            });
-            result.status = std::expected<void, Status>{};
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
-    }
-};
+// Create a SYCL executor explicitly targeting the CPU.
+[[nodiscard]] inline SyclExecutorImpl* make_cpu_executor() {
+    return new SyclExecutorImpl(sycl::device(sycl::cpu_selector_v));
+}
 
-// Composite async pipeline (chain multiple kernels)
-class XPU_AsyncPipeline {
-    std::vector<sycl::event> events_;
-    std::shared_ptr<sycl::queue> queue_;
-    
-public:
-    explicit XPU_AsyncPipeline(c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream())
-        : queue_(c10::xpu::getRawStream(stream)) {}
-    
-    explicit XPU_AsyncPipeline(std::shared_ptr<sycl::queue> q) : queue_(std::move(q)) {}
-    
-    // Add a kernel to the pipeline
-    template<typename F>
-    sycl::event add(F&& kernel, const sycl::event* dep = nullptr) {
-        auto event = queue_->submit([&](sycl::handler& h) {
-            if (dep) h.depends_on(*dep);
-            h.single_task(std::forward<F>(kernel));
-        });
-        events_.push_back(event);
-        return event;
-    }
-    
-    // Wait for all
-    void wait_all() {
-        for (auto& e : events_) e.wait();
-    }
-    
-    // Get last event
-    sycl::event last_event() const {
-        return events_.empty() ? sycl::event{} : events_.back();
-    }
-    
-    // Clear
-    void clear() { events_.clear(); }
-    
-    sycl::queue& queue() { return *queue_; }
-};
+// Create a SYCL executor for a specific platform-local device ordinal.
+[[nodiscard]] inline SyclExecutorImpl* make_executor_for_device(const sycl::device& dev) {
+    return new SyclExecutorImpl(dev);
+}
 
 } // namespace ice::builder

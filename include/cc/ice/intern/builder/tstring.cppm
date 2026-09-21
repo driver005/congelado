@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/tstring.h"
 
-export module cc_ice_builder_intern:tstring;
+export module cc_ice_intern_builder:tstring;
 
 import std;
 

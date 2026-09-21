@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/ops/ops.h"
 
-export module cc_ice_builder_ops:ops;
+export module cc_ice_extern_ops_builder:ops;
 
 import std;
 

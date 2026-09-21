@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/kernel/context.h"
 
-export module cc_ice_builder_kernel:context;
+export module cc_ice_extern_kernel_builder:context;
 
 import std;
 
@@ -164,9 +164,11 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     zeros_like_variant(TF_ZerosLikeFunc zeros_like_func) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_stream(void** out_stream) noexcept = 0;
+    get_stream(TF_Stream** out_stream) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     run_async_done_callback(void* done_callback) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_random_generator(const ice::sonic::TF_RandomGeneratorOps& out_generator) noexcept = 0;
 
     static TF_OpKernelContextOps* get_generic_vtable()
     {
@@ -704,7 +706,7 @@ public:
                 }
             },
             .get_stream =
-                [](TF_OpKernelContext* ctx, void** out_stream, TF_Status* out_status) noexcept
+                [](TF_OpKernelContext* ctx, TF_Stream** out_stream, TF_Status* out_status) noexcept
             {
                 auto* self = TF_OpKernelContextOps::create(ctx);
                 auto res = self->get_stream(out_stream);
@@ -719,6 +721,19 @@ public:
                 auto res = self->run_async_done_callback(done_callback);
                 if (!res) {
                     res.error().to_c(status);
+                }
+            },
+            .get_random_generator =
+                [](TF_OpKernelContext* ctx,
+                   TF_RandomGenerator* out_generator,
+                   TF_Status* out_status) noexcept
+            {
+                auto* self = TF_OpKernelContextOps::create(ctx);
+                auto res = self->get_random_generator(
+                    ice::sonic::TF_RandomGeneratorOps::wrap(out_generator)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
                 }
             },
 

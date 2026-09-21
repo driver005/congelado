@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/observe.h"
 
-export module cc_ice_builder_jobber:observe;
+export module cc_ice_extern_jobber_builder:observe;
 
 import std;
 

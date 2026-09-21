@@ -6,26 +6,10 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "cc_ice_builder_builder",
+    name = "cc_ice_extern_profiler_builder",
     partitions = [
-        "builder/profiler.cppm",
+        "profiler.cppm",
     ],
-    primary_interface = "builder/base.cppm",
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/profiler/builder:cc_ice_builder_profiler",
-    ],
-)
-
-congelado_module_library(
-    name = "cc_ice_sonic_builder",
-    partitions = [
-        "sonic/profiler.cppm",
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/profiler/sonic:cc_ice_sonic_profiler",
-        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
-    ],
 )

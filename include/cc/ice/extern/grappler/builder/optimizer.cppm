@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/grappler/optimizer.h"
 
-export module cc_ice_builder_grappler:optimizer;
+export module cc_ice_extern_grappler_builder:optimizer;
 
 import std;
 

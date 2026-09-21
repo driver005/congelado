@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/ops/op_definition_builder.h"
 
-export module cc_ice_builder_ops:op_definition_builder;
+export module cc_ice_extern_ops_builder:op_definition_builder;
 
 import std;
 

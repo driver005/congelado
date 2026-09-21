@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/parameter.h"
 
-export module cc_ice_builder_parser:parameter;
+export module cc_ice_extern_parser_builder:parameter;
 
 import std;
 

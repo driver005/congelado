@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/filesystem/random_access_file.h"
 
-export module cc_ice_builder_filesystem:random_access_file;
+export module cc_ice_extern_filesystem_builder:random_access_file;
 
 import std;
 

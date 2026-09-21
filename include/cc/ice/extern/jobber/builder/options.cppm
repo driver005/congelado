@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/options.h"
 
-export module cc_ice_builder_jobber:options;
+export module cc_ice_extern_jobber_builder:options;
 
 import std;
 

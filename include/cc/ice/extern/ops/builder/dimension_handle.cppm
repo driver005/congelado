@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/ops/dimension_handle.h"
 
-export module cc_ice_builder_ops:dimension_handle;
+export module cc_ice_extern_ops_builder:dimension_handle;
 
 import std;
 

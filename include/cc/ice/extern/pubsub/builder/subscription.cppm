@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/pubsub/subscription.h"
 
-export module cc_ice_builder_pubsub:subscription;
+export module cc_ice_extern_pubsub_builder:subscription;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/tensor.h"
 
-export module cc_ice_builder_intern:tensor;
+export module cc_ice_intern_builder:tensor;
 
 import std;
 
@@ -51,6 +51,25 @@ public:
     tensor_bitcast_to(TFDataTypeEnum dtype, TF_Tensor** out_tensor) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     tensor_copy(const ice::sonic::TF_TensorOps& dst) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    set_strides(const int64_t* strides, int num_strides) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    stride(int dim_index, int64_t* out_stride) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    set_storage_offset(int64_t offset_elements) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    storage_offset(int64_t* out_offset_elements) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    set_device_index(int device_index) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_device_index(int* out_device_index) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> tensor_view(
+        const int64_t* dims,
+        int num_dims,
+        const int64_t* strides,
+        int64_t offset_elements,
+        TF_Tensor** out_view
+    ) noexcept = 0;
 
     static TF_TensorOps* get_generic_vtable()
     {
@@ -185,6 +204,75 @@ public:
                 auto res = self->tensor_copy(ice::sonic::TF_TensorOps::wrap(dst));
                 if (!res) {
                     res.error().to_c(status);
+                }
+            },
+            .set_strides =
+                [](TF_Tensor* tensor, const int64_t* strides, int num_strides) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->set_strides(strides, num_strides);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .stride =
+                [](const TF_Tensor* tensor, int dim_index, int64_t* out_stride) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->stride(dim_index, out_stride);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .set_storage_offset =
+                [](TF_Tensor* tensor, int64_t offset_elements) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->set_storage_offset(offset_elements);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .storage_offset =
+                [](const TF_Tensor* tensor, int64_t* out_offset_elements) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->storage_offset(out_offset_elements);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .set_device_index =
+                [](TF_Tensor* tensor, int device_index) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->set_device_index(device_index);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .get_device_index =
+                [](const TF_Tensor* tensor, int* out_device_index) noexcept
+            {
+                auto* self = TF_TensorOps::create(tensor);
+                auto res = self->get_device_index(out_device_index);
+                if (!res) {
+                    res.error().to_c(status);
+                }
+            },
+            .tensor_view =
+                [](TF_Tensor* base,
+                   const int64_t* dims,
+                   int num_dims,
+                   const int64_t* strides,
+                   int64_t offset_elements,
+                   TF_Tensor** out_view,
+                   TF_Status* out_status) noexcept
+            {
+                auto* self = TF_TensorOps::create(base);
+                auto res = self->tensor_view(dims, num_dims, strides, offset_elements, out_view);
+                if (!res) {
+                    res.error().to_c(out_status);
                 }
             },
 

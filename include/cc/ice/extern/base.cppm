@@ -6,13 +6,14 @@
 export module cc_ice_extern;
 
 // clang-format off
+export import cc_ice_extern_random_generator;
+export import cc_ice_extern_memory;
 export import cc_ice_extern_grappler;
 export import cc_ice_extern_parser;
 export import cc_ice_extern_stream_executor;
 export import cc_ice_extern_store;
 export import cc_ice_extern_profiler;
 export import cc_ice_extern_serde;
-export import cc_ice_extern_pubsub;
 export import cc_ice_extern_io;
 export import cc_ice_extern_jobber;
 export import cc_ice_extern_registration;
@@ -20,6 +21,7 @@ export import cc_ice_extern_filesystem;
 export import cc_ice_extern_otel;
 export import cc_ice_extern_generator;
 export import cc_ice_extern_ops;
+export import cc_ice_extern_pubsub;
 export import cc_ice_extern_kernel;
 
 // clang-format on

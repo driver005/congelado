@@ -3,9 +3,9 @@
 // bazel run //include/{{ folder_name }}/abi_gen:{{ folder_name }}_abi_gen -- generate --pilot (or make gen-{{ folder_name }}-abi) to
 // regenerate; edits made directly to this file will be overwritten.
 
-export module {{ folder_name }}{% if namespace_name != "" %}_{{ namespace_name }}{% endif %}{% if domain_name != "" %}_{{ domain_name }}{% endif %}{% if target_name != "" %}_{{ target_name }}{% endif %};
+export module {{ module_name }};
 
 // clang-format off
-{% for partition in partitions %}export import {{ partition }};
+{% for item in imports %}export import {{ item }};
 {% endfor %}
 // clang-format on

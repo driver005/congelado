@@ -6,38 +6,13 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "cc_ice_builder_sonic",
+    name = "cc_ice_extern_pubsub_sonic",
     partitions = [
-        "builder/channel.cppm",
-        "builder/subscription.cppm",
-        "builder/publish.cppm",
-        "builder/pubsub.cppm",
+        "channel.cppm",
+        "subscription.cppm",
+        "publish.cppm",
+        "pubsub.cppm",
     ],
-    primary_interface = "builder/base.cppm",
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/pubsub/builder:cc_ice_builder_channel",
-        "//include/cc/ice/pubsub/builder:cc_ice_builder_subscription",
-        "//include/cc/ice/pubsub/builder:cc_ice_builder_publish",
-        "//include/cc/ice/pubsub/builder:cc_ice_builder_pubsub",
-    ],
-)
-
-congelado_module_library(
-    name = "cc_ice_sonic_sonic",
-    partitions = [
-        "sonic/channel.cppm",
-        "sonic/subscription.cppm",
-        "sonic/publish.cppm",
-        "sonic/pubsub.cppm",
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/pubsub/sonic:cc_ice_sonic_channel",
-        "//include/cc/ice/pubsub/sonic:cc_ice_sonic_subscription",
-        "//include/cc/ice/pubsub/sonic:cc_ice_sonic_publish",
-        "//include/cc/ice/pubsub/sonic:cc_ice_sonic_pubsub",
-        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
-    ],
 )

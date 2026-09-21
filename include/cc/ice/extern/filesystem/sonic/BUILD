@@ -6,42 +6,14 @@
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "cc_ice_builder_sonic",
+    name = "cc_ice_extern_filesystem_sonic",
     partitions = [
-        "builder/writable_file.cppm",
-        "builder/read_only_memory_region.cppm",
-        "builder/filesystem.cppm",
-        "builder/tree.cppm",
-        "builder/random_access_file.cppm",
+        "writable_file.cppm",
+        "read_only_memory_region.cppm",
+        "filesystem.cppm",
+        "tree.cppm",
+        "random_access_file.cppm",
     ],
-    primary_interface = "builder/base.cppm",
+    primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/filesystem/builder:cc_ice_builder_writable_file",
-        "//include/cc/ice/filesystem/builder:cc_ice_builder_read_only_memory_region",
-        "//include/cc/ice/filesystem/builder:cc_ice_builder_filesystem",
-        "//include/cc/ice/filesystem/builder:cc_ice_builder_tree",
-        "//include/cc/ice/filesystem/builder:cc_ice_builder_random_access_file",
-    ],
-)
-
-congelado_module_library(
-    name = "cc_ice_sonic_sonic",
-    partitions = [
-        "sonic/writable_file.cppm",
-        "sonic/read_only_memory_region.cppm",
-        "sonic/filesystem.cppm",
-        "sonic/tree.cppm",
-        "sonic/random_access_file.cppm",
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/cc/ice/filesystem/sonic:cc_ice_sonic_writable_file",
-        "//include/cc/ice/filesystem/sonic:cc_ice_sonic_read_only_memory_region",
-        "//include/cc/ice/filesystem/sonic:cc_ice_sonic_filesystem",
-        "//include/cc/ice/filesystem/sonic:cc_ice_sonic_tree",
-        "//include/cc/ice/filesystem/sonic:cc_ice_sonic_random_access_file",
-        "//include/cc/ice/sonic_registration:cc_ice_sonic_registration",
-    ],
 )

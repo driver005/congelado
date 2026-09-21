@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/block.h"
 
-export module cc_ice_builder_parser:block;
+export module cc_ice_extern_parser_builder:block;
 
 import std;
 

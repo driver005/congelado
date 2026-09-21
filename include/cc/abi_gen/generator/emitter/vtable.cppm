@@ -1,5 +1,6 @@
 module;
 
+#include <print>
 #include <stdio.h>
 
 export module cc_abi_gen_generator:vtable_emitter;
@@ -8,6 +9,7 @@ import std;
 import cc_abi_gen_parser;
 import cc_abi_gen_writer;
 import :helper_formatter;
+import :helper_module_naming;
 import :helper_types;
 
 export namespace cc_abi_gen::generator::emitter {
@@ -88,17 +90,22 @@ public:
 
         auto base_path = root / out_dir;
 
-        auto rendered = render(base_path, model, mode);
-        if (!rendered) {
-            return std::unexpected(rendered.error());
-        }
-
         auto components = extract_path_components(model, mode);
         if (!components) {
             return std::unexpected(components.error());
         }
 
         auto path = build_output_path(base_path, *components);
+
+        auto module_name = helper::ModuleNaming::module_name(path.parent_path());
+        if (!module_name) {
+            return std::unexpected(std::move(module_name.error()));
+        }
+
+        auto rendered = render(base_path, model, mode, *module_name);
+        if (!rendered) {
+            return std::unexpected(rendered.error());
+        }
 
         auto write_result = m_file_writer.write(*rendered, path, root);
         if (!write_result) {
@@ -115,121 +122,80 @@ public:
     std::expected<void, std::string>
     generate_base_modules(std::filesystem::path& root, std::string_view out_dir)
     {
+
         auto output_root = root / out_dir;
 
         // Traverse the naturally built directory graph and write a base.cppm and BUILD file for
         // EVERY node
         for (const auto& [dir_path, children]: m_partitions_by_folder) {
-            std::string domain_name = dir_path.filename().string();
-            std::string target_name = dir_path.parent_path().filename().string();
-
-            std::string base_content;
-
-            // Gracefully handle the absolute root node name mapping
-            if (dir_path == output_root || target_name.empty()) {
-                // auto local_children = children;
-                // for (auto& child: local_children) {
-                //     child.insert(0, std::format("{}_", m_base_folder));
-                // }
-
-                // auto base_rendered =
-                //     helper::format_base_module(m_base_folder, "", "", "", local_children);
-                // if (!base_rendered) {
-                //     return std::unexpected(std::move(base_rendered.error()));
-                // }
-
-                // base_content = *base_rendered;
-
-                // NOTE: in my currect setup that makes really no sence
+            // NOTE: in my current setup the root node has no module
+            if (dir_path == output_root) {
                 continue;
-            } else if (domain_name == m_namespace_name) {
-                auto local_children = children;
-                for (auto& child: local_children) {
-                    child.insert(0, std::format("{}_{}_", m_base_folder, m_namespace_name));
-                }
-
-                auto base_rendered = helper::format_base_module(
-                    m_base_folder,
-                    "",
-                    "",
-                    m_namespace_name,
-                    local_children
-                );
-                if (!base_rendered) {
-                    return std::unexpected(std::move(base_rendered.error()));
-                }
-
-                base_content = *base_rendered;
-            } else if (target_name == m_namespace_name) {
-                auto local_children = children;
-                for (auto& child: local_children) {
-                    child.insert(
-                        0,
-                        std::format("{}_{}_{}_", m_base_folder, m_namespace_name, domain_name)
-                    );
-                }
-
-                auto base_rendered = helper::format_base_module(
-                    m_base_folder,
-                    domain_name,
-                    "",
-                    m_namespace_name,
-                    local_children
-                );
-                if (!base_rendered) {
-                    return std::unexpected(std::move(base_rendered.error()));
-                }
-
-                base_content = *base_rendered;
-            } else {
-                auto local_children = children;
-                for (auto& child: local_children) {
-                    child.insert(0, ":");
-                }
-
-                auto base_rendered = helper::format_base_module(
-                    m_base_folder,
-                    domain_name,
-                    target_name,
-                    m_namespace_name,
-                    local_children
-                );
-                if (!base_rendered) {
-                    return std::unexpected(std::move(base_rendered.error()));
-                }
-
-                base_content = *base_rendered;
             }
 
-            auto base_path = dir_path / "base.cppm";
-
-            auto write_result = m_file_writer.write(base_content, base_path, root);
-            if (!write_result) {
-                return write_result;
+            auto module_name = helper::ModuleNaming::module_name(dir_path);
+            if (!module_name) {
+                return std::unexpected(std::move(module_name.error()));
             }
 
-            // Generate BUILD file for this hierarchy level.
+            std::vector<std::string> imports;
+            std::vector<std::string> partitions;
+            std::vector<std::string> deps;
+
+            for (const auto& child: children) {
+                const auto child_path = dir_path / child;
+
+                // A child without an entry of its own is a partition file of this leaf module
+                if (!m_partitions_by_folder.contains(child_path)) {
+                    imports.push_back(":" + child);
+                    partitions.push_back(child);
+                    continue;
+                }
+
+                auto child_module = helper::ModuleNaming::module_name(child_path);
+                if (!child_module) {
+                    return std::unexpected(std::move(child_module.error()));
+                }
+
+                auto child_label = helper::ModuleNaming::bazel_label(child_path);
+                if (!child_label) {
+                    return std::unexpected(std::move(child_label.error()));
+                }
+
+                imports.push_back(std::move(*child_module));
+                deps.push_back(std::move(*child_label));
+            }
+
+            auto base_rendered =
+                helper::format_base_module(m_base_folder, *module_name, imports);
+            if (!base_rendered) {
+                return std::unexpected(std::move(base_rendered.error()));
+            }
+
             auto build_rendered = helper::format_build_file(
                 m_base_folder,
-                target_name,
-                domain_name,
                 m_namespace_name,
-                children,
-                children
+                *module_name,
+                partitions,
+                deps
             );
             if (!build_rendered) {
                 return std::unexpected(std::move(build_rendered.error()));
             }
 
-            auto build_path = dir_path / "BUILD";
+            auto write_result = m_file_writer.write(*base_rendered, dir_path / "base.cppm", root);
+            if (!write_result) {
+                return write_result;
+            }
 
-            auto build_write_result = m_file_writer.write(*build_rendered, build_path, root);
+            auto build_write_result = m_file_writer.write(*build_rendered, dir_path / "BUILD", root);
             if (!build_write_result) {
                 return build_write_result;
             }
         }
 
         return {};
+
     }
 
     std::expected<bool, std::string> check(
@@ -254,17 +220,22 @@ public:
 
         auto base_path = root / out_dir;
 
-        auto rendered = render(base_path, model, mode);
-        if (!rendered) {
-            return std::unexpected{std::move(rendered.error())};
-        }
-
         auto components = extract_path_components(model, mode);
         if (!components) {
             return std::unexpected(components.error());
         }
 
         auto real_path = build_output_path(base_path, *components);
+
+        auto module_name = helper::ModuleNaming::module_name(real_path.parent_path());
+        if (!module_name) {
+            return std::unexpected(std::move(module_name.error()));
+        }
+
+        auto rendered = render(base_path, model, mode, *module_name);
+        if (!rendered) {
+            return std::unexpected{std::move(rendered.error())};
+        }
 
         auto diff_result = m_file_writer.diff(*rendered, real_path, base_path);
         if (!diff_result) {
@@ -376,7 +347,12 @@ private:
     }
 
     std::expected<std::string, std::string>
-    render(std::filesystem::path& root, const parser::vtable::Model& model, const Mode& mode)
+    render(
+        std::filesystem::path& root,
+        const parser::vtable::Model& model,
+        const Mode& mode,
+        std::string_view module_name
+    )
     {
         m_writer.clear();
 
@@ -393,6 +369,7 @@ private:
             model.get_class_name(),
             m_namespace_name,
             root,
+            module_name,
             model.get_struct_name(),
             *partition
         );

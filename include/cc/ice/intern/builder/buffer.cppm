@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/buffer.h"
 
-export module cc_ice_builder_intern:buffer;
+export module cc_ice_intern_builder:buffer;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/serde/serde.h"
 
-export module cc_ice_builder_serde:serde;
+export module cc_ice_extern_serde_builder:serde;
 
 import std;
 

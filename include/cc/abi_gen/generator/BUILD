@@ -5,6 +5,7 @@ congelado_module_library(
     partitions = [
         "emitter/vtable.cppm",
         "helper/formatter.cppm",
+        "helper/module_naming.cppm",
         "helper/types.cppm",
         "runtime.cppm",
     ],

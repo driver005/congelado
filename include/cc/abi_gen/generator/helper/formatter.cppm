@@ -39,8 +39,8 @@ inline HeaderConfig build_header_config(
 )
 {
     std::string_view target_name = domain_name; // actual domain for module name pos 2
-    std::string_view extra_imports = "";
-    std::string_view inheritance = "";
+    std::string extra_imports = "";
+    std::string inheritance = "";
     std::string class_body;
 
     if (target == GenTarget::Builder) {
@@ -94,6 +94,7 @@ inline std::expected<std::string, std::string> format_header(
     std::string_view cc_class_name,
     std::string_view namespace_name,
     const std::filesystem::path& repo_root,
+    std::string_view module_name,
     std::string_view c_struct_name = "",
     std::string_view partition = ""
 ) noexcept
@@ -124,6 +125,7 @@ inline std::expected<std::string, std::string> format_header(
          {"inheritance", config.inheritance},
          {"class_body", config.class_body},
          {"namespace_name", std::string{namespace_name}},
+         {"module_name", std::string{module_name}},
          {"partition", std::string{partition}}}
     );
 }
@@ -299,38 +301,32 @@ inline std::string format_method_body_end([[maybe_unused]] const std::filesystem
 
 inline std::expected<std::string, std::string> format_base_module(
     std::string_view folder_name,
-    std::string_view domain_name,
-    std::string_view target_name,
-    std::string_view namespace_name,
-    const std::vector<std::string>& partitions
+    std::string_view module_name,
+    const std::vector<std::string>& imports
 ) noexcept
 {
     nlohmann::json data;
     data["folder_name"] = std::string{folder_name};
-    data["domain_name"] = std::string{domain_name};
-    data["target_name"] = std::string{target_name};
-    data["namespace_name"] = std::string{namespace_name};
-    data["partitions"] = partitions;
+    data["module_name"] = std::string{module_name};
+    data["imports"] = imports;
 
     return cc::templating::TemplateRenderer::render_template_json("module_base", data);
 }
 
 inline std::expected<std::string, std::string> format_build_file(
     std::string_view folder_name,
-    std::string_view tier,
-    std::string_view domain_name,
     std::string_view namespace_name,
-    const std::vector<std::string>& builder_partitions,
-    const std::vector<std::string>& sonic_partitions
+    std::string_view module_name,
+    const std::vector<std::string>& partitions,
+    const std::vector<std::string>& deps
 ) noexcept
 {
     nlohmann::json data;
     data["folder_name"] = std::string{folder_name};
-    data["tier"] = std::string{tier};
-    data["domain_name"] = std::string{domain_name};
     data["namespace_name"] = std::string{namespace_name};
-    data["builder_partitions"] = builder_partitions;
-    data["sonic_partitions"] = sonic_partitions;
+    data["module_name"] = std::string{module_name};
+    data["partitions"] = partitions;
+    data["deps"] = deps;
 
     return cc::templating::TemplateRenderer::render_template_json("build_domain", data);
 }

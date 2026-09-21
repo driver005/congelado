@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/profiler/profiler.h"
 
-export module cc_ice_builder_profiler:profiler;
+export module cc_ice_extern_profiler_builder:profiler;
 
 import std;
 

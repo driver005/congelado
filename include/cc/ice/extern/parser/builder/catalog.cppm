@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/catalog.h"
 
-export module cc_ice_builder_parser:catalog;
+export module cc_ice_extern_parser_builder:catalog;
 
 import std;
 

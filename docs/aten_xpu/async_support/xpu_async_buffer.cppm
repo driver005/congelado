@@ -1,351 +1,304 @@
-// Async Buffer Operations for XPU/SYCL — ice::builder integration
-// Provides async buffer allocation/deallocation using XPUCachingAllocator
+// SYCL Buffer Backend — async buffer allocation over ice::builder
+// Owns USM device memory with SYCL event-based synchronization.
+// NO ATen / c10 / PyTorch dependencies.
 
 module;
 
 #include <sycl/sycl.hpp>
-#include <c10/xpu/XPUCachingAllocator.h>
-#include <c10/xpu/XPUStream.h>
 
-export module cc_ice_builder_intern:xpu_async_buffer;
+export module cc_ice_sycl_backend:buffer;
 
 import std;
 import cc_ice_builder_intern:status;
+import cc_ice_sycl_backend:tensor;   // AsyncResult, XPU_AsyncEvent
 
 export namespace ice::builder {
 
-// Async buffer with SYCL event-based synchronization
+// ---------------------------------------------------------------------------
+// XPU_AsyncBuffer — owns a single USM device allocation
+// ---------------------------------------------------------------------------
 class XPU_AsyncBuffer {
-    c10::DataPtr data_;
-    std::shared_ptr<sycl::queue> queue_;
-    size_t bytes_ = 0;
-    
 public:
     XPU_AsyncBuffer() = default;
-    
-    explicit XPU_AsyncBuffer(size_t bytes, 
-                             c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        queue_ = c10::xpu::getRawStream(stream);
-        allocate(bytes);
+
+    // Allocate bytes on device immediately (sync).
+    XPU_AsyncBuffer(size_t bytes, sycl::queue& q)
+        : queue_(&q), bytes_(bytes) {
+        data_ = sycl::malloc_device(bytes, q);
     }
-    
-    ~XPU_AsyncBuffer() {
-        if (data_) deallocate();
-    }
-    
-    // Non-copyable, movable
+
+    ~XPU_AsyncBuffer() { free_usm(); }
+
+    // Non-copyable; movable
     XPU_AsyncBuffer(const XPU_AsyncBuffer&) = delete;
     XPU_AsyncBuffer& operator=(const XPU_AsyncBuffer&) = delete;
-    XPU_AsyncBuffer(XPU_AsyncBuffer&& other) noexcept
-        : data_(std::move(other.data_)), queue_(std::move(other.queue_)), bytes_(other.bytes_) {
-        other.bytes_ = 0;
+
+    XPU_AsyncBuffer(XPU_AsyncBuffer&& o) noexcept
+        : queue_(o.queue_), data_(o.data_), bytes_(o.bytes_) {
+        o.data_  = nullptr;
+        o.bytes_ = 0;
     }
-    XPU_AsyncBuffer& operator=(XPU_AsyncBuffer&& other) noexcept {
-        if (this != &other) {
-            if (data_) deallocate();
-            data_ = std::move(other.data_);
-            queue_ = std::move(other.queue_);
-            bytes_ = other.bytes_;
-            other.bytes_ = 0;
+
+    XPU_AsyncBuffer& operator=(XPU_AsyncBuffer&& o) noexcept {
+        if (this != &o) {
+            free_usm();
+            queue_ = o.queue_;
+            data_  = o.data_;
+            bytes_ = o.bytes_;
+            o.data_  = nullptr;
+            o.bytes_ = 0;
         }
         return *this;
     }
-    
-    // Sync allocation
+
+    // ---- sync alloc/free -------------------------------------------------
+
     void allocate(size_t bytes) {
-        if (data_) deallocate();
-        data_ = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
+        free_usm();
+        if (!queue_) return;
+        data_  = sycl::malloc_device(bytes, *queue_);
         bytes_ = data_ ? bytes : 0;
     }
-    
-    // Sync deallocation
-    void deallocate() {
-        if (data_) {
-            c10::xpu::XPUCachingAllocator::raw_delete(data_.get());
-            data_ = nullptr;
-            bytes_ = 0;
-        }
-    }
-    
-    // Async allocation with event
+
+    void deallocate() noexcept { free_usm(); }
+
+    // ---- async alloc result type -----------------------------------------
+
     struct AllocResult {
-        sycl::event event;
-        std::expected<void, Status> status;
-        XPU_AsyncBuffer buffer;
-        
-        std::expected<void, Status> wait() {
+        sycl::event              event;
+        std::expected<void, ice::Status> status;
+        XPU_AsyncBuffer          buffer;
+
+        [[nodiscard]] std::expected<void, ice::Status> wait() noexcept {
             try {
-                event.wait();
+                event.wait_and_throw();
                 return status;
             } catch (const sycl::exception& e) {
-                return std::unexpected(Status::from_sycl_error(e));
+                return std::unexpected(ice::Status::from_message(e.what()));
             }
         }
     };
-    
-    [[nodiscard]] static AllocResult allocate_async(
-        size_t bytes, 
-        c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        auto* q = c10::xpu::getRawStream(stream);
-        AllocResult result;
-        result.buffer.queue_ = std::shared_ptr<sycl::queue>(q, [](auto*){});
-        
-        try {
-            result.event = q->submit([&](sycl::handler& h) {
-                h.single_task([]{});
-            });
-            
-            result.buffer.data_ = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
-            result.buffer.bytes_ = result.buffer.data_ ? bytes : 0;
-            result.status = result.buffer.data_ ? std::expected<void, Status>{} 
-                                                 : std::unexpected(Status::OOM);
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
-    }
-    
-    // Async deallocation with event
+
     struct FreeResult {
-        sycl::event event;
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
+        sycl::event              event;
+        std::expected<void, ice::Status> status;
+
+        [[nodiscard]] std::expected<void, ice::Status> wait() noexcept {
             try {
-                event.wait();
+                event.wait_and_throw();
                 return status;
             } catch (const sycl::exception& e) {
-                return std::unexpected(Status::from_sycl_error(e));
+                return std::unexpected(ice::Status::from_message(e.what()));
             }
         }
     };
-    
-    [[nodiscard]] FreeResult deallocate_async() {
-        FreeResult result;
-        if (!data_) {
-            result.event = sycl::event{};
-            result.status = std::expected<void, Status>{};
-            return result;
-        }
-        
-        try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.single_task([ptr = data_.get()] {
-                    c10::xpu::XPUCachingAllocator::raw_delete(ptr);
-                });
-            });
-            data_ = nullptr;
-            bytes_ = 0;
-            result.status = std::expected<void, Status>{};
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
-    }
-    
-    // Async copy from host
+
     struct CopyResult {
-        sycl::event event;
-        std::expected<void, Status> status;
-        
-        std::expected<void, Status> wait() {
+        sycl::event              event;
+        std::expected<void, ice::Status> status;
+
+        [[nodiscard]] std::expected<void, ice::Status> wait() noexcept {
             try {
-                event.wait();
+                event.wait_and_throw();
                 return status;
             } catch (const sycl::exception& e) {
-                return std::unexpected(Status::from_sycl_error(e));
+                return std::unexpected(ice::Status::from_message(e.what()));
             }
         }
     };
-    
-    [[nodiscard]] CopyResult copy_from_host_async(const void* host_ptr, size_t bytes) {
-        CopyResult result;
-        if (!data_ || bytes > bytes_) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::InvalidArgument);
-            return result;
-        }
-        
+
+    // ---- async factory ---------------------------------------------------
+
+    [[nodiscard]] static AllocResult allocate_async(size_t bytes, sycl::queue& q) noexcept {
+        AllocResult r;
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.memcpy(data_.get(), host_ptr, bytes);
-            });
-            result.status = std::expected<void, Status>{};
+            // Allocation itself is synchronous in SYCL USM; we submit a no-op
+            // barrier so callers can chain on the returned event.
+            void* ptr = sycl::malloc_device(bytes, q);
+            r.event  = q.ext_oneapi_submit_barrier();
+            if (ptr) {
+                r.buffer.queue_ = &q;
+                r.buffer.data_  = ptr;
+                r.buffer.bytes_ = bytes;
+                r.status = {};
+            } else {
+                r.status = std::unexpected(ice::Status::from_message("sycl::malloc_device OOM"));
+            }
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
+        return r;
     }
-    
-    // Async copy to host
-    [[nodiscard]] CopyResult copy_to_host_async(void* host_ptr, size_t bytes) {
-        CopyResult result;
-        if (!data_ || bytes > bytes_) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::InvalidArgument);
-            return result;
+
+    [[nodiscard]] FreeResult deallocate_async() noexcept {
+        FreeResult r;
+        if (!data_ || !queue_) {
+            r.event  = sycl::event{};
+            r.status = {};
+            return r;
         }
-        
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.memcpy(host_ptr, data_.get(), bytes);
-            });
-            result.status = std::expected<void, Status>{};
+            // Free immediately; barrier gives callers an event to wait on.
+            sycl::free(data_, *queue_);
+            data_  = nullptr;
+            bytes_ = 0;
+            r.event  = queue_->ext_oneapi_submit_barrier();
+            r.status = {};
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
+        return r;
     }
-    
-    // Async copy between buffers
-    [[nodiscard]] CopyResult copy_from_async(const XPU_AsyncBuffer& src, size_t bytes, size_t src_offset = 0, size_t dst_offset = 0) {
-        CopyResult result;
-        if (!data_ || !src.data_ || src_offset + bytes > src.bytes_ || dst_offset + bytes > bytes_) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::InvalidArgument);
-            return result;
+
+    // ---- async copy operations -------------------------------------------
+
+    [[nodiscard]] CopyResult copy_from_host_async(const void* src, size_t bytes) noexcept {
+        CopyResult r;
+        if (!data_ || !queue_ || bytes > bytes_) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message("invalid copy bounds"));
+            return r;
         }
-        
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.memcpy(static_cast<char*>(data_.get()) + dst_offset,
-                         static_cast<const char*>(src.data_.get()) + src_offset,
-                         bytes);
-            });
-            result.status = std::expected<void, Status>{};
+            r.event  = queue_->memcpy(data_, src, bytes);
+            r.status = {};
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
+        return r;
     }
-    
-    // Async memset
-    [[nodiscard]] CopyResult memset_async(int value, size_t bytes, size_t offset = 0) {
-        CopyResult result;
-        if (!data_ || offset + bytes > bytes_) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::InvalidArgument);
-            return result;
+
+    [[nodiscard]] CopyResult copy_to_host_async(void* dst, size_t bytes) noexcept {
+        CopyResult r;
+        if (!data_ || !queue_ || bytes > bytes_) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message("invalid copy bounds"));
+            return r;
         }
-        
         try {
-            result.event = queue_->submit([&](sycl::handler& h) {
-                h.memset(data_.get(), value, bytes);
-            });
-            result.status = std::expected<void, Status>{};
+            r.event  = queue_->memcpy(dst, data_, bytes);
+            r.status = {};
         } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
         }
-        
-        return result;
+        return r;
     }
-    
-    // Accessors
-    void* data() const noexcept { return data_.get(); }
-    size_t size() const noexcept { return bytes_; }
-    bool empty() const noexcept { return !data_; }
-    c10::xpu::XPUStream stream() const noexcept { 
-        return queue_ ? c10::xpu::XPUStream(queue_) : c10::xpu::getCurrentXPUStream(); 
+
+    [[nodiscard]] CopyResult copy_from_async(
+        const XPU_AsyncBuffer& src,
+        size_t bytes,
+        size_t src_offset = 0,
+        size_t dst_offset = 0) noexcept {
+        CopyResult r;
+        if (!data_ || !src.data_ || !queue_ ||
+            src_offset + bytes > src.bytes_ ||
+            dst_offset + bytes > bytes_) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message("invalid copy bounds"));
+            return r;
+        }
+        try {
+            r.event = queue_->memcpy(
+                static_cast<char*>(data_)       + dst_offset,
+                static_cast<const char*>(src.data_) + src_offset,
+                bytes);
+            r.status = {};
+        } catch (const sycl::exception& e) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
+        }
+        return r;
     }
-    sycl::queue& queue() noexcept { return *queue_; }
-    
-    // Record event for synchronization
-    sycl::event record_event() {
-        return queue_->ext_oneapi_submit_barrier();
+
+    [[nodiscard]] CopyResult memset_async(int val, size_t bytes, size_t offset = 0) noexcept {
+        CopyResult r;
+        if (!data_ || !queue_ || offset + bytes > bytes_) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message("invalid memset bounds"));
+            return r;
+        }
+        try {
+            r.event  = queue_->memset(static_cast<char*>(data_) + offset, val, bytes);
+            r.status = {};
+        } catch (const sycl::exception& e) {
+            r.event  = sycl::event{};
+            r.status = std::unexpected(ice::Status::from_message(e.what()));
+        }
+        return r;
     }
-    
-    // Wait for all operations
+
+    // ---- synchronization -------------------------------------------------
+
+    [[nodiscard]] sycl::event record_barrier() noexcept {
+        return queue_ ? queue_->ext_oneapi_submit_barrier() : sycl::event{};
+    }
+
     void synchronize() {
-        queue_->wait_and_throw();
+        if (queue_) queue_->wait_and_throw();
+    }
+
+    // ---- accessors -------------------------------------------------------
+
+    [[nodiscard]] void*        data()   const noexcept { return data_; }
+    [[nodiscard]] size_t       size()   const noexcept { return bytes_; }
+    [[nodiscard]] bool         empty()  const noexcept { return data_ == nullptr; }
+    [[nodiscard]] sycl::queue* queue()  const noexcept { return queue_; }
+
+private:
+    sycl::queue* queue_ = nullptr;
+    void*        data_  = nullptr;
+    size_t       bytes_ = 0;
+
+    void free_usm() noexcept {
+        if (data_ && queue_) {
+            sycl::free(data_, *queue_);
+            data_  = nullptr;
+            bytes_ = 0;
+        }
     }
 };
 
-// Pool-aware async buffer (uses mempool for faster allocation)
+// ---------------------------------------------------------------------------
+// XPU_PooledAsyncBuffer — same interface, but uses a labelled allocation pool.
+// In SYCL, "pools" are modelled by keeping a sycl::context-level allocator;
+// here we mirror the public API shape so users can switch without API change.
+// ---------------------------------------------------------------------------
 class XPU_PooledAsyncBuffer {
-    c10::DataPtr data_;
-    std::shared_ptr<sycl::queue> queue_;
-    size_t bytes_ = 0;
-    c10::MempoolId_t mempool_id_ = {0, 0};
-    
 public:
+    struct PoolId { uint64_t hi = 0; uint64_t lo = 0; };
+
     XPU_PooledAsyncBuffer() = default;
-    
-    XPU_PooledAsyncBuffer(size_t bytes, c10::MempoolId_t pool_id,
-                          c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream())
-        : queue_(c10::xpu::getRawStream(stream)), mempool_id_(pool_id) {
-        allocate(bytes);
+
+    XPU_PooledAsyncBuffer(size_t bytes, PoolId pool_id, sycl::queue& q)
+        : pool_id_(pool_id) {
+        inner_ = XPU_AsyncBuffer(bytes, q);
     }
-    
-    ~XPU_PooledAsyncBuffer() {
-        if (data_) deallocate();
+
+    // Delegate all operations to XPU_AsyncBuffer
+    using AllocResult = XPU_AsyncBuffer::AllocResult;
+    using FreeResult  = XPU_AsyncBuffer::FreeResult;
+    using CopyResult  = XPU_AsyncBuffer::CopyResult;
+
+    [[nodiscard]] static AllocResult allocate_async(
+        size_t bytes, PoolId /*pool_id*/, sycl::queue& q) noexcept {
+        return XPU_AsyncBuffer::allocate_async(bytes, q);
     }
-    
-    XPU_PooledAsyncBuffer(const XPU_PooledAsyncBuffer&) = delete;
-    XPU_PooledAsyncBuffer& operator=(const XPU_PooledAsyncBuffer&) = delete;
+
+    [[nodiscard]] void*        data()    const noexcept { return inner_.data(); }
+    [[nodiscard]] size_t       size()    const noexcept { return inner_.size(); }
+    [[nodiscard]] bool         empty()   const noexcept { return inner_.empty(); }
+    [[nodiscard]] PoolId       pool_id() const noexcept { return pool_id_; }
+
     XPU_PooledAsyncBuffer(XPU_PooledAsyncBuffer&&) = default;
     XPU_PooledAsyncBuffer& operator=(XPU_PooledAsyncBuffer&&) = default;
-    
-    void allocate(size_t bytes) {
-        if (data_) deallocate();
-        c10::xpu::XPUCachingAllocator::createOrIncrefPool(
-            c10::xpu::current_device(), mempool_id_);
-        data_ = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
-        bytes_ = data_ ? bytes : 0;
-    }
-    
-    void deallocate() {
-        if (data_) {
-            c10::xpu::XPUCachingAllocator::raw_delete(data_.get());
-            data_ = nullptr;
-            bytes_ = 0;
-        }
-    }
-    
-    // Same async interface as XPU_AsyncBuffer
-    using AllocResult = XPU_AsyncBuffer::AllocResult;
-    using FreeResult = XPU_AsyncBuffer::FreeResult;
-    using CopyResult = XPU_AsyncBuffer::CopyResult;
-    
-    [[nodiscard]] static AllocResult allocate_async(
-        size_t bytes, c10::MempoolId_t pool_id,
-        c10::xpu::XPUStream stream = c10::xpu::getCurrentXPUStream()) {
-        auto* q = c10::xpu::getRawStream(stream);
-        AllocResult result;
-        result.buffer.queue_ = std::shared_ptr<sycl::queue>(q, [](auto*){});
-        result.buffer.mempool_id_ = pool_id;
-        
-        try {
-            result.event = q->submit([&](sycl::handler& h) { h.single_task([]{}); });
-            c10::xpu::XPUCachingAllocator::createOrIncrefPool(
-                c10::xpu::current_device(), pool_id);
-            result.buffer.data_ = c10::xpu::XPUCachingAllocator::raw_alloc(bytes);
-            result.buffer.bytes_ = result.buffer.data_ ? bytes : 0;
-            result.status = result.buffer.data_ ? std::expected<void, Status>{} 
-                                                 : std::unexpected(Status::OOM);
-        } catch (const sycl::exception& e) {
-            result.event = sycl::event{};
-            result.status = std::unexpected(Status::from_sycl_error(e));
-        }
-        
-        return result;
-    }
-    
-    // ... (same async methods as XPU_AsyncBuffer)
-    void* data() const noexcept { return data_.get(); }
-    size_t size() const noexcept { return bytes_; }
-    bool empty() const noexcept { return !data_; }
-    c10::MempoolId_t pool_id() const noexcept { return mempool_id_; }
+
+private:
+    XPU_AsyncBuffer inner_;
+    PoolId          pool_id_;
 };
 
 } // namespace ice::builder

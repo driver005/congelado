@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/attrtype.h"
 
-export module cc_ice_builder_intern:attrtype;
+export module cc_ice_intern_builder:attrtype;
 
 import std;
 

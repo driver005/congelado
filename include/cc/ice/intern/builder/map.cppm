@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/map.h"
 
-export module cc_ice_builder_intern:map;
+export module cc_ice_intern_builder:map;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/index.h"
 
-export module cc_ice_builder_store:index;
+export module cc_ice_extern_store_builder:index;
 
 import std;
 

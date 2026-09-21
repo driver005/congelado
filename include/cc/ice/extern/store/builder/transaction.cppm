@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/store/transaction.h"
 
-export module cc_ice_builder_store:transaction;
+export module cc_ice_extern_store_builder:transaction;
 
 import std;
 

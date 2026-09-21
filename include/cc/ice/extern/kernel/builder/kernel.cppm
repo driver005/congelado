@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/kernel/kernel.h"
 
-export module cc_ice_builder_kernel:kernel;
+export module cc_ice_extern_kernel_builder:kernel;
 
 import std;
 

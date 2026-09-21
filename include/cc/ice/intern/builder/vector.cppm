@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/vector.h"
 
-export module cc_ice_builder_intern:vector;
+export module cc_ice_intern_builder:vector;
 
 import std;
 

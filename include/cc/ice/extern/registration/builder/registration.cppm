@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/registration/registration.h"
 
-export module cc_ice_builder_registration:registration;
+export module cc_ice_extern_registration_builder:registration;
 
 import std;
 

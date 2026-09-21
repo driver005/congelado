@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/function.h"
 
-export module cc_ice_builder_parser:function;
+export module cc_ice_extern_parser_builder:function;
 
 import std;
 

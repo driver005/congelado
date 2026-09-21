@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/filesystem/writable_file.h"
 
-export module cc_ice_builder_filesystem:writable_file;
+export module cc_ice_extern_filesystem_builder:writable_file;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/io/client.h"
 
-export module cc_ice_builder_io:client;
+export module cc_ice_extern_io_builder:client;
 
 import std;
 

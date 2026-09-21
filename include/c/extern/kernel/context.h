@@ -7,6 +7,8 @@
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/buffer.h"
+#include "include/c/extern/stream_executor/stream.h"
+#include "include/c/extern/random_generator/random_generator.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -79,10 +81,11 @@ extern "C" {
         void (*get_input_by_name)(TF_OpKernelContext* ctx, const char* input_name, TF_Tensor** out_tensor, TF_Status* out_status);
         void (*add_n_variant)(TF_OpKernelContext* ctx, TF_BinaryAddFunc binary_add_func, TF_Status* out_status);
         void (*zeros_like_variant)(TF_OpKernelContext* ctx, TF_ZerosLikeFunc zeros_like_func, TF_Status* out_status);
-        void (*get_stream)(TF_OpKernelContext* ctx, void** out_stream, TF_Status* out_status);
+        void (*get_stream)(TF_OpKernelContext* ctx, TF_Stream** out_stream, TF_Status* out_status);
         void (*run_async_done_callback)(TF_OpKernelContext* ctx, void* done_callback);
+        void (*get_random_generator)(TF_OpKernelContext* ctx, TF_RandomGenerator* out_generator, TF_Status* out_status);
     } TF_OpKernelContextOps;
-    #define TF_OP_KERNEL_CONTEXT_STRUCT_SIZE TF_OFFSET_OF_END(TF_OpKernelContextOps, run_async_done_callback)
+    #define TF_OP_KERNEL_CONTEXT_STRUCT_SIZE TF_OFFSET_OF_END(TF_OpKernelContextOps, get_random_generator)
     TF_CAPI_EXPORT void create_op_kernel_context(TF_OpKernelContextOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_op_kernel_context(void* plugin_context);
 

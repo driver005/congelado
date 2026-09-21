@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/io/response.h"
 
-export module cc_ice_builder_io:response;
+export module cc_ice_extern_io_builder:response;
 
 import std;
 

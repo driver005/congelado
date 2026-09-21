@@ -3,10 +3,10 @@
 // bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot (or make gen-cc-abi) to
 // regenerate; edits made directly to this file will be overwritten.
 
-export module cc_ice_serde_extern;
+export module cc_ice_extern_serde;
 
 // clang-format off
-export import :builder;
-export import :sonic;
+export import cc_ice_extern_serde_builder;
+export import cc_ice_extern_serde_sonic;
 
 // clang-format on

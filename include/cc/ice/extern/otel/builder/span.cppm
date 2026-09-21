@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/span.h"
 
-export module cc_ice_builder_otel:span;
+export module cc_ice_extern_otel_builder:span;
 
 import std;
 

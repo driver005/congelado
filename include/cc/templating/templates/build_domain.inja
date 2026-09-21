@@ -1,31 +1,18 @@
 # GENERATED FILE — DO NOT EDIT BY HAND.
-# Produced by {{ folder_name }}_abi_gen from {{ folder_name }}/ice. Re-run
+# Produced by {{ folder_name }}_abi_gen from {{ folder_name }}/{{ namespace_name }}. Re-run
 # `bazel run //include/{{ folder_name }}/abi_gen:{{ folder_name }}_abi_gen -- generate --pilot` (or `make gen-{{ folder_name }}-abi`) to
 # regenerate; edits made directly to this file will be overwritten.
 
 load("//bazel:build_defs.bzl", "congelado_module_library")
 
 congelado_module_library(
-    name = "{{ folder_name }}_{{ namespace_name }}_builder_{{ domain_name }}",
-    partitions = [{% for p in builder_partitions %}
-        "builder/{{ p }}.cppm",{% endfor %}
-    ],
-    primary_interface = "builder/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [{% for p in builder_partitions %}
-        "//include/{{ folder_name }}/{{ namespace_name }}/{{ tier }}/builder:{{ folder_name }}_{{ namespace_name }}_builder_{{ p }}",{% endfor %}
-    ],
-)
-
-congelado_module_library(
-    name = "{{ folder_name }}_{{ namespace_name }}_sonic_{{ domain_name }}",
-    partitions = [{% for p in sonic_partitions %}
-        "sonic/{{ p }}.cppm",{% endfor %}
-    ],
-    primary_interface = "sonic/base.cppm",
-    visibility = ["//visibility:public"],
-    deps = [{% for p in builder_partitions %}
-        "//include/{{ folder_name }}/{{ namespace_name }}/{{ tier }}/sonic:{{ folder_name }}_{{ namespace_name }}_sonic_{{ p }}",{% endfor %}
-        "//include/{{ folder_name }}/{{ namespace_name }}/sonic_registration:{{ folder_name }}_{{ namespace_name }}_sonic_registration",
-    ],
+    name = "{{ module_name }}",{% if length(partitions) > 0 %}
+    partitions = [{% for p in partitions %}
+        "{{ p }}.cppm",{% endfor %}
+    ],{% endif %}
+    primary_interface = "base.cppm",
+    visibility = ["//visibility:public"],{% if length(deps) > 0 %}
+    deps = [{% for dep in deps %}
+        "{{ dep }}",{% endfor %}
+    ],{% endif %}
 )

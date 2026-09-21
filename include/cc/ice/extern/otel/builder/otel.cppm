@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/otel.h"
 
-export module cc_ice_builder_otel:otel;
+export module cc_ice_extern_otel_builder:otel;
 
 import std;
 

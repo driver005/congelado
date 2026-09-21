@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/io/request.h"
 
-export module cc_ice_builder_io:request;
+export module cc_ice_extern_io_builder:request;
 
 import std;
 

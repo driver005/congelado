@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/filesystem/read_only_memory_region.h"
 
-export module cc_ice_builder_filesystem:read_only_memory_region;
+export module cc_ice_extern_filesystem_builder:read_only_memory_region;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/intern/shape.h"
 
-export module cc_ice_builder_intern:shape;
+export module cc_ice_intern_builder:shape;
 
 import std;
 

@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/tracer.h"
 
-export module cc_ice_builder_otel:tracer;
+export module cc_ice_extern_otel_builder:tracer;
 
 import std;
 
