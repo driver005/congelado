@@ -7,12 +7,13 @@ export module cc_ice_builder_generator;
 
 // clang-format off
 export import :node;
+export import :catalog;
+export import :parameter;
+export import :generator;
 export import :module;
 export import :attribute;
 export import :block;
 export import :definition;
-export import :parameter;
-export import :generator;
 export import :function;
 export import :typeinfo;
 

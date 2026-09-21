@@ -2,7 +2,7 @@ export module cc_abi_gen_writer:writer;
 
 import std;
 import :runner_diff;
-import :runner_formater;
+import :runner_formatter;
 import :helper_diff;
 
 export namespace cc_abi_gen::writer {

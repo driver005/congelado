@@ -28,18 +28,6 @@ public:
     }
 
     virtual ~TF_StoreOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_connected(int* out_connected) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> backup(
-        const ice::sonic::TF_StringOps& destination,
-        TFStoreAckFn completion,
-        void* user_data
-    ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> restore(
-        const ice::sonic::TF_StringOps& source,
-        TFStoreAckFn completion,
-        void* user_data
-    ) noexcept = 0;
 
     static TF_StoreOps* get_generic_vtable()
     {
@@ -58,46 +46,6 @@ public:
                 auto* self = TF_StoreOps::create(plugin_context);
                 auto result = self->get_name();
                 result.to_c(out);
-            },
-            .is_connected =
-                [](TF_Store* store, int* out_connected) noexcept
-            {
-                auto* self = TF_StoreOps::create(store);
-                auto res = self->is_connected(out_connected);
-                if (!res) {
-                    res.error().to_c(status);
-                }
-            },
-            .backup =
-                [](TF_Store* store,
-                   const TF_String* destination,
-                   TFStoreAckFn completion,
-                   void* user_data,
-                   TF_Status* out_status) noexcept
-            {
-                auto* self = TF_StoreOps::create(store);
-                auto res = self->backup(
-                    ice::sonic::TF_StringOps::wrap(destination),
-                    completion,
-                    user_data
-                );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
-            },
-            .restore =
-                [](TF_Store* store,
-                   const TF_String* source,
-                   TFStoreAckFn completion,
-                   void* user_data,
-                   TF_Status* out_status) noexcept
-            {
-                auto* self = TF_StoreOps::create(store);
-                auto res =
-                    self->restore(ice::sonic::TF_StringOps::wrap(source), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };

@@ -1,0 +1,1178 @@
+155:    XPU: _assert_async_xpu
+162:    XPU: _assert_async_msg_xpu
+260:    XPU: fused_dropout_xpu
+268:    XPU: masked_scale_xpu
+277:    XPU: native_dropout_xpu
+278:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: native_dropout_nested
+284:    CPU, NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: native_dropout_backward
+287:    XPU: native_dropout_backward_xpu
+332:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: abs_sparse
+333:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: abs_sparse_csr
+334:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_abs
+342:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: abs_sparse_
+343:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: abs_sparse_csr_
+344:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_abs_
+349:    CPU, CUDA, MPS, MTIA, XPU: abs_out
+350:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: abs_sparse_out
+351:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: abs_sparse_csr_out
+393:    CPU, CUDA, MPS, XPU: angle
+394:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: angle_sparse_csr
+400:    CPU, CUDA, MPS, XPU: angle_out
+401:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: angle_sparse_csr_out
+407:    CPU, CUDA, MPS, Meta, XPU: view_as_real
+408:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: view_as_real_sparse
+413:    CPU, CUDA, MPS, Meta, XPU: view_as_complex
+414:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: view_as_complex_sparse
+420:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sgn_sparse
+421:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sgn_sparse_csr
+422:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_sgn
+429:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sgn_sparse_
+430:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sgn_sparse_csr_
+431:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_sgn_
+438:    CPU, CUDA, XPU: sgn_out
+440:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sgn_sparse_out
+441:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sgn_sparse_csr_out
+468:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: conj_physical_sparse_csr
+479:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: conj_physical_out_sparse
+480:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: conj_physical_sparse_csr_out
+487:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: conj_physical_sparse_csr_
+518:    CPU, CUDA, MPS, XPU: acos_out
+546:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: add_sparse
+547:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: add_sparse_csr
+550:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_add_Tensor
+558:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: add_sparse_
+559:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: add_sparse_csr_
+561:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_add__Tensor
+575:    SparseXPU: add_out_sparse_xpu
+578:    SparseCsrXPU: add_out_sparse_compressed_xpu
+582:    XPU: add_out_xpu
+641:    XPU: addmv_out_xpu
+644:    SparseCsrXPU: addmv_out_sparse_compressed_xpu
+649:    CPU, CUDA, XPU: addr
+660:    CPU, CUDA, XPU: addr_out
+699:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_all
+715:    CPU, CUDA, MPS, XPU: all_out
+723:    CPU, CUDA, XPU: all_dims_out
+753:    CPU, CUDA, MPS, XPU: any_out
+760:    CPU, CUDA, XPU: any_dims_out
+796:    XPU: arange_xpu_out
+815:    CPU, CUDA, XPU: argmax_out
+828:    CPU, CUDA, XPU: argmin_out
+862:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asinh_sparse
+863:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asinh_sparse_csr
+870:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asinh_sparse_
+871:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asinh_sparse_csr_
+879:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asinh_sparse_out
+880:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asinh_sparse_csr_out
+896:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atanh_sparse
+897:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atanh_sparse_csr
+904:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atanh_sparse_
+905:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atanh_sparse_csr_
+913:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atanh_sparse_out
+914:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atanh_sparse_csr_out
+929:    ZeroTensor, CPU, CUDA, MTIA, MPS, XPU: as_strided_tensorimpl
+950:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asin_sparse
+951:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asin_sparse_csr
+959:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asin_sparse_
+960:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asin_sparse_csr_
+968:    CPU, CUDA, MPS, XPU: asin_out
+969:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: asin_sparse_out
+970:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: asin_sparse_csr_out
+987:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atan_sparse
+988:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atan_sparse_csr
+996:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atan_sparse_
+997:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atan_sparse_csr_
+1005:    CPU, CUDA, MPS, XPU: atan_out
+1006:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: atan_sparse_out
+1007:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: atan_sparse_csr_out
+1055:    XPU: baddbmm_out_xpu
+1057:    SparseCsrXPU: baddbmm_out_sparse_csr_xpu
+1063:    XPU: _baddbmm_dtype_xpu
+1069:    XPU: _baddbmm_out_dtype_xpu
+1107:    CPU, CUDA, MPS, XPU: bernoulli_out
+1114:    CPU, CUDA, MPS, XPU: bernoulli_
+1122:    CPU, CUDA, MPS, XPU: bernoulli_
+1147:    XPU: binary_cross_entropy_xpu
+1157:    XPU: binary_cross_entropy_out_xpu
+1166:    XPU: binary_cross_entropy_backward_xpu
+1175:    XPU: binary_cross_entropy_backward_out_xpu
+1190:    XPU: _bincount_xpu
+1211:    CPU, CUDA, MPS, MTIA, XPU: bitwise_not_out
+1219:    CPU, CUDA, MPS, XPU: copysign_out
+1261:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_logical_not
+1269:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_logical_not_
+1275:    CPU, CUDA, MPS, MTIA, XPU: logical_not_out
+1295:    CPU, CUDA, MPS, MTIA, XPU: logical_xor_out
+1315:    CPU, CUDA, MPS, MTIA, XPU: logical_and_out
+1335:    CPU, CUDA, MPS, MTIA, XPU: logical_or_out
+1355:    SparseXPU: bmm_sparse_xpu
+1358:    NestedTensorXPU: bmm_nested_xpu
+1369:    XPU: bmm_out_xpu
+1373:    SparseXPU: bmm_out_sparse_xpu
+1375:    SparseCsrXPU: bmm_out_sparse_csr_xpu
+1381:    XPU: _bmm_dtype_xpu
+1387:    XPU: _bmm_out_dtype_xpu
+1401:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_broadcast_to
+1406:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: cat_sparse
+1408:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: cat_nested
+1419:    XPU: cat_out_xpu
+1441:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: ceil_sparse
+1442:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: ceil_sparse_csr
+1450:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: ceil_sparse_
+1451:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: ceil_sparse_csr_
+1459:    CPU, CUDA, MPS, XPU: ceil_out
+1460:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: ceil_sparse_out
+1461:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: ceil_sparse_csr_out
+1483:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: chunk_nested_tensor
+1530:    CPU, CUDA, MTIA, MPS, XPU: clamp_out
+1538:    CPU, CUDA, MPS, XPU: clamp_Tensor_out
+1568:    CPU, CUDA, MTIA, MPS, XPU: clamp_max_out
+1576:    CPU, CUDA, MPS, XPU: clamp_max_Tensor_out
+1606:    CPU, CUDA, MTIA, MPS, XPU: clamp_min_out
+1614:    CPU, CUDA, MPS, XPU: clamp_min_Tensor_out
+1653:    CPU, CUDA, MPS, XPU: complex_out
+1662:    CPU, CUDA, MPS, XPU: polar_out
+1771:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: copy_sparse_wrapper_
+1773:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: copy_sparse_compressed_
+1774:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: copy_nested_
+1794:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_cos
+1808:    CPU, CUDA, MPS, MTIA, XPU: cos_out
+1828:    CPU, CUDA, MPS, XPU: cosh_out
+1839:    XPU: count_nonzero_xpu
+1942:    XPU: cummax_helper_xpu
+1961:    XPU: cummin_helper_xpu
+1981:    CPU, CUDA, XPU: cumprod_out
+2003:    CPU, CUDA, XPU: cumsum_out
+2021:    XPU: ctc_loss_xpu
+2035:    XPU: ctc_loss_backward_xpu
+2105:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_sparse
+2107:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_div_Tensor
+2115:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_sparse_
+2123:    CPU, CUDA, MPS, MTIA, XPU: div_out
+2124:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_out_sparse_zerodim
+2132:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_sparse
+2140:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_sparse_
+2148:    CPU, CUDA, MPS, XPU: div_out_mode
+2149:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: div_out_sparse_zerodim
+2158:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_div_Scalar
+2238:    XPU: dot_xpu
+2250:    XPU: vdot_xpu
+2261:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_embedding
+2274:    XPU: embedding_dense_backward_xpu
+2282:    XPU: embedding_renorm_xpu_
+2301:    XPU: _embedding_bag_forward_only_xpu
+2324:    XPU: _embedding_bag_xpu
+2330:    CPU, CUDA, MPS, XPU: _embedding_bag_backward_symint
+2341:    XPU: _embedding_bag_dense_backward_xpu
+2349:    XPU: _embedding_bag_per_sample_weights_backward_xpu
+2357:    XPU: empty_xpu
+2360:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: empty_sparse
+2362:    SparseCsrCPU, SparseCsrCUDA, SparseCsrXPU: empty_sparse_compressed
+2437:    XPU: resize_xpu_
+2439:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: resize_sparse_csr_
+2469:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: empty_like_sparse_coo
+2470:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: empty_like_sparse_csr
+2471:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: empty_like_nested
+2479:    XPU: empty_strided_xpu
+2490:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erf_sparse
+2491:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erf_sparse_csr
+2499:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erf_sparse_
+2500:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erf_sparse_csr_
+2508:    CPU, CUDA, MPS, MTIA, XPU: erf_out
+2509:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erf_sparse_out
+2510:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erf_sparse_csr_out
+2530:    CPU, CUDA, MPS, XPU: erfc_out
+2550:    CPU, CUDA, MPS, MTIA, XPU: exp_out
+2567:    CPU, CUDA, MPS, XPU: exp2_out
+2575:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: expm1_sparse
+2576:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: expm1_sparse_csr
+2584:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: expm1_sparse_
+2585:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: expm1_sparse_csr_
+2593:    CPU, CUDA, MPS, XPU: expm1_out
+2594:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: expm1_sparse_out
+2595:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: expm1_sparse_csr_out
+2625:    XPU: eye_out_xpu
+2632:    XPU: eye_out_xpu
+2657:    CPU, CUDA, MPS, XPU: fill_
+2660:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: fill_sparse_csr_
+2661:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: fill_nested_
+2668:    CPU, CUDA, MPS, XPU: fill_
+2671:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: fill_nested_
+2679:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_sparse
+2680:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: floor_sparse_csr
+2688:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_sparse_
+2689:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: floor_sparse_csr_
+2697:    CPU, CUDA, MPS, XPU: floor_out
+2698:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_sparse_out
+2699:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: floor_sparse_csr_out
+2706:    CPU, CUDA, MPS, MTIA, XPU: floor_divide
+2707:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_divide_sparse
+2713:    CPU, CUDA, MPS, XPU: floor_divide_
+2714:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_divide_sparse_
+2719:    CPU, CUDA, MPS, MTIA, XPU: floor_divide_out
+2720:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: floor_divide_out_sparse_zerodim
+2740:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: frac_sparse
+2741:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: frac_sparse_csr
+2749:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: frac_sparse_
+2750:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: frac_sparse_csr_
+2758:    CPU, CUDA, XPU: frac_out
+2760:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: frac_sparse_out
+2761:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: frac_sparse_csr_out
+2790:    CPU, CUDA, MPS, XPU: gcd_out
+2806:    CPU, CUDA, MPS, XPU: lcm_out
+2842:    XPU: grid_sampler_2d_xpu
+2854:    XPU: grid_sampler_2d_backward_xpu
+2872:    XPU: grid_sampler_3d_xpu
+2883:    XPU: grid_sampler_3d_backward_xpu
+2937:    CPU, CUDA, MPS, XPU: native_group_norm
+2944:    CPU, CUDA, MPS, XPU: native_group_norm_backward
+2955:    XPU: _fft_r2c_xpu
+2964:    XPU: _fft_r2c_xpu_out
+2973:    XPU: _fft_c2r_xpu
+2982:    XPU: _fft_c2r_xpu_out
+2991:    XPU: _fft_c2c_xpu
+2999:    XPU: _fft_c2c_xpu_out
+3035:    CPU, CUDA, MPS, XPU: index_out
+3062:    CPU, CUDA, XPU: index_copy_out
+3102:    CPU, CUDA, MPS, XPU: _index_put_impl_
+3117:    CPU, CUDA, XPU: isin_Tensor_Tensor_out
+3128:    CPU, CUDA, MPS, XPU: isin_Tensor_Scalar_out
+3138:    CPU, CUDA, XPU: isin_Scalar_Tensor_out
+3150:    CPU, CUDA, MPS, MTIA, XPU: isnan
+3151:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_isnan
+3152:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isnan_sparse
+3153:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isnan_sparse_csr
+3202:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: nested_is_same_size
+3270:    XPU: kthvalue_out_xpu
+3281:    XPU: layer_norm_xpu
+3283:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: nested_layer_norm
+3292:    XPU: layer_norm_backward_xpu
+3293:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: layer_norm_backward_nested
+3305:    XPU: _fused_rms_norm_xpu
+3311:    XPU: _fused_rms_norm_backward_xpu
+3317:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: nan_to_num_sparse
+3324:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: nan_to_num_sparse_
+3330:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: nan_to_num_sparse_out
+3337:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: nested_linear
+3342:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: nested_linear_backward
+3479:    XPU: linspace_xpu_out
+3513:    CPU, CUDA, MPS, MTIA, XPU: log_out
+3533:    CPU, CUDA, MPS, XPU: log10_out
+3541:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: log1p_sparse
+3542:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: log1p_sparse_csr
+3550:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: log1p_sparse_
+3551:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: log1p_sparse_csr_
+3559:    CPU, CUDA, MPS, XPU: log1p_out
+3560:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: log1p_sparse_out
+3561:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: log1p_sparse_csr_out
+3581:    CPU, CUDA, MPS, MTIA, XPU: log2_out
+3588:    CPU, CUDA, MPS, XPU: logaddexp_out
+3600:    CPU, CUDA, MPS, XPU: logaddexp2_out
+3648:    CPU, CUDA, MPS, XPU: xlogy_out
+3689:    XPU: logspace_xpu_out
+3726:    XPU: log_softmax_xpu_out
+3738:    XPU: log_softmax_backward_xpu_out
+3745:    XPU: _logcumsumexp_xpu
+3752:    XPU: _logcumsumexp_out_xpu
+3783:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: matmul_nested
+3787:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: matmul_backward_nested
+3793:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: matmul_out_nested
+3812:    CPU, CUDA, XPU: _aminmax_all
+3818:    CPU, CUDA, XPU: _aminmax
+3831:    CPU, CUDA, MPS, XPU: aminmax_out
+3856:    CPU, CUDA, MTIA, XPU: max_out
+3876:    CPU, CUDA, MPS, XPU: amax_out
+3960:    CPU, CUDA, MPS, XPU: mean_out
+3977:    XPU: median_xpu
+3990:    XPU: median_out_xpu
+3998:    XPU: nanmedian_xpu
+4011:    XPU: nanmedian_out_xpu
+4027:    CPU, CUDA, MTIA, XPU: min_out
+4039:    CPU, CUDA, MPS, XPU: amin_out
+4140:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: _sparse_mm
+4141:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: _sparse_csr_mm
+4151:    XPU: mm_out_xpu
+4152:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: _sparse_mm_out
+4153:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: _sparse_csr_mm_out
+4158:    XPU: _mm_dtype_xpu
+4163:    XPU: _mm_dtype_out_xpu
+4170:    XPU: _int_mm_xpu
+4177:    XPU: _int_mm_out_xpu
+4183:    XPU: _convert_weight_to_int4pack_xpu
+4189:    XPU: _weight_int4pack_mm_xpu
+4193:    XPU: _weight_int4pack_mm_xpu
+4218:    XPU: _weight_int8pack_mm_xpu
+4231:    SparseXPU: sparse_sparse_matmul_xpu
+4237:    CPU, CUDA, XPU: mode
+4248:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: mul_sparse
+4249:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: mul_sparse_csr
+4252:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_mul_Tensor
+4260:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: mul_sparse_
+4261:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: mul_sparse_csr_
+4263:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_mul__Tensor
+4271:    CPU, CUDA, MPS, MTIA, XPU: mul_out
+4275:    SparseXPU: mul_out_sparse_xpu
+4276:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: mul_out_sparse_csr
+4286:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: mul_scalar_sparse_csr
+4287:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_mul_Scalar
+4295:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: mul__scalar_sparse_csr
+4296:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_mul__Scalar
+4319:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: mv_sparse
+4327:    CPU, CUDA, MPS, XPU: mvlgamma_out
+4348:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: narrow_copy_sparse
+4362:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: narrow_nested_symint
+4376:    XPU: batch_norm_xpu
+4384:    XPU: batch_norm_xpu_out
+4392:    XPU: _batch_norm_legit_xpu
+4411:    XPU: _batch_norm_legit_xpu_out
+4418:    XPU: _batch_norm_legit_no_stats_xpu
+4427:    XPU: _batch_norm_legit_no_stats_xpu_out
+4432:    XPU: batch_norm_stats_xpu
+4438:    XPU: batch_norm_elemt_xpu
+4443:    XPU: batch_norm_elemt_xpu_out
+4449:    XPU: batch_norm_gather_stats_xpu
+4455:    XPU: batch_norm_gather_stats_with_counts_xpu
+4463:    XPU: batch_norm_backward_xpu
+4470:    XPU: batch_norm_backward_reduce_xpu
+4476:    XPU: batch_norm_backward_elemt_xpu
+4483:    XPU: batch_norm_update_stats_xpu
+4510:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: ones_like
+4524:    CPU, CUDA, MPS, XPU: _cdist_forward
+4531:    CPU, CUDA, MPS, XPU: _cdist_backward
+4538:    CPU, CUDA, XPU: _pdist_forward
+4544:    CPU, CUDA, XPU: _pdist_backward
+4555:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: permute_sparse_coo
+4612:    CPU, CUDA, XPU: channel_shuffle
+4654:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: rad2deg_sparse
+4655:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: rad2deg_sparse_csr
+4662:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: rad2deg_sparse_
+4663:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: rad2deg_sparse_csr_
+4669:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: rad2deg_sparse_out
+4670:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: rad2deg_sparse_csr_out
+4677:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: deg2rad_sparse
+4678:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: deg2rad_sparse_csr
+4685:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: deg2rad_sparse_
+4686:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: deg2rad_sparse_csr_
+4692:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: deg2rad_sparse_out
+4693:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: deg2rad_sparse_csr_out
+4875:    XPU: randperm_out_xpu
+4894:    XPU: range_xpu_out
+4917:    CPU, CUDA, MPS, MTIA, XPU: reciprocal_out
+4925:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: neg_sparse
+4926:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: neg_sparse_csr
+4927:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_neg
+4935:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: neg_sparse_
+4936:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: neg_sparse_csr_
+4937:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_neg_
+4945:    CPU, CUDA, MPS, MTIA, XPU: neg_out
+4946:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: neg_out_sparse
+4947:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: neg_sparse_csr_out
+4973:    XPU: repeat_interleave_xpu
+5008:    CPU, CUDA, Meta, QuantizedCPU, QuantizedCUDA, MPS, MTIA, XPU: _reshape_alias
+5032:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: round_sparse
+5033:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: round_sparse_csr
+5041:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: round_sparse_
+5042:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: round_sparse_csr_
+5050:    CPU, CUDA, MPS, XPU: round_out
+5051:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: round_sparse_out
+5052:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: round_sparse_csr_out
+5072:    CPU, CUDA, MPS, XPU: round_decimals_out
+5087:    CPU, CUDA, MPS, XPU: relu
+5092:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_relu
+5093:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: relu_sparse
+5094:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: relu_sparse_csr
+5101:    CPU, CUDA, MPS, XPU: relu_
+5106:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_relu_
+5107:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: relu_sparse_
+5108:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: relu_sparse_csr_
+5125:    CPU, CUDA, XPU: _prelu_kernel
+5132:    CPU, CUDA, XPU: _prelu_kernel_backward
+5145:    XPU: gelu_out_xpu
+5153:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_gelu_
+5163:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_gelu
+5174:    XPU: gelu_backward_out_xpu
+5181:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: gelu_backwards_nested
+5195:    CPU, CUDA, MPS, XPU: hardshrink_out
+5207:    CPU, CUDA, MPS, XPU: hardshrink_backward_out
+5230:    CPU, CUDA, MPS, MTIA, XPU: rsqrt_out
+5239:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: select_sparse_csr
+5240:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: select_nested
+5256:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _nested_select_backward_symint
+5283:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_silu
+5290:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_silu_
+5298:    CPU, CUDA, MPS, MTIA, XPU: silu_out
+5306:    CPU, CUDA, MPS, XPU: silu_backward_out
+5314:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: silu_backward_nested
+5331:    CPU, CUDA, MPS, XPU: mish_out
+5336:    CPU, CUDA, MPS, XPU: mish_backward
+5361:    CPU, CUDA, MPS, XPU: sigmoid_out
+5367:    CPU, CUDA, MTIA, XPU: logit
+5374:    CPU, CUDA, XPU: logit_
+5379:    CPU, CUDA, XPU: logit_out
+5388:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sin_sparse_csr
+5389:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sin_sparse
+5390:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_sin
+5398:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sin_sparse_csr_
+5399:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sin_sparse_
+5407:    CPU, CUDA, MPS, MTIA, XPU: sin_out
+5408:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sin_sparse_csr_out
+5409:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sin_sparse_out
+5426:    CPU, CUDA, MPS, XPU: sinc_out
+5434:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sinh_sparse
+5435:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sinh_sparse_csr
+5443:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sinh_sparse_
+5444:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sinh_sparse_csr_
+5452:    CPU, CUDA, MPS, XPU: sinh_out
+5453:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sinh_sparse_out
+5454:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sinh_sparse_csr_out
+5472:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: detach
+5601:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: softmax_nested
+5610:    XPU: softmax_xpu_out
+5615:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: nested_softmax_backward
+5623:    XPU: softmax_backward_xpu_out
+5660:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: split_with_sizes_nested
+5688:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: squeeze_nested
+5697:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: squeeze_dim_nested
+5707:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: squeeze_dim_nested
+5748:    XPU: _chunk_cat_xpu
+5754:    XPU: _chunk_cat_out_xpu
+5816:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: sum_coo
+5817:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sum_csr
+5828:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sum_sparse_coo
+5829:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sum_sparse_compressed
+5836:    CPU, CUDA, MPS, XPU: sum_out
+5846:    CPU, CUDA, MPS, XPU: nansum
+5851:    CPU, CUDA, MPS, XPU: nansum_out
+5875:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_sqrt
+5876:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sqrt_sparse
+5877:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sqrt_sparse_csr
+5885:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sqrt_sparse_
+5886:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sqrt_sparse_csr_
+5894:    CPU, CUDA, MPS, MTIA, XPU: sqrt_out
+5895:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sqrt_sparse_out
+5896:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sqrt_sparse_csr_out
+5928:    CPU, CUDA, XPU: std
+5949:    CPU, CUDA, XPU: std_mean
+5962:    CPU, CUDA, XPU: std_out
+5970:    CPU, CUDA, XPU: prod
+5985:    CPU, CUDA, XPU: prod_out
+6009:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tan_sparse
+6010:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tan_sparse_csr
+6018:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tan_sparse_
+6019:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tan_sparse_csr_
+6027:    CPU, CUDA, MPS, XPU: tan_out
+6028:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tan_sparse_out
+6029:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tan_sparse_csr_out
+6039:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tanh_sparse
+6040:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tanh_sparse_csr
+6041:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_tanh
+6050:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tanh_sparse_
+6051:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tanh_sparse_csr_
+6052:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_tanh_
+6060:    CPU, CUDA, MPS, MTIA, XPU: tanh_out
+6061:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: tanh_sparse_out
+6062:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: tanh_sparse_csr_out
+6090:    CPU, CUDA, XPU: threshold_out
+6097:    CPU, CUDA, XPU: threshold_backward_out
+6099:    SparseCPU, SparseCUDA, SparseXPU: threshold_backward_sparse_out
+6100:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: threshold_backward_sparse_compressed_out
+6107:    SparseCPU, SparseCUDA, SparseXPU: threshold_backward_sparse
+6108:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: threshold_backward_sparse_compressed
+6109:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: threshold_backwards_nested
+6123:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: transpose_nested
+6169:    XPU: roll_xpu
+6193:    XPU, NestedTensorXPU: transform_bias_rescale_qkv_xpu
+6198:    CPU, CUDA, XPU: NestedTensor_nested_tensor_from_mask
+6203:    CPU, CUDA, XPU: NestedTensor_nested_tensor_from_mask_left_aligned
+6210:    XPU: nested_from_padded_xpu
+6217:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _nested_tensor_size
+6223:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _nested_tensor_strides
+6229:    NestedTensorCPU, NestedTensorCUDA, NestedTensorMeta, NestedTensorXPU: _nested_tensor_storage_offsets
+6236:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_from_padded_and_nested_example
+6245:    CPU, CUDA, XPU: _nested_view_from_buffer
+6315:    CPU, CUDA, XPU: _nested_compute_contiguous_strides_offsets
+6330:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: trunc_sparse
+6331:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: trunc_sparse_csr
+6339:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: trunc_sparse_
+6340:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: trunc_sparse_csr_
+6348:    CPU, CUDA, MPS, XPU: trunc_out
+6349:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: trunc_sparse_out
+6350:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: trunc_sparse_csr_out
+6374:    XPU: _unique_xpu
+6384:    XPU: unique_dim_xpu
+6394:    XPU: unique_consecutive_xpu
+6404:    XPU: unique_dim_consecutive_xpu
+6418:    XPU: _unique2_xpu
+6433:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: unsqueeze_sparse
+6435:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: unsqueeze_nested
+6464:    CPU, CUDA, XPU: var
+6476:    CPU, CUDA, XPU: var_out
+6495:    CPU, CUDA, XPU: var_mean
+6509:    CPU, CUDA, MPS, MTIA, XPU: where
+6510:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_where
+6516:    CPU, CUDA, MPS, MTIA, XPU: where_self_out
+6517:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_where_out
+6546:    XPU: weight_norm_xpu
+6555:    XPU: weight_norm_backward_xpu
+6566:    XPU: _efficientzerotensor_xpu
+6577:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: zeros_sparse_out
+6592:    XPU: _standard_gamma_grad_xpu
+6601:    XPU: _s_gamma_xpu
+6649:    XPU: _dirichlet_grad_xpu
+6659:    XPU: _s_dirichlet_xpu
+6668:    XPU: _s_poisson_xpu
+6677:    XPU: _s_binomial_xpu
+6687:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: norm_sparse
+6692:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: norm_sparse
+6700:    XPU: _batch_norm_with_update_xpu
+6709:    XPU: _batch_norm_with_update_xpu_out
+6721:    XPU: _new_batch_norm_backward_xpu
+6741:    SparseXPU: _sparse_sum_backward_xpu
+6748:    SparseCsrXPU: _sparse_csr_sum_xpu
+6755:    SparseCsrXPU: _sparse_csr_prod_xpu
+6768:    SparseXPU: softmax_sparse_xpu
+6776:    SparseXPU: softmax_backward_sparse_xpu
+6789:    SparseXPU: log_softmax_sparse_xpu
+6797:    SparseXPU: log_softmax_backward_sparse_xpu
+6827:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_dtype_norm
+6835:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_norm
+6842:    CPU, CUDA, MPS, XPU: norm_dtype_out
+6849:    CPU, CUDA, MPS, XPU: norm_out
+6861:    CPU, CUDA, MPS, XPU: frexp_out
+6892:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: clone_sparse
+6893:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: clone_sparse_compressed
+6896:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: clone_nested
+6916:    SparseCPU, SparseCUDA, SparseXPU: resize_as_sparse_
+6917:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: resize_as_sparse_compressed_
+6924:    CPU, MPS, XPU: zero_
+6927:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: zero_sparse_
+6928:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: zero_sparse_csr_
+6930:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: zero_nested_
+6938:    CPU, CUDA, MPS, XPU: sub_out
+6940:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sub_out_sparse
+6948:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sub_sparse
+6950:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_sub_Tensor
+6958:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sub_sparse_
+6997:    CPU, CUDA, MPS, MTIA, XPU: rsub
+7005:    CPU, CUDA, XPU: heaviside_out
+7041:    SparseCsrXPU: sparse_sampled_addmm_out_sparse_csr_xpu
+7048:    SparseCsrXPU: sparse_sampled_addmm_sparse_csr_xpu
+7067:    XPU: addmm_out_xpu
+7071:    SparseXPU: addmm_out_sparse_dense_xpu
+7074:    SparseCsrXPU: addmm_out_sparse_compressed_xpu
+7083:    SparseXPU: addmm_sparse_dense_xpu
+7084:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: addmm_sparse_compressed_dense
+7090:    XPU: _addmm_dtype_xpu
+7095:    XPU: _addmm_dtype_out_xpu
+7105:    SparseXPU: s_addmm_sparse_dense_xpu_
+7112:    XPU: addmm_activation_out_xpu
+7123:    XPU: _scaled_mm_xpu
+7131:    XPU: _scaled_mm_out_xpu
+7145:    XPU: _scaled_mm_xpu_v2_out
+7366:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: sparse_resize_
+7373:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: sparse_resize_and_clear_
+7379:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_mask
+7380:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_mask_sparse_compressed
+7386:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_mask_projection
+7399:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_to_dense
+7400:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_dense
+7409:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: sparse_dim_sparse
+7410:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: sparse_dim_sparse_csr
+7419:    SparseCPU, SparseCUDA, SparseXPU: sparse_dim_sparse
+7426:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: dense_dim_sparse
+7427:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: dense_dim_sparse_csr
+7436:    SparseCPU, SparseCUDA, SparseMeta, SparseXPU: dense_dim_sparse
+7443:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: _nnz_sparse
+7444:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMPS, SparseCsrMeta, SparseCsrXPU: _nnz_sparse_csr
+7461:    SparseXPU: _coalesce_sparse_xpu
+7467:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: is_coalesced_sparse
+7475:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: _indices_sparse
+7482:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: _values_sparse
+7492:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: _coalesced_sparse_
+7500:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: indices_sparse
+7508:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: values_sparse
+7509:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: values_sparse_csr
+7510:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: values_nested
+7518:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: crow_indices_sparse_csr
+7526:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: col_indices_sparse_csr
+7534:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: ccol_indices_sparse_csr
+7542:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: row_indices_sparse_csr
+7551:    SparseXPU: hspmm_out_sparse_xpu
+7557:    SparseXPU: hspmm_sparse_xpu
+7563:    SparseCPU, SparseCUDA, SparseMPS, SparseMeta, SparseXPU: copy_sparse_
+7571:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_unbind
+7580:    CPU, CUDA, MPS, XPU: dense_to_sparse
+7581:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_coo_to_sparse
+7582:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrMPS, SparseCsrXPU: sparse_compressed_to_sparse
+7592:    CPU, CUDA, MPS, XPU: dense_to_sparse
+7593:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sparse_coo_to_sparse
+7594:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_sparse
+7604:    CPU, CUDA, XPU: dense_to_sparse_csr
+7605:    SparseCPU, SparseCUDA, SparseXPU: coo_to_sparse_csr
+7606:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_sparse_csr
+7616:    CPU, CUDA, XPU: dense_to_sparse_csc
+7617:    SparseCPU, SparseCUDA, SparseXPU: coo_to_sparse_csc
+7618:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_sparse_csc
+7628:    CPU, CUDA, XPU: dense_to_sparse_bsr
+7629:    SparseCPU, SparseCUDA, SparseXPU: coo_to_sparse_bsr
+7630:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_sparse_bsr
+7640:    CPU, CUDA, XPU: dense_to_sparse_bsc
+7641:    SparseCPU, SparseCUDA, SparseXPU: coo_to_sparse_bsc
+7642:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sparse_compressed_to_sparse_bsc
+7675:    CPU, CUDA, XPU: quantize_per_tensor_dynamic
+7681:    CPU, CUDA, XPU: quantize_per_tensor
+7687:    CPU, CUDA, XPU: quantize_per_tensor_tensor_qparams
+7699:    CPU, CUDA, XPU: quantize_per_channel
+7705:    CPU, CUDA, XPU: dequantize_cpu_or_cuda
+7754:    XPU: make_per_tensor_quantized_tensor_xpu
+7761:    XPU: make_per_channel_quantized_tensor_xpu
+7780:    CPU, CUDA, XPU: fake_quantize_per_tensor_affine_cachemask
+7786:    CPU, CUDA, XPU: _fake_quantize_per_tensor_affine_cachemask_tensor_qparams
+7795:    CPU, CUDA, XPU: _fake_quantize_learnable_per_tensor_affine
+7801:    CPU, CUDA, XPU: _fake_quantize_learnable_per_tensor_affine_backward
+7810:    CPU, CUDA, XPU: fake_quantize_per_channel_affine_cachemask
+7819:    CPU, CUDA, XPU: _fake_quantize_learnable_per_channel_affine
+7825:    CPU, CUDA, XPU: _fake_quantize_learnable_per_channel_affine_backward
+7834:    XPU: fused_moving_avg_obs_fake_quant_xpu
+7859:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _to_copy_nested
+7928:    XPU: _local_scalar_dense_xpu
+7948:    XPU: _thnn_fused_lstm_cell_xpu
+7957:    XPU: _thnn_fused_lstm_cell_backward_xpu
+7967:    XPU: _thnn_fused_gru_cell_xpu
+7973:    XPU: _thnn_fused_gru_cell_backward_xpu
+8054:    CPU, CUDA, Meta, MPS, XPU: set_
+8067:    XPU: set_storage_xpu_
+8085:    CPU, CUDA, Meta, MPS, XPU: set_tensor_
+8096:    XPU: set_xpu_
+8131:    CPU, CUDA, MPS, XPU: is_set_to
+8142:    XPU: masked_fill__xpu
+8150:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_masked_fill
+8162:    XPU: masked_fill__xpu
+8177:    XPU: masked_scatter__xpu
+8194:    XPU: masked_softmax_xpu
+8201:    XPU: masked_softmax_backward_xpu
+8209:    CPU, CUDA, QuantizedCPU, QuantizedCUDA, MPS, MTIA, XPU: view
+8212:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: view_nested
+8231:    CPU, CUDA, MPS, XPU: put_
+8248:    XPU: index_add_xpu_out
+8267:    XPU: index_reduce_xpu_out
+8281:    CPU, CUDA, MPS, XPU: index_fill_
+8294:    CPU, CUDA, MPS, XPU: index_fill_
+8316:    CPU, CUDA, MPS, XPU: scatter_src_out
+8331:    CPU, CUDA, MPS, XPU: scatter_value_out
+8345:    CPU, CUDA, MPS, XPU: scatter_reduce_out
+8359:    CPU, CUDA, MPS, XPU: scatter_value_reduce_out
+8374:    CPU, CUDA, MPS, XPU: scatter_add
+8389:    CPU, CUDA, MPS, XPU: scatter_reduce_two
+8407:    CPU, CUDA, MPS, MTIA, XPU: bitwise_and_out
+8473:    CPU, CUDA, MPS, MTIA, XPU: bitwise_or_out
+8539:    CPU, CUDA, MPS, XPU: bitwise_xor_out
+8607:    CPU, CUDA, MPS, MTIA, XPU: __lshift__
+8614:    CPU, CUDA, MPS, MTIA, XPU: __lshift__
+8621:    CPU, CUDA, MPS, XPU: __ilshift__
+8629:    CPU, CUDA, MPS, XPU: __ilshift__
+8650:    CPU, CUDA, MPS, XPU: bitwise_left_shift_out
+8686:    CPU, CUDA, MPS, MTIA, XPU: __rshift__
+8693:    CPU, CUDA, MPS, MTIA, XPU: __rshift__
+8700:    CPU, CUDA, MPS, XPU: __irshift__
+8707:    CPU, CUDA, MPS, XPU: __irshift__
+8727:    CPU, CUDA, MPS, XPU: bitwise_right_shift_out
+8789:    CPU, CUDA, XPU: addbmm_
+8794:    CPU, CUDA, XPU: addbmm_out
+8800:    CPU, CUDA, XPU: addbmm
+8807:    CPU, CUDA, MPS, XPU: random_
+8816:    CPU, CUDA, MPS, XPU: random_
+8825:    CPU, CUDA, MPS, XPU: random_
+8834:    CPU, CUDA, MPS, XPU: uniform_
+8843:    CPU, CUDA, MPS, XPU: cauchy_
+8851:    CPU, CUDA, MPS, XPU: log_normal_
+8859:    CPU, CUDA, MPS, XPU: exponential_
+8867:    CPU, CUDA, MPS, XPU: geometric_
+8888:    XPU: triu_xpu
+8900:    XPU: tril_xpu
+8911:    XPU: tril_indices_xpu
+8919:    XPU: triu_indices_xpu
+8928:    XPU: trace_xpu
+8943:    CPU, CUDA, MPS, MTIA, XPU: ne_Scalar_out
+8960:    CPU, CUDA, MPS, MTIA, XPU: ne_Tensor_out
+9004:    CPU, CUDA, MPS, MTIA, XPU: eq_Scalar_out
+9014:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: eq_scalar_nested
+9022:    CPU, CUDA, MPS, MTIA, XPU: eq_Tensor_out
+9032:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: eq_tensor_nested
+9040:    CPU, CUDA, MPS, MTIA, XPU: ge_Scalar_out
+9050:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: ge_scalar_nested
+9058:    CPU, CUDA, MPS, MTIA, XPU: ge_Tensor_out
+9102:    CPU, CUDA, MPS, MTIA, XPU: le_Scalar_out
+9119:    CPU, CUDA, MPS, MTIA, XPU: le_Tensor_out
+9163:    CPU, CUDA, MPS, MTIA, XPU: gt_Scalar_out
+9173:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: gt_scalar_nested
+9181:    CPU, CUDA, MPS, MTIA, XPU: gt_Tensor_out
+9225:    CPU, CUDA, MPS, MTIA, XPU: lt_Scalar_out
+9242:    CPU, CUDA, MPS, MTIA, XPU: lt_Tensor_out
+9283:    CPU, CUDA, MPS, XPU: take_out
+9288:    CPU, CUDA, MPS, XPU: take
+9300:    XPU: index_select_out_xpu
+9312:    SparseXPU: index_select_sparse_xpu
+9314:    XPU: index_select_xpu_
+9329:    XPU: masked_select_out_xpu
+9338:    XPU: masked_select_xpu
+9351:    XPU: nonzero_out_xpu
+9360:    XPU: nonzero_xpu
+9368:    XPU: nonzero_static_out_xpu
+9376:    XPU: nonzero_static_xpu
+9388:    CPU, CUDA, MPS, XPU: gather_out
+9407:    CPU, CUDA, MTIA, XPU: addcmul_out
+9428:    CPU, CUDA, MTIA, XPU: addcdiv_out
+9456:    SparseCsrXPU: triangular_solve_out_sparse_csr_xpu
+9469:    CPU, CUDA, XPU: linalg_solve_triangular_out
+9476:    CPU, CUDA, XPU: linalg_solve_triangular
+9541:    CPU, CUDA, MPS, XPU: geqrf_out
+9546:    CPU, CUDA, MPS, XPU: geqrf
+9586:    CPU, CUDA, MPS, XPU: multinomial_out
+9591:    CPU, CUDA, MPS, XPU: multinomial
+9599:    CPU, CUDA, MPS, XPU: lgamma_out
+9619:    CPU, CUDA, MPS, XPU: digamma_out
+9633:    CPU, CUDA, MPS, XPU: polygamma_out
+9654:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erfinv_sparse
+9655:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erfinv_sparse_csr
+9663:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erfinv_sparse_
+9664:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erfinv_sparse_csr_
+9672:    CPU, CUDA, MPS, XPU: erfinv_out
+9673:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: erfinv_sparse_out
+9674:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: erfinv_sparse_csr_out
+9691:    CPU, CUDA, MPS, XPU: i0_out
+9699:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sign_sparse
+9700:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sign_sparse_csr
+9708:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sign_sparse_
+9709:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sign_sparse_csr_
+9717:    CPU, CUDA, XPU: sign_out
+9719:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: sign_sparse_out
+9720:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: sign_sparse_csr_out
+9727:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: signbit_sparse
+9728:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: signbit_sparse_csr
+9735:    CPU, CUDA, XPU: signbit_out
+9737:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: signbit_sparse_out
+9738:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: signbit_sparse_csr_out
+9753:    CPU, CUDA, MPS, XPU: atan2_out
+9783:    CPU, CUDA, MPS, XPU: lerp_Scalar
+9791:    CPU, CUDA, MPS, XPU: lerp_Tensor
+9810:    XPU: _histc_out_xpu
+9817:    XPU: _histc_xpu
+9821:    CPU, MPS, XPU: histogram_out
+9826:    CPU, MPS, XPU: histogram
+9830:    CPU, MPS, XPU: histogram_out
+9835:    CPU, MPS, XPU: histogram
+9883:    CPU, CUDA, MPS, MTIA, XPU: fmod_out
+9903:    CPU, CUDA, MPS, XPU: hypot_out
+9922:    CPU, CUDA, MPS, XPU: igamma_out
+9939:    CPU, CUDA, MPS, XPU: igammac_out
+9956:    CPU, CUDA, MPS, XPU: nextafter_out
+9991:    CPU, CUDA, MPS, MTIA, XPU: remainder_out
+10010:    CPU, CUDA, MPS, XPU: remainder
+10018:    CPU, CUDA, XPU: min
+10026:    CPU, CUDA, XPU: min_unary_out
+10041:    CPU, CUDA, MPS, XPU: fmin_out
+10048:    CPU, CUDA, XPU: max
+10064:    CPU, CUDA, MPS, XPU: fmax_out
+10078:    CPU, CUDA, MTIA, MPS, XPU: maximum_out
+10095:    CPU, CUDA, XPU: max_unary_out
+10110:    CPU, CUDA, MTIA, MPS, XPU: minimum_out
+10152:    CPU, CUDA, XPU: sort_stable_out
+10191:    XPU: topk_out_xpu
+10210:    CPU, CUDA, MPS, XPU: all_all_out
+10219:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: any_sparse
+10226:    CPU, CUDA, MPS, XPU: any_all_out
+10233:    CPU, CUDA, XPU: renorm_out
+10251:    CPU, CUDA, Meta, MPS, MTIA, XPU: unfold
+10257:    CPU, CUDA, MPS, XPU: unfold_backward
+10267:    XPU: xpu_equal
+10275:    CPU, CUDA, MPS, XPU: pow_Tensor_Tensor_out
+10288:    CPU, CUDA, XPU: pow_Scalar_out
+10302:    CPU, CUDA, MPS, XPU: pow_Tensor_Scalar_out
+10303:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: pow_out_sparse_scalar
+10311:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: pow_sparse_scalar
+10359:    CPU, CUDA, MPS, XPU: normal_
+10361:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: normal_sparse_csr_
+10362:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: normal_nested_
+10377:    CPU, CUDA, MPS, XPU: normal_out
+10382:    CPU, CUDA, MPS, XPU: normal
+10388:    CPU, CUDA, MPS, XPU: normal_out
+10394:    CPU, CUDA, MPS, XPU: normal
+10400:    CPU, CUDA, MPS, XPU: normal_out
+10406:    CPU, CUDA, MPS, XPU: normal
+10424:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: alias_nested
+10433:    XPU: _amp_foreach_non_finite_check_and_unscale_xpu_
+10442:    XPU: _amp_update_scale_xpu_
+10464:    XPU: foreach_tensor_add_scalar_kernel_xpu
+10473:    XPU: foreach_tensor_add_scalar_kernel_xpu_
+10483:    XPU: foreach_tensor_add_list_kernel_xpu
+10492:    XPU: foreach_tensor_add_list_kernel_xpu_
+10501:    XPU: foreach_tensor_add_scalarlist_kernel_xpu
+10509:    XPU: foreach_tensor_add_scalarlist_kernel_xpu_
+10518:    XPU: foreach_tensor_add_tensor_kernel_xpu
+10527:    XPU: foreach_tensor_add_tensor_kernel_xpu_
+10536:    XPU: foreach_tensor_sub_scalar_kernel_xpu
+10544:    XPU: foreach_tensor_sub_scalar_kernel_xpu_
+10553:    XPU: foreach_tensor_sub_list_kernel_xpu
+10561:    XPU: foreach_tensor_sub_list_kernel_xpu_
+10570:    XPU: foreach_tensor_sub_scalarlist_kernel_xpu
+10578:    XPU: foreach_tensor_sub_scalarlist_kernel_xpu_
+10587:    XPU: foreach_tensor_mul_scalar_kernel_xpu
+10596:    XPU: foreach_tensor_mul_scalar_kernel_xpu_
+10606:    XPU: foreach_tensor_mul_list_kernel_xpu
+10615:    XPU: foreach_tensor_mul_list_kernel_xpu_
+10624:    XPU: foreach_tensor_mul_scalarlist_kernel_xpu
+10632:    XPU: foreach_tensor_mul_scalarlist_kernel_xpu_
+10642:    XPU: foreach_tensor_mul_tensor_kernel_xpu
+10651:    XPU: foreach_tensor_mul_tensor_kernel_xpu_
+10660:    XPU: foreach_tensor_div_scalar_kernel_xpu
+10668:    XPU: foreach_tensor_div_scalar_kernel_xpu_
+10678:    XPU: foreach_tensor_div_list_kernel_xpu
+10687:    XPU: foreach_tensor_div_list_kernel_xpu_
+10696:    XPU: foreach_tensor_div_scalarlist_kernel_xpu
+10704:    XPU: foreach_tensor_div_scalarlist_kernel_xpu_
+10714:    XPU: foreach_tensor_div_tensor_kernel_xpu
+10723:    XPU: foreach_tensor_div_tensor_kernel_xpu_
+10732:    XPU: foreach_tensor_clamp_max_scalar_kernel_xpu
+10740:    XPU: foreach_tensor_clamp_max_scalar_kernel_xpu_
+10749:    XPU: foreach_tensor_clamp_max_list_kernel_xpu
+10757:    XPU: foreach_tensor_clamp_max_list_kernel_xpu_
+10766:    XPU: foreach_tensor_clamp_max_scalarlist_kernel_xpu
+10774:    XPU: foreach_tensor_clamp_max_scalarlist_kernel_xpu_
+10783:    XPU: foreach_tensor_clamp_min_scalar_kernel_xpu
+10791:    XPU: foreach_tensor_clamp_min_scalar_kernel_xpu_
+10800:    XPU: foreach_tensor_clamp_min_list_kernel_xpu
+10808:    XPU: foreach_tensor_clamp_min_list_kernel_xpu_
+10817:    XPU: foreach_tensor_clamp_min_scalarlist_kernel_xpu
+10825:    XPU: foreach_tensor_clamp_min_scalarlist_kernel_xpu_
+10835:    XPU: foreach_tensor_clamp_min_scalar_kernel_xpu
+10844:    XPU: foreach_tensor_clamp_min_scalar_kernel_xpu_
+10854:    XPU: foreach_tensor_clamp_min_list_kernel_xpu
+10862:    XPU: foreach_tensor_clamp_min_list_kernel_xpu_
+10872:    XPU: foreach_tensor_clamp_min_scalarlist_kernel_xpu
+10880:    XPU: foreach_tensor_clamp_min_scalarlist_kernel_xpu_
+10889:    XPU: foreach_tensor_clamp_max_scalar_kernel_xpu
+10897:    XPU: foreach_tensor_clamp_max_scalar_kernel_xpu_
+10906:    XPU: foreach_tensor_clamp_max_list_kernel_xpu
+10914:    XPU: foreach_tensor_clamp_max_list_kernel_xpu_
+10923:    XPU: foreach_tensor_clamp_max_scalarlist_kernel_xpu
+10931:    XPU: foreach_tensor_clamp_max_scalarlist_kernel_xpu_
+10940:    XPU: foreach_tensor_addcdiv_scalar_xpu
+10948:    XPU: foreach_tensor_addcdiv_scalarlist_xpu
+10956:    XPU: foreach_tensor_addcdiv_tensor_xpu
+10964:    XPU: foreach_tensor_addcdiv_scalar_xpu_
+10973:    XPU: foreach_tensor_addcdiv_scalarlist_xpu_
+10982:    XPU: foreach_tensor_addcdiv_tensor_xpu_
+10992:    XPU: foreach_tensor_addcmul_scalar_xpu
+11000:    XPU: foreach_tensor_addcmul_scalarlist_xpu
+11008:    XPU: foreach_tensor_addcmul_tensor_xpu
+11017:    XPU: foreach_tensor_addcmul_scalar_xpu_
+11026:    XPU: foreach_tensor_addcmul_scalarlist_xpu_
+11035:    XPU: foreach_tensor_addcmul_tensor_xpu_
+11045:    XPU: foreach_tensor_abs_xpu
+11054:    XPU: foreach_tensor_abs_xpu_
+11063:    XPU: foreach_tensor_acos_xpu
+11071:    XPU: foreach_tensor_acos_xpu_
+11080:    XPU: foreach_tensor_asin_xpu
+11088:    XPU: foreach_tensor_asin_xpu_
+11097:    XPU: foreach_tensor_atan_xpu
+11105:    XPU: foreach_tensor_atan_xpu_
+11114:    XPU: foreach_tensor_ceil_xpu
+11122:    XPU: foreach_tensor_ceil_xpu_
+11131:    XPU: foreach_tensor_cos_xpu
+11139:    XPU: foreach_tensor_cos_xpu_
+11148:    XPU: foreach_tensor_cosh_xpu
+11156:    XPU: foreach_tensor_cosh_xpu_
+11165:    XPU: foreach_tensor_erf_xpu
+11173:    XPU: foreach_tensor_erf_xpu_
+11182:    XPU: foreach_tensor_erfc_xpu
+11190:    XPU: foreach_tensor_erfc_xpu_
+11199:    XPU: foreach_tensor_exp_xpu
+11207:    XPU: foreach_tensor_exp_xpu_
+11216:    XPU: foreach_tensor_expm1_xpu
+11224:    XPU: foreach_tensor_expm1_xpu_
+11233:    XPU: foreach_tensor_floor_xpu
+11241:    XPU: foreach_tensor_floor_xpu_
+11250:    XPU: foreach_tensor_frac_xpu
+11258:    XPU: foreach_tensor_frac_xpu_
+11267:    XPU: foreach_tensor_lerp_ternary_xpu
+11275:    XPU: foreach_tensor_lerp_ternary_xpu_
+11284:    XPU: foreach_tensor_lerp_list_xpu
+11292:    XPU: foreach_tensor_lerp_list_xpu_
+11301:    XPU: foreach_tensor_lerp_scalarlist_xpu
+11309:    XPU: foreach_tensor_lerp_scalarlist_xpu_
+11318:    XPU: foreach_tensor_lgamma_xpu
+11326:    XPU: foreach_tensor_lgamma_xpu_
+11335:    XPU: foreach_tensor_log_xpu
+11343:    XPU: foreach_tensor_log_xpu_
+11352:    XPU: foreach_tensor_log10_xpu
+11360:    XPU: foreach_tensor_log10_xpu_
+11369:    XPU: foreach_tensor_log1p_xpu
+11377:    XPU: foreach_tensor_log1p_xpu_
+11386:    XPU: foreach_tensor_log2_xpu
+11394:    XPU: foreach_tensor_log2_xpu_
+11403:    XPU: foreach_tensor_max_xpu
+11412:    XPU: foreach_tensor_neg_xpu
+11420:    XPU: foreach_tensor_neg_xpu_
+11430:    XPU: foreach_tensor_norm_xpu
+11448:    XPU: foreach_tensor_pow_list_kernel_xpu
+11456:    XPU: foreach_tensor_pow_scalar_kernel_xpu
+11464:    XPU: foreach_tensor_pow_scalarlist_kernel_xpu
+11472:    XPU: foreach_scalar_pow_list_kernel_xpu
+11480:    XPU: foreach_tensor_pow_list_kernel_xpu_
+11489:    XPU: foreach_tensor_pow_scalar_kernel_xpu_
+11498:    XPU: foreach_tensor_pow_scalarlist_kernel_xpu_
+11507:    XPU: foreach_tensor_reciprocal_xpu
+11515:    XPU: foreach_tensor_reciprocal_xpu_
+11524:    XPU: foreach_tensor_round_xpu
+11532:    XPU: foreach_tensor_round_xpu_
+11541:    XPU: foreach_tensor_rsqrt_xpu
+11549:    XPU: foreach_tensor_rsqrt_xpu_
+11558:    XPU: foreach_tensor_sigmoid_xpu
+11566:    XPU: foreach_tensor_sigmoid_xpu_
+11575:    XPU: foreach_tensor_sign_xpu
+11583:    XPU: foreach_tensor_sign_xpu_
+11592:    XPU: foreach_tensor_sin_xpu
+11600:    XPU: foreach_tensor_sin_xpu_
+11609:    XPU: foreach_tensor_sinh_xpu
+11617:    XPU: foreach_tensor_sinh_xpu_
+11626:    XPU: foreach_tensor_sqrt_xpu
+11635:    XPU: foreach_tensor_sqrt_xpu_
+11644:    XPU: foreach_tensor_tan_xpu
+11652:    XPU: foreach_tensor_tan_xpu_
+11661:    XPU: foreach_tensor_tanh_xpu
+11669:    XPU: foreach_tensor_tanh_xpu_
+11678:    XPU: foreach_tensor_trunc_xpu
+11686:    XPU: foreach_tensor_trunc_xpu_
+11695:    XPU: foreach_tensor_zero_xpu_
+11713:    XPU: foreach_tensor_copy_list_kernel_xpu_
+11734:    XPU: bucketize_xpu
+11741:    XPU: bucketize_out_xpu
+11748:    XPU: bucketize_xpu
+11756:    XPU: searchsorted_xpu
+11763:    XPU: searchsorted_out_xpu
+11770:    XPU: searchsorted_xpu
+11777:    XPU: searchsorted_out_xpu
+11787:    XPU: _convert_indices_from_coo_to_csr_structured_xpu
+11797:    XPU: _convert_indices_from_csr_to_coo_structured_xpu
+11807:    CPU, CUDA, XPU: mse_loss_out
+11818:    CPU, CUDA, XPU: mse_loss_backward_out
+11824:    CPU, CUDA, XPU: mse_loss_backward
+11835:    XPU: multi_margin_loss_xpu_out
+11842:    XPU: multi_margin_loss_xpu
+11849:    XPU: multi_margin_loss_xpu_backward_out
+11856:    XPU: multi_margin_loss_xpu_backward
+11869:    XPU: multilabel_margin_loss_forward_out_xpu
+11876:    XPU: multilabel_margin_loss_forward_xpu
+11883:    XPU: multilabel_margin_loss_backward_xpu_out
+11890:    XPU: multilabel_margin_loss_backward_xpu
+11912:    XPU: nll_loss_forward_out_xpu
+11925:    XPU: nll_loss_backward_out_xpu
+11945:    XPU: nll_loss2d_forward_out_xpu
+11953:    XPU: nll_loss2d_forward_xpu
+11961:    XPU: nll_loss2d_backward_out_xpu
+11969:    XPU: nll_loss2d_backward_xpu
+11977:    CPU, CUDA, XPU: smooth_l1_loss_out
+11988:    CPU, XPU: smooth_l1_loss_backward_out
+12000:    CPU, CUDA, XPU: huber_loss_out
+12006:    CPU, CUDA, XPU: huber_loss
+12012:    CPU, CUDA, XPU: huber_loss_backward_out
+12046:    CPU, CUDA, MPS, XPU: elu_out
+12059:    CPU, CUDA, MPS, XPU: elu_backward_out
+12076:    CPU, CUDA, XPU: glu_out
+12090:    XPU: glu_backward_xpu_out
+12098:    XPU: glu_backward_xpu
+12103:    CPU, CUDA, XPU: glu_jvp
+12109:    CPU, CUDA, XPU: glu_backward_jvp
+12118:    CPU, CUDA, MPS, XPU: hardsigmoid_out
+12140:    CPU, CUDA, MPS, XPU: hardsigmoid_backward_out
+12150:    CPU, CUDA, MPS, XPU: hardtanh_out
+12157:    CPU, CUDA, MPS, XPU: hardtanh
+12164:    CPU, CUDA, XPU: hardtanh_backward_out
+12170:    CPU, CUDA, XPU: hardtanh_backward
+12177:    CPU, CUDA, MPS, XPU: hardtanh_
+12185:    CPU, CUDA, MPS, XPU: hardswish_out
+12191:    CPU, CUDA, MPS, XPU: hardswish
+12197:    CPU, CUDA, MPS, XPU: hardswish_
+12202:    CPU, CUDA, MPS, XPU: hardswish_backward
+12211:    CPU, CUDA, MPS, XPU: leaky_relu_out
+12227:    CPU, CUDA, MPS, XPU: leaky_relu_backward_out
+12256:    XPU: log_sigmoid_forward_out_xpu
+12265:    XPU: log_sigmoid_forward_xpu
+12273:    XPU: log_sigmoid_backward_xpu_out
+12281:    XPU: log_sigmoid_backward_xpu
+12289:    XPU: rrelu_with_noise_out_xpu
+12296:    XPU: rrelu_with_noise_xpu
+12312:    XPU: rrelu_with_noise_xpu_
+12320:    CPU, CUDA, MPS, XPU: softplus_out
+12333:    CPU, CUDA, MPS, XPU: softplus_backward_out
+12345:    CPU, CUDA, MPS, XPU: softshrink_out
+12358:    CPU, CUDA, MPS, XPU: softshrink_backward_out
+12370:    XPU: adaptive_avg_pool2d_out_xpu
+12396:    XPU: adaptive_avg_pool2d_xpu
+12408:    XPU: adaptive_avg_pool2d_backward_xpu
+12417:    XPU: adaptive_avg_pool3d_out_xpu
+12429:    XPU: adaptive_avg_pool3d_xpu
+12439:    XPU: adaptive_avg_pool3d_backward_out_xpu
+12446:    XPU: adaptive_avg_pool3d_backward_xpu
+12457:    XPU: adaptive_max_pool2d_out_xpu
+12471:    XPU: adaptive_max_pool2d_backward_out_xpu
+12484:    XPU: adaptive_max_pool3d_out_xpu
+12497:    XPU: adaptive_max_pool3d_backward_out_xpu
+12514:    XPU: avg_pool2d_out_xpu
+12532:    XPU: avg_pool2d_backward_out_xpu
+12549:    XPU: avg_pool3d_out_xpu
+12567:    XPU: avg_pool3d_backward_out_xpu
+12583:    XPU: fractional_max_pool2d_out_xpu
+12596:    XPU: fractional_max_pool2d_backward_xpu
+12613:    XPU: fractional_max_pool3d_out_xpu
+12625:    XPU: fractional_max_pool3d_backward_out_xpu
+12632:    XPU: fractional_max_pool3d_backward_xpu
+12642:    XPU: max_pool2d_with_indices_out_xpu
+12657:    XPU: max_pool2d_with_indices_backward_out_xpu
+12671:    XPU: max_pool3d_with_indices_out_xpu
+12680:    XPU: max_pool3d_with_indices_xpu
+12689:    XPU: max_pool3d_with_indices_backward_out_xpu
+12697:    XPU: max_pool3d_with_indices_backward_xpu
+12705:    XPU: max_unpooling2d_forward_out_xpu
+12713:    XPU: max_unpooling2d_forward_xpu
+12721:    XPU: max_unpooling3d_forward_out_xpu
+12729:    XPU: max_unpooling3d_forward_xpu
+12739:    XPU: reflection_pad1d_out_xpu
+12753:    XPU: reflection_pad1d_backward_out_xpu
+12765:    XPU: reflection_pad2d_out_xpu
+12774:    XPU: reflection_pad2d_xpu
+12783:    XPU: reflection_pad2d_backward_out_xpu
+12791:    XPU: reflection_pad2d_backward_xpu
+12800:    XPU: reflection_pad3d_out_xpu
+12814:    XPU: reflection_pad3d_backward_out_xpu
+12827:    XPU: replication_pad1d_out_xpu
+12840:    XPU: replication_pad1d_backward_out_xpu
+12853:    XPU: replication_pad2d_out_xpu
+12866:    XPU: replication_pad2d_backward_out_xpu
+12874:    XPU: replication_pad2d_backward_xpu
+12883:    XPU: replication_pad3d_out_xpu
+12896:    XPU: replication_pad3d_backward_out_xpu
+12904:    XPU: replication_pad3d_backward_xpu
+12983:    XPU: upsample_linear1d_out_xpu
+12996:    XPU: upsample_linear1d_backward_out_xpu
+13009:    XPU: upsample_bilinear2d_out_xpu
+13024:    XPU: upsample_bilinear2d_backward_out_xpu
+13037:    XPU: _upsample_bilinear2d_aa_out_xpu
+13049:    XPU: _upsample_bilinear2d_aa_backward_out_xpu
+13063:    XPU: upsample_bicubic2d_out_xpu
+13076:    XPU: upsample_bicubic2d_backward_out_xpu
+13089:    XPU: _upsample_bicubic2d_aa_out_xpu
+13101:    XPU: _upsample_bicubic2d_aa_backward_out_xpu
+13135:    XPU: upsample_trilinear3d_out_xpu
+13148:    XPU: upsample_trilinear3d_backward_out_xpu
+13161:    XPU: upsample_nearest1d_out_xpu
+13170:    XPU: _upsample_nearest_exact1d_out_xpu
+13187:    XPU: upsample_nearest1d_backward_out_xpu
+13196:    XPU: _upsample_nearest_exact1d_backward_out_xpu
+13213:    XPU: upsample_nearest2d_out_xpu
+13222:    XPU: _upsample_nearest_exact2d_out_xpu
+13243:    XPU: upsample_nearest2d_backward_out_xpu
+13252:    XPU: _upsample_nearest_exact2d_backward_out_xpu
+13269:    XPU: upsample_nearest3d_out_xpu
+13278:    XPU: _upsample_nearest_exact3d_out_xpu
+13299:    XPU: upsample_nearest3d_backward_out_xpu
+13308:    XPU: _upsample_nearest_exact3d_backward_out_xpu
+13323:    CPU, CUDA, MPS, XPU: sigmoid_backward_out
+13336:    CPU, CUDA, MPS, XPU: logit_backward_out
+13349:    CPU, CUDA, MPS, MTIA, XPU: tanh_backward_out
+13481:    XPU: col2im_out_xpu
+13489:    XPU: col2im_xpu
+13502:    XPU: im2col_out_xpu
+13510:    XPU: im2col_xpu
+13524:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_isinf
+13525:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isinf_sparse
+13527:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isinf_sparse_csr
+13536:    XPU: record_stream_xpu
+13542:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_isposinf
+13543:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isposinf_sparse
+13544:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isposinf_sparse_csr
+13551:    CPU, CUDA, MPS, XPU: isposinf_out
+13552:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isposinf_sparse_out
+13553:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isposinf_sparse_csr_out
+13560:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: NestedTensor_isneginf
+13561:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isneginf_sparse
+13562:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isneginf_sparse_csr
+13569:    CPU, CUDA, MPS, XPU: isneginf_out
+13570:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: isneginf_sparse_out
+13571:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: isneginf_sparse_csr_out
+13604:    CPU, CUDA, MPS, XPU: special_entr_out
+13619:    CPU, CUDA, XPU: special_ndtri_out
+13634:    CPU, CUDA, XPU: special_log_ndtr_out
+13703:    CPU, CUDA, MPS, XPU: special_erfcx_out
+13751:    CPU, CUDA, MPS, XPU: special_xlog1py_out
+13830:    CPU, CUDA, MPS, XPU: special_zeta_out
+13868:    CPU, CUDA, MPS, XPU: special_i0e_out
+13882:    CPU, CUDA, MPS, XPU: special_i1_out
+13896:    CPU, CUDA, MPS, XPU: special_i1e_out
+14284:    CPU, CUDA, MPS, XPU: linalg_cross_out
+14305:    CPU, CUDA, XPU: linalg_lu_factor_ex_out
+14341:    CPU, CUDA, MPS, XPU: _linalg_det_out
+14435:    CPU, CUDA, MPS, XPU: _linalg_slogdet_out
+14502:    CPU, CUDA, MPS, XPU: linalg_householder_product
+14507:    CPU, CUDA, MPS, XPU: linalg_householder_product_out
+14517:    CPU, CUDA, XPU: linalg_inv_ex_out
+14568:    SparseCPU, SparseCUDA, SparseMPS, SparseXPU: linalg_vector_norm_sparse
+14575:    CPU, CUDA, MPS, XPU: linalg_vector_norm_out
+14690:    CPU, CUDA, XPU: _linalg_solve_ex_out
+14706:    SparseCsrXPU: _sparse_csr_linear_solve_xpu
+14736:    CPU, CUDA, MPS, XPU: linalg_qr_out
+14747:    CPU, CUDA, MPS, XPU: linalg_polar_out
+14862:    CompositeExplicitAutograd, NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _test_autograd_multiple_dispatch_fullcoverage
+14868:    CompositeImplicitAutograd, NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _test_autograd_multiple_dispatch_ntonly
+14886:    CPU, CUDA, XPU: segment_reduce_kernel
+14892:    CPU, CUDA, XPU: _segment_reduce_backward_kernel
+15001:    SparseCsrCPU, SparseCsrCUDA, SparseCsrMeta, SparseCsrXPU: select_copy_sparse_csr
+15150:    XPU: split_with_sizes_copy_out_xpu
+15185:    NestedTensorXPU: NestedTensor_to_padded_tensor_xpu
+15193:    XPU: _jagged_to_padded_dense_forward_xpu
+15200:    XPU: _padded_dense_to_jagged_forward_symint_xpu
+15211:    NestedTensorXPU: NestedTensor_softmax_dropout_xpu
+15217:    XPU: _safe_softmax_xpu
+15218:    NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: _safe_softmax
+15224:    CPU, CUDA, XPU, NestedTensorCPU, NestedTensorHPU, NestedTensorCUDA, NestedTensorXPU: transformer_encoder_layer_forward
+15232:    XPU, NestedTensorXPU: native_multi_head_attention_xpu
+15247:    XPU: _fused_sdp_choice_xpu
+15262:    XPU: _scaled_dot_product_flash_attention_xpu
+15279:    XPU: _scaled_dot_product_fused_attention_overrideable_xpu
+15287:    XPU: _scaled_dot_product_flash_attention_backward_xpu
+15305:    XPU: _scaled_dot_product_efficient_attention_xpu
+15313:    XPU: _scaled_dot_product_efficient_attention_backward_xpu
+15391:    CUDA, XPU: _fill_mem_eff_dropout_mask_
+15408:    CPU, CUDA, XPU: special_airy_ai_out
+15423:    CPU, CUDA, MPS, XPU: special_bessel_j0_out
+15438:    CPU, CUDA, MPS, XPU: special_bessel_j1_out
+15453:    CPU, CUDA, MPS, XPU: special_bessel_y0_out
+15468:    CPU, CUDA, MPS, XPU: special_bessel_y1_out
+15501:    CPU, CUDA, MPS, XPU: special_chebyshev_polynomial_t_out
+15550:    CPU, CUDA, MPS, XPU: special_chebyshev_polynomial_u_out
+15599:    CPU, CUDA, MPS, XPU: special_chebyshev_polynomial_v_out
+15648:    CPU, CUDA, MPS, XPU: special_chebyshev_polynomial_w_out
+15697:    CPU, CUDA, MPS, XPU: special_hermite_polynomial_h_out
+15746:    CPU, CUDA, MPS, XPU: special_hermite_polynomial_he_out
+15795:    CPU, CUDA, MPS, XPU: special_laguerre_polynomial_l_out
+15844:    CPU, CUDA, XPU: special_legendre_polynomial_p_out
+15875:    CPU, CUDA, MPS, XPU: special_modified_bessel_i0_out
+15890:    CPU, CUDA, MPS, XPU: special_modified_bessel_i1_out
+15905:    CPU, CUDA, MPS, XPU: special_modified_bessel_k0_out
+15920:    CPU, CUDA, MPS, XPU: special_modified_bessel_k1_out
+15935:    CPU, CUDA, MPS, XPU: special_scaled_modified_bessel_k0_out
+15950:    CPU, CUDA, MPS, XPU: special_scaled_modified_bessel_k1_out
+15983:    CPU, CUDA, MPS, XPU: special_shifted_chebyshev_polynomial_t_out
+16032:    CPU, CUDA, MPS, XPU: special_shifted_chebyshev_polynomial_u_out
+16081:    CPU, CUDA, MPS, XPU: special_shifted_chebyshev_polynomial_v_out
+16130:    CPU, CUDA, MPS, XPU: special_shifted_chebyshev_polynomial_w_out
+16161:    CPU, CUDA, MPS, XPU: special_spherical_bessel_j0_out
+16182:    XPU: _fused_adam_kernel_xpu_
+16194:    XPU: _fused_adam_kernel_xpu_
+16204:    XPU: _fused_adamw_kernel_xpu_
+16216:    XPU: _fused_adamw_kernel_xpu_
+16226:    XPU: _fused_sgd_kernel_xpu_
+16238:    XPU: _fused_sgd_kernel_xpu_
+16246:    XPU: _fused_adagrad_kernel_xpu_
+16255:    XPU: _fused_adagrad_kernel_xpu_

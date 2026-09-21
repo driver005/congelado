@@ -1,6 +1,7 @@
 """bzlmod module extension loading every third_party/<name>/repo.bzl — no WORKSPACE file to load them from directly."""
 
 load("//bazel/toolchain/system_cc:repo.bzl", system_cc_repo = "repo")
+load("//third_party/adaptive_cpp:repo.bzl", adaptive_cpp_repo = "repo")
 load("//third_party/brotli:repo.bzl", brotli_repo = "repo")
 load("//third_party/inja:repo.bzl", inja_repo = "repo")
 load("//third_party/nlohmann_json:repo.bzl", nlohmann_json_repo = "repo")
@@ -15,5 +16,6 @@ def _third_party_impl(module_ctx):
     system_cc_repo()
     nlohmann_json_repo()
     inja_repo()
+    adaptive_cpp_repo()
 
 third_party_deps = module_extension(implementation = _third_party_impl)

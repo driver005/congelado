@@ -255,7 +255,7 @@
   "moduleExtensions": {
     "//third_party:extension.bzl%third_party_deps": {
       "general": {
-        "bzlTransitiveDigest": "OL6pzKghVQ2gSdTv8Jehdrjpa9fwhfy0+2wkLvGDf88=",
+        "bzlTransitiveDigest": "/SYH/5dhfiTq5Odzo3Q2sQWrIii/G9xV8lWtyR38LuI=",
         "usagesDigest": "gaLLBAzV/YGmCnqyLGLqzdxWzmTNplEvjc1eTaYCmkw=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -323,6 +323,15 @@
               "sha256": "7155f944553ca6064b26e88e6cae8b71f8be764832c9c7c6d5998e0d5fd60c55",
               "strip_prefix": "inja-3.4.0",
               "build_file": "@@//third_party/inja:inja.BUILD"
+            }
+          },
+          "adaptive_cpp": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://github.com/AdaptiveCpp/AdaptiveCpp/archive/refs/tags/v25.10.0.tar.gz",
+              "sha256": "334b16ebff373bd2841f83332c2ae9a45ec192f2cf964d5fdfe94e1140776059",
+              "strip_prefix": "AdaptiveCpp-25.10.0",
+              "build_file": "@@//third_party/adaptive_cpp:adaptive_cpp.BUILD"
             }
           }
         }

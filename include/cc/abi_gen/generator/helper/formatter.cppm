@@ -3,7 +3,7 @@ module;
 #include <cstdio>
 #include <nlohmann/json.hpp>
 
-export module cc_abi_gen_generator:helper_formater;
+export module cc_abi_gen_generator:helper_formatter;
 
 import std;
 import cc_templating;

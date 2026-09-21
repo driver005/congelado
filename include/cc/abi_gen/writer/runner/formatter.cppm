@@ -1,4 +1,4 @@
-export module cc_abi_gen_writer:runner_formater;
+export module cc_abi_gen_writer:runner_formatter;
 
 import std;
 import cc_utils_cli;
@@ -41,8 +41,8 @@ public:
                    "--assume-filename=.cppm",
                    "-style=file:" + (repo_root / ".clang-format").string()
                }
-           )
-           .add_input(std::string(source));
+        )
+            .add_input(std::string(source));
 
         auto run_result = m_runner.execute(std::move(cmd));
         if (!run_result) {
