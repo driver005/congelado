@@ -1,7 +1,6 @@
 module;
 
 #include <cstdio>
-#include <string_view>
 
 export module cc_abi_gen:cli_runner;
 
@@ -37,7 +36,7 @@ public:
         m_runtime.overwrite_path_callback(
             [](std::filesystem::path& out_path)
             {
-                constexpr std::array<std::string_view, 2> target_sequence{"include", "c"};
+                constexpr std::array<std::string_view, 2> TARGET_SEQUENCE{"include", "c"};
 
                 std::filesystem::path new_path;
 
@@ -46,7 +45,7 @@ public:
 
                 while (true) {
                     // Range-first: Search for {"include", "c"} inside the current path view
-                    auto match = std::ranges::search(current_view, target_sequence);
+                    auto match = std::ranges::search(current_view, TARGET_SEQUENCE);
 
                     if (match.empty()) {
                         // No more matches. Append the remaining components and exit.
