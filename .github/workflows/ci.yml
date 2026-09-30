@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -70,7 +70,7 @@ jobs:
         sanitizer: [asan, ubsan, tsan]
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -86,7 +86,7 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -106,7 +106,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
