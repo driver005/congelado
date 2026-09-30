@@ -24,10 +24,20 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     execute(const ice::sonic::String& input, const ice::sonic::String& out_output) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->execute(
             get_handle(),
             input.get_handle(),
@@ -41,9 +51,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> resubmit() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> resubmit() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->resubmit(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -52,10 +62,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     wait(int64_t timeout_ms, TFJobCompletionFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->wait(get_handle(), timeout_ms, completion, user_data, status.get_handle());
 
         if (!status.ok()) {
@@ -64,34 +74,20 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    on_complete(TFJobCompletionFn completion, void* user_data) noexcept
+    void on_complete(TFJobCompletionFn completion, void* user_data) noexcept
     {
-        ice::Status status;
-        m_ops->on_complete(get_handle(), completion, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->on_complete(get_handle(), completion, user_data);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    on_progress(TFJobProgressFn progress, void* user_data) noexcept
+    void on_progress(TFJobProgressFn progress, void* user_data) noexcept
     {
-        ice::Status status;
-        m_ops->on_progress(get_handle(), progress, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->on_progress(get_handle(), progress, user_data);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     list(const ice::sonic::TF_MapOps& filters, const ice::sonic::TF_VectorOps& out_job_ids) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->list(
             get_handle(),
             filters.get_handle(),
@@ -103,15 +99,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

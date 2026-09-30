@@ -1,5 +1,5 @@
 
             ) noexcept
             {
-                {{ namespace_name }}::Status status;
+                {{ status_type }} status;
                 {{ result_prefix }}m_ops->{{ method_name }}(get_handle(),

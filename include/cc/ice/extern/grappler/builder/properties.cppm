@@ -36,22 +36,22 @@ public:
     }
 
     virtual ~TFGrapplerPropertiesOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> infer_statically(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> infer_statically(
         _Bool assume_valid_feeds,
         _Bool aggressive_shape_inference,
         _Bool include_input_tensor_values,
         _Bool include_output_tensor_values
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_input_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_output_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_input_properties(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_input_properties(
         const ice::sonic::String& name,
         TF_Buffer** out_properties,
         int num_values
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_output_properties(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_output_properties(
         const ice::sonic::String& name,
         TF_Buffer** out_properties,
         int num_values

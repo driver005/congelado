@@ -36,15 +36,15 @@ public:
     }
 
     virtual ~TF_ArrayOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_count(size_t count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_count(size_t count) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(size_t index, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set(size_t index, const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> data(void** out_data) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void data(void** out_data) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -53,18 +53,12 @@ public:
             .set_element_size =
                 [](TF_Array* array, size_t element_size) noexcept
             {
-                auto res = TF_ArrayOps::from_handle(array).set_element_size(element_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ArrayOps::from_handle(array).set_element_size(element_size);
             },
             .set_count =
                 [](TF_Array* array, size_t count) noexcept
             {
-                auto res = TF_ArrayOps::from_handle(array).set_count(count);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ArrayOps::from_handle(array).set_count(count);
             },
             .get =
                 [](const TF_Array* array,
@@ -88,24 +82,17 @@ public:
             .size =
                 [](const TF_Array* array, size_t* out_size) noexcept
             {
-                auto res = TF_ArrayOps::from_handle(array).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ArrayOps::from_handle(array).size(out_size);
             },
             .data =
                 [](TF_Array* array, void** out_data) noexcept
             {
-                auto res = TF_ArrayOps::from_handle(array).data(out_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ArrayOps::from_handle(array).data(out_data);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Array* array) noexcept
             {
-                std::unique_ptr<TF_ArrayOps>{&TF_ArrayOps::from_handle(plugin_context)};
+                TF_ArrayOps::from_handle(array).destroy();
             },
 
         };

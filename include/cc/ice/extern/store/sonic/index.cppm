@@ -24,10 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "store";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& field_config) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create(
             get_handle(),
             name.get_handle(),
@@ -41,9 +46,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> drop(const ice::sonic::String& name) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    drop(const ice::sonic::String& name) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->drop(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -52,25 +58,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     list(const ice::sonic::TF_VectorOps& out_names) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->list(get_handle(), out_names.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

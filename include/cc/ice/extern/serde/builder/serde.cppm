@@ -36,53 +36,44 @@ public:
     }
 
     virtual ~TF_SerdeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_format_name(const ice::sonic::String& out_format_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> encode(
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
+    virtual void get_format_name(const ice::sonic::String& out_format_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> encode(
         const ice::sonic::String& value_json,
         const ice::sonic::String& out_encoded
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_SerdeOps{
             .struct_size = TF_SERDE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Serde* serde) noexcept
             {
-                std::unique_ptr<TF_SerdeOps>{&TF_SerdeOps::from_handle(plugin_context)};
+                TF_SerdeOps::from_handle(serde).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Serde* serde, TF_String* out_name) noexcept
             {
-                auto result = TF_SerdeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_SerdeOps::from_handle(serde).get_name(ice::sonic::String::wrap(out_name));
             },
             .get_content_type =
                 [](TF_Serde* serde, TF_String* out_content_type) noexcept
             {
-                auto res = TF_SerdeOps::from_handle(serde).get_content_type(
+                TF_SerdeOps::from_handle(serde).get_content_type(
                     ice::sonic::String::wrap(out_content_type)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_format_name =
                 [](TF_Serde* serde, TF_String* out_format_name) noexcept
             {
-                auto res = TF_SerdeOps::from_handle(serde).get_format_name(
+                TF_SerdeOps::from_handle(serde).get_format_name(
                     ice::sonic::String::wrap(out_format_name)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .encode =
                 [](TF_Serde* serde,
@@ -120,8 +111,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Serde& get_handle() const noexcept
     {

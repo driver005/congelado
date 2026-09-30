@@ -24,35 +24,28 @@ public:
 
     static constexpr std::string_view domain_name = "stream_executor";
 
-    [[nodiscard]] std::expected<void, ice::Status> device_memory_usage(
+    void device_memory_usage(
         const ice::sonic::TF_DeviceOps& device,
         int64_t* out_free,
         int64_t* out_total,
         _Bool* out_success
     ) noexcept
     {
-        ice::Status status;
         m_ops->device_memory_usage(
             get_handle(),
             device.get_handle(),
             out_free,
             out_total,
-            out_success,
-            status.get_handle()
+            out_success
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_stream_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_stream_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_stream_internal(
             get_handle(),
             device.get_handle(),
@@ -66,32 +59,21 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> destroy_stream_internal(
+    void destroy_stream_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
-        m_ops->destroy_stream_internal(
-            get_handle(),
-            device.get_handle(),
-            stream.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy_stream_internal(get_handle(), device.get_handle(), stream.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_stream_dependency(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_stream_dependency(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& dependent,
         const ice::sonic::TF_StreamOps& other
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_stream_dependency(
             get_handle(),
             device.get_handle(),
@@ -106,12 +88,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_stream_status(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_stream_status(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_stream_status(
             get_handle(),
             device.get_handle(),
@@ -125,12 +107,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_event_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_event_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_EventOps& event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_event_internal(
             get_handle(),
             device.get_handle(),
@@ -144,53 +126,35 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> destroy_event_internal(
+    void destroy_event_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_EventOps& event
     ) noexcept
     {
-        ice::Status status;
-        m_ops->destroy_event_internal(
-            get_handle(),
-            device.get_handle(),
-            event.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy_event_internal(get_handle(), device.get_handle(), event.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_event_status(
+    void get_event_status(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_EventOps& event,
         TF_EventStatus* out_event_status
     ) noexcept
     {
-        ice::Status status;
         m_ops->get_event_status(
             get_handle(),
             device.get_handle(),
             event.get_handle(),
-            out_event_status,
-            status.get_handle()
+            out_event_status
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> record_event(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> record_event(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         const ice::sonic::TF_EventOps& event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->record_event(
             get_handle(),
             device.get_handle(),
@@ -205,13 +169,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> wait_for_event(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> wait_for_event(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         const ice::sonic::TF_EventOps& event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->wait_for_event(
             get_handle(),
             device.get_handle(),
@@ -226,12 +190,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_timer_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_timer_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_TimerOps& timer
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_timer_internal(
             get_handle(),
             device.get_handle(),
@@ -245,32 +209,21 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> destroy_timer_internal(
+    void destroy_timer_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_TimerOps& timer
     ) noexcept
     {
-        ice::Status status;
-        m_ops->destroy_timer_internal(
-            get_handle(),
-            device.get_handle(),
-            timer.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy_timer_internal(get_handle(), device.get_handle(), timer.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> start_timer(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> start_timer(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         const ice::sonic::TF_TimerOps& timer
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->start_timer(
             get_handle(),
             device.get_handle(),
@@ -285,13 +238,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> stop_timer(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> stop_timer(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         const ice::sonic::TF_TimerOps& timer
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->stop_timer(
             get_handle(),
             device.get_handle(),
@@ -306,7 +259,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> memcpy_dtoh(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> memcpy_dtoh(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         void* host_dst,
@@ -314,7 +267,7 @@ public:
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->memcpy_dtoh(
             get_handle(),
             device.get_handle(),
@@ -331,7 +284,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> memcpy_htod(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> memcpy_htod(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* device_dst,
@@ -339,7 +292,7 @@ public:
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->memcpy_htod(
             get_handle(),
             device.get_handle(),
@@ -356,7 +309,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> memcpy_dtod(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> memcpy_dtod(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* device_dst,
@@ -364,7 +317,7 @@ public:
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->memcpy_dtod(
             get_handle(),
             device.get_handle(),
@@ -381,14 +334,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_dtoh(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> sync_memcpy_dtoh(
         const ice::sonic::TF_DeviceOps& device,
         void* host_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->sync_memcpy_dtoh(
             get_handle(),
             device.get_handle(),
@@ -404,14 +357,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_htod(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> sync_memcpy_htod(
         const ice::sonic::TF_DeviceOps& device,
         TF_DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->sync_memcpy_htod(
             get_handle(),
             device.get_handle(),
@@ -427,14 +380,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> sync_memcpy_dtod(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> sync_memcpy_dtod(
         const ice::sonic::TF_DeviceOps& device,
         TF_DeviceMemoryBase* device_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->sync_memcpy_dtod(
             get_handle(),
             device.get_handle(),
@@ -450,12 +403,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> block_host_for_event(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> block_host_for_event(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_EventOps& event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->block_host_for_event(
             get_handle(),
             device.get_handle(),
@@ -469,12 +422,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> block_host_until_done(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> block_host_until_done(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->block_host_until_done(
             get_handle(),
             device.get_handle(),
@@ -488,10 +441,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     synchronize_all_activity(const ice::sonic::TF_DeviceOps& device) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->synchronize_all_activity(get_handle(), device.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -500,14 +453,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> mem_zero(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> mem_zero(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* location,
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->mem_zero(
             get_handle(),
             device.get_handle(),
@@ -523,7 +476,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> memset(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> memset(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* location,
@@ -531,7 +484,7 @@ public:
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->memset(
             get_handle(),
             device.get_handle(),
@@ -548,7 +501,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> memset32(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> memset32(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* location,
@@ -556,7 +509,7 @@ public:
         uint64_t size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->memset32(
             get_handle(),
             device.get_handle(),
@@ -573,7 +526,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> host_callback(
+    void host_callback(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream,
         TF_StatusCallbackFn callback_fn,
@@ -581,30 +534,23 @@ public:
         _Bool* out_success
     ) noexcept
     {
-        ice::Status status;
         m_ops->host_callback(
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
             callback_fn,
             callback_arg,
-            out_success,
-            status.get_handle()
+            out_success
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_stream_with_options(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_stream_with_options(
         const ice::sonic::TF_DeviceOps& device,
         const TF_StreamOptions* options,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_stream_with_options(
             get_handle(),
             device.get_handle(),
@@ -619,13 +565,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_stream_from_pool(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_stream_from_pool(
         const ice::sonic::TF_DeviceOps& device,
         int32_t priority,
         const ice::sonic::TF_StreamOps& out_stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_stream_from_pool(
             get_handle(),
             device.get_handle(),
@@ -640,12 +586,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_current_stream(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_current_stream(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& out_stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_current_stream(
             get_handle(),
             device.get_handle(),
@@ -659,12 +605,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_current_stream(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> set_current_stream(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set_current_stream(
             get_handle(),
             device.get_handle(),
@@ -678,13 +624,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_stream_from_native(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_stream_from_native(
         const ice::sonic::TF_DeviceOps& device,
         void* native_handle,
         const ice::sonic::TF_StreamOps& out_stream
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_stream_from_native(
             get_handle(),
             device.get_handle(),
@@ -699,13 +645,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_event_with_options_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_event_with_options_internal(
         const ice::sonic::TF_DeviceOps& device,
         const TF_EventOptions* options,
         const ice::sonic::TF_EventOps& out_event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_event_with_options_internal(
             get_handle(),
             device.get_handle(),
@@ -720,13 +666,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_event_from_ipc_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_event_from_ipc_internal(
         const ice::sonic::TF_DeviceOps& device,
         const TF_IpcEventHandle* handle,
         const ice::sonic::TF_EventOps& out_event
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_event_from_ipc_internal(
             get_handle(),
             device.get_handle(),
@@ -741,12 +687,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_allocator_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_allocator_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_AllocatorOps& out_allocator
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_allocator_internal(
             get_handle(),
             device.get_handle(),
@@ -760,32 +706,22 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> destroy_allocator_internal(
+    void destroy_allocator_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_AllocatorOps& allocator
     ) noexcept
     {
-        ice::Status status;
-        m_ops->destroy_allocator_internal(
-            get_handle(),
-            device.get_handle(),
-            allocator.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops
+            ->destroy_allocator_internal(get_handle(), device.get_handle(), allocator.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> create_random_generator_internal(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_random_generator_internal(
         const ice::sonic::TF_DeviceOps& device,
         uint64_t seed,
         const ice::sonic::TF_RandomGeneratorOps& out_generator
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_random_generator_internal(
             get_handle(),
             device.get_handle(),
@@ -800,31 +736,24 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> destroy_random_generator_internal(
+    void destroy_random_generator_internal(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_RandomGeneratorOps& generator
     ) noexcept
     {
-        ice::Status status;
         m_ops->destroy_random_generator_internal(
             get_handle(),
             device.get_handle(),
-            generator.get_handle(),
-            status.get_handle()
+            generator.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_default_random_generator(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_default_random_generator(
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TF_RandomGeneratorOps& out_generator
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_default_random_generator(
             get_handle(),
             device.get_handle(),
@@ -838,26 +767,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_native_handle(const ice::sonic::TF_DeviceOps& device, void** out_handle) noexcept
+    void get_native_handle(const ice::sonic::TF_DeviceOps& device, void** out_handle) noexcept
     {
-        ice::Status status;
-        m_ops
-            ->get_native_handle(get_handle(), device.get_handle(), out_handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_native_handle(get_handle(), device.get_handle(), out_handle);
     }
 };
 

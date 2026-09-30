@@ -36,94 +36,89 @@ public:
     }
 
     virtual ~TFStoreCollectionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> close() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void close() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list(const ice::sonic::TF_VectorOps& out_names) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     drop(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(const ice::sonic::String& key,
         TFStoreGetCompletionFn completion,
         void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> multi_get(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_get(
         const ice::sonic::TF_VectorOps& keys,
         TFStoreMultiGetCompletionFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set(const ice::sonic::String& key,
         const ice::sonic::String& value,
         int64_t ttl_seconds,
         TFStoreSetCompletionFn completion,
         void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> multi_set(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_set(
         const ice::sonic::TF_MapOps& entries,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     erase(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> multi_erase(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_erase(
         const ice::sonic::TF_VectorOps& keys,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     exists(const ice::sonic::String& key, TFStoreExistsFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> rename(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> rename(
         const ice::sonic::String& old_key,
         const ice::sonic::String& new_key,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     clear(TFStoreAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> increment(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> increment(
         const ice::sonic::String& key,
         int64_t delta,
         TFStoreIntFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> compare_and_swap(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> compare_and_swap(
         const ice::sonic::String& key,
         const ice::sonic::String& expected_value,
         const ice::sonic::String& new_value,
         TFStoreBoolFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> expire(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> expire(
         const ice::sonic::String& key,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_ttl(const ice::sonic::String& key, TFStoreIntFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     persist(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFStoreCollectionOps{
             .struct_size = TF_TORECOLLECTION_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFStoreCollection* collection) noexcept
             {
-                std::unique_ptr<TFStoreCollectionOps>{
-                    &TFStoreCollectionOps::from_handle(plugin_context)
-                };
+                TFStoreCollectionOps::from_handle(collection).destroy();
             },
             .close =
                 [](TFStoreCollection* collection) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection).close();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFStoreCollectionOps::from_handle(collection).close();
             },
             .list =
                 [](TFStoreCollection* store, TF_Vector* out_names, TF_Status* out_status) noexcept

@@ -25,14 +25,14 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status> infer_statically(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> infer_statically(
         _Bool assume_valid_feeds,
         _Bool aggressive_shape_inference,
         _Bool include_input_tensor_values,
         _Bool include_output_tensor_values
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->infer_statically(
             get_handle(),
             assume_valid_feeds,
@@ -48,10 +48,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_input_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_input_properties_size(
             get_handle(),
             name.get_handle(),
@@ -65,10 +65,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_output_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_output_properties_size(
             get_handle(),
             name.get_handle(),
@@ -82,13 +82,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_input_properties(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_input_properties(
         const ice::sonic::String& name,
         TF_Buffer** out_properties,
         int num_values
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_input_properties(
             get_handle(),
             name.get_handle(),
@@ -103,13 +103,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_output_properties(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_output_properties(
         const ice::sonic::String& name,
         TF_Buffer** out_properties,
         int num_values
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_output_properties(
             get_handle(),
             name.get_handle(),
@@ -122,15 +122,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

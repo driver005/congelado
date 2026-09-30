@@ -36,37 +36,33 @@ public:
     }
 
     virtual ~TFGeneratorNodeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_operand(int index, const ice::sonic::String& var_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_output_name(int index, const ice::sonic::String& var_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_attr(const ice::sonic::String& name, const void* value, size_t value_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_operand(int index, const ice::sonic::String& out_operand) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_output_name(int index, const ice::sonic::String& out_output_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_operand(int index, const ice::sonic::String& out_operand) noexcept = 0;
+    virtual void get_output_name(int index, const ice::sonic::String& out_output_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_definition(const ice::sonic::TFGeneratorDefinitionOps& out_definition) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFGeneratorNodeOps{
             .struct_size = TF_ENERATORNODE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFGeneratorNode* node_context) noexcept
             {
-                std::unique_ptr<TFGeneratorNodeOps>{
-                    &TFGeneratorNodeOps::from_handle(plugin_context)
-                };
+                TFGeneratorNodeOps::from_handle(node_context).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFGeneratorNode* node_context, TF_String* out_name) noexcept
             {
-                auto result = TFGeneratorNodeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFGeneratorNodeOps::from_handle(node_context)
+                    .get_name(ice::sonic::String::wrap(out_name));
             },
             .set_operand =
                 [](TFGeneratorNode* node_context,
@@ -108,20 +104,14 @@ public:
             .get_operand =
                 [](TFGeneratorNode* node_context, int index, TF_String* out_operand) noexcept
             {
-                auto res = TFGeneratorNodeOps::from_handle(node_context)
-                               .get_operand(index, ice::sonic::String::wrap(out_operand));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorNodeOps::from_handle(node_context)
+                    .get_operand(index, ice::sonic::String::wrap(out_operand));
             },
             .get_output_name =
                 [](TFGeneratorNode* node_context, int index, TF_String* out_output_name) noexcept
             {
-                auto res = TFGeneratorNodeOps::from_handle(node_context)
-                               .get_output_name(index, ice::sonic::String::wrap(out_output_name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorNodeOps::from_handle(node_context)
+                    .get_output_name(index, ice::sonic::String::wrap(out_output_name));
             },
             .get_definition =
                 [](TFGeneratorNode* node_context,
@@ -143,8 +133,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFGeneratorNode& get_handle() const noexcept
     {

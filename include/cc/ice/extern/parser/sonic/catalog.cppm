@@ -24,12 +24,12 @@ public:
 
     static constexpr std::string_view domain_name = "parser";
 
-    [[nodiscard]] std::expected<void, ice::Status> parse_file(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> parse_file(
         const ice::sonic::String& file_path,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->parse_file(
             get_handle(),
             file_path.get_handle(),
@@ -43,12 +43,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> parse_buffer(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> parse_buffer(
         const ice::sonic::TF_BufferOps& buffer,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->parse_buffer(
             get_handle(),
             buffer.get_handle(),
@@ -60,15 +60,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

@@ -36,38 +36,36 @@ public:
     }
 
     virtual ~TFGeneratorModuleOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_function(const ice::sonic::TFGeneratorFunctionOps& function) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_function(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_function(
         const ice::sonic::String& name,
         const ice::sonic::TFGeneratorFunctionOps& out_function
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_functions(TF_Tensor** out_functions) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_name(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> validate() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_name(const ice::sonic::String& name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> validate() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     emit(const ice::sonic::String& out_code) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFGeneratorModuleOps{
             .struct_size = TF_ENERATORMODULE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFGeneratorModule* module) noexcept
             {
-                std::unique_ptr<TFGeneratorModuleOps>{
-                    &TFGeneratorModuleOps::from_handle(plugin_context)
-                };
+                TFGeneratorModuleOps::from_handle(module).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFGeneratorModule* module, TF_String* out_name) noexcept
             {
-                auto result = TFGeneratorModuleOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFGeneratorModuleOps::from_handle(module).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .add_function =
                 [](TFGeneratorModule* module,
@@ -108,12 +106,7 @@ public:
             .set_name =
                 [](TFGeneratorModule* module, const TF_String* name) noexcept
             {
-                auto res = TFGeneratorModuleOps::from_handle(module).set_name(
-                    ice::sonic::String::wrap(name)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorModuleOps::from_handle(module).set_name(ice::sonic::String::wrap(name));
             },
             .validate =
                 [](TFGeneratorModule* module, TF_Status* out_status) noexcept
@@ -141,8 +134,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFGeneratorModule& get_handle() const noexcept
     {

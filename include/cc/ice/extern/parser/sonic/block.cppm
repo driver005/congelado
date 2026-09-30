@@ -24,9 +24,21 @@ public:
 
     static constexpr std::string_view domain_name = "parser";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_node_count(int* out_count) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
+        m_ops->get_name(get_handle(), out_name.get_handle(), status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_node_count(int* out_count) noexcept
+    {
+        ice::sonic::Status status;
         m_ops->get_node_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
@@ -35,25 +47,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_node(int index, const ice::sonic::TFParserNodeOps& out_node) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_node(get_handle(), index, out_node.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

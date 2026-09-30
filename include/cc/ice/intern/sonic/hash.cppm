@@ -24,10 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     hash_bytes(const void* data, size_t size, size_t* out_hash) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->hash_bytes(get_handle(), data, size, out_hash, status.get_handle());
 
         if (!status.ok()) {
@@ -36,25 +41,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     hash_combine(size_t seed, size_t value, size_t* out_hash) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->hash_combine(get_handle(), seed, value, out_hash, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

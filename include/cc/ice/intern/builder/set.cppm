@@ -36,15 +36,17 @@ public:
     }
 
     virtual ~TF_SetOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> insert(const void* key) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    insert(const void* key) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     find(const void* key, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> erase(const void* key) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    erase(const void* key) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     contains(const void* key, int* out_found) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    for_each(TF_SetVisitor visitor, void* capture) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void for_each(TF_SetVisitor visitor, void* capture) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -91,24 +93,17 @@ public:
             .size =
                 [](const TF_Set* set, size_t* out_size) noexcept
             {
-                auto res = TF_SetOps::from_handle(set).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_SetOps::from_handle(set).size(out_size);
             },
             .for_each =
                 [](const TF_Set* set, TF_SetVisitor visitor, void* capture) noexcept
             {
-                auto res = TF_SetOps::from_handle(set).for_each(visitor, capture);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_SetOps::from_handle(set).for_each(visitor, capture);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Set* set) noexcept
             {
-                std::unique_ptr<TF_SetOps>{&TF_SetOps::from_handle(plugin_context)};
+                TF_SetOps::from_handle(set).destroy();
             },
 
         };

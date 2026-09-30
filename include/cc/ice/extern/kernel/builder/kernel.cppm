@@ -36,23 +36,22 @@ public:
     }
 
     virtual ~TF_KernelOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_KernelOps{
             .struct_size = TF_KERNEL_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Kernel* kernel) noexcept
             {
-                std::unique_ptr<TF_KernelOps>{&TF_KernelOps::from_handle(plugin_context)};
+                TF_KernelOps::from_handle(kernel).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Kernel* kernel, TF_String* out_name) noexcept
             {
-                auto result = TF_KernelOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_KernelOps::from_handle(kernel).get_name(ice::sonic::String::wrap(out_name));
             },
 
         };
@@ -62,8 +61,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Kernel& get_handle() const noexcept
     {

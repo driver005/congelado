@@ -36,13 +36,11 @@ public:
     }
 
     virtual ~TFGrapplerConfigsOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_optimization_level(TFGrapplerOptimizationLevel level) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept = 0;
+    virtual void set_optimization_level(TFGrapplerOptimizationLevel level) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_optimizer_configs(TFGrapplerOptimizerConfigs* out_configs) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_optimizer_configs(const TFGrapplerOptimizerConfigs* in_configs) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -52,19 +50,12 @@ public:
             .get_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel* out_level) noexcept
             {
-                auto res =
-                    TFGrapplerConfigsOps::from_handle(configs).get_optimization_level(out_level);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGrapplerConfigsOps::from_handle(configs).get_optimization_level(out_level);
             },
             .set_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept
             {
-                auto res = TFGrapplerConfigsOps::from_handle(configs).set_optimization_level(level);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGrapplerConfigsOps::from_handle(configs).set_optimization_level(level);
             },
             .get_optimizer_configs =
                 [](TFGrapplerConfigs* configs,

@@ -36,7 +36,8 @@ public:
     }
 
     virtual ~TFStoreQueryOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     run(const ice::sonic::TF_MapOps& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
@@ -49,11 +50,10 @@ public:
     {
         m_vtable = ::TFStoreQueryOps{
             .struct_size = TF_TOREQUERY_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFStoreQuery* query) noexcept
             {
-                std::unique_ptr<TFStoreQueryOps>{&TFStoreQueryOps::from_handle(plugin_context)};
+                TFStoreQueryOps::from_handle(query).destroy();
             },
             .run =
                 [](TFStoreQuery* query,

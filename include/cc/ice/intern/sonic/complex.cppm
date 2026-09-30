@@ -24,57 +24,29 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_real(double* out_real) noexcept
+    void get_real(double* out_real) noexcept
     {
-        ice::Status status;
-        m_ops->get_real(get_handle(), out_real, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_real(get_handle(), out_real);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_imag(double* out_imag) noexcept
+    void get_imag(double* out_imag) noexcept
     {
-        ice::Status status;
-        m_ops->get_imag(get_handle(), out_imag, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_imag(get_handle(), out_imag);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_real(double real) noexcept
+    void set_real(double real) noexcept
     {
-        ice::Status status;
-        m_ops->set_real(get_handle(), real, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_real(get_handle(), real);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_imag(double imag) noexcept
+    void set_imag(double imag) noexcept
     {
-        ice::Status status;
-        m_ops->set_imag(get_handle(), imag, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_imag(get_handle(), imag);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
     }
 };
 

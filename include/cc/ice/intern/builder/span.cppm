@@ -36,12 +36,13 @@ public:
     }
 
     virtual ~TF_SpanOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(size_t index, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> data(void** out_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void data(void** out_data) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     subspan(size_t offset, size_t count, const ice::sonic::TF_SpanOps& out_span) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -61,18 +62,12 @@ public:
             .size =
                 [](const TF_Span* span, size_t* out_size) noexcept
             {
-                auto res = TF_SpanOps::from_handle(span).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_SpanOps::from_handle(span).size(out_size);
             },
             .data =
                 [](const TF_Span* span, void** out_data) noexcept
             {
-                auto res = TF_SpanOps::from_handle(span).data(out_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_SpanOps::from_handle(span).data(out_data);
             },
             .subspan =
                 [](const TF_Span* span,
@@ -87,11 +82,10 @@ public:
                     res.error().to_c(out_status);
                 }
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Span* span) noexcept
             {
-                std::unique_ptr<TF_SpanOps>{&TF_SpanOps::from_handle(plugin_context)};
+                TF_SpanOps::from_handle(span).destroy();
             },
 
         };

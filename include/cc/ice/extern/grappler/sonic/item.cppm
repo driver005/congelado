@@ -24,10 +24,10 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_nodes_to_preserve_size(int* out_num_values, size_t* out_storage_size) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_nodes_to_preserve_size(
             get_handle(),
             out_num_values,
@@ -41,7 +41,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_nodes_to_preserve_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_nodes_to_preserve_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
@@ -49,7 +49,7 @@ public:
         size_t storage_size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_nodes_to_preserve_list(
             get_handle(),
             out_values,
@@ -66,10 +66,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_fetch_nodes_size(int* out_num_values, size_t* out_storage_size) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_fetch_nodes_size(
             get_handle(),
             out_num_values,
@@ -83,7 +83,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_fetch_nodes_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_fetch_nodes_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
@@ -91,7 +91,7 @@ public:
         size_t storage_size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_fetch_nodes_list(
             get_handle(),
             out_values,
@@ -106,15 +106,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

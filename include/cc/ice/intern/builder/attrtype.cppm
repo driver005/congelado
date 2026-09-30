@@ -36,30 +36,26 @@ public:
     }
 
     virtual ~TF_AttrTypeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void
     attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_AttrTypeOps{
             .struct_size = TF_ATTRTYPE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_AttrType* attrtype, TF_String* out_name) noexcept
             {
-                auto result = TF_AttrTypeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_AttrTypeOps::from_handle(attrtype).get_name(ice::sonic::String::wrap(out_name));
             },
             .attrtype_name =
                 [](TF_AttrType* attrtype, TFAttrTypeEnum type, TF_String* out_type_name) noexcept
             {
-                auto res = TF_AttrTypeOps::from_handle(attrtype).attrtype_name(
+                TF_AttrTypeOps::from_handle(attrtype).attrtype_name(
                     type,
                     ice::sonic::String::wrap(out_type_name)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
 
         };
@@ -69,8 +65,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_AttrType& get_handle() const noexcept
     {

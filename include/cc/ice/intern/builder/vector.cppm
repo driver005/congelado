@@ -36,20 +36,18 @@ public:
     }
 
     virtual ~TF_VectorOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    push_back(const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void push_back(const void* value) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(size_t index, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set(size_t index, const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    capacity(size_t* out_capacity) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void capacity(size_t* out_capacity) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     reserve(size_t new_capacity) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> data(void** out_data) noexcept = 0;
+    virtual void data(void** out_data) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -58,18 +56,12 @@ public:
             .set_element_size =
                 [](TF_Vector* vector, size_t element_size) noexcept
             {
-                auto res = TF_VectorOps::from_handle(vector).set_element_size(element_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_VectorOps::from_handle(vector).set_element_size(element_size);
             },
             .push_back =
                 [](TF_Vector* vector, const void* value) noexcept
             {
-                auto res = TF_VectorOps::from_handle(vector).push_back(value);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_VectorOps::from_handle(vector).push_back(value);
             },
             .get =
                 [](const TF_Vector* vector,
@@ -96,18 +88,12 @@ public:
             .size =
                 [](const TF_Vector* vector, size_t* out_size) noexcept
             {
-                auto res = TF_VectorOps::from_handle(vector).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_VectorOps::from_handle(vector).size(out_size);
             },
             .capacity =
                 [](const TF_Vector* vector, size_t* out_capacity) noexcept
             {
-                auto res = TF_VectorOps::from_handle(vector).capacity(out_capacity);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_VectorOps::from_handle(vector).capacity(out_capacity);
             },
             .reserve =
                 [](TF_Vector* vector, size_t new_capacity, TF_Status* out_status) noexcept
@@ -120,16 +106,12 @@ public:
             .data =
                 [](TF_Vector* vector, void** out_data) noexcept
             {
-                auto res = TF_VectorOps::from_handle(vector).data(out_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_VectorOps::from_handle(vector).data(out_data);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Vector* vector) noexcept
             {
-                std::unique_ptr<TF_VectorOps>{&TF_VectorOps::from_handle(plugin_context)};
+                TF_VectorOps::from_handle(vector).destroy();
             },
 
         };

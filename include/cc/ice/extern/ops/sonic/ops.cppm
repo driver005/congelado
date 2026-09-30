@@ -24,13 +24,14 @@ public:
 
     static constexpr std::string_view domain_name = "ops";
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 };
 

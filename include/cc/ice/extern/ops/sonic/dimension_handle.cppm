@@ -25,35 +25,14 @@ public:
 
     static constexpr std::string_view domain_name = "ops";
 
-    [[nodiscard]] std::expected<void, ice::Status> value_known(int* out_known) noexcept
+    void value_known(int* out_known) noexcept
     {
-        ice::Status status;
-        m_ops->value_known(get_handle(), out_known, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->value_known(get_handle(), out_known);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> value(int64_t* out_value) noexcept
+    void value(int64_t* out_value) noexcept
     {
-        ice::Status status;
-        m_ops->value(get_handle(), out_value, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->value(get_handle(), out_value);
     }
 };
 

@@ -36,83 +36,60 @@ public:
     }
 
     virtual ~TF_FileStatisticsOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_directory(int* out_is_directory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_is_directory(int is_directory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> length(int64_t* out_length) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_length(int64_t length) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    mtime_nsec(int64_t* out_mtime_nsec) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_mtime_nsec(int64_t mtime_nsec) noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void is_directory(int* out_is_directory) noexcept = 0;
+    virtual void set_is_directory(int is_directory) noexcept = 0;
+    virtual void length(int64_t* out_length) noexcept = 0;
+    virtual void set_length(int64_t length) noexcept = 0;
+    virtual void mtime_nsec(int64_t* out_mtime_nsec) noexcept = 0;
+    virtual void set_mtime_nsec(int64_t mtime_nsec) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_FileStatisticsOps{
             .struct_size = TF_FILESTATISTICS_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_FileStatistics* stats, TF_String* out_name) noexcept
             {
-                auto result = TF_FileStatisticsOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_FileStatisticsOps::from_handle(stats).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .is_directory =
                 [](const TF_FileStatistics* stats, int* out_is_directory) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).is_directory(out_is_directory);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).is_directory(out_is_directory);
             },
             .set_is_directory =
                 [](TF_FileStatistics* stats, int is_directory) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).set_is_directory(is_directory);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).set_is_directory(is_directory);
             },
             .length =
                 [](const TF_FileStatistics* stats, int64_t* out_length) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).length(out_length);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).length(out_length);
             },
             .set_length =
                 [](TF_FileStatistics* stats, int64_t length) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).set_length(length);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).set_length(length);
             },
             .mtime_nsec =
                 [](const TF_FileStatistics* stats, int64_t* out_mtime_nsec) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).mtime_nsec(out_mtime_nsec);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).mtime_nsec(out_mtime_nsec);
             },
             .set_mtime_nsec =
                 [](TF_FileStatistics* stats, int64_t mtime_nsec) noexcept
             {
-                auto res = TF_FileStatisticsOps::from_handle(stats).set_mtime_nsec(mtime_nsec);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_FileStatisticsOps::from_handle(stats).set_mtime_nsec(mtime_nsec);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_FileStatistics* stats) noexcept
             {
-                std::unique_ptr<TF_FileStatisticsOps>{
-                    &TF_FileStatisticsOps::from_handle(plugin_context)
-                };
+                TF_FileStatisticsOps::from_handle(stats).destroy();
             },
 
         };
@@ -122,8 +99,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_FileStatistics& get_handle() const noexcept
     {

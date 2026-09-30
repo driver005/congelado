@@ -24,80 +24,40 @@ public:
 
     static constexpr std::string_view domain_name = "stream_executor";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_numa_node(int32_t* out_numa_node) noexcept
+    void get_numa_node(int32_t* out_numa_node) noexcept
     {
-        ice::Status status;
-        m_ops->get_numa_node(get_handle(), out_numa_node, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_numa_node(get_handle(), out_numa_node);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_memory_bandwidth(int64_t* out_bandwidth) noexcept
+    void get_memory_bandwidth(int64_t* out_bandwidth) noexcept
     {
-        ice::Status status;
-        m_ops->get_memory_bandwidth(get_handle(), out_bandwidth, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_memory_bandwidth(get_handle(), out_bandwidth);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_gflops(double* out_gflops) noexcept
+    void get_gflops(double* out_gflops) noexcept
     {
-        ice::Status status;
-        m_ops->get_gflops(get_handle(), out_gflops, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_gflops(get_handle(), out_gflops);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_hardware_name(const ice::sonic::String& out_name) noexcept
+    void get_hardware_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->get_hardware_name(get_handle(), out_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_hardware_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_device_vendor(const ice::sonic::String& out_vendor) noexcept
+    void get_device_vendor(const ice::sonic::String& out_vendor) noexcept
     {
-        ice::Status status;
-        m_ops->get_device_vendor(get_handle(), out_vendor.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_device_vendor(get_handle(), out_vendor.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept
+    void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept
     {
-        ice::Status status;
-        m_ops->get_pci_bus_id(get_handle(), out_pci_bus_id.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_pci_bus_id(get_handle(), out_pci_bus_id.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_device_properties(TF_DeviceProperties* out_properties) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_device_properties(get_handle(), out_properties, status.get_handle());
 
         if (!status.ok()) {
@@ -106,24 +66,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
+    void get_native_handle(void** out_handle) noexcept
     {
-        ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_native_handle(get_handle(), out_handle);
     }
 };
 

@@ -24,9 +24,22 @@ public:
 
     static constexpr std::string_view domain_name = "parser";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_parameter_count(int* out_count) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
+        m_ops->get_name(get_handle(), out_name.get_handle(), status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    get_parameter_count(int* out_count) noexcept
+    {
+        ice::sonic::Status status;
         m_ops->get_parameter_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
@@ -35,10 +48,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_parameter(int index, const ice::sonic::TFParserParameterOps& out_parameter) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_parameter(get_handle(), index, out_parameter.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -47,9 +60,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_block_count(int* out_count) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_block_count(int* out_count) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_block_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
@@ -58,25 +71,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_block(int index, const ice::sonic::TFParserBlockOps& out_block) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_block(get_handle(), index, out_block.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

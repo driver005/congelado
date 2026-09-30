@@ -76,16 +76,6 @@ public:
         return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status";
     }
 
-    bool is_destroy() const
-    {
-        return m_name == "destroy";
-    }
-
-    bool is_get_name() const
-    {
-        return m_name == "get_name";
-    }
-
     bool has_parameter() const
     {
         return !m_parameters.empty();

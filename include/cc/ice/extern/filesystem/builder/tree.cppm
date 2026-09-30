@@ -36,55 +36,55 @@ public:
     }
 
     virtual ~TFFilesystemTreeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    free_options(TFFilesystemOption* options, int num_options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void free_options(TFFilesystemOption* options, int num_options) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     recursively_create_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     delete_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     delete_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> delete_recursively(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> delete_recursively(
         const ice::sonic::String& path,
         uint64_t* undeleted_files,
         uint64_t* undeleted_dirs
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     rename_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     copy_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     path_exists(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     paths_exist(const ice::sonic::String& paths, int num_paths) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> stat(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> stat(
         const ice::sonic::String& path,
         const ice::sonic::TF_FileStatisticsOps& out_stats
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     is_directory(const ice::sonic::String& path, int* out_is_directory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_file_size(const ice::sonic::String& path, int64_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void
     translate_name(const ice::sonic::String& uri, const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_children(const ice::sonic::String& path, TF_Tensor** out_children) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_matching_paths(const ice::sonic::String& glob, TF_Tensor** out_matches) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> flush_caches() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void flush_caches() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_filesystem_configuration(TF_Tensor** out_config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_filesystem_configuration(const ice::sonic::TF_TensorOps& options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_filesystem_configuration_option(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_filesystem_configuration_option(
         const ice::sonic::String& key,
         TFFilesystemOption* out_option
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_filesystem_configuration_option(const TFFilesystemOption* option) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_filesystem_configuration_keys(TF_Tensor** out_keys) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -94,11 +94,7 @@ public:
             .free_options =
                 [](TFFilesystemTree* manager, TFFilesystemOption* options, int num_options) noexcept
             {
-                auto res =
-                    TFFilesystemTreeOps::from_handle(manager).free_options(options, num_options);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFFilesystemTreeOps::from_handle(manager).free_options(options, num_options);
             },
             .create_dir =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
@@ -253,13 +249,10 @@ public:
             .translate_name =
                 [](TFFilesystemTree* manager, const TF_String* uri, TF_String* out_name) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).translate_name(
+                TFFilesystemTreeOps::from_handle(manager).translate_name(
                     ice::sonic::String::wrap(uri),
                     ice::sonic::String::wrap(out_name)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_children =
                 [](TFFilesystemTree* manager,
@@ -292,10 +285,7 @@ public:
             .flush_caches =
                 [](TFFilesystemTree* manager) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).flush_caches();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFFilesystemTreeOps::from_handle(manager).flush_caches();
             },
             .get_filesystem_configuration =
                 [](TFFilesystemTree* manager,

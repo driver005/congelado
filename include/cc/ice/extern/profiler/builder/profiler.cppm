@@ -36,39 +36,34 @@ public:
     }
 
     virtual ~TF_ProfilerOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_device_type(const ice::sonic::String& out_device_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> stop() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void get_device_type(const ice::sonic::String& out_device_type) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> start() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> stop() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     collect_data_xspace(TF_Tensor** out_data) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ProfilerOps{
             .struct_size = TF_PROFILER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Profiler* profiler) noexcept
             {
-                std::unique_ptr<TF_ProfilerOps>{&TF_ProfilerOps::from_handle(plugin_context)};
+                TF_ProfilerOps::from_handle(profiler).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Profiler* profiler, TF_String* out_name) noexcept
             {
-                auto result = TF_ProfilerOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ProfilerOps::from_handle(profiler).get_name(ice::sonic::String::wrap(out_name));
             },
             .get_device_type =
                 [](TF_Profiler* profiler, TF_String* out_device_type) noexcept
             {
-                auto res = TF_ProfilerOps::from_handle(profiler).get_device_type(
+                TF_ProfilerOps::from_handle(profiler).get_device_type(
                     ice::sonic::String::wrap(out_device_type)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .start =
                 [](TF_Profiler* profiler, TF_Status* out_status) noexcept
@@ -102,8 +97,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Profiler& get_handle() const noexcept
     {

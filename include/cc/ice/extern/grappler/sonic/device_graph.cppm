@@ -26,13 +26,13 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status> capture_begin(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> capture_begin(
         const ice::sonic::TF_StreamOps& capture_stream,
         const TF_PoolId* pool_id,
         TF_CaptureMode mode
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->capture_begin(
             get_handle(),
             capture_stream.get_handle(),
@@ -47,9 +47,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> capture_end() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> capture_end() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->capture_end(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -58,9 +58,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> instantiate() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> instantiate() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->instantiate(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -69,9 +69,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> replay() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> replay() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->replay(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -80,9 +80,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> reset() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> reset() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->reset(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -91,21 +91,15 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_pool(TF_PoolId* out_pool_id) noexcept
+    void get_pool(TF_PoolId* out_pool_id) noexcept
     {
-        ice::Status status;
-        m_ops->get_pool(get_handle(), out_pool_id, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_pool(get_handle(), out_pool_id);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     register_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->register_random_generator(get_handle(), generator.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -114,10 +108,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     unregister_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->unregister_random_generator(
             get_handle(),
             generator.get_handle(),
@@ -130,36 +124,21 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> enable_debug_mode() noexcept
+    void enable_debug_mode() noexcept
     {
-        ice::Status status;
-        m_ops->enable_debug_mode(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->enable_debug_mode(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     debug_dump(const ice::sonic::String& path) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->debug_dump(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

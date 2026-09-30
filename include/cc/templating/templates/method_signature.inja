@@ -1,1 +1,1 @@
-[[nodiscard]] {{ virtual_prefix }}std::expected<{{ return_type }}, {{ namespace_name }}::Status> {{ method_name }}(
+[[nodiscard]] {{ virtual_prefix }}std::expected<{{ return_type }}, {{ status_type }}> {{ method_name }}(

@@ -24,79 +24,44 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status> is_directory(int* out_is_directory) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->is_directory(get_handle(), out_is_directory, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_is_directory(int is_directory) noexcept
+    void is_directory(int* out_is_directory) noexcept
     {
-        ice::Status status;
-        m_ops->set_is_directory(get_handle(), is_directory, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->is_directory(get_handle(), out_is_directory);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> length(int64_t* out_length) noexcept
+    void set_is_directory(int is_directory) noexcept
     {
-        ice::Status status;
-        m_ops->length(get_handle(), out_length, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_is_directory(get_handle(), is_directory);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_length(int64_t length) noexcept
+    void length(int64_t* out_length) noexcept
     {
-        ice::Status status;
-        m_ops->set_length(get_handle(), length, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->length(get_handle(), out_length);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> mtime_nsec(int64_t* out_mtime_nsec) noexcept
+    void set_length(int64_t length) noexcept
     {
-        ice::Status status;
-        m_ops->mtime_nsec(get_handle(), out_mtime_nsec, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_length(get_handle(), length);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_mtime_nsec(int64_t mtime_nsec) noexcept
+    void mtime_nsec(int64_t* out_mtime_nsec) noexcept
     {
-        ice::Status status;
-        m_ops->set_mtime_nsec(get_handle(), mtime_nsec, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->mtime_nsec(get_handle(), out_mtime_nsec);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void set_mtime_nsec(int64_t mtime_nsec) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->set_mtime_nsec(get_handle(), mtime_nsec);
+    }
+
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
     }
 };
 

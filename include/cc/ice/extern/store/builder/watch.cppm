@@ -36,25 +36,22 @@ public:
     }
 
     virtual ~TFStoreWatchOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> cancel() noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void cancel() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFStoreWatchOps{
             .struct_size = TF_TOREWATCH_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFStoreWatch* watch) noexcept
             {
-                std::unique_ptr<TFStoreWatchOps>{&TFStoreWatchOps::from_handle(plugin_context)};
+                TFStoreWatchOps::from_handle(watch).destroy();
             },
             .cancel =
                 [](TFStoreWatch* watch) noexcept
             {
-                auto res = TFStoreWatchOps::from_handle(watch).cancel();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFStoreWatchOps::from_handle(watch).cancel();
             },
 
         };

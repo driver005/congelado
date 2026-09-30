@@ -36,17 +36,15 @@ public:
     }
 
     virtual ~TF_KernelBuilderOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     type_constraint(const ice::sonic::String& attr_name, TFDataTypeEnum type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    host_memory(const ice::sonic::String& arg_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    priority(int32_t priority_number) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    label(const ice::sonic::String& label) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void host_memory(const ice::sonic::String& arg_name) noexcept = 0;
+    virtual void priority(int32_t priority_number) noexcept = 0;
+    virtual void label(const ice::sonic::String& label) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     register_kernel_builder(const ice::sonic::String& kernel_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> register_kernel_builder_with_kernel_def(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    register_kernel_builder_with_kernel_def(
         const ice::sonic::String& serialized_kernel_def,
         const ice::sonic::String& name
     ) noexcept = 0;
@@ -70,29 +68,19 @@ public:
             .host_memory =
                 [](TF_KernelBuilder* kernel_builder, const TF_String* arg_name) noexcept
             {
-                auto res = TF_KernelBuilderOps::from_handle(kernel_builder)
-                               .host_memory(ice::sonic::String::wrap(arg_name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_KernelBuilderOps::from_handle(kernel_builder)
+                    .host_memory(ice::sonic::String::wrap(arg_name));
             },
             .priority =
                 [](TF_KernelBuilder* kernel_builder, int32_t priority_number) noexcept
             {
-                auto res =
-                    TF_KernelBuilderOps::from_handle(kernel_builder).priority(priority_number);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_KernelBuilderOps::from_handle(kernel_builder).priority(priority_number);
             },
             .label =
                 [](TF_KernelBuilder* kernel_builder, const TF_String* label) noexcept
             {
-                auto res = TF_KernelBuilderOps::from_handle(kernel_builder)
-                               .label(ice::sonic::String::wrap(label));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_KernelBuilderOps::from_handle(kernel_builder)
+                    .label(ice::sonic::String::wrap(label));
             },
             .register_kernel_builder =
                 [](TF_KernelBuilder* builder,

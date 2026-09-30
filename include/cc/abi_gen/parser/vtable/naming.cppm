@@ -29,8 +29,14 @@ public:
     // "TF_Cache" -> "Cache"; "TF_CacheOps" -> "Cache"
     std::string class_name(const std::string& domain)
     {
-        if (domain == "TF_StringOps") {
-            return "String";
+        static constexpr std::array<std::pair<std::string_view, std::string_view>, 2> k_intern_names{{
+            {"TF_StringOps", "String"},
+            {"TF_StatusOps", "Status"},
+        }};
+        for (const auto& [struct_name, intern_name]: k_intern_names) {
+            if (domain == struct_name) {
+                return std::string{intern_name};
+            }
         }
 
         m_scratch_text = domain;

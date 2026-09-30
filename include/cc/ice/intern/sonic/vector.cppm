@@ -24,32 +24,20 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status> set_element_size(size_t element_size) noexcept
+    void set_element_size(size_t element_size) noexcept
     {
-        ice::Status status;
-        m_ops->set_element_size(get_handle(), element_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_element_size(get_handle(), element_size);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> push_back(const void* value) noexcept
+    void push_back(const void* value) noexcept
     {
-        ice::Status status;
-        m_ops->push_back(get_handle(), value, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->push_back(get_handle(), value);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get(size_t index, const void** out_value) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get(get_handle(), index, out_value, status.get_handle());
 
         if (!status.ok()) {
@@ -58,9 +46,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set(size_t index, const void* value) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    set(size_t index, const void* value) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set(get_handle(), index, value, status.get_handle());
 
         if (!status.ok()) {
@@ -69,31 +58,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
+    void size(size_t* out_size) noexcept
     {
-        ice::Status status;
-        m_ops->size(get_handle(), out_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->size(get_handle(), out_size);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> capacity(size_t* out_capacity) noexcept
+    void capacity(size_t* out_capacity) noexcept
     {
-        ice::Status status;
-        m_ops->capacity(get_handle(), out_capacity, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->capacity(get_handle(), out_capacity);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> reserve(size_t new_capacity) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> reserve(size_t new_capacity) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->reserve(get_handle(), new_capacity, status.get_handle());
 
         if (!status.ok()) {
@@ -102,24 +79,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> data(void** out_data) noexcept
+    void data(void** out_data) noexcept
     {
-        ice::Status status;
-        m_ops->data(get_handle(), out_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->data(get_handle(), out_data);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
     }
 };
 

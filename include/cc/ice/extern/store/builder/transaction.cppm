@@ -36,30 +36,28 @@ public:
     }
 
     virtual ~TFStoreTransactionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> begin() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> begin() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_collection(const ice::sonic::TFStoreCollectionOps& collection) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_collection(
+    virtual void get_collection(
         const ice::sonic::String& name,
         const ice::sonic::TFStoreCollectionOps& out_collection
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_collections(TF_Tensor** out_collections) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     commit(TFStoreAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> rollback() noexcept = 0;
+    virtual void rollback() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFStoreTransactionOps{
             .struct_size = TF_TORETRANSACTION_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFStoreTransaction* transaction) noexcept
             {
-                std::unique_ptr<TFStoreTransactionOps>{
-                    &TFStoreTransactionOps::from_handle(plugin_context)
-                };
+                TFStoreTransactionOps::from_handle(transaction).destroy();
             },
             .begin =
                 [](TFStoreTransaction* transaction, TF_Status* out_status) noexcept
@@ -85,14 +83,11 @@ public:
                    const TF_String* name,
                    TFStoreCollection* out_collection) noexcept
             {
-                auto res = TFStoreTransactionOps::from_handle(transaction)
-                               .get_collection(
-                                   ice::sonic::String::wrap(name),
-                                   ice::sonic::TFStoreCollectionOps::wrap(out_collection)
-                               );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFStoreTransactionOps::from_handle(transaction)
+                    .get_collection(
+                        ice::sonic::String::wrap(name),
+                        ice::sonic::TFStoreCollectionOps::wrap(out_collection)
+                    );
             },
             .list_collections =
                 [](TFStoreTransaction* transaction,
@@ -120,10 +115,7 @@ public:
             .rollback =
                 [](TFStoreTransaction* transaction) noexcept
             {
-                auto res = TFStoreTransactionOps::from_handle(transaction).rollback();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFStoreTransactionOps::from_handle(transaction).rollback();
             },
 
         };

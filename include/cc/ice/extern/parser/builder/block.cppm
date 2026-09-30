@@ -36,21 +36,26 @@ public:
     }
 
     virtual ~TFParserBlockOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_node_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_node(int index, const ice::sonic::TFParserNodeOps& out_node) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserBlockOps{
             .struct_size = TF_ARSERBLOCK_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserBlock* block, TF_String* out_name, TF_Status* out_status) noexcept
             {
-                auto result = TFParserBlockOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserBlockOps::from_handle(block).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_node_count =
                 [](TFParserBlock* block, int* out_count, TF_Status* out_status) noexcept
@@ -82,8 +87,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserBlock& get_handle() const noexcept
     {

@@ -36,56 +36,56 @@ public:
     }
 
     virtual ~TF_OpKernelConstructionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> failure() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> failure() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_node_def(const ice::sonic::TF_BufferOps& buffer) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_size(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_size(
         const ice::sonic::String& attr_name,
         int32_t* out_list_size,
         int32_t* out_total_size
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_int32(const ice::sonic::String& attr_name, int32_t* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_int64(const ice::sonic::String& attr_name, int64_t* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_float(const ice::sonic::String& attr_name, float* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_bool(const ice::sonic::String& attr_name, _Bool* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_string(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_string(
         const ice::sonic::String& attr_name,
         const ice::sonic::String& out_val
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_tensor(const ice::sonic::String& attr_name, TF_Tensor** out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_type_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_type_list(
         const ice::sonic::String& attr_name,
         TFDataTypeEnum* out_vals,
         int max_vals
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_int32_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_int32_list(
         const ice::sonic::String& attr_name,
         int32_t* out_vals,
         int max_vals
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_int64_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_int64_list(
         const ice::sonic::String& attr_name,
         int64_t* out_vals,
         int max_vals
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_float_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_float_list(
         const ice::sonic::String& attr_name,
         float* out_vals,
         int max_vals
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_bool_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_bool_list(
         const ice::sonic::String& attr_name,
         _Bool* out_vals,
         int max_vals
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_string_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_string_list(
         const ice::sonic::String& attr_name,
         char** out_values,
         size_t* out_lengths,
@@ -93,18 +93,19 @@ public:
         void* storage,
         size_t storage_size
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_tensor_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_tensor_list(
         const ice::sonic::String& attr_name,
         TF_Tensor** out_vals,
         int max_values
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_function(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_function(
         const ice::sonic::String& attr_name,
         const ice::sonic::TF_BufferOps& buffer
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     has_attr(const ice::sonic::String& attr_name, _Bool* out_has_attr) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_attr_tensor_shape(
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_attr_tensor_shape(
         const ice::sonic::String& attr_name,
         int64_t* out_dims,
         size_t num_dims
@@ -392,12 +393,12 @@ public:
                     res.error().to_c(out_status);
                 }
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_OpKernelConstruction* ctx, TF_String* out_name) noexcept
             {
-                auto result = TF_OpKernelConstructionOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_OpKernelConstructionOps::from_handle(ctx).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .get_attr_tensor_shape =
                 [](TF_OpKernelConstruction* ctx,
@@ -423,8 +424,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_OpKernelConstruction& get_handle() const noexcept
     {

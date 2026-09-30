@@ -36,12 +36,10 @@ public:
     }
 
     virtual ~TF_DurationOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_ticks(int64_t* out_ticks) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_ratio_num(int64_t* out_num) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_ratio_den(int64_t* out_den) noexcept = 0;
+    virtual void get_ticks(int64_t* out_ticks) noexcept = 0;
+    virtual void get_ratio_num(int64_t* out_num) noexcept = 0;
+    virtual void get_ratio_den(int64_t* out_den) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -50,32 +48,22 @@ public:
             .get_ticks =
                 [](const TF_Duration* duration, int64_t* out_ticks) noexcept
             {
-                auto res = TF_DurationOps::from_handle(duration).get_ticks(out_ticks);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DurationOps::from_handle(duration).get_ticks(out_ticks);
             },
             .get_ratio_num =
                 [](const TF_Duration* duration, int64_t* out_num) noexcept
             {
-                auto res = TF_DurationOps::from_handle(duration).get_ratio_num(out_num);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DurationOps::from_handle(duration).get_ratio_num(out_num);
             },
             .get_ratio_den =
                 [](const TF_Duration* duration, int64_t* out_den) noexcept
             {
-                auto res = TF_DurationOps::from_handle(duration).get_ratio_den(out_den);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DurationOps::from_handle(duration).get_ratio_den(out_den);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Duration* duration) noexcept
             {
-                std::unique_ptr<TF_DurationOps>{&TF_DurationOps::from_handle(plugin_context)};
+                TF_DurationOps::from_handle(duration).destroy();
             },
 
         };

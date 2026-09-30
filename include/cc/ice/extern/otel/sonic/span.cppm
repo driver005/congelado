@@ -24,10 +24,20 @@ public:
 
     static constexpr std::string_view domain_name = "otel";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     set_attribute(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set_attribute(
             get_handle(),
             key.get_handle(),
@@ -41,10 +51,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     set_status(int status_code, const ice::sonic::String& description) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set_status(get_handle(), status_code, description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -53,24 +63,15 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> end() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> end() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->end(get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

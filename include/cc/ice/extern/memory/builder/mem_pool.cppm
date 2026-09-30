@@ -36,14 +36,14 @@ public:
     }
 
     virtual ~TF_MemPoolOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_id(TF_PoolId* out_pool_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> use_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_id(TF_PoolId* out_pool_id) noexcept = 0;
+    virtual void use_count(int* out_count) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     begin_allocate_to_pool(TF_StreamFilterFn stream_filter, void* filter_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> end_allocate_to_pool() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> release() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    end_allocate_to_pool() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> release() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_use_on_oom(_Bool use_on_oom) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -53,18 +53,12 @@ public:
             .get_id =
                 [](TF_MemPool* pool, TF_PoolId* out_pool_id) noexcept
             {
-                auto res = TF_MemPoolOps::from_handle(pool).get_id(out_pool_id);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_MemPoolOps::from_handle(pool).get_id(out_pool_id);
             },
             .use_count =
                 [](TF_MemPool* pool, int* out_count) noexcept
             {
-                auto res = TF_MemPoolOps::from_handle(pool).use_count(out_count);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_MemPoolOps::from_handle(pool).use_count(out_count);
             },
             .begin_allocate_to_pool =
                 [](TF_MemPool* pool,

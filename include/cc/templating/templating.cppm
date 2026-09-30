@@ -80,23 +80,14 @@ private:
             {"build_domain", cc_templating_generated::k_build_domain},
             {"parameter", cc_templating_generated::k_parameter},
             {"method_signature", cc_templating_generated::k_method_signature},
+            {"method_signature_void", cc_templating_generated::k_method_signature_void},
+            {"method_body_void_start", cc_templating_generated::k_method_body_void_start},
+            {"vtable_field_void_middle", cc_templating_generated::k_vtable_field_void_middle},
             {"vtable_accessor_start", cc_templating_generated::k_vtable_accessor_start},
-            {"vtable_field_destroy", cc_templating_generated::k_vtable_field_destroy},
             {"vtable_field_generic_start", cc_templating_generated::k_vtable_field_generic_start},
             {"vtable_field_generic_middle", cc_templating_generated::k_vtable_field_generic_middle},
             {"vtable_field_generic_end", cc_templating_generated::k_vtable_field_generic_end},
-            {"method_body_start", cc_templating_generated::k_method_body_start},
-            {"method_decl_string_accessor", cc_templating_generated::k_method_decl_string_accessor},
-            {"vtable_field_string_accessor",
-             cc_templating_generated::k_vtable_field_string_accessor},
-            {"method_string_accessor_sonic",
-             cc_templating_generated::k_method_string_accessor_sonic},
-            {"method_decl_codec_pair", cc_templating_generated::k_method_decl_codec_pair},
-            {"vtable_field_codec_pair", cc_templating_generated::k_vtable_field_codec_pair},
-            {"method_codec_pair_sonic", cc_templating_generated::k_method_codec_pair_sonic},
-            {"method_decl_typed_return", cc_templating_generated::k_method_decl_typed_return},
-            {"vtable_field_typed_return", cc_templating_generated::k_vtable_field_typed_return},
-            {"method_typed_return_sonic", cc_templating_generated::k_method_typed_return_sonic}
+            {"method_body_start", cc_templating_generated::k_method_body_start}
         };
 
         return templates.at(template_name);

@@ -28,9 +28,9 @@ public:
 
     static constexpr std::string_view domain_name = "kernel";
 
-    [[nodiscard]] std::expected<void, ice::Status> failure() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> failure() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->failure(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -39,10 +39,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_node_def(const ice::sonic::TF_BufferOps& buffer) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_node_def(get_handle(), buffer.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -51,13 +51,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_size(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_size(
         const ice::sonic::String& attr_name,
         int32_t* out_list_size,
         int32_t* out_total_size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_size(
             get_handle(),
             attr_name.get_handle(),
@@ -72,10 +72,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_type(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -84,10 +84,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_int32(const ice::sonic::String& attr_name, int32_t* out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_int32(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -96,10 +96,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_int64(const ice::sonic::String& attr_name, int64_t* out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_int64(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -108,10 +108,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_float(const ice::sonic::String& attr_name, float* out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_float(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -120,10 +120,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_bool(const ice::sonic::String& attr_name, _Bool* out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_bool(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -132,10 +132,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_string(const ice::sonic::String& attr_name, const ice::sonic::String& out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_string(
             get_handle(),
             attr_name.get_handle(),
@@ -149,10 +149,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_tensor(const ice::sonic::String& attr_name, TF_Tensor** out_val) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_tensor(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
@@ -161,13 +161,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_type_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_type_list(
         const ice::sonic::String& attr_name,
         TFDataTypeEnum* out_vals,
         int max_vals
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_type_list(
             get_handle(),
             attr_name.get_handle(),
@@ -182,13 +182,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_int32_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_int32_list(
         const ice::sonic::String& attr_name,
         int32_t* out_vals,
         int max_vals
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_int32_list(
             get_handle(),
             attr_name.get_handle(),
@@ -203,13 +203,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_int64_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_int64_list(
         const ice::sonic::String& attr_name,
         int64_t* out_vals,
         int max_vals
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_int64_list(
             get_handle(),
             attr_name.get_handle(),
@@ -224,10 +224,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_float_list(const ice::sonic::String& attr_name, float* out_vals, int max_vals) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_float_list(
             get_handle(),
             attr_name.get_handle(),
@@ -242,10 +242,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_attr_bool_list(const ice::sonic::String& attr_name, _Bool* out_vals, int max_vals) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_bool_list(
             get_handle(),
             attr_name.get_handle(),
@@ -260,7 +260,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_string_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_string_list(
         const ice::sonic::String& attr_name,
         char** out_values,
         size_t* out_lengths,
@@ -269,7 +269,7 @@ public:
         size_t storage_size
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_string_list(
             get_handle(),
             attr_name.get_handle(),
@@ -287,13 +287,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_tensor_list(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_tensor_list(
         const ice::sonic::String& attr_name,
         TF_Tensor** out_vals,
         int max_values
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_tensor_list(
             get_handle(),
             attr_name.get_handle(),
@@ -308,12 +308,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_function(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_function(
         const ice::sonic::String& attr_name,
         const ice::sonic::TF_BufferOps& buffer
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_function(
             get_handle(),
             attr_name.get_handle(),
@@ -327,10 +327,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     has_attr(const ice::sonic::String& attr_name, _Bool* out_has_attr) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->has_attr(get_handle(), attr_name.get_handle(), out_has_attr, status.get_handle());
 
         if (!status.ok()) {
@@ -339,13 +339,18 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_attr_tensor_shape(
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_attr_tensor_shape(
         const ice::sonic::String& attr_name,
         int64_t* out_dims,
         size_t num_dims
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_attr_tensor_shape(
             get_handle(),
             attr_name.get_handle(),
@@ -358,15 +363,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

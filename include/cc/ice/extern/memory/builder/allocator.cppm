@@ -36,55 +36,49 @@ public:
     }
 
     virtual ~TF_AllocatorOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> allocate(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> allocate(
         uint64_t size,
         TF_MemorySpace memory_space,
         const ice::sonic::TF_StreamOps& stream,
         TF_DeviceMemoryBase* out_memory
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    deallocate(TF_DeviceMemoryBase* memory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> record_stream(
+    virtual void deallocate(TF_DeviceMemoryBase* memory) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> record_stream(
         const TF_DeviceMemoryBase* memory,
         const ice::sonic::TF_StreamOps& stream
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    owns_pointer(const void* pointer, _Bool* out_owns) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void owns_pointer(const void* pointer, _Bool* out_owns) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_base_allocation(const void* pointer, void** out_base, uint64_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> empty_cache() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> empty_cache() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_memory_fraction(double fraction) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_memory_fraction(double* out_fraction) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_memory_fraction(double* out_fraction) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_option(TF_AllocatorOption option, int64_t value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_option(TF_AllocatorOption option, int64_t* out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_stats(TF_AllocatorStats* out_stats, _Bool* out_success) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> reset_accumulated_stats() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> reset_peak_stats() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_snapshot(
+    virtual void get_stats(TF_AllocatorStats* out_stats, _Bool* out_success) noexcept = 0;
+    virtual void reset_accumulated_stats() noexcept = 0;
+    virtual void reset_peak_stats() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_snapshot(
         const TF_PoolId* pool_filter,
         const ice::sonic::TF_BufferOps& out_snapshot
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    generate_pool_id(TF_PoolId* out_pool_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> create_mem_pool_internal(
+    virtual void generate_pool_id(TF_PoolId* out_pool_id) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_mem_pool_internal(
         const TF_PoolId* pool_id,
         _Bool is_user_created,
         const ice::sonic::TF_MemPoolOps& out_pool
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    destroy_mem_pool_internal(const ice::sonic::TF_MemPoolOps& pool) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy_mem_pool_internal(const ice::sonic::TF_MemPoolOps& pool) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     enable_peer_access(int peer_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     export_memory(const TF_DeviceMemoryBase* memory, TF_IpcMemoryHandle* out_handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     open_memory(const TF_IpcMemoryHandle* handle, TF_DeviceMemoryBase* out_memory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     close_memory(TF_DeviceMemoryBase* memory) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -112,10 +106,7 @@ public:
             .deallocate =
                 [](TF_Allocator* allocator, TF_DeviceMemoryBase* memory) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).deallocate(memory);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).deallocate(memory);
             },
             .record_stream =
                 [](TF_Allocator* allocator,
@@ -134,10 +125,7 @@ public:
             .owns_pointer =
                 [](TF_Allocator* allocator, const void* pointer, _Bool* out_owns) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).owns_pointer(pointer, out_owns);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).owns_pointer(pointer, out_owns);
             },
             .get_base_allocation =
                 [](TF_Allocator* allocator,
@@ -171,11 +159,7 @@ public:
             .get_memory_fraction =
                 [](TF_Allocator* allocator, double* out_fraction) noexcept
             {
-                auto res =
-                    TF_AllocatorOps::from_handle(allocator).get_memory_fraction(out_fraction);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).get_memory_fraction(out_fraction);
             },
             .set_option =
                 [](TF_Allocator* allocator,
@@ -204,27 +188,17 @@ public:
                    TF_AllocatorStats* out_stats,
                    _Bool* out_success) noexcept
             {
-                auto res =
-                    TF_AllocatorOps::from_handle(allocator).get_stats(out_stats, out_success);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).get_stats(out_stats, out_success);
             },
             .reset_accumulated_stats =
                 [](TF_Allocator* allocator) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).reset_accumulated_stats();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).reset_accumulated_stats();
             },
             .reset_peak_stats =
                 [](TF_Allocator* allocator) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).reset_peak_stats();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).reset_peak_stats();
             },
             .get_snapshot =
                 [](TF_Allocator* allocator,
@@ -243,10 +217,7 @@ public:
             .generate_pool_id =
                 [](TF_Allocator* allocator, TF_PoolId* out_pool_id) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).generate_pool_id(out_pool_id);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_AllocatorOps::from_handle(allocator).generate_pool_id(out_pool_id);
             },
             .create_mem_pool_internal =
                 [](TF_Allocator* allocator,
@@ -267,12 +238,9 @@ public:
             .destroy_mem_pool_internal =
                 [](TF_Allocator* allocator, TF_MemPool* pool) noexcept
             {
-                auto res = TF_AllocatorOps::from_handle(allocator).destroy_mem_pool_internal(
+                TF_AllocatorOps::from_handle(allocator).destroy_mem_pool_internal(
                     ice::sonic::TF_MemPoolOps::wrap(pool)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .enable_peer_access =
                 [](TF_Allocator* allocator, int peer_device_index, TF_Status* out_status) noexcept

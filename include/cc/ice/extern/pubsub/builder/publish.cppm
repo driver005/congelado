@@ -36,20 +36,21 @@ public:
     }
 
     virtual ~TFPubSubPublishOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> publish(
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> publish(
         const ice::sonic::String& channel,
         const ice::sonic::String& payload,
         int retain
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> publish_batch(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> publish_batch(
         const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     flush(TFPubSubAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_retained(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_retained(
         const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
         void* user_data
@@ -59,13 +60,10 @@ public:
     {
         m_vtable = ::TFPubSubPublishOps{
             .struct_size = TF_UBSUBPUBLISH_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFPubSubPublish* publish) noexcept
             {
-                std::unique_ptr<TFPubSubPublishOps>{
-                    &TFPubSubPublishOps::from_handle(plugin_context)
-                };
+                TFPubSubPublishOps::from_handle(publish).destroy();
             },
             .publish =
                 [](TFPubSubPublish* publish,

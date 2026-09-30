@@ -25,13 +25,13 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status> optimize(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> optimize(
         const ice::sonic::TF_BufferOps& graph_buf,
         const ice::sonic::TFGrapplerItemOps& item,
         const ice::sonic::TF_BufferOps& out_optimized_graph_buf
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->optimize(
             get_handle(),
             graph_buf.get_handle(),
@@ -44,15 +44,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

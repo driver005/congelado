@@ -36,103 +36,73 @@ public:
     }
 
     virtual ~TF_TypeInfoOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_data_type(int data_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_read_only(_Bool read_only) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_list(_Bool is_list) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_data_type(int* out_data_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_read_only(int* out_is_read_only) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> is_list(int* out_is_list) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept = 0;
+    virtual void set_data_type(int data_type) noexcept = 0;
+    virtual void set_read_only(_Bool read_only) noexcept = 0;
+    virtual void set_list(_Bool is_list) noexcept = 0;
+    virtual void get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept = 0;
+    virtual void get_data_type(int* out_data_type) noexcept = 0;
+    virtual void is_read_only(int* out_is_read_only) noexcept = 0;
+    virtual void is_list(int* out_is_list) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_TypeInfoOps{
             .struct_size = TF_TYPEINFO_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_TypeInfo* type_context) noexcept
             {
-                std::unique_ptr<TF_TypeInfoOps>{&TF_TypeInfoOps::from_handle(plugin_context)};
+                TF_TypeInfoOps::from_handle(type_context).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_TypeInfo* type_context, TF_String* out_name) noexcept
             {
-                auto result = TF_TypeInfoOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_TypeInfoOps::from_handle(type_context)
+                    .get_name(ice::sonic::String::wrap(out_name));
             },
             .set_type_attr_name =
                 [](TF_TypeInfo* type_context, const TF_String* type_attr_name) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context)
-                               .set_type_attr_name(ice::sonic::String::wrap(type_attr_name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context)
+                    .set_type_attr_name(ice::sonic::String::wrap(type_attr_name));
             },
             .set_data_type =
                 [](TF_TypeInfo* type_context, int data_type) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).set_data_type(data_type);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).set_data_type(data_type);
             },
             .set_read_only =
                 [](TF_TypeInfo* type_context, _Bool read_only) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).set_read_only(read_only);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).set_read_only(read_only);
             },
             .set_list =
                 [](TF_TypeInfo* type_context, _Bool is_list) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).set_list(is_list);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).set_list(is_list);
             },
             .get_type_attr_name =
                 [](TF_TypeInfo* type_context, TF_String* out_type_attr_name) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context)
-                               .get_type_attr_name(ice::sonic::String::wrap(out_type_attr_name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context)
+                    .get_type_attr_name(ice::sonic::String::wrap(out_type_attr_name));
             },
             .get_data_type =
                 [](TF_TypeInfo* type_context, int* out_data_type) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).get_data_type(out_data_type);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).get_data_type(out_data_type);
             },
             .is_read_only =
                 [](TF_TypeInfo* type_context, int* out_is_read_only) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).is_read_only(out_is_read_only);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).is_read_only(out_is_read_only);
             },
             .is_list =
                 [](TF_TypeInfo* type_context, int* out_is_list) noexcept
             {
-                auto res = TF_TypeInfoOps::from_handle(type_context).is_list(out_is_list);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TypeInfoOps::from_handle(type_context).is_list(out_is_list);
             },
 
         };
@@ -142,8 +112,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_TypeInfo& get_handle() const noexcept
     {

@@ -14,19 +14,19 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class TF_StatusOps : public ice::sonic::Runtime<TF_StatusOps, TF_StatusOps>
+class Status : public ice::sonic::Runtime<Status, TF_StatusOps>
 {
 public:
-    explicit TF_StatusOps(TF_StatusOps* ops, void* plugin_context) noexcept :
+    explicit Status(TF_StatusOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status> delete_status() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> delete_status() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->delete_status(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -35,89 +35,34 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_status(TF_Code code, const ice::sonic::String& msg) noexcept
+    void set_status(TF_Code code, const ice::sonic::String& msg) noexcept
     {
-        ice::Status status;
-        m_ops->set_status(get_handle(), code, msg.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_status(get_handle(), code, msg.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_payload(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
+    void set_payload(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
     {
-        ice::Status status;
-        m_ops->set_payload(get_handle(), key.get_handle(), value.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_payload(get_handle(), key.get_handle(), value.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept
+    void for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept
     {
-        ice::Status status;
-        m_ops->for_each_payload(get_handle(), visitor, capture, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->for_each_payload(get_handle(), visitor, capture);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept
+    void set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept
     {
-        ice::Status status;
-        m_ops->set_status_from_io_error(
-            get_handle(),
-            error_code,
-            context.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_status_from_io_error(get_handle(), error_code, context.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_code(TF_Code* out_code) noexcept
+    void get_code(TF_Code* out_code) noexcept
     {
-        ice::Status status;
-        m_ops->get_code(get_handle(), out_code, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_code(get_handle(), out_code);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    message(const ice::sonic::String& out_message) noexcept
+    void message(const ice::sonic::String& out_message) noexcept
     {
-        ice::Status status;
-        m_ops->message(get_handle(), out_message.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->message(get_handle(), out_message.get_handle());
     }
 };
 

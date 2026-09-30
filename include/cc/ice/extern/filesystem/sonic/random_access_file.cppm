@@ -25,25 +25,26 @@ public:
 
     static constexpr std::string_view domain_name = "filesystem";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     read(uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->read(get_handle(), offset, n, buffer, out_bytes_read, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

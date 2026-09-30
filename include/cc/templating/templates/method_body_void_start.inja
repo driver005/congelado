@@ -1,0 +1,4 @@
+
+            ) noexcept
+            {
+                m_ops->{{ method_name }}(get_handle()

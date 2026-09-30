@@ -24,10 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_options(const ice::sonic::TF_JobOps& job, TFJobOptions* out_options) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_options(get_handle(), job.get_handle(), out_options, status.get_handle());
 
         if (!status.ok()) {
@@ -36,10 +41,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     update_options(const ice::sonic::TF_JobOps& job, const TFJobOptions* new_options) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->update_options(get_handle(), job.get_handle(), new_options, status.get_handle());
 
         if (!status.ok()) {
@@ -48,25 +53,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     set_priority(const ice::sonic::TF_JobOps& job, int priority) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set_priority(get_handle(), job.get_handle(), priority, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

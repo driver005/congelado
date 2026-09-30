@@ -36,22 +36,15 @@ public:
     }
 
     virtual ~TF_DeviceOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_numa_node(int32_t* out_numa_node) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_memory_bandwidth(int64_t* out_bandwidth) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_gflops(double* out_gflops) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_hardware_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_device_vendor(const ice::sonic::String& out_vendor) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_numa_node(int32_t* out_numa_node) noexcept = 0;
+    virtual void get_memory_bandwidth(int64_t* out_bandwidth) noexcept = 0;
+    virtual void get_gflops(double* out_gflops) noexcept = 0;
+    virtual void get_hardware_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void get_device_vendor(const ice::sonic::String& out_vendor) noexcept = 0;
+    virtual void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_device_properties(TF_DeviceProperties* out_properties) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_native_handle(void** out_handle) noexcept = 0;
+    virtual void get_native_handle(void** out_handle) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -60,56 +53,38 @@ public:
             .get_numa_node =
                 [](TF_Device* device, int32_t* out_numa_node) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_numa_node(out_numa_node);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DeviceOps::from_handle(device).get_numa_node(out_numa_node);
             },
             .get_memory_bandwidth =
                 [](TF_Device* device, int64_t* out_bandwidth) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_memory_bandwidth(out_bandwidth);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DeviceOps::from_handle(device).get_memory_bandwidth(out_bandwidth);
             },
             .get_gflops =
                 [](TF_Device* device, double* out_gflops) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_gflops(out_gflops);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DeviceOps::from_handle(device).get_gflops(out_gflops);
             },
             .get_hardware_name =
                 [](TF_Device* device, TF_String* out_name) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_hardware_name(
+                TF_DeviceOps::from_handle(device).get_hardware_name(
                     ice::sonic::String::wrap(out_name)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_device_vendor =
                 [](TF_Device* device, TF_String* out_vendor) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_device_vendor(
+                TF_DeviceOps::from_handle(device).get_device_vendor(
                     ice::sonic::String::wrap(out_vendor)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_pci_bus_id =
                 [](TF_Device* device, TF_String* out_pci_bus_id) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_pci_bus_id(
+                TF_DeviceOps::from_handle(device).get_pci_bus_id(
                     ice::sonic::String::wrap(out_pci_bus_id)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_device_properties =
                 [](TF_Device* device,
@@ -124,10 +99,7 @@ public:
             .get_native_handle =
                 [](TF_Device* device, void** out_handle) noexcept
             {
-                auto res = TF_DeviceOps::from_handle(device).get_native_handle(out_handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DeviceOps::from_handle(device).get_native_handle(out_handle);
             },
 
         };

@@ -36,46 +36,44 @@ public:
     }
 
     virtual ~TFPubSubChannelOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     drop(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_config(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_config(
         const ice::sonic::String& name,
         const ice::sonic::TF_MapOps& out_config
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_config(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_stats(const ice::sonic::String& name, const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     purge(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_dead_letter(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> set_dead_letter(
         const ice::sonic::String& target_channel,
         const ice::sonic::String& dead_letter_channel
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> list_dead_letters(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> list_dead_letters(
         const ice::sonic::String& target_channel,
         const ice::sonic::TF_VectorOps& out_payloads
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> requeue_dead_letter(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> requeue_dead_letter(
         const ice::sonic::String& target_channel,
         const ice::sonic::String& payload
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list(const ice::sonic::TF_VectorOps& out_channels) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFPubSubChannelOps{
             .struct_size = TF_UBSUBCHANNEL_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFPubSubChannel* channel) noexcept
             {
-                std::unique_ptr<TFPubSubChannelOps>{
-                    &TFPubSubChannelOps::from_handle(plugin_context)
-                };
+                TFPubSubChannelOps::from_handle(channel).destroy();
             },
             .create =
                 [](TFPubSubChannel* channel,

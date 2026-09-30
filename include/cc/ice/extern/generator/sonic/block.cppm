@@ -24,12 +24,22 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status> add_node(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> add_node(
         const ice::sonic::TFGeneratorDefinitionOps& definition,
         const ice::sonic::TFGeneratorNodeOps& out_node
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->add_node(
             get_handle(),
             definition.get_handle(),
@@ -43,10 +53,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_node(int index, const ice::sonic::TFGeneratorNodeOps& out_node) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_node(get_handle(), index, out_node.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -55,9 +65,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> list_nodes(TF_Tensor** out_nodes) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> list_nodes(TF_Tensor** out_nodes) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->list_nodes(get_handle(), out_nodes, status.get_handle());
 
         if (!status.ok()) {
@@ -66,24 +76,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
+    void set_name(const ice::sonic::String& name) noexcept
     {
-        ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->set_name(get_handle(), name.get_handle());
     }
 };
 

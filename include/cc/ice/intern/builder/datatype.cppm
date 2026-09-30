@@ -36,27 +36,22 @@ public:
     }
 
     virtual ~TF_DataTypeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    datatype_size(TFDataTypeEnum dt, size_t* out_size) noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void datatype_size(TFDataTypeEnum dt, size_t* out_size) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_DataTypeOps{
             .struct_size = TF_DATATYPE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_DataType* datatype, TF_String* out_name) noexcept
             {
-                auto result = TF_DataTypeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_DataTypeOps::from_handle(datatype).get_name(ice::sonic::String::wrap(out_name));
             },
             .datatype_size =
                 [](TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size) noexcept
             {
-                auto res = TF_DataTypeOps::from_handle(datatype).datatype_size(dt, out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DataTypeOps::from_handle(datatype).datatype_size(dt, out_size);
             },
 
         };
@@ -66,8 +61,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_DataType& get_handle() const noexcept
     {

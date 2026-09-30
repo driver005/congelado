@@ -378,29 +378,18 @@ private:
         m_writer += *header_result;
 
         for (const parser::slot::Slot& slot: model.get_slots()) {
-            if (slot.is_destroy() || slot.is_get_name()) {
-                continue;
-            }
-
             auto method = write_method(root, slot, mode);
             if (!method.has_value()) {
                 return std::unexpected(method.error());
             }
         }
 
-        if (mode == Mode::Sonic) {
-            auto get_name_result = helper::format_get_name_decl(m_namespace_name, root);
-            if (!get_name_result) {
-                return std::unexpected(get_name_result.error());
-            }
-
-            m_writer += *get_name_result;
-        } else if (mode == Mode::Builder) {
+        if (mode == Mode::Builder) {
             auto accessor = write_vtable_accessor(root, model, mode);
             if (!accessor.has_value()) {
                 return std::unexpected(accessor.error());
             }
-        } else {
+        } else if (mode != Mode::Sonic) {
             return std::unexpected(std::format("Invalid mode for render function: {}", mode));
         }
 
@@ -409,7 +398,6 @@ private:
             model.get_class_name(),
             model.get_struct_name(),
             c_handle_name(model),
-            std::ranges::any_of(model.get_slots(), &parser::slot::Slot::is_get_name),
             root
         );
         if (!footer_result) {
@@ -480,10 +468,16 @@ private:
     std::expected<void, std::string>
     write_method(std::filesystem::path& root, const parser::slot::Slot& slot, const Mode& mode)
     {
+        auto status_type = status_type_name(slot);
+        if (!status_type.has_value()) {
+            return std::unexpected(status_type.error());
+        }
+
         auto ms_result = helper::format_method_signature(
             slot.get_name(),
-            m_namespace_name,
-            mode == Mode::Builder
+            *status_type,
+            mode == Mode::Builder,
+            slot.is_failable()
         );
         if (!ms_result) {
             return std::unexpected(ms_result.error());
@@ -498,9 +492,25 @@ private:
         if (mode == Mode::Builder) {
             auto vme_result = helper::format_virtual_method_end(root);
             m_writer += vme_result;
+        } else if (mode == Mode::Sonic && !slot.is_failable()) {
+            auto mbs_result = helper::format_method_body_void_start(slot.get_name());
+            if (!mbs_result) {
+                return std::unexpected(mbs_result.error());
+            }
+            m_writer += *mbs_result;
+
+            if (!slot.extract_parameters().empty()) {
+                m_writer += ", ";
+            }
+            auto call_arguments = write_call_arguments(slot, mode);
+            if (!call_arguments.has_value()) {
+                return call_arguments;
+            }
+
+            m_writer += helper::format_method_body_void_end();
         } else if (mode == Mode::Sonic) {
             auto mbs_result =
-                helper::format_method_body_start(slot.get_name(), m_namespace_name, root);
+                helper::format_method_body_start(slot.get_name(), *status_type, root);
             if (!mbs_result) {
                 return std::unexpected(mbs_result.error());
             }
@@ -625,28 +635,6 @@ private:
         const Mode& mode
     )
     {
-        if (slot.is_destroy()) {
-            auto vtfd_result =
-                helper::format_vtable_field_destroy(slot.get_name(), model.get_class_name(), root);
-            if (!vtfd_result) {
-                return std::unexpected(vtfd_result.error());
-            }
-            m_writer += *vtfd_result;
-
-            return {};
-        }
-
-        if (slot.is_get_name()) {
-            auto vtfg_result =
-                helper::format_vtable_field_get_name(slot.get_name(), model.get_class_name(), root);
-            if (!vtfg_result) {
-                return std::unexpected(vtfg_result.error());
-            }
-            m_writer += *vtfg_result;
-
-            return {};
-        }
-
         auto vtfgs_result = helper::format_vtable_field_generic_start(slot.get_name());
         if (!vtfgs_result) {
             return std::unexpected(vtfgs_result.error());
@@ -654,6 +642,27 @@ private:
         m_writer += *vtfgs_result;
 
         write_c_parameter_list(slot.get_parameters());
+
+        if (!slot.is_failable()) {
+            auto vtfvm_result = helper::format_vtable_field_void_middle(
+                model.get_class_name(),
+                slot.get_name(),
+                self_parameter_name(slot)
+            );
+            if (!vtfvm_result) {
+                return std::unexpected(vtfvm_result.error());
+            }
+            m_writer += *vtfvm_result;
+
+            auto call_arguments = write_call_arguments(slot, mode);
+            if (!call_arguments.has_value()) {
+                return call_arguments;
+            }
+
+            m_writer += helper::format_vtable_field_void_end();
+
+            return {};
+        }
 
         auto vtfgm_result = helper::format_vtable_field_generic_middle(
             model.get_class_name(),
@@ -726,15 +735,28 @@ private:
         }
     }
 
-    std::string_view failable_parameter_name(const parser::slot::Slot& slot)
+    std::expected<std::string, std::string> status_type_name(const parser::slot::Slot& slot) const
     {
         auto failable = slot.extract_failable();
-
-        if (failable.has_value()) {
-            return failable->get().get_name();
+        if (!failable.has_value()) {
+            return std::string{};
         }
 
-        return "status";
+        auto model = m_registry.get().find(failable->get().get_registry_key());
+        if (!model.has_value()) {
+            return std::unexpected(std::format(
+                "No registered domain for status type '{}' in slot '{}'",
+                failable->get().get_pointee_name(),
+                slot.get_name()
+            ));
+        }
+
+        return model->get().to_sonic_type(m_namespace_name);
+    }
+
+    std::string_view failable_parameter_name(const parser::slot::Slot& slot)
+    {
+        return slot.extract_failable()->get().get_name();
     }
 
     std::string m_writer;

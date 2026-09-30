@@ -36,78 +36,62 @@ public:
     }
 
     virtual ~TF_ResponseOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_status(int32_t status_code) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_status(int32_t* out_status_code) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_status_text(const ice::sonic::String& out_status_text) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_status(int32_t* out_status_code) noexcept = 0;
+    virtual void get_status_text(const ice::sonic::String& out_status_text) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     remove_header(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void
     find_header(const ice::sonic::String& name, const TF_String** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_headers(const ice::sonic::TF_MapOps& out_headers) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_body(const void* data, size_t length) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_body(const void** out_data, size_t* out_length) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_keep_alive(int enabled) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_keep_alive(int* out_keep_alive) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_cookie(
+    virtual void get_body(const void** out_data, size_t* out_length) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    set_keep_alive(int enabled) noexcept = 0;
+    virtual void is_keep_alive(int* out_keep_alive) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> set_cookie(
         const ice::sonic::String& name,
         const ice::sonic::String& value,
         const ice::sonic::TF_MapOps& attributes
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_set_cookies(const ice::sonic::TF_VectorOps& out_cookies) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_content_length(int64_t* out_length) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_location(const ice::sonic::String& out_location) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_etag(const ice::sonic::String& out_etag) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_date(const ice::sonic::String& out_date) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_server(const ice::sonic::String& out_server) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_cache_control(const ice::sonic::String& out_cache_control) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_last_modified(const ice::sonic::String& out_last_modified) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_informational(int* out_result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> is_success(int* out_result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_redirection(int* out_result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_client_error(int* out_result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_server_error(int* out_result) noexcept = 0;
+    virtual void get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
+    virtual void get_content_length(int64_t* out_length) noexcept = 0;
+    virtual void get_location(const ice::sonic::String& out_location) noexcept = 0;
+    virtual void get_etag(const ice::sonic::String& out_etag) noexcept = 0;
+    virtual void get_date(const ice::sonic::String& out_date) noexcept = 0;
+    virtual void get_server(const ice::sonic::String& out_server) noexcept = 0;
+    virtual void get_cache_control(const ice::sonic::String& out_cache_control) noexcept = 0;
+    virtual void get_last_modified(const ice::sonic::String& out_last_modified) noexcept = 0;
+    virtual void is_informational(int* out_result) noexcept = 0;
+    virtual void is_success(int* out_result) noexcept = 0;
+    virtual void is_redirection(int* out_result) noexcept = 0;
+    virtual void is_client_error(int* out_result) noexcept = 0;
+    virtual void is_server_error(int* out_result) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ResponseOps{
             .struct_size = TF_RESPONSE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Response* response) noexcept
             {
-                std::unique_ptr<TF_ResponseOps>{&TF_ResponseOps::from_handle(plugin_context)};
+                TF_ResponseOps::from_handle(response).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Response* response, TF_String* out_name) noexcept
             {
-                auto result = TF_ResponseOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ResponseOps::from_handle(response).get_name(ice::sonic::String::wrap(out_name));
             },
             .set_status =
                 [](TF_Response* response, int32_t status_code, TF_Status* out_status) noexcept
@@ -120,20 +104,14 @@ public:
             .get_status =
                 [](TF_Response* response, int32_t* out_status_code) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_status(out_status_code);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).get_status(out_status_code);
             },
             .get_status_text =
                 [](TF_Response* response, TF_String* out_status_text) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_status_text(
+                TF_ResponseOps::from_handle(response).get_status_text(
                     ice::sonic::String::wrap(out_status_text)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .set_header =
                 [](TF_Response* response,
@@ -178,13 +156,10 @@ public:
                    const TF_String* name,
                    const TF_String** out_value) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).find_header(
+                TF_ResponseOps::from_handle(response).find_header(
                     ice::sonic::String::wrap(name),
                     out_value
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_headers =
                 [](TF_Response* response, TF_Map* out_headers, TF_Status* out_status) noexcept
@@ -210,10 +185,7 @@ public:
             .get_body =
                 [](TF_Response* response, const void** out_data, size_t* out_length) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_body(out_data, out_length);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).get_body(out_data, out_length);
             },
             .set_keep_alive =
                 [](TF_Response* response, int enabled, TF_Status* out_status) noexcept
@@ -226,10 +198,7 @@ public:
             .is_keep_alive =
                 [](TF_Response* response, int* out_keep_alive) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_keep_alive(out_keep_alive);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_keep_alive(out_keep_alive);
             },
             .set_cookie =
                 [](TF_Response* response,
@@ -260,120 +229,77 @@ public:
             .get_content_type =
                 [](TF_Response* response, TF_String* out_content_type) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_content_type(
+                TF_ResponseOps::from_handle(response).get_content_type(
                     ice::sonic::String::wrap(out_content_type)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_content_length =
                 [](TF_Response* response, int64_t* out_length) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_content_length(out_length);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).get_content_length(out_length);
             },
             .get_location =
                 [](TF_Response* response, TF_String* out_location) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_location(
+                TF_ResponseOps::from_handle(response).get_location(
                     ice::sonic::String::wrap(out_location)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_etag =
                 [](TF_Response* response, TF_String* out_etag) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_etag(
-                    ice::sonic::String::wrap(out_etag)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).get_etag(ice::sonic::String::wrap(out_etag));
             },
             .get_date =
                 [](TF_Response* response, TF_String* out_date) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_date(
-                    ice::sonic::String::wrap(out_date)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).get_date(ice::sonic::String::wrap(out_date));
             },
             .get_server =
                 [](TF_Response* response, TF_String* out_server) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_server(
+                TF_ResponseOps::from_handle(response).get_server(
                     ice::sonic::String::wrap(out_server)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_cache_control =
                 [](TF_Response* response, TF_String* out_cache_control) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_cache_control(
+                TF_ResponseOps::from_handle(response).get_cache_control(
                     ice::sonic::String::wrap(out_cache_control)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_last_modified =
                 [](TF_Response* response, TF_String* out_last_modified) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).get_last_modified(
+                TF_ResponseOps::from_handle(response).get_last_modified(
                     ice::sonic::String::wrap(out_last_modified)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .is_informational =
                 [](TF_Response* response, int* out_result) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_informational(out_result);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_informational(out_result);
             },
             .is_success =
                 [](TF_Response* response, int* out_result) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_success(out_result);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_success(out_result);
             },
             .is_redirection =
                 [](TF_Response* response, int* out_result) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_redirection(out_result);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_redirection(out_result);
             },
             .is_client_error =
                 [](TF_Response* response, int* out_result) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_client_error(out_result);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_client_error(out_result);
             },
             .is_server_error =
                 [](TF_Response* response, int* out_result) noexcept
             {
-                auto res = TF_ResponseOps::from_handle(response).is_server_error(out_result);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ResponseOps::from_handle(response).is_server_error(out_result);
             },
 
         };
@@ -383,8 +309,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Response& get_handle() const noexcept
     {

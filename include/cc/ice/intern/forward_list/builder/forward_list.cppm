@@ -36,14 +36,12 @@ public:
     }
 
     virtual ~TF_ForwardListOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_element_size(size_t element_size) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     push_front(const void* value, TFForwardListNode* out_node) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    erase_after(TFForwardListNode* node) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    for_each(TF_ForwardListVisitor visitor, void* capture) noexcept = 0;
+    virtual void erase_after(TFForwardListNode* node) noexcept = 0;
+    virtual void for_each(TF_ForwardListVisitor visitor, void* capture) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -52,10 +50,7 @@ public:
             .set_element_size =
                 [](TF_ForwardList* list, size_t element_size) noexcept
             {
-                auto res = TF_ForwardListOps::from_handle(list).set_element_size(element_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ForwardListOps::from_handle(list).set_element_size(element_size);
             },
             .push_front =
                 [](TF_ForwardList* list,
@@ -71,26 +66,19 @@ public:
             .erase_after =
                 [](TF_ForwardList* list, TFForwardListNode* node) noexcept
             {
-                auto res = TF_ForwardListOps::from_handle(list).erase_after(node);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ForwardListOps::from_handle(list).erase_after(node);
             },
             .for_each =
                 [](const TF_ForwardList* list,
                    TF_ForwardListVisitor visitor,
                    void* capture) noexcept
             {
-                auto res = TF_ForwardListOps::from_handle(list).for_each(visitor, capture);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ForwardListOps::from_handle(list).for_each(visitor, capture);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_ForwardList* list) noexcept
             {
-                std::unique_ptr<TF_ForwardListOps>{&TF_ForwardListOps::from_handle(plugin_context)};
+                TF_ForwardListOps::from_handle(list).destroy();
             },
 
         };

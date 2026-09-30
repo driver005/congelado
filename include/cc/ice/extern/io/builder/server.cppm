@@ -36,57 +36,48 @@ public:
     }
 
     virtual ~TF_ServerOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_bind_host(const ice::sonic::String& out_host) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_bind_port(uint16_t* out_port) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_tls_cert(const ice::sonic::String& out_cert) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_tls_key(const ice::sonic::String& out_key) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_request_handler(TFServerRequestHandler handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_connect(TFServerConnectFn handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_disconnect(TFServerDisconnectFn handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> start() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> stop() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> stop_accepting() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> resume_accepting() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_running(int* out_running) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> is_idle(int* out_idle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void get_bind_host(const ice::sonic::String& out_host) noexcept = 0;
+    virtual void get_bind_port(uint16_t* out_port) noexcept = 0;
+    virtual void get_tls_cert(const ice::sonic::String& out_cert) noexcept = 0;
+    virtual void get_tls_key(const ice::sonic::String& out_key) noexcept = 0;
+    virtual void set_request_handler(TFServerRequestHandler handler, void* user_data) noexcept = 0;
+    virtual void on_connect(TFServerConnectFn handler, void* user_data) noexcept = 0;
+    virtual void on_disconnect(TFServerDisconnectFn handler, void* user_data) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> start() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> stop() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> stop_accepting() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> resume_accepting() noexcept = 0;
+    virtual void is_running(int* out_running) noexcept = 0;
+    virtual void is_idle(int* out_idle) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_max_connections(size_t max_connections) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_max_connections(size_t* out_max_connections) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> find_connection(
+    virtual void get_max_connections(size_t* out_max_connections) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> find_connection(
         const ice::sonic::String& connection_id,
         TFServerConnection* out_connection
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_connection_id(const ice::sonic::String& out_connection_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_connection_id(const ice::sonic::String& out_connection_id) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     send_response(const ice::sonic::TF_ResponseOps& response) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     broadcast(const ice::sonic::TF_ResponseOps& response) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> close_connection() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> close_connection() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_connections(const ice::sonic::TF_VectorOps& out_connections) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_connection_count(size_t* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_connection_count(size_t* out_count) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> register_extension(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> register_extension(
         const ice::sonic::String& name,
         const ice::sonic::TF_MapOps& config
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     unregister_extension(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_extensions(const ice::sonic::TF_VectorOps& out_names) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> reload_certificate(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> reload_certificate(
         const ice::sonic::String& cert_path,
         const ice::sonic::String& key_path
     ) noexcept = 0;
@@ -95,81 +86,50 @@ public:
     {
         m_vtable = ::TF_ServerOps{
             .struct_size = TF_SERVER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Server* server) noexcept
             {
-                std::unique_ptr<TF_ServerOps>{&TF_ServerOps::from_handle(plugin_context)};
+                TF_ServerOps::from_handle(server).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Server* server, TF_String* out_name) noexcept
             {
-                auto result = TF_ServerOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ServerOps::from_handle(server).get_name(ice::sonic::String::wrap(out_name));
             },
             .get_bind_host =
                 [](TF_Server* server, TF_String* out_host) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).get_bind_host(
-                    ice::sonic::String::wrap(out_host)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_bind_host(ice::sonic::String::wrap(out_host));
             },
             .get_bind_port =
                 [](TF_Server* server, uint16_t* out_port) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).get_bind_port(out_port);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_bind_port(out_port);
             },
             .get_tls_cert =
                 [](TF_Server* server, TF_String* out_cert) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).get_tls_cert(
-                    ice::sonic::String::wrap(out_cert)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_tls_cert(ice::sonic::String::wrap(out_cert));
             },
             .get_tls_key =
                 [](TF_Server* server, TF_String* out_key) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).get_tls_key(
-                    ice::sonic::String::wrap(out_key)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_tls_key(ice::sonic::String::wrap(out_key));
             },
             .set_request_handler =
                 [](TF_Server* server, TFServerRequestHandler handler, void* user_data) noexcept
             {
-                auto res =
-                    TF_ServerOps::from_handle(server).set_request_handler(handler, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).set_request_handler(handler, user_data);
             },
             .on_connect =
                 [](TF_Server* server, TFServerConnectFn handler, void* user_data) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).on_connect(handler, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).on_connect(handler, user_data);
             },
             .on_disconnect =
                 [](TF_Server* server, TFServerDisconnectFn handler, void* user_data) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).on_disconnect(handler, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).on_disconnect(handler, user_data);
             },
             .start =
                 [](TF_Server* server, TF_Status* out_status) noexcept
@@ -206,18 +166,12 @@ public:
             .is_running =
                 [](TF_Server* server, int* out_running) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).is_running(out_running);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).is_running(out_running);
             },
             .is_idle =
                 [](TF_Server* server, int* out_idle) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).is_idle(out_idle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).is_idle(out_idle);
             },
             .set_max_connections =
                 [](TF_Server* server, size_t max_connections, TF_Status* out_status) noexcept
@@ -230,11 +184,7 @@ public:
             .get_max_connections =
                 [](TF_Server* server, size_t* out_max_connections) noexcept
             {
-                auto res =
-                    TF_ServerOps::from_handle(server).get_max_connections(out_max_connections);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_max_connections(out_max_connections);
             },
             .find_connection =
                 [](TF_Server* server,
@@ -253,11 +203,8 @@ public:
             .get_connection_id =
                 [](TFServerConnection* connection, TF_String* out_connection_id) noexcept
             {
-                auto res = TF_ServerOps::from_handle(connection)
-                               .get_connection_id(ice::sonic::String::wrap(out_connection_id));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(connection)
+                    .get_connection_id(ice::sonic::String::wrap(out_connection_id));
             },
             .send_response =
                 [](TFServerConnection* connection,
@@ -301,10 +248,7 @@ public:
             .get_connection_count =
                 [](TF_Server* server, size_t* out_count) noexcept
             {
-                auto res = TF_ServerOps::from_handle(server).get_connection_count(out_count);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ServerOps::from_handle(server).get_connection_count(out_count);
             },
             .get_stats =
                 [](TF_Server* server, TF_Map* out_stats, TF_Status* out_status) noexcept
@@ -372,8 +316,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Server& get_handle() const noexcept
     {

@@ -36,29 +36,25 @@ public:
     }
 
     virtual ~TF_RandomGeneratorOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_seed(uint64_t seed) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_seed(uint64_t* out_seed) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    reseed_nondeterministic(uint64_t* out_seed) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_offset(uint64_t offset) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_offset(uint64_t* out_offset) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_seed(uint64_t seed) noexcept = 0;
+    virtual void get_seed(uint64_t* out_seed) noexcept = 0;
+    virtual void reseed_nondeterministic(uint64_t* out_seed) noexcept = 0;
+    virtual void set_offset(uint64_t offset) noexcept = 0;
+    virtual void get_offset(uint64_t* out_offset) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_state(const ice::sonic::TF_TensorOps& state) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_state(TF_Tensor** out_state) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     graphsafe_set_state(const ice::sonic::TF_RandomGeneratorOps& other) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     graphsafe_get_state(const ice::sonic::TF_RandomGeneratorOps& out_other) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     philox_state(uint64_t increment, TF_PhiloxState* out_state) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     philox_engine_inputs(uint64_t increment, uint64_t* out_seed, uint64_t* out_offset) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_device_index(int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_device_index(int* out_device_index) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     clone(const ice::sonic::TF_RandomGeneratorOps& out_clone) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -68,43 +64,27 @@ public:
             .set_seed =
                 [](TF_RandomGenerator* generator, uint64_t seed) noexcept
             {
-                auto res = TF_RandomGeneratorOps::from_handle(generator).set_seed(seed);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).set_seed(seed);
             },
             .get_seed =
                 [](TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
             {
-                auto res = TF_RandomGeneratorOps::from_handle(generator).get_seed(out_seed);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).get_seed(out_seed);
             },
             .reseed_nondeterministic =
                 [](TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
             {
-                auto res =
-                    TF_RandomGeneratorOps::from_handle(generator).reseed_nondeterministic(out_seed);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).reseed_nondeterministic(out_seed);
             },
             .set_offset =
                 [](TF_RandomGenerator* generator, uint64_t offset) noexcept
             {
-                auto res = TF_RandomGeneratorOps::from_handle(generator).set_offset(offset);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).set_offset(offset);
             },
             .get_offset =
                 [](TF_RandomGenerator* generator, uint64_t* out_offset) noexcept
             {
-                auto res = TF_RandomGeneratorOps::from_handle(generator).get_offset(out_offset);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).get_offset(out_offset);
             },
             .set_state =
                 [](TF_RandomGenerator* generator,
@@ -182,12 +162,7 @@ public:
             .get_device_index =
                 [](TF_RandomGenerator* generator, int* out_device_index) noexcept
             {
-                auto res = TF_RandomGeneratorOps::from_handle(generator).get_device_index(
-                    out_device_index
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_RandomGeneratorOps::from_handle(generator).get_device_index(out_device_index);
             },
             .clone =
                 [](TF_RandomGenerator* generator,

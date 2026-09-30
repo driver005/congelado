@@ -36,90 +36,63 @@ public:
     }
 
     virtual ~TFGeneratorParameterOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_name(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_description(const ice::sonic::String& description) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_position(int position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_description(const ice::sonic::String& out_description) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_position(int* out_position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_type(const ice::sonic::TF_TypeInfoOps& out_type) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void set_name(const ice::sonic::String& name) noexcept = 0;
+    virtual void set_description(const ice::sonic::String& description) noexcept = 0;
+    virtual void set_position(int position) noexcept = 0;
+    virtual void get_description(const ice::sonic::String& out_description) noexcept = 0;
+    virtual void get_position(int* out_position) noexcept = 0;
+    virtual void get_type(const ice::sonic::TF_TypeInfoOps& out_type) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFGeneratorParameterOps{
             .struct_size = TF_ENERATORPARAMETER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFGeneratorParameter* param_context) noexcept
             {
-                std::unique_ptr<TFGeneratorParameterOps>{
-                    &TFGeneratorParameterOps::from_handle(plugin_context)
-                };
+                TFGeneratorParameterOps::from_handle(param_context).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFGeneratorParameter* param_context, TF_String* out_name) noexcept
             {
-                auto result = TFGeneratorParameterOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFGeneratorParameterOps::from_handle(param_context)
+                    .get_name(ice::sonic::String::wrap(out_name));
             },
             .set_name =
                 [](TFGeneratorParameter* param_context, const TF_String* name) noexcept
             {
-                auto res = TFGeneratorParameterOps::from_handle(param_context)
-                               .set_name(ice::sonic::String::wrap(name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context)
+                    .set_name(ice::sonic::String::wrap(name));
             },
             .set_description =
                 [](TFGeneratorParameter* param_context, const TF_String* description) noexcept
             {
-                auto res = TFGeneratorParameterOps::from_handle(param_context)
-                               .set_description(ice::sonic::String::wrap(description));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context)
+                    .set_description(ice::sonic::String::wrap(description));
             },
             .set_position =
                 [](TFGeneratorParameter* param_context, int position) noexcept
             {
-                auto res =
-                    TFGeneratorParameterOps::from_handle(param_context).set_position(position);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context).set_position(position);
             },
             .get_description =
                 [](TFGeneratorParameter* param_context, TF_String* out_description) noexcept
             {
-                auto res = TFGeneratorParameterOps::from_handle(param_context)
-                               .get_description(ice::sonic::String::wrap(out_description));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context)
+                    .get_description(ice::sonic::String::wrap(out_description));
             },
             .get_position =
                 [](TFGeneratorParameter* param_context, int* out_position) noexcept
             {
-                auto res =
-                    TFGeneratorParameterOps::from_handle(param_context).get_position(out_position);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context).get_position(out_position);
             },
             .get_type =
                 [](TFGeneratorParameter* param_context, TF_TypeInfo* out_type) noexcept
             {
-                auto res = TFGeneratorParameterOps::from_handle(param_context)
-                               .get_type(ice::sonic::TF_TypeInfoOps::wrap(out_type));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorParameterOps::from_handle(param_context)
+                    .get_type(ice::sonic::TF_TypeInfoOps::wrap(out_type));
             },
 
         };
@@ -129,8 +102,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFGeneratorParameter& get_handle() const noexcept
     {

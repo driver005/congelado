@@ -24,21 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "forward_list";
 
-    [[nodiscard]] std::expected<void, ice::Status> set_element_size(size_t element_size) noexcept
+    void set_element_size(size_t element_size) noexcept
     {
-        ice::Status status;
-        m_ops->set_element_size(get_handle(), element_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_element_size(get_handle(), element_size);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     push_front(const void* value, TFForwardListNode* out_node) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->push_front(get_handle(), value, out_node, status.get_handle());
 
         if (!status.ok()) {
@@ -47,36 +41,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> erase_after(TFForwardListNode* node) noexcept
+    void erase_after(TFForwardListNode* node) noexcept
     {
-        ice::Status status;
-        m_ops->erase_after(get_handle(), node, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->erase_after(get_handle(), node);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    for_each(TF_ForwardListVisitor visitor, void* capture) noexcept
+    void for_each(TF_ForwardListVisitor visitor, void* capture) noexcept
     {
-        ice::Status status;
-        m_ops->for_each(get_handle(), visitor, capture, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->for_each(get_handle(), visitor, capture);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
     }
 };
 

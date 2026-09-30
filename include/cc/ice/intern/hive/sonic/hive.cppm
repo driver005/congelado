@@ -24,21 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "hive";
 
-    [[nodiscard]] std::expected<void, ice::Status> set_element_size(size_t element_size) noexcept
+    void set_element_size(size_t element_size) noexcept
     {
-        ice::Status status;
-        m_ops->set_element_size(get_handle(), element_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_element_size(get_handle(), element_size);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     insert(const void* value, TFHiveSlot* out_slot) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->insert(get_handle(), value, out_slot, status.get_handle());
 
         if (!status.ok()) {
@@ -47,9 +41,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> erase(TFHiveSlot* slot) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> erase(TFHiveSlot* slot) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->erase(get_handle(), slot, status.get_handle());
 
         if (!status.ok()) {
@@ -58,10 +52,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get(const TFHiveSlot* slot, const void** out_value) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get(get_handle(), slot, out_value, status.get_handle());
 
         if (!status.ok()) {
@@ -70,36 +64,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    for_each(TF_HiveVisitor visitor, void* capture) noexcept
+    void for_each(TF_HiveVisitor visitor, void* capture) noexcept
     {
-        ice::Status status;
-        m_ops->for_each(get_handle(), visitor, capture, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->for_each(get_handle(), visitor, capture);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
+    void size(size_t* out_size) noexcept
     {
-        ice::Status status;
-        m_ops->size(get_handle(), out_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->size(get_handle(), out_size);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
     }
 };
 

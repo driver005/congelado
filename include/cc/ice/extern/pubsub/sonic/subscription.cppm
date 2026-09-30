@@ -25,20 +25,19 @@ public:
 
     static constexpr std::string_view domain_name = "pubsub";
 
-    [[nodiscard]] std::expected<void, ice::Status> unsubscribe() noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->unsubscribe(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> ack() noexcept
+    void unsubscribe() noexcept
     {
-        ice::Status status;
+        m_ops->unsubscribe(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> ack() noexcept
+    {
+        ice::sonic::Status status;
         m_ops->ack(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -47,9 +46,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> nack() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> nack() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->nack(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -58,9 +57,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> seek(const ice::sonic::String& position) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    seek(const ice::sonic::String& position) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->seek(get_handle(), position.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -69,25 +69,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_lag(TFPubSubIntFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_lag(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

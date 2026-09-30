@@ -36,23 +36,22 @@ public:
     }
 
     virtual ~TF_JobberOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_JobberOps{
             .struct_size = TF_JOBBER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Jobber* jobber) noexcept
             {
-                std::unique_ptr<TF_JobberOps>{&TF_JobberOps::from_handle(plugin_context)};
+                TF_JobberOps::from_handle(jobber).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Jobber* jobber, TF_String* out_name) noexcept
             {
-                auto result = TF_JobberOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_JobberOps::from_handle(jobber).get_name(ice::sonic::String::wrap(out_name));
             },
 
         };
@@ -62,8 +61,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Jobber& get_handle() const noexcept
     {

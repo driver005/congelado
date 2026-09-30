@@ -36,28 +36,27 @@ public:
     }
 
     virtual ~TFOtelSpanOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_attribute(const ice::sonic::String& key, const ice::sonic::String& value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_status(int status_code, const ice::sonic::String& description) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> end() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> end() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFOtelSpanOps{
             .struct_size = TF_TELSPAN_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFOtelSpan* span) noexcept
             {
-                std::unique_ptr<TFOtelSpanOps>{&TFOtelSpanOps::from_handle(plugin_context)};
+                TFOtelSpanOps::from_handle(span).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFOtelSpan* span, TF_String* out_name) noexcept
             {
-                auto result = TFOtelSpanOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFOtelSpanOps::from_handle(span).get_name(ice::sonic::String::wrap(out_name));
             },
             .set_attribute =
                 [](TFOtelSpan* span,
@@ -103,8 +102,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFOtelSpan& get_handle() const noexcept
     {

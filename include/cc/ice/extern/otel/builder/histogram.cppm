@@ -36,26 +36,25 @@ public:
     }
 
     virtual ~TFOtelHistogramOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> record(double value) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> record(double value) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFOtelHistogramOps{
             .struct_size = TF_TELHISTOGRAM_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFOtelHistogram* histogram) noexcept
             {
-                std::unique_ptr<TFOtelHistogramOps>{
-                    &TFOtelHistogramOps::from_handle(plugin_context)
-                };
+                TFOtelHistogramOps::from_handle(histogram).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFOtelHistogram* histogram, TF_String* out_name) noexcept
             {
-                auto result = TFOtelHistogramOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFOtelHistogramOps::from_handle(histogram).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .record =
                 [](TFOtelHistogram* histogram, double value, TF_Status* out_status) noexcept
@@ -73,8 +72,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFOtelHistogram& get_handle() const noexcept
     {

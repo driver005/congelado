@@ -24,34 +24,20 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept
+    void get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept
     {
-        ice::Status status;
-        m_ops->get_optimization_level(get_handle(), out_level, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_optimization_level(get_handle(), out_level);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_optimization_level(TFGrapplerOptimizationLevel level) noexcept
+    void set_optimization_level(TFGrapplerOptimizationLevel level) noexcept
     {
-        ice::Status status;
-        m_ops->set_optimization_level(get_handle(), level, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_optimization_level(get_handle(), level);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_optimizer_configs(TFGrapplerOptimizerConfigs* out_configs) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_optimizer_configs(get_handle(), out_configs, status.get_handle());
 
         if (!status.ok()) {
@@ -60,25 +46,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     set_optimizer_configs(const TFGrapplerOptimizerConfigs* in_configs) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->set_optimizer_configs(get_handle(), in_configs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

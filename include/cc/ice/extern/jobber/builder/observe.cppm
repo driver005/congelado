@@ -36,25 +36,26 @@ public:
     }
 
     virtual ~TF_ObserveOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_status(
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_status(
         const ice::sonic::TF_JobOps& job,
         TFObserveStatusFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_result(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_result(
         const ice::sonic::TF_JobOps& job,
         TFObserveResultFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_history(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_history(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_VectorOps& out_transitions
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_metrics(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_metrics(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_MapOps& out_metrics
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_logs(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_logs(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_VectorOps& out_lines
     ) noexcept = 0;
@@ -63,11 +64,10 @@ public:
     {
         m_vtable = ::TF_ObserveOps{
             .struct_size = TF_OBSERVE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Observe* observe) noexcept
             {
-                std::unique_ptr<TF_ObserveOps>{&TF_ObserveOps::from_handle(plugin_context)};
+                TF_ObserveOps::from_handle(observe).destroy();
             },
             .get_status =
                 [](TF_Observe* observe,

@@ -36,22 +36,22 @@ public:
     }
 
     virtual ~TF_OptionsOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_options(const ice::sonic::TF_JobOps& job, TFJobOptions* out_options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     update_options(const ice::sonic::TF_JobOps& job, const TFJobOptions* new_options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_priority(const ice::sonic::TF_JobOps& job, int priority) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_OptionsOps{
             .struct_size = TF_OPTIONS_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Options* options) noexcept
             {
-                std::unique_ptr<TF_OptionsOps>{&TF_OptionsOps::from_handle(plugin_context)};
+                TF_OptionsOps::from_handle(options).destroy();
             },
             .get_options =
                 [](TF_Options* options,

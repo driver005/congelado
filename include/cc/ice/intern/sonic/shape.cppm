@@ -24,58 +24,29 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_dims(const int64_t* dims, int num_dims) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->set_dims(get_handle(), dims, num_dims, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> delete_shape() noexcept
+    void set_dims(const int64_t* dims, int num_dims) noexcept
     {
-        ice::Status status;
-        m_ops->delete_shape(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_dims(get_handle(), dims, num_dims);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> shape_num_dims(int* out_num_dims) noexcept
+    void delete_shape() noexcept
     {
-        ice::Status status;
-        m_ops->shape_num_dims(get_handle(), out_num_dims, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->delete_shape(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> shape_dim(int index, int64_t* out_dim) noexcept
+    void shape_num_dims(int* out_num_dims) noexcept
     {
-        ice::Status status;
-        m_ops->shape_dim(get_handle(), index, out_dim, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->shape_num_dims(get_handle(), out_num_dims);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void shape_dim(int index, int64_t* out_dim) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->shape_dim(get_handle(), index, out_dim);
     }
 };
 

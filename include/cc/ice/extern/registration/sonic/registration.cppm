@@ -24,64 +24,37 @@ public:
 
     static constexpr std::string_view domain_name = "registration";
 
-    [[nodiscard]] std::expected<void, ice::Status> register_op(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    void register_op(
         const ice::sonic::String& type,
         const ice::sonic::String& name,
         void* value
     ) noexcept
     {
-        ice::Status status;
-        m_ops->register_op(
-            get_handle(),
-            type.get_handle(),
-            name.get_handle(),
-            value,
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->register_op(get_handle(), type.get_handle(), name.get_handle(), value);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get(const ice::sonic::String& type, const ice::sonic::String& name, void** out_value) noexcept
+    void get(
+        const ice::sonic::String& type,
+        const ice::sonic::String& name,
+        void** out_value
+    ) noexcept
     {
-        ice::Status status;
-        m_ops->get(
-            get_handle(),
-            type.get_handle(),
-            name.get_handle(),
-            out_value,
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get(get_handle(), type.get_handle(), name.get_handle(), out_value);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept
+    void unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept
     {
-        ice::Status status;
-        m_ops->unregister(get_handle(), type.get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->unregister(get_handle(), type.get_handle(), name.get_handle());
     }
 };
 

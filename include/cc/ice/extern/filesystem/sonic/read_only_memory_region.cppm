@@ -28,35 +28,24 @@ public:
 
     static constexpr std::string_view domain_name = "filesystem";
 
-    [[nodiscard]] std::expected<void, ice::Status> data(const void** out_data) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->data(get_handle(), out_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> length(uint64_t* out_length) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->length(get_handle(), out_length, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void data(const void** out_data) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->data(get_handle(), out_data);
+    }
+
+    void length(uint64_t* out_length) noexcept
+    {
+        m_ops->length(get_handle(), out_length);
     }
 };
 

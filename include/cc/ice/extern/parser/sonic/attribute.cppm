@@ -24,10 +24,11 @@ public:
 
     static constexpr std::string_view domain_name = "parser";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_value(TF_Tensor** out_value) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->get_value(get_handle(), out_value, status.get_handle());
+        ice::sonic::Status status;
+        m_ops->get_name(get_handle(), out_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -35,13 +36,15 @@ public:
         return {};
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_value(TF_Tensor** out_value) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        ice::sonic::Status status;
+        m_ops->get_value(get_handle(), out_value, status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
     }
 };
 

@@ -36,7 +36,7 @@ public:
     }
 
     virtual ~TFGrapplerOptimizerOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> optimize(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> optimize(
         const ice::sonic::TF_BufferOps& graph_buf,
         const ice::sonic::TFGrapplerItemOps& item,
         const ice::sonic::TF_BufferOps& out_optimized_graph_buf

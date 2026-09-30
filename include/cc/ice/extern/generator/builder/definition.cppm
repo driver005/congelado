@@ -36,74 +36,58 @@ public:
     }
 
     virtual ~TFGeneratorDefinitionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_name(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_summary(const ice::sonic::String& summary) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_description(const ice::sonic::String& description) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void set_name(const ice::sonic::String& name) noexcept = 0;
+    virtual void set_summary(const ice::sonic::String& summary) noexcept = 0;
+    virtual void set_description(const ice::sonic::String& description) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_input(const ice::sonic::TFGeneratorParameterOps& input) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_output(const ice::sonic::TFGeneratorParameterOps& output) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_attr(const ice::sonic::TFGeneratorAttributeOps& attr) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_summary(const ice::sonic::String& out_summary) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_description(const ice::sonic::String& out_description) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_summary(const ice::sonic::String& out_summary) noexcept = 0;
+    virtual void get_description(const ice::sonic::String& out_description) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_inputs(TF_Tensor** out_inputs) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_outputs(TF_Tensor** out_outputs) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_attrs(TF_Tensor** out_attrs) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFGeneratorDefinitionOps{
             .struct_size = TF_ENERATORDEFINITION_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFGeneratorDefinition* def_context) noexcept
             {
-                std::unique_ptr<TFGeneratorDefinitionOps>{
-                    &TFGeneratorDefinitionOps::from_handle(plugin_context)
-                };
+                TFGeneratorDefinitionOps::from_handle(def_context).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFGeneratorDefinition* def_context, TF_String* out_name) noexcept
             {
-                auto result = TFGeneratorDefinitionOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .get_name(ice::sonic::String::wrap(out_name));
             },
             .set_name =
                 [](TFGeneratorDefinition* def_context, const TF_String* name) noexcept
             {
-                auto res = TFGeneratorDefinitionOps::from_handle(def_context)
-                               .set_name(ice::sonic::String::wrap(name));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .set_name(ice::sonic::String::wrap(name));
             },
             .set_summary =
                 [](TFGeneratorDefinition* def_context, const TF_String* summary) noexcept
             {
-                auto res = TFGeneratorDefinitionOps::from_handle(def_context)
-                               .set_summary(ice::sonic::String::wrap(summary));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .set_summary(ice::sonic::String::wrap(summary));
             },
             .set_description =
                 [](TFGeneratorDefinition* def_context, const TF_String* description) noexcept
             {
-                auto res = TFGeneratorDefinitionOps::from_handle(def_context)
-                               .set_description(ice::sonic::String::wrap(description));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .set_description(ice::sonic::String::wrap(description));
             },
             .add_input =
                 [](TFGeneratorDefinition* def_context,
@@ -141,20 +125,14 @@ public:
             .get_summary =
                 [](TFGeneratorDefinition* def_context, TF_String* out_summary) noexcept
             {
-                auto res = TFGeneratorDefinitionOps::from_handle(def_context)
-                               .get_summary(ice::sonic::String::wrap(out_summary));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .get_summary(ice::sonic::String::wrap(out_summary));
             },
             .get_description =
                 [](TFGeneratorDefinition* def_context, TF_String* out_description) noexcept
             {
-                auto res = TFGeneratorDefinitionOps::from_handle(def_context)
-                               .get_description(ice::sonic::String::wrap(out_description));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGeneratorDefinitionOps::from_handle(def_context)
+                    .get_description(ice::sonic::String::wrap(out_description));
             },
             .list_inputs =
                 [](TFGeneratorDefinition* def_context,
@@ -196,8 +174,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFGeneratorDefinition& get_handle() const noexcept
     {

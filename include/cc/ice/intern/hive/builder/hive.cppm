@@ -36,16 +36,16 @@ public:
     }
 
     virtual ~TF_HiveOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_element_size(size_t element_size) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     insert(const void* value, TFHiveSlot* out_slot) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> erase(TFHiveSlot* slot) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    erase(TFHiveSlot* slot) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(const TFHiveSlot* slot, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    for_each(TF_HiveVisitor visitor, void* capture) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
+    virtual void for_each(TF_HiveVisitor visitor, void* capture) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -54,10 +54,7 @@ public:
             .set_element_size =
                 [](TF_Hive* hive, size_t element_size) noexcept
             {
-                auto res = TF_HiveOps::from_handle(hive).set_element_size(element_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_HiveOps::from_handle(hive).set_element_size(element_size);
             },
             .insert =
                 [](TF_Hive* hive,
@@ -92,24 +89,17 @@ public:
             .for_each =
                 [](const TF_Hive* hive, TF_HiveVisitor visitor, void* capture) noexcept
             {
-                auto res = TF_HiveOps::from_handle(hive).for_each(visitor, capture);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_HiveOps::from_handle(hive).for_each(visitor, capture);
             },
             .size =
                 [](const TF_Hive* hive, size_t* out_size) noexcept
             {
-                auto res = TF_HiveOps::from_handle(hive).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_HiveOps::from_handle(hive).size(out_size);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Hive* hive) noexcept
             {
-                std::unique_ptr<TF_HiveOps>{&TF_HiveOps::from_handle(plugin_context)};
+                TF_HiveOps::from_handle(hive).destroy();
             },
 
         };

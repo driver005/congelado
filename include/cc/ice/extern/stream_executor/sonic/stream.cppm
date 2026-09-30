@@ -24,31 +24,19 @@ public:
 
     static constexpr std::string_view domain_name = "stream_executor";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_priority(int32_t* out_priority) noexcept
+    void get_priority(int32_t* out_priority) noexcept
     {
-        ice::Status status;
-        m_ops->get_priority(get_handle(), out_priority, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_priority(get_handle(), out_priority);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_device_index(int* out_device_index) noexcept
+    void get_device_index(int* out_device_index) noexcept
     {
-        ice::Status status;
-        m_ops->get_device_index(get_handle(), out_device_index, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_device_index(get_handle(), out_device_index);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> query(_Bool* out_idle) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> query(_Bool* out_idle) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->query(get_handle(), out_idle, status.get_handle());
 
         if (!status.ok()) {
@@ -57,9 +45,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> synchronize() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> synchronize() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->synchronize(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -68,10 +56,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_capture_status(TF_CaptureStatus* out_capture_status) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_capture_status(get_handle(), out_capture_status, status.get_handle());
 
         if (!status.ok()) {
@@ -80,24 +68,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
+    void get_native_handle(void** out_handle) noexcept
     {
-        ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_native_handle(get_handle(), out_handle);
     }
 };
 

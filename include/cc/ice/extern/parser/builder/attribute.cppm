@@ -36,19 +36,26 @@ public:
     }
 
     virtual ~TFParserAttributeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_value(TF_Tensor** out_value) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserAttributeOps{
             .struct_size = TF_ARSERATTRIBUTE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserAttribute* attribute,
+                   TF_String* out_name,
+                   TF_Status* out_status) noexcept
             {
-                auto result = TFParserAttributeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserAttributeOps::from_handle(attribute).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_value =
                 [](TFParserAttribute* attribute,
@@ -68,8 +75,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserAttribute& get_handle() const noexcept
     {

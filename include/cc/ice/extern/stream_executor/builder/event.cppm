@@ -36,12 +36,11 @@ public:
     }
 
     virtual ~TF_EventOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     elapsed_time(const ice::sonic::TF_EventOps& end, float* out_milliseconds) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     export_ipc(TF_IpcEventHandle* out_handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_native_handle(void** out_handle) noexcept = 0;
+    virtual void get_native_handle(void** out_handle) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -72,10 +71,7 @@ public:
             .get_native_handle =
                 [](TF_Event* event, void** out_handle) noexcept
             {
-                auto res = TF_EventOps::from_handle(event).get_native_handle(out_handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_EventOps::from_handle(event).get_native_handle(out_handle);
             },
 
         };

@@ -24,13 +24,18 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status> signal(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> signal(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::String& signal_name,
         const ice::sonic::String& payload
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->signal(
             get_handle(),
             job.get_handle(),
@@ -45,13 +50,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> checkpoint(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> checkpoint(
         const ice::sonic::TF_JobOps& job,
         TFDurableAckFn completion,
         void* user_data
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->checkpoint(
             get_handle(),
             job.get_handle(),
@@ -66,25 +71,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     restore_checkpoint(const ice::sonic::TF_JobOps& job) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->restore_checkpoint(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

@@ -36,11 +36,11 @@ public:
     }
 
     virtual ~TFParserCatalogOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> parse_file(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> parse_file(
         const ice::sonic::String& file_path,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> parse_buffer(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> parse_buffer(
         const ice::sonic::TF_BufferOps& buffer,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept = 0;

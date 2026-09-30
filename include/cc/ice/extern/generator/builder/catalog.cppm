@@ -36,13 +36,13 @@ public:
     }
 
     virtual ~TFGeneratorCatalogOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     add_module(const ice::sonic::TFGeneratorModuleOps& module) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_module(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_module(
         const ice::sonic::String& name,
         const ice::sonic::TFGeneratorModuleOps& out_module
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_modules(TF_Tensor** out_modules) noexcept = 0;
 
     void get_generic_vtable() noexcept

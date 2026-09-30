@@ -36,22 +36,22 @@ public:
     }
 
     virtual ~TFStoreIndexOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& field_config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     drop(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list(const ice::sonic::TF_VectorOps& out_names) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFStoreIndexOps{
             .struct_size = TF_TOREINDEX_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFStoreIndex* index) noexcept
             {
-                std::unique_ptr<TFStoreIndexOps>{&TFStoreIndexOps::from_handle(plugin_context)};
+                TFStoreIndexOps::from_handle(index).destroy();
             },
             .create =
                 [](TFStoreIndex* index,

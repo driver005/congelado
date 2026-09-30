@@ -24,107 +24,54 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->set_type_attr_name(get_handle(), type_attr_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_data_type(int data_type) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->set_data_type(get_handle(), data_type, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_read_only(_Bool read_only) noexcept
+    void set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept
     {
-        ice::Status status;
-        m_ops->set_read_only(get_handle(), read_only, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_type_attr_name(get_handle(), type_attr_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_list(_Bool is_list) noexcept
+    void set_data_type(int data_type) noexcept
     {
-        ice::Status status;
-        m_ops->set_list(get_handle(), is_list, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_data_type(get_handle(), data_type);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept
+    void set_read_only(_Bool read_only) noexcept
     {
-        ice::Status status;
-        m_ops->get_type_attr_name(
-            get_handle(),
-            out_type_attr_name.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_read_only(get_handle(), read_only);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_data_type(int* out_data_type) noexcept
+    void set_list(_Bool is_list) noexcept
     {
-        ice::Status status;
-        m_ops->get_data_type(get_handle(), out_data_type, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_list(get_handle(), is_list);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> is_read_only(int* out_is_read_only) noexcept
+    void get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept
     {
-        ice::Status status;
-        m_ops->is_read_only(get_handle(), out_is_read_only, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_type_attr_name(get_handle(), out_type_attr_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> is_list(int* out_is_list) noexcept
+    void get_data_type(int* out_data_type) noexcept
     {
-        ice::Status status;
-        m_ops->is_list(get_handle(), out_is_list, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_data_type(get_handle(), out_data_type);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void is_read_only(int* out_is_read_only) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->is_read_only(get_handle(), out_is_read_only);
+    }
+
+    void is_list(int* out_is_list) noexcept
+    {
+        m_ops->is_list(get_handle(), out_is_list);
     }
 };
 

@@ -24,46 +24,24 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_ticks(int64_t* out_ticks) noexcept
+    void get_ticks(int64_t* out_ticks) noexcept
     {
-        ice::Status status;
-        m_ops->get_ticks(get_handle(), out_ticks, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_ticks(get_handle(), out_ticks);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_ratio_num(int64_t* out_num) noexcept
+    void get_ratio_num(int64_t* out_num) noexcept
     {
-        ice::Status status;
-        m_ops->get_ratio_num(get_handle(), out_num, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_ratio_num(get_handle(), out_num);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_ratio_den(int64_t* out_den) noexcept
+    void get_ratio_den(int64_t* out_den) noexcept
     {
-        ice::Status status;
-        m_ops->get_ratio_den(get_handle(), out_den, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_ratio_den(get_handle(), out_den);
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void destroy() noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy(get_handle());
     }
 };
 

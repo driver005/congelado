@@ -25,118 +25,59 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_description(const ice::sonic::String& description) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->set_description(get_handle(), description.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_full_type(const ice::sonic::String& full_type) noexcept
+    void set_name(const ice::sonic::String& name) noexcept
     {
-        ice::Status status;
-        m_ops->set_full_type(get_handle(), full_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_name(get_handle(), name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_base_type(const ice::sonic::String& base_type) noexcept
+    void set_description(const ice::sonic::String& description) noexcept
     {
-        ice::Status status;
-        m_ops->set_base_type(get_handle(), base_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_description(get_handle(), description.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> set_is_list(_Bool is_list) noexcept
+    void set_full_type(const ice::sonic::String& full_type) noexcept
     {
-        ice::Status status;
-        m_ops->set_is_list(get_handle(), is_list, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_full_type(get_handle(), full_type.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_description(const ice::sonic::String& out_description) noexcept
+    void set_base_type(const ice::sonic::String& base_type) noexcept
     {
-        ice::Status status;
-        m_ops->get_description(get_handle(), out_description.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_base_type(get_handle(), base_type.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_full_type(const ice::sonic::String& out_full_type) noexcept
+    void set_is_list(_Bool is_list) noexcept
     {
-        ice::Status status;
-        m_ops->get_full_type(get_handle(), out_full_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_is_list(get_handle(), is_list);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_base_type(const ice::sonic::String& out_base_type) noexcept
+    void get_description(const ice::sonic::String& out_description) noexcept
     {
-        ice::Status status;
-        m_ops->get_base_type(get_handle(), out_base_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_description(get_handle(), out_description.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> is_list(int* out_is_list) noexcept
+    void get_full_type(const ice::sonic::String& out_full_type) noexcept
     {
-        ice::Status status;
-        m_ops->is_list(get_handle(), out_is_list, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_full_type(get_handle(), out_full_type.get_handle());
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void get_base_type(const ice::sonic::String& out_base_type) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_base_type(get_handle(), out_base_type.get_handle());
+    }
+
+    void is_list(int* out_is_list) noexcept
+    {
+        m_ops->is_list(get_handle(), out_is_list);
     }
 };
 

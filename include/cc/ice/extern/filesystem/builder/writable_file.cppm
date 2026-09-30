@@ -36,31 +36,29 @@ public:
     }
 
     virtual ~TF_WritableFileOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     append(const ice::sonic::String& buffer) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> tell(int64_t* out_position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> flush() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> sync() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> close() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    tell(int64_t* out_position) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> flush() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> sync() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> close() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_WritableFileOps{
             .struct_size = TF_WRITABLEFILE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_WritableFile* file) noexcept
             {
-                std::unique_ptr<TF_WritableFileOps>{
-                    &TF_WritableFileOps::from_handle(plugin_context)
-                };
+                TF_WritableFileOps::from_handle(file).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_WritableFile* file, TF_String* out_name) noexcept
             {
-                auto result = TF_WritableFileOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_WritableFileOps::from_handle(file).get_name(ice::sonic::String::wrap(out_name));
             },
             .append =
                 [](TF_WritableFile* file, const TF_String* buffer, TF_Status* out_status) noexcept
@@ -111,8 +109,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_WritableFile& get_handle() const noexcept
     {

@@ -150,7 +150,6 @@ inline std::expected<std::string, std::string> format_footer(
     std::string_view cc_class_name,
     std::string_view c_struct_name,
     std::string_view c_handle_name,
-    bool has_get_name,
     [[maybe_unused]] const std::filesystem::path& repo_root
 ) noexcept
 {
@@ -164,12 +163,6 @@ inline std::expected<std::string, std::string> format_footer(
             c_struct_name
         );
         extra_members = std::format("\nprivate:\n    ::{} m_vtable;\n", c_struct_name);
-        if (has_get_name) {
-            extra_methods += std::format(
-                "\nvirtual {}::String get_name() const noexcept = 0;\n",
-                mode_name
-            );
-        }
         if (!c_handle_name.empty()) {
             extra_methods += std::format(
                 "\nconst {}& get_handle() const noexcept\n{{\n    return m_handle;\n}}\n",
@@ -177,15 +170,6 @@ inline std::expected<std::string, std::string> format_footer(
             );
             extra_members += std::format("    {} m_handle;\n", c_handle_name);
         }
-    } else {
-        auto extra_methods_result = cc::templating::TemplateRenderer::render_template(
-            "method_string_accessor_sonic",
-            {{"namespace_name", std::string{mode_name}}, {"slot_name", "get_name"}}
-        );
-        if (!extra_methods_result) {
-            return std::unexpected(extra_methods_result.error());
-        }
-        extra_methods = std::move(*extra_methods_result);
     }
 
     return cc::templating::TemplateRenderer::render_template(
@@ -209,27 +193,25 @@ format_parameter(std::string_view type, std::string_view name) noexcept
 
 inline std::expected<std::string, std::string> format_method_signature(
     std::string_view method_name,
-    std::string_view namespace_name,
-    bool is_virtual = false
+    std::string_view status_type,
+    bool is_virtual,
+    bool is_failable
 ) noexcept
 {
+    if (!is_failable) {
+        return cc::templating::TemplateRenderer::render_template(
+            "method_signature_void",
+            {{"virtual_prefix", is_virtual ? "virtual " : ""},
+             {"method_name", std::string{method_name}}}
+        );
+    }
+
     return cc::templating::TemplateRenderer::render_template(
         "method_signature",
         {{"virtual_prefix", is_virtual ? "virtual " : ""},
          {"return_type", "void"},
-         {"namespace_name", std::string{namespace_name}},
+         {"status_type", std::string{status_type}},
          {"method_name", std::string{method_name}}}
-    );
-}
-
-inline std::expected<std::string, std::string> format_get_name_decl(
-    std::string_view namespace_name,
-    [[maybe_unused]] const std::filesystem::path& repo_root
-) noexcept
-{
-    return cc::templating::TemplateRenderer::render_template(
-        "method_decl_string_accessor",
-        {{"namespace_name", std::string{namespace_name}}, {"method_name", "get_name"}}
     );
 }
 
@@ -256,33 +238,6 @@ inline std::string
 format_vtable_accessor_end([[maybe_unused]] const std::filesystem::path& repo_root)
 {
     return "\n                };\n            }\n";
-}
-
-inline std::expected<std::string, std::string> format_vtable_field_destroy(
-    std::string_view slot_name,
-    std::string_view cc_class_name,
-    [[maybe_unused]] const std::filesystem::path& repo_root
-) noexcept
-{
-    return cc::templating::TemplateRenderer::render_template(
-        "vtable_field_destroy",
-        {{"slot_name", std::string{slot_name}}, {"class_name", std::string{cc_class_name}}}
-    );
-}
-
-inline std::expected<std::string, std::string> format_vtable_field_get_name(
-    std::string_view slot_name,
-    std::string_view cc_class_name,
-    [[maybe_unused]] const std::filesystem::path& repo_root
-) noexcept
-{
-    return cc::templating::TemplateRenderer::render_template(
-        "vtable_field_string_accessor",
-        {{"slot_name", std::string{slot_name}},
-         {"class_name", std::string{cc_class_name}},
-         {"param_type", "TF_String*"},
-         {"param_name", "out"}}
-    );
 }
 
 inline std::expected<std::string, std::string>
@@ -323,16 +278,49 @@ inline std::expected<std::string, std::string> format_vtable_field_generic_end(
 
 inline std::expected<std::string, std::string> format_method_body_start(
     std::string_view method_name,
-    std::string_view namespace_name,
+    std::string_view status_type,
     [[maybe_unused]] const std::filesystem::path& repo_root
 ) noexcept
 {
     return cc::templating::TemplateRenderer::render_template(
         "method_body_start",
-        {{"namespace_name", std::string{namespace_name}},
+        {{"status_type", std::string{status_type}},
          {"method_name", std::string{method_name}},
          {"result_prefix", ""}}
     );
+}
+
+inline std::expected<std::string, std::string>
+format_method_body_void_start(std::string_view method_name) noexcept
+{
+    return cc::templating::TemplateRenderer::render_template(
+        "method_body_void_start",
+        {{"method_name", std::string{method_name}}}
+    );
+}
+
+inline std::string format_method_body_void_end()
+{
+    return ");\n            }\n";
+}
+
+inline std::expected<std::string, std::string> format_vtable_field_void_middle(
+    std::string_view cc_class_name,
+    std::string_view slot_name,
+    std::string_view self_param_name
+) noexcept
+{
+    return cc::templating::TemplateRenderer::render_template(
+        "vtable_field_void_middle",
+        {{"class_name", std::string{cc_class_name}},
+         {"slot_name", std::string{slot_name}},
+         {"self_param_name", std::string{self_param_name}}}
+    );
+}
+
+inline std::string format_vtable_field_void_end()
+{
+    return "\n                );\n            },\n";
 }
 
 inline std::string format_method_body_end([[maybe_unused]] const std::filesystem::path& repo_root)

@@ -36,8 +36,9 @@ public:
     }
 
     virtual ~TF_TimePointOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void
     get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -46,18 +47,13 @@ public:
             .get_duration_since_epoch =
                 [](const TF_TimePoint* time_point, TF_Duration* out_duration) noexcept
             {
-                auto res =
-                    TF_TimePointOps::from_handle(time_point)
-                        .get_duration_since_epoch(ice::sonic::TF_DurationOps::wrap(out_duration));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TimePointOps::from_handle(time_point)
+                    .get_duration_since_epoch(ice::sonic::TF_DurationOps::wrap(out_duration));
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_TimePoint* time_point) noexcept
             {
-                std::unique_ptr<TF_TimePointOps>{&TF_TimePointOps::from_handle(plugin_context)};
+                TF_TimePointOps::from_handle(time_point).destroy();
             },
 
         };

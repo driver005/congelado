@@ -36,28 +36,28 @@ public:
     }
 
     virtual ~TF_DurableOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> signal(
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> signal(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::String& signal_name,
         const ice::sonic::String& payload
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> checkpoint(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> checkpoint(
         const ice::sonic::TF_JobOps& job,
         TFDurableAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     restore_checkpoint(const ice::sonic::TF_JobOps& job) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_DurableOps{
             .struct_size = TF_DURABLE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Durable* durable) noexcept
             {
-                std::unique_ptr<TF_DurableOps>{&TF_DurableOps::from_handle(plugin_context)};
+                TF_DurableOps::from_handle(durable).destroy();
             },
             .signal =
                 [](TF_Durable* durable,

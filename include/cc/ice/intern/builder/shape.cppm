@@ -36,56 +36,40 @@ public:
     }
 
     virtual ~TF_ShapeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_dims(const int64_t* dims, int num_dims) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> delete_shape() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    shape_num_dims(int* out_num_dims) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    shape_dim(int index, int64_t* out_dim) noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void set_dims(const int64_t* dims, int num_dims) noexcept = 0;
+    virtual void delete_shape() noexcept = 0;
+    virtual void shape_num_dims(int* out_num_dims) noexcept = 0;
+    virtual void shape_dim(int index, int64_t* out_dim) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ShapeOps{
             .struct_size = TF_SHAPE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Shape* shape, TF_String* out_name) noexcept
             {
-                auto result = TF_ShapeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ShapeOps::from_handle(shape).get_name(ice::sonic::String::wrap(out_name));
             },
             .set_dims =
                 [](TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
             {
-                auto res = TF_ShapeOps::from_handle(shape).set_dims(dims, num_dims);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeOps::from_handle(shape).set_dims(dims, num_dims);
             },
             .delete_shape =
                 [](TF_Shape* shape) noexcept
             {
-                auto res = TF_ShapeOps::from_handle(shape).delete_shape();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeOps::from_handle(shape).delete_shape();
             },
             .shape_num_dims =
                 [](const TF_Shape* shape, int* out_num_dims) noexcept
             {
-                auto res = TF_ShapeOps::from_handle(shape).shape_num_dims(out_num_dims);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeOps::from_handle(shape).shape_num_dims(out_num_dims);
             },
             .shape_dim =
                 [](const TF_Shape* shape, int index, int64_t* out_dim) noexcept
             {
-                auto res = TF_ShapeOps::from_handle(shape).shape_dim(index, out_dim);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeOps::from_handle(shape).shape_dim(index, out_dim);
             },
 
         };
@@ -95,8 +79,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Shape& get_handle() const noexcept
     {

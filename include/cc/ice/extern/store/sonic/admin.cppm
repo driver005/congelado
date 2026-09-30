@@ -24,21 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "store";
 
-    [[nodiscard]] std::expected<void, ice::Status> is_connected(int* out_connected) noexcept
+    void is_connected(int* out_connected) noexcept
     {
-        ice::Status status;
-        m_ops->is_connected(get_handle(), out_connected, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->is_connected(get_handle(), out_connected);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     backup(const ice::sonic::String& destination, TFStoreAckFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->backup(
             get_handle(),
             destination.get_handle(),
@@ -53,10 +47,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     restore(const ice::sonic::String& source, TFStoreAckFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->restore(
             get_handle(),
             source.get_handle(),
@@ -69,15 +63,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

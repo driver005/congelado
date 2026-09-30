@@ -36,26 +36,23 @@ public:
     }
 
     virtual ~TF_PlatformOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_device_count(int* out_device_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    destroy_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_current_device(int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_current_device(int device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_device_for_pointer(const void* pointer, int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     can_access_peer(int device_index, int peer_device_index, _Bool* out_can_access) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_native_handle(void** out_handle) noexcept = 0;
+    virtual void get_native_handle(void** out_handle) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -82,12 +79,9 @@ public:
             .destroy_device_internal =
                 [](TF_Platform* platform, TF_Device* device) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).destroy_device_internal(
+                TF_PlatformOps::from_handle(platform).destroy_device_internal(
                     ice::sonic::TF_DeviceOps::wrap(device)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .create_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor, TF_Status* out_status) noexcept
@@ -102,12 +96,9 @@ public:
             .destroy_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).destroy_executor_internal(
+                TF_PlatformOps::from_handle(platform).destroy_executor_internal(
                     ice::sonic::TF_ExecutorOps::wrap(executor)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_current_device =
                 [](TF_Platform* platform, int* out_device_index, TF_Status* out_status) noexcept
@@ -156,10 +147,7 @@ public:
             .get_native_handle =
                 [](TF_Platform* platform, void** out_handle) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).get_native_handle(out_handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_PlatformOps::from_handle(platform).get_native_handle(out_handle);
             },
 
         };

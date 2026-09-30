@@ -36,25 +36,29 @@ public:
     }
 
     virtual ~TFParserNodeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_op_type(const ice::sonic::String& out_op_type) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attribute_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attribute(int index, const ice::sonic::TFParserAttributeOps& out_attribute) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_definition(const ice::sonic::TFParserDefinitionOps& out_definition) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserNodeOps{
             .struct_size = TF_ARSERNODE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserNode* node, TF_String* out_name, TF_Status* out_status) noexcept
             {
-                auto result = TFParserNodeOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res =
+                    TFParserNodeOps::from_handle(node).get_name(ice::sonic::String::wrap(out_name));
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_op_type =
                 [](TFParserNode* node, TF_String* out_op_type, TF_Status* out_status) noexcept
@@ -108,8 +112,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserNode& get_handle() const noexcept
     {

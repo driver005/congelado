@@ -36,16 +36,14 @@ public:
     }
 
     virtual ~TF_StreamOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_priority(int32_t* out_priority) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_device_index(int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> query(_Bool* out_idle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> synchronize() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_priority(int32_t* out_priority) noexcept = 0;
+    virtual void get_device_index(int* out_device_index) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    query(_Bool* out_idle) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> synchronize() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_capture_status(TF_CaptureStatus* out_capture_status) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_native_handle(void** out_handle) noexcept = 0;
+    virtual void get_native_handle(void** out_handle) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -54,18 +52,12 @@ public:
             .get_priority =
                 [](TF_Stream* stream, int32_t* out_priority) noexcept
             {
-                auto res = TF_StreamOps::from_handle(stream).get_priority(out_priority);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_StreamOps::from_handle(stream).get_priority(out_priority);
             },
             .get_device_index =
                 [](TF_Stream* stream, int* out_device_index) noexcept
             {
-                auto res = TF_StreamOps::from_handle(stream).get_device_index(out_device_index);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_StreamOps::from_handle(stream).get_device_index(out_device_index);
             },
             .query =
                 [](TF_Stream* stream, _Bool* out_idle, TF_Status* out_status) noexcept
@@ -96,10 +88,7 @@ public:
             .get_native_handle =
                 [](TF_Stream* stream, void** out_handle) noexcept
             {
-                auto res = TF_StreamOps::from_handle(stream).get_native_handle(out_handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_StreamOps::from_handle(stream).get_native_handle(out_handle);
             },
 
         };

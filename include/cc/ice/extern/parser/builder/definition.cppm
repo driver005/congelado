@@ -36,21 +36,27 @@ public:
     }
 
     virtual ~TFParserDefinitionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_source_file(const ice::sonic::String& out_source_file) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_line_number(int* out_line_number) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserDefinitionOps{
             .struct_size = TF_ARSERDEFINITION_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserDefinition* definition,
+                   TF_String* out_name,
+                   TF_Status* out_status) noexcept
             {
-                auto result = TFParserDefinitionOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserDefinitionOps::from_handle(definition)
+                               .get_name(ice::sonic::String::wrap(out_name));
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_source_file =
                 [](TFParserDefinition* definition,
@@ -82,8 +88,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserDefinition& get_handle() const noexcept
     {

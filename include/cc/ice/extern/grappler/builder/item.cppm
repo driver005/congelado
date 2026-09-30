@@ -36,18 +36,18 @@ public:
     }
 
     virtual ~TFGrapplerItemOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_nodes_to_preserve_size(int* out_num_values, size_t* out_storage_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_nodes_to_preserve_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_nodes_to_preserve_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
         void* storage,
         size_t storage_size
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_fetch_nodes_size(int* out_num_values, size_t* out_storage_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_fetch_nodes_list(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_fetch_nodes_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,

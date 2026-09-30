@@ -36,30 +36,29 @@ public:
     }
 
     virtual ~TF_GrapplerOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> create_device_graph_internal(
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_device_graph_internal(
         const ice::sonic::TF_ExecutorOps& executor,
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TFGrapplerDeviceGraphOps& out_graph
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void
     destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_GrapplerOps{
             .struct_size = TF_GRAPPLER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Grappler* grappler) noexcept
             {
-                std::unique_ptr<TF_GrapplerOps>{&TF_GrapplerOps::from_handle(plugin_context)};
+                TF_GrapplerOps::from_handle(grappler).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Grappler* grappler, TF_String* out_name) noexcept
             {
-                auto result = TF_GrapplerOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_GrapplerOps::from_handle(grappler).get_name(ice::sonic::String::wrap(out_name));
             },
             .create_device_graph_internal =
                 [](TF_Grappler* grappler,
@@ -80,12 +79,9 @@ public:
             .destroy_device_graph_internal =
                 [](TF_Grappler* grappler, TFGrapplerDeviceGraph* graph) noexcept
             {
-                auto res = TF_GrapplerOps::from_handle(grappler).destroy_device_graph_internal(
+                TF_GrapplerOps::from_handle(grappler).destroy_device_graph_internal(
                     ice::sonic::TFGrapplerDeviceGraphOps::wrap(graph)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
 
         };
@@ -95,8 +91,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Grappler& get_handle() const noexcept
     {

@@ -36,13 +36,14 @@ public:
     }
 
     virtual ~TF_BitSetOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set(size_t index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> clear(size_t index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set(size_t index) noexcept = 0;
+    virtual void clear(size_t index) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     test(size_t index, int* out_result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> flip(size_t index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> count(size_t* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> flip(size_t index) noexcept = 0;
+    virtual void count(size_t* out_count) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -51,18 +52,12 @@ public:
             .set =
                 [](TF_BitSet* bitset, size_t index) noexcept
             {
-                auto res = TF_BitSetOps::from_handle(bitset).set(index);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BitSetOps::from_handle(bitset).set(index);
             },
             .clear =
                 [](TF_BitSet* bitset, size_t index) noexcept
             {
-                auto res = TF_BitSetOps::from_handle(bitset).clear(index);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BitSetOps::from_handle(bitset).clear(index);
             },
             .test =
                 [](const TF_BitSet* bitset,
@@ -86,24 +81,17 @@ public:
             .count =
                 [](const TF_BitSet* bitset, size_t* out_count) noexcept
             {
-                auto res = TF_BitSetOps::from_handle(bitset).count(out_count);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BitSetOps::from_handle(bitset).count(out_count);
             },
             .size =
                 [](const TF_BitSet* bitset, size_t* out_size) noexcept
             {
-                auto res = TF_BitSetOps::from_handle(bitset).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BitSetOps::from_handle(bitset).size(out_size);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_BitSet* bitset) noexcept
             {
-                std::unique_ptr<TF_BitSetOps>{&TF_BitSetOps::from_handle(plugin_context)};
+                TF_BitSetOps::from_handle(bitset).destroy();
             },
 
         };

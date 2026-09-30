@@ -36,23 +36,23 @@ public:
     }
 
     virtual ~TF_FilesystemOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_FilesystemOps{
             .struct_size = TF_FILESYSTEM_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Filesystem* filesystem) noexcept
             {
-                std::unique_ptr<TF_FilesystemOps>{&TF_FilesystemOps::from_handle(plugin_context)};
+                TF_FilesystemOps::from_handle(filesystem).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Filesystem* filesystem, TF_String* out_name) noexcept
             {
-                auto result = TF_FilesystemOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_FilesystemOps::from_handle(filesystem)
+                    .get_name(ice::sonic::String::wrap(out_name));
             },
 
         };
@@ -62,8 +62,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Filesystem& get_handle() const noexcept
     {

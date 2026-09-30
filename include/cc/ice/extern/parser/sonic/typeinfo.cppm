@@ -24,9 +24,9 @@ public:
 
     static constexpr std::string_view domain_name = "parser";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_dtype(int* out_dtype) noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_dtype(int* out_dtype) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_dtype(get_handle(), out_dtype, status.get_handle());
 
         if (!status.ok()) {
@@ -35,25 +35,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_shape(int64_t** out_dims, int* out_num_dims) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_shape(get_handle(), out_dims, out_num_dims, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

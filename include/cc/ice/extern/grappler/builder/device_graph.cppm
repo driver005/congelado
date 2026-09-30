@@ -36,23 +36,22 @@ public:
     }
 
     virtual ~TFGrapplerDeviceGraphOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> capture_begin(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> capture_begin(
         const ice::sonic::TF_StreamOps& capture_stream,
         const TF_PoolId* pool_id,
         TF_CaptureMode mode
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> capture_end() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> instantiate() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> replay() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> reset() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_pool(TF_PoolId* out_pool_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> capture_end() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> instantiate() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> replay() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> reset() noexcept = 0;
+    virtual void get_pool(TF_PoolId* out_pool_id) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     register_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     unregister_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> enable_debug_mode() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void enable_debug_mode() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     debug_dump(const ice::sonic::String& path) noexcept = 0;
 
     void get_generic_vtable() noexcept
@@ -110,10 +109,7 @@ public:
             .get_pool =
                 [](TFGrapplerDeviceGraph* graph, TF_PoolId* out_pool_id) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).get_pool(out_pool_id);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGrapplerDeviceGraphOps::from_handle(graph).get_pool(out_pool_id);
             },
             .register_random_generator =
                 [](TFGrapplerDeviceGraph* graph,
@@ -142,10 +138,7 @@ public:
             .enable_debug_mode =
                 [](TFGrapplerDeviceGraph* graph) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).enable_debug_mode();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFGrapplerDeviceGraphOps::from_handle(graph).enable_debug_mode();
             },
             .debug_dump =
                 [](TFGrapplerDeviceGraph* graph,

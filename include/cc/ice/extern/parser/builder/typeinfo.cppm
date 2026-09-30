@@ -36,8 +36,9 @@ public:
     }
 
     virtual ~TFParserTypeInfoOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_dtype(int* out_dtype) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_dtype(int* out_dtype) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_shape(int64_t** out_dims, int* out_num_dims) noexcept = 0;
 
     void get_generic_vtable() noexcept

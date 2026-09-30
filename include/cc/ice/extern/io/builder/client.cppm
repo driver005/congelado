@@ -36,68 +36,64 @@ public:
     }
 
     virtual ~TF_ClientOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> connect(int64_t timeout_ms) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    connect(int64_t timeout_ms) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     connect_async(int64_t timeout_ms, TFClientConnectFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> disconnect() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> reconnect() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_disconnect(TFClientDisconnectFn handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_connected(int* out_connected) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> disconnect() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> reconnect() noexcept = 0;
+    virtual void on_disconnect(TFClientDisconnectFn handler, void* user_data) noexcept = 0;
+    virtual void is_connected(int* out_connected) noexcept = 0;
+    virtual void
     get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_keep_alive(int enabled) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_keep_alive(int* out_keep_alive) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    set_keep_alive(int enabled) noexcept = 0;
+    virtual void is_keep_alive(int* out_keep_alive) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     create_request(uint32_t stream_id, const ice::sonic::TF_RequestOps& out_request) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> send(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> send(
         const ice::sonic::TF_RequestOps& request,
         const ice::sonic::TF_ResponseOps& out_response
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> send_async(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> send_async(
         const ice::sonic::TF_RequestOps& request,
         TFClientResponseFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     cancel_request(uint32_t stream_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     list_pending_requests(const ice::sonic::TF_VectorOps& out_stream_ids) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_pending_request_count(size_t* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_pending_request_count(size_t* out_count) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     ping(TFClientConnectFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> retry() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> retry() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_max_retries(int max_retries) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_retry_backoff(int64_t backoff_ms) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_timeout(int64_t timeout_ms) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_error(TFClientConnectFn handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_last_error() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void on_error(TFClientConnectFn handler, void* user_data) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_last_error() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ClientOps{
             .struct_size = TF_CLIENT_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Client* client) noexcept
             {
-                std::unique_ptr<TF_ClientOps>{&TF_ClientOps::from_handle(plugin_context)};
+                TF_ClientOps::from_handle(client).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Client* client, TF_String* out_name) noexcept
             {
-                auto result = TF_ClientOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ClientOps::from_handle(client).get_name(ice::sonic::String::wrap(out_name));
             },
             .connect =
                 [](TF_Client* client, int64_t timeout_ms, TF_Status* out_status) noexcept
@@ -139,29 +135,20 @@ public:
             .on_disconnect =
                 [](TF_Client* client, TFClientDisconnectFn handler, void* user_data) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).on_disconnect(handler, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ClientOps::from_handle(client).on_disconnect(handler, user_data);
             },
             .is_connected =
                 [](TF_Client* client, int* out_connected) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).is_connected(out_connected);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ClientOps::from_handle(client).is_connected(out_connected);
             },
             .get_remote_endpoint =
                 [](TF_Client* client, TF_String* out_host, uint16_t* out_port) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).get_remote_endpoint(
+                TF_ClientOps::from_handle(client).get_remote_endpoint(
                     ice::sonic::String::wrap(out_host),
                     out_port
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .set_keep_alive =
                 [](TF_Client* client, int enabled, TF_Status* out_status) noexcept
@@ -174,10 +161,7 @@ public:
             .is_keep_alive =
                 [](TF_Client* client, int* out_keep_alive) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).is_keep_alive(out_keep_alive);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ClientOps::from_handle(client).is_keep_alive(out_keep_alive);
             },
             .create_request =
                 [](TF_Client* client,
@@ -244,10 +228,7 @@ public:
             .get_pending_request_count =
                 [](TF_Client* client, size_t* out_count) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).get_pending_request_count(out_count);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ClientOps::from_handle(client).get_pending_request_count(out_count);
             },
             .ping =
                 [](TF_Client* client,
@@ -295,10 +276,7 @@ public:
             .on_error =
                 [](TF_Client* client, TFClientConnectFn handler, void* user_data) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).on_error(handler, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ClientOps::from_handle(client).on_error(handler, user_data);
             },
             .get_last_error =
                 [](TF_Client* client, TF_Status* out_status) noexcept
@@ -326,8 +304,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Client& get_handle() const noexcept
     {

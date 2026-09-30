@@ -24,47 +24,24 @@ public:
 
     static constexpr std::string_view domain_name = "intern";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    assign_from_string(const void* proto, size_t proto_len) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->assign_from_string(get_handle(), proto, proto_len, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> delete_buffer() noexcept
+    void assign_from_string(const void* proto, size_t proto_len) noexcept
     {
-        ice::Status status;
-        m_ops->delete_buffer(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->assign_from_string(get_handle(), proto, proto_len);
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_buffer(TFBufferData* out_buffer) noexcept
+    void delete_buffer() noexcept
     {
-        ice::Status status;
-        m_ops->get_buffer(get_handle(), out_buffer, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->delete_buffer(get_handle());
     }
 
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
+    void get_buffer(TFBufferData* out_buffer) noexcept
     {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_buffer(get_handle(), out_buffer);
     }
 };
 

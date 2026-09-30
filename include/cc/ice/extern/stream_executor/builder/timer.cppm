@@ -36,8 +36,7 @@ public:
     }
 
     virtual ~TF_TimerOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    nanoseconds(uint64_t* out_nanoseconds) noexcept = 0;
+    virtual void nanoseconds(uint64_t* out_nanoseconds) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -45,10 +44,7 @@ public:
             .struct_size = TF_TIMER_STRUCT_SIZE,
             .nanoseconds = [](TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
             {
-                auto res = TF_TimerOps::from_handle(timer).nanoseconds(out_nanoseconds);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_TimerOps::from_handle(timer).nanoseconds(out_nanoseconds);
             },
 
         };

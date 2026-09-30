@@ -36,7 +36,7 @@ public:
     }
 
     virtual ~TFGrapplerFunctionLibraryOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> look_up_op_def(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> look_up_op_def(
         const ice::sonic::String& name,
         const ice::sonic::TF_BufferOps& out_buf
     ) noexcept = 0;

@@ -36,21 +36,20 @@ public:
     }
 
     virtual ~TF_HashOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     hash_bytes(const void* data, size_t size, size_t* out_hash) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     hash_combine(size_t seed, size_t value, size_t* out_hash) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_HashOps{
             .struct_size = TF_HASH_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Hash* hash, TF_String* out_name) noexcept
             {
-                auto result = TF_HashOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_HashOps::from_handle(hash).get_name(ice::sonic::String::wrap(out_name));
             },
             .hash_bytes =
                 [](TF_Hash* hash,
@@ -84,8 +83,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Hash& get_handle() const noexcept
     {

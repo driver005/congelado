@@ -36,13 +36,15 @@ public:
     }
 
     virtual ~TFOtelMeterOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> create_counter(
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_counter(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
         const ice::sonic::TFOtelCounterOps& out_counter
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> create_histogram(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_histogram(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
@@ -53,18 +55,15 @@ public:
     {
         m_vtable = ::TFOtelMeterOps{
             .struct_size = TF_TELMETER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFOtelMeter* meter) noexcept
             {
-                std::unique_ptr<TFOtelMeterOps>{&TFOtelMeterOps::from_handle(plugin_context)};
+                TFOtelMeterOps::from_handle(meter).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFOtelMeter* meter, TF_String* out_name) noexcept
             {
-                auto result = TFOtelMeterOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFOtelMeterOps::from_handle(meter).get_name(ice::sonic::String::wrap(out_name));
             },
             .create_counter =
                 [](TFOtelMeter* meter,
@@ -110,8 +109,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFOtelMeter& get_handle() const noexcept
     {

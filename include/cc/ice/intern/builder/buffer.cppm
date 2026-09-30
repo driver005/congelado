@@ -36,46 +36,34 @@ public:
     }
 
     virtual ~TF_BufferOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    assign_from_string(const void* proto, size_t proto_len) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> delete_buffer() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_buffer(TFBufferData* out_buffer) noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void assign_from_string(const void* proto, size_t proto_len) noexcept = 0;
+    virtual void delete_buffer() noexcept = 0;
+    virtual void get_buffer(TFBufferData* out_buffer) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_BufferOps{
             .struct_size = TF_BUFFER_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Buffer* buffer, TF_String* out_name) noexcept
             {
-                auto result = TF_BufferOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_BufferOps::from_handle(buffer).get_name(ice::sonic::String::wrap(out_name));
             },
             .assign_from_string =
                 [](TF_Buffer* buffer, const void* proto, size_t proto_len) noexcept
             {
-                auto res = TF_BufferOps::from_handle(buffer).assign_from_string(proto, proto_len);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BufferOps::from_handle(buffer).assign_from_string(proto, proto_len);
             },
             .delete_buffer =
                 [](TF_Buffer* buffer) noexcept
             {
-                auto res = TF_BufferOps::from_handle(buffer).delete_buffer();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BufferOps::from_handle(buffer).delete_buffer();
             },
             .get_buffer =
                 [](TF_Buffer* buffer, TFBufferData* out_buffer) noexcept
             {
-                auto res = TF_BufferOps::from_handle(buffer).get_buffer(out_buffer);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_BufferOps::from_handle(buffer).get_buffer(out_buffer);
             },
 
         };
@@ -85,8 +73,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Buffer& get_handle() const noexcept
     {

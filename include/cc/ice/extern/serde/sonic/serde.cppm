@@ -24,34 +24,30 @@ public:
 
     static constexpr std::string_view domain_name = "serde";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_content_type(const ice::sonic::String& out_content_type) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->get_content_type(get_handle(), out_content_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_format_name(const ice::sonic::String& out_format_name) noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
-        m_ops->get_format_name(get_handle(), out_format_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void get_content_type(const ice::sonic::String& out_content_type) noexcept
+    {
+        m_ops->get_content_type(get_handle(), out_content_type.get_handle());
+    }
+
+    void get_format_name(const ice::sonic::String& out_format_name) noexcept
+    {
+        m_ops->get_format_name(get_handle(), out_format_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     encode(const ice::sonic::String& value_json, const ice::sonic::String& out_encoded) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->encode(
             get_handle(),
             value_json.get_handle(),
@@ -65,25 +61,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->decode(get_handle(), data.get_handle(), out_json.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

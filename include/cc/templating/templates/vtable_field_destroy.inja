@@ -1,4 +1,0 @@
-
-            .{{ slot_name }} = [](void* plugin_context) noexcept {
-                std::unique_ptr<{{ class_name }}>{&{{ class_name }}::from_handle(plugin_context)};
-            },

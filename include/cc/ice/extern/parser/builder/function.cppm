@@ -36,25 +36,30 @@ public:
     }
 
     virtual ~TFParserFunctionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_parameter_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_parameter(int index, const ice::sonic::TFParserParameterOps& out_parameter) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_block_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_block(int index, const ice::sonic::TFParserBlockOps& out_block) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserFunctionOps{
             .struct_size = TF_ARSERFUNCTION_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserFunction* function, TF_String* out_name, TF_Status* out_status) noexcept
             {
-                auto result = TFParserFunctionOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserFunctionOps::from_handle(function).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_parameter_count =
                 [](TFParserFunction* function, int* out_count, TF_Status* out_status) noexcept
@@ -109,8 +114,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserFunction& get_handle() const noexcept
     {

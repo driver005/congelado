@@ -36,24 +36,23 @@ public:
     }
 
     virtual ~TFOtelCounterOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> add(double value) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> add(double value) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFOtelCounterOps{
             .struct_size = TF_TELCOUNTER_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFOtelCounter* counter) noexcept
             {
-                std::unique_ptr<TFOtelCounterOps>{&TFOtelCounterOps::from_handle(plugin_context)};
+                TFOtelCounterOps::from_handle(counter).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFOtelCounter* counter, TF_String* out_name) noexcept
             {
-                auto result = TFOtelCounterOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TFOtelCounterOps::from_handle(counter).get_name(ice::sonic::String::wrap(out_name));
             },
             .add =
                 [](TFOtelCounter* counter, double value, TF_Status* out_status) noexcept
@@ -71,8 +70,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFOtelCounter& get_handle() const noexcept
     {

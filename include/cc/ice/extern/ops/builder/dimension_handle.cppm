@@ -36,8 +36,8 @@ public:
     }
 
     virtual ~TF_DimensionHandleOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> value_known(int* out_known) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> value(int64_t* out_value) noexcept = 0;
+    virtual void value_known(int* out_known) noexcept = 0;
+    virtual void value(int64_t* out_value) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -46,18 +46,12 @@ public:
             .value_known =
                 [](TF_DimensionHandle* dim_handle, int* out_known) noexcept
             {
-                auto res = TF_DimensionHandleOps::from_handle(dim_handle).value_known(out_known);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DimensionHandleOps::from_handle(dim_handle).value_known(out_known);
             },
             .value =
                 [](TF_DimensionHandle* dim_handle, int64_t* out_value) noexcept
             {
-                auto res = TF_DimensionHandleOps::from_handle(dim_handle).value(out_value);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DimensionHandleOps::from_handle(dim_handle).value(out_value);
             },
 
         };

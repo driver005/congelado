@@ -36,16 +36,16 @@ public:
     }
 
     virtual ~TF_JobOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     execute(const ice::sonic::String& input, const ice::sonic::String& out_output) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> resubmit() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> resubmit() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     wait(int64_t timeout_ms, TFJobCompletionFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_complete(TFJobCompletionFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    on_progress(TFJobProgressFn progress, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> list(
+    virtual void on_complete(TFJobCompletionFn completion, void* user_data) noexcept = 0;
+    virtual void on_progress(TFJobProgressFn progress, void* user_data) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> list(
         const ice::sonic::TF_MapOps& filters,
         const ice::sonic::TF_VectorOps& out_job_ids
     ) noexcept = 0;
@@ -54,18 +54,15 @@ public:
     {
         m_vtable = ::TF_JobOps{
             .struct_size = TF_JOB_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Job* job) noexcept
             {
-                std::unique_ptr<TF_JobOps>{&TF_JobOps::from_handle(plugin_context)};
+                TF_JobOps::from_handle(job).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Job* job, TF_String* out_name) noexcept
             {
-                auto result = TF_JobOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_JobOps::from_handle(job).get_name(ice::sonic::String::wrap(out_name));
             },
             .execute =
                 [](TF_Job* job,
@@ -104,18 +101,12 @@ public:
             .on_complete =
                 [](TF_Job* job, TFJobCompletionFn completion, void* user_data) noexcept
             {
-                auto res = TF_JobOps::from_handle(job).on_complete(completion, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_JobOps::from_handle(job).on_complete(completion, user_data);
             },
             .on_progress =
                 [](TF_Job* job, TFJobProgressFn progress, void* user_data) noexcept
             {
-                auto res = TF_JobOps::from_handle(job).on_progress(progress, user_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_JobOps::from_handle(job).on_progress(progress, user_data);
             },
             .list =
                 [](TF_Job* job,
@@ -139,8 +130,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Job& get_handle() const noexcept
     {

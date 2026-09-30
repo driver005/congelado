@@ -36,23 +36,24 @@ public:
     }
 
     virtual ~TF_GeneratorOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_GeneratorOps{
             .struct_size = TF_GENERATOR_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Generator* generator) noexcept
             {
-                std::unique_ptr<TF_GeneratorOps>{&TF_GeneratorOps::from_handle(plugin_context)};
+                TF_GeneratorOps::from_handle(generator).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Generator* generator, TF_String* out_name) noexcept
             {
-                auto result = TF_GeneratorOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_GeneratorOps::from_handle(generator).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
 
         };
@@ -62,8 +63,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Generator& get_handle() const noexcept
     {

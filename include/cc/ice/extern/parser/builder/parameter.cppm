@@ -36,19 +36,26 @@ public:
     }
 
     virtual ~TFParserParameterOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_typeinfo(const ice::sonic::TFParserTypeInfoOps& out_typeinfo) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserParameterOps{
             .struct_size = TF_ARSERPARAMETER_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserParameter* parameter,
+                   TF_String* out_name,
+                   TF_Status* out_status) noexcept
             {
-                auto result = TFParserParameterOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserParameterOps::from_handle(parameter).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_typeinfo =
                 [](TFParserParameter* parameter,
@@ -70,8 +77,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserParameter& get_handle() const noexcept
     {

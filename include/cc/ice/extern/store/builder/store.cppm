@@ -36,23 +36,22 @@ public:
     }
 
     virtual ~TF_StoreOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_StoreOps{
             .struct_size = TF_STORE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Store* store) noexcept
             {
-                std::unique_ptr<TF_StoreOps>{&TF_StoreOps::from_handle(plugin_context)};
+                TF_StoreOps::from_handle(store).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_Store* store, TF_String* out_name) noexcept
             {
-                auto result = TF_StoreOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_StoreOps::from_handle(store).get_name(ice::sonic::String::wrap(out_name));
             },
 
         };
@@ -62,8 +61,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_Store& get_handle() const noexcept
     {

@@ -36,44 +36,36 @@ public:
     }
 
     virtual ~TF_ReadOnlyMemoryRegionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> data(const void** out_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    length(uint64_t* out_length) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    virtual void data(const void** out_data) noexcept = 0;
+    virtual void length(uint64_t* out_length) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ReadOnlyMemoryRegionOps{
             .struct_size = TF_READONLYMEMORYREGION_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_ReadOnlyMemoryRegion* region) noexcept
             {
-                std::unique_ptr<TF_ReadOnlyMemoryRegionOps>{
-                    &TF_ReadOnlyMemoryRegionOps::from_handle(plugin_context)
-                };
+                TF_ReadOnlyMemoryRegionOps::from_handle(region).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_ReadOnlyMemoryRegion* region, TF_String* out_name) noexcept
             {
-                auto result = TF_ReadOnlyMemoryRegionOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_ReadOnlyMemoryRegionOps::from_handle(region).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .data =
                 [](TF_ReadOnlyMemoryRegion* region, const void** out_data) noexcept
             {
-                auto res = TF_ReadOnlyMemoryRegionOps::from_handle(region).data(out_data);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ReadOnlyMemoryRegionOps::from_handle(region).data(out_data);
             },
             .length =
                 [](TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
             {
-                auto res = TF_ReadOnlyMemoryRegionOps::from_handle(region).length(out_length);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ReadOnlyMemoryRegionOps::from_handle(region).length(out_length);
             },
 
         };
@@ -83,8 +75,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_ReadOnlyMemoryRegion& get_handle() const noexcept
     {

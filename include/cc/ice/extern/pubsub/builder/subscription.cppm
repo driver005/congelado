@@ -36,33 +36,28 @@ public:
     }
 
     virtual ~TFPubSubSubscriptionOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> unsubscribe() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> ack() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> nack() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void unsubscribe() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> ack() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> nack() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     seek(const ice::sonic::String& position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_lag(TFPubSubIntFn completion, void* user_data) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFPubSubSubscriptionOps{
             .struct_size = TF_UBSUBSUBSCRIPTION_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TFPubSubSubscription* subscription) noexcept
             {
-                std::unique_ptr<TFPubSubSubscriptionOps>{
-                    &TFPubSubSubscriptionOps::from_handle(plugin_context)
-                };
+                TFPubSubSubscriptionOps::from_handle(subscription).destroy();
             },
             .unsubscribe =
                 [](TFPubSubSubscription* subscription) noexcept
             {
-                auto res = TFPubSubSubscriptionOps::from_handle(subscription).unsubscribe();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFPubSubSubscriptionOps::from_handle(subscription).unsubscribe();
             },
             .ack =
                 [](TFPubSubSubscription* subscription, TF_Status* out_status) noexcept

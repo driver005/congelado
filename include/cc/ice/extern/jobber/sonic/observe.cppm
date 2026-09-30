@@ -24,13 +24,18 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status> get_status(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_status(
         const ice::sonic::TF_JobOps& job,
         TFObserveStatusFn completion,
         void* user_data
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_status(
             get_handle(),
             job.get_handle(),
@@ -45,13 +50,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_result(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_result(
         const ice::sonic::TF_JobOps& job,
         TFObserveResultFn completion,
         void* user_data
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_result(
             get_handle(),
             job.get_handle(),
@@ -66,12 +71,12 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_history(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_history(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_VectorOps& out_transitions
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_history(
             get_handle(),
             job.get_handle(),
@@ -85,10 +90,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_metrics(const ice::sonic::TF_JobOps& job, const ice::sonic::TF_MapOps& out_metrics) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_metrics(
             get_handle(),
             job.get_handle(),
@@ -102,10 +107,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     get_logs(const ice::sonic::TF_JobOps& job, const ice::sonic::TF_VectorOps& out_lines) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops
             ->get_logs(get_handle(), job.get_handle(), out_lines.get_handle(), status.get_handle());
 
@@ -113,15 +118,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

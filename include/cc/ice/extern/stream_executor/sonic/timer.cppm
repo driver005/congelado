@@ -24,24 +24,9 @@ public:
 
     static constexpr std::string_view domain_name = "stream_executor";
 
-    [[nodiscard]] std::expected<void, ice::Status> nanoseconds(uint64_t* out_nanoseconds) noexcept
+    void nanoseconds(uint64_t* out_nanoseconds) noexcept
     {
-        ice::Status status;
-        m_ops->nanoseconds(get_handle(), out_nanoseconds, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->nanoseconds(get_handle(), out_nanoseconds);
     }
 };
 

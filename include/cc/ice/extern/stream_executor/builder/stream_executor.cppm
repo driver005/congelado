@@ -36,25 +36,24 @@ public:
     }
 
     virtual ~TF_StreamExecutorOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_StreamExecutorOps{
             .struct_size = TF_STREAMEXECUTOR_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_StreamExecutor* facade) noexcept
             {
-                std::unique_ptr<TF_StreamExecutorOps>{
-                    &TF_StreamExecutorOps::from_handle(plugin_context)
-                };
+                TF_StreamExecutorOps::from_handle(facade).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_StreamExecutor* facade, TF_String* out_name) noexcept
             {
-                auto result = TF_StreamExecutorOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_StreamExecutorOps::from_handle(facade).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
 
         };
@@ -64,8 +63,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_StreamExecutor& get_handle() const noexcept
     {

@@ -83,10 +83,16 @@ public:
         return std::format("{}.get_handle()", argument_name);
     }
 
+    // Example: ice::sonic::Status
+    std::string to_sonic_type(std::string_view namespace_name) const noexcept
+    {
+        return std::format("{}::sonic::{}", namespace_name, m_class_name);
+    }
+
     // Example: const ice::sonic::String &
     std::string to_pointee_type(std::string_view namespace_name) const noexcept
     {
-        return std::format("const {}::sonic::{} &", namespace_name, m_class_name);
+        return std::format("const {} &", to_sonic_type(namespace_name));
     }
 
     // Returns the entire tier path (including sub-tiers), stopping before the domain.

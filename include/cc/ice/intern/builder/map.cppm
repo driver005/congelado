@@ -36,16 +36,17 @@ public:
     }
 
     virtual ~TF_MapOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     insert(const void* key, const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     find(const void* key, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> erase(const void* key) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    erase(const void* key) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     contains(const void* key, int* out_found) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    for_each(TF_MapVisitor visitor, void* capture) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void for_each(TF_MapVisitor visitor, void* capture) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -89,24 +90,17 @@ public:
             .size =
                 [](const TF_Map* map, size_t* out_size) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_MapOps::from_handle(map).size(out_size);
             },
             .for_each =
                 [](const TF_Map* map, TF_MapVisitor visitor, void* capture) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).for_each(visitor, capture);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_MapOps::from_handle(map).for_each(visitor, capture);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Map* map) noexcept
             {
-                std::unique_ptr<TF_MapOps>{&TF_MapOps::from_handle(plugin_context)};
+                TF_MapOps::from_handle(map).destroy();
             },
 
         };

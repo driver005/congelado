@@ -1,0 +1,3 @@
+
+            ) noexcept {
+                {{ class_name }}::from_handle({{ self_param_name }}).{{ slot_name }}(

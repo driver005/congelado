@@ -24,13 +24,18 @@ public:
 
     static constexpr std::string_view domain_name = "pubsub";
 
-    [[nodiscard]] std::expected<void, ice::Status> publish(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> publish(
         const ice::sonic::String& channel,
         const ice::sonic::String& payload,
         int retain
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->publish(
             get_handle(),
             channel.get_handle(),
@@ -45,14 +50,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> publish_batch(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> publish_batch(
         const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
         void* user_data
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->publish_batch(
             get_handle(),
             channel.get_handle(),
@@ -68,10 +73,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     flush(TFPubSubAckFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->flush(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
@@ -80,13 +85,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_retained(
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_retained(
         const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
         void* user_data
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->get_retained(
             get_handle(),
             channel.get_handle(),
@@ -99,15 +104,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

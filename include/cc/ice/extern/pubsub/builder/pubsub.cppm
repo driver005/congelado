@@ -36,23 +36,22 @@ public:
     }
 
     virtual ~TF_PubSubOps() = default;
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_PubSubOps{
             .struct_size = TF_PUBSUB_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_PubSub* pubsub) noexcept
             {
-                std::unique_ptr<TF_PubSubOps>{&TF_PubSubOps::from_handle(plugin_context)};
+                TF_PubSubOps::from_handle(pubsub).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_PubSub* pubsub, TF_String* out_name) noexcept
             {
-                auto result = TF_PubSubOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_PubSubOps::from_handle(pubsub).get_name(ice::sonic::String::wrap(out_name));
             },
 
         };
@@ -62,8 +61,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_PubSub& get_handle() const noexcept
     {

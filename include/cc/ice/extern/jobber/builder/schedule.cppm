@@ -36,32 +36,32 @@ public:
     }
 
     virtual ~TF_ScheduleOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> add_dependency(
+    virtual void destroy() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> add_dependency(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_JobOps& depends_on
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> list_dependencies(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> list_dependencies(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::TF_VectorOps& out_job_ids
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     pause(const ice::sonic::TF_JobOps& job) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     resume(const ice::sonic::TF_JobOps& job) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     cancel(const ice::sonic::TF_JobOps& job) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     stop(const ice::sonic::TF_JobOps& job) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_ScheduleOps{
             .struct_size = TF_SCHEDULE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Schedule* schedule) noexcept
             {
-                std::unique_ptr<TF_ScheduleOps>{&TF_ScheduleOps::from_handle(plugin_context)};
+                TF_ScheduleOps::from_handle(schedule).destroy();
             },
             .add_dependency =
                 [](TF_Schedule* schedule,

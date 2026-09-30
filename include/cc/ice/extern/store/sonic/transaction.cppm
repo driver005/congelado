@@ -25,9 +25,14 @@ public:
 
     static constexpr std::string_view domain_name = "store";
 
-    [[nodiscard]] std::expected<void, ice::Status> begin() noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> begin() noexcept
+    {
+        ice::sonic::Status status;
         m_ops->begin(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -36,10 +41,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     add_collection(const ice::sonic::TFStoreCollectionOps& collection) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->add_collection(get_handle(), collection.get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -48,29 +53,18 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_collection(
+    void get_collection(
         const ice::sonic::String& name,
         const ice::sonic::TFStoreCollectionOps& out_collection
     ) noexcept
     {
-        ice::Status status;
-        m_ops->get_collection(
-            get_handle(),
-            name.get_handle(),
-            out_collection.get_handle(),
-            status.get_handle()
-        );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_collection(get_handle(), name.get_handle(), out_collection.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     list_collections(TF_Tensor** out_collections) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->list_collections(get_handle(), out_collections, status.get_handle());
 
         if (!status.ok()) {
@@ -79,10 +73,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     commit(TFStoreAckFn completion, void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->commit(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
@@ -91,24 +85,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> rollback() noexcept
+    void rollback() noexcept
     {
-        ice::Status status;
-        m_ops->rollback(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->rollback(get_handle());
     }
 };
 

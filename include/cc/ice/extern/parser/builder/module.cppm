@@ -36,21 +36,26 @@ public:
     }
 
     virtual ~TFParserModuleOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_function_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_function(int index, const ice::sonic::TFParserFunctionOps& out_function) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TFParserModuleOps{
             .struct_size = TF_ARSERMODULE_STRUCT_SIZE,
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TFParserModule* module, TF_String* out_name, TF_Status* out_status) noexcept
             {
-                auto result = TFParserModuleOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                auto res = TFParserModuleOps::from_handle(module).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
+                if (!res) {
+                    res.error().to_c(out_status);
+                }
             },
             .get_function_count =
                 [](TFParserModule* module, int* out_count, TF_Status* out_status) noexcept
@@ -82,8 +87,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TFParserModule& get_handle() const noexcept
     {

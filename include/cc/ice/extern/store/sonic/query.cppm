@@ -24,7 +24,12 @@ public:
 
     static constexpr std::string_view domain_name = "store";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     run(const ice::sonic::TF_MapOps& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
@@ -33,7 +38,7 @@ public:
         TFStoreQueryFn completion,
         void* user_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->run(
             get_handle(),
             filters.get_handle(),
@@ -50,15 +55,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

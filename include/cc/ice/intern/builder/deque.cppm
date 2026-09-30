@@ -36,17 +36,15 @@ public:
     }
 
     virtual ~TF_DequeOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    push_front(const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    push_back(const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> pop_front() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> pop_back() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void push_front(const void* value) noexcept = 0;
+    virtual void push_back(const void* value) noexcept = 0;
+    virtual void pop_front() noexcept = 0;
+    virtual void pop_back() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get(size_t index, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
+    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -55,42 +53,27 @@ public:
             .set_element_size =
                 [](TF_Deque* deque, size_t element_size) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).set_element_size(element_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).set_element_size(element_size);
             },
             .push_front =
                 [](TF_Deque* deque, const void* value) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).push_front(value);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).push_front(value);
             },
             .push_back =
                 [](TF_Deque* deque, const void* value) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).push_back(value);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).push_back(value);
             },
             .pop_front =
                 [](TF_Deque* deque) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).pop_front();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).pop_front();
             },
             .pop_back =
                 [](TF_Deque* deque) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).pop_back();
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).pop_back();
             },
             .get =
                 [](const TF_Deque* deque,
@@ -106,16 +89,12 @@ public:
             .size =
                 [](const TF_Deque* deque, size_t* out_size) noexcept
             {
-                auto res = TF_DequeOps::from_handle(deque).size(out_size);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_DequeOps::from_handle(deque).size(out_size);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Deque* deque) noexcept
             {
-                std::unique_ptr<TF_DequeOps>{&TF_DequeOps::from_handle(plugin_context)};
+                TF_DequeOps::from_handle(deque).destroy();
             },
 
         };

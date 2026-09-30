@@ -24,21 +24,24 @@ public:
 
     static constexpr std::string_view domain_name = "profiler";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_device_type(const ice::sonic::String& out_device_type) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
-        m_ops->get_device_type(get_handle(), out_device_type.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> start() noexcept
+    void get_name(const ice::sonic::String& out_name) noexcept
     {
-        ice::Status status;
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    void get_device_type(const ice::sonic::String& out_device_type) noexcept
+    {
+        m_ops->get_device_type(get_handle(), out_device_type.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> start() noexcept
+    {
+        ice::sonic::Status status;
         m_ops->start(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -47,9 +50,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> stop() noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> stop() noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->stop(get_handle(), status.get_handle());
 
         if (!status.ok()) {
@@ -58,25 +61,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     collect_data_xspace(TF_Tensor** out_data) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->collect_data_xspace(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

@@ -13,41 +13,38 @@ import std;
 
 export namespace ice::builder {
 
-class TF_StatusOps
+class Status
 {
 public:
-    TF_StatusOps() noexcept :
+    Status() noexcept :
         m_handle{.plugin_data = this}
     {
     }
 
-    TF_StatusOps(const TF_StatusOps&) = delete;
-    TF_StatusOps& operator=(const TF_StatusOps&) = delete;
+    Status(const Status&) = delete;
+    Status& operator=(const Status&) = delete;
 
-    static TF_StatusOps& from_handle(void* ctx) noexcept
+    static Status& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_StatusOps*>(ctx);
+        return *static_cast<Status*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_StatusOps& from_handle(HandleT* handle) noexcept
+    static Status& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_StatusOps*>(handle->plugin_data);
+        return *static_cast<Status*>(handle->plugin_data);
     }
 
-    virtual ~TF_StatusOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> delete_status() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_status(TF_Code code, const ice::sonic::String& msg) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual ~Status() = default;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> delete_status() noexcept = 0;
+    virtual void set_status(TF_Code code, const ice::sonic::String& msg) noexcept = 0;
+    virtual void
     set_payload(const ice::sonic::String& key, const ice::sonic::String& value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept = 0;
+    virtual void
     set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_code(TF_Code* out_code) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    message(const ice::sonic::String& out_message) noexcept = 0;
+    virtual void get_code(TF_Code* out_code) noexcept = 0;
+    virtual void message(const ice::sonic::String& out_message) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -56,7 +53,7 @@ public:
             .delete_status =
                 [](TF_Status* s) noexcept
             {
-                auto res = TF_StatusOps::from_handle(s).delete_status();
+                auto res = Status::from_handle(s).delete_status();
                 if (!res) {
                     res.error().to_c(s);
                 }
@@ -64,58 +61,38 @@ public:
             .set_status =
                 [](TF_Status* s, TF_Code code, const TF_String* msg) noexcept
             {
-                auto res =
-                    TF_StatusOps::from_handle(s).set_status(code, ice::sonic::String::wrap(msg));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                Status::from_handle(s).set_status(code, ice::sonic::String::wrap(msg));
             },
             .set_payload =
                 [](TF_Status* s, const TF_String* key, const TF_String* value) noexcept
             {
-                auto res = TF_StatusOps::from_handle(s).set_payload(
+                Status::from_handle(s).set_payload(
                     ice::sonic::String::wrap(key),
                     ice::sonic::String::wrap(value)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .for_each_payload =
                 [](const TF_Status* s, TF_PayloadVisitor visitor, void* capture) noexcept
             {
-                auto res = TF_StatusOps::from_handle(s).for_each_payload(visitor, capture);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                Status::from_handle(s).for_each_payload(visitor, capture);
             },
             .set_status_from_io_error =
                 [](TF_Status* s, int error_code, const TF_String* context) noexcept
             {
-                auto res = TF_StatusOps::from_handle(s).set_status_from_io_error(
+                Status::from_handle(s).set_status_from_io_error(
                     error_code,
                     ice::sonic::String::wrap(context)
                 );
-                if (!res) {
-                    res.error().to_c(status);
-                }
             },
             .get_code =
                 [](const TF_Status* s, TF_Code* out_code) noexcept
             {
-                auto res = TF_StatusOps::from_handle(s).get_code(out_code);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                Status::from_handle(s).get_code(out_code);
             },
             .message =
                 [](const TF_Status* s, TF_String* out_message) noexcept
             {
-                auto res =
-                    TF_StatusOps::from_handle(s).message(ice::sonic::String::wrap(out_message));
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                Status::from_handle(s).message(ice::sonic::String::wrap(out_message));
             },
 
         };

@@ -24,13 +24,23 @@ public:
 
     static constexpr std::string_view domain_name = "otel";
 
-    [[nodiscard]] std::expected<void, ice::Status> start_span(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> start_span(
         const ice::sonic::String& name,
         int kind,
         const ice::sonic::TFOtelSpanOps& out_span
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->start_span(
             get_handle(),
             name.get_handle(),
@@ -43,15 +53,6 @@ public:
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

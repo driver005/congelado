@@ -36,10 +36,11 @@ public:
     }
 
     virtual ~TF_ComplexOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_real(double* out_real) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_imag(double* out_imag) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_real(double real) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_imag(double imag) noexcept = 0;
+    virtual void get_real(double* out_real) noexcept = 0;
+    virtual void get_imag(double* out_imag) noexcept = 0;
+    virtual void set_real(double real) noexcept = 0;
+    virtual void set_imag(double imag) noexcept = 0;
+    virtual void destroy() noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
@@ -48,40 +49,27 @@ public:
             .get_real =
                 [](const TF_Complex* complex_value, double* out_real) noexcept
             {
-                auto res = TF_ComplexOps::from_handle(complex_value).get_real(out_real);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ComplexOps::from_handle(complex_value).get_real(out_real);
             },
             .get_imag =
                 [](const TF_Complex* complex_value, double* out_imag) noexcept
             {
-                auto res = TF_ComplexOps::from_handle(complex_value).get_imag(out_imag);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ComplexOps::from_handle(complex_value).get_imag(out_imag);
             },
             .set_real =
                 [](TF_Complex* complex_value, double real) noexcept
             {
-                auto res = TF_ComplexOps::from_handle(complex_value).set_real(real);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ComplexOps::from_handle(complex_value).set_real(real);
             },
             .set_imag =
                 [](TF_Complex* complex_value, double imag) noexcept
             {
-                auto res = TF_ComplexOps::from_handle(complex_value).set_imag(imag);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ComplexOps::from_handle(complex_value).set_imag(imag);
             },
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_Complex* complex_value) noexcept
             {
-                std::unique_ptr<TF_ComplexOps>{&TF_ComplexOps::from_handle(plugin_context)};
+                TF_ComplexOps::from_handle(complex_value).destroy();
             },
 
         };

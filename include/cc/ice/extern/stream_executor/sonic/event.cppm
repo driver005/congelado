@@ -24,10 +24,10 @@ public:
 
     static constexpr std::string_view domain_name = "stream_executor";
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     elapsed_time(const ice::sonic::TF_EventOps& end, float* out_milliseconds) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->elapsed_time(get_handle(), end.get_handle(), out_milliseconds, status.get_handle());
 
         if (!status.ok()) {
@@ -36,10 +36,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
     export_ipc(TF_IpcEventHandle* out_handle) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->export_ipc(get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
@@ -48,24 +48,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
+    void get_native_handle(void** out_handle) noexcept
     {
-        ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->get_native_handle(get_handle(), out_handle);
     }
 };
 

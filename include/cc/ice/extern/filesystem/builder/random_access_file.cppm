@@ -36,27 +36,26 @@ public:
     }
 
     virtual ~TF_RandomAccessFileOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void destroy() noexcept = 0;
+    virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     read(uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read) noexcept = 0;
 
     void get_generic_vtable() noexcept
     {
         m_vtable = ::TF_RandomAccessFileOps{
             .struct_size = TF_RANDOMACCESSFILE_STRUCT_SIZE,
-
             .destroy =
-                [](void* plugin_context) noexcept
+                [](TF_RandomAccessFile* file) noexcept
             {
-                std::unique_ptr<TF_RandomAccessFileOps>{
-                    &TF_RandomAccessFileOps::from_handle(plugin_context)
-                };
+                TF_RandomAccessFileOps::from_handle(file).destroy();
             },
-
             .get_name =
-                [](void* plugin_context, TF_String* out) noexcept
+                [](TF_RandomAccessFile* file, TF_String* out_name) noexcept
             {
-                auto result = TF_RandomAccessFileOps::from_handle(plugin_context).get_name();
-                result.to_c(out);
+                TF_RandomAccessFileOps::from_handle(file).get_name(
+                    ice::sonic::String::wrap(out_name)
+                );
             },
             .read =
                 [](TF_RandomAccessFile* file,
@@ -80,8 +79,6 @@ public:
     {
         return m_vtable;
     }
-
-    virtual builder::String get_name() const noexcept = 0;
 
     const TF_RandomAccessFile& get_handle() const noexcept
     {

@@ -36,14 +36,13 @@ public:
     }
 
     virtual ~TFStoreAdminOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    is_connected(int* out_connected) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> backup(
+    virtual void is_connected(int* out_connected) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> backup(
         const ice::sonic::String& destination,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> restore(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> restore(
         const ice::sonic::String& source,
         TFStoreAckFn completion,
         void* user_data
@@ -56,10 +55,7 @@ public:
             .is_connected =
                 [](TFStoreAdmin* manager, int* out_connected) noexcept
             {
-                auto res = TFStoreAdminOps::from_handle(manager).is_connected(out_connected);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TFStoreAdminOps::from_handle(manager).is_connected(out_connected);
             },
             .backup =
                 [](TFStoreAdmin* manager,

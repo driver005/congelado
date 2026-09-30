@@ -36,40 +36,35 @@ public:
     }
 
     virtual ~TF_ShapeInferenceContextOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    num_inputs(int64_t* out_num) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void num_inputs(int64_t* out_num) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_input(int i, TF_ShapeHandle* handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     set_output(int i, TF_ShapeHandle* handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    scalar(TF_ShapeHandle* handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    vector_from_size(size_t size, TF_ShapeHandle* handle) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void scalar(TF_ShapeHandle* handle) noexcept = 0;
+    virtual void vector_from_size(size_t size, TF_ShapeHandle* handle) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    rank(TF_ShapeHandle* handle, int64_t* out_rank) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    rank_known(TF_ShapeHandle* handle, int* out_known) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void rank(TF_ShapeHandle* handle, int64_t* out_rank) noexcept = 0;
+    virtual void rank_known(TF_ShapeHandle* handle, int* out_known) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     with_rank(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     with_rank_at_least(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
     with_rank_at_most(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
+    virtual void
     dim(TF_ShapeHandle* shape_handle,
         int64_t i,
         const ice::sonic::TF_DimensionHandleOps& result) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> subshape(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> subshape(
         TF_ShapeHandle* shape_handle,
         int64_t start,
         int64_t end,
         TF_ShapeHandle* result
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_unknown_shape() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> concatenate_shapes(
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> set_unknown_shape() noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> concatenate_shapes(
         TF_ShapeHandle* first,
         TF_ShapeHandle* second,
         TF_ShapeHandle* result
@@ -82,10 +77,7 @@ public:
             .num_inputs =
                 [](TF_ShapeInferenceContext* ctx, int64_t* out_num) noexcept
             {
-                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).num_inputs(out_num);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx).num_inputs(out_num);
             },
             .get_input =
                 [](TF_ShapeInferenceContext* ctx,
@@ -112,19 +104,12 @@ public:
             .scalar =
                 [](TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle) noexcept
             {
-                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).scalar(handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx).scalar(handle);
             },
             .vector_from_size =
                 [](TF_ShapeInferenceContext* ctx, size_t size, TF_ShapeHandle* handle) noexcept
             {
-                auto res =
-                    TF_ShapeInferenceContextOps::from_handle(ctx).vector_from_size(size, handle);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx).vector_from_size(size, handle);
             },
             .get_attr_type =
                 [](TF_ShapeInferenceContext* ctx,
@@ -145,19 +130,12 @@ public:
                    TF_ShapeHandle* handle,
                    int64_t* out_rank) noexcept
             {
-                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).rank(handle, out_rank);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx).rank(handle, out_rank);
             },
             .rank_known =
                 [](TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle, int* out_known) noexcept
             {
-                auto res =
-                    TF_ShapeInferenceContextOps::from_handle(ctx).rank_known(handle, out_known);
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx).rank_known(handle, out_known);
             },
             .with_rank =
                 [](TF_ShapeInferenceContext* ctx,
@@ -204,14 +182,8 @@ public:
                    int64_t i,
                    TF_DimensionHandle* result) noexcept
             {
-                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).dim(
-                    shape_handle,
-                    i,
-                    ice::sonic::TF_DimensionHandleOps::wrap(result)
-                );
-                if (!res) {
-                    res.error().to_c(status);
-                }
+                TF_ShapeInferenceContextOps::from_handle(ctx)
+                    .dim(shape_handle, i, ice::sonic::TF_DimensionHandleOps::wrap(result));
             },
             .subshape =
                 [](TF_ShapeInferenceContext* ctx,

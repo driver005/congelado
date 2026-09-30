@@ -24,24 +24,25 @@ public:
 
     static constexpr std::string_view domain_name = "otel";
 
-    [[nodiscard]] std::expected<void, ice::Status> record(double value) noexcept
+    void destroy() noexcept
     {
-        ice::Status status;
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> record(double value) noexcept
+    {
+        ice::sonic::Status status;
         m_ops->record(get_handle(), value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
         }
         return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
     }
 };
 

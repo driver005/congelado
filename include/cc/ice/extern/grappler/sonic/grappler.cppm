@@ -24,13 +24,23 @@ public:
 
     static constexpr std::string_view domain_name = "grappler";
 
-    [[nodiscard]] std::expected<void, ice::Status> create_device_graph_internal(
+    void destroy() noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle());
+    }
+
+    [[nodiscard]] std::expected<void, ice::sonic::Status> create_device_graph_internal(
         const ice::sonic::TF_ExecutorOps& executor,
         const ice::sonic::TF_DeviceOps& device,
         const ice::sonic::TFGrapplerDeviceGraphOps& out_graph
     ) noexcept
     {
-        ice::Status status;
+        ice::sonic::Status status;
         m_ops->create_device_graph_internal(
             get_handle(),
             executor.get_handle(),
@@ -45,25 +55,9 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept
+    void destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept
     {
-        ice::Status status;
-        m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    virtual ice::String get_name() const noexcept = 0;
-
-    sonic::String get_name() const noexcept
-    {
-        sonic::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle());
     }
 };
 
