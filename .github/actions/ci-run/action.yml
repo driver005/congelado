@@ -1,0 +1,51 @@
+name: ci-run
+description: Runs a `make ci-*` target inside the CI image, exactly like `make ci` locally.
+inputs:
+  target:
+    description: make target(s) to run, e.g. "ci-build ci-test"
+    required: true
+  cache-key:
+    description: cache namespace (separate per sanitizer config)
+    default: default
+  report-name:
+    description: artifact name for reports/
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Free disk space
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        df -h /
+
+    - name: Restore build cache
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/congelado-ci
+        key: ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-${{ github.sha }}
+        restore-keys: |
+          ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-
+          ci-${{ inputs.cache-key }}-
+
+    - name: Run ${{ inputs.target }}
+      shell: bash
+      run: |
+        mkdir -p ~/.cache/congelado-ci
+        make ci CONTAINER=docker CI_TARGET="${{ inputs.target }}" \
+          CI_CACHE="$HOME/.cache/congelado-ci" \
+          CI_EXTRA="-v $RUNNER_TEMP:$RUNNER_TEMP -e GITHUB_STEP_SUMMARY -e CI=true"
+
+    - name: Fix cache ownership
+      if: always()
+      shell: bash
+      run: sudo chown -R "$(id -u):$(id -g)" ~/.cache/congelado-ci reports 2>/dev/null || true
+
+    - name: Upload reports
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.report-name }}
+        path: reports/
+        if-no-files-found: ignore
+        retention-days: 30

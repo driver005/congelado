@@ -26,11 +26,10 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_name(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle() status.get_handle());
+        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,10 +38,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_summary(const ice::sonic::TF_StringOps& summary) noexcept
+    set_summary(const ice::sonic::String& summary) noexcept
     {
         ice::Status status;
-        m_ops->set_summary(get_handle(), summary.get_handle() status.get_handle());
+        m_ops->set_summary(get_handle(), summary.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -51,10 +50,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_description(const ice::sonic::TF_StringOps& description) noexcept
+    set_description(const ice::sonic::String& description) noexcept
     {
         ice::Status status;
-        m_ops->set_description(get_handle(), description.get_handle() status.get_handle());
+        m_ops->set_description(get_handle(), description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -66,7 +65,7 @@ public:
     add_input(const ice::sonic::TFGeneratorParameterOps& input) noexcept
     {
         ice::Status status;
-        m_ops->add_input(get_handle(), input.get_handle() status.get_handle());
+        m_ops->add_input(get_handle(), input.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -78,7 +77,7 @@ public:
     add_output(const ice::sonic::TFGeneratorParameterOps& output) noexcept
     {
         ice::Status status;
-        m_ops->add_output(get_handle(), output.get_handle() status.get_handle());
+        m_ops->add_output(get_handle(), output.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -90,7 +89,7 @@ public:
     add_attr(const ice::sonic::TFGeneratorAttributeOps& attr) noexcept
     {
         ice::Status status;
-        m_ops->add_attr(get_handle(), attr.get_handle() status.get_handle());
+        m_ops->add_attr(get_handle(), attr.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -99,10 +98,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_summary(const ice::sonic::TF_StringOps& out_summary) noexcept
+    get_summary(const ice::sonic::String& out_summary) noexcept
     {
         ice::Status status;
-        m_ops->get_summary(get_handle(), out_summary.get_handle() status.get_handle());
+        m_ops->get_summary(get_handle(), out_summary.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -111,10 +110,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_description(const ice::sonic::TF_StringOps& out_description) noexcept
+    get_description(const ice::sonic::String& out_description) noexcept
     {
         ice::Status status;
-        m_ops->get_description(get_handle(), out_description.get_handle() status.get_handle());
+        m_ops->get_description(get_handle(), out_description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -125,7 +124,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> list_inputs(TF_Tensor** out_inputs) noexcept
     {
         ice::Status status;
-        m_ops->list_inputs(get_handle(), out_inputs status.get_handle());
+        m_ops->list_inputs(get_handle(), out_inputs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -136,7 +135,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> list_outputs(TF_Tensor** out_outputs) noexcept
     {
         ice::Status status;
-        m_ops->list_outputs(get_handle(), out_outputs status.get_handle());
+        m_ops->list_outputs(get_handle(), out_outputs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -147,7 +146,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> list_attrs(TF_Tensor** out_attrs) noexcept
     {
         ice::Status status;
-        m_ops->list_attrs(get_handle(), out_attrs status.get_handle());
+        m_ops->list_attrs(get_handle(), out_attrs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_real(double* out_real) noexcept
     {
         ice::Status status;
-        m_ops->get_real(get_handle(), out_real status.get_handle());
+        m_ops->get_real(get_handle(), out_real, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_imag(double* out_imag) noexcept
     {
         ice::Status status;
-        m_ops->get_imag(get_handle(), out_imag status.get_handle());
+        m_ops->get_imag(get_handle(), out_imag, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_real(double real) noexcept
     {
         ice::Status status;
-        m_ops->set_real(get_handle(), real status.get_handle());
+        m_ops->set_real(get_handle(), real, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -60,7 +60,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_imag(double imag) noexcept
     {
         ice::Status status;
-        m_ops->set_imag(get_handle(), imag status.get_handle());
+        m_ops->set_imag(get_handle(), imag, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

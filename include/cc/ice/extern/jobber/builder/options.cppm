@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_OptionsOps
 {
 public:
-    static TF_OptionsOps* create(void* ctx) noexcept
+    TF_OptionsOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_OptionsOps*>(ctx);
+    }
+
+    TF_OptionsOps(const TF_OptionsOps&) = delete;
+    TF_OptionsOps& operator=(const TF_OptionsOps&) = delete;
+
+    static TF_OptionsOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_OptionsOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_OptionsOps* create(HandleT* handle) noexcept
+    static TF_OptionsOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_OptionsOps*>(handle->plugin_data);
+        return *static_cast<TF_OptionsOps*>(handle->plugin_data);
     }
 
     virtual ~TF_OptionsOps() = default;
@@ -35,15 +43,15 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_priority(const ice::sonic::TF_JobOps& job, int priority) noexcept = 0;
 
-    static TF_OptionsOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_OptionsOps vtable = {
+        m_vtable = ::TF_OptionsOps{
             .struct_size = TF_OPTIONS_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_OptionsOps::create(plugin_context);
+                std::unique_ptr<TF_OptionsOps>{&TF_OptionsOps::from_handle(plugin_context)};
             },
             .get_options =
                 [](TF_Options* options,
@@ -51,8 +59,10 @@ public:
                    TFJobOptions* out_options,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OptionsOps::create(options);
-                auto res = self->get_options(ice::sonic::TF_JobOps::wrap(job), out_options);
+                auto res = TF_OptionsOps::from_handle(options).get_options(
+                    ice::sonic::TF_JobOps::wrap(job),
+                    out_options
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -63,8 +73,10 @@ public:
                    const TFJobOptions* new_options,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OptionsOps::create(options);
-                auto res = self->update_options(ice::sonic::TF_JobOps::wrap(job), new_options);
+                auto res = TF_OptionsOps::from_handle(options).update_options(
+                    ice::sonic::TF_JobOps::wrap(job),
+                    new_options
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -72,24 +84,32 @@ public:
             .set_priority =
                 [](TF_Options* options, TF_Job* job, int priority, TF_Status* out_status) noexcept
             {
-                auto* self = TF_OptionsOps::create(options);
-                auto res = self->set_priority(ice::sonic::TF_JobOps::wrap(job), priority);
+                auto res = TF_OptionsOps::from_handle(options).set_priority(
+                    ice::sonic::TF_JobOps::wrap(job),
+                    priority
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_OptionsOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Options& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_OptionsOps m_vtable;
+    TF_Options m_handle;
 };
 
 } // namespace ice::builder

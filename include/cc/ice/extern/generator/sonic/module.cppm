@@ -28,7 +28,7 @@ public:
     add_function(const ice::sonic::TFGeneratorFunctionOps& function) noexcept
     {
         ice::Status status;
-        m_ops->add_function(get_handle(), function.get_handle() status.get_handle());
+        m_ops->add_function(get_handle(), function.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -37,7 +37,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> get_function(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorFunctionOps& out_function
     ) noexcept
     {
@@ -45,7 +45,8 @@ public:
         m_ops->get_function(
             get_handle(),
             name.get_handle(),
-            out_function.get_handle() status.get_handle()
+            out_function.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -58,7 +59,7 @@ public:
     list_functions(TF_Tensor** out_functions) noexcept
     {
         ice::Status status;
-        m_ops->list_functions(get_handle(), out_functions status.get_handle());
+        m_ops->list_functions(get_handle(), out_functions, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -66,11 +67,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_name(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle() status.get_handle());
+        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -89,11 +89,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    emit(const ice::sonic::TF_StringOps& out_code) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> emit(const ice::sonic::String& out_code) noexcept
     {
         ice::Status status;
-        m_ops->emit(get_handle(), out_code.get_handle() status.get_handle());
+        m_ops->emit(get_handle(), out_code.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

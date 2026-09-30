@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ShapeInferenceContextOps
 {
 public:
-    static TF_ShapeInferenceContextOps* create(void* ctx) noexcept
+    TF_ShapeInferenceContextOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ShapeInferenceContextOps*>(ctx);
+    }
+
+    TF_ShapeInferenceContextOps(const TF_ShapeInferenceContextOps&) = delete;
+    TF_ShapeInferenceContextOps& operator=(const TF_ShapeInferenceContextOps&) = delete;
+
+    static TF_ShapeInferenceContextOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ShapeInferenceContextOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ShapeInferenceContextOps* create(HandleT* handle) noexcept
+    static TF_ShapeInferenceContextOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ShapeInferenceContextOps*>(handle->plugin_data);
+        return *static_cast<TF_ShapeInferenceContextOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ShapeInferenceContextOps() = default;
@@ -39,7 +47,7 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     vector_from_size(size_t size, TF_ShapeHandle* handle) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_attr_type(const char* attr_name, TFDataTypeEnum* out_val) noexcept = 0;
+    get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     rank(TF_ShapeHandle* handle, int64_t* out_rank) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -67,15 +75,14 @@ public:
         TF_ShapeHandle* result
     ) noexcept = 0;
 
-    static TF_ShapeInferenceContextOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ShapeInferenceContextOps vtable = {
+        m_vtable = ::TF_ShapeInferenceContextOps{
             .struct_size = TF_SHAPEINFERENCECONTEXT_STRUCT_SIZE,
             .num_inputs =
                 [](TF_ShapeInferenceContext* ctx, int64_t* out_num) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->num_inputs(out_num);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).num_inputs(out_num);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -86,8 +93,7 @@ public:
                    TF_ShapeHandle* handle,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->get_input(i, handle);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).get_input(i, handle);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -98,8 +104,7 @@ public:
                    TF_ShapeHandle* handle,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->set_output(i, handle);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).set_output(i, handle);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -107,8 +112,7 @@ public:
             .scalar =
                 [](TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->scalar(handle);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).scalar(handle);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -116,20 +120,22 @@ public:
             .vector_from_size =
                 [](TF_ShapeInferenceContext* ctx, size_t size, TF_ShapeHandle* handle) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->vector_from_size(size, handle);
+                auto res =
+                    TF_ShapeInferenceContextOps::from_handle(ctx).vector_from_size(size, handle);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .get_attr_type =
                 [](TF_ShapeInferenceContext* ctx,
-                   const char* attr_name,
+                   const TF_String* attr_name,
                    TFDataTypeEnum* out_val,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->get_attr_type(attr_name, out_val);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).get_attr_type(
+                    ice::sonic::String::wrap(attr_name),
+                    out_val
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -139,8 +145,7 @@ public:
                    TF_ShapeHandle* handle,
                    int64_t* out_rank) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->rank(handle, out_rank);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).rank(handle, out_rank);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -148,8 +153,8 @@ public:
             .rank_known =
                 [](TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle, int* out_known) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->rank_known(handle, out_known);
+                auto res =
+                    TF_ShapeInferenceContextOps::from_handle(ctx).rank_known(handle, out_known);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -161,8 +166,8 @@ public:
                    TF_ShapeHandle* result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->with_rank(handle, rank, result);
+                auto res =
+                    TF_ShapeInferenceContextOps::from_handle(ctx).with_rank(handle, rank, result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -174,8 +179,8 @@ public:
                    TF_ShapeHandle* result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->with_rank_at_least(handle, rank, result);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx)
+                               .with_rank_at_least(handle, rank, result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -187,8 +192,8 @@ public:
                    TF_ShapeHandle* result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->with_rank_at_most(handle, rank, result);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx)
+                               .with_rank_at_most(handle, rank, result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -199,9 +204,11 @@ public:
                    int64_t i,
                    TF_DimensionHandle* result) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res =
-                    self->dim(shape_handle, i, ice::sonic::TF_DimensionHandleOps::wrap(result));
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).dim(
+                    shape_handle,
+                    i,
+                    ice::sonic::TF_DimensionHandleOps::wrap(result)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -214,8 +221,8 @@ public:
                    TF_ShapeHandle* result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->subshape(shape_handle, start, end, result);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx)
+                               .subshape(shape_handle, start, end, result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -223,8 +230,7 @@ public:
             .set_unknown_shape =
                 [](TF_ShapeInferenceContext* ctx, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->set_unknown_shape();
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx).set_unknown_shape();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -236,24 +242,30 @@ public:
                    TF_ShapeHandle* result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ShapeInferenceContextOps::create(ctx);
-                auto res = self->concatenate_shapes(first, second, result);
+                auto res = TF_ShapeInferenceContextOps::from_handle(ctx)
+                               .concatenate_shapes(first, second, result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ShapeInferenceContextOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_ShapeInferenceContext& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ShapeInferenceContextOps m_vtable;
+    TF_ShapeInferenceContext m_handle;
 };
 
 } // namespace ice::builder

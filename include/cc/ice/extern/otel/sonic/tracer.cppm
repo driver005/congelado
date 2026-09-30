@@ -25,7 +25,7 @@ public:
     static constexpr std::string_view domain_name = "otel";
 
     [[nodiscard]] std::expected<void, ice::Status> start_span(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         int kind,
         const ice::sonic::TFOtelSpanOps& out_span
     ) noexcept
@@ -35,7 +35,8 @@ public:
             get_handle(),
             name.get_handle(),
             kind,
-            out_span.get_handle() status.get_handle()
+            out_span.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

@@ -26,8 +26,8 @@ public:
 
     [[nodiscard]] std::expected<void, ice::Status>
     run(const ice::sonic::TF_MapOps& filters,
-        const ice::sonic::TF_StringOps& free_text,
-        const ice::sonic::TF_StringOps& sort,
+        const ice::sonic::String& free_text,
+        const ice::sonic::String& sort,
         size_t offset,
         size_t limit,
         TFStoreQueryFn completion,
@@ -42,7 +42,8 @@ public:
             offset,
             limit,
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {

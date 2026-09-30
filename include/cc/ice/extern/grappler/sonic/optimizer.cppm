@@ -36,7 +36,8 @@ public:
             get_handle(),
             graph_buf.get_handle(),
             item.get_handle(),
-            out_optimized_graph_buf.get_handle() status.get_handle()
+            out_optimized_graph_buf.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

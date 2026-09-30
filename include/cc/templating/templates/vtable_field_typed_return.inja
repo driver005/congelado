@@ -1,7 +1,6 @@
 
             .{{ slot_name }} = [](void* plugin_context, TF_Status* {{ status_name }}) noexcept -> {{ raw_return_type }} {
-                auto* self = {{ class_name }}::create(plugin_context);
-                auto res = self->{{ slot_name }}();
+                auto res = {{ class_name }}::from_handle(plugin_context).{{ slot_name }}();
                 if (!res) {
                     res.error().to_c({{ status_name }});
                     return nullptr;

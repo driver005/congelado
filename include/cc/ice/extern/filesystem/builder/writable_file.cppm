@@ -16,48 +16,57 @@ export namespace ice::builder {
 class TF_WritableFileOps
 {
 public:
-    static TF_WritableFileOps* create(void* ctx) noexcept
+    TF_WritableFileOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_WritableFileOps*>(ctx);
+    }
+
+    TF_WritableFileOps(const TF_WritableFileOps&) = delete;
+    TF_WritableFileOps& operator=(const TF_WritableFileOps&) = delete;
+
+    static TF_WritableFileOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_WritableFileOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_WritableFileOps* create(HandleT* handle) noexcept
+    static TF_WritableFileOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_WritableFileOps*>(handle->plugin_data);
+        return *static_cast<TF_WritableFileOps*>(handle->plugin_data);
     }
 
     virtual ~TF_WritableFileOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    append(const ice::sonic::TF_StringOps& buffer) noexcept = 0;
+    append(const ice::sonic::String& buffer) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> tell(int64_t* out_position) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> flush() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> sync() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> close() noexcept = 0;
 
-    static TF_WritableFileOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_WritableFileOps vtable = {
+        m_vtable = ::TF_WritableFileOps{
             .struct_size = TF_WRITABLEFILE_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_WritableFileOps::create(plugin_context);
+                std::unique_ptr<TF_WritableFileOps>{
+                    &TF_WritableFileOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_WritableFileOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_WritableFileOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .append =
                 [](TF_WritableFile* file, const TF_String* buffer, TF_Status* out_status) noexcept
             {
-                auto* self = TF_WritableFileOps::create(file);
-                auto res = self->append(ice::sonic::TF_StringOps::wrap(buffer));
+                auto res =
+                    TF_WritableFileOps::from_handle(file).append(ice::sonic::String::wrap(buffer));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -65,8 +74,7 @@ public:
             .tell =
                 [](TF_WritableFile* file, int64_t* out_position, TF_Status* out_status) noexcept
             {
-                auto* self = TF_WritableFileOps::create(file);
-                auto res = self->tell(out_position);
+                auto res = TF_WritableFileOps::from_handle(file).tell(out_position);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -74,8 +82,7 @@ public:
             .flush =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto* self = TF_WritableFileOps::create(file);
-                auto res = self->flush();
+                auto res = TF_WritableFileOps::from_handle(file).flush();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -83,8 +90,7 @@ public:
             .sync =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto* self = TF_WritableFileOps::create(file);
-                auto res = self->sync();
+                auto res = TF_WritableFileOps::from_handle(file).sync();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -92,24 +98,31 @@ public:
             .close =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto* self = TF_WritableFileOps::create(file);
-                auto res = self->close();
+                auto res = TF_WritableFileOps::from_handle(file).close();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_WritableFileOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_WritableFile& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_WritableFileOps m_vtable;
+    TF_WritableFile m_handle;
 };
 
 } // namespace ice::builder

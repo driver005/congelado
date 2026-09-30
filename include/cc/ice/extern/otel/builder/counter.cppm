@@ -16,59 +16,73 @@ export namespace ice::builder {
 class TFOtelCounterOps
 {
 public:
-    static TFOtelCounterOps* create(void* ctx) noexcept
+    TFOtelCounterOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFOtelCounterOps*>(ctx);
+    }
+
+    TFOtelCounterOps(const TFOtelCounterOps&) = delete;
+    TFOtelCounterOps& operator=(const TFOtelCounterOps&) = delete;
+
+    static TFOtelCounterOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFOtelCounterOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFOtelCounterOps* create(HandleT* handle) noexcept
+    static TFOtelCounterOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFOtelCounterOps*>(handle->plugin_data);
+        return *static_cast<TFOtelCounterOps*>(handle->plugin_data);
     }
 
     virtual ~TFOtelCounterOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> add(double value) noexcept = 0;
 
-    static TFOtelCounterOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFOtelCounterOps vtable = {
+        m_vtable = ::TFOtelCounterOps{
             .struct_size = TF_TELCOUNTER_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFOtelCounterOps::create(plugin_context);
+                std::unique_ptr<TFOtelCounterOps>{&TFOtelCounterOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFOtelCounterOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFOtelCounterOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .add =
                 [](TFOtelCounter* counter, double value, TF_Status* out_status) noexcept
             {
-                auto* self = TFOtelCounterOps::create(counter);
-                auto res = self->add(value);
+                auto res = TFOtelCounterOps::from_handle(counter).add(value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFOtelCounterOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFOtelCounter& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFOtelCounterOps m_vtable;
+    TFOtelCounter m_handle;
 };
 
 } // namespace ice::builder

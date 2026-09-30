@@ -16,54 +16,68 @@ export namespace ice::builder {
 class TF_DataTypeOps
 {
 public:
-    static TF_DataTypeOps* create(void* ctx) noexcept
+    TF_DataTypeOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_DataTypeOps*>(ctx);
+    }
+
+    TF_DataTypeOps(const TF_DataTypeOps&) = delete;
+    TF_DataTypeOps& operator=(const TF_DataTypeOps&) = delete;
+
+    static TF_DataTypeOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_DataTypeOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_DataTypeOps* create(HandleT* handle) noexcept
+    static TF_DataTypeOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_DataTypeOps*>(handle->plugin_data);
+        return *static_cast<TF_DataTypeOps*>(handle->plugin_data);
     }
 
     virtual ~TF_DataTypeOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     datatype_size(TFDataTypeEnum dt, size_t* out_size) noexcept = 0;
 
-    static TF_DataTypeOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_DataTypeOps vtable = {
+        m_vtable = ::TF_DataTypeOps{
             .struct_size = TF_DATATYPE_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_DataTypeOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_DataTypeOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .datatype_size =
                 [](TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size) noexcept
             {
-                auto* self = TF_DataTypeOps::create(datatype);
-                auto res = self->datatype_size(dt, out_size);
+                auto res = TF_DataTypeOps::from_handle(datatype).datatype_size(dt, out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_DataTypeOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_DataType& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_DataTypeOps m_vtable;
+    TF_DataType m_handle;
 };
 
 } // namespace ice::builder

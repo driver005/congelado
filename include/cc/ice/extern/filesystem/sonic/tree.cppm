@@ -28,7 +28,7 @@ public:
     free_options(TFFilesystemOption* options, int num_options) noexcept
     {
         ice::Status status;
-        m_ops->free_options(get_handle(), options, num_options status.get_handle());
+        m_ops->free_options(get_handle(), options, num_options, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -37,10 +37,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    create_dir(const ice::sonic::TF_StringOps& path) noexcept
+    create_dir(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->create_dir(get_handle(), path.get_handle() status.get_handle());
+        m_ops->create_dir(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,10 +49,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    recursively_create_dir(const ice::sonic::TF_StringOps& path) noexcept
+    recursively_create_dir(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->recursively_create_dir(get_handle(), path.get_handle() status.get_handle());
+        m_ops->recursively_create_dir(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,10 +61,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    delete_file(const ice::sonic::TF_StringOps& path) noexcept
+    delete_file(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->delete_file(get_handle(), path.get_handle() status.get_handle());
+        m_ops->delete_file(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -73,10 +73,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    delete_dir(const ice::sonic::TF_StringOps& path) noexcept
+    delete_dir(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->delete_dir(get_handle(), path.get_handle() status.get_handle());
+        m_ops->delete_dir(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -85,7 +85,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> delete_recursively(
-        const ice::sonic::TF_StringOps& path,
+        const ice::sonic::String& path,
         uint64_t* undeleted_files,
         uint64_t* undeleted_dirs
     ) noexcept
@@ -95,7 +95,8 @@ public:
             get_handle(),
             path.get_handle(),
             undeleted_files,
-            undeleted_dirs status.get_handle()
+            undeleted_dirs,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -105,10 +106,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    rename_file(const ice::sonic::TF_StringOps& src, const ice::sonic::TF_StringOps& dst) noexcept
+    rename_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept
     {
         ice::Status status;
-        m_ops->rename_file(get_handle(), src.get_handle(), dst.get_handle() status.get_handle());
+        m_ops->rename_file(get_handle(), src.get_handle(), dst.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -117,10 +118,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    copy_file(const ice::sonic::TF_StringOps& src, const ice::sonic::TF_StringOps& dst) noexcept
+    copy_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept
     {
         ice::Status status;
-        m_ops->copy_file(get_handle(), src.get_handle(), dst.get_handle() status.get_handle());
+        m_ops->copy_file(get_handle(), src.get_handle(), dst.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -129,10 +130,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    path_exists(const ice::sonic::TF_StringOps& path) noexcept
+    path_exists(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->path_exists(get_handle(), path.get_handle() status.get_handle());
+        m_ops->path_exists(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -141,24 +142,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    paths_exist(const ice::sonic::TF_StringOps& paths, int num_paths) noexcept
+    paths_exist(const ice::sonic::String& paths, int num_paths) noexcept
     {
         ice::Status status;
-        m_ops->paths_exist(get_handle(), paths.get_handle(), num_paths status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, ice::Status> stat(
-        const ice::sonic::TF_StringOps& path,
-        const ice::sonic::TF_FileStatisticsOps& out_stats
-    ) noexcept
-    {
-        ice::Status status;
-        m_ops->stat(get_handle(), path.get_handle(), out_stats.get_handle() status.get_handle());
+        m_ops->paths_exist(get_handle(), paths.get_handle(), num_paths, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -167,10 +154,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    is_directory(const ice::sonic::TF_StringOps& path, int* out_is_directory) noexcept
+    stat(const ice::sonic::String& path, const ice::sonic::TF_FileStatisticsOps& out_stats) noexcept
     {
         ice::Status status;
-        m_ops->is_directory(get_handle(), path.get_handle(), out_is_directory status.get_handle());
+        m_ops->stat(get_handle(), path.get_handle(), out_stats.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -179,10 +166,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_file_size(const ice::sonic::TF_StringOps& path, int64_t* out_size) noexcept
+    is_directory(const ice::sonic::String& path, int* out_is_directory) noexcept
     {
         ice::Status status;
-        m_ops->get_file_size(get_handle(), path.get_handle(), out_size status.get_handle());
+        m_ops->is_directory(get_handle(), path.get_handle(), out_is_directory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -190,16 +177,27 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> translate_name(
-        const ice::sonic::TF_StringOps& uri,
-        const ice::sonic::TF_StringOps& out_name
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_file_size(const ice::sonic::String& path, int64_t* out_size) noexcept
+    {
+        ice::Status status;
+        m_ops->get_file_size(get_handle(), path.get_handle(), out_size, status.get_handle());
+
+        if (!status.ok()) {
+            return std::unexpected{status};
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, ice::Status>
+    translate_name(const ice::sonic::String& uri, const ice::sonic::String& out_name) noexcept
     {
         ice::Status status;
         m_ops->translate_name(
             get_handle(),
             uri.get_handle(),
-            out_name.get_handle() status.get_handle()
+            out_name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -209,10 +207,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_children(const ice::sonic::TF_StringOps& path, TF_Tensor** out_children) noexcept
+    get_children(const ice::sonic::String& path, TF_Tensor** out_children) noexcept
     {
         ice::Status status;
-        m_ops->get_children(get_handle(), path.get_handle(), out_children status.get_handle());
+        m_ops->get_children(get_handle(), path.get_handle(), out_children, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -221,10 +219,11 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_matching_paths(const ice::sonic::TF_StringOps& glob, TF_Tensor** out_matches) noexcept
+    get_matching_paths(const ice::sonic::String& glob, TF_Tensor** out_matches) noexcept
     {
         ice::Status status;
-        m_ops->get_matching_paths(get_handle(), glob.get_handle(), out_matches status.get_handle());
+        m_ops
+            ->get_matching_paths(get_handle(), glob.get_handle(), out_matches, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -247,7 +246,7 @@ public:
     get_filesystem_configuration(TF_Tensor** out_config) noexcept
     {
         ice::Status status;
-        m_ops->get_filesystem_configuration(get_handle(), out_config status.get_handle());
+        m_ops->get_filesystem_configuration(get_handle(), out_config, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -259,7 +258,8 @@ public:
     set_filesystem_configuration(const ice::sonic::TF_TensorOps& options) noexcept
     {
         ice::Status status;
-        m_ops->set_filesystem_configuration(get_handle(), options.get_handle() status.get_handle());
+        m_ops
+            ->set_filesystem_configuration(get_handle(), options.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -268,7 +268,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> get_filesystem_configuration_option(
-        const ice::sonic::TF_StringOps& key,
+        const ice::sonic::String& key,
         TFFilesystemOption* out_option
     ) noexcept
     {
@@ -276,7 +276,8 @@ public:
         m_ops->get_filesystem_configuration_option(
             get_handle(),
             key.get_handle(),
-            out_option status.get_handle()
+            out_option,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -289,7 +290,7 @@ public:
     set_filesystem_configuration_option(const TFFilesystemOption* option) noexcept
     {
         ice::Status status;
-        m_ops->set_filesystem_configuration_option(get_handle(), option status.get_handle());
+        m_ops->set_filesystem_configuration_option(get_handle(), option, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -301,7 +302,7 @@ public:
     get_filesystem_configuration_keys(TF_Tensor** out_keys) noexcept
     {
         ice::Status status;
-        m_ops->get_filesystem_configuration_keys(get_handle(), out_keys status.get_handle());
+        m_ops->get_filesystem_configuration_keys(get_handle(), out_keys, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -31,8 +31,13 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops
-            ->get_status(get_handle(), job.get_handle(), completion, user_data status.get_handle());
+        m_ops->get_status(
+            get_handle(),
+            job.get_handle(),
+            completion,
+            user_data,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -47,8 +52,13 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops
-            ->get_result(get_handle(), job.get_handle(), completion, user_data status.get_handle());
+        m_ops->get_result(
+            get_handle(),
+            job.get_handle(),
+            completion,
+            user_data,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -65,7 +75,8 @@ public:
         m_ops->get_history(
             get_handle(),
             job.get_handle(),
-            out_transitions.get_handle() status.get_handle()
+            out_transitions.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -81,7 +92,8 @@ public:
         m_ops->get_metrics(
             get_handle(),
             job.get_handle(),
-            out_metrics.get_handle() status.get_handle()
+            out_metrics.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -94,7 +106,8 @@ public:
     get_logs(const ice::sonic::TF_JobOps& job, const ice::sonic::TF_VectorOps& out_lines) noexcept
     {
         ice::Status status;
-        m_ops->get_logs(get_handle(), job.get_handle(), out_lines.get_handle() status.get_handle());
+        m_ops
+            ->get_logs(get_handle(), job.get_handle(), out_lines.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

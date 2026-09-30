@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> nanoseconds(uint64_t* out_nanoseconds) noexcept
     {
         ice::Status status;
-        m_ops->nanoseconds(get_handle(), out_nanoseconds status.get_handle());
+        m_ops->nanoseconds(get_handle(), out_nanoseconds, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ListOps
 {
 public:
-    static TF_ListOps* create(void* ctx) noexcept
+    TF_ListOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ListOps*>(ctx);
+    }
+
+    TF_ListOps(const TF_ListOps&) = delete;
+    TF_ListOps& operator=(const TF_ListOps&) = delete;
+
+    static TF_ListOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ListOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ListOps* create(HandleT* handle) noexcept
+    static TF_ListOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ListOps*>(handle->plugin_data);
+        return *static_cast<TF_ListOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ListOps() = default;
@@ -39,15 +47,14 @@ public:
     for_each(TF_ListVisitor visitor, void* capture) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
 
-    static TF_ListOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ListOps vtable = {
+        m_vtable = ::TF_ListOps{
             .struct_size = TF_LIST_STRUCT_SIZE,
             .set_element_size =
                 [](TF_List* list, size_t element_size) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->set_element_size(element_size);
+                auto res = TF_ListOps::from_handle(list).set_element_size(element_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +65,7 @@ public:
                    TFListNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->push_front(value, out_node);
+                auto res = TF_ListOps::from_handle(list).push_front(value, out_node);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -70,8 +76,7 @@ public:
                    TFListNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->push_back(value, out_node);
+                auto res = TF_ListOps::from_handle(list).push_back(value, out_node);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -79,8 +84,7 @@ public:
             .erase =
                 [](TF_List* list, TFListNode* node) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->erase(node);
+                auto res = TF_ListOps::from_handle(list).erase(node);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -88,8 +92,7 @@ public:
             .for_each =
                 [](const TF_List* list, TF_ListVisitor visitor, void* capture) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->for_each(visitor, capture);
+                auto res = TF_ListOps::from_handle(list).for_each(visitor, capture);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -97,8 +100,7 @@ public:
             .size =
                 [](const TF_List* list, size_t* out_size) noexcept
             {
-                auto* self = TF_ListOps::create(list);
-                auto res = self->size(out_size);
+                auto res = TF_ListOps::from_handle(list).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -107,20 +109,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ListOps::create(plugin_context);
+                std::unique_ptr<TF_ListOps>{&TF_ListOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ListOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_List& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ListOps m_vtable;
+    TF_List m_handle;
 };
 
 } // namespace ice::builder

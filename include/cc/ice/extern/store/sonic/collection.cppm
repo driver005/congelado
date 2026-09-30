@@ -39,7 +39,7 @@ public:
     list(const ice::sonic::TF_VectorOps& out_names) noexcept
     {
         ice::Status status;
-        m_ops->list(get_handle(), out_names.get_handle() status.get_handle());
+        m_ops->list(get_handle(), out_names.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -47,11 +47,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    drop(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> drop(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->drop(get_handle(), name.get_handle() status.get_handle());
+        m_ops->drop(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +62,7 @@ public:
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept
     {
         ice::Status status;
-        m_ops->get_stats(get_handle(), out_stats.get_handle() status.get_handle());
+        m_ops->get_stats(get_handle(), out_stats.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,12 +71,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get(const ice::sonic::TF_StringOps& key,
-        TFStoreGetCompletionFn completion,
-        void* user_data) noexcept
+    get(const ice::sonic::String& key, TFStoreGetCompletionFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->get(get_handle(), key.get_handle(), completion, user_data status.get_handle());
+        m_ops->get(get_handle(), key.get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -92,8 +89,13 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops
-            ->multi_get(get_handle(), keys.get_handle(), completion, user_data status.get_handle());
+        m_ops->multi_get(
+            get_handle(),
+            keys.get_handle(),
+            completion,
+            user_data,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -102,8 +104,8 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set(const ice::sonic::TF_StringOps& key,
-        const ice::sonic::TF_StringOps& value,
+    set(const ice::sonic::String& key,
+        const ice::sonic::String& value,
         int64_t ttl_seconds,
         TFStoreSetCompletionFn completion,
         void* user_data) noexcept
@@ -115,7 +117,8 @@ public:
             value.get_handle(),
             ttl_seconds,
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -137,7 +140,8 @@ public:
             entries.get_handle(),
             ttl_seconds,
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -147,10 +151,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    erase(const ice::sonic::TF_StringOps& key, TFStoreAckFn completion, void* user_data) noexcept
+    erase(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->erase(get_handle(), key.get_handle(), completion, user_data status.get_handle());
+        m_ops->erase(get_handle(), key.get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -169,7 +173,8 @@ public:
             get_handle(),
             keys.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -178,14 +183,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> exists(
-        const ice::sonic::TF_StringOps& key,
-        TFStoreExistsFn completion,
-        void* user_data
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    exists(const ice::sonic::String& key, TFStoreExistsFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->exists(get_handle(), key.get_handle(), completion, user_data status.get_handle());
+        m_ops->exists(get_handle(), key.get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -194,8 +196,8 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> rename(
-        const ice::sonic::TF_StringOps& old_key,
-        const ice::sonic::TF_StringOps& new_key,
+        const ice::sonic::String& old_key,
+        const ice::sonic::String& new_key,
         TFStoreAckFn completion,
         void* user_data
     ) noexcept
@@ -206,7 +208,8 @@ public:
             old_key.get_handle(),
             new_key.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -219,7 +222,7 @@ public:
     clear(TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->clear(get_handle(), completion, user_data status.get_handle());
+        m_ops->clear(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -228,7 +231,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> increment(
-        const ice::sonic::TF_StringOps& key,
+        const ice::sonic::String& key,
         int64_t delta,
         TFStoreIntFn completion,
         void* user_data
@@ -240,7 +243,8 @@ public:
             key.get_handle(),
             delta,
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -250,9 +254,9 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> compare_and_swap(
-        const ice::sonic::TF_StringOps& key,
-        const ice::sonic::TF_StringOps& expected_value,
-        const ice::sonic::TF_StringOps& new_value,
+        const ice::sonic::String& key,
+        const ice::sonic::String& expected_value,
+        const ice::sonic::String& new_value,
         TFStoreBoolFn completion,
         void* user_data
     ) noexcept
@@ -264,7 +268,8 @@ public:
             expected_value.get_handle(),
             new_value.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -274,7 +279,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> expire(
-        const ice::sonic::TF_StringOps& key,
+        const ice::sonic::String& key,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data
@@ -286,7 +291,8 @@ public:
             key.get_handle(),
             ttl_seconds,
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -296,10 +302,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_ttl(const ice::sonic::TF_StringOps& key, TFStoreIntFn completion, void* user_data) noexcept
+    get_ttl(const ice::sonic::String& key, TFStoreIntFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->get_ttl(get_handle(), key.get_handle(), completion, user_data status.get_handle());
+        m_ops->get_ttl(get_handle(), key.get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -308,10 +314,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    persist(const ice::sonic::TF_StringOps& key, TFStoreAckFn completion, void* user_data) noexcept
+    persist(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->persist(get_handle(), key.get_handle(), completion, user_data status.get_handle());
+        m_ops->persist(get_handle(), key.get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -37,7 +37,8 @@ public:
             size,
             memory_space,
             stream.get_handle(),
-            out_memory status.get_handle()
+            out_memory,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -49,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> deallocate(TF_DeviceMemoryBase* memory) noexcept
     {
         ice::Status status;
-        m_ops->deallocate(get_handle(), memory status.get_handle());
+        m_ops->deallocate(get_handle(), memory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +64,7 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops->record_stream(get_handle(), memory, stream.get_handle() status.get_handle());
+        m_ops->record_stream(get_handle(), memory, stream.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -75,7 +76,7 @@ public:
     owns_pointer(const void* pointer, _Bool* out_owns) noexcept
     {
         ice::Status status;
-        m_ops->owns_pointer(get_handle(), pointer, out_owns status.get_handle());
+        m_ops->owns_pointer(get_handle(), pointer, out_owns, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -87,7 +88,7 @@ public:
     get_base_allocation(const void* pointer, void** out_base, uint64_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->get_base_allocation(get_handle(), pointer, out_base, out_size status.get_handle());
+        m_ops->get_base_allocation(get_handle(), pointer, out_base, out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -109,7 +110,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_memory_fraction(double fraction) noexcept
     {
         ice::Status status;
-        m_ops->set_memory_fraction(get_handle(), fraction status.get_handle());
+        m_ops->set_memory_fraction(get_handle(), fraction, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -121,7 +122,7 @@ public:
     get_memory_fraction(double* out_fraction) noexcept
     {
         ice::Status status;
-        m_ops->get_memory_fraction(get_handle(), out_fraction status.get_handle());
+        m_ops->get_memory_fraction(get_handle(), out_fraction, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -133,7 +134,7 @@ public:
     set_option(TF_AllocatorOption option, int64_t value) noexcept
     {
         ice::Status status;
-        m_ops->set_option(get_handle(), option, value status.get_handle());
+        m_ops->set_option(get_handle(), option, value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -145,7 +146,7 @@ public:
     get_option(TF_AllocatorOption option, int64_t* out_value) noexcept
     {
         ice::Status status;
-        m_ops->get_option(get_handle(), option, out_value status.get_handle());
+        m_ops->get_option(get_handle(), option, out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -157,7 +158,7 @@ public:
     get_stats(TF_AllocatorStats* out_stats, _Bool* out_success) noexcept
     {
         ice::Status status;
-        m_ops->get_stats(get_handle(), out_stats, out_success status.get_handle());
+        m_ops->get_stats(get_handle(), out_stats, out_success, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -196,7 +197,8 @@ public:
         m_ops->get_snapshot(
             get_handle(),
             pool_filter,
-            out_snapshot.get_handle() status.get_handle()
+            out_snapshot.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -208,7 +210,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> generate_pool_id(TF_PoolId* out_pool_id) noexcept
     {
         ice::Status status;
-        m_ops->generate_pool_id(get_handle(), out_pool_id status.get_handle());
+        m_ops->generate_pool_id(get_handle(), out_pool_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -227,7 +229,8 @@ public:
             get_handle(),
             pool_id,
             is_user_created,
-            out_pool.get_handle() status.get_handle()
+            out_pool.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -240,7 +243,7 @@ public:
     destroy_mem_pool_internal(const ice::sonic::TF_MemPoolOps& pool) noexcept
     {
         ice::Status status;
-        m_ops->destroy_mem_pool_internal(get_handle(), pool.get_handle() status.get_handle());
+        m_ops->destroy_mem_pool_internal(get_handle(), pool.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -252,7 +255,7 @@ public:
     enable_peer_access(int peer_device_index) noexcept
     {
         ice::Status status;
-        m_ops->enable_peer_access(get_handle(), peer_device_index status.get_handle());
+        m_ops->enable_peer_access(get_handle(), peer_device_index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -264,7 +267,7 @@ public:
     export_memory(const TF_DeviceMemoryBase* memory, TF_IpcMemoryHandle* out_handle) noexcept
     {
         ice::Status status;
-        m_ops->export_memory(get_handle(), memory, out_handle status.get_handle());
+        m_ops->export_memory(get_handle(), memory, out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -276,7 +279,7 @@ public:
     open_memory(const TF_IpcMemoryHandle* handle, TF_DeviceMemoryBase* out_memory) noexcept
     {
         ice::Status status;
-        m_ops->open_memory(get_handle(), handle, out_memory status.get_handle());
+        m_ops->open_memory(get_handle(), handle, out_memory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -288,7 +291,7 @@ public:
     close_memory(TF_DeviceMemoryBase* memory) noexcept
     {
         ice::Status status;
-        m_ops->close_memory(get_handle(), memory status.get_handle());
+        m_ops->close_memory(get_handle(), memory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

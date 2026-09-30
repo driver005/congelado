@@ -25,9 +25,9 @@ public:
     static constexpr std::string_view domain_name = "otel";
 
     [[nodiscard]] std::expected<void, ice::Status> create_counter(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& description,
-        const ice::sonic::TF_StringOps& unit,
+        const ice::sonic::String& name,
+        const ice::sonic::String& description,
+        const ice::sonic::String& unit,
         const ice::sonic::TFOtelCounterOps& out_counter
     ) noexcept
     {
@@ -37,7 +37,8 @@ public:
             name.get_handle(),
             description.get_handle(),
             unit.get_handle(),
-            out_counter.get_handle() status.get_handle()
+            out_counter.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -47,9 +48,9 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> create_histogram(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& description,
-        const ice::sonic::TF_StringOps& unit,
+        const ice::sonic::String& name,
+        const ice::sonic::String& description,
+        const ice::sonic::String& unit,
         const ice::sonic::TFOtelHistogramOps& out_histogram
     ) noexcept
     {
@@ -59,7 +60,8 @@ public:
             name.get_handle(),
             description.get_handle(),
             unit.get_handle(),
-            out_histogram.get_handle() status.get_handle()
+            out_histogram.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_SocketOps
 {
 public:
-    static TF_SocketOps* create(void* ctx) noexcept
+    TF_SocketOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_SocketOps*>(ctx);
+    }
+
+    TF_SocketOps(const TF_SocketOps&) = delete;
+    TF_SocketOps& operator=(const TF_SocketOps&) = delete;
+
+    static TF_SocketOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_SocketOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SocketOps* create(HandleT* handle) noexcept
+    static TF_SocketOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_SocketOps*>(handle->plugin_data);
+        return *static_cast<TF_SocketOps*>(handle->plugin_data);
     }
 
     virtual ~TF_SocketOps() = default;
@@ -37,12 +45,12 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_tcp_no_delay(int enabled) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> load_certificate(
-        const ice::sonic::TF_StringOps& cert_path,
-        const ice::sonic::TF_StringOps& key_path
+        const ice::sonic::String& cert_path,
+        const ice::sonic::String& key_path
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> generate_certificate(
-        const ice::sonic::TF_StringOps& cert_path,
-        const ice::sonic::TF_StringOps& key_path
+        const ice::sonic::String& cert_path,
+        const ice::sonic::String& key_path
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_verify_peer(int enabled) noexcept = 0;
@@ -50,7 +58,7 @@ public:
     bind(int allow_unauthorized) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> listen(int backlog) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    join_multicast(const ice::sonic::TF_StringOps& group) noexcept = 0;
+    join_multicast(const ice::sonic::String& group) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     accept(const ice::sonic::TF_SocketOps& out_accepted) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -77,7 +85,7 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> send_to(
         const void* data,
         size_t length,
-        const ice::sonic::TF_StringOps& dest_host,
+        const ice::sonic::String& dest_host,
         uint16_t dest_port,
         size_t* out_bytes_sent
     ) noexcept = 0;
@@ -85,7 +93,7 @@ public:
         void* out_buffer,
         size_t buffer_size,
         size_t* out_bytes_received,
-        const ice::sonic::TF_StringOps& out_sender_host,
+        const ice::sonic::String& out_sender_host,
         uint16_t* out_sender_port
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -97,37 +105,35 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_error_code(int* out_error_code) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_local_endpoint(const ice::sonic::TF_StringOps& out_host, uint16_t* out_port) noexcept = 0;
+    get_local_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_remote_endpoint(const ice::sonic::TF_StringOps& out_host, uint16_t* out_port) noexcept = 0;
+    get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_protocol(TFSocketProtocol* out_protocol) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_fd(intptr_t* out_fd) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> is_valid(int* out_valid) noexcept = 0;
 
-    static TF_SocketOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_SocketOps vtable = {
+        m_vtable = ::TF_SocketOps{
             .struct_size = TF_SOCKET_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_SocketOps::create(plugin_context);
+                std::unique_ptr<TF_SocketOps>{&TF_SocketOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_SocketOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_SocketOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .close_socket =
                 [](TF_Socket* socket) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->close_socket();
+                auto res = TF_SocketOps::from_handle(socket).close_socket();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -135,8 +141,7 @@ public:
             .set_non_blocking =
                 [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_non_blocking(enabled);
+                auto res = TF_SocketOps::from_handle(socket).set_non_blocking(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -144,8 +149,7 @@ public:
             .set_reuse_address =
                 [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_reuse_address(enabled);
+                auto res = TF_SocketOps::from_handle(socket).set_reuse_address(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -153,8 +157,7 @@ public:
             .set_broadcast =
                 [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_broadcast(enabled);
+                auto res = TF_SocketOps::from_handle(socket).set_broadcast(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -162,8 +165,7 @@ public:
             .set_tcp_no_delay =
                 [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_tcp_no_delay(enabled);
+                auto res = TF_SocketOps::from_handle(socket).set_tcp_no_delay(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -174,10 +176,9 @@ public:
                    const TF_String* key_path,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->load_certificate(
-                    ice::sonic::TF_StringOps::wrap(cert_path),
-                    ice::sonic::TF_StringOps::wrap(key_path)
+                auto res = TF_SocketOps::from_handle(socket).load_certificate(
+                    ice::sonic::String::wrap(cert_path),
+                    ice::sonic::String::wrap(key_path)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -189,10 +190,9 @@ public:
                    const TF_String* key_path,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->generate_certificate(
-                    ice::sonic::TF_StringOps::wrap(cert_path),
-                    ice::sonic::TF_StringOps::wrap(key_path)
+                auto res = TF_SocketOps::from_handle(socket).generate_certificate(
+                    ice::sonic::String::wrap(cert_path),
+                    ice::sonic::String::wrap(key_path)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -201,8 +201,7 @@ public:
             .set_verify_peer =
                 [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_verify_peer(enabled);
+                auto res = TF_SocketOps::from_handle(socket).set_verify_peer(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -210,8 +209,7 @@ public:
             .bind =
                 [](TF_Socket* socket, int allow_unauthorized, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->bind(allow_unauthorized);
+                auto res = TF_SocketOps::from_handle(socket).bind(allow_unauthorized);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -219,8 +217,7 @@ public:
             .listen =
                 [](TF_Socket* socket, int backlog, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->listen(backlog);
+                auto res = TF_SocketOps::from_handle(socket).listen(backlog);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -228,8 +225,9 @@ public:
             .join_multicast =
                 [](TF_Socket* socket, const TF_String* group, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->join_multicast(ice::sonic::TF_StringOps::wrap(group));
+                auto res = TF_SocketOps::from_handle(socket).join_multicast(
+                    ice::sonic::String::wrap(group)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -237,8 +235,9 @@ public:
             .accept =
                 [](TF_Socket* socket, TF_Socket* out_accepted, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->accept(ice::sonic::TF_SocketOps::wrap(out_accepted));
+                auto res = TF_SocketOps::from_handle(socket).accept(
+                    ice::sonic::TF_SocketOps::wrap(out_accepted)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -249,8 +248,7 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->accept_async(completion, user_data);
+                auto res = TF_SocketOps::from_handle(socket).accept_async(completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -258,8 +256,7 @@ public:
             .connect =
                 [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->connect(timeout_ms);
+                auto res = TF_SocketOps::from_handle(socket).connect(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -271,8 +268,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->connect_async(timeout_ms, completion, user_data);
+                auto res = TF_SocketOps::from_handle(socket)
+                               .connect_async(timeout_ms, completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -284,8 +281,7 @@ public:
                    size_t* out_bytes_sent,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->send(data, length, out_bytes_sent);
+                auto res = TF_SocketOps::from_handle(socket).send(data, length, out_bytes_sent);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -298,8 +294,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->send_async(data, length, completion, user_data);
+                auto res = TF_SocketOps::from_handle(socket)
+                               .send_async(data, length, completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -311,8 +307,8 @@ public:
                    size_t* out_bytes_received,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->receive(out_buffer, buffer_size, out_bytes_received);
+                auto res = TF_SocketOps::from_handle(socket)
+                               .receive(out_buffer, buffer_size, out_bytes_received);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -325,8 +321,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->receive_async(out_buffer, buffer_size, completion, user_data);
+                auto res = TF_SocketOps::from_handle(socket)
+                               .receive_async(out_buffer, buffer_size, completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -340,11 +336,10 @@ public:
                    size_t* out_bytes_sent,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->send_to(
+                auto res = TF_SocketOps::from_handle(socket).send_to(
                     data,
                     length,
-                    ice::sonic::TF_StringOps::wrap(dest_host),
+                    ice::sonic::String::wrap(dest_host),
                     dest_port,
                     out_bytes_sent
                 );
@@ -361,12 +356,11 @@ public:
                    uint16_t* out_sender_port,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->receive_from(
+                auto res = TF_SocketOps::from_handle(socket).receive_from(
                     out_buffer,
                     buffer_size,
                     out_bytes_received,
-                    ice::sonic::TF_StringOps::wrap(out_sender_host),
+                    ice::sonic::String::wrap(out_sender_host),
                     out_sender_port
                 );
                 if (!res) {
@@ -376,8 +370,7 @@ public:
             .set_send_timeout =
                 [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_send_timeout(timeout_ms);
+                auto res = TF_SocketOps::from_handle(socket).set_send_timeout(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -385,8 +378,7 @@ public:
             .set_receive_timeout =
                 [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->set_receive_timeout(timeout_ms);
+                auto res = TF_SocketOps::from_handle(socket).set_receive_timeout(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -394,8 +386,7 @@ public:
             .shutdown =
                 [](TF_Socket* socket, int how, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->shutdown(how);
+                auto res = TF_SocketOps::from_handle(socket).shutdown(how);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -403,8 +394,7 @@ public:
             .get_status =
                 [](TF_Socket* socket, int* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->get_status(out_status);
+                auto res = TF_SocketOps::from_handle(socket).get_status(out_status);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -412,8 +402,7 @@ public:
             .get_error_code =
                 [](TF_Socket* socket, int* out_error_code) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->get_error_code(out_error_code);
+                auto res = TF_SocketOps::from_handle(socket).get_error_code(out_error_code);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -424,9 +413,10 @@ public:
                    uint16_t* out_port,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res =
-                    self->get_local_endpoint(ice::sonic::TF_StringOps::wrap(out_host), out_port);
+                auto res = TF_SocketOps::from_handle(socket).get_local_endpoint(
+                    ice::sonic::String::wrap(out_host),
+                    out_port
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -437,9 +427,10 @@ public:
                    uint16_t* out_port,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res =
-                    self->get_remote_endpoint(ice::sonic::TF_StringOps::wrap(out_host), out_port);
+                auto res = TF_SocketOps::from_handle(socket).get_remote_endpoint(
+                    ice::sonic::String::wrap(out_host),
+                    out_port
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -447,8 +438,7 @@ public:
             .get_protocol =
                 [](TF_Socket* socket, TFSocketProtocol* out_protocol) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->get_protocol(out_protocol);
+                auto res = TF_SocketOps::from_handle(socket).get_protocol(out_protocol);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -456,8 +446,7 @@ public:
             .get_fd =
                 [](TF_Socket* socket, intptr_t* out_fd) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->get_fd(out_fd);
+                auto res = TF_SocketOps::from_handle(socket).get_fd(out_fd);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -465,24 +454,31 @@ public:
             .is_valid =
                 [](TF_Socket* socket, int* out_valid) noexcept
             {
-                auto* self = TF_SocketOps::create(socket);
-                auto res = self->is_valid(out_valid);
+                auto res = TF_SocketOps::from_handle(socket).is_valid(out_valid);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_SocketOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Socket& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_SocketOps m_vtable;
+    TF_Socket m_handle;
 };
 
 } // namespace ice::builder

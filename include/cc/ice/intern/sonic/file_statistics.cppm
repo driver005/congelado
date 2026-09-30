@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_directory(int* out_is_directory) noexcept
     {
         ice::Status status;
-        m_ops->is_directory(get_handle(), out_is_directory status.get_handle());
+        m_ops->is_directory(get_handle(), out_is_directory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_is_directory(int is_directory) noexcept
     {
         ice::Status status;
-        m_ops->set_is_directory(get_handle(), is_directory status.get_handle());
+        m_ops->set_is_directory(get_handle(), is_directory, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> length(int64_t* out_length) noexcept
     {
         ice::Status status;
-        m_ops->length(get_handle(), out_length status.get_handle());
+        m_ops->length(get_handle(), out_length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -60,7 +60,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_length(int64_t length) noexcept
     {
         ice::Status status;
-        m_ops->set_length(get_handle(), length status.get_handle());
+        m_ops->set_length(get_handle(), length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -71,7 +71,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> mtime_nsec(int64_t* out_mtime_nsec) noexcept
     {
         ice::Status status;
-        m_ops->mtime_nsec(get_handle(), out_mtime_nsec status.get_handle());
+        m_ops->mtime_nsec(get_handle(), out_mtime_nsec, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -82,7 +82,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_mtime_nsec(int64_t mtime_nsec) noexcept
     {
         ice::Status status;
-        m_ops->set_mtime_nsec(get_handle(), mtime_nsec status.get_handle());
+        m_ops->set_mtime_nsec(get_handle(), mtime_nsec, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -6,9 +6,9 @@
 export module cc_ice_extern_kernel_sonic;
 
 // clang-format off
-export import :kernel;
 export import :builder;
 export import :context;
 export import :construction;
+export import :kernel;
 
 // clang-format on

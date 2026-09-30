@@ -16,51 +16,64 @@ export namespace ice::builder {
 class TFStoreWatchOps
 {
 public:
-    static TFStoreWatchOps* create(void* ctx) noexcept
+    TFStoreWatchOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFStoreWatchOps*>(ctx);
+    }
+
+    TFStoreWatchOps(const TFStoreWatchOps&) = delete;
+    TFStoreWatchOps& operator=(const TFStoreWatchOps&) = delete;
+
+    static TFStoreWatchOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFStoreWatchOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFStoreWatchOps* create(HandleT* handle) noexcept
+    static TFStoreWatchOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFStoreWatchOps*>(handle->plugin_data);
+        return *static_cast<TFStoreWatchOps*>(handle->plugin_data);
     }
 
     virtual ~TFStoreWatchOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> cancel() noexcept = 0;
 
-    static TFStoreWatchOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFStoreWatchOps vtable = {
+        m_vtable = ::TFStoreWatchOps{
             .struct_size = TF_TOREWATCH_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFStoreWatchOps::create(plugin_context);
+                std::unique_ptr<TFStoreWatchOps>{&TFStoreWatchOps::from_handle(plugin_context)};
             },
             .cancel =
                 [](TFStoreWatch* watch) noexcept
             {
-                auto* self = TFStoreWatchOps::create(watch);
-                auto res = self->cancel();
+                auto res = TFStoreWatchOps::from_handle(watch).cancel();
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFStoreWatchOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFStoreWatch& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFStoreWatchOps m_vtable;
+    TFStoreWatch m_handle;
 };
 
 } // namespace ice::builder

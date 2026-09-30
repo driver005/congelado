@@ -94,3 +94,5 @@ common:linux_arm64 --copt="-O3"
 common:linux_arm64 --define=ynn_enable_arm64_neonfp8=false
 
 import %workspace%/warnings.bazelrc
+
+import %workspace%/bazel/ci.bazelrc

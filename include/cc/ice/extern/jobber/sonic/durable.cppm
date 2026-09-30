@@ -26,8 +26,8 @@ public:
 
     [[nodiscard]] std::expected<void, ice::Status> signal(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_StringOps& signal_name,
-        const ice::sonic::TF_StringOps& payload
+        const ice::sonic::String& signal_name,
+        const ice::sonic::String& payload
     ) noexcept
     {
         ice::Status status;
@@ -35,7 +35,8 @@ public:
             get_handle(),
             job.get_handle(),
             signal_name.get_handle(),
-            payload.get_handle() status.get_handle()
+            payload.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -51,8 +52,13 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops
-            ->checkpoint(get_handle(), job.get_handle(), completion, user_data status.get_handle());
+        m_ops->checkpoint(
+            get_handle(),
+            job.get_handle(),
+            completion,
+            user_data,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -64,7 +70,7 @@ public:
     restore_checkpoint(const ice::sonic::TF_JobOps& job) noexcept
     {
         ice::Status status;
-        m_ops->restore_checkpoint(get_handle(), job.get_handle() status.get_handle());
+        m_ops->restore_checkpoint(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

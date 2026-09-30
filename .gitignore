@@ -16,3 +16,6 @@ __pycache__/
 # Local bazel state (output user root lives in the workspace: the sandbox tmpfs is wiped)
 .bzluser/
 .bzlrepo/
+
+# CI reports (make ci-*)
+reports/

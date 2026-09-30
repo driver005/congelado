@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_dtype(int* out_dtype) noexcept
     {
         ice::Status status;
-        m_ops->get_dtype(get_handle(), out_dtype status.get_handle());
+        m_ops->get_dtype(get_handle(), out_dtype, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     get_shape(int64_t** out_dims, int* out_num_dims) noexcept
     {
         ice::Status status;
-        m_ops->get_shape(get_handle(), out_dims, out_num_dims status.get_handle());
+        m_ops->get_shape(get_handle(), out_dims, out_num_dims, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

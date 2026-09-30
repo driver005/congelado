@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ScheduleOps
 {
 public:
-    static TF_ScheduleOps* create(void* ctx) noexcept
+    TF_ScheduleOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ScheduleOps*>(ctx);
+    }
+
+    TF_ScheduleOps(const TF_ScheduleOps&) = delete;
+    TF_ScheduleOps& operator=(const TF_ScheduleOps&) = delete;
+
+    static TF_ScheduleOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ScheduleOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ScheduleOps* create(HandleT* handle) noexcept
+    static TF_ScheduleOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ScheduleOps*>(handle->plugin_data);
+        return *static_cast<TF_ScheduleOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ScheduleOps() = default;
@@ -45,15 +53,15 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     stop(const ice::sonic::TF_JobOps& job) noexcept = 0;
 
-    static TF_ScheduleOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ScheduleOps vtable = {
+        m_vtable = ::TF_ScheduleOps{
             .struct_size = TF_SCHEDULE_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ScheduleOps::create(plugin_context);
+                std::unique_ptr<TF_ScheduleOps>{&TF_ScheduleOps::from_handle(plugin_context)};
             },
             .add_dependency =
                 [](TF_Schedule* schedule,
@@ -61,8 +69,7 @@ public:
                    TF_Job* depends_on,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->add_dependency(
+                auto res = TF_ScheduleOps::from_handle(schedule).add_dependency(
                     ice::sonic::TF_JobOps::wrap(job),
                     ice::sonic::TF_JobOps::wrap(depends_on)
                 );
@@ -76,8 +83,7 @@ public:
                    TF_Vector* out_job_ids,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->list_dependencies(
+                auto res = TF_ScheduleOps::from_handle(schedule).list_dependencies(
                     ice::sonic::TF_JobOps::wrap(job),
                     ice::sonic::TF_VectorOps::wrap(out_job_ids)
                 );
@@ -88,8 +94,8 @@ public:
             .pause =
                 [](TF_Schedule* schedule, TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->pause(ice::sonic::TF_JobOps::wrap(job));
+                auto res =
+                    TF_ScheduleOps::from_handle(schedule).pause(ice::sonic::TF_JobOps::wrap(job));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -97,8 +103,8 @@ public:
             .resume =
                 [](TF_Schedule* schedule, TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->resume(ice::sonic::TF_JobOps::wrap(job));
+                auto res =
+                    TF_ScheduleOps::from_handle(schedule).resume(ice::sonic::TF_JobOps::wrap(job));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -106,8 +112,8 @@ public:
             .cancel =
                 [](TF_Schedule* schedule, TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->cancel(ice::sonic::TF_JobOps::wrap(job));
+                auto res =
+                    TF_ScheduleOps::from_handle(schedule).cancel(ice::sonic::TF_JobOps::wrap(job));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -115,24 +121,30 @@ public:
             .stop =
                 [](TF_Schedule* schedule, TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ScheduleOps::create(schedule);
-                auto res = self->stop(ice::sonic::TF_JobOps::wrap(job));
+                auto res =
+                    TF_ScheduleOps::from_handle(schedule).stop(ice::sonic::TF_JobOps::wrap(job));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ScheduleOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Schedule& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ScheduleOps m_vtable;
+    TF_Schedule m_handle;
 };
 
 } // namespace ice::builder

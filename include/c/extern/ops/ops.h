@@ -49,7 +49,7 @@ extern "C" {
         ops_facade->shape_inference_context_ops = shape_inference_context_ops;
 
         TF_OpDefinitionBuilderOps* op_definition_builder_ops = NULL;
-        create_op_definition_builder(&op_definition_builder_ops, &ops_facade->plugin_data, "", out_status);
+        create_op_definition_builder(&op_definition_builder_ops, &ops_facade->plugin_data, NULL, out_status);
         ops_facade->op_definition_builder_ops = op_definition_builder_ops;
     }
 

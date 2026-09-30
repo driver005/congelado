@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+# CI toolchain image: same Arch toolchain as Dockerfile.builder plus analysis/security tools.
+FROM archlinux:latest
+
+ENV XMAKE_ROOT=y \
+    CCACHE_DIR=/root/.cache/ccache
+
+RUN pacman -Syu --noconfirm \
+    && pacman -S --noconfirm --needed \
+       git make curl unzip rsync base-devel python python-pip \
+       clang lld mold llvm compiler-rt libc++ libc++abi ccache \
+       bazelisk liburing krb5 valgrind cppcheck gitleaks jq \
+    && pacman -Scc --noconfirm \
+    && ln -sf /usr/bin/bazelisk /usr/local/bin/bazel
+
+RUN curl -fsSL -o /usr/local/bin/osv-scanner \
+       https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
+    && chmod +x /usr/local/bin/osv-scanner
+
+RUN git config --global --add safe.directory '*'
+
+WORKDIR /workspace

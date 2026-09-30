@@ -21,6 +21,8 @@ limitations under the License.
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef struct TF_String TF_String;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -75,10 +77,10 @@ extern "C"
         void (*delete_status)(TF_Status* s);
 
         // Record <code, msg> in *s.  Any previous information is lost. A common use is to clear a status: set_status(s, TF_OK, "");
-        void (*set_status)(TF_Status* s, TF_Code code, const char* msg);
+        void (*set_status)(TF_Status* s, TF_Code code, const TF_String* msg);
 
         // Record <key, value> as a payload in *s. The previous payload having the same key (if any) is overwritten. Payload will not be added if the Status is OK.
-        void (*set_payload)(TF_Status* s, const char* key, const char* value);
+        void (*set_payload)(TF_Status* s, const TF_String* key, const TF_String* value);
 
         // Iterates over the stored payloads and calls the `visitor(key, value)` callable for each one. `key` and `value` is only usable during the callback. `capture` will be passed to the callback without modification.
         void (*for_each_payload)(
@@ -88,13 +90,13 @@ extern "C"
         );
 
         // Convert from an I/O error code (e.g., errno) to a TF_Status value. Any previous information is lost. Prefer to use this instead of set_status when the error comes from I/O operations.
-        void (*set_status_from_io_error)(TF_Status* s, int error_code, const char* context);
+        void (*set_status_from_io_error)(TF_Status* s, int error_code, const TF_String* context);
 
         // Return the code record in *s.
         void (*get_code)(const TF_Status* s, TF_Code* out_code);
 
         // Return a pointer to the (null-terminated) error message in *s.
-        void (*message)(const TF_Status* s, const char** out_message);
+        void (*message)(const TF_Status* s, TF_String* out_message);
     } TF_StatusOps;
 
 #define TF_STATUS_STRUCT_SIZE TF_OFFSET_OF_END(TF_StatusOps, message)

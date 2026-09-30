@@ -28,7 +28,7 @@ public:
     get(size_t index, const void** out_value) noexcept
     {
         ice::Status status;
-        m_ops->get(get_handle(), index, out_value status.get_handle());
+        m_ops->get(get_handle(), index, out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->size(get_handle(), out_size status.get_handle());
+        m_ops->size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> data(void** out_data) noexcept
     {
         ice::Status status;
-        m_ops->data(get_handle(), out_data status.get_handle());
+        m_ops->data(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -62,7 +62,7 @@ public:
     subspan(size_t offset, size_t count, const ice::sonic::TF_SpanOps& out_span) noexcept
     {
         ice::Status status;
-        m_ops->subspan(get_handle(), offset, count, out_span.get_handle() status.get_handle());
+        m_ops->subspan(get_handle(), offset, count, out_span.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

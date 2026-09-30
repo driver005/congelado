@@ -25,10 +25,10 @@ public:
     static constexpr std::string_view domain_name = "profiler";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_device_type(const ice::sonic::TF_StringOps& out_device_type) noexcept
+    get_device_type(const ice::sonic::String& out_device_type) noexcept
     {
         ice::Status status;
-        m_ops->get_device_type(get_handle(), out_device_type.get_handle() status.get_handle());
+        m_ops->get_device_type(get_handle(), out_device_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -62,7 +62,7 @@ public:
     collect_data_xspace(TF_Tensor** out_data) noexcept
     {
         ice::Status status;
-        m_ops->collect_data_xspace(get_handle(), out_data status.get_handle());
+        m_ops->collect_data_xspace(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

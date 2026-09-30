@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFPubSubSubscriptionOps
 {
 public:
-    static TFPubSubSubscriptionOps* create(void* ctx) noexcept
+    TFPubSubSubscriptionOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFPubSubSubscriptionOps*>(ctx);
+    }
+
+    TFPubSubSubscriptionOps(const TFPubSubSubscriptionOps&) = delete;
+    TFPubSubSubscriptionOps& operator=(const TFPubSubSubscriptionOps&) = delete;
+
+    static TFPubSubSubscriptionOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFPubSubSubscriptionOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFPubSubSubscriptionOps* create(HandleT* handle) noexcept
+    static TFPubSubSubscriptionOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFPubSubSubscriptionOps*>(handle->plugin_data);
+        return *static_cast<TFPubSubSubscriptionOps*>(handle->plugin_data);
     }
 
     virtual ~TFPubSubSubscriptionOps() = default;
@@ -32,25 +40,26 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> ack() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> nack() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    seek(const ice::sonic::TF_StringOps& position) noexcept = 0;
+    seek(const ice::sonic::String& position) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_lag(TFPubSubIntFn completion, void* user_data) noexcept = 0;
 
-    static TFPubSubSubscriptionOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFPubSubSubscriptionOps vtable = {
+        m_vtable = ::TFPubSubSubscriptionOps{
             .struct_size = TF_UBSUBSUBSCRIPTION_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFPubSubSubscriptionOps::create(plugin_context);
+                std::unique_ptr<TFPubSubSubscriptionOps>{
+                    &TFPubSubSubscriptionOps::from_handle(plugin_context)
+                };
             },
             .unsubscribe =
                 [](TFPubSubSubscription* subscription) noexcept
             {
-                auto* self = TFPubSubSubscriptionOps::create(subscription);
-                auto res = self->unsubscribe();
+                auto res = TFPubSubSubscriptionOps::from_handle(subscription).unsubscribe();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +67,7 @@ public:
             .ack =
                 [](TFPubSubSubscription* subscription, TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubSubscriptionOps::create(subscription);
-                auto res = self->ack();
+                auto res = TFPubSubSubscriptionOps::from_handle(subscription).ack();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -67,8 +75,7 @@ public:
             .nack =
                 [](TFPubSubSubscription* subscription, TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubSubscriptionOps::create(subscription);
-                auto res = self->nack();
+                auto res = TFPubSubSubscriptionOps::from_handle(subscription).nack();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -78,8 +85,8 @@ public:
                    const TF_String* position,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubSubscriptionOps::create(subscription);
-                auto res = self->seek(ice::sonic::TF_StringOps::wrap(position));
+                auto res = TFPubSubSubscriptionOps::from_handle(subscription)
+                               .seek(ice::sonic::String::wrap(position));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -90,24 +97,30 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubSubscriptionOps::create(subscription);
-                auto res = self->get_lag(completion, user_data);
+                auto res = TFPubSubSubscriptionOps::from_handle(subscription)
+                               .get_lag(completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFPubSubSubscriptionOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFPubSubSubscription& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFPubSubSubscriptionOps m_vtable;
+    TFPubSubSubscription m_handle;
 };
 
 } // namespace ice::builder

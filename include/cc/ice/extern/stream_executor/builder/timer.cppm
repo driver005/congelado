@@ -16,45 +16,58 @@ export namespace ice::builder {
 class TF_TimerOps
 {
 public:
-    static TF_TimerOps* create(void* ctx) noexcept
+    TF_TimerOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_TimerOps*>(ctx);
+    }
+
+    TF_TimerOps(const TF_TimerOps&) = delete;
+    TF_TimerOps& operator=(const TF_TimerOps&) = delete;
+
+    static TF_TimerOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_TimerOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TimerOps* create(HandleT* handle) noexcept
+    static TF_TimerOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_TimerOps*>(handle->plugin_data);
+        return *static_cast<TF_TimerOps*>(handle->plugin_data);
     }
 
     virtual ~TF_TimerOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     nanoseconds(uint64_t* out_nanoseconds) noexcept = 0;
 
-    static TF_TimerOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_TimerOps vtable = {
+        m_vtable = ::TF_TimerOps{
             .struct_size = TF_TIMER_STRUCT_SIZE,
             .nanoseconds = [](TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
             {
-                auto* self = TF_TimerOps::create(timer);
-                auto res = self->nanoseconds(out_nanoseconds);
+                auto res = TF_TimerOps::from_handle(timer).nanoseconds(out_nanoseconds);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_TimerOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Timer& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_TimerOps m_vtable;
+    TF_Timer m_handle;
 };
 
 } // namespace ice::builder

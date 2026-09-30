@@ -16,49 +16,64 @@ export namespace ice::builder {
 class TF_OpsOps
 {
 public:
-    static TF_OpsOps* create(void* ctx) noexcept
+    TF_OpsOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_OpsOps*>(ctx);
+    }
+
+    TF_OpsOps(const TF_OpsOps&) = delete;
+    TF_OpsOps& operator=(const TF_OpsOps&) = delete;
+
+    static TF_OpsOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_OpsOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_OpsOps* create(HandleT* handle) noexcept
+    static TF_OpsOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_OpsOps*>(handle->plugin_data);
+        return *static_cast<TF_OpsOps*>(handle->plugin_data);
     }
 
     virtual ~TF_OpsOps() = default;
 
-    static TF_OpsOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_OpsOps vtable = {
+        m_vtable = ::TF_OpsOps{
             .struct_size = TF_OPS_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_OpsOps::create(plugin_context);
+                std::unique_ptr<TF_OpsOps>{&TF_OpsOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_OpsOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_OpsOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_OpsOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Ops& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_OpsOps m_vtable;
+    TF_Ops m_handle;
 };
 
 } // namespace ice::builder

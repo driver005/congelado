@@ -33,7 +33,8 @@ public:
         m_ops->add_node(
             get_handle(),
             definition.get_handle(),
-            out_node.get_handle() status.get_handle()
+            out_node.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -46,7 +47,7 @@ public:
     get_node(int index, const ice::sonic::TFGeneratorNodeOps& out_node) noexcept
     {
         ice::Status status;
-        m_ops->get_node(get_handle(), index, out_node.get_handle() status.get_handle());
+        m_ops->get_node(get_handle(), index, out_node.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -57,7 +58,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> list_nodes(TF_Tensor** out_nodes) noexcept
     {
         ice::Status status;
-        m_ops->list_nodes(get_handle(), out_nodes status.get_handle());
+        m_ops->list_nodes(get_handle(), out_nodes, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -65,11 +66,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_name(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle() status.get_handle());
+        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_SetOps
 {
 public:
-    static TF_SetOps* create(void* ctx) noexcept
+    TF_SetOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_SetOps*>(ctx);
+    }
+
+    TF_SetOps(const TF_SetOps&) = delete;
+    TF_SetOps& operator=(const TF_SetOps&) = delete;
+
+    static TF_SetOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_SetOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SetOps* create(HandleT* handle) noexcept
+    static TF_SetOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_SetOps*>(handle->plugin_data);
+        return *static_cast<TF_SetOps*>(handle->plugin_data);
     }
 
     virtual ~TF_SetOps() = default;
@@ -38,15 +46,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     for_each(TF_SetVisitor visitor, void* capture) noexcept = 0;
 
-    static TF_SetOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_SetOps vtable = {
+        m_vtable = ::TF_SetOps{
             .struct_size = TF_SET_STRUCT_SIZE,
             .insert =
                 [](TF_Set* set, const void* key, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->insert(key);
+                auto res = TF_SetOps::from_handle(set).insert(key);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -57,8 +64,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->find(key, out_value);
+                auto res = TF_SetOps::from_handle(set).find(key, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -66,8 +72,7 @@ public:
             .erase =
                 [](TF_Set* set, const void* key, TF_Status* out_status) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->erase(key);
+                auto res = TF_SetOps::from_handle(set).erase(key);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -78,8 +83,7 @@ public:
                    int* out_found,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->contains(key, out_found);
+                auto res = TF_SetOps::from_handle(set).contains(key, out_found);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -87,8 +91,7 @@ public:
             .size =
                 [](const TF_Set* set, size_t* out_size) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->size(out_size);
+                auto res = TF_SetOps::from_handle(set).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -96,8 +99,7 @@ public:
             .for_each =
                 [](const TF_Set* set, TF_SetVisitor visitor, void* capture) noexcept
             {
-                auto* self = TF_SetOps::create(set);
-                auto res = self->for_each(visitor, capture);
+                auto res = TF_SetOps::from_handle(set).for_each(visitor, capture);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -106,20 +108,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_SetOps::create(plugin_context);
+                std::unique_ptr<TF_SetOps>{&TF_SetOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_SetOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Set& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_SetOps m_vtable;
+    TF_Set m_handle;
 };
 
 } // namespace ice::builder

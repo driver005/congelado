@@ -2,6 +2,7 @@
 #define TENSORFLOW_C_EXTERN_OPS_SHAPE_INFERENCE_CONTEXT_H_
 
 #include "include/c/macros.h"
+#include "include/c/intern/tstring.h"
 #include "include/c/intern/datatype.h"
 #include "include/c/intern/status.h"
 #include "include/c/extern/ops/shape_handle.h"
@@ -25,7 +26,7 @@ extern "C" {
         void (*set_output)(TF_ShapeInferenceContext* ctx, int i, TF_ShapeHandle* handle, TF_Status* out_status);
         void (*scalar)(TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle);
         void (*vector_from_size)(TF_ShapeInferenceContext* ctx, size_t size, TF_ShapeHandle* handle);
-        void (*get_attr_type)(TF_ShapeInferenceContext* ctx, const char* attr_name, TFDataTypeEnum* out_val, TF_Status* out_status);
+        void (*get_attr_type)(TF_ShapeInferenceContext* ctx, const TF_String* attr_name, TFDataTypeEnum* out_val, TF_Status* out_status);
         void (*rank)(TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle, int64_t* out_rank);
         void (*rank_known)(TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle, int* out_known);
         void (*with_rank)(TF_ShapeInferenceContext* ctx, TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result, TF_Status* out_status);

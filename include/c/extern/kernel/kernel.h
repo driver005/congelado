@@ -35,7 +35,7 @@ extern "C" {
         create_kernel(ops, &kernel->plugin_data, out_status);
 
         TF_KernelBuilderOps* builder_ops = NULL;
-        create_kernel_builder(&builder_ops, &kernel->plugin_data, "", "", NULL, NULL, NULL, out_status);
+        create_kernel_builder(&builder_ops, &kernel->plugin_data, NULL, NULL, NULL, NULL, NULL, out_status);
         kernel->builder_ops = builder_ops;
 
         TF_OpKernelConstructionOps* construction_ops = NULL;

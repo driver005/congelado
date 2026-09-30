@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_ticks(int64_t* out_ticks) noexcept
     {
         ice::Status status;
-        m_ops->get_ticks(get_handle(), out_ticks status.get_handle());
+        m_ops->get_ticks(get_handle(), out_ticks, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_ratio_num(int64_t* out_num) noexcept
     {
         ice::Status status;
-        m_ops->get_ratio_num(get_handle(), out_num status.get_handle());
+        m_ops->get_ratio_num(get_handle(), out_num, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_ratio_den(int64_t* out_den) noexcept
     {
         ice::Status status;
-        m_ops->get_ratio_den(get_handle(), out_den status.get_handle());
+        m_ops->get_ratio_den(get_handle(), out_den, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

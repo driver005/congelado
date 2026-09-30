@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_MemPoolOps
 {
 public:
-    static TF_MemPoolOps* create(void* ctx) noexcept
+    TF_MemPoolOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_MemPoolOps*>(ctx);
+    }
+
+    TF_MemPoolOps(const TF_MemPoolOps&) = delete;
+    TF_MemPoolOps& operator=(const TF_MemPoolOps&) = delete;
+
+    static TF_MemPoolOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_MemPoolOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_MemPoolOps* create(HandleT* handle) noexcept
+    static TF_MemPoolOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_MemPoolOps*>(handle->plugin_data);
+        return *static_cast<TF_MemPoolOps*>(handle->plugin_data);
     }
 
     virtual ~TF_MemPoolOps() = default;
@@ -38,15 +46,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_use_on_oom(_Bool use_on_oom) noexcept = 0;
 
-    static TF_MemPoolOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_MemPoolOps vtable = {
+        m_vtable = ::TF_MemPoolOps{
             .struct_size = TF_MEMPOOL_STRUCT_SIZE,
             .get_id =
                 [](TF_MemPool* pool, TF_PoolId* out_pool_id) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->get_id(out_pool_id);
+                auto res = TF_MemPoolOps::from_handle(pool).get_id(out_pool_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -54,8 +61,7 @@ public:
             .use_count =
                 [](TF_MemPool* pool, int* out_count) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->use_count(out_count);
+                auto res = TF_MemPoolOps::from_handle(pool).use_count(out_count);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -66,8 +72,10 @@ public:
                    void* filter_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->begin_allocate_to_pool(stream_filter, filter_data);
+                auto res = TF_MemPoolOps::from_handle(pool).begin_allocate_to_pool(
+                    stream_filter,
+                    filter_data
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -75,8 +83,7 @@ public:
             .end_allocate_to_pool =
                 [](TF_MemPool* pool, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->end_allocate_to_pool();
+                auto res = TF_MemPoolOps::from_handle(pool).end_allocate_to_pool();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -84,8 +91,7 @@ public:
             .release =
                 [](TF_MemPool* pool, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->release();
+                auto res = TF_MemPoolOps::from_handle(pool).release();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -93,24 +99,29 @@ public:
             .set_use_on_oom =
                 [](TF_MemPool* pool, _Bool use_on_oom, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MemPoolOps::create(pool);
-                auto res = self->set_use_on_oom(use_on_oom);
+                auto res = TF_MemPoolOps::from_handle(pool).set_use_on_oom(use_on_oom);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_MemPoolOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_MemPool& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_MemPoolOps m_vtable;
+    TF_MemPool m_handle;
 };
 
 } // namespace ice::builder

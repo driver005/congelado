@@ -25,10 +25,10 @@ public:
     static constexpr std::string_view domain_name = "intern";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    attrtype_name(TFAttrTypeEnum type, const ice::sonic::TF_StringOps& out_type_name) noexcept
+    attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) noexcept
     {
         ice::Status status;
-        m_ops->attrtype_name(get_handle(), type, out_type_name.get_handle() status.get_handle());
+        m_ops->attrtype_name(get_handle(), type, out_type_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

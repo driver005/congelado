@@ -16,24 +16,32 @@ export namespace ice::builder {
 class TF_OpDefinitionBuilderOps
 {
 public:
-    static TF_OpDefinitionBuilderOps* create(void* ctx) noexcept
+    TF_OpDefinitionBuilderOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_OpDefinitionBuilderOps*>(ctx);
+    }
+
+    TF_OpDefinitionBuilderOps(const TF_OpDefinitionBuilderOps&) = delete;
+    TF_OpDefinitionBuilderOps& operator=(const TF_OpDefinitionBuilderOps&) = delete;
+
+    static TF_OpDefinitionBuilderOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_OpDefinitionBuilderOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_OpDefinitionBuilderOps* create(HandleT* handle) noexcept
+    static TF_OpDefinitionBuilderOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_OpDefinitionBuilderOps*>(handle->plugin_data);
+        return *static_cast<TF_OpDefinitionBuilderOps*>(handle->plugin_data);
     }
 
     virtual ~TF_OpDefinitionBuilderOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    add_attr(const char* attr_spec) noexcept = 0;
+    add_attr(const ice::sonic::String& attr_spec) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    add_input(const char* input_spec) noexcept = 0;
+    add_input(const ice::sonic::String& input_spec) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    add_output(const char* output_spec) noexcept = 0;
+    add_output(const ice::sonic::String& output_spec) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_is_commutative(_Bool is_commutative) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -43,39 +51,42 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_allows_uninitialized_input(_Bool allows_uninitialized_input) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    deprecated(int version, const char* explanation) noexcept = 0;
+    deprecated(int version, const ice::sonic::String& explanation) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_shape_inference_function(
         void (*)(TF_ShapeInferenceContext*, TF_Status*) shape_inference_func
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> register_op_definition() noexcept = 0;
 
-    static TF_OpDefinitionBuilderOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_OpDefinitionBuilderOps vtable = {
+        m_vtable = ::TF_OpDefinitionBuilderOps{
             .struct_size = TF_OPDEFINITIONBUILDER_STRUCT_SIZE,
             .add_attr =
-                [](TF_OpDefinitionBuilder* builder, const char* attr_spec) noexcept
+                [](TF_OpDefinitionBuilder* builder, const TF_String* attr_spec) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->add_attr(attr_spec);
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).add_attr(
+                    ice::sonic::String::wrap(attr_spec)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .add_input =
-                [](TF_OpDefinitionBuilder* builder, const char* input_spec) noexcept
+                [](TF_OpDefinitionBuilder* builder, const TF_String* input_spec) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->add_input(input_spec);
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).add_input(
+                    ice::sonic::String::wrap(input_spec)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .add_output =
-                [](TF_OpDefinitionBuilder* builder, const char* output_spec) noexcept
+                [](TF_OpDefinitionBuilder* builder, const TF_String* output_spec) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->add_output(output_spec);
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).add_output(
+                    ice::sonic::String::wrap(output_spec)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -83,8 +94,9 @@ public:
             .set_is_commutative =
                 [](TF_OpDefinitionBuilder* builder, _Bool is_commutative) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->set_is_commutative(is_commutative);
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).set_is_commutative(
+                    is_commutative
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -92,8 +104,8 @@ public:
             .set_is_aggregate =
                 [](TF_OpDefinitionBuilder* builder, _Bool is_aggregate) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->set_is_aggregate(is_aggregate);
+                auto res =
+                    TF_OpDefinitionBuilderOps::from_handle(builder).set_is_aggregate(is_aggregate);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -101,8 +113,8 @@ public:
             .set_is_stateful =
                 [](TF_OpDefinitionBuilder* builder, _Bool is_stateful) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->set_is_stateful(is_stateful);
+                auto res =
+                    TF_OpDefinitionBuilderOps::from_handle(builder).set_is_stateful(is_stateful);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -110,17 +122,23 @@ public:
             .set_allows_uninitialized_input =
                 [](TF_OpDefinitionBuilder* builder, _Bool allows_uninitialized_input) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->set_allows_uninitialized_input(allows_uninitialized_input);
+                auto res =
+                    TF_OpDefinitionBuilderOps::from_handle(builder).set_allows_uninitialized_input(
+                        allows_uninitialized_input
+                    );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
             .deprecated =
-                [](TF_OpDefinitionBuilder* builder, int version, const char* explanation) noexcept
+                [](TF_OpDefinitionBuilder* builder,
+                   int version,
+                   const TF_String* explanation) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->deprecated(version, explanation);
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).deprecated(
+                    version,
+                    ice::sonic::String::wrap(explanation)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -129,8 +147,10 @@ public:
                 [](TF_OpDefinitionBuilder* builder,
                    void (*)(TF_ShapeInferenceContext*, TF_Status*) shape_inference_func) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->set_shape_inference_function(shape_inference_func);
+                auto res =
+                    TF_OpDefinitionBuilderOps::from_handle(builder).set_shape_inference_function(
+                        shape_inference_func
+                    );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -138,24 +158,29 @@ public:
             .register_op_definition =
                 [](TF_OpDefinitionBuilder* builder, TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpDefinitionBuilderOps::create(builder);
-                auto res = self->register_op_definition();
+                auto res = TF_OpDefinitionBuilderOps::from_handle(builder).register_op_definition();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_OpDefinitionBuilderOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_OpDefinitionBuilder& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_OpDefinitionBuilderOps m_vtable;
+    TF_OpDefinitionBuilder m_handle;
 };
 
 } // namespace ice::builder

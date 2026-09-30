@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_priority(int32_t* out_priority) noexcept
     {
         ice::Status status;
-        m_ops->get_priority(get_handle(), out_priority status.get_handle());
+        m_ops->get_priority(get_handle(), out_priority, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_device_index(int* out_device_index) noexcept
     {
         ice::Status status;
-        m_ops->get_device_index(get_handle(), out_device_index status.get_handle());
+        m_ops->get_device_index(get_handle(), out_device_index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> query(_Bool* out_idle) noexcept
     {
         ice::Status status;
-        m_ops->query(get_handle(), out_idle status.get_handle());
+        m_ops->query(get_handle(), out_idle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,7 +72,7 @@ public:
     get_capture_status(TF_CaptureStatus* out_capture_status) noexcept
     {
         ice::Status status;
-        m_ops->get_capture_status(get_handle(), out_capture_status status.get_handle());
+        m_ops->get_capture_status(get_handle(), out_capture_status, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,7 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
     {
         ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle status.get_handle());
+        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

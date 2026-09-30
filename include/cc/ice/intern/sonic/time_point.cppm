@@ -30,7 +30,8 @@ public:
         ice::Status status;
         m_ops->get_duration_since_epoch(
             get_handle(),
-            out_duration.get_handle() status.get_handle()
+            out_duration.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

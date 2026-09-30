@@ -35,7 +35,8 @@ inline HeaderConfig build_header_config(
     std::string_view namespace_name,
     [[maybe_unused]] const std::filesystem::path& repo_root,
     std::string_view c_struct_name,
-    std::string_view mode_name // "builder" or "sonic"
+    std::string_view mode_name, // "builder" or "sonic"
+    std::string_view c_handle_name
 )
 {
     std::string_view target_name = domain_name; // actual domain for module name pos 2
@@ -44,9 +45,21 @@ inline HeaderConfig build_header_config(
     std::string class_body;
 
     if (target == GenTarget::Builder) {
+        std::string extra_ctor;
+        if (!c_handle_name.empty()) {
+            extra_ctor = std::format(
+                "{0}() noexcept :\n    m_handle{{.plugin_data = this}}\n{{\n}}\n\n",
+                cc_class_name
+            );
+        }
+        extra_ctor += std::format(
+            "{0}(const {0}&) = delete;\n{0}& operator=(const {0}&) = delete;\n",
+            cc_class_name
+        );
+
         auto body_result = cc::templating::TemplateRenderer::render_template(
             "class_body_builder",
-            {{"class_name", std::string{cc_class_name}}, {"extra_ctor", ""}}
+            {{"class_name", std::string{cc_class_name}}, {"extra_ctor", std::move(extra_ctor)}}
         );
         if (!body_result) {
             return {}; // will be handled by caller
@@ -96,7 +109,8 @@ inline std::expected<std::string, std::string> format_header(
     const std::filesystem::path& repo_root,
     std::string_view module_name,
     std::string_view c_struct_name = "",
-    std::string_view partition = ""
+    std::string_view partition = "",
+    std::string_view c_handle_name = ""
 ) noexcept
 {
     std::string_view mode_name = (target == GenTarget::Builder) ? "builder" : "sonic";
@@ -109,7 +123,8 @@ inline std::expected<std::string, std::string> format_header(
         namespace_name,
         repo_root,
         c_struct_name,
-        mode_name
+        mode_name,
+        c_handle_name
     );
 
     return cc::templating::TemplateRenderer::render_template(
@@ -130,22 +145,53 @@ inline std::expected<std::string, std::string> format_header(
     );
 }
 
-inline std::expected<std::string, std::string>
-format_footer(GenTarget target, [[maybe_unused]] const std::filesystem::path& repo_root) noexcept
+inline std::expected<std::string, std::string> format_footer(
+    GenTarget target,
+    std::string_view cc_class_name,
+    std::string_view c_struct_name,
+    std::string_view c_handle_name,
+    bool has_get_name,
+    [[maybe_unused]] const std::filesystem::path& repo_root
+) noexcept
 {
     std::string_view mode_name = (target == GenTarget::Builder) ? "builder" : "sonic";
 
-    auto extra_methods_result = cc::templating::TemplateRenderer::render_template(
-        "method_string_accessor_sonic",
-        {{"namespace_name", std::string{mode_name}}, {"slot_name", "get_name"}}
-    );
-    if (!extra_methods_result) {
-        return std::unexpected(extra_methods_result.error());
+    std::string extra_methods;
+    std::string extra_members;
+    if (target == GenTarget::Builder) {
+        extra_methods = std::format(
+            "const ::{}& get_vtable() const noexcept\n{{\n    return m_vtable;\n}}\n",
+            c_struct_name
+        );
+        extra_members = std::format("\nprivate:\n    ::{} m_vtable;\n", c_struct_name);
+        if (has_get_name) {
+            extra_methods += std::format(
+                "\nvirtual {}::String get_name() const noexcept = 0;\n",
+                mode_name
+            );
+        }
+        if (!c_handle_name.empty()) {
+            extra_methods += std::format(
+                "\nconst {}& get_handle() const noexcept\n{{\n    return m_handle;\n}}\n",
+                c_handle_name
+            );
+            extra_members += std::format("    {} m_handle;\n", c_handle_name);
+        }
+    } else {
+        auto extra_methods_result = cc::templating::TemplateRenderer::render_template(
+            "method_string_accessor_sonic",
+            {{"namespace_name", std::string{mode_name}}, {"slot_name", "get_name"}}
+        );
+        if (!extra_methods_result) {
+            return std::unexpected(extra_methods_result.error());
+        }
+        extra_methods = std::move(*extra_methods_result);
     }
 
     return cc::templating::TemplateRenderer::render_template(
         "module_footer",
-        {{"extra_methods", *extra_methods_result},
+        {{"extra_methods", std::move(extra_methods)},
+         {"extra_members", std::move(extra_members)},
          {"target_name", std::string{mode_name}},
          {"namespace_name", std::string{mode_name}},
          {"domain_name", std::string{mode_name}}}
@@ -209,7 +255,7 @@ inline std::expected<std::string, std::string> format_vtable_accessor_start(
 inline std::string
 format_vtable_accessor_end([[maybe_unused]] const std::filesystem::path& repo_root)
 {
-    return "\n                };\n\n                return &vtable;\n            }\n";
+    return "\n                };\n            }\n";
 }
 
 inline std::expected<std::string, std::string> format_vtable_field_destroy(

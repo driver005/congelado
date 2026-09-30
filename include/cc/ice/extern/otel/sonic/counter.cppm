@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> add(double value) noexcept
     {
         ice::Status status;
-        m_ops->add(get_handle(), value status.get_handle());
+        m_ops->add(get_handle(), value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

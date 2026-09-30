@@ -28,7 +28,7 @@ public:
     hash_bytes(const void* data, size_t size, size_t* out_hash) noexcept
     {
         ice::Status status;
-        m_ops->hash_bytes(get_handle(), data, size, out_hash status.get_handle());
+        m_ops->hash_bytes(get_handle(), data, size, out_hash, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     hash_combine(size_t seed, size_t value, size_t* out_hash) noexcept
     {
         ice::Status status;
-        m_ops->hash_combine(get_handle(), seed, value, out_hash status.get_handle());
+        m_ops->hash_combine(get_handle(), seed, value, out_hash, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

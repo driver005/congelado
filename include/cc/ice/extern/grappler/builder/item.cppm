@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFGrapplerItemOps
 {
 public:
-    static TFGrapplerItemOps* create(void* ctx) noexcept
+    TFGrapplerItemOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGrapplerItemOps*>(ctx);
+    }
+
+    TFGrapplerItemOps(const TFGrapplerItemOps&) = delete;
+    TFGrapplerItemOps& operator=(const TFGrapplerItemOps&) = delete;
+
+    static TFGrapplerItemOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGrapplerItemOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerItemOps* create(HandleT* handle) noexcept
+    static TFGrapplerItemOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGrapplerItemOps*>(handle->plugin_data);
+        return *static_cast<TFGrapplerItemOps*>(handle->plugin_data);
     }
 
     virtual ~TFGrapplerItemOps() = default;
@@ -47,9 +55,9 @@ public:
         size_t storage_size
     ) noexcept = 0;
 
-    static TFGrapplerItemOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGrapplerItemOps vtable = {
+        m_vtable = ::TFGrapplerItemOps{
             .struct_size = TF_RAPPLERITEM_STRUCT_SIZE,
             .get_nodes_to_preserve_size =
                 [](TFGrapplerItem* item,
@@ -57,8 +65,10 @@ public:
                    size_t* out_storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerItemOps::create(item);
-                auto res = self->get_nodes_to_preserve_size(out_num_values, out_storage_size);
+                auto res = TFGrapplerItemOps::from_handle(item).get_nodes_to_preserve_size(
+                    out_num_values,
+                    out_storage_size
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -72,8 +82,7 @@ public:
                    size_t storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerItemOps::create(item);
-                auto res = self->get_nodes_to_preserve_list(
+                auto res = TFGrapplerItemOps::from_handle(item).get_nodes_to_preserve_list(
                     out_values,
                     out_lengths,
                     num_values,
@@ -90,8 +99,10 @@ public:
                    size_t* out_storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerItemOps::create(item);
-                auto res = self->get_fetch_nodes_size(out_num_values, out_storage_size);
+                auto res = TFGrapplerItemOps::from_handle(item).get_fetch_nodes_size(
+                    out_num_values,
+                    out_storage_size
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -105,8 +116,7 @@ public:
                    size_t storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerItemOps::create(item);
-                auto res = self->get_fetch_nodes_list(
+                auto res = TFGrapplerItemOps::from_handle(item).get_fetch_nodes_list(
                     out_values,
                     out_lengths,
                     num_values,
@@ -119,16 +129,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGrapplerItemOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFGrapplerItem& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGrapplerItemOps m_vtable;
+    TFGrapplerItem m_handle;
 };
 
 } // namespace ice::builder

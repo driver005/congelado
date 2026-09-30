@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_element_size(size_t element_size) noexcept
     {
         ice::Status status;
-        m_ops->set_element_size(get_handle(), element_size status.get_handle());
+        m_ops->set_element_size(get_handle(), element_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_count(size_t count) noexcept
     {
         ice::Status status;
-        m_ops->set_count(get_handle(), count status.get_handle());
+        m_ops->set_count(get_handle(), count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     get(size_t index, const void** out_value) noexcept
     {
         ice::Status status;
-        m_ops->get(get_handle(), index, out_value status.get_handle());
+        m_ops->get(get_handle(), index, out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set(size_t index, const void* value) noexcept
     {
         ice::Status status;
-        m_ops->set(get_handle(), index, value status.get_handle());
+        m_ops->set(get_handle(), index, value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,7 +72,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->size(get_handle(), out_size status.get_handle());
+        m_ops->size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,7 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> data(void** out_data) noexcept
     {
         ice::Status status;
-        m_ops->data(get_handle(), out_data status.get_handle());
+        m_ops->data(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -24,16 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status> complete(
-        const ice::sonic::TF_StringOps& node_ref,
-        const ice::sonic::TF_StringOps& output
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    complete(const ice::sonic::String& node_ref, const ice::sonic::String& output) noexcept
     {
         ice::Status status;
         m_ops->complete(
             get_handle(),
             node_ref.get_handle(),
-            output.get_handle() status.get_handle()
+            output.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -43,8 +42,8 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> create_task(
-        const ice::sonic::TF_StringOps& node_ref,
-        const ice::sonic::TF_StringOps& input,
+        const ice::sonic::String& node_ref,
+        const ice::sonic::String& input,
         const ice::sonic::TF_JobOps& out_child
     ) noexcept
     {
@@ -53,7 +52,8 @@ public:
             get_handle(),
             node_ref.get_handle(),
             input.get_handle(),
-            out_child.get_handle() status.get_handle()
+            out_child.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -62,16 +62,15 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> get_task(
-        const ice::sonic::TF_StringOps& node_ref,
-        const ice::sonic::TF_JobOps& out_child
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    get_task(const ice::sonic::String& node_ref, const ice::sonic::TF_JobOps& out_child) noexcept
     {
         ice::Status status;
         m_ops->get_task(
             get_handle(),
             node_ref.get_handle(),
-            out_child.get_handle() status.get_handle()
+            out_child.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -84,7 +83,7 @@ public:
     list_tasks(const ice::sonic::TF_VectorOps& out_node_refs) noexcept
     {
         ice::Status status;
-        m_ops->list_tasks(get_handle(), out_node_refs.get_handle() status.get_handle());
+        m_ops->list_tasks(get_handle(), out_node_refs.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -93,10 +92,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    cancel_task(const ice::sonic::TF_StringOps& node_ref) noexcept
+    cancel_task(const ice::sonic::String& node_ref) noexcept
     {
         ice::Status status;
-        m_ops->cancel_task(get_handle(), node_ref.get_handle() status.get_handle());
+        m_ops->cancel_task(get_handle(), node_ref.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

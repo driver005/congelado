@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_value(TF_Tensor** out_value) noexcept
     {
         ice::Status status;
-        m_ops->get_value(get_handle(), out_value status.get_handle());
+        m_ops->get_value(get_handle(), out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

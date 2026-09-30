@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_BitSetOps
 {
 public:
-    static TF_BitSetOps* create(void* ctx) noexcept
+    TF_BitSetOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_BitSetOps*>(ctx);
+    }
+
+    TF_BitSetOps(const TF_BitSetOps&) = delete;
+    TF_BitSetOps& operator=(const TF_BitSetOps&) = delete;
+
+    static TF_BitSetOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_BitSetOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_BitSetOps* create(HandleT* handle) noexcept
+    static TF_BitSetOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_BitSetOps*>(handle->plugin_data);
+        return *static_cast<TF_BitSetOps*>(handle->plugin_data);
     }
 
     virtual ~TF_BitSetOps() = default;
@@ -36,15 +44,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> count(size_t* out_count) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
 
-    static TF_BitSetOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_BitSetOps vtable = {
+        m_vtable = ::TF_BitSetOps{
             .struct_size = TF_BITSET_STRUCT_SIZE,
             .set =
                 [](TF_BitSet* bitset, size_t index) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->set(index);
+                auto res = TF_BitSetOps::from_handle(bitset).set(index);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -52,8 +59,7 @@ public:
             .clear =
                 [](TF_BitSet* bitset, size_t index) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->clear(index);
+                auto res = TF_BitSetOps::from_handle(bitset).clear(index);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -64,8 +70,7 @@ public:
                    int* out_result,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->test(index, out_result);
+                auto res = TF_BitSetOps::from_handle(bitset).test(index, out_result);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -73,8 +78,7 @@ public:
             .flip =
                 [](TF_BitSet* bitset, size_t index, TF_Status* out_status) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->flip(index);
+                auto res = TF_BitSetOps::from_handle(bitset).flip(index);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -82,8 +86,7 @@ public:
             .count =
                 [](const TF_BitSet* bitset, size_t* out_count) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->count(out_count);
+                auto res = TF_BitSetOps::from_handle(bitset).count(out_count);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -91,8 +94,7 @@ public:
             .size =
                 [](const TF_BitSet* bitset, size_t* out_size) noexcept
             {
-                auto* self = TF_BitSetOps::create(bitset);
-                auto res = self->size(out_size);
+                auto res = TF_BitSetOps::from_handle(bitset).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -101,20 +103,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_BitSetOps::create(plugin_context);
+                std::unique_ptr<TF_BitSetOps>{&TF_BitSetOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_BitSetOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_BitSet& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_BitSetOps m_vtable;
+    TF_BitSet m_handle;
 };
 
 } // namespace ice::builder

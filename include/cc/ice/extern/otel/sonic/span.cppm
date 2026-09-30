@@ -24,14 +24,16 @@ public:
 
     static constexpr std::string_view domain_name = "otel";
 
-    [[nodiscard]] std::expected<void, ice::Status> set_attribute(
-        const ice::sonic::TF_StringOps& key,
-        const ice::sonic::TF_StringOps& value
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    set_attribute(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
     {
         ice::Status status;
-        m_ops
-            ->set_attribute(get_handle(), key.get_handle(), value.get_handle() status.get_handle());
+        m_ops->set_attribute(
+            get_handle(),
+            key.get_handle(),
+            value.get_handle(),
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,10 +42,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_status(int status_code, const ice::sonic::TF_StringOps& description) noexcept
+    set_status(int status_code, const ice::sonic::String& description) noexcept
     {
         ice::Status status;
-        m_ops->set_status(get_handle(), status_code, description.get_handle() status.get_handle());
+        m_ops->set_status(get_handle(), status_code, description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

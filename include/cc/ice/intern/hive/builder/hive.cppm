@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_HiveOps
 {
 public:
-    static TF_HiveOps* create(void* ctx) noexcept
+    TF_HiveOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_HiveOps*>(ctx);
+    }
+
+    TF_HiveOps(const TF_HiveOps&) = delete;
+    TF_HiveOps& operator=(const TF_HiveOps&) = delete;
+
+    static TF_HiveOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_HiveOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_HiveOps* create(HandleT* handle) noexcept
+    static TF_HiveOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_HiveOps*>(handle->plugin_data);
+        return *static_cast<TF_HiveOps*>(handle->plugin_data);
     }
 
     virtual ~TF_HiveOps() = default;
@@ -39,15 +47,14 @@ public:
     for_each(TF_HiveVisitor visitor, void* capture) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
 
-    static TF_HiveOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_HiveOps vtable = {
+        m_vtable = ::TF_HiveOps{
             .struct_size = TF_HIVE_STRUCT_SIZE,
             .set_element_size =
                 [](TF_Hive* hive, size_t element_size) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->set_element_size(element_size);
+                auto res = TF_HiveOps::from_handle(hive).set_element_size(element_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +65,7 @@ public:
                    TFHiveSlot* out_slot,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->insert(value, out_slot);
+                auto res = TF_HiveOps::from_handle(hive).insert(value, out_slot);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -67,8 +73,7 @@ public:
             .erase =
                 [](TF_Hive* hive, TFHiveSlot* slot, TF_Status* out_status) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->erase(slot);
+                auto res = TF_HiveOps::from_handle(hive).erase(slot);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -79,8 +84,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->get(slot, out_value);
+                auto res = TF_HiveOps::from_handle(hive).get(slot, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -88,8 +92,7 @@ public:
             .for_each =
                 [](const TF_Hive* hive, TF_HiveVisitor visitor, void* capture) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->for_each(visitor, capture);
+                auto res = TF_HiveOps::from_handle(hive).for_each(visitor, capture);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -97,8 +100,7 @@ public:
             .size =
                 [](const TF_Hive* hive, size_t* out_size) noexcept
             {
-                auto* self = TF_HiveOps::create(hive);
-                auto res = self->size(out_size);
+                auto res = TF_HiveOps::from_handle(hive).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -107,20 +109,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_HiveOps::create(plugin_context);
+                std::unique_ptr<TF_HiveOps>{&TF_HiveOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_HiveOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Hive& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_HiveOps m_vtable;
+    TF_Hive m_handle;
 };
 
 } // namespace ice::builder

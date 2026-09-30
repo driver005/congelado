@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_OpKernelContextOps
 {
 public:
-    static TF_OpKernelContextOps* create(void* ctx) noexcept
+    TF_OpKernelContextOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_OpKernelContextOps*>(ctx);
+    }
+
+    TF_OpKernelContextOps(const TF_OpKernelContextOps&) = delete;
+    TF_OpKernelContextOps& operator=(const TF_OpKernelContextOps&) = delete;
+
+    static TF_OpKernelContextOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_OpKernelContextOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_OpKernelContextOps* create(HandleT* handle) noexcept
+    static TF_OpKernelContextOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_OpKernelContextOps*>(handle->plugin_data);
+        return *static_cast<TF_OpKernelContextOps*>(handle->plugin_data);
     }
 
     virtual ~TF_OpKernelContextOps() = default;
@@ -33,7 +41,7 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_input(int i, TF_Tensor** out_tensor) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    input_range(const char* name, TF_InputRange_Args* out_args) noexcept = 0;
+    input_range(const ice::sonic::String& name, TF_InputRange_Args* out_args) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     input_datatype(int index, TFDataTypeEnum* out_type) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -66,17 +74,15 @@ public:
     get_step_id(int64_t* out_id) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_device_id(int* out_id) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_device_name(const ice::sonic::TF_StringOps& out_name) noexcept = 0;
+    get_device_name(const ice::sonic::String& out_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_graph_def_version(int* out_version) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_op_kernel_name(const ice::sonic::TF_StringOps& out_name) noexcept = 0;
+    get_op_kernel_name(const ice::sonic::String& out_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_resource_mgr_default_container_name(const ice::sonic::TF_StringOps& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_op_kernel_requested_input(
-        size_t index,
-        const ice::sonic::TF_StringOps& out_name
-    ) noexcept = 0;
+    get_resource_mgr_default_container_name(const ice::sonic::String& out_name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_op_kernel_requested_input(size_t index, const ice::sonic::String& out_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> allocate_output(
         int index,
         TFDataTypeEnum dtype,
@@ -129,11 +135,11 @@ public:
         TFDataTypeEnum dtype,
         const int64_t* dims,
         int num_dims,
-        const ice::sonic::TF_StringOps& var_name,
+        const ice::sonic::String& var_name,
         TF_PluginAllocatorFunc plugin_allocator
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    destroy_temporary_variable(int index, const ice::sonic::TF_StringOps& var_name) noexcept = 0;
+    destroy_temporary_variable(int index, const ice::sonic::String& var_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     maybe_lock_variable_input_mutexes_in_order(
         _Bool do_lock,
@@ -158,7 +164,7 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     is_ref_input(int i, _Bool* out_is_ref) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_input_by_name(const char* input_name, TF_Tensor** out_tensor) noexcept = 0;
+    get_input_by_name(const ice::sonic::String& input_name, TF_Tensor** out_tensor) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     add_n_variant(TF_BinaryAddFunc binary_add_func) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -170,15 +176,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_random_generator(const ice::sonic::TF_RandomGeneratorOps& out_generator) noexcept = 0;
 
-    static TF_OpKernelContextOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_OpKernelContextOps vtable = {
+        m_vtable = ::TF_OpKernelContextOps{
             .struct_size = TF_OPKERNELCONTEXT_STRUCT_SIZE,
             .num_inputs =
                 [](TF_OpKernelContext* ctx, int* out_num) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->num_inputs(out_num);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).num_inputs(out_num);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -186,8 +191,7 @@ public:
             .num_outputs =
                 [](TF_OpKernelContext* ctx, int* out_num) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->num_outputs(out_num);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).num_outputs(out_num);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -198,17 +202,20 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_input(i, out_tensor);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_input(i, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
             .input_range =
-                [](TF_OpKernelContext* ctx, const char* name, TF_InputRange_Args* out_args) noexcept
+                [](TF_OpKernelContext* ctx,
+                   const TF_String* name,
+                   TF_InputRange_Args* out_args) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->input_range(name, out_args);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).input_range(
+                    ice::sonic::String::wrap(name),
+                    out_args
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -216,8 +223,7 @@ public:
             .input_datatype =
                 [](TF_OpKernelContext* ctx, int index, TFDataTypeEnum* out_type) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->input_datatype(index, out_type);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).input_datatype(index, out_type);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -228,8 +234,10 @@ public:
                    const TF_Tensor* tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->set_output(i, ice::sonic::TF_TensorOps::wrap(tensor));
+                auto res = TF_OpKernelContextOps::from_handle(ctx).set_output(
+                    i,
+                    ice::sonic::TF_TensorOps::wrap(tensor)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -240,8 +248,8 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_mutable_output(i, out_tensor);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).get_mutable_output(i, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -251,10 +259,10 @@ public:
                    TF_Buffer* serialized_function_def_library,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_serialized_function_def_library(
-                    ice::sonic::TF_BufferOps::wrap(serialized_function_def_library)
-                );
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).get_serialized_function_def_library(
+                        ice::sonic::TF_BufferOps::wrap(serialized_function_def_library)
+                    );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -264,8 +272,7 @@ public:
                    TF_Buffer* serialized_config_proto,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_serialized_config_proto(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_serialized_config_proto(
                     ice::sonic::TF_BufferOps::wrap(serialized_config_proto)
                 );
                 if (!res) {
@@ -278,11 +285,11 @@ public:
                    TF_Buffer* serialized_resource_handle_proto,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_serialized_resource_handle_proto(
-                    i,
-                    ice::sonic::TF_BufferOps::wrap(serialized_resource_handle_proto)
-                );
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).get_serialized_resource_handle_proto(
+                        i,
+                        ice::sonic::TF_BufferOps::wrap(serialized_resource_handle_proto)
+                    );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -290,8 +297,7 @@ public:
             .failure =
                 [](TF_OpKernelContext* ctx, TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->failure();
+                auto res = TF_OpKernelContextOps::from_handle(ctx).failure();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -299,8 +305,8 @@ public:
             .expected_output_datatype =
                 [](TF_OpKernelContext* ctx, int i, TFDataTypeEnum* out_type) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->expected_output_datatype(i, out_type);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).expected_output_datatype(i, out_type);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -311,8 +317,8 @@ public:
                    _Bool* out_is_host,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->is_host_memory_input(i, out_is_host);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).is_host_memory_input(i, out_is_host);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -323,8 +329,8 @@ public:
                    _Bool* out_is_host,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->is_host_memory_output(i, out_is_host);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).is_host_memory_output(i, out_is_host);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -332,8 +338,7 @@ public:
             .step_id =
                 [](TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->step_id(out_id);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).step_id(out_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -341,8 +346,7 @@ public:
             .get_frame_id =
                 [](TF_OpKernelContext* ctx, uint64_t* out_id) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_frame_id(out_id);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_frame_id(out_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -350,8 +354,7 @@ public:
             .get_iter_id =
                 [](TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_iter_id(out_id);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_iter_id(out_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -359,8 +362,7 @@ public:
             .get_step_id =
                 [](TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_step_id(out_id);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_step_id(out_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -368,8 +370,7 @@ public:
             .get_device_id =
                 [](TF_OpKernelContext* ctx, int* out_id) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_device_id(out_id);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_device_id(out_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -377,8 +378,9 @@ public:
             .get_device_name =
                 [](TF_OpKernelContext* ctx, TF_String* out_name) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_device_name(ice::sonic::TF_StringOps::wrap(out_name));
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_device_name(
+                    ice::sonic::String::wrap(out_name)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -386,8 +388,8 @@ public:
             .get_graph_def_version =
                 [](TF_OpKernelContext* ctx, int* out_version) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_graph_def_version(out_version);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).get_graph_def_version(out_version);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -395,8 +397,9 @@ public:
             .get_op_kernel_name =
                 [](TF_OpKernelContext* ctx, TF_String* out_name) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_op_kernel_name(ice::sonic::TF_StringOps::wrap(out_name));
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_op_kernel_name(
+                    ice::sonic::String::wrap(out_name)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -404,10 +407,10 @@ public:
             .get_resource_mgr_default_container_name =
                 [](TF_OpKernelContext* ctx, TF_String* out_name) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_resource_mgr_default_container_name(
-                    ice::sonic::TF_StringOps::wrap(out_name)
-                );
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).get_resource_mgr_default_container_name(
+                        ice::sonic::String::wrap(out_name)
+                    );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -415,10 +418,9 @@ public:
             .get_op_kernel_requested_input =
                 [](TF_OpKernelContext* ctx, size_t index, TF_String* out_name) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_op_kernel_requested_input(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_op_kernel_requested_input(
                     index,
-                    ice::sonic::TF_StringOps::wrap(out_name)
+                    ice::sonic::String::wrap(out_name)
                 );
                 if (!res) {
                     res.error().to_c(status);
@@ -434,8 +436,8 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(context);
-                auto res = self->allocate_output(index, dtype, dims, num_dims, len, out_tensor);
+                auto res = TF_OpKernelContextOps::from_handle(context)
+                               .allocate_output(index, dtype, dims, num_dims, len, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -451,16 +453,16 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(context);
-                auto res = self->forward_input_or_allocate_output(
-                    candidate_input_indices,
-                    num_candidate_input_indices,
-                    output_index,
-                    output_dims,
-                    output_num_dims,
-                    out_forwarded_input,
-                    out_tensor
-                );
+                auto res =
+                    TF_OpKernelContextOps::from_handle(context).forward_input_or_allocate_output(
+                        candidate_input_indices,
+                        num_candidate_input_indices,
+                        output_index,
+                        output_dims,
+                        output_num_dims,
+                        out_forwarded_input,
+                        out_tensor
+                    );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -474,8 +476,8 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(context);
-                auto res = self->allocate_temp(dtype, dims, num_dims, alloc_attrs, out_tensor);
+                auto res = TF_OpKernelContextOps::from_handle(context)
+                               .allocate_temp(dtype, dims, num_dims, alloc_attrs, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -483,8 +485,7 @@ public:
             .inc_num_deferred_ops =
                 [](TF_OpKernelContext* context) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(context);
-                auto res = self->inc_num_deferred_ops();
+                auto res = TF_OpKernelContextOps::from_handle(context).inc_num_deferred_ops();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -492,8 +493,7 @@ public:
             .dec_num_deferred_ops =
                 [](TF_OpKernelContext* context) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(context);
-                auto res = self->dec_num_deferred_ops();
+                auto res = TF_OpKernelContextOps::from_handle(context).dec_num_deferred_ops();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -506,9 +506,9 @@ public:
                    TF_CopyTensorFunc copy_func,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
                 auto res =
-                    self->assign_variable(input_index, value_index, validate_shape, copy_func);
+                    TF_OpKernelContextOps::from_handle(ctx)
+                        .assign_variable(input_index, value_index, validate_shape, copy_func);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -523,8 +523,7 @@ public:
                    TF_CopyTensorFunc copy_func,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->assign_ref_variable(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).assign_ref_variable(
                     input_ref_index,
                     output_ref_index,
                     value_index,
@@ -546,8 +545,7 @@ public:
                    TF_UpdateTensorFunc update_func,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->assign_update_variable(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).assign_update_variable(
                     input_index,
                     value_index,
                     op,
@@ -568,12 +566,11 @@ public:
                    TF_PluginAllocatorFunc plugin_allocator,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->temporary_variable(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).temporary_variable(
                     dtype,
                     dims,
                     num_dims,
-                    ice::sonic::TF_StringOps::wrap(var_name),
+                    ice::sonic::String::wrap(var_name),
                     plugin_allocator
                 );
                 if (!res) {
@@ -586,10 +583,9 @@ public:
                    const TF_String* var_name,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->destroy_temporary_variable(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).destroy_temporary_variable(
                     index,
-                    ice::sonic::TF_StringOps::wrap(var_name)
+                    ice::sonic::String::wrap(var_name)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -605,15 +601,15 @@ public:
                    TF_VariableInputLockHolder** out_lock_holder,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->maybe_lock_variable_input_mutexes_in_order(
-                    do_lock,
-                    sparse,
-                    inputs,
-                    len,
-                    copy_func,
-                    out_lock_holder
-                );
+                auto res = TF_OpKernelContextOps::from_handle(ctx)
+                               .maybe_lock_variable_input_mutexes_in_order(
+                                   do_lock,
+                                   sparse,
+                                   inputs,
+                                   len,
+                                   copy_func,
+                                   out_lock_holder
+                               );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -621,8 +617,10 @@ public:
             .release_variable_input_lock_holder =
                 [](TF_OpKernelContext* ctx, TF_VariableInputLockHolder* lock_holder) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->release_variable_input_lock_holder(lock_holder);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).release_variable_input_lock_holder(
+                        lock_holder
+                    );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -637,8 +635,7 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_input_tensor_from_variable(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_input_tensor_from_variable(
                     input,
                     lock_held,
                     is_variant_type,
@@ -653,8 +650,10 @@ public:
             .forward_ref_input_to_ref_output =
                 [](TF_OpKernelContext* ctx, int32_t input_index, int32_t output_index) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->forward_ref_input_to_ref_output(input_index, output_index);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).forward_ref_input_to_ref_output(
+                    input_index,
+                    output_index
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -665,20 +664,21 @@ public:
                    _Bool* out_is_ref,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->is_ref_input(i, out_is_ref);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).is_ref_input(i, out_is_ref);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
             .get_input_by_name =
                 [](TF_OpKernelContext* ctx,
-                   const char* input_name,
+                   const TF_String* input_name,
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_input_by_name(input_name, out_tensor);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_input_by_name(
+                    ice::sonic::String::wrap(input_name),
+                    out_tensor
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -688,8 +688,7 @@ public:
                    TF_BinaryAddFunc binary_add_func,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->add_n_variant(binary_add_func);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).add_n_variant(binary_add_func);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -699,8 +698,8 @@ public:
                    TF_ZerosLikeFunc zeros_like_func,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->zeros_like_variant(zeros_like_func);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).zeros_like_variant(zeros_like_func);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -708,8 +707,7 @@ public:
             .get_stream =
                 [](TF_OpKernelContext* ctx, TF_Stream** out_stream, TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_stream(out_stream);
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_stream(out_stream);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -717,8 +715,8 @@ public:
             .run_async_done_callback =
                 [](TF_OpKernelContext* ctx, void* done_callback) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->run_async_done_callback(done_callback);
+                auto res =
+                    TF_OpKernelContextOps::from_handle(ctx).run_async_done_callback(done_callback);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -728,8 +726,7 @@ public:
                    TF_RandomGenerator* out_generator,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_OpKernelContextOps::create(ctx);
-                auto res = self->get_random_generator(
+                auto res = TF_OpKernelContextOps::from_handle(ctx).get_random_generator(
                     ice::sonic::TF_RandomGeneratorOps::wrap(out_generator)
                 );
                 if (!res) {
@@ -738,16 +735,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_OpKernelContextOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_OpKernelContext& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_OpKernelContextOps m_vtable;
+    TF_OpKernelContext m_handle;
 };
 
 } // namespace ice::builder

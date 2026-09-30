@@ -16,53 +16,55 @@ export namespace ice::builder {
 class TF_RequestOps
 {
 public:
-    static TF_RequestOps* create(void* ctx) noexcept
+    TF_RequestOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_RequestOps*>(ctx);
+    }
+
+    TF_RequestOps(const TF_RequestOps&) = delete;
+    TF_RequestOps& operator=(const TF_RequestOps&) = delete;
+
+    static TF_RequestOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_RequestOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RequestOps* create(HandleT* handle) noexcept
+    static TF_RequestOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_RequestOps*>(handle->plugin_data);
+        return *static_cast<TF_RequestOps*>(handle->plugin_data);
     }
 
     virtual ~TF_RequestOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_method(const ice::sonic::TF_StringOps& method) noexcept = 0;
+    set_method(const ice::sonic::String& method) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_method(const ice::sonic::TF_StringOps& out_method) noexcept = 0;
+    get_method(const ice::sonic::String& out_method) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_path(const ice::sonic::TF_StringOps& path) noexcept = 0;
+    set_path(const ice::sonic::String& path) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_path(const ice::sonic::TF_StringOps& out_path) noexcept = 0;
+    get_path(const ice::sonic::String& out_path) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_scheme(const ice::sonic::TF_StringOps& scheme) noexcept = 0;
+    set_scheme(const ice::sonic::String& scheme) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_scheme(const ice::sonic::TF_StringOps& out_scheme) noexcept = 0;
+    get_scheme(const ice::sonic::String& out_scheme) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_authority(const ice::sonic::TF_StringOps& authority) noexcept = 0;
+    set_authority(const ice::sonic::String& authority) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_authority(const ice::sonic::TF_StringOps& out_authority) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_header(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& value
-    ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> add_header(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& value
-    ) noexcept = 0;
+    get_authority(const ice::sonic::String& out_authority) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    remove_header(const ice::sonic::TF_StringOps& name) noexcept = 0;
+    set_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    find_header(const ice::sonic::TF_StringOps& name, const TF_String** out_value) noexcept = 0;
+    add_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    remove_header(const ice::sonic::String& name) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    find_header(const ice::sonic::String& name, const TF_String** out_value) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> clear_headers() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_headers(const ice::sonic::TF_MapOps& out_headers) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_query_param(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& value
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    set_query_param(const ice::sonic::String& name, const ice::sonic::String& value) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_query_params(const ice::sonic::TF_MapOps& out_params) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -70,27 +72,27 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_body(const void** out_data, size_t* out_length) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_content_type(const ice::sonic::TF_StringOps& content_type) noexcept = 0;
+    set_content_type(const ice::sonic::String& content_type) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_content_type(const ice::sonic::TF_StringOps& out_content_type) noexcept = 0;
+    get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_accept(const ice::sonic::TF_StringOps& accept) noexcept = 0;
+    set_accept(const ice::sonic::String& accept) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_accept(const ice::sonic::TF_StringOps& out_accept) noexcept = 0;
+    get_accept(const ice::sonic::String& out_accept) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_user_agent(const ice::sonic::TF_StringOps& user_agent) noexcept = 0;
+    set_user_agent(const ice::sonic::String& user_agent) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_user_agent(const ice::sonic::TF_StringOps& out_user_agent) noexcept = 0;
+    get_user_agent(const ice::sonic::String& out_user_agent) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_bearer_auth(const ice::sonic::TF_StringOps& token) noexcept = 0;
+    set_bearer_auth(const ice::sonic::String& token) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_basic_auth(
-        const ice::sonic::TF_StringOps& username,
-        const ice::sonic::TF_StringOps& password
+        const ice::sonic::String& username,
+        const ice::sonic::String& password
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_authorization(const ice::sonic::TF_StringOps& out_authorization) noexcept = 0;
+    get_authorization(const ice::sonic::String& out_authorization) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_addr(const ice::sonic::TF_StringOps& addr) noexcept = 0;
+    set_addr(const ice::sonic::String& addr) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_no_decompress(int enabled) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -102,29 +104,29 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_stream_id(uint32_t* out_stream_id) noexcept = 0;
 
-    static TF_RequestOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_RequestOps vtable = {
+        m_vtable = ::TF_RequestOps{
             .struct_size = TF_REQUEST_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_RequestOps::create(plugin_context);
+                std::unique_ptr<TF_RequestOps>{&TF_RequestOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_RequestOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_RequestOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .set_method =
                 [](TF_Request* request, const TF_String* method, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_method(ice::sonic::TF_StringOps::wrap(method));
+                auto res = TF_RequestOps::from_handle(request).set_method(
+                    ice::sonic::String::wrap(method)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -132,8 +134,9 @@ public:
             .get_method =
                 [](TF_Request* request, TF_String* out_method) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_method(ice::sonic::TF_StringOps::wrap(out_method));
+                auto res = TF_RequestOps::from_handle(request).get_method(
+                    ice::sonic::String::wrap(out_method)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -141,8 +144,8 @@ public:
             .set_path =
                 [](TF_Request* request, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_path(ice::sonic::TF_StringOps::wrap(path));
+                auto res =
+                    TF_RequestOps::from_handle(request).set_path(ice::sonic::String::wrap(path));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -150,8 +153,9 @@ public:
             .get_path =
                 [](TF_Request* request, TF_String* out_path) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_path(ice::sonic::TF_StringOps::wrap(out_path));
+                auto res = TF_RequestOps::from_handle(request).get_path(
+                    ice::sonic::String::wrap(out_path)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -159,8 +163,9 @@ public:
             .set_scheme =
                 [](TF_Request* request, const TF_String* scheme, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_scheme(ice::sonic::TF_StringOps::wrap(scheme));
+                auto res = TF_RequestOps::from_handle(request).set_scheme(
+                    ice::sonic::String::wrap(scheme)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -168,8 +173,9 @@ public:
             .get_scheme =
                 [](TF_Request* request, TF_String* out_scheme) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_scheme(ice::sonic::TF_StringOps::wrap(out_scheme));
+                auto res = TF_RequestOps::from_handle(request).get_scheme(
+                    ice::sonic::String::wrap(out_scheme)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -177,8 +183,9 @@ public:
             .set_authority =
                 [](TF_Request* request, const TF_String* authority, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_authority(ice::sonic::TF_StringOps::wrap(authority));
+                auto res = TF_RequestOps::from_handle(request).set_authority(
+                    ice::sonic::String::wrap(authority)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -186,8 +193,9 @@ public:
             .get_authority =
                 [](TF_Request* request, TF_String* out_authority) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_authority(ice::sonic::TF_StringOps::wrap(out_authority));
+                auto res = TF_RequestOps::from_handle(request).get_authority(
+                    ice::sonic::String::wrap(out_authority)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -198,10 +206,9 @@ public:
                    const TF_String* value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_header(
-                    ice::sonic::TF_StringOps::wrap(name),
-                    ice::sonic::TF_StringOps::wrap(value)
+                auto res = TF_RequestOps::from_handle(request).set_header(
+                    ice::sonic::String::wrap(name),
+                    ice::sonic::String::wrap(value)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -213,10 +220,9 @@ public:
                    const TF_String* value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->add_header(
-                    ice::sonic::TF_StringOps::wrap(name),
-                    ice::sonic::TF_StringOps::wrap(value)
+                auto res = TF_RequestOps::from_handle(request).add_header(
+                    ice::sonic::String::wrap(name),
+                    ice::sonic::String::wrap(value)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -225,8 +231,9 @@ public:
             .remove_header =
                 [](TF_Request* request, const TF_String* name, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->remove_header(ice::sonic::TF_StringOps::wrap(name));
+                auto res = TF_RequestOps::from_handle(request).remove_header(
+                    ice::sonic::String::wrap(name)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -234,8 +241,10 @@ public:
             .find_header =
                 [](TF_Request* request, const TF_String* name, const TF_String** out_value) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->find_header(ice::sonic::TF_StringOps::wrap(name), out_value);
+                auto res = TF_RequestOps::from_handle(request).find_header(
+                    ice::sonic::String::wrap(name),
+                    out_value
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -243,8 +252,7 @@ public:
             .clear_headers =
                 [](TF_Request* request, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->clear_headers();
+                auto res = TF_RequestOps::from_handle(request).clear_headers();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -252,8 +260,9 @@ public:
             .get_headers =
                 [](TF_Request* request, TF_Map* out_headers, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_headers(ice::sonic::TF_MapOps::wrap(out_headers));
+                auto res = TF_RequestOps::from_handle(request).get_headers(
+                    ice::sonic::TF_MapOps::wrap(out_headers)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -264,10 +273,9 @@ public:
                    const TF_String* value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_query_param(
-                    ice::sonic::TF_StringOps::wrap(name),
-                    ice::sonic::TF_StringOps::wrap(value)
+                auto res = TF_RequestOps::from_handle(request).set_query_param(
+                    ice::sonic::String::wrap(name),
+                    ice::sonic::String::wrap(value)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -276,8 +284,9 @@ public:
             .get_query_params =
                 [](TF_Request* request, TF_Map* out_params, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_query_params(ice::sonic::TF_MapOps::wrap(out_params));
+                auto res = TF_RequestOps::from_handle(request).get_query_params(
+                    ice::sonic::TF_MapOps::wrap(out_params)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -288,8 +297,7 @@ public:
                    size_t length,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_body(data, length);
+                auto res = TF_RequestOps::from_handle(request).set_body(data, length);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -297,8 +305,7 @@ public:
             .get_body =
                 [](TF_Request* request, const void** out_data, size_t* out_length) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_body(out_data, out_length);
+                auto res = TF_RequestOps::from_handle(request).get_body(out_data, out_length);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -308,8 +315,9 @@ public:
                    const TF_String* content_type,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_content_type(ice::sonic::TF_StringOps::wrap(content_type));
+                auto res = TF_RequestOps::from_handle(request).set_content_type(
+                    ice::sonic::String::wrap(content_type)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -317,8 +325,9 @@ public:
             .get_content_type =
                 [](TF_Request* request, TF_String* out_content_type) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_content_type(ice::sonic::TF_StringOps::wrap(out_content_type));
+                auto res = TF_RequestOps::from_handle(request).get_content_type(
+                    ice::sonic::String::wrap(out_content_type)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -326,8 +335,9 @@ public:
             .set_accept =
                 [](TF_Request* request, const TF_String* accept, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_accept(ice::sonic::TF_StringOps::wrap(accept));
+                auto res = TF_RequestOps::from_handle(request).set_accept(
+                    ice::sonic::String::wrap(accept)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -335,8 +345,9 @@ public:
             .get_accept =
                 [](TF_Request* request, TF_String* out_accept) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_accept(ice::sonic::TF_StringOps::wrap(out_accept));
+                auto res = TF_RequestOps::from_handle(request).get_accept(
+                    ice::sonic::String::wrap(out_accept)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -344,8 +355,9 @@ public:
             .set_user_agent =
                 [](TF_Request* request, const TF_String* user_agent, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_user_agent(ice::sonic::TF_StringOps::wrap(user_agent));
+                auto res = TF_RequestOps::from_handle(request).set_user_agent(
+                    ice::sonic::String::wrap(user_agent)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -353,8 +365,9 @@ public:
             .get_user_agent =
                 [](TF_Request* request, TF_String* out_user_agent) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_user_agent(ice::sonic::TF_StringOps::wrap(out_user_agent));
+                auto res = TF_RequestOps::from_handle(request).get_user_agent(
+                    ice::sonic::String::wrap(out_user_agent)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -362,8 +375,9 @@ public:
             .set_bearer_auth =
                 [](TF_Request* request, const TF_String* token, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_bearer_auth(ice::sonic::TF_StringOps::wrap(token));
+                auto res = TF_RequestOps::from_handle(request).set_bearer_auth(
+                    ice::sonic::String::wrap(token)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -374,10 +388,9 @@ public:
                    const TF_String* password,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_basic_auth(
-                    ice::sonic::TF_StringOps::wrap(username),
-                    ice::sonic::TF_StringOps::wrap(password)
+                auto res = TF_RequestOps::from_handle(request).set_basic_auth(
+                    ice::sonic::String::wrap(username),
+                    ice::sonic::String::wrap(password)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -386,9 +399,9 @@ public:
             .get_authorization =
                 [](TF_Request* request, TF_String* out_authorization) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res =
-                    self->get_authorization(ice::sonic::TF_StringOps::wrap(out_authorization));
+                auto res = TF_RequestOps::from_handle(request).get_authorization(
+                    ice::sonic::String::wrap(out_authorization)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -396,8 +409,8 @@ public:
             .set_addr =
                 [](TF_Request* request, const TF_String* addr, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_addr(ice::sonic::TF_StringOps::wrap(addr));
+                auto res =
+                    TF_RequestOps::from_handle(request).set_addr(ice::sonic::String::wrap(addr));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -405,8 +418,7 @@ public:
             .set_no_decompress =
                 [](TF_Request* request, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_no_decompress(enabled);
+                auto res = TF_RequestOps::from_handle(request).set_no_decompress(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -414,8 +426,7 @@ public:
             .set_timeout =
                 [](TF_Request* request, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_timeout(timeout_ms);
+                auto res = TF_RequestOps::from_handle(request).set_timeout(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -423,8 +434,7 @@ public:
             .get_timeout =
                 [](TF_Request* request, int64_t* out_timeout_ms) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_timeout(out_timeout_ms);
+                auto res = TF_RequestOps::from_handle(request).get_timeout(out_timeout_ms);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -432,8 +442,7 @@ public:
             .set_stream_id =
                 [](TF_Request* request, uint32_t stream_id, TF_Status* out_status) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->set_stream_id(stream_id);
+                auto res = TF_RequestOps::from_handle(request).set_stream_id(stream_id);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -441,24 +450,31 @@ public:
             .get_stream_id =
                 [](TF_Request* request, uint32_t* out_stream_id) noexcept
             {
-                auto* self = TF_RequestOps::create(request);
-                auto res = self->get_stream_id(out_stream_id);
+                auto res = TF_RequestOps::from_handle(request).get_stream_id(out_stream_id);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_RequestOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Request& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_RequestOps m_vtable;
+    TF_Request m_handle;
 };
 
 } // namespace ice::builder

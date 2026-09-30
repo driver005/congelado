@@ -5,8 +5,7 @@
                 {{ out_type }} {{ out_name }},
                 TF_Status* {{ status_name }}
             ) noexcept {
-                auto* self = {{ class_name }}::create(plugin_context);
-                auto res = self->{{ slot_name }}({{ wrap_expr }});
+                auto res = {{ class_name }}::from_handle(plugin_context).{{ slot_name }}({{ wrap_expr }});
                 if (!res) {
                     res.error().to_c({{ status_name }});
                     return;

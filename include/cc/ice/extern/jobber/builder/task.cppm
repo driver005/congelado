@@ -16,45 +16,51 @@ export namespace ice::builder {
 class TF_TaskOps
 {
 public:
-    static TF_TaskOps* create(void* ctx) noexcept
+    TF_TaskOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_TaskOps*>(ctx);
+    }
+
+    TF_TaskOps(const TF_TaskOps&) = delete;
+    TF_TaskOps& operator=(const TF_TaskOps&) = delete;
+
+    static TF_TaskOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_TaskOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TaskOps* create(HandleT* handle) noexcept
+    static TF_TaskOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_TaskOps*>(handle->plugin_data);
+        return *static_cast<TF_TaskOps*>(handle->plugin_data);
     }
 
     virtual ~TF_TaskOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> complete(
-        const ice::sonic::TF_StringOps& node_ref,
-        const ice::sonic::TF_StringOps& output
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    complete(const ice::sonic::String& node_ref, const ice::sonic::String& output) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> create_task(
-        const ice::sonic::TF_StringOps& node_ref,
-        const ice::sonic::TF_StringOps& input,
+        const ice::sonic::String& node_ref,
+        const ice::sonic::String& input,
         const ice::sonic::TF_JobOps& out_child
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_task(
-        const ice::sonic::TF_StringOps& node_ref,
+        const ice::sonic::String& node_ref,
         const ice::sonic::TF_JobOps& out_child
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     list_tasks(const ice::sonic::TF_VectorOps& out_node_refs) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    cancel_task(const ice::sonic::TF_StringOps& node_ref) noexcept = 0;
+    cancel_task(const ice::sonic::String& node_ref) noexcept = 0;
 
-    static TF_TaskOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_TaskOps vtable = {
+        m_vtable = ::TF_TaskOps{
             .struct_size = TF_TASK_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_TaskOps::create(plugin_context);
+                std::unique_ptr<TF_TaskOps>{&TF_TaskOps::from_handle(plugin_context)};
             },
             .complete =
                 [](TF_Task* task,
@@ -62,10 +68,9 @@ public:
                    const TF_String* output,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_TaskOps::create(task);
-                auto res = self->complete(
-                    ice::sonic::TF_StringOps::wrap(node_ref),
-                    ice::sonic::TF_StringOps::wrap(output)
+                auto res = TF_TaskOps::from_handle(task).complete(
+                    ice::sonic::String::wrap(node_ref),
+                    ice::sonic::String::wrap(output)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -78,10 +83,9 @@ public:
                    TF_Job* out_child,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_TaskOps::create(task);
-                auto res = self->create_task(
-                    ice::sonic::TF_StringOps::wrap(node_ref),
-                    ice::sonic::TF_StringOps::wrap(input),
+                auto res = TF_TaskOps::from_handle(task).create_task(
+                    ice::sonic::String::wrap(node_ref),
+                    ice::sonic::String::wrap(input),
                     ice::sonic::TF_JobOps::wrap(out_child)
                 );
                 if (!res) {
@@ -91,9 +95,8 @@ public:
             .get_task =
                 [](TF_Task* task, const TF_String* node_ref, TF_Job* out_child) noexcept
             {
-                auto* self = TF_TaskOps::create(task);
-                auto res = self->get_task(
-                    ice::sonic::TF_StringOps::wrap(node_ref),
+                auto res = TF_TaskOps::from_handle(task).get_task(
+                    ice::sonic::String::wrap(node_ref),
                     ice::sonic::TF_JobOps::wrap(out_child)
                 );
                 if (!res) {
@@ -103,8 +106,9 @@ public:
             .list_tasks =
                 [](TF_Task* task, TF_Vector* out_node_refs, TF_Status* out_status) noexcept
             {
-                auto* self = TF_TaskOps::create(task);
-                auto res = self->list_tasks(ice::sonic::TF_VectorOps::wrap(out_node_refs));
+                auto res = TF_TaskOps::from_handle(task).list_tasks(
+                    ice::sonic::TF_VectorOps::wrap(out_node_refs)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -112,24 +116,30 @@ public:
             .cancel_task =
                 [](TF_Task* task, const TF_String* node_ref, TF_Status* out_status) noexcept
             {
-                auto* self = TF_TaskOps::create(task);
-                auto res = self->cancel_task(ice::sonic::TF_StringOps::wrap(node_ref));
+                auto res =
+                    TF_TaskOps::from_handle(task).cancel_task(ice::sonic::String::wrap(node_ref));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_TaskOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Task& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_TaskOps m_vtable;
+    TF_Task m_handle;
 };
 
 } // namespace ice::builder

@@ -29,6 +29,10 @@ public:
     // "TF_Cache" -> "Cache"; "TF_CacheOps" -> "Cache"
     std::string class_name(const std::string& domain)
     {
+        if (domain == "TF_StringOps") {
+            return "String";
+        }
+
         m_scratch_text = domain;
         if (!m_scratch_text.empty()) {
             m_scratch_text[0] =

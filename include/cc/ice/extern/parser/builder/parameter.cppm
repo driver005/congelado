@@ -16,31 +16,38 @@ export namespace ice::builder {
 class TFParserParameterOps
 {
 public:
-    static TFParserParameterOps* create(void* ctx) noexcept
+    TFParserParameterOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserParameterOps*>(ctx);
+    }
+
+    TFParserParameterOps(const TFParserParameterOps&) = delete;
+    TFParserParameterOps& operator=(const TFParserParameterOps&) = delete;
+
+    static TFParserParameterOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserParameterOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserParameterOps* create(HandleT* handle) noexcept
+    static TFParserParameterOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserParameterOps*>(handle->plugin_data);
+        return *static_cast<TFParserParameterOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserParameterOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_typeinfo(const ice::sonic::TFParserTypeInfoOps& out_typeinfo) noexcept = 0;
 
-    static TFParserParameterOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserParameterOps vtable = {
+        m_vtable = ::TFParserParameterOps{
             .struct_size = TF_ARSERPARAMETER_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFParserParameterOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFParserParameterOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .get_typeinfo =
@@ -48,24 +55,33 @@ public:
                    TFParserTypeInfo* out_typeinfo,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserParameterOps::create(parameter);
-                auto res = self->get_typeinfo(ice::sonic::TFParserTypeInfoOps::wrap(out_typeinfo));
+                auto res = TFParserParameterOps::from_handle(parameter).get_typeinfo(
+                    ice::sonic::TFParserTypeInfoOps::wrap(out_typeinfo)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserParameterOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFParserParameter& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserParameterOps m_vtable;
+    TFParserParameter m_handle;
 };
 
 } // namespace ice::builder

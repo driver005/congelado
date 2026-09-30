@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_StreamOps
 {
 public:
-    static TF_StreamOps* create(void* ctx) noexcept
+    TF_StreamOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_StreamOps*>(ctx);
+    }
+
+    TF_StreamOps(const TF_StreamOps&) = delete;
+    TF_StreamOps& operator=(const TF_StreamOps&) = delete;
+
+    static TF_StreamOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_StreamOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_StreamOps* create(HandleT* handle) noexcept
+    static TF_StreamOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_StreamOps*>(handle->plugin_data);
+        return *static_cast<TF_StreamOps*>(handle->plugin_data);
     }
 
     virtual ~TF_StreamOps() = default;
@@ -39,15 +47,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_native_handle(void** out_handle) noexcept = 0;
 
-    static TF_StreamOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_StreamOps vtable = {
+        m_vtable = ::TF_StreamOps{
             .struct_size = TF_STREAM_STRUCT_SIZE,
             .get_priority =
                 [](TF_Stream* stream, int32_t* out_priority) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->get_priority(out_priority);
+                auto res = TF_StreamOps::from_handle(stream).get_priority(out_priority);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -55,8 +62,7 @@ public:
             .get_device_index =
                 [](TF_Stream* stream, int* out_device_index) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->get_device_index(out_device_index);
+                auto res = TF_StreamOps::from_handle(stream).get_device_index(out_device_index);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -64,8 +70,7 @@ public:
             .query =
                 [](TF_Stream* stream, _Bool* out_idle, TF_Status* out_status) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->query(out_idle);
+                auto res = TF_StreamOps::from_handle(stream).query(out_idle);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -73,8 +78,7 @@ public:
             .synchronize =
                 [](TF_Stream* stream, TF_Status* out_status) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->synchronize();
+                auto res = TF_StreamOps::from_handle(stream).synchronize();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -84,8 +88,7 @@ public:
                    TF_CaptureStatus* out_capture_status,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->get_capture_status(out_capture_status);
+                auto res = TF_StreamOps::from_handle(stream).get_capture_status(out_capture_status);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -93,24 +96,29 @@ public:
             .get_native_handle =
                 [](TF_Stream* stream, void** out_handle) noexcept
             {
-                auto* self = TF_StreamOps::create(stream);
-                auto res = self->get_native_handle(out_handle);
+                auto res = TF_StreamOps::from_handle(stream).get_native_handle(out_handle);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_StreamOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Stream& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_StreamOps m_vtable;
+    TF_Stream m_handle;
 };
 
 } // namespace ice::builder

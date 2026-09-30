@@ -28,7 +28,7 @@ public:
     set_dims(const int64_t* dims, int num_dims) noexcept
     {
         ice::Status status;
-        m_ops->set_dims(get_handle(), dims, num_dims status.get_handle());
+        m_ops->set_dims(get_handle(), dims, num_dims, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> shape_num_dims(int* out_num_dims) noexcept
     {
         ice::Status status;
-        m_ops->shape_num_dims(get_handle(), out_num_dims status.get_handle());
+        m_ops->shape_num_dims(get_handle(), out_num_dims, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> shape_dim(int index, int64_t* out_dim) noexcept
     {
         ice::Status status;
-        m_ops->shape_dim(get_handle(), index, out_dim status.get_handle());
+        m_ops->shape_dim(get_handle(), index, out_dim, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -42,7 +42,7 @@ extern "C" {
         void (*num_inputs)(TF_OpKernelContext* ctx, int* out_num);
         void (*num_outputs)(TF_OpKernelContext* ctx, int* out_num);
         void (*get_input)(TF_OpKernelContext* ctx, int i, TF_Tensor** out_tensor, TF_Status* out_status);
-        void (*input_range)(TF_OpKernelContext* ctx, const char* name, TF_InputRange_Args* out_args);
+        void (*input_range)(TF_OpKernelContext* ctx, const TF_String* name, TF_InputRange_Args* out_args);
         void (*input_datatype)(TF_OpKernelContext* ctx, int index, TFDataTypeEnum* out_type);
         void (*set_output)(TF_OpKernelContext* ctx, int i, const TF_Tensor* tensor, TF_Status* out_status);
         void (*get_mutable_output)(TF_OpKernelContext* ctx, int i, TF_Tensor** out_tensor, TF_Status* out_status);
@@ -78,7 +78,7 @@ extern "C" {
         void (*get_input_tensor_from_variable)(TF_OpKernelContext* ctx, int input, bool lock_held, bool is_variant_type, bool sparse, TF_CopyTensorFunc copy_func, TF_Tensor** out_tensor, TF_Status* out_status);
         void (*forward_ref_input_to_ref_output)(TF_OpKernelContext* ctx, int32_t input_index, int32_t output_index);
         void (*is_ref_input)(TF_OpKernelContext* ctx, int i, bool* out_is_ref, TF_Status* out_status);
-        void (*get_input_by_name)(TF_OpKernelContext* ctx, const char* input_name, TF_Tensor** out_tensor, TF_Status* out_status);
+        void (*get_input_by_name)(TF_OpKernelContext* ctx, const TF_String* input_name, TF_Tensor** out_tensor, TF_Status* out_status);
         void (*add_n_variant)(TF_OpKernelContext* ctx, TF_BinaryAddFunc binary_add_func, TF_Status* out_status);
         void (*zeros_like_variant)(TF_OpKernelContext* ctx, TF_ZerosLikeFunc zeros_like_func, TF_Status* out_status);
         void (*get_stream)(TF_OpKernelContext* ctx, TF_Stream** out_stream, TF_Status* out_status);

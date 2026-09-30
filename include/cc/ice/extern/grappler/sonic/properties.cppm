@@ -38,7 +38,8 @@ public:
             assume_valid_feeds,
             aggressive_shape_inference,
             include_input_tensor_values,
-            include_output_tensor_values status.get_handle()
+            include_output_tensor_values,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -48,10 +49,15 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_input_properties_size(const char* name, int* out_num_values) noexcept
+    get_input_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept
     {
         ice::Status status;
-        m_ops->get_input_properties_size(get_handle(), name, out_num_values status.get_handle());
+        m_ops->get_input_properties_size(
+            get_handle(),
+            name.get_handle(),
+            out_num_values,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -60,10 +66,15 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_output_properties_size(const char* name, int* out_num_values) noexcept
+    get_output_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept
     {
         ice::Status status;
-        m_ops->get_output_properties_size(get_handle(), name, out_num_values status.get_handle());
+        m_ops->get_output_properties_size(
+            get_handle(),
+            name.get_handle(),
+            out_num_values,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -71,15 +82,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_input_properties(const char* name, TF_Buffer** out_properties, int num_values) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> get_input_properties(
+        const ice::sonic::String& name,
+        TF_Buffer** out_properties,
+        int num_values
+    ) noexcept
     {
         ice::Status status;
         m_ops->get_input_properties(
             get_handle(),
-            name,
+            name.get_handle(),
             out_properties,
-            num_values status.get_handle()
+            num_values,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -88,15 +103,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    get_output_properties(const char* name, TF_Buffer** out_properties, int num_values) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> get_output_properties(
+        const ice::sonic::String& name,
+        TF_Buffer** out_properties,
+        int num_values
+    ) noexcept
     {
         ice::Status status;
         m_ops->get_output_properties(
             get_handle(),
-            name,
+            name.get_handle(),
             out_properties,
-            num_values status.get_handle()
+            num_values,
+            status.get_handle()
         );
 
         if (!status.ok()) {

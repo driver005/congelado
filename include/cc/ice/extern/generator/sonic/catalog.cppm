@@ -29,7 +29,7 @@ public:
     add_module(const ice::sonic::TFGeneratorModuleOps& module) noexcept
     {
         ice::Status status;
-        m_ops->add_module(get_handle(), module.get_handle() status.get_handle());
+        m_ops->add_module(get_handle(), module.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> get_module(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorModuleOps& out_module
     ) noexcept
     {
@@ -46,7 +46,8 @@ public:
         m_ops->get_module(
             get_handle(),
             name.get_handle(),
-            out_module.get_handle() status.get_handle()
+            out_module.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -58,7 +59,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> list_modules(TF_Tensor** out_modules) noexcept
     {
         ice::Status status;
-        m_ops->list_modules(get_handle(), out_modules status.get_handle());
+        m_ops->list_modules(get_handle(), out_modules, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

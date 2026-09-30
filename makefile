@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 MODE ?= debug
 
 .PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test gen-cc-abi check-cc-abi compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
@@ -186,3 +187,76 @@ api-test:
 	else \
 		echo "schemathesis unavailable — install uv, pipx, or pip to run 'make api-test'"; \
 	fi
+
+# ── CI (same targets run locally, in `make ci` container, and in .github/workflows) ──
+CI_IMAGE ?= ghcr.io/driver005/congelado-ci:latest
+CONTAINER ?= podman
+REPORT_DIR ?= $(CURDIR)/reports
+FUZZ_SECONDS ?= 60
+CI_CACHE ?= congelado-ci-cache
+CI_TARGET ?= ci-all
+CI_EXTRA ?=
+CI_RUN = $(CONTAINER) run --rm -v $(CURDIR):/workspace -v $(CI_CACHE):/root/.cache -w /workspace $(CI_EXTRA) $(CI_IMAGE)
+SOURCE_FILES = find . \
+		-not \( -path './build' -prune \) \
+		-not \( -path './.xmake' -prune \) \
+		-not \( -path './bazel-*' -prune \) \
+		-not \( -path './.bzluser' -prune \) \
+		-not \( -path './.cache' -prune \) \
+		-not \( -path './external' -prune \) \
+		-not \( -path './third_party' -prune \) \
+		\( -name '*.cpp' -o -name '*.cc' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \)
+
+.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security
+
+ci-image:
+	$(CONTAINER) build -f docker/Dockerfile.ci -t $(CI_IMAGE) docker
+
+ci:
+	$(CI_RUN) make -k $(CI_TARGET) REPORT_DIR=/workspace/reports FUZZ_SECONDS=$(FUZZ_SECONDS)
+
+ci-shell:
+	$(CONTAINER) run --rm -it -v $(CURDIR):/workspace -v $(CI_CACHE):/root/.cache -w /workspace $(CI_IMAGE) bash
+
+ci-all: ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-security
+
+ci-format:
+	@mkdir -p $(REPORT_DIR)/format
+	$(SOURCE_FILES) | xargs -P $(shell nproc) clang-format --dry-run --Werror > $(REPORT_DIR)/format/clang-format.txt 2>&1; \
+		test ! -s $(REPORT_DIR)/format/clang-format.txt || { head -50 $(REPORT_DIR)/format/clang-format.txt; exit 1; }
+
+ci-abi:
+	bazel run --config=ci //include/cc/abi_gen:cc_abi_gen -- check --pilot --repo-root "$(CURDIR)"
+
+ci-build:
+	bazel build --config=ci //...
+
+ci-test:
+	bazel test --config=ci //... ; status=$$?; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh test --config=ci; exit $$status
+
+ci-warnings:
+	bazel build --config=ci --config=warnings //...
+
+ci-asan ci-ubsan ci-tsan: ci-%:
+	bazel test --config=ci --config=$* \
+		--test_env=ASAN_OPTIONS=detect_leaks=1:detect_stack_use_after_return=1:strict_init_order=1:halt_on_error=1 \
+		--test_env=UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+		--test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1 \
+		//... ; status=$$?; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh $* --config=ci --config=$* || status=1; exit $$status
+
+ci-fuzz:
+	REPORT_DIR=$(REPORT_DIR) FUZZ_SECONDS=$(FUZZ_SECONDS) scripts/ci/run_fuzzers.sh
+
+ci-tidy:
+	REPORT_DIR=$(REPORT_DIR) scripts/ci/clang_tidy.sh
+
+ci-secrets:
+	@mkdir -p $(REPORT_DIR)/security
+	gitleaks git --redact --report-format sarif --report-path $(REPORT_DIR)/security/gitleaks.sarif .
+
+ci-deps:
+	@mkdir -p $(REPORT_DIR)/security
+	osv-scanner scan source --recursive --format sarif --output $(REPORT_DIR)/security/osv.sarif . ; \
+		osv-scanner scan source --recursive --format markdown --output $(REPORT_DIR)/security/osv.md . ; true
+
+ci-security: ci-secrets ci-deps

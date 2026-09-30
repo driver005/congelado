@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_id(TF_PoolId* out_pool_id) noexcept
     {
         ice::Status status;
-        m_ops->get_id(get_handle(), out_pool_id status.get_handle());
+        m_ops->get_id(get_handle(), out_pool_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> use_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->use_count(get_handle(), out_count status.get_handle());
+        m_ops->use_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,8 @@ public:
     begin_allocate_to_pool(TF_StreamFilterFn stream_filter, void* filter_data) noexcept
     {
         ice::Status status;
-        m_ops->begin_allocate_to_pool(get_handle(), stream_filter, filter_data status.get_handle());
+        m_ops
+            ->begin_allocate_to_pool(get_handle(), stream_filter, filter_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,7 +84,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_use_on_oom(_Bool use_on_oom) noexcept
     {
         ice::Status status;
-        m_ops->set_use_on_oom(get_handle(), use_on_oom status.get_handle());
+        m_ops->set_use_on_oom(get_handle(), use_on_oom, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

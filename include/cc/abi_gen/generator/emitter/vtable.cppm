@@ -122,7 +122,6 @@ public:
     std::expected<void, std::string>
     generate_base_modules(std::filesystem::path& root, std::string_view out_dir)
     {
-
         auto output_root = root / out_dir;
 
         // Traverse the naturally built directory graph and write a base.cppm and BUILD file for
@@ -166,8 +165,7 @@ public:
                 deps.push_back(std::move(*child_label));
             }
 
-            auto base_rendered =
-                helper::format_base_module(m_base_folder, *module_name, imports);
+            auto base_rendered = helper::format_base_module(m_base_folder, *module_name, imports);
             if (!base_rendered) {
                 return std::unexpected(std::move(base_rendered.error()));
             }
@@ -188,14 +186,14 @@ public:
                 return write_result;
             }
 
-            auto build_write_result = m_file_writer.write(*build_rendered, dir_path / "BUILD", root);
+            auto build_write_result =
+                m_file_writer.write(*build_rendered, dir_path / "BUILD", root);
             if (!build_write_result) {
                 return build_write_result;
             }
         }
 
         return {};
-
     }
 
     std::expected<bool, std::string> check(
@@ -346,8 +344,7 @@ private:
         }
     }
 
-    std::expected<std::string, std::string>
-    render(
+    std::expected<std::string, std::string> render(
         std::filesystem::path& root,
         const parser::vtable::Model& model,
         const Mode& mode,
@@ -371,7 +368,8 @@ private:
             root,
             module_name,
             model.get_struct_name(),
-            *partition
+            *partition,
+            mode == Mode::Builder ? c_handle_name(model) : std::string{}
         );
         if (!header_result) {
             return std::unexpected(header_result.error());
@@ -406,7 +404,14 @@ private:
             return std::unexpected(std::format("Invalid mode for render function: {}", mode));
         }
 
-        auto footer_result = helper::format_footer(to_gen_target(mode), root);
+        auto footer_result = helper::format_footer(
+            to_gen_target(mode),
+            model.get_class_name(),
+            model.get_struct_name(),
+            c_handle_name(model),
+            std::ranges::any_of(model.get_slots(), &parser::slot::Slot::is_get_name),
+            root
+        );
         if (!footer_result) {
             return std::unexpected(footer_result.error());
         }
@@ -504,6 +509,9 @@ private:
             auto call_arguments = write_call_arguments(slot, mode);
             if (!call_arguments.has_value()) {
                 return call_arguments;
+            }
+            if (!slot.extract_parameters().empty()) {
+                m_writer += ", ";
             }
 
             m_writer += helper::format_method_body_end(root);
@@ -678,6 +686,25 @@ private:
         auto parameters = slot.get_parameters();
         return parameters.empty() ? std::string_view{"plugin_context"}
                                   : parameters.front().get_name();
+    }
+
+    // Example: "TFGrapplerConfigsOps" -> "TFGrapplerConfigs" when a slot takes that handle
+    std::string c_handle_name(const parser::vtable::Model& model) const
+    {
+        std::string_view struct_name = model.get_struct_name();
+        if (!struct_name.ends_with("Ops")) {
+            return {};
+        }
+
+        std::string handle_name{struct_name.substr(0, struct_name.size() - 3)};
+        for (const parser::slot::Slot& slot: model.get_slots()) {
+            auto parameters = slot.get_parameters();
+            if (!parameters.empty() && parameters.front().get_pointee_name() == handle_name) {
+                return handle_name;
+            }
+        }
+
+        return {};
     }
 
     void write_c_parameter_list(std::span<const parser::helper::Parameter> parameters)

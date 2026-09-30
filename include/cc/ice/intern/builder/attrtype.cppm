@@ -16,54 +16,71 @@ export namespace ice::builder {
 class TF_AttrTypeOps
 {
 public:
-    static TF_AttrTypeOps* create(void* ctx) noexcept
+    TF_AttrTypeOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_AttrTypeOps*>(ctx);
+    }
+
+    TF_AttrTypeOps(const TF_AttrTypeOps&) = delete;
+    TF_AttrTypeOps& operator=(const TF_AttrTypeOps&) = delete;
+
+    static TF_AttrTypeOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_AttrTypeOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_AttrTypeOps* create(HandleT* handle) noexcept
+    static TF_AttrTypeOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_AttrTypeOps*>(handle->plugin_data);
+        return *static_cast<TF_AttrTypeOps*>(handle->plugin_data);
     }
 
     virtual ~TF_AttrTypeOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    attrtype_name(TFAttrTypeEnum type, const ice::sonic::TF_StringOps& out_type_name) noexcept = 0;
+    attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) noexcept = 0;
 
-    static TF_AttrTypeOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_AttrTypeOps vtable = {
+        m_vtable = ::TF_AttrTypeOps{
             .struct_size = TF_ATTRTYPE_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_AttrTypeOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_AttrTypeOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .attrtype_name =
                 [](TF_AttrType* attrtype, TFAttrTypeEnum type, TF_String* out_type_name) noexcept
             {
-                auto* self = TF_AttrTypeOps::create(attrtype);
-                auto res = self->attrtype_name(type, ice::sonic::TF_StringOps::wrap(out_type_name));
+                auto res = TF_AttrTypeOps::from_handle(attrtype).attrtype_name(
+                    type,
+                    ice::sonic::String::wrap(out_type_name)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_AttrTypeOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_AttrType& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_AttrTypeOps m_vtable;
+    TF_AttrType m_handle;
 };
 
 } // namespace ice::builder

@@ -10,8 +10,8 @@ congelado_module_library(
     partitions = [
         "writable_file.cppm",
         "read_only_memory_region.cppm",
-        "filesystem.cppm",
         "tree.cppm",
+        "filesystem.cppm",
         "random_access_file.cppm",
     ],
     primary_interface = "base.cppm",

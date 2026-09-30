@@ -25,11 +25,10 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_name(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle() status.get_handle());
+        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,10 +37,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_description(const ice::sonic::TF_StringOps& description) noexcept
+    set_description(const ice::sonic::String& description) noexcept
     {
         ice::Status status;
-        m_ops->set_description(get_handle(), description.get_handle() status.get_handle());
+        m_ops->set_description(get_handle(), description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -52,7 +51,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_position(int position) noexcept
     {
         ice::Status status;
-        m_ops->set_position(get_handle(), position status.get_handle());
+        m_ops->set_position(get_handle(), position, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,10 +60,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_description(const ice::sonic::TF_StringOps& out_description) noexcept
+    get_description(const ice::sonic::String& out_description) noexcept
     {
         ice::Status status;
-        m_ops->get_description(get_handle(), out_description.get_handle() status.get_handle());
+        m_ops->get_description(get_handle(), out_description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -75,7 +74,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_position(int* out_position) noexcept
     {
         ice::Status status;
-        m_ops->get_position(get_handle(), out_position status.get_handle());
+        m_ops->get_position(get_handle(), out_position, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -87,7 +86,7 @@ public:
     get_type(const ice::sonic::TF_TypeInfoOps& out_type) noexcept
     {
         ice::Status status;
-        m_ops->get_type(get_handle(), out_type.get_handle() status.get_handle());
+        m_ops->get_type(get_handle(), out_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

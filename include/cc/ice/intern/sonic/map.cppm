@@ -28,7 +28,7 @@ public:
     insert(const void* key, const void* value) noexcept
     {
         ice::Status status;
-        m_ops->insert(get_handle(), key, value status.get_handle());
+        m_ops->insert(get_handle(), key, value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     find(const void* key, const void** out_value) noexcept
     {
         ice::Status status;
-        m_ops->find(get_handle(), key, out_value status.get_handle());
+        m_ops->find(get_handle(), key, out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -51,7 +51,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> erase(const void* key) noexcept
     {
         ice::Status status;
-        m_ops->erase(get_handle(), key status.get_handle());
+        m_ops->erase(get_handle(), key, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +63,7 @@ public:
     contains(const void* key, int* out_found) noexcept
     {
         ice::Status status;
-        m_ops->contains(get_handle(), key, out_found status.get_handle());
+        m_ops->contains(get_handle(), key, out_found, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -74,7 +74,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->size(get_handle(), out_size status.get_handle());
+        m_ops->size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -86,7 +86,7 @@ public:
     for_each(TF_MapVisitor visitor, void* capture) noexcept
     {
         ice::Status status;
-        m_ops->for_each(get_handle(), visitor, capture status.get_handle());
+        m_ops->for_each(get_handle(), visitor, capture, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

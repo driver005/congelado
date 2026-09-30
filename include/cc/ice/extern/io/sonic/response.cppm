@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_status(int32_t status_code) noexcept
     {
         ice::Status status;
-        m_ops->set_status(get_handle(), status_code status.get_handle());
+        m_ops->set_status(get_handle(), status_code, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_status(int32_t* out_status_code) noexcept
     {
         ice::Status status;
-        m_ops->get_status(get_handle(), out_status_code status.get_handle());
+        m_ops->get_status(get_handle(), out_status_code, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -47,10 +47,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_status_text(const ice::sonic::TF_StringOps& out_status_text) noexcept
+    get_status_text(const ice::sonic::String& out_status_text) noexcept
     {
         ice::Status status;
-        m_ops->get_status_text(get_handle(), out_status_text.get_handle() status.get_handle());
+        m_ops->get_status_text(get_handle(), out_status_text.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -59,10 +59,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_header(const ice::sonic::TF_StringOps& name, const ice::sonic::TF_StringOps& value) noexcept
+    set_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept
     {
         ice::Status status;
-        m_ops->set_header(get_handle(), name.get_handle(), value.get_handle() status.get_handle());
+        m_ops->set_header(get_handle(), name.get_handle(), value.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -71,10 +71,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    add_header(const ice::sonic::TF_StringOps& name, const ice::sonic::TF_StringOps& value) noexcept
+    add_header(const ice::sonic::String& name, const ice::sonic::String& value) noexcept
     {
         ice::Status status;
-        m_ops->add_header(get_handle(), name.get_handle(), value.get_handle() status.get_handle());
+        m_ops->add_header(get_handle(), name.get_handle(), value.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,10 +83,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    remove_header(const ice::sonic::TF_StringOps& name) noexcept
+    remove_header(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->remove_header(get_handle(), name.get_handle() status.get_handle());
+        m_ops->remove_header(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -95,10 +95,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    find_header(const ice::sonic::TF_StringOps& name, const TF_String** out_value) noexcept
+    find_header(const ice::sonic::String& name, const TF_String** out_value) noexcept
     {
         ice::Status status;
-        m_ops->find_header(get_handle(), name.get_handle(), out_value status.get_handle());
+        m_ops->find_header(get_handle(), name.get_handle(), out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -110,7 +110,7 @@ public:
     get_headers(const ice::sonic::TF_MapOps& out_headers) noexcept
     {
         ice::Status status;
-        m_ops->get_headers(get_handle(), out_headers.get_handle() status.get_handle());
+        m_ops->get_headers(get_handle(), out_headers.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -122,7 +122,7 @@ public:
     set_body(const void* data, size_t length) noexcept
     {
         ice::Status status;
-        m_ops->set_body(get_handle(), data, length status.get_handle());
+        m_ops->set_body(get_handle(), data, length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -134,7 +134,7 @@ public:
     get_body(const void** out_data, size_t* out_length) noexcept
     {
         ice::Status status;
-        m_ops->get_body(get_handle(), out_data, out_length status.get_handle());
+        m_ops->get_body(get_handle(), out_data, out_length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -145,7 +145,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_keep_alive(int enabled) noexcept
     {
         ice::Status status;
-        m_ops->set_keep_alive(get_handle(), enabled status.get_handle());
+        m_ops->set_keep_alive(get_handle(), enabled, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -156,7 +156,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_keep_alive(int* out_keep_alive) noexcept
     {
         ice::Status status;
-        m_ops->is_keep_alive(get_handle(), out_keep_alive status.get_handle());
+        m_ops->is_keep_alive(get_handle(), out_keep_alive, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -165,8 +165,8 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> set_cookie(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_StringOps& value,
+        const ice::sonic::String& name,
+        const ice::sonic::String& value,
         const ice::sonic::TF_MapOps& attributes
     ) noexcept
     {
@@ -175,7 +175,8 @@ public:
             get_handle(),
             name.get_handle(),
             value.get_handle(),
-            attributes.get_handle() status.get_handle()
+            attributes.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -188,7 +189,7 @@ public:
     get_set_cookies(const ice::sonic::TF_VectorOps& out_cookies) noexcept
     {
         ice::Status status;
-        m_ops->get_set_cookies(get_handle(), out_cookies.get_handle() status.get_handle());
+        m_ops->get_set_cookies(get_handle(), out_cookies.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -197,10 +198,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_content_type(const ice::sonic::TF_StringOps& out_content_type) noexcept
+    get_content_type(const ice::sonic::String& out_content_type) noexcept
     {
         ice::Status status;
-        m_ops->get_content_type(get_handle(), out_content_type.get_handle() status.get_handle());
+        m_ops->get_content_type(get_handle(), out_content_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -211,7 +212,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_content_length(int64_t* out_length) noexcept
     {
         ice::Status status;
-        m_ops->get_content_length(get_handle(), out_length status.get_handle());
+        m_ops->get_content_length(get_handle(), out_length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -220,10 +221,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_location(const ice::sonic::TF_StringOps& out_location) noexcept
+    get_location(const ice::sonic::String& out_location) noexcept
     {
         ice::Status status;
-        m_ops->get_location(get_handle(), out_location.get_handle() status.get_handle());
+        m_ops->get_location(get_handle(), out_location.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -232,10 +233,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_etag(const ice::sonic::TF_StringOps& out_etag) noexcept
+    get_etag(const ice::sonic::String& out_etag) noexcept
     {
         ice::Status status;
-        m_ops->get_etag(get_handle(), out_etag.get_handle() status.get_handle());
+        m_ops->get_etag(get_handle(), out_etag.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -244,10 +245,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_date(const ice::sonic::TF_StringOps& out_date) noexcept
+    get_date(const ice::sonic::String& out_date) noexcept
     {
         ice::Status status;
-        m_ops->get_date(get_handle(), out_date.get_handle() status.get_handle());
+        m_ops->get_date(get_handle(), out_date.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -256,10 +257,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_server(const ice::sonic::TF_StringOps& out_server) noexcept
+    get_server(const ice::sonic::String& out_server) noexcept
     {
         ice::Status status;
-        m_ops->get_server(get_handle(), out_server.get_handle() status.get_handle());
+        m_ops->get_server(get_handle(), out_server.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -268,10 +269,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_cache_control(const ice::sonic::TF_StringOps& out_cache_control) noexcept
+    get_cache_control(const ice::sonic::String& out_cache_control) noexcept
     {
         ice::Status status;
-        m_ops->get_cache_control(get_handle(), out_cache_control.get_handle() status.get_handle());
+        m_ops->get_cache_control(get_handle(), out_cache_control.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -280,10 +281,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_last_modified(const ice::sonic::TF_StringOps& out_last_modified) noexcept
+    get_last_modified(const ice::sonic::String& out_last_modified) noexcept
     {
         ice::Status status;
-        m_ops->get_last_modified(get_handle(), out_last_modified.get_handle() status.get_handle());
+        m_ops->get_last_modified(get_handle(), out_last_modified.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -294,7 +295,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_informational(int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->is_informational(get_handle(), out_result status.get_handle());
+        m_ops->is_informational(get_handle(), out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -305,7 +306,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_success(int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->is_success(get_handle(), out_result status.get_handle());
+        m_ops->is_success(get_handle(), out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -316,7 +317,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_redirection(int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->is_redirection(get_handle(), out_result status.get_handle());
+        m_ops->is_redirection(get_handle(), out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -327,7 +328,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_client_error(int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->is_client_error(get_handle(), out_result status.get_handle());
+        m_ops->is_client_error(get_handle(), out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -338,7 +339,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_server_error(int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->is_server_error(get_handle(), out_result status.get_handle());
+        m_ops->is_server_error(get_handle(), out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

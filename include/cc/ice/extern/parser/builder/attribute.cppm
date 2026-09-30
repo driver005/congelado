@@ -16,31 +16,38 @@ export namespace ice::builder {
 class TFParserAttributeOps
 {
 public:
-    static TFParserAttributeOps* create(void* ctx) noexcept
+    TFParserAttributeOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserAttributeOps*>(ctx);
+    }
+
+    TFParserAttributeOps(const TFParserAttributeOps&) = delete;
+    TFParserAttributeOps& operator=(const TFParserAttributeOps&) = delete;
+
+    static TFParserAttributeOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserAttributeOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserAttributeOps* create(HandleT* handle) noexcept
+    static TFParserAttributeOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserAttributeOps*>(handle->plugin_data);
+        return *static_cast<TFParserAttributeOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserAttributeOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_value(TF_Tensor** out_value) noexcept = 0;
 
-    static TFParserAttributeOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserAttributeOps vtable = {
+        m_vtable = ::TFParserAttributeOps{
             .struct_size = TF_ARSERATTRIBUTE_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFParserAttributeOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFParserAttributeOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .get_value =
@@ -48,24 +55,31 @@ public:
                    TF_Tensor** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserAttributeOps::create(attribute);
-                auto res = self->get_value(out_value);
+                auto res = TFParserAttributeOps::from_handle(attribute).get_value(out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserAttributeOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFParserAttribute& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserAttributeOps m_vtable;
+    TFParserAttribute m_handle;
 };
 
 } // namespace ice::builder

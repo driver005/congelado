@@ -16,49 +16,66 @@ export namespace ice::builder {
 class TF_StreamExecutorOps
 {
 public:
-    static TF_StreamExecutorOps* create(void* ctx) noexcept
+    TF_StreamExecutorOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_StreamExecutorOps*>(ctx);
+    }
+
+    TF_StreamExecutorOps(const TF_StreamExecutorOps&) = delete;
+    TF_StreamExecutorOps& operator=(const TF_StreamExecutorOps&) = delete;
+
+    static TF_StreamExecutorOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_StreamExecutorOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_StreamExecutorOps* create(HandleT* handle) noexcept
+    static TF_StreamExecutorOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_StreamExecutorOps*>(handle->plugin_data);
+        return *static_cast<TF_StreamExecutorOps*>(handle->plugin_data);
     }
 
     virtual ~TF_StreamExecutorOps() = default;
 
-    static TF_StreamExecutorOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_StreamExecutorOps vtable = {
+        m_vtable = ::TF_StreamExecutorOps{
             .struct_size = TF_STREAMEXECUTOR_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_StreamExecutorOps::create(plugin_context);
+                std::unique_ptr<TF_StreamExecutorOps>{
+                    &TF_StreamExecutorOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_StreamExecutorOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_StreamExecutorOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_StreamExecutorOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_StreamExecutor& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_StreamExecutorOps m_vtable;
+    TF_StreamExecutor m_handle;
 };
 
 } // namespace ice::builder

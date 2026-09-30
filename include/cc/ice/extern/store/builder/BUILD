@@ -10,10 +10,10 @@ congelado_module_library(
     partitions = [
         "collection.cppm",
         "store.cppm",
-        "watch.cppm",
-        "admin.cppm",
         "transaction.cppm",
+        "watch.cppm",
         "index.cppm",
+        "admin.cppm",
         "query.cppm",
     ],
     primary_interface = "base.cppm",

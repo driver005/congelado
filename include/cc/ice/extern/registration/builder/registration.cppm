@@ -16,48 +16,55 @@ export namespace ice::builder {
 class TF_RegistrationOps
 {
 public:
-    static TF_RegistrationOps* create(void* ctx) noexcept
+    TF_RegistrationOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_RegistrationOps*>(ctx);
+    }
+
+    TF_RegistrationOps(const TF_RegistrationOps&) = delete;
+    TF_RegistrationOps& operator=(const TF_RegistrationOps&) = delete;
+
+    static TF_RegistrationOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_RegistrationOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RegistrationOps* create(HandleT* handle) noexcept
+    static TF_RegistrationOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_RegistrationOps*>(handle->plugin_data);
+        return *static_cast<TF_RegistrationOps*>(handle->plugin_data);
     }
 
     virtual ~TF_RegistrationOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> register_op(
-        const ice::sonic::TF_StringOps& type,
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& type,
+        const ice::sonic::String& name,
         void* value
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get(const ice::sonic::TF_StringOps& type,
-        const ice::sonic::TF_StringOps& name,
+    get(const ice::sonic::String& type,
+        const ice::sonic::String& name,
         void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> unregister(
-        const ice::sonic::TF_StringOps& type,
-        const ice::sonic::TF_StringOps& name
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept = 0;
 
-    static TF_RegistrationOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_RegistrationOps vtable = {
+        m_vtable = ::TF_RegistrationOps{
             .struct_size = TF_REGISTRATION_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_RegistrationOps::create(plugin_context);
+                std::unique_ptr<TF_RegistrationOps>{
+                    &TF_RegistrationOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_RegistrationOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_RegistrationOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .register_op =
@@ -66,12 +73,12 @@ public:
                    const TF_String* name,
                    void* value) noexcept
             {
-                auto* self = TF_RegistrationOps::create(registration);
-                auto res = self->register_op(
-                    ice::sonic::TF_StringOps::wrap(type),
-                    ice::sonic::TF_StringOps::wrap(name),
-                    value
-                );
+                auto res = TF_RegistrationOps::from_handle(registration)
+                               .register_op(
+                                   ice::sonic::String::wrap(type),
+                                   ice::sonic::String::wrap(name),
+                                   value
+                               );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -82,12 +89,12 @@ public:
                    const TF_String* name,
                    void** out_value) noexcept
             {
-                auto* self = TF_RegistrationOps::create(registration);
-                auto res = self->get(
-                    ice::sonic::TF_StringOps::wrap(type),
-                    ice::sonic::TF_StringOps::wrap(name),
-                    out_value
-                );
+                auto res = TF_RegistrationOps::from_handle(registration)
+                               .get(
+                                   ice::sonic::String::wrap(type),
+                                   ice::sonic::String::wrap(name),
+                                   out_value
+                               );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -97,27 +104,33 @@ public:
                    const TF_String* type,
                    const TF_String* name) noexcept
             {
-                auto* self = TF_RegistrationOps::create(registration);
-                auto res = self->unregister(
-                    ice::sonic::TF_StringOps::wrap(type),
-                    ice::sonic::TF_StringOps::wrap(name)
-                );
+                auto res =
+                    TF_RegistrationOps::from_handle(registration)
+                        .unregister(ice::sonic::String::wrap(type), ice::sonic::String::wrap(name));
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_RegistrationOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Registration& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_RegistrationOps m_vtable;
+    TF_Registration m_handle;
 };
 
 } // namespace ice::builder
