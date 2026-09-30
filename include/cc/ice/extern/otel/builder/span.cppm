@@ -16,42 +16,47 @@ export namespace ice::builder {
 class TFOtelSpanOps
 {
 public:
-    static TFOtelSpanOps* create(void* ctx) noexcept
+    TFOtelSpanOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFOtelSpanOps*>(ctx);
+    }
+
+    TFOtelSpanOps(const TFOtelSpanOps&) = delete;
+    TFOtelSpanOps& operator=(const TFOtelSpanOps&) = delete;
+
+    static TFOtelSpanOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFOtelSpanOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFOtelSpanOps* create(HandleT* handle) noexcept
+    static TFOtelSpanOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFOtelSpanOps*>(handle->plugin_data);
+        return *static_cast<TFOtelSpanOps*>(handle->plugin_data);
     }
 
     virtual ~TFOtelSpanOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_attribute(
-        const ice::sonic::TF_StringOps& key,
-        const ice::sonic::TF_StringOps& value
-    ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_status(int status_code, const ice::sonic::TF_StringOps& description) noexcept = 0;
+    set_attribute(const ice::sonic::String& key, const ice::sonic::String& value) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    set_status(int status_code, const ice::sonic::String& description) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> end() noexcept = 0;
 
-    static TFOtelSpanOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFOtelSpanOps vtable = {
+        m_vtable = ::TFOtelSpanOps{
             .struct_size = TF_TELSPAN_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFOtelSpanOps::create(plugin_context);
+                std::unique_ptr<TFOtelSpanOps>{&TFOtelSpanOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFOtelSpanOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFOtelSpanOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .set_attribute =
@@ -60,10 +65,9 @@ public:
                    const TF_String* value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFOtelSpanOps::create(span);
-                auto res = self->set_attribute(
-                    ice::sonic::TF_StringOps::wrap(key),
-                    ice::sonic::TF_StringOps::wrap(value)
+                auto res = TFOtelSpanOps::from_handle(span).set_attribute(
+                    ice::sonic::String::wrap(key),
+                    ice::sonic::String::wrap(value)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -75,9 +79,10 @@ public:
                    const TF_String* description,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFOtelSpanOps::create(span);
-                auto res =
-                    self->set_status(status_code, ice::sonic::TF_StringOps::wrap(description));
+                auto res = TFOtelSpanOps::from_handle(span).set_status(
+                    status_code,
+                    ice::sonic::String::wrap(description)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -85,24 +90,31 @@ public:
             .end =
                 [](TFOtelSpan* span, TF_Status* out_status) noexcept
             {
-                auto* self = TFOtelSpanOps::create(span);
-                auto res = self->end();
+                auto res = TFOtelSpanOps::from_handle(span).end();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFOtelSpanOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFOtelSpan& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFOtelSpanOps m_vtable;
+    TFOtelSpan m_handle;
 };
 
 } // namespace ice::builder

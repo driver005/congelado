@@ -24,11 +24,10 @@ public:
 
     static constexpr std::string_view domain_name = "filesystem";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    append(const ice::sonic::TF_StringOps& buffer) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> append(const ice::sonic::String& buffer) noexcept
     {
         ice::Status status;
-        m_ops->append(get_handle(), buffer.get_handle() status.get_handle());
+        m_ops->append(get_handle(), buffer.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> tell(int64_t* out_position) noexcept
     {
         ice::Status status;
-        m_ops->tell(get_handle(), out_position status.get_handle());
+        m_ops->tell(get_handle(), out_position, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

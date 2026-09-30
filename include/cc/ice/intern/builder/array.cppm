@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ArrayOps
 {
 public:
-    static TF_ArrayOps* create(void* ctx) noexcept
+    TF_ArrayOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ArrayOps*>(ctx);
+    }
+
+    TF_ArrayOps(const TF_ArrayOps&) = delete;
+    TF_ArrayOps& operator=(const TF_ArrayOps&) = delete;
+
+    static TF_ArrayOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ArrayOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ArrayOps* create(HandleT* handle) noexcept
+    static TF_ArrayOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ArrayOps*>(handle->plugin_data);
+        return *static_cast<TF_ArrayOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ArrayOps() = default;
@@ -38,15 +46,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> size(size_t* out_size) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> data(void** out_data) noexcept = 0;
 
-    static TF_ArrayOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ArrayOps vtable = {
+        m_vtable = ::TF_ArrayOps{
             .struct_size = TF_ARRAY_STRUCT_SIZE,
             .set_element_size =
                 [](TF_Array* array, size_t element_size) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->set_element_size(element_size);
+                auto res = TF_ArrayOps::from_handle(array).set_element_size(element_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -54,8 +61,7 @@ public:
             .set_count =
                 [](TF_Array* array, size_t count) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->set_count(count);
+                auto res = TF_ArrayOps::from_handle(array).set_count(count);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -66,8 +72,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->get(index, out_value);
+                auto res = TF_ArrayOps::from_handle(array).get(index, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -75,8 +80,7 @@ public:
             .set =
                 [](TF_Array* array, size_t index, const void* value, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->set(index, value);
+                auto res = TF_ArrayOps::from_handle(array).set(index, value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -84,8 +88,7 @@ public:
             .size =
                 [](const TF_Array* array, size_t* out_size) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->size(out_size);
+                auto res = TF_ArrayOps::from_handle(array).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -93,8 +96,7 @@ public:
             .data =
                 [](TF_Array* array, void** out_data) noexcept
             {
-                auto* self = TF_ArrayOps::create(array);
-                auto res = self->data(out_data);
+                auto res = TF_ArrayOps::from_handle(array).data(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -103,20 +105,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ArrayOps::create(plugin_context);
+                std::unique_ptr<TF_ArrayOps>{&TF_ArrayOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ArrayOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Array& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ArrayOps m_vtable;
+    TF_Array m_handle;
 };
 
 } // namespace ice::builder

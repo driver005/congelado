@@ -16,37 +16,46 @@ export namespace ice::builder {
 class TF_RandomAccessFileOps
 {
 public:
-    static TF_RandomAccessFileOps* create(void* ctx) noexcept
+    TF_RandomAccessFileOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_RandomAccessFileOps*>(ctx);
+    }
+
+    TF_RandomAccessFileOps(const TF_RandomAccessFileOps&) = delete;
+    TF_RandomAccessFileOps& operator=(const TF_RandomAccessFileOps&) = delete;
+
+    static TF_RandomAccessFileOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_RandomAccessFileOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RandomAccessFileOps* create(HandleT* handle) noexcept
+    static TF_RandomAccessFileOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_RandomAccessFileOps*>(handle->plugin_data);
+        return *static_cast<TF_RandomAccessFileOps*>(handle->plugin_data);
     }
 
     virtual ~TF_RandomAccessFileOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     read(uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read) noexcept = 0;
 
-    static TF_RandomAccessFileOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_RandomAccessFileOps vtable = {
+        m_vtable = ::TF_RandomAccessFileOps{
             .struct_size = TF_RANDOMACCESSFILE_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_RandomAccessFileOps::create(plugin_context);
+                std::unique_ptr<TF_RandomAccessFileOps>{
+                    &TF_RandomAccessFileOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_RandomAccessFileOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_RandomAccessFileOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .read =
@@ -57,24 +66,32 @@ public:
                    int64_t* out_bytes_read,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_RandomAccessFileOps::create(file);
-                auto res = self->read(offset, n, buffer, out_bytes_read);
+                auto res = TF_RandomAccessFileOps::from_handle(file)
+                               .read(offset, n, buffer, out_bytes_read);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_RandomAccessFileOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_RandomAccessFile& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_RandomAccessFileOps m_vtable;
+    TF_RandomAccessFile m_handle;
 };
 
 } // namespace ice::builder

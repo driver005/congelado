@@ -16,20 +16,28 @@ export namespace ice::builder {
 class TFParserCatalogOps
 {
 public:
-    static TFParserCatalogOps* create(void* ctx) noexcept
+    TFParserCatalogOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserCatalogOps*>(ctx);
+    }
+
+    TFParserCatalogOps(const TFParserCatalogOps&) = delete;
+    TFParserCatalogOps& operator=(const TFParserCatalogOps&) = delete;
+
+    static TFParserCatalogOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserCatalogOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserCatalogOps* create(HandleT* handle) noexcept
+    static TFParserCatalogOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserCatalogOps*>(handle->plugin_data);
+        return *static_cast<TFParserCatalogOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserCatalogOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> parse_file(
-        const ice::sonic::TF_StringOps& file_path,
+        const ice::sonic::String& file_path,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> parse_buffer(
@@ -37,9 +45,9 @@ public:
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept = 0;
 
-    static TFParserCatalogOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserCatalogOps vtable = {
+        m_vtable = ::TFParserCatalogOps{
             .struct_size = TF_ARSERCATALOG_STRUCT_SIZE,
             .parse_file =
                 [](TFParserCatalog* catalog,
@@ -47,9 +55,8 @@ public:
                    TFParserModule* out_module,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserCatalogOps::create(catalog);
-                auto res = self->parse_file(
-                    ice::sonic::TF_StringOps::wrap(file_path),
+                auto res = TFParserCatalogOps::from_handle(catalog).parse_file(
+                    ice::sonic::String::wrap(file_path),
                     ice::sonic::TFParserModuleOps::wrap(out_module)
                 );
                 if (!res) {
@@ -62,8 +69,7 @@ public:
                    TFParserModule* out_module,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserCatalogOps::create(catalog);
-                auto res = self->parse_buffer(
+                auto res = TFParserCatalogOps::from_handle(catalog).parse_buffer(
                     ice::sonic::TF_BufferOps::wrap(buffer),
                     ice::sonic::TFParserModuleOps::wrap(out_module)
                 );
@@ -73,16 +79,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserCatalogOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFParserCatalog& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserCatalogOps m_vtable;
+    TFParserCatalog m_handle;
 };
 
 } // namespace ice::builder

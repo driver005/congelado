@@ -8,10 +8,10 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 congelado_module_library(
     name = "cc_ice_extern_kernel_sonic",
     partitions = [
-        "kernel.cppm",
         "builder.cppm",
         "context.cppm",
         "construction.cppm",
+        "kernel.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],

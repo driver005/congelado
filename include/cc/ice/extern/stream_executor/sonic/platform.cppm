@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_device_count(int* out_device_count) noexcept
     {
         ice::Status status;
-        m_ops->get_device_count(get_handle(), out_device_count status.get_handle());
+        m_ops->get_device_count(get_handle(), out_device_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     create_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept
     {
         ice::Status status;
-        m_ops->create_device_internal(get_handle(), device.get_handle() status.get_handle());
+        m_ops->create_device_internal(get_handle(), device.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -51,7 +51,7 @@ public:
     destroy_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept
     {
         ice::Status status;
-        m_ops->destroy_device_internal(get_handle(), device.get_handle() status.get_handle());
+        m_ops->destroy_device_internal(get_handle(), device.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +63,7 @@ public:
     create_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept
     {
         ice::Status status;
-        m_ops->create_executor_internal(get_handle(), executor.get_handle() status.get_handle());
+        m_ops->create_executor_internal(get_handle(), executor.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -75,7 +75,7 @@ public:
     destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept
     {
         ice::Status status;
-        m_ops->destroy_executor_internal(get_handle(), executor.get_handle() status.get_handle());
+        m_ops->destroy_executor_internal(get_handle(), executor.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -87,7 +87,7 @@ public:
     get_current_device(int* out_device_index) noexcept
     {
         ice::Status status;
-        m_ops->get_current_device(get_handle(), out_device_index status.get_handle());
+        m_ops->get_current_device(get_handle(), out_device_index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -98,7 +98,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_current_device(int device_index) noexcept
     {
         ice::Status status;
-        m_ops->set_current_device(get_handle(), device_index status.get_handle());
+        m_ops->set_current_device(get_handle(), device_index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -110,7 +110,7 @@ public:
     get_device_for_pointer(const void* pointer, int* out_device_index) noexcept
     {
         ice::Status status;
-        m_ops->get_device_for_pointer(get_handle(), pointer, out_device_index status.get_handle());
+        m_ops->get_device_for_pointer(get_handle(), pointer, out_device_index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -126,7 +126,8 @@ public:
             get_handle(),
             device_index,
             peer_device_index,
-            out_can_access status.get_handle()
+            out_can_access,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -138,7 +139,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
     {
         ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle status.get_handle());
+        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

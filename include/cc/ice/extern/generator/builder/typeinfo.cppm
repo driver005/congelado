@@ -16,56 +16,63 @@ export namespace ice::builder {
 class TF_TypeInfoOps
 {
 public:
-    static TF_TypeInfoOps* create(void* ctx) noexcept
+    TF_TypeInfoOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_TypeInfoOps*>(ctx);
+    }
+
+    TF_TypeInfoOps(const TF_TypeInfoOps&) = delete;
+    TF_TypeInfoOps& operator=(const TF_TypeInfoOps&) = delete;
+
+    static TF_TypeInfoOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_TypeInfoOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TypeInfoOps* create(HandleT* handle) noexcept
+    static TF_TypeInfoOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_TypeInfoOps*>(handle->plugin_data);
+        return *static_cast<TF_TypeInfoOps*>(handle->plugin_data);
     }
 
     virtual ~TF_TypeInfoOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    set_type_attr_name(const ice::sonic::TF_StringOps& type_attr_name) noexcept = 0;
+    set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_data_type(int data_type) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_read_only(_Bool read_only) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_list(_Bool is_list) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_type_attr_name(const ice::sonic::TF_StringOps& out_type_attr_name) noexcept = 0;
+    get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_data_type(int* out_data_type) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     is_read_only(int* out_is_read_only) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> is_list(int* out_is_list) noexcept = 0;
 
-    static TF_TypeInfoOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_TypeInfoOps vtable = {
+        m_vtable = ::TF_TypeInfoOps{
             .struct_size = TF_TYPEINFO_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_TypeInfoOps::create(plugin_context);
+                std::unique_ptr<TF_TypeInfoOps>{&TF_TypeInfoOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_TypeInfoOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .set_type_attr_name =
                 [](TF_TypeInfo* type_context, const TF_String* type_attr_name) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->set_type_attr_name(ice::sonic::TF_StringOps::wrap(type_attr_name));
+                auto res = TF_TypeInfoOps::from_handle(type_context)
+                               .set_type_attr_name(ice::sonic::String::wrap(type_attr_name));
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -73,8 +80,7 @@ public:
             .set_data_type =
                 [](TF_TypeInfo* type_context, int data_type) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->set_data_type(data_type);
+                auto res = TF_TypeInfoOps::from_handle(type_context).set_data_type(data_type);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -82,8 +88,7 @@ public:
             .set_read_only =
                 [](TF_TypeInfo* type_context, _Bool read_only) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->set_read_only(read_only);
+                auto res = TF_TypeInfoOps::from_handle(type_context).set_read_only(read_only);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -91,8 +96,7 @@ public:
             .set_list =
                 [](TF_TypeInfo* type_context, _Bool is_list) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->set_list(is_list);
+                auto res = TF_TypeInfoOps::from_handle(type_context).set_list(is_list);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -100,9 +104,8 @@ public:
             .get_type_attr_name =
                 [](TF_TypeInfo* type_context, TF_String* out_type_attr_name) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res =
-                    self->get_type_attr_name(ice::sonic::TF_StringOps::wrap(out_type_attr_name));
+                auto res = TF_TypeInfoOps::from_handle(type_context)
+                               .get_type_attr_name(ice::sonic::String::wrap(out_type_attr_name));
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -110,8 +113,7 @@ public:
             .get_data_type =
                 [](TF_TypeInfo* type_context, int* out_data_type) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->get_data_type(out_data_type);
+                auto res = TF_TypeInfoOps::from_handle(type_context).get_data_type(out_data_type);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -119,8 +121,7 @@ public:
             .is_read_only =
                 [](TF_TypeInfo* type_context, int* out_is_read_only) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->is_read_only(out_is_read_only);
+                auto res = TF_TypeInfoOps::from_handle(type_context).is_read_only(out_is_read_only);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -128,24 +129,31 @@ public:
             .is_list =
                 [](TF_TypeInfo* type_context, int* out_is_list) noexcept
             {
-                auto* self = TF_TypeInfoOps::create(type_context);
-                auto res = self->is_list(out_is_list);
+                auto res = TF_TypeInfoOps::from_handle(type_context).is_list(out_is_list);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_TypeInfoOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_TypeInfo& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_TypeInfoOps m_vtable;
+    TF_TypeInfo m_handle;
 };
 
 } // namespace ice::builder

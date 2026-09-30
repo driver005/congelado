@@ -25,10 +25,10 @@ public:
     static constexpr std::string_view domain_name = "parser";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_op_type(const ice::sonic::TF_StringOps& out_op_type) noexcept
+    get_op_type(const ice::sonic::String& out_op_type) noexcept
     {
         ice::Status status;
-        m_ops->get_op_type(get_handle(), out_op_type.get_handle() status.get_handle());
+        m_ops->get_op_type(get_handle(), out_op_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_attribute_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_attribute_count(get_handle(), out_count status.get_handle());
+        m_ops->get_attribute_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -51,7 +51,7 @@ public:
     get_attribute(int index, const ice::sonic::TFParserAttributeOps& out_attribute) noexcept
     {
         ice::Status status;
-        m_ops->get_attribute(get_handle(), index, out_attribute.get_handle() status.get_handle());
+        m_ops->get_attribute(get_handle(), index, out_attribute.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +63,7 @@ public:
     get_definition(const ice::sonic::TFParserDefinitionOps& out_definition) noexcept
     {
         ice::Status status;
-        m_ops->get_definition(get_handle(), out_definition.get_handle() status.get_handle());
+        m_ops->get_definition(get_handle(), out_definition.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -58,11 +58,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    seek(const ice::sonic::TF_StringOps& position) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> seek(const ice::sonic::String& position) noexcept
     {
         ice::Status status;
-        m_ops->seek(get_handle(), position.get_handle() status.get_handle());
+        m_ops->seek(get_handle(), position.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -74,7 +73,7 @@ public:
     get_lag(TFPubSubIntFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->get_lag(get_handle(), completion, user_data status.get_handle());
+        m_ops->get_lag(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

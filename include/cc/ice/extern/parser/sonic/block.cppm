@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_node_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_node_count(get_handle(), out_count status.get_handle());
+        m_ops->get_node_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     get_node(int index, const ice::sonic::TFParserNodeOps& out_node) noexcept
     {
         ice::Status status;
-        m_ops->get_node(get_handle(), index, out_node.get_handle() status.get_handle());
+        m_ops->get_node(get_handle(), index, out_node.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

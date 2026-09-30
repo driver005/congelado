@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_SpanOps
 {
 public:
-    static TF_SpanOps* create(void* ctx) noexcept
+    TF_SpanOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_SpanOps*>(ctx);
+    }
+
+    TF_SpanOps(const TF_SpanOps&) = delete;
+    TF_SpanOps& operator=(const TF_SpanOps&) = delete;
+
+    static TF_SpanOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_SpanOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SpanOps* create(HandleT* handle) noexcept
+    static TF_SpanOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_SpanOps*>(handle->plugin_data);
+        return *static_cast<TF_SpanOps*>(handle->plugin_data);
     }
 
     virtual ~TF_SpanOps() = default;
@@ -35,9 +43,9 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     subspan(size_t offset, size_t count, const ice::sonic::TF_SpanOps& out_span) noexcept = 0;
 
-    static TF_SpanOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_SpanOps vtable = {
+        m_vtable = ::TF_SpanOps{
             .struct_size = TF_SPAN_STRUCT_SIZE,
             .get =
                 [](const TF_Span* span,
@@ -45,8 +53,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SpanOps::create(span);
-                auto res = self->get(index, out_value);
+                auto res = TF_SpanOps::from_handle(span).get(index, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -54,8 +61,7 @@ public:
             .size =
                 [](const TF_Span* span, size_t* out_size) noexcept
             {
-                auto* self = TF_SpanOps::create(span);
-                auto res = self->size(out_size);
+                auto res = TF_SpanOps::from_handle(span).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -63,8 +69,7 @@ public:
             .data =
                 [](const TF_Span* span, void** out_data) noexcept
             {
-                auto* self = TF_SpanOps::create(span);
-                auto res = self->data(out_data);
+                auto res = TF_SpanOps::from_handle(span).data(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -76,8 +81,8 @@ public:
                    TF_Span* out_span,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_SpanOps::create(span);
-                auto res = self->subspan(offset, count, ice::sonic::TF_SpanOps::wrap(out_span));
+                auto res = TF_SpanOps::from_handle(span)
+                               .subspan(offset, count, ice::sonic::TF_SpanOps::wrap(out_span));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -86,20 +91,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_SpanOps::create(plugin_context);
+                std::unique_ptr<TF_SpanOps>{&TF_SpanOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_SpanOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Span& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_SpanOps m_vtable;
+    TF_Span m_handle;
 };
 
 } // namespace ice::builder

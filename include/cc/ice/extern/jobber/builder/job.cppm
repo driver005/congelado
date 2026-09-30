@@ -16,22 +16,28 @@ export namespace ice::builder {
 class TF_JobOps
 {
 public:
-    static TF_JobOps* create(void* ctx) noexcept
+    TF_JobOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_JobOps*>(ctx);
+    }
+
+    TF_JobOps(const TF_JobOps&) = delete;
+    TF_JobOps& operator=(const TF_JobOps&) = delete;
+
+    static TF_JobOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_JobOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_JobOps* create(HandleT* handle) noexcept
+    static TF_JobOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_JobOps*>(handle->plugin_data);
+        return *static_cast<TF_JobOps*>(handle->plugin_data);
     }
 
     virtual ~TF_JobOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status> execute(
-        const ice::sonic::TF_StringOps& input,
-        const ice::sonic::TF_StringOps& out_output
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    execute(const ice::sonic::String& input, const ice::sonic::String& out_output) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> resubmit() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     wait(int64_t timeout_ms, TFJobCompletionFn completion, void* user_data) noexcept = 0;
@@ -44,22 +50,21 @@ public:
         const ice::sonic::TF_VectorOps& out_job_ids
     ) noexcept = 0;
 
-    static TF_JobOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_JobOps vtable = {
+        m_vtable = ::TF_JobOps{
             .struct_size = TF_JOB_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_JobOps::create(plugin_context);
+                std::unique_ptr<TF_JobOps>{&TF_JobOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_JobOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_JobOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .execute =
@@ -68,10 +73,9 @@ public:
                    TF_String* out_output,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->execute(
-                    ice::sonic::TF_StringOps::wrap(input),
-                    ice::sonic::TF_StringOps::wrap(out_output)
+                auto res = TF_JobOps::from_handle(job).execute(
+                    ice::sonic::String::wrap(input),
+                    ice::sonic::String::wrap(out_output)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -80,8 +84,7 @@ public:
             .resubmit =
                 [](TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->resubmit();
+                auto res = TF_JobOps::from_handle(job).resubmit();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -93,8 +96,7 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->wait(timeout_ms, completion, user_data);
+                auto res = TF_JobOps::from_handle(job).wait(timeout_ms, completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -102,8 +104,7 @@ public:
             .on_complete =
                 [](TF_Job* job, TFJobCompletionFn completion, void* user_data) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->on_complete(completion, user_data);
+                auto res = TF_JobOps::from_handle(job).on_complete(completion, user_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -111,8 +112,7 @@ public:
             .on_progress =
                 [](TF_Job* job, TFJobProgressFn progress, void* user_data) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->on_progress(progress, user_data);
+                auto res = TF_JobOps::from_handle(job).on_progress(progress, user_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -123,8 +123,7 @@ public:
                    TF_Vector* out_job_ids,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_JobOps::create(job);
-                auto res = self->list(
+                auto res = TF_JobOps::from_handle(job).list(
                     ice::sonic::TF_MapOps::wrap(filters),
                     ice::sonic::TF_VectorOps::wrap(out_job_ids)
                 );
@@ -134,16 +133,24 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_JobOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Job& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_JobOps m_vtable;
+    TF_Job m_handle;
 };
 
 } // namespace ice::builder

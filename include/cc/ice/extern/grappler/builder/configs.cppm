@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFGrapplerConfigsOps
 {
 public:
-    static TFGrapplerConfigsOps* create(void* ctx) noexcept
+    TFGrapplerConfigsOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGrapplerConfigsOps*>(ctx);
+    }
+
+    TFGrapplerConfigsOps(const TFGrapplerConfigsOps&) = delete;
+    TFGrapplerConfigsOps& operator=(const TFGrapplerConfigsOps&) = delete;
+
+    static TFGrapplerConfigsOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGrapplerConfigsOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerConfigsOps* create(HandleT* handle) noexcept
+    static TFGrapplerConfigsOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGrapplerConfigsOps*>(handle->plugin_data);
+        return *static_cast<TFGrapplerConfigsOps*>(handle->plugin_data);
     }
 
     virtual ~TFGrapplerConfigsOps() = default;
@@ -37,15 +45,15 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     set_optimizer_configs(const TFGrapplerOptimizerConfigs* in_configs) noexcept = 0;
 
-    static TFGrapplerConfigsOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGrapplerConfigsOps vtable = {
+        m_vtable = ::TFGrapplerConfigsOps{
             .struct_size = TF_RAPPLERCONFIGS_STRUCT_SIZE,
             .get_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel* out_level) noexcept
             {
-                auto* self = TFGrapplerConfigsOps::create(configs);
-                auto res = self->get_optimization_level(out_level);
+                auto res =
+                    TFGrapplerConfigsOps::from_handle(configs).get_optimization_level(out_level);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -53,8 +61,7 @@ public:
             .set_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept
             {
-                auto* self = TFGrapplerConfigsOps::create(configs);
-                auto res = self->set_optimization_level(level);
+                auto res = TFGrapplerConfigsOps::from_handle(configs).set_optimization_level(level);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -64,8 +71,8 @@ public:
                    TFGrapplerOptimizerConfigs* out_configs,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerConfigsOps::create(configs);
-                auto res = self->get_optimizer_configs(out_configs);
+                auto res =
+                    TFGrapplerConfigsOps::from_handle(configs).get_optimizer_configs(out_configs);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -75,24 +82,30 @@ public:
                    const TFGrapplerOptimizerConfigs* in_configs,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerConfigsOps::create(configs);
-                auto res = self->set_optimizer_configs(in_configs);
+                auto res =
+                    TFGrapplerConfigsOps::from_handle(configs).set_optimizer_configs(in_configs);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGrapplerConfigsOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFGrapplerConfigs& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGrapplerConfigsOps m_vtable;
+    TFGrapplerConfigs m_handle;
 };
 
 } // namespace ice::builder

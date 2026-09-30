@@ -28,7 +28,7 @@ public:
     get_typeinfo(const ice::sonic::TFParserTypeInfoOps& out_typeinfo) noexcept
     {
         ice::Status status;
-        m_ops->get_typeinfo(get_handle(), out_typeinfo.get_handle() status.get_handle());
+        m_ops->get_typeinfo(get_handle(), out_typeinfo.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

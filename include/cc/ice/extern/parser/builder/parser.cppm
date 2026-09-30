@@ -16,49 +16,64 @@ export namespace ice::builder {
 class TF_ParserOps
 {
 public:
-    static TF_ParserOps* create(void* ctx) noexcept
+    TF_ParserOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ParserOps*>(ctx);
+    }
+
+    TF_ParserOps(const TF_ParserOps&) = delete;
+    TF_ParserOps& operator=(const TF_ParserOps&) = delete;
+
+    static TF_ParserOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ParserOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ParserOps* create(HandleT* handle) noexcept
+    static TF_ParserOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ParserOps*>(handle->plugin_data);
+        return *static_cast<TF_ParserOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ParserOps() = default;
 
-    static TF_ParserOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ParserOps vtable = {
+        m_vtable = ::TF_ParserOps{
             .struct_size = TF_PARSER_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ParserOps::create(plugin_context);
+                std::unique_ptr<TF_ParserOps>{&TF_ParserOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_ParserOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_ParserOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ParserOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Parser& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ParserOps m_vtable;
+    TF_Parser m_handle;
 };
 
 } // namespace ice::builder

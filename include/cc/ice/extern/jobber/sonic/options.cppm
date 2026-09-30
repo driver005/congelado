@@ -28,7 +28,7 @@ public:
     get_options(const ice::sonic::TF_JobOps& job, TFJobOptions* out_options) noexcept
     {
         ice::Status status;
-        m_ops->get_options(get_handle(), job.get_handle(), out_options status.get_handle());
+        m_ops->get_options(get_handle(), job.get_handle(), out_options, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     update_options(const ice::sonic::TF_JobOps& job, const TFJobOptions* new_options) noexcept
     {
         ice::Status status;
-        m_ops->update_options(get_handle(), job.get_handle(), new_options status.get_handle());
+        m_ops->update_options(get_handle(), job.get_handle(), new_options, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -52,7 +52,7 @@ public:
     set_priority(const ice::sonic::TF_JobOps& job, int priority) noexcept
     {
         ice::Status status;
-        m_ops->set_priority(get_handle(), job.get_handle(), priority status.get_handle());
+        m_ops->set_priority(get_handle(), job.get_handle(), priority, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -29,7 +29,7 @@ public:
     read(uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read) noexcept
     {
         ice::Status status;
-        m_ops->read(get_handle(), offset, n, buffer, out_bytes_read status.get_handle());
+        m_ops->read(get_handle(), offset, n, buffer, out_bytes_read, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

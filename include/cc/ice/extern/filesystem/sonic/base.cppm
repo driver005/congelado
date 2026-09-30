@@ -8,8 +8,8 @@ export module cc_ice_extern_filesystem_sonic;
 // clang-format off
 export import :writable_file;
 export import :read_only_memory_region;
-export import :filesystem;
 export import :tree;
+export import :filesystem;
 export import :random_access_file;
 
 // clang-format on

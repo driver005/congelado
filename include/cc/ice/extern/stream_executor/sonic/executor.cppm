@@ -37,7 +37,8 @@ public:
             device.get_handle(),
             out_free,
             out_total,
-            out_success status.get_handle()
+            out_success,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -55,7 +56,8 @@ public:
         m_ops->create_stream_internal(
             get_handle(),
             device.get_handle(),
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -73,7 +75,8 @@ public:
         m_ops->destroy_stream_internal(
             get_handle(),
             device.get_handle(),
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -93,7 +96,8 @@ public:
             get_handle(),
             device.get_handle(),
             dependent.get_handle(),
-            other.get_handle() status.get_handle()
+            other.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -111,7 +115,8 @@ public:
         m_ops->get_stream_status(
             get_handle(),
             device.get_handle(),
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -129,7 +134,8 @@ public:
         m_ops->create_event_internal(
             get_handle(),
             device.get_handle(),
-            event.get_handle() status.get_handle()
+            event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -147,7 +153,8 @@ public:
         m_ops->destroy_event_internal(
             get_handle(),
             device.get_handle(),
-            event.get_handle() status.get_handle()
+            event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -167,7 +174,8 @@ public:
             get_handle(),
             device.get_handle(),
             event.get_handle(),
-            out_event_status status.get_handle()
+            out_event_status,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -187,7 +195,8 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            event.get_handle() status.get_handle()
+            event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -207,7 +216,8 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            event.get_handle() status.get_handle()
+            event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -225,7 +235,8 @@ public:
         m_ops->create_timer_internal(
             get_handle(),
             device.get_handle(),
-            timer.get_handle() status.get_handle()
+            timer.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -243,7 +254,8 @@ public:
         m_ops->destroy_timer_internal(
             get_handle(),
             device.get_handle(),
-            timer.get_handle() status.get_handle()
+            timer.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -263,7 +275,8 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            timer.get_handle() status.get_handle()
+            timer.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -283,7 +296,8 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            timer.get_handle() status.get_handle()
+            timer.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -307,7 +321,8 @@ public:
             stream.get_handle(),
             host_dst,
             device_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -331,7 +346,8 @@ public:
             stream.get_handle(),
             device_dst,
             host_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -355,7 +371,8 @@ public:
             stream.get_handle(),
             device_dst,
             device_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -377,7 +394,8 @@ public:
             device.get_handle(),
             host_dst,
             device_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -399,7 +417,8 @@ public:
             device.get_handle(),
             device_dst,
             host_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -421,7 +440,8 @@ public:
             device.get_handle(),
             device_dst,
             device_src,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -439,7 +459,8 @@ public:
         m_ops->block_host_for_event(
             get_handle(),
             device.get_handle(),
-            event.get_handle() status.get_handle()
+            event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -457,7 +478,8 @@ public:
         m_ops->block_host_until_done(
             get_handle(),
             device.get_handle(),
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -470,7 +492,7 @@ public:
     synchronize_all_activity(const ice::sonic::TF_DeviceOps& device) noexcept
     {
         ice::Status status;
-        m_ops->synchronize_all_activity(get_handle(), device.get_handle() status.get_handle());
+        m_ops->synchronize_all_activity(get_handle(), device.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -491,7 +513,8 @@ public:
             device.get_handle(),
             stream.get_handle(),
             location,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -515,7 +538,8 @@ public:
             stream.get_handle(),
             location,
             pattern,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -539,7 +563,8 @@ public:
             stream.get_handle(),
             location,
             pattern,
-            size status.get_handle()
+            size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -563,7 +588,8 @@ public:
             stream.get_handle(),
             callback_fn,
             callback_arg,
-            out_success status.get_handle()
+            out_success,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -583,7 +609,8 @@ public:
             get_handle(),
             device.get_handle(),
             options,
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -603,7 +630,8 @@ public:
             get_handle(),
             device.get_handle(),
             priority,
-            out_stream.get_handle() status.get_handle()
+            out_stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -621,7 +649,8 @@ public:
         m_ops->get_current_stream(
             get_handle(),
             device.get_handle(),
-            out_stream.get_handle() status.get_handle()
+            out_stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -639,7 +668,8 @@ public:
         m_ops->set_current_stream(
             get_handle(),
             device.get_handle(),
-            stream.get_handle() status.get_handle()
+            stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -659,7 +689,8 @@ public:
             get_handle(),
             device.get_handle(),
             native_handle,
-            out_stream.get_handle() status.get_handle()
+            out_stream.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -679,7 +710,8 @@ public:
             get_handle(),
             device.get_handle(),
             options,
-            out_event.get_handle() status.get_handle()
+            out_event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -699,7 +731,8 @@ public:
             get_handle(),
             device.get_handle(),
             handle,
-            out_event.get_handle() status.get_handle()
+            out_event.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -717,7 +750,8 @@ public:
         m_ops->create_allocator_internal(
             get_handle(),
             device.get_handle(),
-            out_allocator.get_handle() status.get_handle()
+            out_allocator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -735,7 +769,8 @@ public:
         m_ops->destroy_allocator_internal(
             get_handle(),
             device.get_handle(),
-            allocator.get_handle() status.get_handle()
+            allocator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -755,7 +790,8 @@ public:
             get_handle(),
             device.get_handle(),
             seed,
-            out_generator.get_handle() status.get_handle()
+            out_generator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -773,7 +809,8 @@ public:
         m_ops->destroy_random_generator_internal(
             get_handle(),
             device.get_handle(),
-            generator.get_handle() status.get_handle()
+            generator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -791,7 +828,8 @@ public:
         m_ops->get_default_random_generator(
             get_handle(),
             device.get_handle(),
-            out_generator.get_handle() status.get_handle()
+            out_generator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -804,7 +842,8 @@ public:
     get_native_handle(const ice::sonic::TF_DeviceOps& device, void** out_handle) noexcept
     {
         ice::Status status;
-        m_ops->get_native_handle(get_handle(), device.get_handle(), out_handle status.get_handle());
+        m_ops
+            ->get_native_handle(get_handle(), device.get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

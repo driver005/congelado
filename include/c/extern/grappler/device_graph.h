@@ -2,6 +2,7 @@
 #define CONGELADO_C_EXTERN_GRAPPLER_DEVICE_GRAPH_H_
 
 #include "include/c/macros.h"
+#include "include/c/intern/tstring.h"
 #include "include/c/intern/status.h"
 #include "include/c/extern/stream_executor/stream.h"
 #include "include/c/extern/memory/mem_pool.h"
@@ -36,7 +37,7 @@ extern "C" {
         void (*register_random_generator)(TFGrapplerDeviceGraph* graph, TF_RandomGenerator* generator, TF_Status* out_status);
         void (*unregister_random_generator)(TFGrapplerDeviceGraph* graph, TF_RandomGenerator* generator, TF_Status* out_status);
         void (*enable_debug_mode)(TFGrapplerDeviceGraph* graph);
-        void (*debug_dump)(TFGrapplerDeviceGraph* graph, const char* path, TF_Status* out_status);
+        void (*debug_dump)(TFGrapplerDeviceGraph* graph, const TF_String* path, TF_Status* out_status);
     } TFGrapplerDeviceGraphOps;
     #define TF_GRAPPLER_DEVICE_GRAPH_STRUCT_SIZE TF_OFFSET_OF_END(TFGrapplerDeviceGraphOps, debug_dump)
 

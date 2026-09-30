@@ -37,7 +37,8 @@ public:
             get_handle(),
             capture_stream.get_handle(),
             pool_id,
-            mode status.get_handle()
+            mode,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -93,7 +94,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_pool(TF_PoolId* out_pool_id) noexcept
     {
         ice::Status status;
-        m_ops->get_pool(get_handle(), out_pool_id status.get_handle());
+        m_ops->get_pool(get_handle(), out_pool_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -105,7 +106,7 @@ public:
     register_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept
     {
         ice::Status status;
-        m_ops->register_random_generator(get_handle(), generator.get_handle() status.get_handle());
+        m_ops->register_random_generator(get_handle(), generator.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -119,7 +120,8 @@ public:
         ice::Status status;
         m_ops->unregister_random_generator(
             get_handle(),
-            generator.get_handle() status.get_handle()
+            generator.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -139,10 +141,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> debug_dump(const char* path) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    debug_dump(const ice::sonic::String& path) noexcept
     {
         ice::Status status;
-        m_ops->debug_dump(get_handle(), path status.get_handle());
+        m_ops->debug_dump(get_handle(), path.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -25,10 +25,10 @@ public:
     static constexpr std::string_view domain_name = "kernel";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    type_constraint(const char* attr_name, TFDataTypeEnum type) noexcept
+    type_constraint(const ice::sonic::String& attr_name, TFDataTypeEnum type) noexcept
     {
         ice::Status status;
-        m_ops->type_constraint(get_handle(), attr_name, type status.get_handle());
+        m_ops->type_constraint(get_handle(), attr_name.get_handle(), type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -36,10 +36,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> host_memory(const char* arg_name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    host_memory(const ice::sonic::String& arg_name) noexcept
     {
         ice::Status status;
-        m_ops->host_memory(get_handle(), arg_name status.get_handle());
+        m_ops->host_memory(get_handle(), arg_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +51,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> priority(int32_t priority_number) noexcept
     {
         ice::Status status;
-        m_ops->priority(get_handle(), priority_number status.get_handle());
+        m_ops->priority(get_handle(), priority_number, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -58,10 +59,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> label(const char* label) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> label(const ice::sonic::String& label) noexcept
     {
         ice::Status status;
-        m_ops->label(get_handle(), label status.get_handle());
+        m_ops->label(get_handle(), label.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -70,10 +71,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    register_kernel_builder(const char* kernel_name) noexcept
+    register_kernel_builder(const ice::sonic::String& kernel_name) noexcept
     {
         ice::Status status;
-        m_ops->register_kernel_builder(get_handle(), kernel_name status.get_handle());
+        m_ops->register_kernel_builder(get_handle(), kernel_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -82,15 +83,16 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> register_kernel_builder_with_kernel_def(
-        const char* serialized_kernel_def,
-        const char* name
+        const ice::sonic::String& serialized_kernel_def,
+        const ice::sonic::String& name
     ) noexcept
     {
         ice::Status status;
         m_ops->register_kernel_builder_with_kernel_def(
             get_handle(),
-            serialized_kernel_def,
-            name status.get_handle()
+            serialized_kernel_def.get_handle(),
+            name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

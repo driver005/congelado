@@ -16,49 +16,64 @@ export namespace ice::builder {
 class TF_FilesystemOps
 {
 public:
-    static TF_FilesystemOps* create(void* ctx) noexcept
+    TF_FilesystemOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_FilesystemOps*>(ctx);
+    }
+
+    TF_FilesystemOps(const TF_FilesystemOps&) = delete;
+    TF_FilesystemOps& operator=(const TF_FilesystemOps&) = delete;
+
+    static TF_FilesystemOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_FilesystemOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_FilesystemOps* create(HandleT* handle) noexcept
+    static TF_FilesystemOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_FilesystemOps*>(handle->plugin_data);
+        return *static_cast<TF_FilesystemOps*>(handle->plugin_data);
     }
 
     virtual ~TF_FilesystemOps() = default;
 
-    static TF_FilesystemOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_FilesystemOps vtable = {
+        m_vtable = ::TF_FilesystemOps{
             .struct_size = TF_FILESYSTEM_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_FilesystemOps::create(plugin_context);
+                std::unique_ptr<TF_FilesystemOps>{&TF_FilesystemOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_FilesystemOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_FilesystemOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_FilesystemOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Filesystem& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_FilesystemOps m_vtable;
+    TF_Filesystem m_handle;
 };
 
 } // namespace ice::builder

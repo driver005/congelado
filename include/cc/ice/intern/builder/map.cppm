@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_MapOps
 {
 public:
-    static TF_MapOps* create(void* ctx) noexcept
+    TF_MapOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_MapOps*>(ctx);
+    }
+
+    TF_MapOps(const TF_MapOps&) = delete;
+    TF_MapOps& operator=(const TF_MapOps&) = delete;
+
+    static TF_MapOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_MapOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_MapOps* create(HandleT* handle) noexcept
+    static TF_MapOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_MapOps*>(handle->plugin_data);
+        return *static_cast<TF_MapOps*>(handle->plugin_data);
     }
 
     virtual ~TF_MapOps() = default;
@@ -39,15 +47,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     for_each(TF_MapVisitor visitor, void* capture) noexcept = 0;
 
-    static TF_MapOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_MapOps vtable = {
+        m_vtable = ::TF_MapOps{
             .struct_size = TF_MAP_STRUCT_SIZE,
             .insert =
                 [](TF_Map* map, const void* key, const void* value, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->insert(key, value);
+                auto res = TF_MapOps::from_handle(map).insert(key, value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -58,8 +65,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->find(key, out_value);
+                auto res = TF_MapOps::from_handle(map).find(key, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -67,8 +73,7 @@ public:
             .erase =
                 [](TF_Map* map, const void* key, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->erase(key);
+                auto res = TF_MapOps::from_handle(map).erase(key);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -76,8 +81,7 @@ public:
             .contains =
                 [](TF_Map* map, const void* key, int* out_found, TF_Status* out_status) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->contains(key, out_found);
+                auto res = TF_MapOps::from_handle(map).contains(key, out_found);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -85,8 +89,7 @@ public:
             .size =
                 [](const TF_Map* map, size_t* out_size) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->size(out_size);
+                auto res = TF_MapOps::from_handle(map).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -94,8 +97,7 @@ public:
             .for_each =
                 [](const TF_Map* map, TF_MapVisitor visitor, void* capture) noexcept
             {
-                auto* self = TF_MapOps::create(map);
-                auto res = self->for_each(visitor, capture);
+                auto res = TF_MapOps::from_handle(map).for_each(visitor, capture);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -104,20 +106,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_MapOps::create(plugin_context);
+                std::unique_ptr<TF_MapOps>{&TF_MapOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_MapOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Map& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_MapOps m_vtable;
+    TF_Map m_handle;
 };
 
 } // namespace ice::builder

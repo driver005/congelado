@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_TensorOps
 {
 public:
-    static TF_TensorOps* create(void* ctx) noexcept
+    TF_TensorOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_TensorOps*>(ctx);
+    }
+
+    TF_TensorOps(const TF_TensorOps&) = delete;
+    TF_TensorOps& operator=(const TF_TensorOps&) = delete;
+
+    static TF_TensorOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_TensorOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TensorOps* create(HandleT* handle) noexcept
+    static TF_TensorOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_TensorOps*>(handle->plugin_data);
+        return *static_cast<TF_TensorOps*>(handle->plugin_data);
     }
 
     virtual ~TF_TensorOps() = default;
@@ -71,23 +79,21 @@ public:
         TF_Tensor** out_view
     ) noexcept = 0;
 
-    static TF_TensorOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_TensorOps vtable = {
+        m_vtable = ::TF_TensorOps{
             .struct_size = TF_TENSOR_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_TensorOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_TensorOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .set_dtype =
                 [](TF_Tensor* tensor, TFDataTypeEnum dtype) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_dtype(dtype);
+                auto res = TF_TensorOps::from_handle(tensor).set_dtype(dtype);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -95,8 +101,7 @@ public:
             .set_dims =
                 [](TF_Tensor* tensor, const int64_t* dims, int num_dims) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_dims(dims, num_dims);
+                auto res = TF_TensorOps::from_handle(tensor).set_dims(dims, num_dims);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -104,8 +109,7 @@ public:
             .set_byte_size =
                 [](TF_Tensor* tensor, size_t len) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_byte_size(len);
+                auto res = TF_TensorOps::from_handle(tensor).set_byte_size(len);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -113,8 +117,7 @@ public:
             .delete_tensor =
                 [](TF_Tensor* tensor) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->delete_tensor();
+                auto res = TF_TensorOps::from_handle(tensor).delete_tensor();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -122,8 +125,7 @@ public:
             .tensor_type =
                 [](const TF_Tensor* tensor, TFDataTypeEnum* out_dtype) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->tensor_type(out_dtype);
+                auto res = TF_TensorOps::from_handle(tensor).tensor_type(out_dtype);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -131,8 +133,7 @@ public:
             .num_dims =
                 [](const TF_Tensor* tensor, int* out_num_dims) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->num_dims(out_num_dims);
+                auto res = TF_TensorOps::from_handle(tensor).num_dims(out_num_dims);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -140,8 +141,7 @@ public:
             .dim =
                 [](const TF_Tensor* tensor, int dim_index, int64_t* out_dim) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->dim(dim_index, out_dim);
+                auto res = TF_TensorOps::from_handle(tensor).dim(dim_index, out_dim);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -149,8 +149,7 @@ public:
             .tensor_element_count =
                 [](const TF_Tensor* tensor, int64_t* out_count) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->tensor_element_count(out_count);
+                auto res = TF_TensorOps::from_handle(tensor).tensor_element_count(out_count);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -158,8 +157,7 @@ public:
             .tensor_byte_size =
                 [](const TF_Tensor* tensor, size_t* out_byte_size) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->tensor_byte_size(out_byte_size);
+                auto res = TF_TensorOps::from_handle(tensor).tensor_byte_size(out_byte_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -167,8 +165,7 @@ public:
             .tensor_data =
                 [](const TF_Tensor* tensor, void** out_data) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->tensor_data(out_data);
+                auto res = TF_TensorOps::from_handle(tensor).tensor_data(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -179,8 +176,7 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_TensorOps::create(src);
-                auto res = self->tensor_bitcast_from(dtype, out_tensor);
+                auto res = TF_TensorOps::from_handle(src).tensor_bitcast_from(dtype, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -191,8 +187,7 @@ public:
                    TF_Tensor** out_tensor,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_TensorOps::create(src);
-                auto res = self->tensor_bitcast_to(dtype, out_tensor);
+                auto res = TF_TensorOps::from_handle(src).tensor_bitcast_to(dtype, out_tensor);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -200,8 +195,8 @@ public:
             .tensor_copy =
                 [](TF_Tensor* src, TF_Tensor* dst) noexcept
             {
-                auto* self = TF_TensorOps::create(src);
-                auto res = self->tensor_copy(ice::sonic::TF_TensorOps::wrap(dst));
+                auto res =
+                    TF_TensorOps::from_handle(src).tensor_copy(ice::sonic::TF_TensorOps::wrap(dst));
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -209,8 +204,7 @@ public:
             .set_strides =
                 [](TF_Tensor* tensor, const int64_t* strides, int num_strides) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_strides(strides, num_strides);
+                auto res = TF_TensorOps::from_handle(tensor).set_strides(strides, num_strides);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -218,8 +212,7 @@ public:
             .stride =
                 [](const TF_Tensor* tensor, int dim_index, int64_t* out_stride) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->stride(dim_index, out_stride);
+                auto res = TF_TensorOps::from_handle(tensor).stride(dim_index, out_stride);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -227,8 +220,7 @@ public:
             .set_storage_offset =
                 [](TF_Tensor* tensor, int64_t offset_elements) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_storage_offset(offset_elements);
+                auto res = TF_TensorOps::from_handle(tensor).set_storage_offset(offset_elements);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -236,8 +228,7 @@ public:
             .storage_offset =
                 [](const TF_Tensor* tensor, int64_t* out_offset_elements) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->storage_offset(out_offset_elements);
+                auto res = TF_TensorOps::from_handle(tensor).storage_offset(out_offset_elements);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -245,8 +236,7 @@ public:
             .set_device_index =
                 [](TF_Tensor* tensor, int device_index) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->set_device_index(device_index);
+                auto res = TF_TensorOps::from_handle(tensor).set_device_index(device_index);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -254,8 +244,7 @@ public:
             .get_device_index =
                 [](const TF_Tensor* tensor, int* out_device_index) noexcept
             {
-                auto* self = TF_TensorOps::create(tensor);
-                auto res = self->get_device_index(out_device_index);
+                auto res = TF_TensorOps::from_handle(tensor).get_device_index(out_device_index);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -269,24 +258,32 @@ public:
                    TF_Tensor** out_view,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_TensorOps::create(base);
-                auto res = self->tensor_view(dims, num_dims, strides, offset_elements, out_view);
+                auto res = TF_TensorOps::from_handle(base)
+                               .tensor_view(dims, num_dims, strides, offset_elements, out_view);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_TensorOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Tensor& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_TensorOps m_vtable;
+    TF_Tensor m_handle;
 };
 
 } // namespace ice::builder

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_PlatformOps
 {
 public:
-    static TF_PlatformOps* create(void* ctx) noexcept
+    TF_PlatformOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_PlatformOps*>(ctx);
+    }
+
+    TF_PlatformOps(const TF_PlatformOps&) = delete;
+    TF_PlatformOps& operator=(const TF_PlatformOps&) = delete;
+
+    static TF_PlatformOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_PlatformOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_PlatformOps* create(HandleT* handle) noexcept
+    static TF_PlatformOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_PlatformOps*>(handle->plugin_data);
+        return *static_cast<TF_PlatformOps*>(handle->plugin_data);
     }
 
     virtual ~TF_PlatformOps() = default;
@@ -49,15 +57,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_native_handle(void** out_handle) noexcept = 0;
 
-    static TF_PlatformOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_PlatformOps vtable = {
+        m_vtable = ::TF_PlatformOps{
             .struct_size = TF_PLATFORM_STRUCT_SIZE,
             .get_device_count =
                 [](TF_Platform* platform, int* out_device_count, TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->get_device_count(out_device_count);
+                auto res = TF_PlatformOps::from_handle(platform).get_device_count(out_device_count);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -65,8 +72,9 @@ public:
             .create_device_internal =
                 [](TF_Platform* platform, TF_Device* device, TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->create_device_internal(ice::sonic::TF_DeviceOps::wrap(device));
+                auto res = TF_PlatformOps::from_handle(platform).create_device_internal(
+                    ice::sonic::TF_DeviceOps::wrap(device)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -74,8 +82,9 @@ public:
             .destroy_device_internal =
                 [](TF_Platform* platform, TF_Device* device) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->destroy_device_internal(ice::sonic::TF_DeviceOps::wrap(device));
+                auto res = TF_PlatformOps::from_handle(platform).destroy_device_internal(
+                    ice::sonic::TF_DeviceOps::wrap(device)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -83,9 +92,9 @@ public:
             .create_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor, TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res =
-                    self->create_executor_internal(ice::sonic::TF_ExecutorOps::wrap(executor));
+                auto res = TF_PlatformOps::from_handle(platform).create_executor_internal(
+                    ice::sonic::TF_ExecutorOps::wrap(executor)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -93,9 +102,9 @@ public:
             .destroy_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res =
-                    self->destroy_executor_internal(ice::sonic::TF_ExecutorOps::wrap(executor));
+                auto res = TF_PlatformOps::from_handle(platform).destroy_executor_internal(
+                    ice::sonic::TF_ExecutorOps::wrap(executor)
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -103,8 +112,8 @@ public:
             .get_current_device =
                 [](TF_Platform* platform, int* out_device_index, TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->get_current_device(out_device_index);
+                auto res =
+                    TF_PlatformOps::from_handle(platform).get_current_device(out_device_index);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -112,8 +121,7 @@ public:
             .set_current_device =
                 [](TF_Platform* platform, int device_index, TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->set_current_device(device_index);
+                auto res = TF_PlatformOps::from_handle(platform).set_current_device(device_index);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -124,8 +132,10 @@ public:
                    int* out_device_index,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->get_device_for_pointer(pointer, out_device_index);
+                auto res = TF_PlatformOps::from_handle(platform).get_device_for_pointer(
+                    pointer,
+                    out_device_index
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -137,8 +147,8 @@ public:
                    _Bool* out_can_access,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->can_access_peer(device_index, peer_device_index, out_can_access);
+                auto res = TF_PlatformOps::from_handle(platform)
+                               .can_access_peer(device_index, peer_device_index, out_can_access);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -146,24 +156,29 @@ public:
             .get_native_handle =
                 [](TF_Platform* platform, void** out_handle) noexcept
             {
-                auto* self = TF_PlatformOps::create(platform);
-                auto res = self->get_native_handle(out_handle);
+                auto res = TF_PlatformOps::from_handle(platform).get_native_handle(out_handle);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_PlatformOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Platform& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_PlatformOps m_vtable;
+    TF_Platform m_handle;
 };
 
 } // namespace ice::builder

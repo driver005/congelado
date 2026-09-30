@@ -25,7 +25,7 @@ public:
     static constexpr std::string_view domain_name = "parser";
 
     [[nodiscard]] std::expected<void, ice::Status> parse_file(
-        const ice::sonic::TF_StringOps& file_path,
+        const ice::sonic::String& file_path,
         const ice::sonic::TFParserModuleOps& out_module
     ) noexcept
     {
@@ -33,7 +33,8 @@ public:
         m_ops->parse_file(
             get_handle(),
             file_path.get_handle(),
-            out_module.get_handle() status.get_handle()
+            out_module.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -51,7 +52,8 @@ public:
         m_ops->parse_buffer(
             get_handle(),
             buffer.get_handle(),
-            out_module.get_handle() status.get_handle()
+            out_module.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

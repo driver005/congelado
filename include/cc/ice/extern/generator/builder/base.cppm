@@ -8,13 +8,13 @@ export module cc_ice_extern_generator_builder;
 // clang-format off
 export import :node;
 export import :catalog;
-export import :parameter;
-export import :generator;
 export import :module;
 export import :attribute;
 export import :block;
 export import :definition;
+export import :parameter;
 export import :function;
+export import :generator;
 export import :typeinfo;
 
 // clang-format on

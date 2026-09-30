@@ -16,25 +16,33 @@ export namespace ice::builder {
 class TFPubSubPublishOps
 {
 public:
-    static TFPubSubPublishOps* create(void* ctx) noexcept
+    TFPubSubPublishOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFPubSubPublishOps*>(ctx);
+    }
+
+    TFPubSubPublishOps(const TFPubSubPublishOps&) = delete;
+    TFPubSubPublishOps& operator=(const TFPubSubPublishOps&) = delete;
+
+    static TFPubSubPublishOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFPubSubPublishOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFPubSubPublishOps* create(HandleT* handle) noexcept
+    static TFPubSubPublishOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFPubSubPublishOps*>(handle->plugin_data);
+        return *static_cast<TFPubSubPublishOps*>(handle->plugin_data);
     }
 
     virtual ~TFPubSubPublishOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> publish(
-        const ice::sonic::TF_StringOps& channel,
-        const ice::sonic::TF_StringOps& payload,
+        const ice::sonic::String& channel,
+        const ice::sonic::String& payload,
         int retain
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> publish_batch(
-        const ice::sonic::TF_StringOps& channel,
+        const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
         void* user_data
@@ -42,20 +50,22 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     flush(TFPubSubAckFn completion, void* user_data) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_retained(
-        const ice::sonic::TF_StringOps& channel,
+        const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
         void* user_data
     ) noexcept = 0;
 
-    static TFPubSubPublishOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFPubSubPublishOps vtable = {
+        m_vtable = ::TFPubSubPublishOps{
             .struct_size = TF_UBSUBPUBLISH_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFPubSubPublishOps::create(plugin_context);
+                std::unique_ptr<TFPubSubPublishOps>{
+                    &TFPubSubPublishOps::from_handle(plugin_context)
+                };
             },
             .publish =
                 [](TFPubSubPublish* publish,
@@ -64,10 +74,9 @@ public:
                    int retain,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubPublishOps::create(publish);
-                auto res = self->publish(
-                    ice::sonic::TF_StringOps::wrap(channel),
-                    ice::sonic::TF_StringOps::wrap(payload),
+                auto res = TFPubSubPublishOps::from_handle(publish).publish(
+                    ice::sonic::String::wrap(channel),
+                    ice::sonic::String::wrap(payload),
                     retain
                 );
                 if (!res) {
@@ -82,9 +91,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubPublishOps::create(publish);
-                auto res = self->publish_batch(
-                    ice::sonic::TF_StringOps::wrap(channel),
+                auto res = TFPubSubPublishOps::from_handle(publish).publish_batch(
+                    ice::sonic::String::wrap(channel),
                     ice::sonic::TF_VectorOps::wrap(payloads),
                     completion,
                     user_data
@@ -99,8 +107,7 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubPublishOps::create(publish);
-                auto res = self->flush(completion, user_data);
+                auto res = TFPubSubPublishOps::from_handle(publish).flush(completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -112,9 +119,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubPublishOps::create(publish);
-                auto res = self->get_retained(
-                    ice::sonic::TF_StringOps::wrap(channel),
+                auto res = TFPubSubPublishOps::from_handle(publish).get_retained(
+                    ice::sonic::String::wrap(channel),
                     completion,
                     user_data
                 );
@@ -124,16 +130,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFPubSubPublishOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFPubSubPublish& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFPubSubPublishOps m_vtable;
+    TFPubSubPublish m_handle;
 };
 
 } // namespace ice::builder

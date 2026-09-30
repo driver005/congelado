@@ -24,16 +24,15 @@ public:
 
     static constexpr std::string_view domain_name = "jobber";
 
-    [[nodiscard]] std::expected<void, ice::Status> execute(
-        const ice::sonic::TF_StringOps& input,
-        const ice::sonic::TF_StringOps& out_output
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    execute(const ice::sonic::String& input, const ice::sonic::String& out_output) noexcept
     {
         ice::Status status;
         m_ops->execute(
             get_handle(),
             input.get_handle(),
-            out_output.get_handle() status.get_handle()
+            out_output.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -57,7 +56,7 @@ public:
     wait(int64_t timeout_ms, TFJobCompletionFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->wait(get_handle(), timeout_ms, completion, user_data status.get_handle());
+        m_ops->wait(get_handle(), timeout_ms, completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -69,7 +68,7 @@ public:
     on_complete(TFJobCompletionFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->on_complete(get_handle(), completion, user_data status.get_handle());
+        m_ops->on_complete(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -81,7 +80,7 @@ public:
     on_progress(TFJobProgressFn progress, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->on_progress(get_handle(), progress, user_data status.get_handle());
+        m_ops->on_progress(get_handle(), progress, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -96,7 +95,8 @@ public:
         m_ops->list(
             get_handle(),
             filters.get_handle(),
-            out_job_ids.get_handle() status.get_handle()
+            out_job_ids.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {

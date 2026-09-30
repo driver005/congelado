@@ -25,8 +25,8 @@ public:
     static constexpr std::string_view domain_name = "pubsub";
 
     [[nodiscard]] std::expected<void, ice::Status> publish(
-        const ice::sonic::TF_StringOps& channel,
-        const ice::sonic::TF_StringOps& payload,
+        const ice::sonic::String& channel,
+        const ice::sonic::String& payload,
         int retain
     ) noexcept
     {
@@ -35,7 +35,8 @@ public:
             get_handle(),
             channel.get_handle(),
             payload.get_handle(),
-            retain status.get_handle()
+            retain,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -45,7 +46,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> publish_batch(
-        const ice::sonic::TF_StringOps& channel,
+        const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
         void* user_data
@@ -57,7 +58,8 @@ public:
             channel.get_handle(),
             payloads.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -70,7 +72,7 @@ public:
     flush(TFPubSubAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->flush(get_handle(), completion, user_data status.get_handle());
+        m_ops->flush(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -79,7 +81,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> get_retained(
-        const ice::sonic::TF_StringOps& channel,
+        const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
         void* user_data
     ) noexcept
@@ -89,7 +91,8 @@ public:
             get_handle(),
             channel.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {

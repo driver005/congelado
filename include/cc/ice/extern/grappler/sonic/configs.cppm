@@ -28,7 +28,7 @@ public:
     get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept
     {
         ice::Status status;
-        m_ops->get_optimization_level(get_handle(), out_level status.get_handle());
+        m_ops->get_optimization_level(get_handle(), out_level, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     set_optimization_level(TFGrapplerOptimizationLevel level) noexcept
     {
         ice::Status status;
-        m_ops->set_optimization_level(get_handle(), level status.get_handle());
+        m_ops->set_optimization_level(get_handle(), level, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -52,7 +52,7 @@ public:
     get_optimizer_configs(TFGrapplerOptimizerConfigs* out_configs) noexcept
     {
         ice::Status status;
-        m_ops->get_optimizer_configs(get_handle(), out_configs status.get_handle());
+        m_ops->get_optimizer_configs(get_handle(), out_configs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -64,7 +64,7 @@ public:
     set_optimizer_configs(const TFGrapplerOptimizerConfigs* in_configs) noexcept
     {
         ice::Status status;
-        m_ops->set_optimizer_configs(get_handle(), in_configs status.get_handle());
+        m_ops->set_optimizer_configs(get_handle(), in_configs, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -14,10 +14,10 @@ import cc_abi_sonic_registration;
 
 export namespace ice::sonic {
 
-class TF_StringOps : public ice::sonic::Runtime<TF_StringOps, TF_StringOps>
+class String : public ice::sonic::Runtime<String, TF_StringOps>
 {
 public:
-    explicit TF_StringOps(TF_StringOps* ops, void* plugin_context) noexcept :
+    explicit String(TF_StringOps* ops, void* plugin_context) noexcept :
         Runtime(ops, plugin_context)
     {
     }
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> copy(const char* src, size_t size) noexcept
     {
         ice::Status status;
-        m_ops->copy(get_handle(), src, size status.get_handle());
+        m_ops->copy(get_handle(), src, size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     assign_view(const char* src, size_t size) noexcept
     {
         ice::Status status;
-        m_ops->assign_view(get_handle(), src, size status.get_handle());
+        m_ops->assign_view(get_handle(), src, size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_data_pointer(const char** out_data) noexcept
     {
         ice::Status status;
-        m_ops->get_data_pointer(get_handle(), out_data status.get_handle());
+        m_ops->get_data_pointer(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,7 +72,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_type(TFTStringType* out_type) noexcept
     {
         ice::Status status;
-        m_ops->get_type(get_handle(), out_type status.get_handle());
+        m_ops->get_type(get_handle(), out_type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,7 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->get_size(get_handle(), out_size status.get_handle());
+        m_ops->get_size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -94,7 +94,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_capacity(size_t* out_capacity) noexcept
     {
         ice::Status status;
-        m_ops->get_capacity(get_handle(), out_capacity status.get_handle());
+        m_ops->get_capacity(get_handle(), out_capacity, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

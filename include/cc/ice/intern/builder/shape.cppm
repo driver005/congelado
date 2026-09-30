@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ShapeOps
 {
 public:
-    static TF_ShapeOps* create(void* ctx) noexcept
+    TF_ShapeOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ShapeOps*>(ctx);
+    }
+
+    TF_ShapeOps(const TF_ShapeOps&) = delete;
+    TF_ShapeOps& operator=(const TF_ShapeOps&) = delete;
+
+    static TF_ShapeOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ShapeOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ShapeOps* create(HandleT* handle) noexcept
+    static TF_ShapeOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ShapeOps*>(handle->plugin_data);
+        return *static_cast<TF_ShapeOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ShapeOps() = default;
@@ -36,23 +44,21 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     shape_dim(int index, int64_t* out_dim) noexcept = 0;
 
-    static TF_ShapeOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ShapeOps vtable = {
+        m_vtable = ::TF_ShapeOps{
             .struct_size = TF_SHAPE_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_ShapeOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_ShapeOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .set_dims =
                 [](TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
             {
-                auto* self = TF_ShapeOps::create(shape);
-                auto res = self->set_dims(dims, num_dims);
+                auto res = TF_ShapeOps::from_handle(shape).set_dims(dims, num_dims);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -60,8 +66,7 @@ public:
             .delete_shape =
                 [](TF_Shape* shape) noexcept
             {
-                auto* self = TF_ShapeOps::create(shape);
-                auto res = self->delete_shape();
+                auto res = TF_ShapeOps::from_handle(shape).delete_shape();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -69,8 +74,7 @@ public:
             .shape_num_dims =
                 [](const TF_Shape* shape, int* out_num_dims) noexcept
             {
-                auto* self = TF_ShapeOps::create(shape);
-                auto res = self->shape_num_dims(out_num_dims);
+                auto res = TF_ShapeOps::from_handle(shape).shape_num_dims(out_num_dims);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -78,24 +82,31 @@ public:
             .shape_dim =
                 [](const TF_Shape* shape, int index, int64_t* out_dim) noexcept
             {
-                auto* self = TF_ShapeOps::create(shape);
-                auto res = self->shape_dim(index, out_dim);
+                auto res = TF_ShapeOps::from_handle(shape).shape_dim(index, out_dim);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ShapeOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Shape& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ShapeOps m_vtable;
+    TF_Shape m_handle;
 };
 
 } // namespace ice::builder

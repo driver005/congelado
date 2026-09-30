@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_VectorOps
 {
 public:
-    static TF_VectorOps* create(void* ctx) noexcept
+    TF_VectorOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_VectorOps*>(ctx);
+    }
+
+    TF_VectorOps(const TF_VectorOps&) = delete;
+    TF_VectorOps& operator=(const TF_VectorOps&) = delete;
+
+    static TF_VectorOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_VectorOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_VectorOps* create(HandleT* handle) noexcept
+    static TF_VectorOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_VectorOps*>(handle->plugin_data);
+        return *static_cast<TF_VectorOps*>(handle->plugin_data);
     }
 
     virtual ~TF_VectorOps() = default;
@@ -43,15 +51,14 @@ public:
     reserve(size_t new_capacity) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> data(void** out_data) noexcept = 0;
 
-    static TF_VectorOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_VectorOps vtable = {
+        m_vtable = ::TF_VectorOps{
             .struct_size = TF_VECTOR_STRUCT_SIZE,
             .set_element_size =
                 [](TF_Vector* vector, size_t element_size) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->set_element_size(element_size);
+                auto res = TF_VectorOps::from_handle(vector).set_element_size(element_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -59,8 +66,7 @@ public:
             .push_back =
                 [](TF_Vector* vector, const void* value) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->push_back(value);
+                auto res = TF_VectorOps::from_handle(vector).push_back(value);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -71,8 +77,7 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->get(index, out_value);
+                auto res = TF_VectorOps::from_handle(vector).get(index, out_value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -83,8 +88,7 @@ public:
                    const void* value,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->set(index, value);
+                auto res = TF_VectorOps::from_handle(vector).set(index, value);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -92,8 +96,7 @@ public:
             .size =
                 [](const TF_Vector* vector, size_t* out_size) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->size(out_size);
+                auto res = TF_VectorOps::from_handle(vector).size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -101,8 +104,7 @@ public:
             .capacity =
                 [](const TF_Vector* vector, size_t* out_capacity) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->capacity(out_capacity);
+                auto res = TF_VectorOps::from_handle(vector).capacity(out_capacity);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -110,8 +112,7 @@ public:
             .reserve =
                 [](TF_Vector* vector, size_t new_capacity, TF_Status* out_status) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->reserve(new_capacity);
+                auto res = TF_VectorOps::from_handle(vector).reserve(new_capacity);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -119,8 +120,7 @@ public:
             .data =
                 [](TF_Vector* vector, void** out_data) noexcept
             {
-                auto* self = TF_VectorOps::create(vector);
-                auto res = self->data(out_data);
+                auto res = TF_VectorOps::from_handle(vector).data(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -129,20 +129,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_VectorOps::create(plugin_context);
+                std::unique_ptr<TF_VectorOps>{&TF_VectorOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_VectorOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Vector& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_VectorOps m_vtable;
+    TF_Vector m_handle;
 };
 
 } // namespace ice::builder

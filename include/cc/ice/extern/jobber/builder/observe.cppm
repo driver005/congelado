@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ObserveOps
 {
 public:
-    static TF_ObserveOps* create(void* ctx) noexcept
+    TF_ObserveOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ObserveOps*>(ctx);
+    }
+
+    TF_ObserveOps(const TF_ObserveOps&) = delete;
+    TF_ObserveOps& operator=(const TF_ObserveOps&) = delete;
+
+    static TF_ObserveOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ObserveOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ObserveOps* create(HandleT* handle) noexcept
+    static TF_ObserveOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ObserveOps*>(handle->plugin_data);
+        return *static_cast<TF_ObserveOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ObserveOps() = default;
@@ -51,15 +59,15 @@ public:
         const ice::sonic::TF_VectorOps& out_lines
     ) noexcept = 0;
 
-    static TF_ObserveOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ObserveOps vtable = {
+        m_vtable = ::TF_ObserveOps{
             .struct_size = TF_OBSERVE_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ObserveOps::create(plugin_context);
+                std::unique_ptr<TF_ObserveOps>{&TF_ObserveOps::from_handle(plugin_context)};
             },
             .get_status =
                 [](TF_Observe* observe,
@@ -68,9 +76,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ObserveOps::create(observe);
-                auto res =
-                    self->get_status(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
+                auto res = TF_ObserveOps::from_handle(observe)
+                               .get_status(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -82,9 +89,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ObserveOps::create(observe);
-                auto res =
-                    self->get_result(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
+                auto res = TF_ObserveOps::from_handle(observe)
+                               .get_result(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -95,8 +101,7 @@ public:
                    TF_Vector* out_transitions,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ObserveOps::create(observe);
-                auto res = self->get_history(
+                auto res = TF_ObserveOps::from_handle(observe).get_history(
                     ice::sonic::TF_JobOps::wrap(job),
                     ice::sonic::TF_VectorOps::wrap(out_transitions)
                 );
@@ -110,8 +115,7 @@ public:
                    TF_Map* out_metrics,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ObserveOps::create(observe);
-                auto res = self->get_metrics(
+                auto res = TF_ObserveOps::from_handle(observe).get_metrics(
                     ice::sonic::TF_JobOps::wrap(job),
                     ice::sonic::TF_MapOps::wrap(out_metrics)
                 );
@@ -125,8 +129,7 @@ public:
                    TF_Vector* out_lines,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ObserveOps::create(observe);
-                auto res = self->get_logs(
+                auto res = TF_ObserveOps::from_handle(observe).get_logs(
                     ice::sonic::TF_JobOps::wrap(job),
                     ice::sonic::TF_VectorOps::wrap(out_lines)
                 );
@@ -136,16 +139,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ObserveOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Observe& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ObserveOps m_vtable;
+    TF_Observe m_handle;
 };
 
 } // namespace ice::builder

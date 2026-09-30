@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_DurationOps
 {
 public:
-    static TF_DurationOps* create(void* ctx) noexcept
+    TF_DurationOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_DurationOps*>(ctx);
+    }
+
+    TF_DurationOps(const TF_DurationOps&) = delete;
+    TF_DurationOps& operator=(const TF_DurationOps&) = delete;
+
+    static TF_DurationOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_DurationOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_DurationOps* create(HandleT* handle) noexcept
+    static TF_DurationOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_DurationOps*>(handle->plugin_data);
+        return *static_cast<TF_DurationOps*>(handle->plugin_data);
     }
 
     virtual ~TF_DurationOps() = default;
@@ -35,15 +43,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_ratio_den(int64_t* out_den) noexcept = 0;
 
-    static TF_DurationOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_DurationOps vtable = {
+        m_vtable = ::TF_DurationOps{
             .struct_size = TF_DURATION_STRUCT_SIZE,
             .get_ticks =
                 [](const TF_Duration* duration, int64_t* out_ticks) noexcept
             {
-                auto* self = TF_DurationOps::create(duration);
-                auto res = self->get_ticks(out_ticks);
+                auto res = TF_DurationOps::from_handle(duration).get_ticks(out_ticks);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -51,8 +58,7 @@ public:
             .get_ratio_num =
                 [](const TF_Duration* duration, int64_t* out_num) noexcept
             {
-                auto* self = TF_DurationOps::create(duration);
-                auto res = self->get_ratio_num(out_num);
+                auto res = TF_DurationOps::from_handle(duration).get_ratio_num(out_num);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -60,8 +66,7 @@ public:
             .get_ratio_den =
                 [](const TF_Duration* duration, int64_t* out_den) noexcept
             {
-                auto* self = TF_DurationOps::create(duration);
-                auto res = self->get_ratio_den(out_den);
+                auto res = TF_DurationOps::from_handle(duration).get_ratio_den(out_den);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -70,20 +75,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_DurationOps::create(plugin_context);
+                std::unique_ptr<TF_DurationOps>{&TF_DurationOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_DurationOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Duration& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_DurationOps m_vtable;
+    TF_Duration m_handle;
 };
 
 } // namespace ice::builder

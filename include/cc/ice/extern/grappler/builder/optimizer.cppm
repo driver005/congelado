@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFGrapplerOptimizerOps
 {
 public:
-    static TFGrapplerOptimizerOps* create(void* ctx) noexcept
+    TFGrapplerOptimizerOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGrapplerOptimizerOps*>(ctx);
+    }
+
+    TFGrapplerOptimizerOps(const TFGrapplerOptimizerOps&) = delete;
+    TFGrapplerOptimizerOps& operator=(const TFGrapplerOptimizerOps&) = delete;
+
+    static TFGrapplerOptimizerOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGrapplerOptimizerOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerOptimizerOps* create(HandleT* handle) noexcept
+    static TFGrapplerOptimizerOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGrapplerOptimizerOps*>(handle->plugin_data);
+        return *static_cast<TFGrapplerOptimizerOps*>(handle->plugin_data);
     }
 
     virtual ~TFGrapplerOptimizerOps() = default;
@@ -34,9 +42,9 @@ public:
         const ice::sonic::TF_BufferOps& out_optimized_graph_buf
     ) noexcept = 0;
 
-    static TFGrapplerOptimizerOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGrapplerOptimizerOps vtable = {
+        m_vtable = ::TFGrapplerOptimizerOps{
             .struct_size = TF_RAPPLEROPTIMIZER_STRUCT_SIZE,
             .optimize = [](TFGrapplerOptimizer* optimizer,
                            const TF_Buffer* graph_buf,
@@ -44,8 +52,7 @@ public:
                            TF_Buffer* out_optimized_graph_buf,
                            TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerOptimizerOps::create(optimizer);
-                auto res = self->optimize(
+                auto res = TFGrapplerOptimizerOps::from_handle(optimizer).optimize(
                     ice::sonic::TF_BufferOps::wrap(graph_buf),
                     ice::sonic::TFGrapplerItemOps::wrap(item),
                     ice::sonic::TF_BufferOps::wrap(out_optimized_graph_buf)
@@ -56,16 +63,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGrapplerOptimizerOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFGrapplerOptimizer& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGrapplerOptimizerOps m_vtable;
+    TFGrapplerOptimizer m_handle;
 };
 
 } // namespace ice::builder

@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set(size_t index) noexcept
     {
         ice::Status status;
-        m_ops->set(get_handle(), index status.get_handle());
+        m_ops->set(get_handle(), index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> clear(size_t index) noexcept
     {
         ice::Status status;
-        m_ops->clear(get_handle(), index status.get_handle());
+        m_ops->clear(get_handle(), index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> test(size_t index, int* out_result) noexcept
     {
         ice::Status status;
-        m_ops->test(get_handle(), index, out_result status.get_handle());
+        m_ops->test(get_handle(), index, out_result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -60,7 +60,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> flip(size_t index) noexcept
     {
         ice::Status status;
-        m_ops->flip(get_handle(), index status.get_handle());
+        m_ops->flip(get_handle(), index, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -71,7 +71,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> count(size_t* out_count) noexcept
     {
         ice::Status status;
-        m_ops->count(get_handle(), out_count status.get_handle());
+        m_ops->count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -82,7 +82,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->size(get_handle(), out_size status.get_handle());
+        m_ops->size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

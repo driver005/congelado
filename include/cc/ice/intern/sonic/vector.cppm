@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_element_size(size_t element_size) noexcept
     {
         ice::Status status;
-        m_ops->set_element_size(get_handle(), element_size status.get_handle());
+        m_ops->set_element_size(get_handle(), element_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> push_back(const void* value) noexcept
     {
         ice::Status status;
-        m_ops->push_back(get_handle(), value status.get_handle());
+        m_ops->push_back(get_handle(), value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     get(size_t index, const void** out_value) noexcept
     {
         ice::Status status;
-        m_ops->get(get_handle(), index, out_value status.get_handle());
+        m_ops->get(get_handle(), index, out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set(size_t index, const void* value) noexcept
     {
         ice::Status status;
-        m_ops->set(get_handle(), index, value status.get_handle());
+        m_ops->set(get_handle(), index, value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,7 +72,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> size(size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->size(get_handle(), out_size status.get_handle());
+        m_ops->size(get_handle(), out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -83,7 +83,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> capacity(size_t* out_capacity) noexcept
     {
         ice::Status status;
-        m_ops->capacity(get_handle(), out_capacity status.get_handle());
+        m_ops->capacity(get_handle(), out_capacity, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -94,7 +94,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> reserve(size_t new_capacity) noexcept
     {
         ice::Status status;
-        m_ops->reserve(get_handle(), new_capacity status.get_handle());
+        m_ops->reserve(get_handle(), new_capacity, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -105,7 +105,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> data(void** out_data) noexcept
     {
         ice::Status status;
-        m_ops->data(get_handle(), out_data status.get_handle());
+        m_ops->data(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

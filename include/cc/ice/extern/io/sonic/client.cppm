@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> connect(int64_t timeout_ms) noexcept
     {
         ice::Status status;
-        m_ops->connect(get_handle(), timeout_ms status.get_handle());
+        m_ops->connect(get_handle(), timeout_ms, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     connect_async(int64_t timeout_ms, TFClientConnectFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->connect_async(get_handle(), timeout_ms, completion, user_data status.get_handle());
+        m_ops->connect_async(get_handle(), timeout_ms, completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -73,7 +73,7 @@ public:
     on_disconnect(TFClientDisconnectFn handler, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->on_disconnect(get_handle(), handler, user_data status.get_handle());
+        m_ops->on_disconnect(get_handle(), handler, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -84,7 +84,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_connected(int* out_connected) noexcept
     {
         ice::Status status;
-        m_ops->is_connected(get_handle(), out_connected status.get_handle());
+        m_ops->is_connected(get_handle(), out_connected, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -93,13 +93,14 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_remote_endpoint(const ice::sonic::TF_StringOps& out_host, uint16_t* out_port) noexcept
+    get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept
     {
         ice::Status status;
         m_ops->get_remote_endpoint(
             get_handle(),
             out_host.get_handle(),
-            out_port status.get_handle()
+            out_port,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -111,7 +112,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_keep_alive(int enabled) noexcept
     {
         ice::Status status;
-        m_ops->set_keep_alive(get_handle(), enabled status.get_handle());
+        m_ops->set_keep_alive(get_handle(), enabled, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -122,7 +123,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_keep_alive(int* out_keep_alive) noexcept
     {
         ice::Status status;
-        m_ops->is_keep_alive(get_handle(), out_keep_alive status.get_handle());
+        m_ops->is_keep_alive(get_handle(), out_keep_alive, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -134,8 +135,12 @@ public:
     create_request(uint32_t stream_id, const ice::sonic::TF_RequestOps& out_request) noexcept
     {
         ice::Status status;
-        m_ops
-            ->create_request(get_handle(), stream_id, out_request.get_handle() status.get_handle());
+        m_ops->create_request(
+            get_handle(),
+            stream_id,
+            out_request.get_handle(),
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -152,7 +157,8 @@ public:
         m_ops->send(
             get_handle(),
             request.get_handle(),
-            out_response.get_handle() status.get_handle()
+            out_response.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -172,7 +178,8 @@ public:
             get_handle(),
             request.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -184,7 +191,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> cancel_request(uint32_t stream_id) noexcept
     {
         ice::Status status;
-        m_ops->cancel_request(get_handle(), stream_id status.get_handle());
+        m_ops->cancel_request(get_handle(), stream_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -196,7 +203,8 @@ public:
     list_pending_requests(const ice::sonic::TF_VectorOps& out_stream_ids) noexcept
     {
         ice::Status status;
-        m_ops->list_pending_requests(get_handle(), out_stream_ids.get_handle() status.get_handle());
+        m_ops
+            ->list_pending_requests(get_handle(), out_stream_ids.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -208,7 +216,7 @@ public:
     get_pending_request_count(size_t* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_pending_request_count(get_handle(), out_count status.get_handle());
+        m_ops->get_pending_request_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -220,7 +228,7 @@ public:
     ping(TFClientConnectFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->ping(get_handle(), completion, user_data status.get_handle());
+        m_ops->ping(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -242,7 +250,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_max_retries(int max_retries) noexcept
     {
         ice::Status status;
-        m_ops->set_max_retries(get_handle(), max_retries status.get_handle());
+        m_ops->set_max_retries(get_handle(), max_retries, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -253,7 +261,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_retry_backoff(int64_t backoff_ms) noexcept
     {
         ice::Status status;
-        m_ops->set_retry_backoff(get_handle(), backoff_ms status.get_handle());
+        m_ops->set_retry_backoff(get_handle(), backoff_ms, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -264,7 +272,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_timeout(int64_t timeout_ms) noexcept
     {
         ice::Status status;
-        m_ops->set_timeout(get_handle(), timeout_ms status.get_handle());
+        m_ops->set_timeout(get_handle(), timeout_ms, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -276,7 +284,7 @@ public:
     on_error(TFClientConnectFn handler, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->on_error(get_handle(), handler, user_data status.get_handle());
+        m_ops->on_error(get_handle(), handler, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -299,7 +307,7 @@ public:
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept
     {
         ice::Status status;
-        m_ops->get_stats(get_handle(), out_stats.get_handle() status.get_handle());
+        m_ops->get_stats(get_handle(), out_stats.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

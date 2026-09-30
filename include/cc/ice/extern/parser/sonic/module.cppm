@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_function_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_function_count(get_handle(), out_count status.get_handle());
+        m_ops->get_function_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     get_function(int index, const ice::sonic::TFParserFunctionOps& out_function) noexcept
     {
         ice::Status status;
-        m_ops->get_function(get_handle(), index, out_function.get_handle() status.get_handle());
+        m_ops->get_function(get_handle(), index, out_function.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

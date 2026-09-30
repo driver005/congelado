@@ -2,6 +2,7 @@
 #define CONGELADO_C_GRAPPLER_PROPERTIES_H_
 
 #include "include/c/macros.h"
+#include "include/c/intern/tstring.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/buffer.h"
 #include <stdbool.h>
@@ -15,10 +16,10 @@ extern "C" {
     typedef struct TFGrapplerPropertiesOps {
         size_t struct_size;
         void (*infer_statically)(TFGrapplerProperties* props, bool assume_valid_feeds, bool aggressive_shape_inference, bool include_input_tensor_values, bool include_output_tensor_values, TF_Status* out_status);
-        void (*get_input_properties_size)(TFGrapplerProperties* props, const char* name, int* out_num_values, TF_Status* out_status);
-        void (*get_output_properties_size)(TFGrapplerProperties* props, const char* name, int* out_num_values, TF_Status* out_status);
-        void (*get_input_properties)(TFGrapplerProperties* props, const char* name, TF_Buffer** out_properties, int num_values, TF_Status* out_status);
-        void (*get_output_properties)(TFGrapplerProperties* props, const char* name, TF_Buffer** out_properties, int num_values, TF_Status* out_status);
+        void (*get_input_properties_size)(TFGrapplerProperties* props, const TF_String* name, int* out_num_values, TF_Status* out_status);
+        void (*get_output_properties_size)(TFGrapplerProperties* props, const TF_String* name, int* out_num_values, TF_Status* out_status);
+        void (*get_input_properties)(TFGrapplerProperties* props, const TF_String* name, TF_Buffer** out_properties, int num_values, TF_Status* out_status);
+        void (*get_output_properties)(TFGrapplerProperties* props, const TF_String* name, TF_Buffer** out_properties, int num_values, TF_Status* out_status);
     } TFGrapplerPropertiesOps;
     #define TF_GRAPPLER_PROPERTIES_STRUCT_SIZE TF_OFFSET_OF_END(TFGrapplerPropertiesOps, get_output_properties)
 

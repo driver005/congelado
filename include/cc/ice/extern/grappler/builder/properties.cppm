@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFGrapplerPropertiesOps
 {
 public:
-    static TFGrapplerPropertiesOps* create(void* ctx) noexcept
+    TFGrapplerPropertiesOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGrapplerPropertiesOps*>(ctx);
+    }
+
+    TFGrapplerPropertiesOps(const TFGrapplerPropertiesOps&) = delete;
+    TFGrapplerPropertiesOps& operator=(const TFGrapplerPropertiesOps&) = delete;
+
+    static TFGrapplerPropertiesOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGrapplerPropertiesOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerPropertiesOps* create(HandleT* handle) noexcept
+    static TFGrapplerPropertiesOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGrapplerPropertiesOps*>(handle->plugin_data);
+        return *static_cast<TFGrapplerPropertiesOps*>(handle->plugin_data);
     }
 
     virtual ~TFGrapplerPropertiesOps() = default;
@@ -35,20 +43,23 @@ public:
         _Bool include_output_tensor_values
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_input_properties_size(const char* name, int* out_num_values) noexcept = 0;
+    get_input_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_output_properties_size(const char* name, int* out_num_values) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_input_properties(const char* name, TF_Buffer** out_properties, int num_values) noexcept = 0;
+    get_output_properties_size(const ice::sonic::String& name, int* out_num_values) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> get_input_properties(
+        const ice::sonic::String& name,
+        TF_Buffer** out_properties,
+        int num_values
+    ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_output_properties(
-        const char* name,
+        const ice::sonic::String& name,
         TF_Buffer** out_properties,
         int num_values
     ) noexcept = 0;
 
-    static TFGrapplerPropertiesOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGrapplerPropertiesOps vtable = {
+        m_vtable = ::TFGrapplerPropertiesOps{
             .struct_size = TF_RAPPLERPROPERTIES_STRUCT_SIZE,
             .infer_statically =
                 [](TFGrapplerProperties* props,
@@ -58,8 +69,7 @@ public:
                    _Bool include_output_tensor_values,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerPropertiesOps::create(props);
-                auto res = self->infer_statically(
+                auto res = TFGrapplerPropertiesOps::from_handle(props).infer_statically(
                     assume_valid_feeds,
                     aggressive_shape_inference,
                     include_input_tensor_values,
@@ -71,66 +81,82 @@ public:
             },
             .get_input_properties_size =
                 [](TFGrapplerProperties* props,
-                   const char* name,
+                   const TF_String* name,
                    int* out_num_values,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerPropertiesOps::create(props);
-                auto res = self->get_input_properties_size(name, out_num_values);
+                auto res = TFGrapplerPropertiesOps::from_handle(props).get_input_properties_size(
+                    ice::sonic::String::wrap(name),
+                    out_num_values
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
             .get_output_properties_size =
                 [](TFGrapplerProperties* props,
-                   const char* name,
+                   const TF_String* name,
                    int* out_num_values,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerPropertiesOps::create(props);
-                auto res = self->get_output_properties_size(name, out_num_values);
+                auto res = TFGrapplerPropertiesOps::from_handle(props).get_output_properties_size(
+                    ice::sonic::String::wrap(name),
+                    out_num_values
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
             .get_input_properties =
                 [](TFGrapplerProperties* props,
-                   const char* name,
+                   const TF_String* name,
                    TF_Buffer** out_properties,
                    int num_values,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerPropertiesOps::create(props);
-                auto res = self->get_input_properties(name, out_properties, num_values);
+                auto res = TFGrapplerPropertiesOps::from_handle(props).get_input_properties(
+                    ice::sonic::String::wrap(name),
+                    out_properties,
+                    num_values
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
             .get_output_properties =
                 [](TFGrapplerProperties* props,
-                   const char* name,
+                   const TF_String* name,
                    TF_Buffer** out_properties,
                    int num_values,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerPropertiesOps::create(props);
-                auto res = self->get_output_properties(name, out_properties, num_values);
+                auto res = TFGrapplerPropertiesOps::from_handle(props).get_output_properties(
+                    ice::sonic::String::wrap(name),
+                    out_properties,
+                    num_values
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGrapplerPropertiesOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFGrapplerProperties& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGrapplerPropertiesOps m_vtable;
+    TFGrapplerProperties m_handle;
 };
 
 } // namespace ice::builder

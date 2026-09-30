@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_BufferOps
 {
 public:
-    static TF_BufferOps* create(void* ctx) noexcept
+    TF_BufferOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_BufferOps*>(ctx);
+    }
+
+    TF_BufferOps(const TF_BufferOps&) = delete;
+    TF_BufferOps& operator=(const TF_BufferOps&) = delete;
+
+    static TF_BufferOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_BufferOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_BufferOps* create(HandleT* handle) noexcept
+    static TF_BufferOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_BufferOps*>(handle->plugin_data);
+        return *static_cast<TF_BufferOps*>(handle->plugin_data);
     }
 
     virtual ~TF_BufferOps() = default;
@@ -34,23 +42,21 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_buffer(TFBufferData* out_buffer) noexcept = 0;
 
-    static TF_BufferOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_BufferOps vtable = {
+        m_vtable = ::TF_BufferOps{
             .struct_size = TF_BUFFER_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_BufferOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_BufferOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .assign_from_string =
                 [](TF_Buffer* buffer, const void* proto, size_t proto_len) noexcept
             {
-                auto* self = TF_BufferOps::create(buffer);
-                auto res = self->assign_from_string(proto, proto_len);
+                auto res = TF_BufferOps::from_handle(buffer).assign_from_string(proto, proto_len);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +64,7 @@ public:
             .delete_buffer =
                 [](TF_Buffer* buffer) noexcept
             {
-                auto* self = TF_BufferOps::create(buffer);
-                auto res = self->delete_buffer();
+                auto res = TF_BufferOps::from_handle(buffer).delete_buffer();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -67,24 +72,31 @@ public:
             .get_buffer =
                 [](TF_Buffer* buffer, TFBufferData* out_buffer) noexcept
             {
-                auto* self = TF_BufferOps::create(buffer);
-                auto res = self->get_buffer(out_buffer);
+                auto res = TF_BufferOps::from_handle(buffer).get_buffer(out_buffer);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_BufferOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Buffer& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_BufferOps m_vtable;
+    TF_Buffer m_handle;
 };
 
 } // namespace ice::builder

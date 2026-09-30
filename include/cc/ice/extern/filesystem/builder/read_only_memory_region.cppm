@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ReadOnlyMemoryRegionOps
 {
 public:
-    static TF_ReadOnlyMemoryRegionOps* create(void* ctx) noexcept
+    TF_ReadOnlyMemoryRegionOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ReadOnlyMemoryRegionOps*>(ctx);
+    }
+
+    TF_ReadOnlyMemoryRegionOps(const TF_ReadOnlyMemoryRegionOps&) = delete;
+    TF_ReadOnlyMemoryRegionOps& operator=(const TF_ReadOnlyMemoryRegionOps&) = delete;
+
+    static TF_ReadOnlyMemoryRegionOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ReadOnlyMemoryRegionOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ReadOnlyMemoryRegionOps* create(HandleT* handle) noexcept
+    static TF_ReadOnlyMemoryRegionOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ReadOnlyMemoryRegionOps*>(handle->plugin_data);
+        return *static_cast<TF_ReadOnlyMemoryRegionOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ReadOnlyMemoryRegionOps() = default;
@@ -32,29 +40,29 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     length(uint64_t* out_length) noexcept = 0;
 
-    static TF_ReadOnlyMemoryRegionOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ReadOnlyMemoryRegionOps vtable = {
+        m_vtable = ::TF_ReadOnlyMemoryRegionOps{
             .struct_size = TF_READONLYMEMORYREGION_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ReadOnlyMemoryRegionOps::create(plugin_context);
+                std::unique_ptr<TF_ReadOnlyMemoryRegionOps>{
+                    &TF_ReadOnlyMemoryRegionOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_ReadOnlyMemoryRegionOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_ReadOnlyMemoryRegionOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .data =
                 [](TF_ReadOnlyMemoryRegion* region, const void** out_data) noexcept
             {
-                auto* self = TF_ReadOnlyMemoryRegionOps::create(region);
-                auto res = self->data(out_data);
+                auto res = TF_ReadOnlyMemoryRegionOps::from_handle(region).data(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -62,24 +70,31 @@ public:
             .length =
                 [](TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
             {
-                auto* self = TF_ReadOnlyMemoryRegionOps::create(region);
-                auto res = self->length(out_length);
+                auto res = TF_ReadOnlyMemoryRegionOps::from_handle(region).length(out_length);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ReadOnlyMemoryRegionOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_ReadOnlyMemoryRegion& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ReadOnlyMemoryRegionOps m_vtable;
+    TF_ReadOnlyMemoryRegion m_handle;
 };
 
 } // namespace ice::builder

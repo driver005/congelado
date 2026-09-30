@@ -25,11 +25,10 @@ public:
 
     static constexpr std::string_view domain_name = "generator";
 
-    [[nodiscard]] std::expected<void, ice::Status>
-    set_name(const ice::sonic::TF_StringOps& name) noexcept
+    [[nodiscard]] std::expected<void, ice::Status> set_name(const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->set_name(get_handle(), name.get_handle() status.get_handle());
+        m_ops->set_name(get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -38,10 +37,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_description(const ice::sonic::TF_StringOps& description) noexcept
+    set_description(const ice::sonic::String& description) noexcept
     {
         ice::Status status;
-        m_ops->set_description(get_handle(), description.get_handle() status.get_handle());
+        m_ops->set_description(get_handle(), description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,10 +49,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_full_type(const ice::sonic::TF_StringOps& full_type) noexcept
+    set_full_type(const ice::sonic::String& full_type) noexcept
     {
         ice::Status status;
-        m_ops->set_full_type(get_handle(), full_type.get_handle() status.get_handle());
+        m_ops->set_full_type(get_handle(), full_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -62,10 +61,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_base_type(const ice::sonic::TF_StringOps& base_type) noexcept
+    set_base_type(const ice::sonic::String& base_type) noexcept
     {
         ice::Status status;
-        m_ops->set_base_type(get_handle(), base_type.get_handle() status.get_handle());
+        m_ops->set_base_type(get_handle(), base_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -76,7 +75,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_is_list(_Bool is_list) noexcept
     {
         ice::Status status;
-        m_ops->set_is_list(get_handle(), is_list status.get_handle());
+        m_ops->set_is_list(get_handle(), is_list, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -85,10 +84,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_description(const ice::sonic::TF_StringOps& out_description) noexcept
+    get_description(const ice::sonic::String& out_description) noexcept
     {
         ice::Status status;
-        m_ops->get_description(get_handle(), out_description.get_handle() status.get_handle());
+        m_ops->get_description(get_handle(), out_description.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -97,10 +96,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_full_type(const ice::sonic::TF_StringOps& out_full_type) noexcept
+    get_full_type(const ice::sonic::String& out_full_type) noexcept
     {
         ice::Status status;
-        m_ops->get_full_type(get_handle(), out_full_type.get_handle() status.get_handle());
+        m_ops->get_full_type(get_handle(), out_full_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -109,10 +108,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_base_type(const ice::sonic::TF_StringOps& out_base_type) noexcept
+    get_base_type(const ice::sonic::String& out_base_type) noexcept
     {
         ice::Status status;
-        m_ops->get_base_type(get_handle(), out_base_type.get_handle() status.get_handle());
+        m_ops->get_base_type(get_handle(), out_base_type.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -123,7 +122,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_list(int* out_is_list) noexcept
     {
         ice::Status status;
-        m_ops->is_list(get_handle(), out_is_list status.get_handle());
+        m_ops->is_list(get_handle(), out_is_list, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

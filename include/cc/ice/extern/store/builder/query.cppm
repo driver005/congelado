@@ -16,36 +16,44 @@ export namespace ice::builder {
 class TFStoreQueryOps
 {
 public:
-    static TFStoreQueryOps* create(void* ctx) noexcept
+    TFStoreQueryOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFStoreQueryOps*>(ctx);
+    }
+
+    TFStoreQueryOps(const TFStoreQueryOps&) = delete;
+    TFStoreQueryOps& operator=(const TFStoreQueryOps&) = delete;
+
+    static TFStoreQueryOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFStoreQueryOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFStoreQueryOps* create(HandleT* handle) noexcept
+    static TFStoreQueryOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFStoreQueryOps*>(handle->plugin_data);
+        return *static_cast<TFStoreQueryOps*>(handle->plugin_data);
     }
 
     virtual ~TFStoreQueryOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     run(const ice::sonic::TF_MapOps& filters,
-        const ice::sonic::TF_StringOps& free_text,
-        const ice::sonic::TF_StringOps& sort,
+        const ice::sonic::String& free_text,
+        const ice::sonic::String& sort,
         size_t offset,
         size_t limit,
         TFStoreQueryFn completion,
         void* user_data) noexcept = 0;
 
-    static TFStoreQueryOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFStoreQueryOps vtable = {
+        m_vtable = ::TFStoreQueryOps{
             .struct_size = TF_TOREQUERY_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFStoreQueryOps::create(plugin_context);
+                std::unique_ptr<TFStoreQueryOps>{&TFStoreQueryOps::from_handle(plugin_context)};
             },
             .run =
                 [](TFStoreQuery* query,
@@ -58,11 +66,10 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFStoreQueryOps::create(query);
-                auto res = self->run(
+                auto res = TFStoreQueryOps::from_handle(query).run(
                     ice::sonic::TF_MapOps::wrap(filters),
-                    ice::sonic::TF_StringOps::wrap(free_text),
-                    ice::sonic::TF_StringOps::wrap(sort),
+                    ice::sonic::String::wrap(free_text),
+                    ice::sonic::String::wrap(sort),
                     offset,
                     limit,
                     completion,
@@ -74,16 +81,22 @@ public:
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFStoreQueryOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFStoreQuery& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFStoreQueryOps m_vtable;
+    TFStoreQuery m_handle;
 };
 
 } // namespace ice::builder

@@ -31,7 +31,8 @@ public:
         m_ops->get_nodes_to_preserve_size(
             get_handle(),
             out_num_values,
-            out_storage_size status.get_handle()
+            out_storage_size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -55,7 +56,8 @@ public:
             out_lengths,
             num_values,
             storage,
-            storage_size status.get_handle()
+            storage_size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -71,7 +73,8 @@ public:
         m_ops->get_fetch_nodes_size(
             get_handle(),
             out_num_values,
-            out_storage_size status.get_handle()
+            out_storage_size,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -95,7 +98,8 @@ public:
             out_lengths,
             num_values,
             storage,
-            storage_size status.get_handle()
+            storage_size,
+            status.get_handle()
         );
 
         if (!status.ok()) {

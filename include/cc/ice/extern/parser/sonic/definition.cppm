@@ -26,10 +26,10 @@ public:
     static constexpr std::string_view domain_name = "parser";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_source_file(const ice::sonic::TF_StringOps& out_source_file) noexcept
+    get_source_file(const ice::sonic::String& out_source_file) noexcept
     {
         ice::Status status;
-        m_ops->get_source_file(get_handle(), out_source_file.get_handle() status.get_handle());
+        m_ops->get_source_file(get_handle(), out_source_file.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_line_number(int* out_line_number) noexcept
     {
         ice::Status status;
-        m_ops->get_line_number(get_handle(), out_line_number status.get_handle());
+        m_ops->get_line_number(get_handle(), out_line_number, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

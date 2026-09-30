@@ -31,7 +31,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> num_inputs(int64_t* out_num) noexcept
     {
         ice::Status status;
-        m_ops->num_inputs(get_handle(), out_num status.get_handle());
+        m_ops->num_inputs(get_handle(), out_num, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -42,7 +42,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_input(int i, TF_ShapeHandle* handle) noexcept
     {
         ice::Status status;
-        m_ops->get_input(get_handle(), i, handle status.get_handle());
+        m_ops->get_input(get_handle(), i, handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -54,7 +54,7 @@ public:
     set_output(int i, TF_ShapeHandle* handle) noexcept
     {
         ice::Status status;
-        m_ops->set_output(get_handle(), i, handle status.get_handle());
+        m_ops->set_output(get_handle(), i, handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -65,7 +65,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> scalar(TF_ShapeHandle* handle) noexcept
     {
         ice::Status status;
-        m_ops->scalar(get_handle(), handle status.get_handle());
+        m_ops->scalar(get_handle(), handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -77,7 +77,7 @@ public:
     vector_from_size(size_t size, TF_ShapeHandle* handle) noexcept
     {
         ice::Status status;
-        m_ops->vector_from_size(get_handle(), size, handle status.get_handle());
+        m_ops->vector_from_size(get_handle(), size, handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -86,10 +86,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_attr_type(const char* attr_name, TFDataTypeEnum* out_val) noexcept
+    get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept
     {
         ice::Status status;
-        m_ops->get_attr_type(get_handle(), attr_name, out_val status.get_handle());
+        m_ops->get_attr_type(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -101,7 +101,7 @@ public:
     rank(TF_ShapeHandle* handle, int64_t* out_rank) noexcept
     {
         ice::Status status;
-        m_ops->rank(get_handle(), handle, out_rank status.get_handle());
+        m_ops->rank(get_handle(), handle, out_rank, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -113,7 +113,7 @@ public:
     rank_known(TF_ShapeHandle* handle, int* out_known) noexcept
     {
         ice::Status status;
-        m_ops->rank_known(get_handle(), handle, out_known status.get_handle());
+        m_ops->rank_known(get_handle(), handle, out_known, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -125,7 +125,7 @@ public:
     with_rank(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
     {
         ice::Status status;
-        m_ops->with_rank(get_handle(), handle, rank, result status.get_handle());
+        m_ops->with_rank(get_handle(), handle, rank, result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -137,7 +137,7 @@ public:
     with_rank_at_least(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
     {
         ice::Status status;
-        m_ops->with_rank_at_least(get_handle(), handle, rank, result status.get_handle());
+        m_ops->with_rank_at_least(get_handle(), handle, rank, result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -149,7 +149,7 @@ public:
     with_rank_at_most(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
     {
         ice::Status status;
-        m_ops->with_rank_at_most(get_handle(), handle, rank, result status.get_handle());
+        m_ops->with_rank_at_most(get_handle(), handle, rank, result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -163,7 +163,7 @@ public:
         const ice::sonic::TF_DimensionHandleOps& result) noexcept
     {
         ice::Status status;
-        m_ops->dim(get_handle(), shape_handle, i, result.get_handle() status.get_handle());
+        m_ops->dim(get_handle(), shape_handle, i, result.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -179,7 +179,7 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops->subshape(get_handle(), shape_handle, start, end, result status.get_handle());
+        m_ops->subshape(get_handle(), shape_handle, start, end, result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -205,7 +205,7 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops->concatenate_shapes(get_handle(), first, second, result status.get_handle());
+        m_ops->concatenate_shapes(get_handle(), first, second, result, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

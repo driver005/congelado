@@ -16,33 +16,40 @@ export namespace ice::builder {
 class TFParserDefinitionOps
 {
 public:
-    static TFParserDefinitionOps* create(void* ctx) noexcept
+    TFParserDefinitionOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserDefinitionOps*>(ctx);
+    }
+
+    TFParserDefinitionOps(const TFParserDefinitionOps&) = delete;
+    TFParserDefinitionOps& operator=(const TFParserDefinitionOps&) = delete;
+
+    static TFParserDefinitionOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserDefinitionOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserDefinitionOps* create(HandleT* handle) noexcept
+    static TFParserDefinitionOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserDefinitionOps*>(handle->plugin_data);
+        return *static_cast<TFParserDefinitionOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserDefinitionOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_source_file(const ice::sonic::TF_StringOps& out_source_file) noexcept = 0;
+    get_source_file(const ice::sonic::String& out_source_file) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_line_number(int* out_line_number) noexcept = 0;
 
-    static TFParserDefinitionOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserDefinitionOps vtable = {
+        m_vtable = ::TFParserDefinitionOps{
             .struct_size = TF_ARSERDEFINITION_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFParserDefinitionOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFParserDefinitionOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .get_source_file =
@@ -50,8 +57,8 @@ public:
                    TF_String* out_source_file,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserDefinitionOps::create(definition);
-                auto res = self->get_source_file(ice::sonic::TF_StringOps::wrap(out_source_file));
+                auto res = TFParserDefinitionOps::from_handle(definition)
+                               .get_source_file(ice::sonic::String::wrap(out_source_file));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -61,24 +68,32 @@ public:
                    int* out_line_number,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserDefinitionOps::create(definition);
-                auto res = self->get_line_number(out_line_number);
+                auto res =
+                    TFParserDefinitionOps::from_handle(definition).get_line_number(out_line_number);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserDefinitionOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFParserDefinition& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserDefinitionOps m_vtable;
+    TFParserDefinition m_handle;
 };
 
 } // namespace ice::builder

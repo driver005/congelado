@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ComplexOps
 {
 public:
-    static TF_ComplexOps* create(void* ctx) noexcept
+    TF_ComplexOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ComplexOps*>(ctx);
+    }
+
+    TF_ComplexOps(const TF_ComplexOps&) = delete;
+    TF_ComplexOps& operator=(const TF_ComplexOps&) = delete;
+
+    static TF_ComplexOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ComplexOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ComplexOps* create(HandleT* handle) noexcept
+    static TF_ComplexOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ComplexOps*>(handle->plugin_data);
+        return *static_cast<TF_ComplexOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ComplexOps() = default;
@@ -33,15 +41,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status> set_real(double real) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_imag(double imag) noexcept = 0;
 
-    static TF_ComplexOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ComplexOps vtable = {
+        m_vtable = ::TF_ComplexOps{
             .struct_size = TF_COMPLEX_STRUCT_SIZE,
             .get_real =
                 [](const TF_Complex* complex_value, double* out_real) noexcept
             {
-                auto* self = TF_ComplexOps::create(complex_value);
-                auto res = self->get_real(out_real);
+                auto res = TF_ComplexOps::from_handle(complex_value).get_real(out_real);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -49,8 +56,7 @@ public:
             .get_imag =
                 [](const TF_Complex* complex_value, double* out_imag) noexcept
             {
-                auto* self = TF_ComplexOps::create(complex_value);
-                auto res = self->get_imag(out_imag);
+                auto res = TF_ComplexOps::from_handle(complex_value).get_imag(out_imag);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +64,7 @@ public:
             .set_real =
                 [](TF_Complex* complex_value, double real) noexcept
             {
-                auto* self = TF_ComplexOps::create(complex_value);
-                auto res = self->set_real(real);
+                auto res = TF_ComplexOps::from_handle(complex_value).set_real(real);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -67,8 +72,7 @@ public:
             .set_imag =
                 [](TF_Complex* complex_value, double imag) noexcept
             {
-                auto* self = TF_ComplexOps::create(complex_value);
-                auto res = self->set_imag(imag);
+                auto res = TF_ComplexOps::from_handle(complex_value).set_imag(imag);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -77,20 +81,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ComplexOps::create(plugin_context);
+                std::unique_ptr<TF_ComplexOps>{&TF_ComplexOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ComplexOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Complex& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ComplexOps m_vtable;
+    TF_Complex m_handle;
 };
 
 } // namespace ice::builder

@@ -36,10 +36,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_status(TF_Code code, const char* msg) noexcept
+    set_status(TF_Code code, const ice::sonic::String& msg) noexcept
     {
         ice::Status status;
-        m_ops->set_status(get_handle(), code, msg status.get_handle());
+        m_ops->set_status(get_handle(), code, msg.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -48,10 +48,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_payload(const char* key, const char* value) noexcept
+    set_payload(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
     {
         ice::Status status;
-        m_ops->set_payload(get_handle(), key, value status.get_handle());
+        m_ops->set_payload(get_handle(), key.get_handle(), value.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -63,7 +63,7 @@ public:
     for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept
     {
         ice::Status status;
-        m_ops->for_each_payload(get_handle(), visitor, capture status.get_handle());
+        m_ops->for_each_payload(get_handle(), visitor, capture, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -72,10 +72,15 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_status_from_io_error(int error_code, const char* context) noexcept
+    set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept
     {
         ice::Status status;
-        m_ops->set_status_from_io_error(get_handle(), error_code, context status.get_handle());
+        m_ops->set_status_from_io_error(
+            get_handle(),
+            error_code,
+            context.get_handle(),
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -86,7 +91,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_code(TF_Code* out_code) noexcept
     {
         ice::Status status;
-        m_ops->get_code(get_handle(), out_code status.get_handle());
+        m_ops->get_code(get_handle(), out_code, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -94,10 +99,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> message(const char** out_message) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    message(const ice::sonic::String& out_message) noexcept
     {
         ice::Status status;
-        m_ops->message(get_handle(), out_message status.get_handle());
+        m_ops->message(get_handle(), out_message.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

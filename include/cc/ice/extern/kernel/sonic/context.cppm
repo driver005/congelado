@@ -28,7 +28,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> num_inputs(int* out_num) noexcept
     {
         ice::Status status;
-        m_ops->num_inputs(get_handle(), out_num status.get_handle());
+        m_ops->num_inputs(get_handle(), out_num, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> num_outputs(int* out_num) noexcept
     {
         ice::Status status;
-        m_ops->num_outputs(get_handle(), out_num status.get_handle());
+        m_ops->num_outputs(get_handle(), out_num, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_input(int i, TF_Tensor** out_tensor) noexcept
     {
         ice::Status status;
-        m_ops->get_input(get_handle(), i, out_tensor status.get_handle());
+        m_ops->get_input(get_handle(), i, out_tensor, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -59,10 +59,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    input_range(const char* name, TF_InputRange_Args* out_args) noexcept
+    input_range(const ice::sonic::String& name, TF_InputRange_Args* out_args) noexcept
     {
         ice::Status status;
-        m_ops->input_range(get_handle(), name, out_args status.get_handle());
+        m_ops->input_range(get_handle(), name.get_handle(), out_args, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -74,7 +74,7 @@ public:
     input_datatype(int index, TFDataTypeEnum* out_type) noexcept
     {
         ice::Status status;
-        m_ops->input_datatype(get_handle(), index, out_type status.get_handle());
+        m_ops->input_datatype(get_handle(), index, out_type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -86,7 +86,7 @@ public:
     set_output(int i, const ice::sonic::TF_TensorOps& tensor) noexcept
     {
         ice::Status status;
-        m_ops->set_output(get_handle(), i, tensor.get_handle() status.get_handle());
+        m_ops->set_output(get_handle(), i, tensor.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -98,7 +98,7 @@ public:
     get_mutable_output(int i, TF_Tensor** out_tensor) noexcept
     {
         ice::Status status;
-        m_ops->get_mutable_output(get_handle(), i, out_tensor status.get_handle());
+        m_ops->get_mutable_output(get_handle(), i, out_tensor, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -113,7 +113,8 @@ public:
         ice::Status status;
         m_ops->get_serialized_function_def_library(
             get_handle(),
-            serialized_function_def_library.get_handle() status.get_handle()
+            serialized_function_def_library.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -128,7 +129,8 @@ public:
         ice::Status status;
         m_ops->get_serialized_config_proto(
             get_handle(),
-            serialized_config_proto.get_handle() status.get_handle()
+            serialized_config_proto.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -146,7 +148,8 @@ public:
         m_ops->get_serialized_resource_handle_proto(
             get_handle(),
             i,
-            serialized_resource_handle_proto.get_handle() status.get_handle()
+            serialized_resource_handle_proto.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -170,7 +173,7 @@ public:
     expected_output_datatype(int i, TFDataTypeEnum* out_type) noexcept
     {
         ice::Status status;
-        m_ops->expected_output_datatype(get_handle(), i, out_type status.get_handle());
+        m_ops->expected_output_datatype(get_handle(), i, out_type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -182,7 +185,7 @@ public:
     is_host_memory_input(int i, _Bool* out_is_host) noexcept
     {
         ice::Status status;
-        m_ops->is_host_memory_input(get_handle(), i, out_is_host status.get_handle());
+        m_ops->is_host_memory_input(get_handle(), i, out_is_host, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -194,7 +197,7 @@ public:
     is_host_memory_output(int i, _Bool* out_is_host) noexcept
     {
         ice::Status status;
-        m_ops->is_host_memory_output(get_handle(), i, out_is_host status.get_handle());
+        m_ops->is_host_memory_output(get_handle(), i, out_is_host, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -205,7 +208,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> step_id(int64_t* out_id) noexcept
     {
         ice::Status status;
-        m_ops->step_id(get_handle(), out_id status.get_handle());
+        m_ops->step_id(get_handle(), out_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -216,7 +219,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_frame_id(uint64_t* out_id) noexcept
     {
         ice::Status status;
-        m_ops->get_frame_id(get_handle(), out_id status.get_handle());
+        m_ops->get_frame_id(get_handle(), out_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -227,7 +230,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_iter_id(int64_t* out_id) noexcept
     {
         ice::Status status;
-        m_ops->get_iter_id(get_handle(), out_id status.get_handle());
+        m_ops->get_iter_id(get_handle(), out_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -238,7 +241,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_step_id(int64_t* out_id) noexcept
     {
         ice::Status status;
-        m_ops->get_step_id(get_handle(), out_id status.get_handle());
+        m_ops->get_step_id(get_handle(), out_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -249,7 +252,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_device_id(int* out_id) noexcept
     {
         ice::Status status;
-        m_ops->get_device_id(get_handle(), out_id status.get_handle());
+        m_ops->get_device_id(get_handle(), out_id, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -258,10 +261,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_device_name(const ice::sonic::TF_StringOps& out_name) noexcept
+    get_device_name(const ice::sonic::String& out_name) noexcept
     {
         ice::Status status;
-        m_ops->get_device_name(get_handle(), out_name.get_handle() status.get_handle());
+        m_ops->get_device_name(get_handle(), out_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -272,7 +275,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_graph_def_version(int* out_version) noexcept
     {
         ice::Status status;
-        m_ops->get_graph_def_version(get_handle(), out_version status.get_handle());
+        m_ops->get_graph_def_version(get_handle(), out_version, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -281,10 +284,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_op_kernel_name(const ice::sonic::TF_StringOps& out_name) noexcept
+    get_op_kernel_name(const ice::sonic::String& out_name) noexcept
     {
         ice::Status status;
-        m_ops->get_op_kernel_name(get_handle(), out_name.get_handle() status.get_handle());
+        m_ops->get_op_kernel_name(get_handle(), out_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -293,12 +296,13 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_resource_mgr_default_container_name(const ice::sonic::TF_StringOps& out_name) noexcept
+    get_resource_mgr_default_container_name(const ice::sonic::String& out_name) noexcept
     {
         ice::Status status;
         m_ops->get_resource_mgr_default_container_name(
             get_handle(),
-            out_name.get_handle() status.get_handle()
+            out_name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -308,13 +312,14 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_op_kernel_requested_input(size_t index, const ice::sonic::TF_StringOps& out_name) noexcept
+    get_op_kernel_requested_input(size_t index, const ice::sonic::String& out_name) noexcept
     {
         ice::Status status;
         m_ops->get_op_kernel_requested_input(
             get_handle(),
             index,
-            out_name.get_handle() status.get_handle()
+            out_name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -340,7 +345,8 @@ public:
             dims,
             num_dims,
             len,
-            out_tensor status.get_handle()
+            out_tensor,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -368,7 +374,8 @@ public:
             output_dims,
             output_num_dims,
             out_forwarded_input,
-            out_tensor status.get_handle()
+            out_tensor,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -392,7 +399,8 @@ public:
             dims,
             num_dims,
             alloc_attrs,
-            out_tensor status.get_handle()
+            out_tensor,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -436,7 +444,8 @@ public:
             input_index,
             value_index,
             validate_shape,
-            copy_func status.get_handle()
+            copy_func,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -462,7 +471,8 @@ public:
             value_index,
             use_locking,
             validate_shape,
-            copy_func status.get_handle()
+            copy_func,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -488,7 +498,8 @@ public:
             op,
             is_variant_type,
             copy_func,
-            update_func status.get_handle()
+            update_func,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -501,7 +512,7 @@ public:
         TFDataTypeEnum dtype,
         const int64_t* dims,
         int num_dims,
-        const ice::sonic::TF_StringOps& var_name,
+        const ice::sonic::String& var_name,
         TF_PluginAllocatorFunc plugin_allocator
     ) noexcept
     {
@@ -512,7 +523,8 @@ public:
             dims,
             num_dims,
             var_name.get_handle(),
-            plugin_allocator status.get_handle()
+            plugin_allocator,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -522,13 +534,14 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    destroy_temporary_variable(int index, const ice::sonic::TF_StringOps& var_name) noexcept
+    destroy_temporary_variable(int index, const ice::sonic::String& var_name) noexcept
     {
         ice::Status status;
         m_ops->destroy_temporary_variable(
             get_handle(),
             index,
-            var_name.get_handle() status.get_handle()
+            var_name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -554,7 +567,8 @@ public:
             inputs,
             len,
             copy_func,
-            out_lock_holder status.get_handle()
+            out_lock_holder,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -567,7 +581,7 @@ public:
     release_variable_input_lock_holder(TF_VariableInputLockHolder* lock_holder) noexcept
     {
         ice::Status status;
-        m_ops->release_variable_input_lock_holder(get_handle(), lock_holder status.get_handle());
+        m_ops->release_variable_input_lock_holder(get_handle(), lock_holder, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -592,7 +606,8 @@ public:
             is_variant_type,
             sparse,
             copy_func,
-            out_tensor status.get_handle()
+            out_tensor,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -608,7 +623,8 @@ public:
         m_ops->forward_ref_input_to_ref_output(
             get_handle(),
             input_index,
-            output_index status.get_handle()
+            output_index,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -620,7 +636,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_ref_input(int i, _Bool* out_is_ref) noexcept
     {
         ice::Status status;
-        m_ops->is_ref_input(get_handle(), i, out_is_ref status.get_handle());
+        m_ops->is_ref_input(get_handle(), i, out_is_ref, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -629,10 +645,15 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_input_by_name(const char* input_name, TF_Tensor** out_tensor) noexcept
+    get_input_by_name(const ice::sonic::String& input_name, TF_Tensor** out_tensor) noexcept
     {
         ice::Status status;
-        m_ops->get_input_by_name(get_handle(), input_name, out_tensor status.get_handle());
+        m_ops->get_input_by_name(
+            get_handle(),
+            input_name.get_handle(),
+            out_tensor,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -644,7 +665,7 @@ public:
     add_n_variant(TF_BinaryAddFunc binary_add_func) noexcept
     {
         ice::Status status;
-        m_ops->add_n_variant(get_handle(), binary_add_func status.get_handle());
+        m_ops->add_n_variant(get_handle(), binary_add_func, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -656,7 +677,7 @@ public:
     zeros_like_variant(TF_ZerosLikeFunc zeros_like_func) noexcept
     {
         ice::Status status;
-        m_ops->zeros_like_variant(get_handle(), zeros_like_func status.get_handle());
+        m_ops->zeros_like_variant(get_handle(), zeros_like_func, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -667,7 +688,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_stream(TF_Stream** out_stream) noexcept
     {
         ice::Status status;
-        m_ops->get_stream(get_handle(), out_stream status.get_handle());
+        m_ops->get_stream(get_handle(), out_stream, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -679,7 +700,7 @@ public:
     run_async_done_callback(void* done_callback) noexcept
     {
         ice::Status status;
-        m_ops->run_async_done_callback(get_handle(), done_callback status.get_handle());
+        m_ops->run_async_done_callback(get_handle(), done_callback, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -691,7 +712,7 @@ public:
     get_random_generator(const ice::sonic::TF_RandomGeneratorOps& out_generator) noexcept
     {
         ice::Status status;
-        m_ops->get_random_generator(get_handle(), out_generator.get_handle() status.get_handle());
+        m_ops->get_random_generator(get_handle(), out_generator.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

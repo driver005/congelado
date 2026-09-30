@@ -25,8 +25,8 @@ public:
     static constexpr std::string_view domain_name = "registration";
 
     [[nodiscard]] std::expected<void, ice::Status> register_op(
-        const ice::sonic::TF_StringOps& type,
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& type,
+        const ice::sonic::String& name,
         void* value
     ) noexcept
     {
@@ -35,7 +35,8 @@ public:
             get_handle(),
             type.get_handle(),
             name.get_handle(),
-            value status.get_handle()
+            value,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -45,16 +46,15 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get(const ice::sonic::TF_StringOps& type,
-        const ice::sonic::TF_StringOps& name,
-        void** out_value) noexcept
+    get(const ice::sonic::String& type, const ice::sonic::String& name, void** out_value) noexcept
     {
         ice::Status status;
         m_ops->get(
             get_handle(),
             type.get_handle(),
             name.get_handle(),
-            out_value status.get_handle()
+            out_value,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -64,10 +64,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    unregister(const ice::sonic::TF_StringOps& type, const ice::sonic::TF_StringOps& name) noexcept
+    unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept
     {
         ice::Status status;
-        m_ops->unregister(get_handle(), type.get_handle(), name.get_handle() status.get_handle());
+        m_ops->unregister(get_handle(), type.get_handle(), name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

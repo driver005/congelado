@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ExecutorOps
 {
 public:
-    static TF_ExecutorOps* create(void* ctx) noexcept
+    TF_ExecutorOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ExecutorOps*>(ctx);
+    }
+
+    TF_ExecutorOps(const TF_ExecutorOps&) = delete;
+    TF_ExecutorOps& operator=(const TF_ExecutorOps&) = delete;
+
+    static TF_ExecutorOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ExecutorOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ExecutorOps* create(HandleT* handle) noexcept
+    static TF_ExecutorOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ExecutorOps*>(handle->plugin_data);
+        return *static_cast<TF_ExecutorOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ExecutorOps() = default;
@@ -225,9 +233,9 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_native_handle(const ice::sonic::TF_DeviceOps& device, void** out_handle) noexcept = 0;
 
-    static TF_ExecutorOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ExecutorOps vtable = {
+        m_vtable = ::TF_ExecutorOps{
             .struct_size = TF_EXECUTOR_STRUCT_SIZE,
             .device_memory_usage =
                 [](TF_Executor* executor,
@@ -236,8 +244,7 @@ public:
                    int64_t* out_total,
                    _Bool* out_success) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->device_memory_usage(
+                auto res = TF_ExecutorOps::from_handle(executor).device_memory_usage(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     out_free,
                     out_total,
@@ -253,8 +260,7 @@ public:
                    TF_Stream* stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_stream_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_stream_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream)
                 );
@@ -265,8 +271,7 @@ public:
             .destroy_stream_internal =
                 [](TF_Executor* executor, TF_Device* device, TF_Stream* stream) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->destroy_stream_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).destroy_stream_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream)
                 );
@@ -281,8 +286,7 @@ public:
                    TF_Stream* other,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_stream_dependency(
+                auto res = TF_ExecutorOps::from_handle(executor).create_stream_dependency(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(dependent),
                     ice::sonic::TF_StreamOps::wrap(other)
@@ -297,8 +301,7 @@ public:
                    TF_Stream* stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->get_stream_status(
+                auto res = TF_ExecutorOps::from_handle(executor).get_stream_status(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream)
                 );
@@ -312,8 +315,7 @@ public:
                    TF_Event* event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_event_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_event_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_EventOps::wrap(event)
                 );
@@ -324,8 +326,7 @@ public:
             .destroy_event_internal =
                 [](TF_Executor* executor, TF_Device* device, TF_Event* event) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->destroy_event_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).destroy_event_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_EventOps::wrap(event)
                 );
@@ -339,8 +340,7 @@ public:
                    TF_Event* event,
                    TF_EventStatus* out_event_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->get_event_status(
+                auto res = TF_ExecutorOps::from_handle(executor).get_event_status(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_EventOps::wrap(event),
                     out_event_status
@@ -356,8 +356,7 @@ public:
                    TF_Event* event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->record_event(
+                auto res = TF_ExecutorOps::from_handle(executor).record_event(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     ice::sonic::TF_EventOps::wrap(event)
@@ -373,8 +372,7 @@ public:
                    TF_Event* event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->wait_for_event(
+                auto res = TF_ExecutorOps::from_handle(executor).wait_for_event(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     ice::sonic::TF_EventOps::wrap(event)
@@ -389,8 +387,7 @@ public:
                    TF_Timer* timer,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_timer_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_timer_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_TimerOps::wrap(timer)
                 );
@@ -401,8 +398,7 @@ public:
             .destroy_timer_internal =
                 [](TF_Executor* executor, TF_Device* device, TF_Timer* timer) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->destroy_timer_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).destroy_timer_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_TimerOps::wrap(timer)
                 );
@@ -417,8 +413,7 @@ public:
                    TF_Timer* timer,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->start_timer(
+                auto res = TF_ExecutorOps::from_handle(executor).start_timer(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     ice::sonic::TF_TimerOps::wrap(timer)
@@ -434,8 +429,7 @@ public:
                    TF_Timer* timer,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->stop_timer(
+                auto res = TF_ExecutorOps::from_handle(executor).stop_timer(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     ice::sonic::TF_TimerOps::wrap(timer)
@@ -453,8 +447,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->memcpy_dtoh(
+                auto res = TF_ExecutorOps::from_handle(executor).memcpy_dtoh(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     host_dst,
@@ -474,8 +467,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->memcpy_htod(
+                auto res = TF_ExecutorOps::from_handle(executor).memcpy_htod(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     device_dst,
@@ -495,8 +487,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->memcpy_dtod(
+                auto res = TF_ExecutorOps::from_handle(executor).memcpy_dtod(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     device_dst,
@@ -515,8 +506,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->sync_memcpy_dtoh(
+                auto res = TF_ExecutorOps::from_handle(executor).sync_memcpy_dtoh(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     host_dst,
                     device_src,
@@ -534,8 +524,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->sync_memcpy_htod(
+                auto res = TF_ExecutorOps::from_handle(executor).sync_memcpy_htod(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     device_dst,
                     host_src,
@@ -553,8 +542,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->sync_memcpy_dtod(
+                auto res = TF_ExecutorOps::from_handle(executor).sync_memcpy_dtod(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     device_dst,
                     device_src,
@@ -570,8 +558,7 @@ public:
                    TF_Event* event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->block_host_for_event(
+                auto res = TF_ExecutorOps::from_handle(executor).block_host_for_event(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_EventOps::wrap(event)
                 );
@@ -585,8 +572,7 @@ public:
                    TF_Stream* stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->block_host_until_done(
+                auto res = TF_ExecutorOps::from_handle(executor).block_host_until_done(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream)
                 );
@@ -597,8 +583,9 @@ public:
             .synchronize_all_activity =
                 [](TF_Executor* executor, TF_Device* device, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->synchronize_all_activity(ice::sonic::TF_DeviceOps::wrap(device));
+                auto res = TF_ExecutorOps::from_handle(executor).synchronize_all_activity(
+                    ice::sonic::TF_DeviceOps::wrap(device)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -611,8 +598,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->mem_zero(
+                auto res = TF_ExecutorOps::from_handle(executor).mem_zero(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     location,
@@ -631,8 +617,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->memset(
+                auto res = TF_ExecutorOps::from_handle(executor).memset(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     location,
@@ -652,8 +637,7 @@ public:
                    uint64_t size,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->memset32(
+                auto res = TF_ExecutorOps::from_handle(executor).memset32(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     location,
@@ -672,8 +656,7 @@ public:
                    void* callback_arg,
                    _Bool* out_success) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->host_callback(
+                auto res = TF_ExecutorOps::from_handle(executor).host_callback(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream),
                     callback_fn,
@@ -691,8 +674,7 @@ public:
                    TF_Stream* stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_stream_with_options(
+                auto res = TF_ExecutorOps::from_handle(executor).create_stream_with_options(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     options,
                     ice::sonic::TF_StreamOps::wrap(stream)
@@ -708,8 +690,7 @@ public:
                    TF_Stream* out_stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->get_stream_from_pool(
+                auto res = TF_ExecutorOps::from_handle(executor).get_stream_from_pool(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     priority,
                     ice::sonic::TF_StreamOps::wrap(out_stream)
@@ -724,8 +705,7 @@ public:
                    TF_Stream* out_stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->get_current_stream(
+                auto res = TF_ExecutorOps::from_handle(executor).get_current_stream(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(out_stream)
                 );
@@ -739,8 +719,7 @@ public:
                    TF_Stream* stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->set_current_stream(
+                auto res = TF_ExecutorOps::from_handle(executor).set_current_stream(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_StreamOps::wrap(stream)
                 );
@@ -755,8 +734,7 @@ public:
                    TF_Stream* out_stream,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_stream_from_native(
+                auto res = TF_ExecutorOps::from_handle(executor).create_stream_from_native(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     native_handle,
                     ice::sonic::TF_StreamOps::wrap(out_stream)
@@ -772,8 +750,7 @@ public:
                    TF_Event* out_event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_event_with_options_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_event_with_options_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     options,
                     ice::sonic::TF_EventOps::wrap(out_event)
@@ -789,8 +766,7 @@ public:
                    TF_Event* out_event,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_event_from_ipc_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_event_from_ipc_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     handle,
                     ice::sonic::TF_EventOps::wrap(out_event)
@@ -805,8 +781,7 @@ public:
                    TF_Allocator* out_allocator,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_allocator_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_allocator_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_AllocatorOps::wrap(out_allocator)
                 );
@@ -817,8 +792,7 @@ public:
             .destroy_allocator_internal =
                 [](TF_Executor* executor, TF_Device* device, TF_Allocator* allocator) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->destroy_allocator_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).destroy_allocator_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_AllocatorOps::wrap(allocator)
                 );
@@ -833,8 +807,7 @@ public:
                    TF_RandomGenerator* out_generator,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->create_random_generator_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).create_random_generator_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     seed,
                     ice::sonic::TF_RandomGeneratorOps::wrap(out_generator)
@@ -846,8 +819,7 @@ public:
             .destroy_random_generator_internal =
                 [](TF_Executor* executor, TF_Device* device, TF_RandomGenerator* generator) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->destroy_random_generator_internal(
+                auto res = TF_ExecutorOps::from_handle(executor).destroy_random_generator_internal(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_RandomGeneratorOps::wrap(generator)
                 );
@@ -861,8 +833,7 @@ public:
                    TF_RandomGenerator* out_generator,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res = self->get_default_random_generator(
+                auto res = TF_ExecutorOps::from_handle(executor).get_default_random_generator(
                     ice::sonic::TF_DeviceOps::wrap(device),
                     ice::sonic::TF_RandomGeneratorOps::wrap(out_generator)
                 );
@@ -873,25 +844,32 @@ public:
             .get_native_handle =
                 [](TF_Executor* executor, TF_Device* device, void** out_handle) noexcept
             {
-                auto* self = TF_ExecutorOps::create(executor);
-                auto res =
-                    self->get_native_handle(ice::sonic::TF_DeviceOps::wrap(device), out_handle);
+                auto res = TF_ExecutorOps::from_handle(executor).get_native_handle(
+                    ice::sonic::TF_DeviceOps::wrap(device),
+                    out_handle
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ExecutorOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Executor& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ExecutorOps m_vtable;
+    TF_Executor m_handle;
 };
 
 } // namespace ice::builder

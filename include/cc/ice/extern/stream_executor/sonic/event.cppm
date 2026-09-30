@@ -28,7 +28,7 @@ public:
     elapsed_time(const ice::sonic::TF_EventOps& end, float* out_milliseconds) noexcept
     {
         ice::Status status;
-        m_ops->elapsed_time(get_handle(), end.get_handle(), out_milliseconds status.get_handle());
+        m_ops->elapsed_time(get_handle(), end.get_handle(), out_milliseconds, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -40,7 +40,7 @@ public:
     export_ipc(TF_IpcEventHandle* out_handle) noexcept
     {
         ice::Status status;
-        m_ops->export_ipc(get_handle(), out_handle status.get_handle());
+        m_ops->export_ipc(get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -51,7 +51,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_native_handle(void** out_handle) noexcept
     {
         ice::Status status;
-        m_ops->get_native_handle(get_handle(), out_handle status.get_handle());
+        m_ops->get_native_handle(get_handle(), out_handle, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

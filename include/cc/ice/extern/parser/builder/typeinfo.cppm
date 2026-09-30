@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFParserTypeInfoOps
 {
 public:
-    static TFParserTypeInfoOps* create(void* ctx) noexcept
+    TFParserTypeInfoOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserTypeInfoOps*>(ctx);
+    }
+
+    TFParserTypeInfoOps(const TFParserTypeInfoOps&) = delete;
+    TFParserTypeInfoOps& operator=(const TFParserTypeInfoOps&) = delete;
+
+    static TFParserTypeInfoOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserTypeInfoOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserTypeInfoOps* create(HandleT* handle) noexcept
+    static TFParserTypeInfoOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserTypeInfoOps*>(handle->plugin_data);
+        return *static_cast<TFParserTypeInfoOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserTypeInfoOps() = default;
@@ -32,15 +40,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_shape(int64_t** out_dims, int* out_num_dims) noexcept = 0;
 
-    static TFParserTypeInfoOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserTypeInfoOps vtable = {
+        m_vtable = ::TFParserTypeInfoOps{
             .struct_size = TF_ARSERTYPEINFO_STRUCT_SIZE,
             .get_dtype =
                 [](TFParserTypeInfo* typeinfo, int* out_dtype, TF_Status* out_status) noexcept
             {
-                auto* self = TFParserTypeInfoOps::create(typeinfo);
-                auto res = self->get_dtype(out_dtype);
+                auto res = TFParserTypeInfoOps::from_handle(typeinfo).get_dtype(out_dtype);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -51,24 +58,30 @@ public:
                    int* out_num_dims,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserTypeInfoOps::create(typeinfo);
-                auto res = self->get_shape(out_dims, out_num_dims);
+                auto res =
+                    TFParserTypeInfoOps::from_handle(typeinfo).get_shape(out_dims, out_num_dims);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserTypeInfoOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFParserTypeInfo& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserTypeInfoOps m_vtable;
+    TFParserTypeInfo m_handle;
 };
 
 } // namespace ice::builder

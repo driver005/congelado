@@ -1,15 +1,15 @@
 
-                        static {{ class_name }}* create(void* ctx) noexcept
+                        {{ extra_ctor }}
+
+                        static {{ class_name }}& from_handle(void* ctx) noexcept
                         {
-                            return static_cast<{{ class_name }}*>(ctx);
+                            return *static_cast<{{ class_name }}*>(ctx);
                         }
 
                         template<typename HandleT>
-                        static {{ class_name }}* create(HandleT* handle) noexcept
+                        static {{ class_name }}& from_handle(HandleT* handle) noexcept
                         {
-                            return static_cast<{{ class_name }}*>(handle->plugin_data);
+                            return *static_cast<{{ class_name }}*>(handle->plugin_data);
                         }
-
-                        {{ extra_ctor }}
 
                         virtual ~{{ class_name }}() = default;

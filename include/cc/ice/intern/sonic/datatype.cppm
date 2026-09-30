@@ -28,7 +28,7 @@ public:
     datatype_size(TFDataTypeEnum dt, size_t* out_size) noexcept
     {
         ice::Status status;
-        m_ops->datatype_size(get_handle(), dt, out_size status.get_handle());
+        m_ops->datatype_size(get_handle(), dt, out_size, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

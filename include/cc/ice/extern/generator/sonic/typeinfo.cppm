@@ -25,10 +25,10 @@ public:
     static constexpr std::string_view domain_name = "generator";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    set_type_attr_name(const ice::sonic::TF_StringOps& type_attr_name) noexcept
+    set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept
     {
         ice::Status status;
-        m_ops->set_type_attr_name(get_handle(), type_attr_name.get_handle() status.get_handle());
+        m_ops->set_type_attr_name(get_handle(), type_attr_name.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_data_type(int data_type) noexcept
     {
         ice::Status status;
-        m_ops->set_data_type(get_handle(), data_type status.get_handle());
+        m_ops->set_data_type(get_handle(), data_type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_read_only(_Bool read_only) noexcept
     {
         ice::Status status;
-        m_ops->set_read_only(get_handle(), read_only status.get_handle());
+        m_ops->set_read_only(get_handle(), read_only, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_list(_Bool is_list) noexcept
     {
         ice::Status status;
-        m_ops->set_list(get_handle(), is_list status.get_handle());
+        m_ops->set_list(get_handle(), is_list, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -70,12 +70,13 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    get_type_attr_name(const ice::sonic::TF_StringOps& out_type_attr_name) noexcept
+    get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept
     {
         ice::Status status;
         m_ops->get_type_attr_name(
             get_handle(),
-            out_type_attr_name.get_handle() status.get_handle()
+            out_type_attr_name.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -87,7 +88,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_data_type(int* out_data_type) noexcept
     {
         ice::Status status;
-        m_ops->get_data_type(get_handle(), out_data_type status.get_handle());
+        m_ops->get_data_type(get_handle(), out_data_type, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -98,7 +99,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_read_only(int* out_is_read_only) noexcept
     {
         ice::Status status;
-        m_ops->is_read_only(get_handle(), out_is_read_only status.get_handle());
+        m_ops->is_read_only(get_handle(), out_is_read_only, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -109,7 +110,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_list(int* out_is_list) noexcept
     {
         ice::Status status;
-        m_ops->is_list(get_handle(), out_is_list status.get_handle());
+        m_ops->is_list(get_handle(), out_is_list, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -28,7 +28,7 @@ public:
     assign_from_string(const void* proto, size_t proto_len) noexcept
     {
         ice::Status status;
-        m_ops->assign_from_string(get_handle(), proto, proto_len status.get_handle());
+        m_ops->assign_from_string(get_handle(), proto, proto_len, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_buffer(TFBufferData* out_buffer) noexcept
     {
         ice::Status status;
-        m_ops->get_buffer(get_handle(), out_buffer status.get_handle());
+        m_ops->get_buffer(get_handle(), out_buffer, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

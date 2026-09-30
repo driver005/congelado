@@ -28,7 +28,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> value_known(int* out_known) noexcept
     {
         ice::Status status;
-        m_ops->value_known(get_handle(), out_known status.get_handle());
+        m_ops->value_known(get_handle(), out_known, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> value(int64_t* out_value) noexcept
     {
         ice::Status status;
-        m_ops->value(get_handle(), out_value status.get_handle());
+        m_ops->value(get_handle(), out_value, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

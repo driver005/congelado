@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFParserModuleOps
 {
 public:
-    static TFParserModuleOps* create(void* ctx) noexcept
+    TFParserModuleOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFParserModuleOps*>(ctx);
+    }
+
+    TFParserModuleOps(const TFParserModuleOps&) = delete;
+    TFParserModuleOps& operator=(const TFParserModuleOps&) = delete;
+
+    static TFParserModuleOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFParserModuleOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserModuleOps* create(HandleT* handle) noexcept
+    static TFParserModuleOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFParserModuleOps*>(handle->plugin_data);
+        return *static_cast<TFParserModuleOps*>(handle->plugin_data);
     }
 
     virtual ~TFParserModuleOps() = default;
@@ -33,23 +41,21 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_function(int index, const ice::sonic::TFParserFunctionOps& out_function) noexcept = 0;
 
-    static TFParserModuleOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFParserModuleOps vtable = {
+        m_vtable = ::TFParserModuleOps{
             .struct_size = TF_ARSERMODULE_STRUCT_SIZE,
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFParserModuleOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFParserModuleOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .get_function_count =
                 [](TFParserModule* module, int* out_count, TF_Status* out_status) noexcept
             {
-                auto* self = TFParserModuleOps::create(module);
-                auto res = self->get_function_count(out_count);
+                auto res = TFParserModuleOps::from_handle(module).get_function_count(out_count);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -60,25 +66,34 @@ public:
                    TFParserFunction* out_function,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFParserModuleOps::create(module);
-                auto res =
-                    self->get_function(index, ice::sonic::TFParserFunctionOps::wrap(out_function));
+                auto res = TFParserModuleOps::from_handle(module).get_function(
+                    index,
+                    ice::sonic::TFParserFunctionOps::wrap(out_function)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFParserModuleOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFParserModule& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFParserModuleOps m_vtable;
+    TFParserModule m_handle;
 };
 
 } // namespace ice::builder

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ForwardListOps
 {
 public:
-    static TF_ForwardListOps* create(void* ctx) noexcept
+    TF_ForwardListOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ForwardListOps*>(ctx);
+    }
+
+    TF_ForwardListOps(const TF_ForwardListOps&) = delete;
+    TF_ForwardListOps& operator=(const TF_ForwardListOps&) = delete;
+
+    static TF_ForwardListOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ForwardListOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ForwardListOps* create(HandleT* handle) noexcept
+    static TF_ForwardListOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ForwardListOps*>(handle->plugin_data);
+        return *static_cast<TF_ForwardListOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ForwardListOps() = default;
@@ -37,15 +45,14 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     for_each(TF_ForwardListVisitor visitor, void* capture) noexcept = 0;
 
-    static TF_ForwardListOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ForwardListOps vtable = {
+        m_vtable = ::TF_ForwardListOps{
             .struct_size = TF_FORWARDLIST_STRUCT_SIZE,
             .set_element_size =
                 [](TF_ForwardList* list, size_t element_size) noexcept
             {
-                auto* self = TF_ForwardListOps::create(list);
-                auto res = self->set_element_size(element_size);
+                auto res = TF_ForwardListOps::from_handle(list).set_element_size(element_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -56,8 +63,7 @@ public:
                    TFForwardListNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ForwardListOps::create(list);
-                auto res = self->push_front(value, out_node);
+                auto res = TF_ForwardListOps::from_handle(list).push_front(value, out_node);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -65,8 +71,7 @@ public:
             .erase_after =
                 [](TF_ForwardList* list, TFForwardListNode* node) noexcept
             {
-                auto* self = TF_ForwardListOps::create(list);
-                auto res = self->erase_after(node);
+                auto res = TF_ForwardListOps::from_handle(list).erase_after(node);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -76,8 +81,7 @@ public:
                    TF_ForwardListVisitor visitor,
                    void* capture) noexcept
             {
-                auto* self = TF_ForwardListOps::create(list);
-                auto res = self->for_each(visitor, capture);
+                auto res = TF_ForwardListOps::from_handle(list).for_each(visitor, capture);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -86,20 +90,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ForwardListOps::create(plugin_context);
+                std::unique_ptr<TF_ForwardListOps>{&TF_ForwardListOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ForwardListOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_ForwardList& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ForwardListOps m_vtable;
+    TF_ForwardList m_handle;
 };
 
 } // namespace ice::builder

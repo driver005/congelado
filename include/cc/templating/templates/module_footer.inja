@@ -1,5 +1,6 @@
 
             {{ extra_methods }}
+{{ extra_members }}
         };
 
         } // namespace {{ namespace_name }}::{{ domain_name }}

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_ClientOps
 {
 public:
-    static TF_ClientOps* create(void* ctx) noexcept
+    TF_ClientOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_ClientOps*>(ctx);
+    }
+
+    TF_ClientOps(const TF_ClientOps&) = delete;
+    TF_ClientOps& operator=(const TF_ClientOps&) = delete;
+
+    static TF_ClientOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_ClientOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ClientOps* create(HandleT* handle) noexcept
+    static TF_ClientOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_ClientOps*>(handle->plugin_data);
+        return *static_cast<TF_ClientOps*>(handle->plugin_data);
     }
 
     virtual ~TF_ClientOps() = default;
@@ -38,7 +46,7 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     is_connected(int* out_connected) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    get_remote_endpoint(const ice::sonic::TF_StringOps& out_host, uint16_t* out_port) noexcept = 0;
+    get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_keep_alive(int enabled) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     is_keep_alive(int* out_keep_alive) noexcept = 0;
@@ -74,29 +82,27 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
 
-    static TF_ClientOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_ClientOps vtable = {
+        m_vtable = ::TF_ClientOps{
             .struct_size = TF_CLIENT_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_ClientOps::create(plugin_context);
+                std::unique_ptr<TF_ClientOps>{&TF_ClientOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_ClientOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_ClientOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .connect =
                 [](TF_Client* client, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->connect(timeout_ms);
+                auto res = TF_ClientOps::from_handle(client).connect(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -108,8 +114,8 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->connect_async(timeout_ms, completion, user_data);
+                auto res = TF_ClientOps::from_handle(client)
+                               .connect_async(timeout_ms, completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -117,8 +123,7 @@ public:
             .disconnect =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->disconnect();
+                auto res = TF_ClientOps::from_handle(client).disconnect();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -126,8 +131,7 @@ public:
             .reconnect =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->reconnect();
+                auto res = TF_ClientOps::from_handle(client).reconnect();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -135,8 +139,7 @@ public:
             .on_disconnect =
                 [](TF_Client* client, TFClientDisconnectFn handler, void* user_data) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->on_disconnect(handler, user_data);
+                auto res = TF_ClientOps::from_handle(client).on_disconnect(handler, user_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -144,8 +147,7 @@ public:
             .is_connected =
                 [](TF_Client* client, int* out_connected) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->is_connected(out_connected);
+                auto res = TF_ClientOps::from_handle(client).is_connected(out_connected);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -153,9 +155,10 @@ public:
             .get_remote_endpoint =
                 [](TF_Client* client, TF_String* out_host, uint16_t* out_port) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res =
-                    self->get_remote_endpoint(ice::sonic::TF_StringOps::wrap(out_host), out_port);
+                auto res = TF_ClientOps::from_handle(client).get_remote_endpoint(
+                    ice::sonic::String::wrap(out_host),
+                    out_port
+                );
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -163,8 +166,7 @@ public:
             .set_keep_alive =
                 [](TF_Client* client, int enabled, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->set_keep_alive(enabled);
+                auto res = TF_ClientOps::from_handle(client).set_keep_alive(enabled);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -172,8 +174,7 @@ public:
             .is_keep_alive =
                 [](TF_Client* client, int* out_keep_alive) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->is_keep_alive(out_keep_alive);
+                auto res = TF_ClientOps::from_handle(client).is_keep_alive(out_keep_alive);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -184,9 +185,10 @@ public:
                    TF_Request* out_request,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res =
-                    self->create_request(stream_id, ice::sonic::TF_RequestOps::wrap(out_request));
+                auto res = TF_ClientOps::from_handle(client).create_request(
+                    stream_id,
+                    ice::sonic::TF_RequestOps::wrap(out_request)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -197,8 +199,7 @@ public:
                    TF_Response* out_response,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->send(
+                auto res = TF_ClientOps::from_handle(client).send(
                     ice::sonic::TF_RequestOps::wrap(request),
                     ice::sonic::TF_ResponseOps::wrap(out_response)
                 );
@@ -213,8 +214,7 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->send_async(
+                auto res = TF_ClientOps::from_handle(client).send_async(
                     ice::sonic::TF_RequestOps::wrap(request),
                     completion,
                     user_data
@@ -226,8 +226,7 @@ public:
             .cancel_request =
                 [](TF_Client* client, uint32_t stream_id, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->cancel_request(stream_id);
+                auto res = TF_ClientOps::from_handle(client).cancel_request(stream_id);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -235,9 +234,9 @@ public:
             .list_pending_requests =
                 [](TF_Client* client, TF_Vector* out_stream_ids, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res =
-                    self->list_pending_requests(ice::sonic::TF_VectorOps::wrap(out_stream_ids));
+                auto res = TF_ClientOps::from_handle(client).list_pending_requests(
+                    ice::sonic::TF_VectorOps::wrap(out_stream_ids)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -245,8 +244,7 @@ public:
             .get_pending_request_count =
                 [](TF_Client* client, size_t* out_count) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->get_pending_request_count(out_count);
+                auto res = TF_ClientOps::from_handle(client).get_pending_request_count(out_count);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -257,8 +255,7 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->ping(completion, user_data);
+                auto res = TF_ClientOps::from_handle(client).ping(completion, user_data);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -266,8 +263,7 @@ public:
             .retry =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->retry();
+                auto res = TF_ClientOps::from_handle(client).retry();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -275,8 +271,7 @@ public:
             .set_max_retries =
                 [](TF_Client* client, int max_retries, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->set_max_retries(max_retries);
+                auto res = TF_ClientOps::from_handle(client).set_max_retries(max_retries);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -284,8 +279,7 @@ public:
             .set_retry_backoff =
                 [](TF_Client* client, int64_t backoff_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->set_retry_backoff(backoff_ms);
+                auto res = TF_ClientOps::from_handle(client).set_retry_backoff(backoff_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -293,8 +287,7 @@ public:
             .set_timeout =
                 [](TF_Client* client, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->set_timeout(timeout_ms);
+                auto res = TF_ClientOps::from_handle(client).set_timeout(timeout_ms);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -302,8 +295,7 @@ public:
             .on_error =
                 [](TF_Client* client, TFClientConnectFn handler, void* user_data) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->on_error(handler, user_data);
+                auto res = TF_ClientOps::from_handle(client).on_error(handler, user_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -311,8 +303,7 @@ public:
             .get_last_error =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->get_last_error();
+                auto res = TF_ClientOps::from_handle(client).get_last_error();
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -320,24 +311,33 @@ public:
             .get_stats =
                 [](TF_Client* client, TF_Map* out_stats, TF_Status* out_status) noexcept
             {
-                auto* self = TF_ClientOps::create(client);
-                auto res = self->get_stats(ice::sonic::TF_MapOps::wrap(out_stats));
+                auto res = TF_ClientOps::from_handle(client).get_stats(
+                    ice::sonic::TF_MapOps::wrap(out_stats)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_ClientOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Client& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_ClientOps m_vtable;
+    TF_Client m_handle;
 };
 
 } // namespace ice::builder

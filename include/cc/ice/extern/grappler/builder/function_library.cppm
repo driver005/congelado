@@ -16,48 +16,66 @@ export namespace ice::builder {
 class TFGrapplerFunctionLibraryOps
 {
 public:
-    static TFGrapplerFunctionLibraryOps* create(void* ctx) noexcept
+    TFGrapplerFunctionLibraryOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGrapplerFunctionLibraryOps*>(ctx);
+    }
+
+    TFGrapplerFunctionLibraryOps(const TFGrapplerFunctionLibraryOps&) = delete;
+    TFGrapplerFunctionLibraryOps& operator=(const TFGrapplerFunctionLibraryOps&) = delete;
+
+    static TFGrapplerFunctionLibraryOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGrapplerFunctionLibraryOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerFunctionLibraryOps* create(HandleT* handle) noexcept
+    static TFGrapplerFunctionLibraryOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGrapplerFunctionLibraryOps*>(handle->plugin_data);
+        return *static_cast<TFGrapplerFunctionLibraryOps*>(handle->plugin_data);
     }
 
     virtual ~TFGrapplerFunctionLibraryOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::Status>
-    look_up_op_def(const char* name, const ice::sonic::TF_BufferOps& out_buf) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status> look_up_op_def(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_BufferOps& out_buf
+    ) noexcept = 0;
 
-    static TFGrapplerFunctionLibraryOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGrapplerFunctionLibraryOps vtable = {
+        m_vtable = ::TFGrapplerFunctionLibraryOps{
             .struct_size = TF_RAPPLERFUNCTIONLIBRARY_STRUCT_SIZE,
             .look_up_op_def = [](TFGrapplerFunctionLibrary* lib,
-                                 const char* name,
+                                 const TF_String* name,
                                  TF_Buffer* out_buf,
                                  TF_Status* out_status) noexcept
             {
-                auto* self = TFGrapplerFunctionLibraryOps::create(lib);
-                auto res = self->look_up_op_def(name, ice::sonic::TF_BufferOps::wrap(out_buf));
+                auto res = TFGrapplerFunctionLibraryOps::from_handle(lib).look_up_op_def(
+                    ice::sonic::String::wrap(name),
+                    ice::sonic::TF_BufferOps::wrap(out_buf)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGrapplerFunctionLibraryOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFGrapplerFunctionLibrary& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGrapplerFunctionLibraryOps m_vtable;
+    TFGrapplerFunctionLibrary m_handle;
 };
 
 } // namespace ice::builder

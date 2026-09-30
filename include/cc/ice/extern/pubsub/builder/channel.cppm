@@ -16,60 +16,66 @@ export namespace ice::builder {
 class TFPubSubChannelOps
 {
 public:
-    static TFPubSubChannelOps* create(void* ctx) noexcept
+    TFPubSubChannelOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFPubSubChannelOps*>(ctx);
+    }
+
+    TFPubSubChannelOps(const TFPubSubChannelOps&) = delete;
+    TFPubSubChannelOps& operator=(const TFPubSubChannelOps&) = delete;
+
+    static TFPubSubChannelOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFPubSubChannelOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFPubSubChannelOps* create(HandleT* handle) noexcept
+    static TFPubSubChannelOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFPubSubChannelOps*>(handle->plugin_data);
+        return *static_cast<TFPubSubChannelOps*>(handle->plugin_data);
     }
 
     virtual ~TFPubSubChannelOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    create(const ice::sonic::TF_StringOps& name, const ice::sonic::TF_MapOps& config) noexcept = 0;
+    create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    drop(const ice::sonic::TF_StringOps& name) noexcept = 0;
+    drop(const ice::sonic::String& name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_config(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TF_MapOps& out_config
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> set_config(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_MapOps& config
-    ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::Status> get_stats(
-        const ice::sonic::TF_StringOps& name,
-        const ice::sonic::TF_MapOps& out_stats
-    ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
-    purge(const ice::sonic::TF_StringOps& name) noexcept = 0;
+    set_config(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    get_stats(const ice::sonic::String& name, const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
+    [[nodiscard]] virtual std::expected<void, ice::Status>
+    purge(const ice::sonic::String& name) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> set_dead_letter(
-        const ice::sonic::TF_StringOps& target_channel,
-        const ice::sonic::TF_StringOps& dead_letter_channel
+        const ice::sonic::String& target_channel,
+        const ice::sonic::String& dead_letter_channel
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> list_dead_letters(
-        const ice::sonic::TF_StringOps& target_channel,
+        const ice::sonic::String& target_channel,
         const ice::sonic::TF_VectorOps& out_payloads
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> requeue_dead_letter(
-        const ice::sonic::TF_StringOps& target_channel,
-        const ice::sonic::TF_StringOps& payload
+        const ice::sonic::String& target_channel,
+        const ice::sonic::String& payload
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     list(const ice::sonic::TF_VectorOps& out_channels) noexcept = 0;
 
-    static TFPubSubChannelOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFPubSubChannelOps vtable = {
+        m_vtable = ::TFPubSubChannelOps{
             .struct_size = TF_UBSUBCHANNEL_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFPubSubChannelOps::create(plugin_context);
+                std::unique_ptr<TFPubSubChannelOps>{
+                    &TFPubSubChannelOps::from_handle(plugin_context)
+                };
             },
             .create =
                 [](TFPubSubChannel* channel,
@@ -77,9 +83,8 @@ public:
                    const TF_Map* config,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->create(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFPubSubChannelOps::from_handle(channel).create(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TF_MapOps::wrap(config)
                 );
                 if (!res) {
@@ -89,8 +94,8 @@ public:
             .drop =
                 [](TFPubSubChannel* channel, const TF_String* name, TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->drop(ice::sonic::TF_StringOps::wrap(name));
+                auto res =
+                    TFPubSubChannelOps::from_handle(channel).drop(ice::sonic::String::wrap(name));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -101,9 +106,8 @@ public:
                    TF_Map* out_config,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->get_config(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFPubSubChannelOps::from_handle(channel).get_config(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TF_MapOps::wrap(out_config)
                 );
                 if (!res) {
@@ -116,9 +120,8 @@ public:
                    const TF_Map* config,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->set_config(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFPubSubChannelOps::from_handle(channel).set_config(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TF_MapOps::wrap(config)
                 );
                 if (!res) {
@@ -131,9 +134,8 @@ public:
                    TF_Map* out_stats,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->get_stats(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFPubSubChannelOps::from_handle(channel).get_stats(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TF_MapOps::wrap(out_stats)
                 );
                 if (!res) {
@@ -143,8 +145,8 @@ public:
             .purge =
                 [](TFPubSubChannel* channel, const TF_String* name, TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->purge(ice::sonic::TF_StringOps::wrap(name));
+                auto res =
+                    TFPubSubChannelOps::from_handle(channel).purge(ice::sonic::String::wrap(name));
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -155,10 +157,9 @@ public:
                    const TF_String* dead_letter_channel,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->set_dead_letter(
-                    ice::sonic::TF_StringOps::wrap(target_channel),
-                    ice::sonic::TF_StringOps::wrap(dead_letter_channel)
+                auto res = TFPubSubChannelOps::from_handle(channel).set_dead_letter(
+                    ice::sonic::String::wrap(target_channel),
+                    ice::sonic::String::wrap(dead_letter_channel)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -170,9 +171,8 @@ public:
                    TF_Vector* out_payloads,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->list_dead_letters(
-                    ice::sonic::TF_StringOps::wrap(target_channel),
+                auto res = TFPubSubChannelOps::from_handle(channel).list_dead_letters(
+                    ice::sonic::String::wrap(target_channel),
                     ice::sonic::TF_VectorOps::wrap(out_payloads)
                 );
                 if (!res) {
@@ -185,10 +185,9 @@ public:
                    const TF_String* payload,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->requeue_dead_letter(
-                    ice::sonic::TF_StringOps::wrap(target_channel),
-                    ice::sonic::TF_StringOps::wrap(payload)
+                auto res = TFPubSubChannelOps::from_handle(channel).requeue_dead_letter(
+                    ice::sonic::String::wrap(target_channel),
+                    ice::sonic::String::wrap(payload)
                 );
                 if (!res) {
                     res.error().to_c(out_status);
@@ -199,24 +198,31 @@ public:
                    TF_Vector* out_channels,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFPubSubChannelOps::create(channel);
-                auto res = self->list(ice::sonic::TF_VectorOps::wrap(out_channels));
+                auto res = TFPubSubChannelOps::from_handle(channel).list(
+                    ice::sonic::TF_VectorOps::wrap(out_channels)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFPubSubChannelOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TFPubSubChannel& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFPubSubChannelOps m_vtable;
+    TFPubSubChannel m_handle;
 };
 
 } // namespace ice::builder

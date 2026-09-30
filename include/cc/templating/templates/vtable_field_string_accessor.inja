@@ -1,6 +1,5 @@
 
             .{{ slot_name }} = [](void* plugin_context, {{ param_type }} {{ param_name }}) noexcept {
-                auto* self = {{ class_name }}::create(plugin_context);
-                auto result = self->{{ slot_name }}();
+                auto result = {{ class_name }}::from_handle(plugin_context).{{ slot_name }}();
                 result.to_c({{ param_name }});
             },

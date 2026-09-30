@@ -85,6 +85,21 @@ def congelado_cc_test(name, srcs, deps = [], **kwargs):
         **kwargs
     )
 
+def congelado_fuzz_test(name, srcs, deps = [], corpus = [], **kwargs):
+    """libFuzzer target; build with --config=fuzz, run via `make ci-fuzz` (corpus replay under `bazel test`)."""
+    cc_test(
+        name = name + "_fuzz",
+        srcs = srcs,
+        copts = congelado_copts(),
+        defines = ["CONGELADO_FUZZ"],
+        linkopts = ["-fsanitize=fuzzer"],
+        deps = deps,
+        data = corpus,
+        args = ["-runs=0"] + ["$(rootpaths {})".format(label) for label in corpus],
+        tags = ["fuzz", "manual"],
+        **kwargs
+    )
+
 # check_deps: enforce structural invariants at build time (e.g. Phase 4d's engine static-lib rule).
 
 CollectedDepsInfo = provider(

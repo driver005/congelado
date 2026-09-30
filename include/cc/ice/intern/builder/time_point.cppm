@@ -16,31 +16,39 @@ export namespace ice::builder {
 class TF_TimePointOps
 {
 public:
-    static TF_TimePointOps* create(void* ctx) noexcept
+    TF_TimePointOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_TimePointOps*>(ctx);
+    }
+
+    TF_TimePointOps(const TF_TimePointOps&) = delete;
+    TF_TimePointOps& operator=(const TF_TimePointOps&) = delete;
+
+    static TF_TimePointOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_TimePointOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TimePointOps* create(HandleT* handle) noexcept
+    static TF_TimePointOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_TimePointOps*>(handle->plugin_data);
+        return *static_cast<TF_TimePointOps*>(handle->plugin_data);
     }
 
     virtual ~TF_TimePointOps() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) noexcept = 0;
 
-    static TF_TimePointOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_TimePointOps vtable = {
+        m_vtable = ::TF_TimePointOps{
             .struct_size = TF_TIMEPOINT_STRUCT_SIZE,
             .get_duration_since_epoch =
                 [](const TF_TimePoint* time_point, TF_Duration* out_duration) noexcept
             {
-                auto* self = TF_TimePointOps::create(time_point);
                 auto res =
-                    self->get_duration_since_epoch(ice::sonic::TF_DurationOps::wrap(out_duration));
+                    TF_TimePointOps::from_handle(time_point)
+                        .get_duration_since_epoch(ice::sonic::TF_DurationOps::wrap(out_duration));
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -49,20 +57,26 @@ public:
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_TimePointOps::create(plugin_context);
+                std::unique_ptr<TF_TimePointOps>{&TF_TimePointOps::from_handle(plugin_context)};
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_TimePointOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_TimePoint& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_TimePointOps m_vtable;
+    TF_TimePoint m_handle;
 };
 
 } // namespace ice::builder

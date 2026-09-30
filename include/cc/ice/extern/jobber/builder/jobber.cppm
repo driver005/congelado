@@ -16,49 +16,64 @@ export namespace ice::builder {
 class TF_JobberOps
 {
 public:
-    static TF_JobberOps* create(void* ctx) noexcept
+    TF_JobberOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_JobberOps*>(ctx);
+    }
+
+    TF_JobberOps(const TF_JobberOps&) = delete;
+    TF_JobberOps& operator=(const TF_JobberOps&) = delete;
+
+    static TF_JobberOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_JobberOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_JobberOps* create(HandleT* handle) noexcept
+    static TF_JobberOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_JobberOps*>(handle->plugin_data);
+        return *static_cast<TF_JobberOps*>(handle->plugin_data);
     }
 
     virtual ~TF_JobberOps() = default;
 
-    static TF_JobberOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_JobberOps vtable = {
+        m_vtable = ::TF_JobberOps{
             .struct_size = TF_JOBBER_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TF_JobberOps::create(plugin_context);
+                std::unique_ptr<TF_JobberOps>{&TF_JobberOps::from_handle(plugin_context)};
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TF_JobberOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TF_JobberOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_JobberOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TF_Jobber& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_JobberOps m_vtable;
+    TF_Jobber m_handle;
 };
 
 } // namespace ice::builder

@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TFGeneratorFunctionOps
 {
 public:
-    static TFGeneratorFunctionOps* create(void* ctx) noexcept
+    TFGeneratorFunctionOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TFGeneratorFunctionOps*>(ctx);
+    }
+
+    TFGeneratorFunctionOps(const TFGeneratorFunctionOps&) = delete;
+    TFGeneratorFunctionOps& operator=(const TFGeneratorFunctionOps&) = delete;
+
+    static TFGeneratorFunctionOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TFGeneratorFunctionOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGeneratorFunctionOps* create(HandleT* handle) noexcept
+    static TFGeneratorFunctionOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TFGeneratorFunctionOps*>(handle->plugin_data);
+        return *static_cast<TFGeneratorFunctionOps*>(handle->plugin_data);
     }
 
     virtual ~TFGeneratorFunctionOps() = default;
@@ -37,19 +45,19 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     add_block(const ice::sonic::TFGeneratorBlockOps& block) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_parameter(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorParameterOps& out_parameter
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_attribute(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorAttributeOps& out_attribute
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_definition(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorDefinitionOps& out_definition
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> get_block(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFGeneratorBlockOps& out_block
     ) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
@@ -63,22 +71,23 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     finish(const ice::sonic::TF_TensorOps& outputs) noexcept = 0;
 
-    static TFGeneratorFunctionOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TFGeneratorFunctionOps vtable = {
+        m_vtable = ::TFGeneratorFunctionOps{
             .struct_size = TF_ENERATORFUNCTION_STRUCT_SIZE,
 
             .destroy =
                 [](void* plugin_context) noexcept
             {
-                delete TFGeneratorFunctionOps::create(plugin_context);
+                std::unique_ptr<TFGeneratorFunctionOps>{
+                    &TFGeneratorFunctionOps::from_handle(plugin_context)
+                };
             },
 
             .get_name =
                 [](void* plugin_context, TF_String* out) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(plugin_context);
-                auto result = self->get_name();
+                auto result = TFGeneratorFunctionOps::from_handle(plugin_context).get_name();
                 result.to_c(out);
             },
             .add_parameter =
@@ -86,9 +95,9 @@ public:
                    TFGeneratorParameter* parameter,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res =
-                    self->add_parameter(ice::sonic::TFGeneratorParameterOps::wrap(parameter));
+                auto res = TFGeneratorFunctionOps::from_handle(function).add_parameter(
+                    ice::sonic::TFGeneratorParameterOps::wrap(parameter)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -98,9 +107,9 @@ public:
                    TFGeneratorAttribute* attribute,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res =
-                    self->add_attribute(ice::sonic::TFGeneratorAttributeOps::wrap(attribute));
+                auto res = TFGeneratorFunctionOps::from_handle(function).add_attribute(
+                    ice::sonic::TFGeneratorAttributeOps::wrap(attribute)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -110,9 +119,9 @@ public:
                    TFGeneratorDefinition* definition,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res =
-                    self->add_definition(ice::sonic::TFGeneratorDefinitionOps::wrap(definition));
+                auto res = TFGeneratorFunctionOps::from_handle(function).add_definition(
+                    ice::sonic::TFGeneratorDefinitionOps::wrap(definition)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -122,8 +131,9 @@ public:
                    TFGeneratorBlock* block,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->add_block(ice::sonic::TFGeneratorBlockOps::wrap(block));
+                auto res = TFGeneratorFunctionOps::from_handle(function).add_block(
+                    ice::sonic::TFGeneratorBlockOps::wrap(block)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -134,9 +144,8 @@ public:
                    TFGeneratorParameter* out_parameter,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->get_parameter(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFGeneratorFunctionOps::from_handle(function).get_parameter(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TFGeneratorParameterOps::wrap(out_parameter)
                 );
                 if (!res) {
@@ -149,9 +158,8 @@ public:
                    TFGeneratorAttribute* out_attribute,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->get_attribute(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFGeneratorFunctionOps::from_handle(function).get_attribute(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TFGeneratorAttributeOps::wrap(out_attribute)
                 );
                 if (!res) {
@@ -164,9 +172,8 @@ public:
                    TFGeneratorDefinition* out_definition,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->get_definition(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFGeneratorFunctionOps::from_handle(function).get_definition(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TFGeneratorDefinitionOps::wrap(out_definition)
                 );
                 if (!res) {
@@ -179,9 +186,8 @@ public:
                    TFGeneratorBlock* out_block,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->get_block(
-                    ice::sonic::TF_StringOps::wrap(name),
+                auto res = TFGeneratorFunctionOps::from_handle(function).get_block(
+                    ice::sonic::String::wrap(name),
                     ice::sonic::TFGeneratorBlockOps::wrap(out_block)
                 );
                 if (!res) {
@@ -193,8 +199,8 @@ public:
                    TF_Tensor** out_parameters,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->list_parameters(out_parameters);
+                auto res =
+                    TFGeneratorFunctionOps::from_handle(function).list_parameters(out_parameters);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -204,8 +210,8 @@ public:
                    TF_Tensor** out_attributes,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->list_attributes(out_attributes);
+                auto res =
+                    TFGeneratorFunctionOps::from_handle(function).list_attributes(out_attributes);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -215,8 +221,8 @@ public:
                    TF_Tensor** out_definitions,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->list_definitions(out_definitions);
+                auto res =
+                    TFGeneratorFunctionOps::from_handle(function).list_definitions(out_definitions);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -226,8 +232,7 @@ public:
                    TF_Tensor** out_blocks,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->list_blocks(out_blocks);
+                auto res = TFGeneratorFunctionOps::from_handle(function).list_blocks(out_blocks);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -237,24 +242,33 @@ public:
                    const TF_Tensor* outputs,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TFGeneratorFunctionOps::create(function);
-                auto res = self->finish(ice::sonic::TF_TensorOps::wrap(outputs));
+                auto res = TFGeneratorFunctionOps::from_handle(function).finish(
+                    ice::sonic::TF_TensorOps::wrap(outputs)
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TFGeneratorFunctionOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    virtual builder::String get_name() const noexcept = 0;
+
+    const TFGeneratorFunction& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TFGeneratorFunctionOps m_vtable;
+    TFGeneratorFunction m_handle;
 };
 
 } // namespace ice::builder

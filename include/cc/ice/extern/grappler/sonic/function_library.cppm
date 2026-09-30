@@ -29,10 +29,15 @@ public:
     static constexpr std::string_view domain_name = "grappler";
 
     [[nodiscard]] std::expected<void, ice::Status>
-    look_up_op_def(const char* name, const ice::sonic::TF_BufferOps& out_buf) noexcept
+    look_up_op_def(const ice::sonic::String& name, const ice::sonic::TF_BufferOps& out_buf) noexcept
     {
         ice::Status status;
-        m_ops->look_up_op_def(get_handle(), name, out_buf.get_handle() status.get_handle());
+        m_ops->look_up_op_def(
+            get_handle(),
+            name.get_handle(),
+            out_buf.get_handle(),
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Bazel lockfile integrity hashes are not secrets"
+paths = ['''MODULE\.bazel\.lock$''']

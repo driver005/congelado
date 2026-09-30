@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_parameter_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_parameter_count(get_handle(), out_count status.get_handle());
+        m_ops->get_parameter_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,7 +39,7 @@ public:
     get_parameter(int index, const ice::sonic::TFParserParameterOps& out_parameter) noexcept
     {
         ice::Status status;
-        m_ops->get_parameter(get_handle(), index, out_parameter.get_handle() status.get_handle());
+        m_ops->get_parameter(get_handle(), index, out_parameter.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,7 +50,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> get_block_count(int* out_count) noexcept
     {
         ice::Status status;
-        m_ops->get_block_count(get_handle(), out_count status.get_handle());
+        m_ops->get_block_count(get_handle(), out_count, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -62,7 +62,7 @@ public:
     get_block(int index, const ice::sonic::TFParserBlockOps& out_block) noexcept
     {
         ice::Status status;
-        m_ops->get_block(get_handle(), index, out_block.get_handle() status.get_handle());
+        m_ops->get_block(get_handle(), index, out_block.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

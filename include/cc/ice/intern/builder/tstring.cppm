@@ -13,21 +13,29 @@ import std;
 
 export namespace ice::builder {
 
-class TF_StringOps
+class String
 {
 public:
-    static TF_StringOps* create(void* ctx) noexcept
+    String() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_StringOps*>(ctx);
+    }
+
+    String(const String&) = delete;
+    String& operator=(const String&) = delete;
+
+    static String& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<String*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_StringOps* create(HandleT* handle) noexcept
+    static String& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_StringOps*>(handle->plugin_data);
+        return *static_cast<String*>(handle->plugin_data);
     }
 
-    virtual ~TF_StringOps() = default;
+    virtual ~String() = default;
     [[nodiscard]] virtual std::expected<void, ice::Status> init() noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status>
     copy(const char* src, size_t size) noexcept = 0;
@@ -42,15 +50,14 @@ public:
     get_capacity(size_t* out_capacity) noexcept = 0;
     [[nodiscard]] virtual std::expected<void, ice::Status> dealloc() noexcept = 0;
 
-    static TF_StringOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_StringOps vtable = {
+        m_vtable = ::TF_StringOps{
             .struct_size = TF_STRING_STRUCT_SIZE,
             .init =
                 [](TF_String* t) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->init();
+                auto res = String::from_handle(t).init();
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -58,8 +65,7 @@ public:
             .copy =
                 [](TF_String* dst, const char* src, size_t size) noexcept
             {
-                auto* self = TF_StringOps::create(dst);
-                auto res = self->copy(src, size);
+                auto res = String::from_handle(dst).copy(src, size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -67,8 +73,7 @@ public:
             .assign_view =
                 [](TF_String* dst, const char* src, size_t size) noexcept
             {
-                auto* self = TF_StringOps::create(dst);
-                auto res = self->assign_view(src, size);
+                auto res = String::from_handle(dst).assign_view(src, size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -76,8 +81,7 @@ public:
             .get_data_pointer =
                 [](const TF_String* t, const char** out_data) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->get_data_pointer(out_data);
+                auto res = String::from_handle(t).get_data_pointer(out_data);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -85,8 +89,7 @@ public:
             .get_type =
                 [](const TF_String* t, TFTStringType* out_type) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->get_type(out_type);
+                auto res = String::from_handle(t).get_type(out_type);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -94,8 +97,7 @@ public:
             .get_size =
                 [](const TF_String* t, size_t* out_size) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->get_size(out_size);
+                auto res = String::from_handle(t).get_size(out_size);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -103,8 +105,7 @@ public:
             .get_capacity =
                 [](const TF_String* t, size_t* out_capacity) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->get_capacity(out_capacity);
+                auto res = String::from_handle(t).get_capacity(out_capacity);
                 if (!res) {
                     res.error().to_c(status);
                 }
@@ -112,24 +113,29 @@ public:
             .dealloc =
                 [](TF_String* t) noexcept
             {
-                auto* self = TF_StringOps::create(t);
-                auto res = self->dealloc();
+                auto res = String::from_handle(t).dealloc();
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_StringOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_String& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_StringOps m_vtable;
+    TF_String m_handle;
 };
 
 } // namespace ice::builder

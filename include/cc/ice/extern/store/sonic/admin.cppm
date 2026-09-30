@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> is_connected(int* out_connected) noexcept
     {
         ice::Status status;
-        m_ops->is_connected(get_handle(), out_connected status.get_handle());
+        m_ops->is_connected(get_handle(), out_connected, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -35,18 +35,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> backup(
-        const ice::sonic::TF_StringOps& destination,
-        TFStoreAckFn completion,
-        void* user_data
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    backup(const ice::sonic::String& destination, TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
         m_ops->backup(
             get_handle(),
             destination.get_handle(),
             completion,
-            user_data status.get_handle()
+            user_data,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -55,15 +53,17 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> restore(
-        const ice::sonic::TF_StringOps& source,
-        TFStoreAckFn completion,
-        void* user_data
-    ) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    restore(const ice::sonic::String& source, TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops
-            ->restore(get_handle(), source.get_handle(), completion, user_data status.get_handle());
+        m_ops->restore(
+            get_handle(),
+            source.get_handle(),
+            completion,
+            user_data,
+            status.get_handle()
+        );
 
         if (!status.ok()) {
             return std::unexpected{status};

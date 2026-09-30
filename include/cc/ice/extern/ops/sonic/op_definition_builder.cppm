@@ -28,10 +28,11 @@ public:
 
     static constexpr std::string_view domain_name = "ops";
 
-    [[nodiscard]] std::expected<void, ice::Status> add_attr(const char* attr_spec) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    add_attr(const ice::sonic::String& attr_spec) noexcept
     {
         ice::Status status;
-        m_ops->add_attr(get_handle(), attr_spec status.get_handle());
+        m_ops->add_attr(get_handle(), attr_spec.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -39,10 +40,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> add_input(const char* input_spec) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    add_input(const ice::sonic::String& input_spec) noexcept
     {
         ice::Status status;
-        m_ops->add_input(get_handle(), input_spec status.get_handle());
+        m_ops->add_input(get_handle(), input_spec.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -50,10 +52,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::Status> add_output(const char* output_spec) noexcept
+    [[nodiscard]] std::expected<void, ice::Status>
+    add_output(const ice::sonic::String& output_spec) noexcept
     {
         ice::Status status;
-        m_ops->add_output(get_handle(), output_spec status.get_handle());
+        m_ops->add_output(get_handle(), output_spec.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -64,7 +67,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_is_commutative(_Bool is_commutative) noexcept
     {
         ice::Status status;
-        m_ops->set_is_commutative(get_handle(), is_commutative status.get_handle());
+        m_ops->set_is_commutative(get_handle(), is_commutative, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -75,7 +78,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_is_aggregate(_Bool is_aggregate) noexcept
     {
         ice::Status status;
-        m_ops->set_is_aggregate(get_handle(), is_aggregate status.get_handle());
+        m_ops->set_is_aggregate(get_handle(), is_aggregate, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -86,7 +89,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> set_is_stateful(_Bool is_stateful) noexcept
     {
         ice::Status status;
-        m_ops->set_is_stateful(get_handle(), is_stateful status.get_handle());
+        m_ops->set_is_stateful(get_handle(), is_stateful, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -100,7 +103,8 @@ public:
         ice::Status status;
         m_ops->set_allows_uninitialized_input(
             get_handle(),
-            allows_uninitialized_input status.get_handle()
+            allows_uninitialized_input,
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -110,10 +114,10 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status>
-    deprecated(int version, const char* explanation) noexcept
+    deprecated(int version, const ice::sonic::String& explanation) noexcept
     {
         ice::Status status;
-        m_ops->deprecated(get_handle(), version, explanation status.get_handle());
+        m_ops->deprecated(get_handle(), version, explanation.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -126,7 +130,8 @@ public:
     ) noexcept
     {
         ice::Status status;
-        m_ops->set_shape_inference_function(get_handle(), shape_inference_func status.get_handle());
+        m_ops
+            ->set_shape_inference_function(get_handle(), shape_inference_func, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

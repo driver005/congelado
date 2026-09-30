@@ -16,15 +16,23 @@ export namespace ice::builder {
 class TF_EventOps
 {
 public:
-    static TF_EventOps* create(void* ctx) noexcept
+    TF_EventOps() noexcept :
+        m_handle{.plugin_data = this}
     {
-        return static_cast<TF_EventOps*>(ctx);
+    }
+
+    TF_EventOps(const TF_EventOps&) = delete;
+    TF_EventOps& operator=(const TF_EventOps&) = delete;
+
+    static TF_EventOps& from_handle(void* ctx) noexcept
+    {
+        return *static_cast<TF_EventOps*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_EventOps* create(HandleT* handle) noexcept
+    static TF_EventOps& from_handle(HandleT* handle) noexcept
     {
-        return static_cast<TF_EventOps*>(handle->plugin_data);
+        return *static_cast<TF_EventOps*>(handle->plugin_data);
     }
 
     virtual ~TF_EventOps() = default;
@@ -35,9 +43,9 @@ public:
     [[nodiscard]] virtual std::expected<void, ice::Status>
     get_native_handle(void** out_handle) noexcept = 0;
 
-    static TF_EventOps* get_generic_vtable()
+    void get_generic_vtable() noexcept
     {
-        static TF_EventOps vtable = {
+        m_vtable = ::TF_EventOps{
             .struct_size = TF_EVENT_STRUCT_SIZE,
             .elapsed_time =
                 [](TF_Event* start,
@@ -45,8 +53,10 @@ public:
                    float* out_milliseconds,
                    TF_Status* out_status) noexcept
             {
-                auto* self = TF_EventOps::create(start);
-                auto res = self->elapsed_time(ice::sonic::TF_EventOps::wrap(end), out_milliseconds);
+                auto res = TF_EventOps::from_handle(start).elapsed_time(
+                    ice::sonic::TF_EventOps::wrap(end),
+                    out_milliseconds
+                );
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -54,8 +64,7 @@ public:
             .export_ipc =
                 [](TF_Event* event, TF_IpcEventHandle* out_handle, TF_Status* out_status) noexcept
             {
-                auto* self = TF_EventOps::create(event);
-                auto res = self->export_ipc(out_handle);
+                auto res = TF_EventOps::from_handle(event).export_ipc(out_handle);
                 if (!res) {
                     res.error().to_c(out_status);
                 }
@@ -63,24 +72,29 @@ public:
             .get_native_handle =
                 [](TF_Event* event, void** out_handle) noexcept
             {
-                auto* self = TF_EventOps::create(event);
-                auto res = self->get_native_handle(out_handle);
+                auto res = TF_EventOps::from_handle(event).get_native_handle(out_handle);
                 if (!res) {
                     res.error().to_c(status);
                 }
             },
 
         };
-
-        return &vtable;
     }
 
-    builder::String get_name() const noexcept
+    const ::TF_EventOps& get_vtable() const noexcept
     {
-        builder::String result;
-        m_ops->get_name(get_handle(), result.get_handle());
-        return result;
+        return m_vtable;
     }
+
+    const TF_Event& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+
+private:
+    ::TF_EventOps m_vtable;
+    TF_Event m_handle;
 };
 
 } // namespace ice::builder

@@ -33,7 +33,8 @@ public:
         m_ops->add_dependency(
             get_handle(),
             job.get_handle(),
-            depends_on.get_handle() status.get_handle()
+            depends_on.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -51,7 +52,8 @@ public:
         m_ops->list_dependencies(
             get_handle(),
             job.get_handle(),
-            out_job_ids.get_handle() status.get_handle()
+            out_job_ids.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -63,7 +65,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> pause(const ice::sonic::TF_JobOps& job) noexcept
     {
         ice::Status status;
-        m_ops->pause(get_handle(), job.get_handle() status.get_handle());
+        m_ops->pause(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -74,7 +76,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> resume(const ice::sonic::TF_JobOps& job) noexcept
     {
         ice::Status status;
-        m_ops->resume(get_handle(), job.get_handle() status.get_handle());
+        m_ops->resume(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -85,7 +87,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> cancel(const ice::sonic::TF_JobOps& job) noexcept
     {
         ice::Status status;
-        m_ops->cancel(get_handle(), job.get_handle() status.get_handle());
+        m_ops->cancel(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -96,7 +98,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> stop(const ice::sonic::TF_JobOps& job) noexcept
     {
         ice::Status status;
-        m_ops->stop(get_handle(), job.get_handle() status.get_handle());
+        m_ops->stop(get_handle(), job.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

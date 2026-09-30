@@ -31,7 +31,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> data(const void** out_data) noexcept
     {
         ice::Status status;
-        m_ops->data(get_handle(), out_data status.get_handle());
+        m_ops->data(get_handle(), out_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -42,7 +42,7 @@ public:
     [[nodiscard]] std::expected<void, ice::Status> length(uint64_t* out_length) noexcept
     {
         ice::Status status;
-        m_ops->length(get_handle(), out_length status.get_handle());
+        m_ops->length(get_handle(), out_length, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

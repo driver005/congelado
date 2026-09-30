@@ -35,7 +35,8 @@ public:
             get_handle(),
             executor.get_handle(),
             device.get_handle(),
-            out_graph.get_handle() status.get_handle()
+            out_graph.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -48,7 +49,7 @@ public:
     destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept
     {
         ice::Status status;
-        m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle() status.get_handle());
+        m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};

@@ -40,7 +40,7 @@ public:
     add_collection(const ice::sonic::TFStoreCollectionOps& collection) noexcept
     {
         ice::Status status;
-        m_ops->add_collection(get_handle(), collection.get_handle() status.get_handle());
+        m_ops->add_collection(get_handle(), collection.get_handle(), status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -49,7 +49,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::Status> get_collection(
-        const ice::sonic::TF_StringOps& name,
+        const ice::sonic::String& name,
         const ice::sonic::TFStoreCollectionOps& out_collection
     ) noexcept
     {
@@ -57,7 +57,8 @@ public:
         m_ops->get_collection(
             get_handle(),
             name.get_handle(),
-            out_collection.get_handle() status.get_handle()
+            out_collection.get_handle(),
+            status.get_handle()
         );
 
         if (!status.ok()) {
@@ -70,7 +71,7 @@ public:
     list_collections(TF_Tensor** out_collections) noexcept
     {
         ice::Status status;
-        m_ops->list_collections(get_handle(), out_collections status.get_handle());
+        m_ops->list_collections(get_handle(), out_collections, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
@@ -82,7 +83,7 @@ public:
     commit(TFStoreAckFn completion, void* user_data) noexcept
     {
         ice::Status status;
-        m_ops->commit(get_handle(), completion, user_data status.get_handle());
+        m_ops->commit(get_handle(), completion, user_data, status.get_handle());
 
         if (!status.ok()) {
             return std::unexpected{status};
