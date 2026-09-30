@@ -48,7 +48,7 @@ jobs:
           provenance: mode=max
           cache-from: type=gha,scope=release-${{ matrix.image }}
           cache-to: type=gha,scope=release-${{ matrix.image }},mode=max
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository }}-${{ matrix.image }}
           subject-digest: ${{ steps.push.outputs.digest }}
