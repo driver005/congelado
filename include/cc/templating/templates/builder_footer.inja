@@ -1,0 +1,30 @@
+
+{% for dep in deps %}
+                {{ dep.type }} wrap(std::type_identity<{{ dep.type }}>, const ::{{ dep.handle }}* handle) const noexcept
+                {
+                    return {{ dep.type }}{m_{{ dep.member }}_ops, const_cast<::{{ dep.handle }}*>(handle)};
+                }
+
+{% endfor %}
+    const ::{{ struct_name }}& get_vtable() const noexcept
+    {
+        return m_vtable;
+    }
+
+    const ::{{ handle_name }}& get_handle() const noexcept
+    {
+        return m_handle;
+    }
+
+    template<typename Registry, typename StringType>
+    void register_ops(Registry& registry, const StringType& type, const StringType& provider) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::{{ struct_name }}*>(&m_vtable));
+    }
+
+private:
+    ::{{ struct_name }} m_vtable;
+    ::{{ handle_name }} m_handle;
+{% for dep in deps %}
+    const ::{{ dep.struct }}* m_{{ dep.member }}_ops{nullptr};
+{% endfor %}

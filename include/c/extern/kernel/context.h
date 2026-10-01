@@ -39,6 +39,8 @@ extern "C" {
     // TF_OpKernelContextOps
     typedef struct TF_OpKernelContextOps {
         size_t struct_size;
+        void (*create)(TF_OpKernelContext* out_handle);
+        void (*destroy)(TF_OpKernelContext* handle);
         void (*num_inputs)(TF_OpKernelContext* ctx, int* out_num);
         void (*num_outputs)(TF_OpKernelContext* ctx, int* out_num);
         void (*get_input)(TF_OpKernelContext* ctx, int i, TF_Tensor** out_tensor, TF_Status* out_status);

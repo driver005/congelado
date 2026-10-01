@@ -3,7 +3,10 @@ load("//bazel:build_defs.bzl", "congelado_module_library")
 congelado_module_library(
     name = "cc_abi_gen_generator",
     partitions = [
+        "emitter/runtime.cppm",
+        "emitter/runtime_spec.cppm",
         "emitter/vtable.cppm",
+        "helper/dependency_info.cppm",
         "helper/formatter.cppm",
         "helper/module_naming.cppm",
         "helper/types.cppm",

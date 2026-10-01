@@ -7,8 +7,8 @@
 #include "include/c/extern/stream_executor/event.h"
 #include "include/c/extern/stream_executor/timer.h"
 #include "include/c/extern/stream_executor/device.h"
-#include "include/c/extern/memory/types.h"
-#include "include/c/extern/memory/allocator.h"
+#include "include/c/extern/stream_executor/types.h"
+#include "include/c/extern/stream_executor/allocator.h"
 #include "include/c/extern/random_generator/random_generator.h"
 
 #include <stddef.h>
@@ -32,6 +32,8 @@ extern "C" {
     // TF_ExecutorOps
     typedef struct TF_ExecutorOps {
         size_t struct_size;
+        void (*create)(TF_Executor* out_handle);
+        void (*destroy)(TF_Executor* handle);
         void (*device_memory_usage)(TF_Executor* executor, TF_Device* device, int64_t* out_free, int64_t* out_total, bool* out_success);
         void (*create_stream_internal)(TF_Executor* executor, TF_Device* device, TF_Stream* stream, TF_Status* out_status);
         void (*destroy_stream_internal)(TF_Executor* executor, TF_Device* device, TF_Stream* stream);

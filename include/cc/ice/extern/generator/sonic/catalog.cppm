@@ -10,62 +10,82 @@ module;
 export module cc_ice_extern_generator_sonic:catalog;
 
 import std;
-import cc_abi_sonic_registration;
+import :module_;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TFGeneratorCatalogOps :
-    public ice::sonic::Runtime<TFGeneratorCatalogOps, TFGeneratorCatalogOps>
+    public ice::sonic::Runtime<::TFGeneratorCatalogOps, ::TFGeneratorCatalog>
 {
 public:
-    explicit TFGeneratorCatalogOps(TFGeneratorCatalogOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGeneratorCatalogOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "generator";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    add_module(const ice::sonic::TFGeneratorModuleOps& module) noexcept
+    template<typename Registry>
+    TFGeneratorCatalogOps(
+        Registry& registry,
+        ::TFGeneratorCatalog* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->add_module(get_handle(), module.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_module(
+    explicit TFGeneratorCatalogOps(const ::TFGeneratorCatalogOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGeneratorCatalogOps(const ::TFGeneratorCatalogOps* ops, ::TFGeneratorCatalog* handle) noexcept
+        :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void add_module(
+        const ice::sonic::TFGeneratorModuleOps& module,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->add_module(get_handle(), module.get_handle(), out_status.get_handle());
+    }
+
+    void get_module(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorModuleOps& out_module
-    ) noexcept
+        const ice::sonic::TFGeneratorModuleOps& out_module,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_module(
             get_handle(),
             name.get_handle(),
             out_module.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list_modules(TF_Tensor** out_modules) noexcept
+    void list_modules(TF_Tensor** out_modules, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list_modules(get_handle(), out_modules, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list_modules(get_handle(), out_modules, out_status.get_handle());
     }
 };
 

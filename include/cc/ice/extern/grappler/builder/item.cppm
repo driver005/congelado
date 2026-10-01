@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/extern/grappler/item.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_extern_grappler_builder:item;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFGrapplerItemOps
 {
 public:
-    TFGrapplerItemOps() noexcept :
+    explicit TFGrapplerItemOps(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
     }
 
     TFGrapplerItemOps(const TFGrapplerItemOps&) = delete;
@@ -36,42 +39,58 @@ public:
     }
 
     virtual ~TFGrapplerItemOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_nodes_to_preserve_size(int* out_num_values, size_t* out_storage_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_nodes_to_preserve_list(
-        char** out_values,
-        size_t* out_lengths,
-        int num_values,
-        void* storage,
-        size_t storage_size
+    virtual void destroy() noexcept = 0;
+    virtual void get_nodes_to_preserve_size(
+        int* out_num_values,
+        size_t* out_storage_size,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_fetch_nodes_size(int* out_num_values, size_t* out_storage_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_fetch_nodes_list(
+    virtual void get_nodes_to_preserve_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size
+        size_t storage_size,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_fetch_nodes_size(
+        int* out_num_values,
+        size_t* out_storage_size,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_fetch_nodes_list(
+        char** out_values,
+        size_t* out_lengths,
+        int num_values,
+        void* storage,
+        size_t storage_size,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFGrapplerItem*)) noexcept
     {
         m_vtable = ::TFGrapplerItemOps{
-            .struct_size = TF_RAPPLERITEM_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFGrapplerItemOps, get_fetch_nodes_list),
+
+            .create = create,
+            .destroy =
+                [](TFGrapplerItem* handle) noexcept
+            {
+                auto& self = TFGrapplerItemOps::from_handle(handle);
+                self.destroy();
+            },
             .get_nodes_to_preserve_size =
                 [](TFGrapplerItem* item,
                    int* out_num_values,
                    size_t* out_storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerItemOps::from_handle(item).get_nodes_to_preserve_size(
+                auto& self = TFGrapplerItemOps::from_handle(item);
+                self.get_nodes_to_preserve_size(
                     out_num_values,
-                    out_storage_size
+                    out_storage_size,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_nodes_to_preserve_list =
                 [](TFGrapplerItem* item,
@@ -82,16 +101,15 @@ public:
                    size_t storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerItemOps::from_handle(item).get_nodes_to_preserve_list(
+                auto& self = TFGrapplerItemOps::from_handle(item);
+                self.get_nodes_to_preserve_list(
                     out_values,
                     out_lengths,
                     num_values,
                     storage,
-                    storage_size
+                    storage_size,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_fetch_nodes_size =
                 [](TFGrapplerItem* item,
@@ -99,13 +117,12 @@ public:
                    size_t* out_storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerItemOps::from_handle(item).get_fetch_nodes_size(
+                auto& self = TFGrapplerItemOps::from_handle(item);
+                self.get_fetch_nodes_size(
                     out_num_values,
-                    out_storage_size
+                    out_storage_size,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_fetch_nodes_list =
                 [](TFGrapplerItem* item,
@@ -116,19 +133,24 @@ public:
                    size_t storage_size,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerItemOps::from_handle(item).get_fetch_nodes_list(
+                auto& self = TFGrapplerItemOps::from_handle(item);
+                self.get_fetch_nodes_list(
                     out_values,
                     out_lengths,
                     num_values,
                     storage,
-                    storage_size
+                    storage_size,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TFGrapplerItemOps& get_vtable() const noexcept
@@ -136,15 +158,26 @@ public:
         return m_vtable;
     }
 
-    const TFGrapplerItem& get_handle() const noexcept
+    const ::TFGrapplerItem& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFGrapplerItemOps*>(&m_vtable));
+    }
 
 private:
     ::TFGrapplerItemOps m_vtable;
-    TFGrapplerItem m_handle;
+    ::TFGrapplerItem m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

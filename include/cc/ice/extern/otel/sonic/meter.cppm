@@ -10,74 +10,95 @@ module;
 export module cc_ice_extern_otel_sonic:meter;
 
 import std;
-import cc_abi_sonic_registration;
+import :counter;
+import :histogram;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelMeterOps : public ice::sonic::Runtime<TFOtelMeterOps, TFOtelMeterOps>
+class TFOtelMeterOps : public ice::sonic::Runtime<::TFOtelMeterOps, ::TFOtelMeter>
 {
 public:
-    explicit TFOtelMeterOps(TFOtelMeterOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFOtelMeterOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "otel";
+    template<typename Registry>
+    TFOtelMeterOps(
+        Registry& registry,
+        ::TFOtelMeter* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFOtelMeterOps(const ::TFOtelMeterOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFOtelMeterOps(const ::TFOtelMeterOps* ops, ::TFOtelMeter* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> create_counter(
+    void create_counter(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelCounterOps& out_counter
-    ) noexcept
+        const ice::sonic::TFOtelCounterOps& out_counter,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->create_counter(
             get_handle(),
             name.get_handle(),
             description.get_handle(),
             unit.get_handle(),
             out_counter.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> create_histogram(
+    void create_histogram(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelHistogramOps& out_histogram
-    ) noexcept
+        const ice::sonic::TFOtelHistogramOps& out_histogram,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->create_histogram(
             get_handle(),
             name.get_handle(),
             description.get_handle(),
             unit.get_handle(),
             out_histogram.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

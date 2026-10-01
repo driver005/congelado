@@ -40,6 +40,8 @@ extern "C"
     typedef struct TF_TensorOps
     {
         size_t struct_size;
+        void (*create)(TF_Tensor* out_handle);
+        void (*destroy)(TF_Tensor* handle);
 
         // Return the backend's name (e.g. "tensor") into *out.
         void (*get_name)(TF_Tensor* tensor, TF_String* out_name);

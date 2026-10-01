@@ -39,7 +39,8 @@ extern "C"
     typedef struct TF_GeneratorOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Generator* generator);
+        void (*create)(TF_Generator* out_handle);
+        void (*destroy)(TF_Generator* handle);
         void (*get_name)(TF_Generator* generator, TF_String* out_name);
     } TF_GeneratorOps;
 

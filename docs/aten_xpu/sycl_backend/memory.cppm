@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/memory/memory.h"
+#include "include/c/extern/stream_executor/memory.h"
 
 export module sycl_backend:memory;
 

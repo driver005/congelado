@@ -13,7 +13,7 @@ congelado_module_library(
         "function.cppm",
         "node.cppm",
         "catalog.cppm",
-        "module.cppm",
+        "module_.cppm",
         "block.cppm",
         "parser.cppm",
         "attribute.cppm",
@@ -21,4 +21,9 @@ congelado_module_library(
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = [
+        "//include/c:tf_c_headers",
+        "//include/cc/ice/extern/parser/sonic:cc_ice_extern_parser_sonic",
+        "//include/cc/ice/intern/sonic:cc_ice_intern_sonic",
+    ],
 )

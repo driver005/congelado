@@ -19,8 +19,9 @@ extern "C"
     typedef struct TF_ScheduleOps
     {
         size_t struct_size;
+        void (*create)(TF_Schedule* out_handle);
+        void (*destroy)(TF_Schedule* handle);
 
-        void (*destroy)(TF_Schedule* schedule);
 
         void (*add_dependency)(TF_Schedule* schedule, TF_Job* job, TF_Job* depends_on, TF_Status* out_status);
         void (*list_dependencies)(TF_Schedule* schedule, TF_Job* job, TF_Vector* out_job_ids, TF_Status* out_status);

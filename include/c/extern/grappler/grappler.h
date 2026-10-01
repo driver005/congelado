@@ -36,7 +36,8 @@ extern "C" {
 
     typedef struct TF_GrapplerOps {
         size_t struct_size;
-        void (*destroy)(TF_Grappler* grappler);
+        void (*create)(TF_Grappler* out_handle);
+        void (*destroy)(TF_Grappler* handle);
         void (*get_name)(TF_Grappler* grappler, TF_String* out_name);
         void (*create_device_graph_internal)(TF_Grappler* grappler, TF_Executor* executor, TF_Device* device, TFGrapplerDeviceGraph* out_graph, TF_Status* out_status);
         void (*destroy_device_graph_internal)(TF_Grappler* grappler, TFGrapplerDeviceGraph* graph);

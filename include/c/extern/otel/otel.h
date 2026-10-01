@@ -42,7 +42,8 @@ extern "C"
     typedef struct TF_OtelOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Otel* otel);
+        void (*create)(TF_Otel* out_handle);
+        void (*destroy)(TF_Otel* handle);
         void (*get_name)(TF_Otel* otel, TF_String* out_name);
     } TF_OtelOps;
 

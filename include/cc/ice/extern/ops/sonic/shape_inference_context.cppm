@@ -10,170 +10,207 @@ module;
 export module cc_ice_extern_ops_sonic:shape_inference_context;
 
 import std;
-import cc_abi_sonic_registration;
+import :dimension_handle;
+import :shape_handle;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TF_ShapeInferenceContextOps :
-    public ice::sonic::Runtime<TF_ShapeInferenceContextOps, TF_ShapeInferenceContextOps>
+    public ice::sonic::Runtime<::TF_ShapeInferenceContextOps, ::TF_ShapeInferenceContext>
 {
 public:
-    explicit TF_ShapeInferenceContextOps(
-        TF_ShapeInferenceContextOps* ops,
-        void* plugin_context
+    template<typename Registry>
+    TF_ShapeInferenceContextOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
     ) noexcept :
-        Runtime(ops, plugin_context)
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "ops";
+    template<typename Registry>
+    TF_ShapeInferenceContextOps(
+        Registry& registry,
+        ::TF_ShapeInferenceContext* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void num_inputs(int64_t* out_num) noexcept
+    explicit TF_ShapeInferenceContextOps(const ::TF_ShapeInferenceContextOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_ShapeInferenceContextOps(
+        const ::TF_ShapeInferenceContextOps* ops,
+        ::TF_ShapeInferenceContext* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void num_inputs(int64_t* out_num) const noexcept
     {
         m_ops->num_inputs(get_handle(), out_num);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_input(int i, TF_ShapeHandle* handle) noexcept
+    void get_input(
+        int i,
+        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_input(get_handle(), i, handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_input(get_handle(), i, handle.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_output(int i, TF_ShapeHandle* handle) noexcept
+    void set_output(
+        int i,
+        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_output(get_handle(), i, handle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_output(get_handle(), i, handle.get_handle(), out_status.get_handle());
     }
 
-    void scalar(TF_ShapeHandle* handle) noexcept
+    void scalar(const ice::sonic::TF_ShapeHandleOps& handle) const noexcept
     {
-        m_ops->scalar(get_handle(), handle);
+        m_ops->scalar(get_handle(), handle.get_handle());
     }
 
-    void vector_from_size(size_t size, TF_ShapeHandle* handle) noexcept
+    void vector_from_size(size_t size, const ice::sonic::TF_ShapeHandleOps& handle) const noexcept
     {
-        m_ops->vector_from_size(get_handle(), size, handle);
+        m_ops->vector_from_size(get_handle(), size, handle.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_attr_type(const ice::sonic::String& attr_name, TFDataTypeEnum* out_val) noexcept
+    void get_attr_type(
+        const ice::sonic::String& attr_name,
+        TFDataTypeEnum* out_val,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_attr_type(get_handle(), attr_name.get_handle(), out_val, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops
+            ->get_attr_type(get_handle(), attr_name.get_handle(), out_val, out_status.get_handle());
     }
 
-    void rank(TF_ShapeHandle* handle, int64_t* out_rank) noexcept
+    void rank(const ice::sonic::TF_ShapeHandleOps& handle, int64_t* out_rank) const noexcept
     {
-        m_ops->rank(get_handle(), handle, out_rank);
+        m_ops->rank(get_handle(), handle.get_handle(), out_rank);
     }
 
-    void rank_known(TF_ShapeHandle* handle, int* out_known) noexcept
+    void rank_known(const ice::sonic::TF_ShapeHandleOps& handle, int* out_known) const noexcept
     {
-        m_ops->rank_known(get_handle(), handle, out_known);
+        m_ops->rank_known(get_handle(), handle.get_handle(), out_known);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    with_rank(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
+    void with_rank(
+        const ice::sonic::TF_ShapeHandleOps& handle,
+        int64_t rank,
+        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->with_rank(get_handle(), handle, rank, result, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->with_rank(
+            get_handle(),
+            handle.get_handle(),
+            rank,
+            result.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    with_rank_at_least(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
+    void with_rank_at_least(
+        const ice::sonic::TF_ShapeHandleOps& handle,
+        int64_t rank,
+        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->with_rank_at_least(get_handle(), handle, rank, result, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->with_rank_at_least(
+            get_handle(),
+            handle.get_handle(),
+            rank,
+            result.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    with_rank_at_most(TF_ShapeHandle* handle, int64_t rank, TF_ShapeHandle* result) noexcept
+    void with_rank_at_most(
+        const ice::sonic::TF_ShapeHandleOps& handle,
+        int64_t rank,
+        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->with_rank_at_most(get_handle(), handle, rank, result, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->with_rank_at_most(
+            get_handle(),
+            handle.get_handle(),
+            rank,
+            result.get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void dim(
-        TF_ShapeHandle* shape_handle,
+        const ice::sonic::TF_ShapeHandleOps& shape_handle,
         int64_t i,
         const ice::sonic::TF_DimensionHandleOps& result
-    ) noexcept
+    ) const noexcept
     {
-        m_ops->dim(get_handle(), shape_handle, i, result.get_handle());
+        m_ops->dim(get_handle(), shape_handle.get_handle(), i, result.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> subshape(
-        TF_ShapeHandle* shape_handle,
+    void subshape(
+        const ice::sonic::TF_ShapeHandleOps& shape_handle,
         int64_t start,
         int64_t end,
-        TF_ShapeHandle* result
-    ) noexcept
+        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->subshape(get_handle(), shape_handle, start, end, result, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->subshape(
+            get_handle(),
+            shape_handle.get_handle(),
+            start,
+            end,
+            result.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> set_unknown_shape() noexcept
+    void set_unknown_shape(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_unknown_shape(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_unknown_shape(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> concatenate_shapes(
-        TF_ShapeHandle* first,
-        TF_ShapeHandle* second,
-        TF_ShapeHandle* result
-    ) noexcept
+    void concatenate_shapes(
+        const ice::sonic::TF_ShapeHandleOps& first,
+        const ice::sonic::TF_ShapeHandleOps& second,
+        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->concatenate_shapes(get_handle(), first, second, result, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->concatenate_shapes(
+            get_handle(),
+            first.get_handle(),
+            second.get_handle(),
+            result.get_handle(),
+            out_status.get_handle()
+        );
     }
 };
 

@@ -21,8 +21,9 @@ extern "C"
     typedef struct TF_DurableOps
     {
         size_t struct_size;
+        void (*create)(TF_Durable* out_handle);
+        void (*destroy)(TF_Durable* handle);
 
-        void (*destroy)(TF_Durable* durable);
 
         void (*signal)(TF_Durable* durable, TF_Job* job, const TF_String* signal_name, const TF_String* payload, TF_Status* out_status);
         void (*checkpoint)(TF_Durable* durable, TF_Job* job, TFDurableAckFn completion, void* user_data, TF_Status* out_status);

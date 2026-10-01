@@ -10,5 +10,6 @@ export import :ops;
 export import :shape_inference_context;
 export import :dimension_handle;
 export import :op_definition_builder;
+export import :shape_handle;
 
 // clang-format on

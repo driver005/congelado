@@ -10,93 +10,107 @@ module;
 export module cc_ice_extern_jobber_sonic:task;
 
 import std;
-import cc_abi_sonic_registration;
+import :job;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_TaskOps : public ice::sonic::Runtime<TF_TaskOps, TF_TaskOps>
+class TF_TaskOps : public ice::sonic::Runtime<::TF_TaskOps, ::TF_Task>
 {
 public:
-    explicit TF_TaskOps(TF_TaskOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_TaskOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_TaskOps(
+        Registry& registry,
+        ::TF_Task* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_TaskOps(const ::TF_TaskOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_TaskOps(const ::TF_TaskOps* ops, ::TF_Task* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    complete(const ice::sonic::String& node_ref, const ice::sonic::String& output) noexcept
+    void complete(
+        const ice::sonic::String& node_ref,
+        const ice::sonic::String& output,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->complete(
             get_handle(),
             node_ref.get_handle(),
             output.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> create_task(
+    void create_task(
         const ice::sonic::String& node_ref,
         const ice::sonic::String& input,
-        const ice::sonic::TF_JobOps& out_child
-    ) noexcept
+        const ice::sonic::TF_JobOps& out_child,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->create_task(
             get_handle(),
             node_ref.get_handle(),
             input.get_handle(),
             out_child.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
     void get_task(
         const ice::sonic::String& node_ref,
         const ice::sonic::TF_JobOps& out_child
-    ) noexcept
+    ) const noexcept
     {
         m_ops->get_task(get_handle(), node_ref.get_handle(), out_child.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list_tasks(const ice::sonic::TF_VectorOps& out_node_refs) noexcept
+    void list_tasks(
+        const ice::sonic::TF_VectorOps& out_node_refs,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list_tasks(get_handle(), out_node_refs.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list_tasks(get_handle(), out_node_refs.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    cancel_task(const ice::sonic::String& node_ref) noexcept
+    void cancel_task(
+        const ice::sonic::String& node_ref,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->cancel_task(get_handle(), node_ref.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->cancel_task(get_handle(), node_ref.get_handle(), out_status.get_handle());
     }
 };
 

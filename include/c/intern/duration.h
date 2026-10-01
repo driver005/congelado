@@ -20,15 +20,16 @@ extern "C"
     typedef struct TF_DurationOps
     {
         size_t struct_size;
+        void (*create)(TF_Duration* out_handle);
+        void (*destroy)(TF_Duration* handle);
 
         void (*get_ticks)(const TF_Duration* duration, int64_t* out_ticks);
         void (*get_ratio_num)(const TF_Duration* duration, int64_t* out_num);
         void (*get_ratio_den)(const TF_Duration* duration, int64_t* out_den);
-        void (*destroy)(TF_Duration* duration);
 
     } TF_DurationOps;
 
-#define TF_DURATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_DurationOps, destroy)
+#define TF_DURATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_DurationOps, get_ratio_den)
 
     TF_CAPI_EXPORT void create_duration(TF_DurationOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_duration(void* plugin_context);

@@ -9,11 +9,16 @@ congelado_module_library(
     name = "cc_ice_extern_io_sonic",
     partitions = [
         "socket.cppm",
+        "client.cppm",
         "server.cppm",
         "request.cppm",
         "response.cppm",
-        "client.cppm",
+        "connection.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = [
+        "//include/c:tf_c_headers",
+        "//include/cc/ice/intern/sonic:cc_ice_intern_sonic",
+    ],
 )

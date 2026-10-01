@@ -26,6 +26,8 @@ extern "C"
     typedef struct TF_ListOps
     {
         size_t struct_size;
+        void (*create)(TF_List* out_handle);
+        void (*destroy)(TF_List* handle);
 
         void (*set_element_size)(TF_List* list, size_t element_size);
 
@@ -48,11 +50,10 @@ extern "C"
         // Current element count.
         void (*size)(const TF_List* list, size_t* out_size);
 
-        void (*destroy)(TF_List* list);
 
     } TF_ListOps;
 
-#define TF_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_ListOps, destroy)
+#define TF_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_ListOps, size)
 
     TF_CAPI_EXPORT void create_list(TF_ListOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_list(void* plugin_context);

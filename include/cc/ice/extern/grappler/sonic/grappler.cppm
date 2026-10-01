@@ -10,52 +10,80 @@ module;
 export module cc_ice_extern_grappler_sonic:grappler;
 
 import std;
-import cc_abi_sonic_registration;
+import :device_graph;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_GrapplerOps : public ice::sonic::Runtime<TF_GrapplerOps, TF_GrapplerOps>
+class TF_GrapplerOps : public ice::sonic::Runtime<::TF_GrapplerOps, ::TF_Grappler>
 {
 public:
-    explicit TF_GrapplerOps(TF_GrapplerOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_GrapplerOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "grappler";
+    template<typename Registry>
+    TF_GrapplerOps(
+        Registry& registry,
+        ::TF_Grappler* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_GrapplerOps(const ::TF_GrapplerOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_GrapplerOps(const ::TF_GrapplerOps* ops, ::TF_Grappler* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> create_device_graph_internal(
+    void create_device_graph_internal(
         const ice::sonic::TF_ExecutorOps& executor,
         const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TFGrapplerDeviceGraphOps& out_graph
-    ) noexcept
+        const ice::sonic::TFGrapplerDeviceGraphOps& out_graph,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->create_device_graph_internal(
             get_handle(),
             executor.get_handle(),
             device.get_handle(),
             out_graph.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    void destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph) noexcept
+    void destroy_device_graph_internal(
+        const ice::sonic::TFGrapplerDeviceGraphOps& graph
+    ) const noexcept
     {
         m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle());
     }

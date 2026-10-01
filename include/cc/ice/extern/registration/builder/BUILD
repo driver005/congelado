@@ -12,4 +12,8 @@ congelado_module_library(
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = [
+        "//include/c:tf_c_headers",
+        "//include/cc/ice/intern/sonic:cc_ice_intern_sonic",
+    ],
 )

@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/extern/grappler/configs.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_extern_grappler_builder:configs;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFGrapplerConfigsOps
 {
 public:
-    TFGrapplerConfigsOps() noexcept :
+    explicit TFGrapplerConfigsOps(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
     }
 
     TFGrapplerConfigsOps(const TFGrapplerConfigsOps&) = delete;
@@ -36,51 +39,72 @@ public:
     }
 
     virtual ~TFGrapplerConfigsOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept = 0;
     virtual void set_optimization_level(TFGrapplerOptimizationLevel level) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_optimizer_configs(TFGrapplerOptimizerConfigs* out_configs) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_optimizer_configs(const TFGrapplerOptimizerConfigs* in_configs) noexcept = 0;
+    virtual void get_optimizer_configs(
+        TFGrapplerOptimizerConfigs* out_configs,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void set_optimizer_configs(
+        const TFGrapplerOptimizerConfigs* in_configs,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFGrapplerConfigs*)) noexcept
     {
         m_vtable = ::TFGrapplerConfigsOps{
-            .struct_size = TF_RAPPLERCONFIGS_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFGrapplerConfigsOps, set_optimizer_configs),
+
+            .create = create,
+            .destroy =
+                [](TFGrapplerConfigs* handle) noexcept
+            {
+                auto& self = TFGrapplerConfigsOps::from_handle(handle);
+                self.destroy();
+            },
             .get_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel* out_level) noexcept
             {
-                TFGrapplerConfigsOps::from_handle(configs).get_optimization_level(out_level);
+                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                self.get_optimization_level(out_level);
             },
             .set_optimization_level =
                 [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept
             {
-                TFGrapplerConfigsOps::from_handle(configs).set_optimization_level(level);
+                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                self.set_optimization_level(level);
             },
             .get_optimizer_configs =
                 [](TFGrapplerConfigs* configs,
                    TFGrapplerOptimizerConfigs* out_configs,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFGrapplerConfigsOps::from_handle(configs).get_optimizer_configs(out_configs);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                self.get_optimizer_configs(
+                    out_configs,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set_optimizer_configs =
                 [](TFGrapplerConfigs* configs,
                    const TFGrapplerOptimizerConfigs* in_configs,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFGrapplerConfigsOps::from_handle(configs).set_optimizer_configs(in_configs);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                self.set_optimizer_configs(
+                    in_configs,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TFGrapplerConfigsOps& get_vtable() const noexcept
@@ -88,15 +112,26 @@ public:
         return m_vtable;
     }
 
-    const TFGrapplerConfigs& get_handle() const noexcept
+    const ::TFGrapplerConfigs& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFGrapplerConfigsOps*>(&m_vtable));
+    }
 
 private:
     ::TFGrapplerConfigsOps m_vtable;
-    TFGrapplerConfigs m_handle;
+    ::TFGrapplerConfigs m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -6,19 +6,35 @@
 module;
 
 #include "include/c/extern/grappler/device_graph.h"
+#include "include/c/extern/random_generator/random_generator.h"
+#include "include/c/extern/stream_executor/stream.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_grappler_builder:device_graph;
 
 import std;
+import cc_ice_extern_random_generator_sonic;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFGrapplerDeviceGraphOps
 {
 public:
-    TFGrapplerDeviceGraphOps() noexcept :
+    explicit TFGrapplerDeviceGraphOps(
+        const ::TF_RandomGeneratorOps* TF_RandomGeneratorOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StreamOps* TF_StreamOps_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_RandomGeneratorOps_ops = TF_RandomGeneratorOps_ops;
+        m_Status_ops = Status_ops;
+        m_TF_StreamOps_ops = TF_StreamOps_ops;
+        m_String_ops = String_ops;
     }
 
     TFGrapplerDeviceGraphOps(const TFGrapplerDeviceGraphOps&) = delete;
@@ -36,28 +52,42 @@ public:
     }
 
     virtual ~TFGrapplerDeviceGraphOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> capture_begin(
+    virtual void destroy() noexcept = 0;
+    virtual void capture_begin(
         const ice::sonic::TF_StreamOps& capture_stream,
         const TF_PoolId* pool_id,
-        TF_CaptureMode mode
+        TF_CaptureMode mode,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> capture_end() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> instantiate() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> replay() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> reset() noexcept = 0;
+    virtual void capture_end(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void instantiate(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void replay(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void reset(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_pool(TF_PoolId* out_pool_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    register_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    unregister_random_generator(const ice::sonic::TF_RandomGeneratorOps& generator) noexcept = 0;
+    virtual void register_random_generator(
+        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void unregister_random_generator(
+        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void enable_debug_mode() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    debug_dump(const ice::sonic::String& path) noexcept = 0;
+    virtual void
+    debug_dump(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFGrapplerDeviceGraph*)) noexcept
     {
         m_vtable = ::TFGrapplerDeviceGraphOps{
-            .struct_size = TF_RAPPLERDEVICEGRAPH_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFGrapplerDeviceGraphOps, debug_dump),
+
+            .create = create,
+            .destroy =
+                [](TFGrapplerDeviceGraph* handle) noexcept
+            {
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(handle);
+                self.destroy();
+            },
             .capture_begin =
                 [](TFGrapplerDeviceGraph* graph,
                    TF_Stream* capture_stream,
@@ -65,95 +95,114 @@ public:
                    TF_CaptureMode mode,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).capture_begin(
-                    ice::sonic::TF_StreamOps::wrap(capture_stream),
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.capture_begin(
+                    self.wrap(std::type_identity<ice::sonic::TF_StreamOps>{}, capture_stream),
                     pool_id,
-                    mode
+                    mode,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .capture_end =
                 [](TFGrapplerDeviceGraph* graph, TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).capture_end();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.capture_end(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .instantiate =
                 [](TFGrapplerDeviceGraph* graph, TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).instantiate();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.instantiate(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .replay =
                 [](TFGrapplerDeviceGraph* graph, TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).replay();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.replay(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .reset =
                 [](TFGrapplerDeviceGraph* graph, TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).reset();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.reset(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .get_pool =
                 [](TFGrapplerDeviceGraph* graph, TF_PoolId* out_pool_id) noexcept
             {
-                TFGrapplerDeviceGraphOps::from_handle(graph).get_pool(out_pool_id);
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.get_pool(out_pool_id);
             },
             .register_random_generator =
                 [](TFGrapplerDeviceGraph* graph,
                    TF_RandomGenerator* generator,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).register_random_generator(
-                    ice::sonic::TF_RandomGeneratorOps::wrap(generator)
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.register_random_generator(
+                    self.wrap(std::type_identity<ice::sonic::TF_RandomGeneratorOps>{}, generator),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .unregister_random_generator =
                 [](TFGrapplerDeviceGraph* graph,
                    TF_RandomGenerator* generator,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).unregister_random_generator(
-                    ice::sonic::TF_RandomGeneratorOps::wrap(generator)
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.unregister_random_generator(
+                    self.wrap(std::type_identity<ice::sonic::TF_RandomGeneratorOps>{}, generator),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .enable_debug_mode =
                 [](TFGrapplerDeviceGraph* graph) noexcept
             {
-                TFGrapplerDeviceGraphOps::from_handle(graph).enable_debug_mode();
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.enable_debug_mode();
             },
             .debug_dump =
                 [](TFGrapplerDeviceGraph* graph,
                    const TF_String* path,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGrapplerDeviceGraphOps::from_handle(graph).debug_dump(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFGrapplerDeviceGraphOps::from_handle(graph);
+                self.debug_dump(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TF_RandomGeneratorOps wrap(
+        std::type_identity<ice::sonic::TF_RandomGeneratorOps>,
+        const ::TF_RandomGenerator* handle
+    ) const noexcept
+    {
+        return ice::sonic::TF_RandomGeneratorOps{
+            m_TF_RandomGeneratorOps_ops,
+            const_cast<::TF_RandomGenerator*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::TF_StreamOps
+    wrap(std::type_identity<ice::sonic::TF_StreamOps>, const ::TF_Stream* handle) const noexcept
+    {
+        return ice::sonic::TF_StreamOps{m_TF_StreamOps_ops, const_cast<::TF_Stream*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFGrapplerDeviceGraphOps& get_vtable() const noexcept
@@ -161,15 +210,32 @@ public:
         return m_vtable;
     }
 
-    const TFGrapplerDeviceGraph& get_handle() const noexcept
+    const ::TFGrapplerDeviceGraph& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFGrapplerDeviceGraphOps*>(&m_vtable));
+    }
 
 private:
     ::TFGrapplerDeviceGraphOps m_vtable;
-    TFGrapplerDeviceGraph m_handle;
+    ::TFGrapplerDeviceGraph m_handle;
+
+    const ::TF_RandomGeneratorOps* m_TF_RandomGeneratorOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StreamOps* m_TF_StreamOps_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

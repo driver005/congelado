@@ -5,9 +5,9 @@
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
-#include "include/c/extern/memory/types.h"
-#include "include/c/extern/memory/mem_pool.h"
-#include "include/c/extern/memory/allocator.h"
+#include "include/c/extern/stream_executor/types.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
+#include "include/c/extern/stream_executor/allocator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +23,8 @@ extern "C" {
 
     typedef struct TF_MemoryOps {
         size_t struct_size;
-        void (*destroy)(TF_Memory* memory);
+        void (*create)(TF_Memory* out_handle);
+        void (*destroy)(TF_Memory* handle);
         void (*get_name)(TF_Memory* memory, TF_String* out_name);
     } TF_MemoryOps;
 

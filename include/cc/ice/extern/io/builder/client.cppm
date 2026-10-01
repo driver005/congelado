@@ -6,19 +6,40 @@
 module;
 
 #include "include/c/extern/io/client.h"
+#include "include/c/extern/io/request.h"
+#include "include/c/extern/io/response.h"
+#include "include/c/intern/map.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/intern/vector.h"
 
 export module cc_ice_extern_io_builder:client;
 
 import std;
+import cc_ice_extern_io_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_ClientOps
 {
 public:
-    TF_ClientOps() noexcept :
+    explicit TF_ClientOps(
+        const ::TF_MapOps* TF_MapOps_ops,
+        const ::TF_RequestOps* TF_RequestOps_ops,
+        const ::TF_ResponseOps* TF_ResponseOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops,
+        const ::TF_VectorOps* TF_VectorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_TF_RequestOps_ops = TF_RequestOps_ops;
+        m_TF_ResponseOps_ops = TF_ResponseOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
+        m_TF_VectorOps_ops = TF_VectorOps_ops;
     }
 
     TF_ClientOps(const TF_ClientOps&) = delete;
@@ -38,70 +59,88 @@ public:
     virtual ~TF_ClientOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    connect(int64_t timeout_ms) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    connect_async(int64_t timeout_ms, TFClientConnectFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> disconnect() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> reconnect() noexcept = 0;
+    virtual void connect(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void connect_async(
+        int64_t timeout_ms,
+        TFClientConnectFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void disconnect(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void reconnect(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void on_disconnect(TFClientDisconnectFn handler, void* user_data) noexcept = 0;
     virtual void is_connected(int* out_connected) noexcept = 0;
     virtual void
     get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_keep_alive(int enabled) noexcept = 0;
+    virtual void set_keep_alive(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void is_keep_alive(int* out_keep_alive) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    create_request(uint32_t stream_id, const ice::sonic::TF_RequestOps& out_request) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> send(
-        const ice::sonic::TF_RequestOps& request,
-        const ice::sonic::TF_ResponseOps& out_response
+    virtual void create_request(
+        uint32_t stream_id,
+        const ice::sonic::TF_RequestOps& out_request,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> send_async(
+    virtual void send(
+        const ice::sonic::TF_RequestOps& request,
+        const ice::sonic::TF_ResponseOps& out_response,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void send_async(
         const ice::sonic::TF_RequestOps& request,
         TFClientResponseFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    cancel_request(uint32_t stream_id) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    list_pending_requests(const ice::sonic::TF_VectorOps& out_stream_ids) noexcept = 0;
+    virtual void
+    cancel_request(uint32_t stream_id, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void list_pending_requests(
+        const ice::sonic::TF_VectorOps& out_stream_ids,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_pending_request_count(size_t* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    ping(TFClientConnectFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> retry() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_max_retries(int max_retries) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_retry_backoff(int64_t backoff_ms) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_timeout(int64_t timeout_ms) noexcept = 0;
+    virtual void ping(
+        TFClientConnectFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void retry(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_max_retries(int max_retries, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_retry_backoff(int64_t backoff_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void set_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void on_error(TFClientConnectFn handler, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_last_error() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
+    virtual void get_last_error(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_stats(
+        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Client*)) noexcept
     {
         m_vtable = ::TF_ClientOps{
-            .struct_size = TF_CLIENT_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_ClientOps, get_stats),
+
+            .create = create,
             .destroy =
-                [](TF_Client* client) noexcept
+                [](TF_Client* handle) noexcept
             {
-                TF_ClientOps::from_handle(client).destroy();
+                auto& self = TF_ClientOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_Client* client, TF_String* out_name) noexcept
             {
-                TF_ClientOps::from_handle(client).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_ClientOps::from_handle(client);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .connect =
                 [](TF_Client* client, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).connect(timeout_ms);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.connect(
+                    timeout_ms,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .connect_async =
                 [](TF_Client* client,
@@ -110,58 +149,61 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client)
-                               .connect_async(timeout_ms, completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.connect_async(
+                    timeout_ms,
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .disconnect =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).disconnect();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.disconnect(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .reconnect =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).reconnect();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.reconnect(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .on_disconnect =
                 [](TF_Client* client, TFClientDisconnectFn handler, void* user_data) noexcept
             {
-                TF_ClientOps::from_handle(client).on_disconnect(handler, user_data);
+                auto& self = TF_ClientOps::from_handle(client);
+                self.on_disconnect(handler, user_data);
             },
             .is_connected =
                 [](TF_Client* client, int* out_connected) noexcept
             {
-                TF_ClientOps::from_handle(client).is_connected(out_connected);
+                auto& self = TF_ClientOps::from_handle(client);
+                self.is_connected(out_connected);
             },
             .get_remote_endpoint =
                 [](TF_Client* client, TF_String* out_host, uint16_t* out_port) noexcept
             {
-                TF_ClientOps::from_handle(client).get_remote_endpoint(
-                    ice::sonic::String::wrap(out_host),
+                auto& self = TF_ClientOps::from_handle(client);
+                self.get_remote_endpoint(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
                     out_port
                 );
             },
             .set_keep_alive =
                 [](TF_Client* client, int enabled, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).set_keep_alive(enabled);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.set_keep_alive(
+                    enabled,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .is_keep_alive =
                 [](TF_Client* client, int* out_keep_alive) noexcept
             {
-                TF_ClientOps::from_handle(client).is_keep_alive(out_keep_alive);
+                auto& self = TF_ClientOps::from_handle(client);
+                self.is_keep_alive(out_keep_alive);
             },
             .create_request =
                 [](TF_Client* client,
@@ -169,13 +211,12 @@ public:
                    TF_Request* out_request,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).create_request(
+                auto& self = TF_ClientOps::from_handle(client);
+                self.create_request(
                     stream_id,
-                    ice::sonic::TF_RequestOps::wrap(out_request)
+                    self.wrap(std::type_identity<ice::sonic::TF_RequestOps>{}, out_request),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .send =
                 [](TF_Client* client,
@@ -183,13 +224,12 @@ public:
                    TF_Response* out_response,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).send(
-                    ice::sonic::TF_RequestOps::wrap(request),
-                    ice::sonic::TF_ResponseOps::wrap(out_response)
+                auto& self = TF_ClientOps::from_handle(client);
+                self.send(
+                    self.wrap(std::type_identity<ice::sonic::TF_RequestOps>{}, request),
+                    self.wrap(std::type_identity<ice::sonic::TF_ResponseOps>{}, out_response),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .send_async =
                 [](TF_Client* client,
@@ -198,37 +238,37 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).send_async(
-                    ice::sonic::TF_RequestOps::wrap(request),
+                auto& self = TF_ClientOps::from_handle(client);
+                self.send_async(
+                    self.wrap(std::type_identity<ice::sonic::TF_RequestOps>{}, request),
                     completion,
-                    user_data
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .cancel_request =
                 [](TF_Client* client, uint32_t stream_id, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).cancel_request(stream_id);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.cancel_request(
+                    stream_id,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .list_pending_requests =
                 [](TF_Client* client, TF_Vector* out_stream_ids, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).list_pending_requests(
-                    ice::sonic::TF_VectorOps::wrap(out_stream_ids)
+                auto& self = TF_ClientOps::from_handle(client);
+                self.list_pending_requests(
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, out_stream_ids),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_pending_request_count =
                 [](TF_Client* client, size_t* out_count) noexcept
             {
-                TF_ClientOps::from_handle(client).get_pending_request_count(out_count);
+                auto& self = TF_ClientOps::from_handle(client);
+                self.get_pending_request_count(out_count);
             },
             .ping =
                 [](TF_Client* client,
@@ -236,68 +276,107 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).ping(completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.ping(
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .retry =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).retry();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.retry(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .set_max_retries =
                 [](TF_Client* client, int max_retries, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).set_max_retries(max_retries);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.set_max_retries(
+                    max_retries,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set_retry_backoff =
                 [](TF_Client* client, int64_t backoff_ms, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).set_retry_backoff(backoff_ms);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.set_retry_backoff(
+                    backoff_ms,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set_timeout =
                 [](TF_Client* client, int64_t timeout_ms, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).set_timeout(timeout_ms);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.set_timeout(
+                    timeout_ms,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .on_error =
                 [](TF_Client* client, TFClientConnectFn handler, void* user_data) noexcept
             {
-                TF_ClientOps::from_handle(client).on_error(handler, user_data);
+                auto& self = TF_ClientOps::from_handle(client);
+                self.on_error(handler, user_data);
             },
             .get_last_error =
                 [](TF_Client* client, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).get_last_error();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ClientOps::from_handle(client);
+                self.get_last_error(
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_stats =
                 [](TF_Client* client, TF_Map* out_stats, TF_Status* out_status) noexcept
             {
-                auto res = TF_ClientOps::from_handle(client).get_stats(
-                    ice::sonic::TF_MapOps::wrap(out_stats)
+                auto& self = TF_ClientOps::from_handle(client);
+                self.get_stats(
+                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, out_stats),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TF_MapOps
+    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    {
+        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+    }
+
+    ice::sonic::TF_RequestOps
+    wrap(std::type_identity<ice::sonic::TF_RequestOps>, const ::TF_Request* handle) const noexcept
+    {
+        return ice::sonic::TF_RequestOps{m_TF_RequestOps_ops, const_cast<::TF_Request*>(handle)};
+    }
+
+    ice::sonic::TF_ResponseOps
+    wrap(std::type_identity<ice::sonic::TF_ResponseOps>, const ::TF_Response* handle) const noexcept
+    {
+        return ice::sonic::TF_ResponseOps{m_TF_ResponseOps_ops, const_cast<::TF_Response*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+    }
+
+    ice::sonic::TF_VectorOps
+    wrap(std::type_identity<ice::sonic::TF_VectorOps>, const ::TF_Vector* handle) const noexcept
+    {
+        return ice::sonic::TF_VectorOps{m_TF_VectorOps_ops, const_cast<::TF_Vector*>(handle)};
     }
 
     const ::TF_ClientOps& get_vtable() const noexcept
@@ -305,15 +384,36 @@ public:
         return m_vtable;
     }
 
-    const TF_Client& get_handle() const noexcept
+    const ::TF_Client& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_ClientOps*>(&m_vtable));
+    }
 
 private:
     ::TF_ClientOps m_vtable;
-    TF_Client m_handle;
+    ::TF_Client m_handle;
+
+    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+
+    const ::TF_RequestOps* m_TF_RequestOps_ops{nullptr};
+
+    const ::TF_ResponseOps* m_TF_ResponseOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
+
+    const ::TF_VectorOps* m_TF_VectorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

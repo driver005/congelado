@@ -14,6 +14,8 @@ extern "C" {
 
     typedef struct TFParserBlockOps {
         size_t struct_size;
+        void (*create)(TFParserBlock* out_handle);
+        void (*destroy)(TFParserBlock* handle);
         void (*get_name)(TFParserBlock* block, TF_String* out_name, TF_Status* out_status);
         void (*get_node_count)(TFParserBlock* block, int* out_count, TF_Status* out_status);
         void (*get_node)(TFParserBlock* block, int index, TFParserNode* out_node, TF_Status* out_status);

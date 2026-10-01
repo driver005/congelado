@@ -10,77 +10,95 @@ module;
 export module cc_ice_extern_parser_sonic:function;
 
 import std;
-import cc_abi_sonic_registration;
+import :block;
+import :parameter;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserFunctionOps : public ice::sonic::Runtime<TFParserFunctionOps, TFParserFunctionOps>
+class TFParserFunctionOps : public ice::sonic::Runtime<::TFParserFunctionOps, ::TFParserFunction>
 {
 public:
-    explicit TFParserFunctionOps(TFParserFunctionOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFParserFunctionOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "parser";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_name(const ice::sonic::String& out_name) noexcept
+    template<typename Registry>
+    TFParserFunctionOps(
+        Registry& registry,
+        ::TFParserFunction* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->get_name(get_handle(), out_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_parameter_count(int* out_count) noexcept
+    explicit TFParserFunctionOps(const ::TFParserFunctionOps* ops) noexcept :
+        Runtime(ops)
     {
-        ice::sonic::Status status;
-        m_ops->get_parameter_count(get_handle(), out_count, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_parameter(int index, const ice::sonic::TFParserParameterOps& out_parameter) noexcept
+    TFParserFunctionOps(const ::TFParserFunctionOps* ops, ::TFParserFunction* handle) noexcept :
+        Runtime(ops, handle)
     {
-        ice::sonic::Status status;
-        m_ops->get_parameter(get_handle(), index, out_parameter.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_block_count(int* out_count) noexcept
+    void create() const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_block_count(get_handle(), out_count, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->create(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_block(int index, const ice::sonic::TFParserBlockOps& out_block) noexcept
+    void destroy() const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_block(get_handle(), index, out_block.get_handle(), status.get_handle());
+        m_ops->destroy(get_handle());
+    }
 
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+    void get_name(
+        const ice::sonic::String& out_name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle(), out_status.get_handle());
+    }
+
+    void get_parameter_count(int* out_count, const ice::sonic::Status& out_status) const noexcept
+    {
+        m_ops->get_parameter_count(get_handle(), out_count, out_status.get_handle());
+    }
+
+    void get_parameter(
+        int index,
+        const ice::sonic::TFParserParameterOps& out_parameter,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get_parameter(
+            get_handle(),
+            index,
+            out_parameter.get_handle(),
+            out_status.get_handle()
+        );
+    }
+
+    void get_block_count(int* out_count, const ice::sonic::Status& out_status) const noexcept
+    {
+        m_ops->get_block_count(get_handle(), out_count, out_status.get_handle());
+    }
+
+    void get_block(
+        int index,
+        const ice::sonic::TFParserBlockOps& out_block,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get_block(get_handle(), index, out_block.get_handle(), out_status.get_handle());
     }
 };
 

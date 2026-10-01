@@ -29,7 +29,8 @@ extern "C"
     typedef struct TFPubSubSubscriptionOps
     {
         size_t struct_size;
-        void (*destroy)(TFPubSubSubscription* subscription);
+        void (*create)(TFPubSubSubscription* out_handle);
+        void (*destroy)(TFPubSubSubscription* handle);
         void (*unsubscribe)(TFPubSubSubscription* subscription);
         void (*ack)(TFPubSubSubscription* subscription, TF_Status* out_status);
         void (*nack)(TFPubSubSubscription* subscription, TF_Status* out_status);

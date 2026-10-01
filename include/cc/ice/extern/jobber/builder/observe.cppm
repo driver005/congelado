@@ -5,20 +5,35 @@
 
 module;
 
+#include "include/c/extern/jobber/job.h"
 #include "include/c/extern/jobber/observe.h"
+#include "include/c/intern/map.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/vector.h"
 
 export module cc_ice_extern_jobber_builder:observe;
 
 import std;
+import cc_ice_extern_jobber_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_ObserveOps
 {
 public:
-    TF_ObserveOps() noexcept :
+    explicit TF_ObserveOps(
+        const ::TF_JobOps* TF_JobOps_ops,
+        const ::TF_MapOps* TF_MapOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_VectorOps* TF_VectorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_JobOps_ops = TF_JobOps_ops;
+        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_Status_ops = Status_ops;
+        m_TF_VectorOps_ops = TF_VectorOps_ops;
     }
 
     TF_ObserveOps(const TF_ObserveOps&) = delete;
@@ -37,37 +52,45 @@ public:
 
     virtual ~TF_ObserveOps() = default;
     virtual void destroy() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_status(
+    virtual void get_status(
         const ice::sonic::TF_JobOps& job,
         TFObserveStatusFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_result(
+    virtual void get_result(
         const ice::sonic::TF_JobOps& job,
         TFObserveResultFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_history(
+    virtual void get_history(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_transitions
+        const ice::sonic::TF_VectorOps& out_transitions,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_metrics(
+    virtual void get_metrics(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_MapOps& out_metrics
+        const ice::sonic::TF_MapOps& out_metrics,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_logs(
+    virtual void get_logs(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_lines
+        const ice::sonic::TF_VectorOps& out_lines,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Observe*)) noexcept
     {
         m_vtable = ::TF_ObserveOps{
-            .struct_size = TF_OBSERVE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_ObserveOps, get_logs),
+
+            .create = create,
             .destroy =
-                [](TF_Observe* observe) noexcept
+                [](TF_Observe* handle) noexcept
             {
-                TF_ObserveOps::from_handle(observe).destroy();
+                auto& self = TF_ObserveOps::from_handle(handle);
+                self.destroy();
             },
             .get_status =
                 [](TF_Observe* observe,
@@ -76,11 +99,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ObserveOps::from_handle(observe)
-                               .get_status(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ObserveOps::from_handle(observe);
+                self.get_status(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_result =
                 [](TF_Observe* observe,
@@ -89,11 +114,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ObserveOps::from_handle(observe)
-                               .get_result(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ObserveOps::from_handle(observe);
+                self.get_result(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_history =
                 [](TF_Observe* observe,
@@ -101,13 +128,12 @@ public:
                    TF_Vector* out_transitions,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ObserveOps::from_handle(observe).get_history(
-                    ice::sonic::TF_JobOps::wrap(job),
-                    ice::sonic::TF_VectorOps::wrap(out_transitions)
+                auto& self = TF_ObserveOps::from_handle(observe);
+                self.get_history(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, out_transitions),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_metrics =
                 [](TF_Observe* observe,
@@ -115,13 +141,12 @@ public:
                    TF_Map* out_metrics,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ObserveOps::from_handle(observe).get_metrics(
-                    ice::sonic::TF_JobOps::wrap(job),
-                    ice::sonic::TF_MapOps::wrap(out_metrics)
+                auto& self = TF_ObserveOps::from_handle(observe);
+                self.get_metrics(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, out_metrics),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_logs =
                 [](TF_Observe* observe,
@@ -129,16 +154,39 @@ public:
                    TF_Vector* out_lines,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ObserveOps::from_handle(observe).get_logs(
-                    ice::sonic::TF_JobOps::wrap(job),
-                    ice::sonic::TF_VectorOps::wrap(out_lines)
+                auto& self = TF_ObserveOps::from_handle(observe);
+                self.get_logs(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, out_lines),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TF_JobOps
+    wrap(std::type_identity<ice::sonic::TF_JobOps>, const ::TF_Job* handle) const noexcept
+    {
+        return ice::sonic::TF_JobOps{m_TF_JobOps_ops, const_cast<::TF_Job*>(handle)};
+    }
+
+    ice::sonic::TF_MapOps
+    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    {
+        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::TF_VectorOps
+    wrap(std::type_identity<ice::sonic::TF_VectorOps>, const ::TF_Vector* handle) const noexcept
+    {
+        return ice::sonic::TF_VectorOps{m_TF_VectorOps_ops, const_cast<::TF_Vector*>(handle)};
     }
 
     const ::TF_ObserveOps& get_vtable() const noexcept
@@ -146,15 +194,32 @@ public:
         return m_vtable;
     }
 
-    const TF_Observe& get_handle() const noexcept
+    const ::TF_Observe& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_ObserveOps*>(&m_vtable));
+    }
 
 private:
     ::TF_ObserveOps m_vtable;
-    TF_Observe m_handle;
+    ::TF_Observe m_handle;
+
+    const ::TF_JobOps* m_TF_JobOps_ops{nullptr};
+
+    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_VectorOps* m_TF_VectorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -25,8 +25,9 @@ extern "C"
     typedef struct TF_RequestOps
     {
         size_t struct_size;
+        void (*create)(TF_Request* out_handle);
+        void (*destroy)(TF_Request* handle);
 
-        void (*destroy)(TF_Request* request);
         void (*get_name)(TF_Request* request, TF_String* out_name);
 
         void (*set_method)(TF_Request* request, const TF_String* method, TF_Status* out_status);

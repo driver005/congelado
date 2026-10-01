@@ -15,6 +15,8 @@ extern "C" {
 
     typedef struct TFGrapplerPropertiesOps {
         size_t struct_size;
+        void (*create)(TFGrapplerProperties* out_handle);
+        void (*destroy)(TFGrapplerProperties* handle);
         void (*infer_statically)(TFGrapplerProperties* props, bool assume_valid_feeds, bool aggressive_shape_inference, bool include_input_tensor_values, bool include_output_tensor_values, TF_Status* out_status);
         void (*get_input_properties_size)(TFGrapplerProperties* props, const TF_String* name, int* out_num_values, TF_Status* out_status);
         void (*get_output_properties_size)(TFGrapplerProperties* props, const TF_String* name, int* out_num_values, TF_Status* out_status);

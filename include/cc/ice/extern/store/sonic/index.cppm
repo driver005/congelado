@@ -10,64 +10,79 @@ module;
 export module cc_ice_extern_store_sonic:index;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreIndexOps : public ice::sonic::Runtime<TFStoreIndexOps, TFStoreIndexOps>
+class TFStoreIndexOps : public ice::sonic::Runtime<::TFStoreIndexOps, ::TFStoreIndex>
 {
 public:
-    explicit TFStoreIndexOps(TFStoreIndexOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFStoreIndexOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "store";
+    template<typename Registry>
+    TFStoreIndexOps(
+        Registry& registry,
+        ::TFStoreIndex* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFStoreIndexOps(const ::TFStoreIndexOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFStoreIndexOps(const ::TFStoreIndexOps* ops, ::TFStoreIndex* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& field_config) noexcept
+    void create_index(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& field_config,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->create(
+        m_ops->create_index(
             get_handle(),
             name.get_handle(),
             field_config.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    drop(const ice::sonic::String& name) noexcept
+    void drop(const ice::sonic::String& name, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->drop(get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->drop(get_handle(), name.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list(const ice::sonic::TF_VectorOps& out_names) noexcept
+    void list(
+        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list(get_handle(), out_names.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list(get_handle(), out_names.get_handle(), out_status.get_handle());
     }
 };
 

@@ -10,26 +10,55 @@ module;
 export module cc_ice_extern_registration_sonic:registration;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_RegistrationOps : public ice::sonic::Runtime<TF_RegistrationOps, TF_RegistrationOps>
+class TF_RegistrationOps : public ice::sonic::Runtime<::TF_RegistrationOps, ::TF_Registration>
 {
 public:
-    explicit TF_RegistrationOps(TF_RegistrationOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_RegistrationOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "registration";
+    template<typename Registry>
+    TF_RegistrationOps(
+        Registry& registry,
+        ::TF_Registration* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_RegistrationOps(const ::TF_RegistrationOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_RegistrationOps(const ::TF_RegistrationOps* ops, ::TF_Registration* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
@@ -38,7 +67,7 @@ public:
         const ice::sonic::String& type,
         const ice::sonic::String& name,
         void* value
-    ) noexcept
+    ) const noexcept
     {
         m_ops->register_op(get_handle(), type.get_handle(), name.get_handle(), value);
     }
@@ -47,14 +76,19 @@ public:
         const ice::sonic::String& type,
         const ice::sonic::String& name,
         void** out_value
-    ) noexcept
+    ) const noexcept
     {
         m_ops->get(get_handle(), type.get_handle(), name.get_handle(), out_value);
     }
 
-    void unregister(const ice::sonic::String& type, const ice::sonic::String& name) noexcept
+    void unregister(const ice::sonic::String& type, const ice::sonic::String& name) const noexcept
     {
         m_ops->unregister(get_handle(), type.get_handle(), name.get_handle());
+    }
+
+    void set_default(const ice::sonic::String& type, const ice::sonic::String& name) const noexcept
+    {
+        m_ops->set_default(get_handle(), type.get_handle(), name.get_handle());
     }
 };
 

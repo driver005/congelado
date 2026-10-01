@@ -11,7 +11,7 @@ export import :parameter;
 export import :function;
 export import :node;
 export import :catalog;
-export import :module;
+export import :module_;
 export import :block;
 export import :parser;
 export import :attribute;

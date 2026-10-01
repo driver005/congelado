@@ -21,13 +21,14 @@ extern "C"
     typedef struct TF_TimePointOps
     {
         size_t struct_size;
+        void (*create)(TF_TimePoint* out_handle);
+        void (*destroy)(TF_TimePoint* handle);
 
         void (*get_duration_since_epoch)(const TF_TimePoint* time_point, TF_Duration* out_duration);
-        void (*destroy)(TF_TimePoint* time_point);
 
     } TF_TimePointOps;
 
-#define TF_TIME_POINT_STRUCT_SIZE TF_OFFSET_OF_END(TF_TimePointOps, destroy)
+#define TF_TIME_POINT_STRUCT_SIZE TF_OFFSET_OF_END(TF_TimePointOps, get_duration_since_epoch)
 
     TF_CAPI_EXPORT void
     create_time_point(TF_TimePointOps** ops, void** plugin_context, TF_Status* out_status);

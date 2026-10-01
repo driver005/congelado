@@ -10,26 +10,61 @@ module;
 export module cc_ice_intern_sonic:attrtype;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_AttrTypeOps : public ice::sonic::Runtime<TF_AttrTypeOps, TF_AttrTypeOps>
+class TF_AttrTypeOps : public ice::sonic::Runtime<::TF_AttrTypeOps, ::TF_AttrType>
 {
 public:
-    explicit TF_AttrTypeOps(TF_AttrTypeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_AttrTypeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_AttrTypeOps(
+        Registry& registry,
+        ::TF_AttrType* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    explicit TF_AttrTypeOps(const ::TF_AttrTypeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_AttrTypeOps(const ::TF_AttrTypeOps* ops, ::TF_AttrType* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) noexcept
+    void attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) const noexcept
     {
         m_ops->attrtype_name(get_handle(), type, out_type_name.get_handle());
     }

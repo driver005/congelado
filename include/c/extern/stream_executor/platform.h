@@ -19,6 +19,8 @@ extern "C" {
     // TF_PlatformOps
     typedef struct TF_PlatformOps {
         size_t struct_size;
+        void (*create)(TF_Platform* out_handle);
+        void (*destroy)(TF_Platform* handle);
         void (*get_device_count)(TF_Platform* platform, int* out_device_count, TF_Status* out_status);
         void (*create_device_internal)(TF_Platform* platform, TF_Device* device, TF_Status* out_status);
         void (*destroy_device_internal)(TF_Platform* platform, TF_Device* device);

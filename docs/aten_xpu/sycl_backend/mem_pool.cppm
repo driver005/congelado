@@ -9,7 +9,7 @@
 
 module;
 
-#include "include/c/extern/memory/mem_pool.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
 
 export module sycl_backend:mem_pool;
 

@@ -10,27 +10,62 @@ module;
 export module cc_ice_extern_ops_sonic:dimension_handle;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TF_DimensionHandleOps :
-    public ice::sonic::Runtime<TF_DimensionHandleOps, TF_DimensionHandleOps>
+    public ice::sonic::Runtime<::TF_DimensionHandleOps, ::TF_DimensionHandle>
 {
 public:
-    explicit TF_DimensionHandleOps(TF_DimensionHandleOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_DimensionHandleOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "ops";
+    template<typename Registry>
+    TF_DimensionHandleOps(
+        Registry& registry,
+        ::TF_DimensionHandle* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void value_known(int* out_known) noexcept
+    explicit TF_DimensionHandleOps(const ::TF_DimensionHandleOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_DimensionHandleOps(const ::TF_DimensionHandleOps* ops, ::TF_DimensionHandle* handle) noexcept
+        :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void value_known(int* out_known) const noexcept
     {
         m_ops->value_known(get_handle(), out_known);
     }
 
-    void value(int64_t* out_value) noexcept
+    void value(int64_t* out_value) const noexcept
     {
         m_ops->value(get_handle(), out_value);
     }

@@ -31,8 +31,9 @@ extern "C"
     typedef struct TF_ClientOps
     {
         size_t struct_size;
+        void (*create)(TF_Client* out_handle);
+        void (*destroy)(TF_Client* handle);
 
-        void (*destroy)(TF_Client* client);
         void (*get_name)(TF_Client* client, TF_String* out_name);
 
         void (*connect)(TF_Client* client, int64_t timeout_ms, TF_Status* out_status);

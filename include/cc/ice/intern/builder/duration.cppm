@@ -10,13 +10,14 @@ module;
 export module cc_ice_intern_builder:duration;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_DurationOps
 {
 public:
-    TF_DurationOps() noexcept :
+    explicit TF_DurationOps() noexcept :
         m_handle{.plugin_data = this}
     {
     }
@@ -36,34 +37,40 @@ public:
     }
 
     virtual ~TF_DurationOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void get_ticks(int64_t* out_ticks) noexcept = 0;
     virtual void get_ratio_num(int64_t* out_num) noexcept = 0;
     virtual void get_ratio_den(int64_t* out_den) noexcept = 0;
-    virtual void destroy() noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Duration*)) noexcept
     {
         m_vtable = ::TF_DurationOps{
-            .struct_size = TF_DURATION_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_DurationOps, get_ratio_den),
+
+            .create = create,
+            .destroy =
+                [](TF_Duration* handle) noexcept
+            {
+                auto& self = TF_DurationOps::from_handle(handle);
+                self.destroy();
+            },
             .get_ticks =
                 [](const TF_Duration* duration, int64_t* out_ticks) noexcept
             {
-                TF_DurationOps::from_handle(duration).get_ticks(out_ticks);
+                auto& self = TF_DurationOps::from_handle(duration);
+                self.get_ticks(out_ticks);
             },
             .get_ratio_num =
                 [](const TF_Duration* duration, int64_t* out_num) noexcept
             {
-                TF_DurationOps::from_handle(duration).get_ratio_num(out_num);
+                auto& self = TF_DurationOps::from_handle(duration);
+                self.get_ratio_num(out_num);
             },
             .get_ratio_den =
                 [](const TF_Duration* duration, int64_t* out_den) noexcept
             {
-                TF_DurationOps::from_handle(duration).get_ratio_den(out_den);
-            },
-            .destroy =
-                [](TF_Duration* duration) noexcept
-            {
-                TF_DurationOps::from_handle(duration).destroy();
+                auto& self = TF_DurationOps::from_handle(duration);
+                self.get_ratio_den(out_den);
             },
 
         };
@@ -74,15 +81,24 @@ public:
         return m_vtable;
     }
 
-    const TF_Duration& get_handle() const noexcept
+    const ::TF_Duration& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_DurationOps*>(&m_vtable));
+    }
 
 private:
     ::TF_DurationOps m_vtable;
-    TF_Duration m_handle;
+    ::TF_Duration m_handle;
 };
 
 } // namespace ice::builder

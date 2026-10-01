@@ -10,59 +10,89 @@ module;
 export module cc_ice_extern_store_sonic:admin;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreAdminOps : public ice::sonic::Runtime<TFStoreAdminOps, TFStoreAdminOps>
+class TFStoreAdminOps : public ice::sonic::Runtime<::TFStoreAdminOps, ::TFStoreAdmin>
 {
 public:
-    explicit TFStoreAdminOps(TFStoreAdminOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFStoreAdminOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "store";
+    template<typename Registry>
+    TFStoreAdminOps(
+        Registry& registry,
+        ::TFStoreAdmin* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void is_connected(int* out_connected) noexcept
+    explicit TFStoreAdminOps(const ::TFStoreAdminOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFStoreAdminOps(const ::TFStoreAdminOps* ops, ::TFStoreAdmin* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void is_connected(int* out_connected) const noexcept
     {
         m_ops->is_connected(get_handle(), out_connected);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    backup(const ice::sonic::String& destination, TFStoreAckFn completion, void* user_data) noexcept
+    void backup(
+        const ice::sonic::String& destination,
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->backup(
             get_handle(),
             destination.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    restore(const ice::sonic::String& source, TFStoreAckFn completion, void* user_data) noexcept
+    void restore(
+        const ice::sonic::String& source,
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->restore(
             get_handle(),
             source.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

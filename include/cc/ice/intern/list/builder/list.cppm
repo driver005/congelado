@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/intern/list/list.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_intern_list_builder:list;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_ListOps
 {
 public:
-    TF_ListOps() noexcept :
+    explicit TF_ListOps(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
     }
 
     TF_ListOps(const TF_ListOps&) = delete;
@@ -36,24 +39,39 @@ public:
     }
 
     virtual ~TF_ListOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    push_front(const void* value, TFListNode* out_node) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    push_back(const void* value, TFListNode* out_node) noexcept = 0;
+    virtual void push_front(
+        const void* value,
+        TFListNode* out_node,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void push_back(
+        const void* value,
+        TFListNode* out_node,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void erase(TFListNode* node) noexcept = 0;
     virtual void for_each(TF_ListVisitor visitor, void* capture) noexcept = 0;
     virtual void size(size_t* out_size) noexcept = 0;
-    virtual void destroy() noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_List*)) noexcept
     {
         m_vtable = ::TF_ListOps{
-            .struct_size = TF_LIST_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_ListOps, size),
+
+            .create = create,
+            .destroy =
+                [](TF_List* handle) noexcept
+            {
+                auto& self = TF_ListOps::from_handle(handle);
+                self.destroy();
+            },
             .set_element_size =
                 [](TF_List* list, size_t element_size) noexcept
             {
-                TF_ListOps::from_handle(list).set_element_size(element_size);
+                auto& self = TF_ListOps::from_handle(list);
+                self.set_element_size(element_size);
             },
             .push_front =
                 [](TF_List* list,
@@ -61,10 +79,12 @@ public:
                    TFListNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ListOps::from_handle(list).push_front(value, out_node);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ListOps::from_handle(list);
+                self.push_front(
+                    value,
+                    out_node,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .push_back =
                 [](TF_List* list,
@@ -72,33 +92,39 @@ public:
                    TFListNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_ListOps::from_handle(list).push_back(value, out_node);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_ListOps::from_handle(list);
+                self.push_back(
+                    value,
+                    out_node,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .erase =
                 [](TF_List* list, TFListNode* node) noexcept
             {
-                TF_ListOps::from_handle(list).erase(node);
+                auto& self = TF_ListOps::from_handle(list);
+                self.erase(node);
             },
             .for_each =
                 [](const TF_List* list, TF_ListVisitor visitor, void* capture) noexcept
             {
-                TF_ListOps::from_handle(list).for_each(visitor, capture);
+                auto& self = TF_ListOps::from_handle(list);
+                self.for_each(visitor, capture);
             },
             .size =
                 [](const TF_List* list, size_t* out_size) noexcept
             {
-                TF_ListOps::from_handle(list).size(out_size);
-            },
-            .destroy =
-                [](TF_List* list) noexcept
-            {
-                TF_ListOps::from_handle(list).destroy();
+                auto& self = TF_ListOps::from_handle(list);
+                self.size(out_size);
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TF_ListOps& get_vtable() const noexcept
@@ -106,15 +132,26 @@ public:
         return m_vtable;
     }
 
-    const TF_List& get_handle() const noexcept
+    const ::TF_List& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_ListOps*>(&m_vtable));
+    }
 
 private:
     ::TF_ListOps m_vtable;
-    TF_List m_handle;
+    ::TF_List m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

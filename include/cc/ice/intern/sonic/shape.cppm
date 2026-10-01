@@ -10,41 +10,76 @@ module;
 export module cc_ice_intern_sonic:shape;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_ShapeOps : public ice::sonic::Runtime<TF_ShapeOps, TF_ShapeOps>
+class TF_ShapeOps : public ice::sonic::Runtime<::TF_ShapeOps, ::TF_Shape>
 {
 public:
-    explicit TF_ShapeOps(TF_ShapeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_ShapeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_ShapeOps(
+        Registry& registry,
+        ::TF_Shape* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    explicit TF_ShapeOps(const ::TF_ShapeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_ShapeOps(const ::TF_ShapeOps* ops, ::TF_Shape* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_dims(const int64_t* dims, int num_dims) noexcept
+    void set_dims(const int64_t* dims, int num_dims) const noexcept
     {
         m_ops->set_dims(get_handle(), dims, num_dims);
     }
 
-    void delete_shape() noexcept
+    void delete_shape() const noexcept
     {
         m_ops->delete_shape(get_handle());
     }
 
-    void shape_num_dims(int* out_num_dims) noexcept
+    void shape_num_dims(int* out_num_dims) const noexcept
     {
         m_ops->shape_num_dims(get_handle(), out_num_dims);
     }
 
-    void shape_dim(int index, int64_t* out_dim) noexcept
+    void shape_dim(int index, int64_t* out_dim) const noexcept
     {
         m_ops->shape_dim(get_handle(), index, out_dim);
     }

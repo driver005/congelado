@@ -10,143 +10,173 @@ module;
 export module cc_ice_intern_sonic:tensor;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :status;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_TensorOps : public ice::sonic::Runtime<TF_TensorOps, TF_TensorOps>
+class TF_TensorOps : public ice::sonic::Runtime<::TF_TensorOps, ::TF_Tensor>
 {
 public:
-    explicit TF_TensorOps(TF_TensorOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_TensorOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_TensorOps(
+        Registry& registry,
+        ::TF_Tensor* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    explicit TF_TensorOps(const ::TF_TensorOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_TensorOps(const ::TF_TensorOps* ops, ::TF_Tensor* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_dtype(TFDataTypeEnum dtype) noexcept
+    void set_dtype(TFDataTypeEnum dtype) const noexcept
     {
         m_ops->set_dtype(get_handle(), dtype);
     }
 
-    void set_dims(const int64_t* dims, int num_dims) noexcept
+    void set_dims(const int64_t* dims, int num_dims) const noexcept
     {
         m_ops->set_dims(get_handle(), dims, num_dims);
     }
 
-    void set_byte_size(size_t len) noexcept
+    void set_byte_size(size_t len) const noexcept
     {
         m_ops->set_byte_size(get_handle(), len);
     }
 
-    void delete_tensor() noexcept
+    void delete_tensor() const noexcept
     {
         m_ops->delete_tensor(get_handle());
     }
 
-    void tensor_type(TFDataTypeEnum* out_dtype) noexcept
+    void tensor_type(TFDataTypeEnum* out_dtype) const noexcept
     {
         m_ops->tensor_type(get_handle(), out_dtype);
     }
 
-    void num_dims(int* out_num_dims) noexcept
+    void num_dims(int* out_num_dims) const noexcept
     {
         m_ops->num_dims(get_handle(), out_num_dims);
     }
 
-    void dim(int dim_index, int64_t* out_dim) noexcept
+    void dim(int dim_index, int64_t* out_dim) const noexcept
     {
         m_ops->dim(get_handle(), dim_index, out_dim);
     }
 
-    void tensor_element_count(int64_t* out_count) noexcept
+    void tensor_element_count(int64_t* out_count) const noexcept
     {
         m_ops->tensor_element_count(get_handle(), out_count);
     }
 
-    void tensor_byte_size(size_t* out_byte_size) noexcept
+    void tensor_byte_size(size_t* out_byte_size) const noexcept
     {
         m_ops->tensor_byte_size(get_handle(), out_byte_size);
     }
 
-    void tensor_data(void** out_data) noexcept
+    void tensor_data(void** out_data) const noexcept
     {
         m_ops->tensor_data(get_handle(), out_data);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    tensor_bitcast_from(TFDataTypeEnum dtype, TF_Tensor** out_tensor) noexcept
+    void tensor_bitcast_from(
+        TFDataTypeEnum dtype,
+        TF_Tensor** out_tensor,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->tensor_bitcast_from(get_handle(), dtype, out_tensor, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->tensor_bitcast_from(get_handle(), dtype, out_tensor, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    tensor_bitcast_to(TFDataTypeEnum dtype, TF_Tensor** out_tensor) noexcept
+    void tensor_bitcast_to(
+        TFDataTypeEnum dtype,
+        TF_Tensor** out_tensor,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->tensor_bitcast_to(get_handle(), dtype, out_tensor, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->tensor_bitcast_to(get_handle(), dtype, out_tensor, out_status.get_handle());
     }
 
-    void tensor_copy(const ice::sonic::TF_TensorOps& dst) noexcept
+    void tensor_copy(const ice::sonic::TF_TensorOps& dst) const noexcept
     {
         m_ops->tensor_copy(get_handle(), dst.get_handle());
     }
 
-    void set_strides(const int64_t* strides, int num_strides) noexcept
+    void set_strides(const int64_t* strides, int num_strides) const noexcept
     {
         m_ops->set_strides(get_handle(), strides, num_strides);
     }
 
-    void stride(int dim_index, int64_t* out_stride) noexcept
+    void stride(int dim_index, int64_t* out_stride) const noexcept
     {
         m_ops->stride(get_handle(), dim_index, out_stride);
     }
 
-    void set_storage_offset(int64_t offset_elements) noexcept
+    void set_storage_offset(int64_t offset_elements) const noexcept
     {
         m_ops->set_storage_offset(get_handle(), offset_elements);
     }
 
-    void storage_offset(int64_t* out_offset_elements) noexcept
+    void storage_offset(int64_t* out_offset_elements) const noexcept
     {
         m_ops->storage_offset(get_handle(), out_offset_elements);
     }
 
-    void set_device_index(int device_index) noexcept
+    void set_device_index(int device_index) const noexcept
     {
         m_ops->set_device_index(get_handle(), device_index);
     }
 
-    void get_device_index(int* out_device_index) noexcept
+    void get_device_index(int* out_device_index) const noexcept
     {
         m_ops->get_device_index(get_handle(), out_device_index);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> tensor_view(
+    void tensor_view(
         const int64_t* dims,
         int num_dims,
         const int64_t* strides,
         int64_t offset_elements,
-        TF_Tensor** out_view
-    ) noexcept
+        TF_Tensor** out_view,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->tensor_view(
             get_handle(),
             dims,
@@ -154,13 +184,8 @@ public:
             strides,
             offset_elements,
             out_view,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

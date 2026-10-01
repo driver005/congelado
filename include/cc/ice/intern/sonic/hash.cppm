@@ -10,47 +10,79 @@ module;
 export module cc_ice_intern_sonic:hash;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :status;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_HashOps : public ice::sonic::Runtime<TF_HashOps, TF_HashOps>
+class TF_HashOps : public ice::sonic::Runtime<::TF_HashOps, ::TF_Hash>
 {
 public:
-    explicit TF_HashOps(TF_HashOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_HashOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_HashOps(
+        Registry& registry,
+        ::TF_Hash* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    explicit TF_HashOps(const ::TF_HashOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_HashOps(const ::TF_HashOps* ops, ::TF_Hash* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    hash_bytes(const void* data, size_t size, size_t* out_hash) noexcept
+    void hash_bytes(
+        const void* data,
+        size_t size,
+        size_t* out_hash,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->hash_bytes(get_handle(), data, size, out_hash, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->hash_bytes(get_handle(), data, size, out_hash, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    hash_combine(size_t seed, size_t value, size_t* out_hash) noexcept
+    void hash_combine(
+        size_t seed,
+        size_t value,
+        size_t* out_hash,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->hash_combine(get_handle(), seed, value, out_hash, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->hash_combine(get_handle(), seed, value, out_hash, out_status.get_handle());
     }
 };
 

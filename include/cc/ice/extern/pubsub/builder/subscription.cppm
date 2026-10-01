@@ -6,19 +6,27 @@
 module;
 
 #include "include/c/extern/pubsub/subscription.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_pubsub_builder:subscription;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFPubSubSubscriptionOps
 {
 public:
-    TFPubSubSubscriptionOps() noexcept :
+    explicit TFPubSubSubscriptionOps(
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFPubSubSubscriptionOps(const TFPubSubSubscriptionOps&) = delete;
@@ -38,53 +46,56 @@ public:
     virtual ~TFPubSubSubscriptionOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void unsubscribe() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> ack() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> nack() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    seek(const ice::sonic::String& position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_lag(TFPubSubIntFn completion, void* user_data) noexcept = 0;
+    virtual void ack(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void nack(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    seek(const ice::sonic::String& position, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_lag(
+        TFPubSubIntFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFPubSubSubscription*)) noexcept
     {
         m_vtable = ::TFPubSubSubscriptionOps{
-            .struct_size = TF_UBSUBSUBSCRIPTION_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFPubSubSubscriptionOps, get_lag),
+
+            .create = create,
             .destroy =
-                [](TFPubSubSubscription* subscription) noexcept
+                [](TFPubSubSubscription* handle) noexcept
             {
-                TFPubSubSubscriptionOps::from_handle(subscription).destroy();
+                auto& self = TFPubSubSubscriptionOps::from_handle(handle);
+                self.destroy();
             },
             .unsubscribe =
                 [](TFPubSubSubscription* subscription) noexcept
             {
-                TFPubSubSubscriptionOps::from_handle(subscription).unsubscribe();
+                auto& self = TFPubSubSubscriptionOps::from_handle(subscription);
+                self.unsubscribe();
             },
             .ack =
                 [](TFPubSubSubscription* subscription, TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubSubscriptionOps::from_handle(subscription).ack();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFPubSubSubscriptionOps::from_handle(subscription);
+                self.ack(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .nack =
                 [](TFPubSubSubscription* subscription, TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubSubscriptionOps::from_handle(subscription).nack();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFPubSubSubscriptionOps::from_handle(subscription);
+                self.nack(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .seek =
                 [](TFPubSubSubscription* subscription,
                    const TF_String* position,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubSubscriptionOps::from_handle(subscription)
-                               .seek(ice::sonic::String::wrap(position));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFPubSubSubscriptionOps::from_handle(subscription);
+                self.seek(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, position),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_lag =
                 [](TFPubSubSubscription* subscription,
@@ -92,14 +103,27 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubSubscriptionOps::from_handle(subscription)
-                               .get_lag(completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFPubSubSubscriptionOps::from_handle(subscription);
+                self.get_lag(
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFPubSubSubscriptionOps& get_vtable() const noexcept
@@ -107,15 +131,28 @@ public:
         return m_vtable;
     }
 
-    const TFPubSubSubscription& get_handle() const noexcept
+    const ::TFPubSubSubscription& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFPubSubSubscriptionOps*>(&m_vtable));
+    }
 
 private:
     ::TFPubSubSubscriptionOps m_vtable;
-    TFPubSubSubscription m_handle;
+    ::TFPubSubSubscription m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

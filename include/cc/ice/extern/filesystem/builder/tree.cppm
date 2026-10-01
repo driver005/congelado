@@ -6,19 +6,33 @@
 module;
 
 #include "include/c/extern/filesystem/tree.h"
+#include "include/c/intern/file_statistics.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tensor.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_filesystem_builder:tree;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFFilesystemTreeOps
 {
 public:
-    TFFilesystemTreeOps() noexcept :
+    explicit TFFilesystemTreeOps(
+        const ::TF_FileStatisticsOps* TF_FileStatisticsOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops,
+        const ::TF_TensorOps* TF_TensorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_FileStatisticsOps_ops = TF_FileStatisticsOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
+        m_TF_TensorOps_ops = TF_TensorOps_ops;
     }
 
     TFFilesystemTreeOps(const TFFilesystemTreeOps&) = delete;
@@ -36,105 +50,145 @@ public:
     }
 
     virtual ~TFFilesystemTreeOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void free_options(TFFilesystemOption* options, int num_options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    create_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    recursively_create_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    delete_file(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    delete_dir(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> delete_recursively(
+    virtual void
+    create_dir(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void recursively_create_dir(
+        const ice::sonic::String& path,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    delete_file(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    delete_dir(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void delete_recursively(
         const ice::sonic::String& path,
         uint64_t* undeleted_files,
-        uint64_t* undeleted_dirs
+        uint64_t* undeleted_dirs,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    rename_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    copy_file(const ice::sonic::String& src, const ice::sonic::String& dst) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    path_exists(const ice::sonic::String& path) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    paths_exist(const ice::sonic::String& paths, int num_paths) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> stat(
+    virtual void rename_file(
+        const ice::sonic::String& src,
+        const ice::sonic::String& dst,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void copy_file(
+        const ice::sonic::String& src,
+        const ice::sonic::String& dst,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    path_exists(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void paths_exist(
+        const ice::sonic::String& paths,
+        int num_paths,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void stat(
         const ice::sonic::String& path,
-        const ice::sonic::TF_FileStatisticsOps& out_stats
+        const ice::sonic::TF_FileStatisticsOps& out_stats,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    is_directory(const ice::sonic::String& path, int* out_is_directory) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_file_size(const ice::sonic::String& path, int64_t* out_size) noexcept = 0;
+    virtual void is_directory(
+        const ice::sonic::String& path,
+        int* out_is_directory,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_file_size(
+        const ice::sonic::String& path,
+        int64_t* out_size,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void
     translate_name(const ice::sonic::String& uri, const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_children(const ice::sonic::String& path, TF_Tensor** out_children) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_matching_paths(const ice::sonic::String& glob, TF_Tensor** out_matches) noexcept = 0;
-    virtual void flush_caches() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_filesystem_configuration(TF_Tensor** out_config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_filesystem_configuration(const ice::sonic::TF_TensorOps& options) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_filesystem_configuration_option(
-        const ice::sonic::String& key,
-        TFFilesystemOption* out_option
+    virtual void get_children(
+        const ice::sonic::String& path,
+        TF_Tensor** out_children,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_filesystem_configuration_option(const TFFilesystemOption* option) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_filesystem_configuration_keys(TF_Tensor** out_keys) noexcept = 0;
+    virtual void get_matching_paths(
+        const ice::sonic::String& glob,
+        TF_Tensor** out_matches,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void flush_caches() noexcept = 0;
+    virtual void get_filesystem_configuration(
+        TF_Tensor** out_config,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void set_filesystem_configuration(
+        const ice::sonic::TF_TensorOps& options,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_filesystem_configuration_option(
+        const ice::sonic::String& key,
+        TFFilesystemOption* out_option,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void set_filesystem_configuration_option(
+        const TFFilesystemOption* option,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_filesystem_configuration_keys(
+        TF_Tensor** out_keys,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFFilesystemTree*)) noexcept
     {
         m_vtable = ::TFFilesystemTreeOps{
-            .struct_size = TF_ILESYSTEMTREE_STRUCT_SIZE,
+            .struct_size =
+                TF_OFFSET_OF_END(::TFFilesystemTreeOps, get_filesystem_configuration_keys),
+
+            .create = create,
+            .destroy =
+                [](TFFilesystemTree* handle) noexcept
+            {
+                auto& self = TFFilesystemTreeOps::from_handle(handle);
+                self.destroy();
+            },
             .free_options =
                 [](TFFilesystemTree* manager, TFFilesystemOption* options, int num_options) noexcept
             {
-                TFFilesystemTreeOps::from_handle(manager).free_options(options, num_options);
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.free_options(options, num_options);
             },
             .create_dir =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).create_dir(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.create_dir(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .recursively_create_dir =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).recursively_create_dir(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.recursively_create_dir(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .delete_file =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).delete_file(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.delete_file(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .delete_dir =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).delete_dir(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.delete_dir(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .delete_recursively =
                 [](TFFilesystemTree* manager,
@@ -143,14 +197,13 @@ public:
                    uint64_t* undeleted_dirs,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).delete_recursively(
-                    ice::sonic::String::wrap(path),
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.delete_recursively(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
                     undeleted_files,
-                    undeleted_dirs
+                    undeleted_dirs,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .rename_file =
                 [](TFFilesystemTree* manager,
@@ -158,13 +211,12 @@ public:
                    const TF_String* dst,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).rename_file(
-                    ice::sonic::String::wrap(src),
-                    ice::sonic::String::wrap(dst)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.rename_file(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, src),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, dst),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .copy_file =
                 [](TFFilesystemTree* manager,
@@ -172,23 +224,21 @@ public:
                    const TF_String* dst,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).copy_file(
-                    ice::sonic::String::wrap(src),
-                    ice::sonic::String::wrap(dst)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.copy_file(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, src),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, dst),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .path_exists =
                 [](TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).path_exists(
-                    ice::sonic::String::wrap(path)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.path_exists(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .paths_exist =
                 [](TFFilesystemTree* manager,
@@ -196,13 +246,12 @@ public:
                    int num_paths,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).paths_exist(
-                    ice::sonic::String::wrap(paths),
-                    num_paths
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.paths_exist(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, paths),
+                    num_paths,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .stat =
                 [](TFFilesystemTree* manager,
@@ -210,13 +259,12 @@ public:
                    TF_FileStatistics* out_stats,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).stat(
-                    ice::sonic::String::wrap(path),
-                    ice::sonic::TF_FileStatisticsOps::wrap(out_stats)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.stat(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    self.wrap(std::type_identity<ice::sonic::TF_FileStatisticsOps>{}, out_stats),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .is_directory =
                 [](TFFilesystemTree* manager,
@@ -224,13 +272,12 @@ public:
                    int* out_is_directory,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).is_directory(
-                    ice::sonic::String::wrap(path),
-                    out_is_directory
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.is_directory(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    out_is_directory,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_file_size =
                 [](TFFilesystemTree* manager,
@@ -238,20 +285,20 @@ public:
                    int64_t* out_size,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).get_file_size(
-                    ice::sonic::String::wrap(path),
-                    out_size
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_file_size(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    out_size,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .translate_name =
                 [](TFFilesystemTree* manager, const TF_String* uri, TF_String* out_name) noexcept
             {
-                TFFilesystemTreeOps::from_handle(manager).translate_name(
-                    ice::sonic::String::wrap(uri),
-                    ice::sonic::String::wrap(out_name)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.translate_name(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, uri),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_name)
                 );
             },
             .get_children =
@@ -260,13 +307,12 @@ public:
                    TF_Tensor** out_children,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).get_children(
-                    ice::sonic::String::wrap(path),
-                    out_children
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_children(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, path),
+                    out_children,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_matching_paths =
                 [](TFFilesystemTree* manager,
@@ -274,42 +320,40 @@ public:
                    TF_Tensor** out_matches,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).get_matching_paths(
-                    ice::sonic::String::wrap(glob),
-                    out_matches
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_matching_paths(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, glob),
+                    out_matches,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .flush_caches =
                 [](TFFilesystemTree* manager) noexcept
             {
-                TFFilesystemTreeOps::from_handle(manager).flush_caches();
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.flush_caches();
             },
             .get_filesystem_configuration =
                 [](TFFilesystemTree* manager,
                    TF_Tensor** out_config,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).get_filesystem_configuration(
-                    out_config
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_filesystem_configuration(
+                    out_config,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .set_filesystem_configuration =
                 [](TFFilesystemTree* manager,
                    const TF_Tensor* options,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFFilesystemTreeOps::from_handle(manager).set_filesystem_configuration(
-                    ice::sonic::TF_TensorOps::wrap(options)
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.set_filesystem_configuration(
+                    self.wrap(std::type_identity<ice::sonic::TF_TensorOps>{}, options),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_filesystem_configuration_option =
                 [](TFFilesystemTree* manager,
@@ -317,41 +361,64 @@ public:
                    TFFilesystemOption* out_option,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFFilesystemTreeOps::from_handle(manager).get_filesystem_configuration_option(
-                        ice::sonic::String::wrap(key),
-                        out_option
-                    );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_filesystem_configuration_option(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    out_option,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set_filesystem_configuration_option =
                 [](TFFilesystemTree* manager,
                    const TFFilesystemOption* option,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFFilesystemTreeOps::from_handle(manager).set_filesystem_configuration_option(
-                        option
-                    );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.set_filesystem_configuration_option(
+                    option,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_filesystem_configuration_keys =
                 [](TFFilesystemTree* manager, TF_Tensor** out_keys, TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFFilesystemTreeOps::from_handle(manager).get_filesystem_configuration_keys(
-                        out_keys
-                    );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFFilesystemTreeOps::from_handle(manager);
+                self.get_filesystem_configuration_keys(
+                    out_keys,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
 
         };
+    }
+
+    ice::sonic::TF_FileStatisticsOps wrap(
+        std::type_identity<ice::sonic::TF_FileStatisticsOps>,
+        const ::TF_FileStatistics* handle
+    ) const noexcept
+    {
+        return ice::sonic::TF_FileStatisticsOps{
+            m_TF_FileStatisticsOps_ops,
+            const_cast<::TF_FileStatistics*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+    }
+
+    ice::sonic::TF_TensorOps
+    wrap(std::type_identity<ice::sonic::TF_TensorOps>, const ::TF_Tensor* handle) const noexcept
+    {
+        return ice::sonic::TF_TensorOps{m_TF_TensorOps_ops, const_cast<::TF_Tensor*>(handle)};
     }
 
     const ::TFFilesystemTreeOps& get_vtable() const noexcept
@@ -359,15 +426,32 @@ public:
         return m_vtable;
     }
 
-    const TFFilesystemTree& get_handle() const noexcept
+    const ::TFFilesystemTree& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFFilesystemTreeOps*>(&m_vtable));
+    }
 
 private:
     ::TFFilesystemTreeOps m_vtable;
-    TFFilesystemTree m_handle;
+    ::TFFilesystemTree m_handle;
+
+    const ::TF_FileStatisticsOps* m_TF_FileStatisticsOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
+
+    const ::TF_TensorOps* m_TF_TensorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -19,6 +19,8 @@ extern "C"
     typedef struct TF_BitSetOps
     {
         size_t struct_size;
+        void (*create)(TF_BitSet* out_handle);
+        void (*destroy)(TF_BitSet* handle);
 
         void (*set)(TF_BitSet* bitset, size_t index);
         void (*clear)(TF_BitSet* bitset, size_t index);
@@ -26,11 +28,10 @@ extern "C"
         void (*flip)(TF_BitSet* bitset, size_t index, TF_Status* out_status);
         void (*count)(const TF_BitSet* bitset, size_t* out_count);
         void (*size)(const TF_BitSet* bitset, size_t* out_size);
-        void (*destroy)(TF_BitSet* bitset);
 
     } TF_BitSetOps;
 
-#define TF_BITSET_STRUCT_SIZE TF_OFFSET_OF_END(TF_BitSetOps, destroy)
+#define TF_BITSET_STRUCT_SIZE TF_OFFSET_OF_END(TF_BitSetOps, size)
 
     TF_CAPI_EXPORT void create_bitset(TF_BitSetOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_bitset(void* plugin_context);

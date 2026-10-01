@@ -26,8 +26,9 @@ extern "C"
     typedef struct TF_ResponseOps
     {
         size_t struct_size;
+        void (*create)(TF_Response* out_handle);
+        void (*destroy)(TF_Response* handle);
 
-        void (*destroy)(TF_Response* response);
         void (*get_name)(TF_Response* response, TF_String* out_name);
 
         void (*set_status)(TF_Response* response, int32_t status_code, TF_Status* out_status);

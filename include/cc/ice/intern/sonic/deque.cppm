@@ -10,65 +10,93 @@ module;
 export module cc_ice_intern_sonic:deque;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :status;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_DequeOps : public ice::sonic::Runtime<TF_DequeOps, TF_DequeOps>
+class TF_DequeOps : public ice::sonic::Runtime<::TF_DequeOps, ::TF_Deque>
 {
 public:
-    explicit TF_DequeOps(TF_DequeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_DequeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_DequeOps(
+        Registry& registry,
+        ::TF_Deque* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void set_element_size(size_t element_size) noexcept
+    explicit TF_DequeOps(const ::TF_DequeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_DequeOps(const ::TF_DequeOps* ops, ::TF_Deque* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void set_element_size(size_t element_size) const noexcept
     {
         m_ops->set_element_size(get_handle(), element_size);
     }
 
-    void push_front(const void* value) noexcept
+    void push_front(const void* value) const noexcept
     {
         m_ops->push_front(get_handle(), value);
     }
 
-    void push_back(const void* value) noexcept
+    void push_back(const void* value) const noexcept
     {
         m_ops->push_back(get_handle(), value);
     }
 
-    void pop_front() noexcept
+    void pop_front() const noexcept
     {
         m_ops->pop_front(get_handle());
     }
 
-    void pop_back() noexcept
+    void pop_back() const noexcept
     {
         m_ops->pop_back(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get(size_t index, const void** out_value) noexcept
+    void get(
+        size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get(get_handle(), index, out_value, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get(get_handle(), index, out_value, out_status.get_handle());
     }
 
-    void size(size_t* out_size) noexcept
+    void size(size_t* out_size) const noexcept
     {
         m_ops->size(get_handle(), out_size);
-    }
-
-    void destroy() noexcept
-    {
-        m_ops->destroy(get_handle());
     }
 };
 

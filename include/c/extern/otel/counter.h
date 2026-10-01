@@ -18,7 +18,8 @@ extern "C"
     typedef struct TFOtelCounterOps
     {
         size_t struct_size;
-        void (*destroy)(TFOtelCounter* counter);
+        void (*create)(TFOtelCounter* out_handle);
+        void (*destroy)(TFOtelCounter* handle);
         void (*get_name)(TFOtelCounter* counter, TF_String* out_name);
         void (*add)(TFOtelCounter* counter, double value, TF_Status* out_status);
     } TFOtelCounterOps;

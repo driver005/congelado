@@ -74,7 +74,12 @@ public:
     // Example: ice::sonic::String::wrap({})
     std::string wrape_type(std::string_view domain, std::string_view argument_name) const noexcept
     {
-        return std::format("{}::sonic::{}::wrap({})", domain, m_class_name, argument_name);
+        return std::format(
+            "self.wrap(std::type_identity<{}::sonic::{}>{{}}, {})",
+            domain,
+            m_class_name,
+            argument_name
+        );
     }
 
     // Example: "{}.get_handle()",
@@ -125,7 +130,13 @@ public:
         if (m_header_path.empty()) {
             return std::unexpected(std::string{"Header path is empty"});
         }
-        return std::filesystem::path(m_header_path).stem().generic_string();
+        std::string name = std::filesystem::path(m_header_path).stem().generic_string();
+        constexpr std::array<std::string_view, 3> k_module_keywords = {"module", "import", "export"};
+        if (std::ranges::find(k_module_keywords, name) != k_module_keywords.end()) {
+            name += '_';
+        }
+
+        return name;
     }
 
     void set_struct_name(std::string&& struct_name) noexcept
@@ -191,6 +202,20 @@ public:
     std::span<const slot::Slot> get_slots() const noexcept
     {
         return m_slots;
+    }
+
+    std::optional<std::reference_wrapper<const slot::Slot>>
+    find_slot(std::string_view slot_name) const noexcept
+    {
+        auto found = std::ranges::find_if(
+            m_slots,
+            [slot_name](const slot::Slot& slot) { return slot.get_name() == slot_name; }
+        );
+        if (found == m_slots.end()) {
+            return std::nullopt;
+        }
+
+        return std::cref(*found);
     }
 
 private:

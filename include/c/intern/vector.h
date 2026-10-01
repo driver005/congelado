@@ -22,6 +22,8 @@ extern "C"
     typedef struct TF_VectorOps
     {
         size_t struct_size;
+        void (*create)(TF_Vector* out_handle);
+        void (*destroy)(TF_Vector* handle);
 
         void (*set_element_size)(TF_Vector* vector, size_t element_size);
 
@@ -51,11 +53,10 @@ extern "C"
         // Non-owning pointer to the contiguous backing storage.
         void (*data)(TF_Vector* vector, void** out_data);
 
-        void (*destroy)(TF_Vector* vector);
 
     } TF_VectorOps;
 
-#define TF_VECTOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_VectorOps, destroy)
+#define TF_VECTOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_VectorOps, data)
 
     TF_CAPI_EXPORT void create_vector(TF_VectorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_vector(void* plugin_context);

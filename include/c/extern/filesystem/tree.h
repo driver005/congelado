@@ -25,6 +25,8 @@ extern "C"
     typedef struct TFFilesystemTreeOps
     {
         size_t struct_size;
+        void (*create)(TFFilesystemTree* out_handle);
+        void (*destroy)(TFFilesystemTree* handle);
         void (*free_options)(
             TFFilesystemTree* manager,
             TFFilesystemOption* options,

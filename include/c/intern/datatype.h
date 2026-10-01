@@ -77,6 +77,8 @@ extern "C"
     typedef struct TF_DataTypeOps
     {
         size_t struct_size;
+        void (*create)(TF_DataType* out_handle);
+        void (*destroy)(TF_DataType* handle);
 
         void (*get_name)(TF_DataType* datatype, TF_String* out_name);
 

@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/extern/generator/generator.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_generator_builder:generator;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_GeneratorOps
 {
 public:
-    TF_GeneratorOps() noexcept :
+    explicit TF_GeneratorOps(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_String_ops = String_ops;
     }
 
     TF_GeneratorOps(const TF_GeneratorOps&) = delete;
@@ -39,24 +42,32 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Generator*)) noexcept
     {
         m_vtable = ::TF_GeneratorOps{
-            .struct_size = TF_GENERATOR_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_GeneratorOps, get_name),
+
+            .create = create,
             .destroy =
-                [](TF_Generator* generator) noexcept
+                [](TF_Generator* handle) noexcept
             {
-                TF_GeneratorOps::from_handle(generator).destroy();
+                auto& self = TF_GeneratorOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_Generator* generator, TF_String* out_name) noexcept
             {
-                TF_GeneratorOps::from_handle(generator).get_name(
-                    ice::sonic::String::wrap(out_name)
-                );
+                auto& self = TF_GeneratorOps::from_handle(generator);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
         };
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_GeneratorOps& get_vtable() const noexcept
@@ -64,15 +75,26 @@ public:
         return m_vtable;
     }
 
-    const TF_Generator& get_handle() const noexcept
+    const ::TF_Generator& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_GeneratorOps*>(&m_vtable));
+    }
 
 private:
     ::TF_GeneratorOps m_vtable;
-    TF_Generator m_handle;
+    ::TF_Generator m_handle;
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -6,19 +6,27 @@
 module;
 
 #include "include/c/extern/stream_executor/event.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_extern_stream_executor_builder:event;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_EventOps
 {
 public:
-    TF_EventOps() noexcept :
+    explicit TF_EventOps(
+        const ::TF_EventOps* TF_EventOps_ops,
+        const ::TF_StatusOps* Status_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_EventOps_ops = TF_EventOps_ops;
+        m_Status_ops = Status_ops;
     }
 
     TF_EventOps(const TF_EventOps&) = delete;
@@ -36,45 +44,70 @@ public:
     }
 
     virtual ~TF_EventOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    elapsed_time(const ice::sonic::TF_EventOps& end, float* out_milliseconds) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    export_ipc(TF_IpcEventHandle* out_handle) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void elapsed_time(
+        const ice::sonic::TF_EventOps& end,
+        float* out_milliseconds,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    export_ipc(TF_IpcEventHandle* out_handle, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Event*)) noexcept
     {
         m_vtable = ::TF_EventOps{
-            .struct_size = TF_EVENT_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_EventOps, get_native_handle),
+
+            .create = create,
+            .destroy =
+                [](TF_Event* handle) noexcept
+            {
+                auto& self = TF_EventOps::from_handle(handle);
+                self.destroy();
+            },
             .elapsed_time =
                 [](TF_Event* start,
                    TF_Event* end,
                    float* out_milliseconds,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_EventOps::from_handle(start).elapsed_time(
-                    ice::sonic::TF_EventOps::wrap(end),
-                    out_milliseconds
+                auto& self = TF_EventOps::from_handle(start);
+                self.elapsed_time(
+                    self.wrap(std::type_identity<ice::sonic::TF_EventOps>{}, end),
+                    out_milliseconds,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .export_ipc =
                 [](TF_Event* event, TF_IpcEventHandle* out_handle, TF_Status* out_status) noexcept
             {
-                auto res = TF_EventOps::from_handle(event).export_ipc(out_handle);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_EventOps::from_handle(event);
+                self.export_ipc(
+                    out_handle,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_native_handle =
                 [](TF_Event* event, void** out_handle) noexcept
             {
-                TF_EventOps::from_handle(event).get_native_handle(out_handle);
+                auto& self = TF_EventOps::from_handle(event);
+                self.get_native_handle(out_handle);
             },
 
         };
+    }
+
+    ice::sonic::TF_EventOps
+    wrap(std::type_identity<ice::sonic::TF_EventOps>, const ::TF_Event* handle) const noexcept
+    {
+        return ice::sonic::TF_EventOps{m_TF_EventOps_ops, const_cast<::TF_Event*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TF_EventOps& get_vtable() const noexcept
@@ -82,15 +115,28 @@ public:
         return m_vtable;
     }
 
-    const TF_Event& get_handle() const noexcept
+    const ::TF_Event& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_EventOps*>(&m_vtable));
+    }
 
 private:
     ::TF_EventOps m_vtable;
-    TF_Event m_handle;
+    ::TF_Event m_handle;
+
+    const ::TF_EventOps* m_TF_EventOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

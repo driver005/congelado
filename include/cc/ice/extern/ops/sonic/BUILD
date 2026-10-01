@@ -12,7 +12,12 @@ congelado_module_library(
         "shape_inference_context.cppm",
         "dimension_handle.cppm",
         "op_definition_builder.cppm",
+        "shape_handle.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = [
+        "//include/c:tf_c_headers",
+        "//include/cc/ice/intern/sonic:cc_ice_intern_sonic",
+    ],
 )

@@ -14,6 +14,8 @@ extern "C" {
 
     typedef struct TFGrapplerItemOps {
         size_t struct_size;
+        void (*create)(TFGrapplerItem* out_handle);
+        void (*destroy)(TFGrapplerItem* handle);
         void (*get_nodes_to_preserve_size)(TFGrapplerItem* item, int* out_num_values, size_t* out_storage_size, TF_Status* out_status);
         void (*get_nodes_to_preserve_list)(TFGrapplerItem* item, char** out_values, size_t* out_lengths, int num_values, void* storage, size_t storage_size, TF_Status* out_status);
         void (*get_fetch_nodes_size)(TFGrapplerItem* item, int* out_num_values, size_t* out_storage_size, TF_Status* out_status);

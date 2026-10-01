@@ -6,19 +6,33 @@
 module;
 
 #include "include/c/extern/store/index.h"
+#include "include/c/intern/map.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/intern/vector.h"
 
 export module cc_ice_extern_store_builder:index;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFStoreIndexOps
 {
 public:
-    TFStoreIndexOps() noexcept :
+    explicit TFStoreIndexOps(
+        const ::TF_MapOps* TF_MapOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops,
+        const ::TF_VectorOps* TF_VectorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
+        m_TF_VectorOps_ops = TF_VectorOps_ops;
     }
 
     TFStoreIndexOps(const TFStoreIndexOps&) = delete;
@@ -37,56 +51,87 @@ public:
 
     virtual ~TFStoreIndexOps() = default;
     virtual void destroy() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& field_config) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    drop(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    list(const ice::sonic::TF_VectorOps& out_names) noexcept = 0;
+    virtual void create_index(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& field_config,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    drop(const ice::sonic::String& name, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void list(
+        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFStoreIndex*)) noexcept
     {
         m_vtable = ::TFStoreIndexOps{
-            .struct_size = TF_TOREINDEX_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFStoreIndexOps, list),
+
+            .create = create,
             .destroy =
-                [](TFStoreIndex* index) noexcept
+                [](TFStoreIndex* handle) noexcept
             {
-                TFStoreIndexOps::from_handle(index).destroy();
+                auto& self = TFStoreIndexOps::from_handle(handle);
+                self.destroy();
             },
-            .create =
+            .create_index =
                 [](TFStoreIndex* index,
                    const TF_String* name,
                    const TF_Map* field_config,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreIndexOps::from_handle(index).create(
-                    ice::sonic::String::wrap(name),
-                    ice::sonic::TF_MapOps::wrap(field_config)
+                auto& self = TFStoreIndexOps::from_handle(index);
+                self.create_index(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, field_config),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .drop =
                 [](TFStoreIndex* index, const TF_String* name, TF_Status* out_status) noexcept
             {
-                auto res = TFStoreIndexOps::from_handle(index).drop(ice::sonic::String::wrap(name));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreIndexOps::from_handle(index);
+                self.drop(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .list =
                 [](TFStoreIndex* index, TF_Vector* out_names, TF_Status* out_status) noexcept
             {
-                auto res = TFStoreIndexOps::from_handle(index).list(
-                    ice::sonic::TF_VectorOps::wrap(out_names)
+                auto& self = TFStoreIndexOps::from_handle(index);
+                self.list(
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, out_names),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TF_MapOps
+    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    {
+        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+    }
+
+    ice::sonic::TF_VectorOps
+    wrap(std::type_identity<ice::sonic::TF_VectorOps>, const ::TF_Vector* handle) const noexcept
+    {
+        return ice::sonic::TF_VectorOps{m_TF_VectorOps_ops, const_cast<::TF_Vector*>(handle)};
     }
 
     const ::TFStoreIndexOps& get_vtable() const noexcept
@@ -94,15 +139,32 @@ public:
         return m_vtable;
     }
 
-    const TFStoreIndex& get_handle() const noexcept
+    const ::TFStoreIndex& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFStoreIndexOps*>(&m_vtable));
+    }
 
 private:
     ::TFStoreIndexOps m_vtable;
-    TFStoreIndex m_handle;
+    ::TFStoreIndex m_handle;
+
+    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
+
+    const ::TF_VectorOps* m_TF_VectorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

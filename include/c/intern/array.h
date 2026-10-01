@@ -22,6 +22,8 @@ extern "C"
     typedef struct TF_ArrayOps
     {
         size_t struct_size;
+        void (*create)(TF_Array* out_handle);
+        void (*destroy)(TF_Array* handle);
 
         void (*set_element_size)(TF_Array* array, size_t element_size);
         void (*set_count)(TF_Array* array, size_t count);
@@ -38,11 +40,10 @@ extern "C"
         // Non-owning pointer to the contiguous backing storage.
         void (*data)(TF_Array* array, void** out_data);
 
-        void (*destroy)(TF_Array* array);
 
     } TF_ArrayOps;
 
-#define TF_ARRAY_STRUCT_SIZE TF_OFFSET_OF_END(TF_ArrayOps, destroy)
+#define TF_ARRAY_STRUCT_SIZE TF_OFFSET_OF_END(TF_ArrayOps, data)
 
     TF_CAPI_EXPORT void create_array(TF_ArrayOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_array(void* plugin_context);

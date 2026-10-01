@@ -24,7 +24,8 @@ extern "C"
     typedef struct TFStoreQueryOps
     {
         size_t struct_size;
-        void (*destroy)(TFStoreQuery* query);
+        void (*create)(TFStoreQuery* out_handle);
+        void (*destroy)(TFStoreQuery* handle);
 
         // filters: arbitrary field->value equality constraints (backend-specific, genuinely open-ended). free_text/sort/offset/limit: universal, explicitly typed. free_text and sort are nullable; limit == 0 means no limit.
         void (*run)(

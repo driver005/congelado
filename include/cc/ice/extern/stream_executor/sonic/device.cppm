@@ -10,63 +10,93 @@ module;
 export module cc_ice_extern_stream_executor_sonic:device;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_DeviceOps : public ice::sonic::Runtime<TF_DeviceOps, TF_DeviceOps>
+class TF_DeviceOps : public ice::sonic::Runtime<::TF_DeviceOps, ::TF_Device>
 {
 public:
-    explicit TF_DeviceOps(TF_DeviceOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_DeviceOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "stream_executor";
+    template<typename Registry>
+    TF_DeviceOps(
+        Registry& registry,
+        ::TF_Device* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_numa_node(int32_t* out_numa_node) noexcept
+    explicit TF_DeviceOps(const ::TF_DeviceOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_DeviceOps(const ::TF_DeviceOps* ops, ::TF_Device* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_numa_node(int32_t* out_numa_node) const noexcept
     {
         m_ops->get_numa_node(get_handle(), out_numa_node);
     }
 
-    void get_memory_bandwidth(int64_t* out_bandwidth) noexcept
+    void get_memory_bandwidth(int64_t* out_bandwidth) const noexcept
     {
         m_ops->get_memory_bandwidth(get_handle(), out_bandwidth);
     }
 
-    void get_gflops(double* out_gflops) noexcept
+    void get_gflops(double* out_gflops) const noexcept
     {
         m_ops->get_gflops(get_handle(), out_gflops);
     }
 
-    void get_hardware_name(const ice::sonic::String& out_name) noexcept
+    void get_hardware_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_hardware_name(get_handle(), out_name.get_handle());
     }
 
-    void get_device_vendor(const ice::sonic::String& out_vendor) noexcept
+    void get_device_vendor(const ice::sonic::String& out_vendor) const noexcept
     {
         m_ops->get_device_vendor(get_handle(), out_vendor.get_handle());
     }
 
-    void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept
+    void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) const noexcept
     {
         m_ops->get_pci_bus_id(get_handle(), out_pci_bus_id.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_device_properties(TF_DeviceProperties* out_properties) noexcept
+    void get_device_properties(
+        TF_DeviceProperties* out_properties,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_device_properties(get_handle(), out_properties, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_device_properties(get_handle(), out_properties, out_status.get_handle());
     }
 
-    void get_native_handle(void** out_handle) noexcept
+    void get_native_handle(void** out_handle) const noexcept
     {
         m_ops->get_native_handle(get_handle(), out_handle);
     }

@@ -39,6 +39,8 @@ extern "C"
     typedef struct TF_FileStatisticsOps
     {
         size_t struct_size;
+        void (*create)(TF_FileStatistics* out_handle);
+        void (*destroy)(TF_FileStatistics* handle);
 
         // Return the backend's name (e.g. "file_statistics") into *out.
         void (*get_name)(TF_FileStatistics* stats, TF_String* out_name);
@@ -55,11 +57,10 @@ extern "C"
         void (*mtime_nsec)(const TF_FileStatistics* stats, int64_t* out_mtime_nsec);
         void (*set_mtime_nsec)(TF_FileStatistics* stats, int64_t mtime_nsec);
 
-        void (*destroy)(TF_FileStatistics* stats);
 
     } TF_FileStatisticsOps;
 
-#define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatisticsOps, destroy)
+#define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatisticsOps, set_mtime_nsec)
 
     TF_CAPI_EXPORT void
     create_file_statistics(TF_FileStatisticsOps** ops, void** plugin_context, TF_Status* out_status);

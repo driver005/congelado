@@ -75,6 +75,8 @@ extern "C"
     typedef struct TF_ShapeOps
     {
         size_t struct_size;
+        void (*create)(TF_Shape* out_handle);
+        void (*destroy)(TF_Shape* handle);
 
         // Return the backend's name (e.g. "shape") into *out.
         void (*get_name)(TF_Shape* shape, TF_String* out_name);

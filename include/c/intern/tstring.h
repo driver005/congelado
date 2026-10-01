@@ -46,6 +46,8 @@ extern "C"
     typedef struct TF_StringOps
     {
         size_t struct_size;
+        void (*create)(TF_String* out_handle);
+        void (*destroy)(TF_String* handle);
 
         void (*init)(TF_String* t);
         void (*copy)(TF_String* dst, const char* src, size_t size);

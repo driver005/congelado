@@ -10,56 +10,90 @@ module;
 export module cc_ice_intern_sonic:tstring;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
 
 export namespace ice::sonic {
 
-class String : public ice::sonic::Runtime<String, TF_StringOps>
+class String : public ice::sonic::Runtime<::TF_StringOps, ::TF_String>
 {
 public:
-    explicit String(TF_StringOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    String(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    String(
+        Registry& registry,
+        ::TF_String* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void init() noexcept
+    explicit String(const ::TF_StringOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    String(const ::TF_StringOps* ops, ::TF_String* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void init() const noexcept
     {
         m_ops->init(get_handle());
     }
 
-    void copy(const char* src, size_t size) noexcept
+    void copy(const char* src, size_t size) const noexcept
     {
         m_ops->copy(get_handle(), src, size);
     }
 
-    void assign_view(const char* src, size_t size) noexcept
+    void assign_view(const char* src, size_t size) const noexcept
     {
         m_ops->assign_view(get_handle(), src, size);
     }
 
-    void get_data_pointer(const char** out_data) noexcept
+    void get_data_pointer(const char** out_data) const noexcept
     {
         m_ops->get_data_pointer(get_handle(), out_data);
     }
 
-    void get_type(TFTStringType* out_type) noexcept
+    void get_type(TFTStringType* out_type) const noexcept
     {
         m_ops->get_type(get_handle(), out_type);
     }
 
-    void get_size(size_t* out_size) noexcept
+    void get_size(size_t* out_size) const noexcept
     {
         m_ops->get_size(get_handle(), out_size);
     }
 
-    void get_capacity(size_t* out_capacity) noexcept
+    void get_capacity(size_t* out_capacity) const noexcept
     {
         m_ops->get_capacity(get_handle(), out_capacity);
     }
 
-    void dealloc() noexcept
+    void dealloc() const noexcept
     {
         m_ops->dealloc(get_handle());
     }

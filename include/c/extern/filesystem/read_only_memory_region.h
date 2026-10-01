@@ -21,7 +21,8 @@ extern "C"
     typedef struct TF_ReadOnlyMemoryRegionOps
     {
         size_t struct_size;
-        void (*destroy)(TF_ReadOnlyMemoryRegion* region);
+        void (*create)(TF_ReadOnlyMemoryRegion* out_handle);
+        void (*destroy)(TF_ReadOnlyMemoryRegion* handle);
         void (*get_name)(TF_ReadOnlyMemoryRegion* region, TF_String* out_name);
         void (*data)(TF_ReadOnlyMemoryRegion* region, const void** out_data);
         void (*length)(TF_ReadOnlyMemoryRegion* region, uint64_t* out_length);

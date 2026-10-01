@@ -6,19 +6,27 @@
 module;
 
 #include "include/c/extern/filesystem/writable_file.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_filesystem_builder:writable_file;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_WritableFileOps
 {
 public:
-    TF_WritableFileOps() noexcept :
+    explicit TF_WritableFileOps(
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TF_WritableFileOps(const TF_WritableFileOps&) = delete;
@@ -38,71 +46,81 @@ public:
     virtual ~TF_WritableFileOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    append(const ice::sonic::String& buffer) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    tell(int64_t* out_position) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> flush() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> sync() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> close() noexcept = 0;
+    virtual void
+    append(const ice::sonic::String& buffer, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void tell(int64_t* out_position, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void flush(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void sync(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void close(const ice::sonic::Status& out_status) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_WritableFile*)) noexcept
     {
         m_vtable = ::TF_WritableFileOps{
-            .struct_size = TF_WRITABLEFILE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_WritableFileOps, close),
+
+            .create = create,
             .destroy =
-                [](TF_WritableFile* file) noexcept
+                [](TF_WritableFile* handle) noexcept
             {
-                TF_WritableFileOps::from_handle(file).destroy();
+                auto& self = TF_WritableFileOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_WritableFile* file, TF_String* out_name) noexcept
             {
-                TF_WritableFileOps::from_handle(file).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .append =
                 [](TF_WritableFile* file, const TF_String* buffer, TF_Status* out_status) noexcept
             {
-                auto res =
-                    TF_WritableFileOps::from_handle(file).append(ice::sonic::String::wrap(buffer));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.append(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, buffer),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .tell =
                 [](TF_WritableFile* file, int64_t* out_position, TF_Status* out_status) noexcept
             {
-                auto res = TF_WritableFileOps::from_handle(file).tell(out_position);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.tell(
+                    out_position,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .flush =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto res = TF_WritableFileOps::from_handle(file).flush();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.flush(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .sync =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto res = TF_WritableFileOps::from_handle(file).sync();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.sync(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .close =
                 [](TF_WritableFile* file, TF_Status* out_status) noexcept
             {
-                auto res = TF_WritableFileOps::from_handle(file).close();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_WritableFileOps::from_handle(file);
+                self.close(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_WritableFileOps& get_vtable() const noexcept
@@ -110,15 +128,28 @@ public:
         return m_vtable;
     }
 
-    const TF_WritableFile& get_handle() const noexcept
+    const ::TF_WritableFile& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_WritableFileOps*>(&m_vtable));
+    }
 
 private:
     ::TF_WritableFileOps m_vtable;
-    TF_WritableFile m_handle;
+    ::TF_WritableFile m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -10,41 +10,72 @@ module;
 export module cc_ice_extern_filesystem_sonic:random_access_file;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TF_RandomAccessFileOps :
-    public ice::sonic::Runtime<TF_RandomAccessFileOps, TF_RandomAccessFileOps>
+    public ice::sonic::Runtime<::TF_RandomAccessFileOps, ::TF_RandomAccessFile>
 {
 public:
-    explicit TF_RandomAccessFileOps(TF_RandomAccessFileOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_RandomAccessFileOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "filesystem";
+    template<typename Registry>
+    TF_RandomAccessFileOps(
+        Registry& registry,
+        ::TF_RandomAccessFile* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_RandomAccessFileOps(const ::TF_RandomAccessFileOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_RandomAccessFileOps(
+        const ::TF_RandomAccessFileOps* ops,
+        ::TF_RandomAccessFile* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    read(uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read) noexcept
+    void read(
+        uint64_t offset,
+        size_t n,
+        char* buffer,
+        int64_t* out_bytes_read,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->read(get_handle(), offset, n, buffer, out_bytes_read, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->read(get_handle(), offset, n, buffer, out_bytes_read, out_status.get_handle());
     }
 };
 

@@ -18,7 +18,8 @@ extern "C"
     typedef struct TFOtelHistogramOps
     {
         size_t struct_size;
-        void (*destroy)(TFOtelHistogram* histogram);
+        void (*create)(TFOtelHistogram* out_handle);
+        void (*destroy)(TFOtelHistogram* handle);
         void (*get_name)(TFOtelHistogram* histogram, TF_String* out_name);
         void (*record)(TFOtelHistogram* histogram, double value, TF_Status* out_status);
     } TFOtelHistogramOps;

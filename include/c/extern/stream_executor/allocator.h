@@ -4,8 +4,8 @@
 #include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/buffer.h"
-#include "include/c/extern/memory/types.h"
-#include "include/c/extern/memory/mem_pool.h"
+#include "include/c/extern/stream_executor/types.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
 #include "include/c/extern/stream_executor/stream.h"
 
 #include <stddef.h>
@@ -45,6 +45,8 @@ extern "C" {
     // TF_AllocatorOps — one allocator per device, created by TF_ExecutorOps::create_allocator_internal. Replaces XPUCachingAllocator, CachingHostAllocator and XPUPluggableAllocator.
     typedef struct TF_AllocatorOps {
         size_t struct_size;
+        void (*create)(TF_Allocator* out_handle);
+        void (*destroy)(TF_Allocator* handle);
         // allocation (stream == NULL means the device's current stream)
         void (*allocate)(TF_Allocator* allocator, uint64_t size, TF_MemorySpace memory_space, TF_Stream* stream, TF_DeviceMemoryBase* out_memory, TF_Status* out_status);
         void (*deallocate)(TF_Allocator* allocator, TF_DeviceMemoryBase* memory);

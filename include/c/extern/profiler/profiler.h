@@ -36,7 +36,8 @@ extern "C"
     typedef struct TF_ProfilerOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Profiler* profiler);
+        void (*create)(TF_Profiler* out_handle);
+        void (*destroy)(TF_Profiler* handle);
         void (*get_name)(TF_Profiler* profiler, TF_String* out_name);
         void (*get_device_type)(TF_Profiler* profiler, TF_String* out_device_type);
         void (*start)(TF_Profiler* profiler, TF_Status* out_status);

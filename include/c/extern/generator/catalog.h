@@ -22,6 +22,8 @@ extern "C"
     typedef struct TFGeneratorCatalogOps
     {
         size_t struct_size;
+        void (*create)(TFGeneratorCatalog* out_handle);
+        void (*destroy)(TFGeneratorCatalog* handle);
 
         void (*add_module)(
             TFGeneratorCatalog* manager,

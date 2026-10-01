@@ -11,13 +11,13 @@ congelado_module_library(
     visibility = ["//visibility:public"],
     deps = [
         "//include/cc/ice/extern/random_generator:cc_ice_extern_random_generator",
-        "//include/cc/ice/extern/memory:cc_ice_extern_memory",
         "//include/cc/ice/extern/grappler:cc_ice_extern_grappler",
         "//include/cc/ice/extern/parser:cc_ice_extern_parser",
         "//include/cc/ice/extern/stream_executor:cc_ice_extern_stream_executor",
         "//include/cc/ice/extern/store:cc_ice_extern_store",
         "//include/cc/ice/extern/profiler:cc_ice_extern_profiler",
         "//include/cc/ice/extern/serde:cc_ice_extern_serde",
+        "//include/cc/ice/extern/pubsub:cc_ice_extern_pubsub",
         "//include/cc/ice/extern/io:cc_ice_extern_io",
         "//include/cc/ice/extern/jobber:cc_ice_extern_jobber",
         "//include/cc/ice/extern/registration:cc_ice_extern_registration",
@@ -25,7 +25,6 @@ congelado_module_library(
         "//include/cc/ice/extern/otel:cc_ice_extern_otel",
         "//include/cc/ice/extern/generator:cc_ice_extern_generator",
         "//include/cc/ice/extern/ops:cc_ice_extern_ops",
-        "//include/cc/ice/extern/pubsub:cc_ice_extern_pubsub",
         "//include/cc/ice/extern/kernel:cc_ice_extern_kernel",
     ],
 )

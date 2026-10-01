@@ -14,6 +14,8 @@ extern "C" {
 
     typedef struct TFParserAttributeOps {
         size_t struct_size;
+        void (*create)(TFParserAttribute* out_handle);
+        void (*destroy)(TFParserAttribute* handle);
         void (*get_name)(TFParserAttribute* attribute, TF_String* out_name, TF_Status* out_status);
         void (*get_value)(TFParserAttribute* attribute, TF_Tensor** out_value, TF_Status* out_status);
     } TFParserAttributeOps;

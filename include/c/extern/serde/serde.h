@@ -34,7 +34,8 @@ extern "C"
     typedef struct TF_SerdeOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Serde* serde);
+        void (*create)(TF_Serde* out_handle);
+        void (*destroy)(TF_Serde* handle);
         void (*get_name)(TF_Serde* serde, TF_String* out_name);
         void (*get_content_type)(TF_Serde* serde, TF_String* out_content_type);
         void (*get_format_name)(TF_Serde* serde, TF_String* out_format_name);

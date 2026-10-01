@@ -53,6 +53,8 @@ extern "C" {
 
     typedef struct TFGrapplerConfigsOps {
         size_t struct_size;
+        void (*create)(TFGrapplerConfigs* out_handle);
+        void (*destroy)(TFGrapplerConfigs* handle);
         void (*get_optimization_level)(TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel* out_level);
         void (*set_optimization_level)(TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level);
         void (*get_optimizer_configs)(TFGrapplerConfigs* configs, TFGrapplerOptimizerConfigs* out_configs, TF_Status* out_status);

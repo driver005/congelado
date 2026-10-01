@@ -21,7 +21,8 @@ extern "C"
     typedef struct TF_RandomAccessFileOps
     {
         size_t struct_size;
-        void (*destroy)(TF_RandomAccessFile* file);
+        void (*create)(TF_RandomAccessFile* out_handle);
+        void (*destroy)(TF_RandomAccessFile* handle);
         void (*get_name)(TF_RandomAccessFile* file, TF_String* out_name);
         void (*read)(TF_RandomAccessFile* file, uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read, TF_Status* out_status);
     } TF_RandomAccessFileOps;

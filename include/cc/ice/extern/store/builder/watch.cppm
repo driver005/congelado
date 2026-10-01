@@ -10,13 +10,14 @@ module;
 export module cc_ice_extern_store_builder:watch;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFStoreWatchOps
 {
 public:
-    TFStoreWatchOps() noexcept :
+    explicit TFStoreWatchOps() noexcept :
         m_handle{.plugin_data = this}
     {
     }
@@ -39,19 +40,23 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void cancel() noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFStoreWatch*)) noexcept
     {
         m_vtable = ::TFStoreWatchOps{
-            .struct_size = TF_TOREWATCH_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFStoreWatchOps, cancel),
+
+            .create = create,
             .destroy =
-                [](TFStoreWatch* watch) noexcept
+                [](TFStoreWatch* handle) noexcept
             {
-                TFStoreWatchOps::from_handle(watch).destroy();
+                auto& self = TFStoreWatchOps::from_handle(handle);
+                self.destroy();
             },
             .cancel =
                 [](TFStoreWatch* watch) noexcept
             {
-                TFStoreWatchOps::from_handle(watch).cancel();
+                auto& self = TFStoreWatchOps::from_handle(watch);
+                self.cancel();
             },
 
         };
@@ -62,15 +67,24 @@ public:
         return m_vtable;
     }
 
-    const TFStoreWatch& get_handle() const noexcept
+    const ::TFStoreWatch& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFStoreWatchOps*>(&m_vtable));
+    }
 
 private:
     ::TFStoreWatchOps m_vtable;
-    TFStoreWatch m_handle;
+    ::TFStoreWatch m_handle;
 };
 
 } // namespace ice::builder

@@ -23,6 +23,8 @@ extern "C" {
     // TF_MemPoolOps — created by TF_AllocatorOps::create_mem_pool_internal. Replaces at::xpu::MemPool and the allocator pool APIs.
     typedef struct TF_MemPoolOps {
         size_t struct_size;
+        void (*create)(TF_MemPool* out_handle);
+        void (*destroy)(TF_MemPool* handle);
         void (*get_id)(TF_MemPool* pool, TF_PoolId* out_pool_id);
         void (*use_count)(TF_MemPool* pool, int* out_count);
         void (*begin_allocate_to_pool)(TF_MemPool* pool, TF_StreamFilterFn stream_filter, void* filter_data, TF_Status* out_status);

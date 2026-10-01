@@ -15,6 +15,8 @@ extern "C" {
 
     typedef struct TFParserCatalogOps {
         size_t struct_size;
+        void (*create)(TFParserCatalog* out_handle);
+        void (*destroy)(TFParserCatalog* handle);
         void (*parse_file)(TFParserCatalog* catalog, const TF_String* file_path, TFParserModule* out_module, TF_Status* out_status);
         void (*parse_buffer)(TFParserCatalog* catalog, const TF_Buffer* buffer, TFParserModule* out_module, TF_Status* out_status);
     } TFParserCatalogOps;

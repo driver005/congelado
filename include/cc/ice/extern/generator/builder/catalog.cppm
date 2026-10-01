@@ -6,19 +6,31 @@
 module;
 
 #include "include/c/extern/generator/catalog.h"
+#include "include/c/extern/generator/module.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_generator_builder:catalog;
 
 import std;
+import cc_ice_extern_generator_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFGeneratorCatalogOps
 {
 public:
-    TFGeneratorCatalogOps() noexcept :
+    explicit TFGeneratorCatalogOps(
+        const ::TFGeneratorModuleOps* TFGeneratorModuleOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TFGeneratorModuleOps_ops = TFGeneratorModuleOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFGeneratorCatalogOps(const TFGeneratorCatalogOps&) = delete;
@@ -36,30 +48,41 @@ public:
     }
 
     virtual ~TFGeneratorCatalogOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    add_module(const ice::sonic::TFGeneratorModuleOps& module) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_module(
-        const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorModuleOps& out_module
+    virtual void destroy() noexcept = 0;
+    virtual void add_module(
+        const ice::sonic::TFGeneratorModuleOps& module,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    list_modules(TF_Tensor** out_modules) noexcept = 0;
+    virtual void get_module(
+        const ice::sonic::String& name,
+        const ice::sonic::TFGeneratorModuleOps& out_module,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    list_modules(TF_Tensor** out_modules, const ice::sonic::Status& out_status) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFGeneratorCatalog*)) noexcept
     {
         m_vtable = ::TFGeneratorCatalogOps{
-            .struct_size = TF_ENERATORCATALOG_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFGeneratorCatalogOps, list_modules),
+
+            .create = create,
+            .destroy =
+                [](TFGeneratorCatalog* handle) noexcept
+            {
+                auto& self = TFGeneratorCatalogOps::from_handle(handle);
+                self.destroy();
+            },
             .add_module =
                 [](TFGeneratorCatalog* manager,
                    TFGeneratorModule* module,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGeneratorCatalogOps::from_handle(manager).add_module(
-                    ice::sonic::TFGeneratorModuleOps::wrap(module)
+                auto& self = TFGeneratorCatalogOps::from_handle(manager);
+                self.add_module(
+                    self.wrap(std::type_identity<ice::sonic::TFGeneratorModuleOps>{}, module),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_module =
                 [](TFGeneratorCatalog* manager,
@@ -67,26 +90,49 @@ public:
                    TFGeneratorModule* out_module,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGeneratorCatalogOps::from_handle(manager).get_module(
-                    ice::sonic::String::wrap(name),
-                    ice::sonic::TFGeneratorModuleOps::wrap(out_module)
+                auto& self = TFGeneratorCatalogOps::from_handle(manager);
+                self.get_module(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::TFGeneratorModuleOps>{}, out_module),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .list_modules =
                 [](TFGeneratorCatalog* manager,
                    TF_Tensor** out_modules,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFGeneratorCatalogOps::from_handle(manager).list_modules(out_modules);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFGeneratorCatalogOps::from_handle(manager);
+                self.list_modules(
+                    out_modules,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
 
         };
+    }
+
+    ice::sonic::TFGeneratorModuleOps wrap(
+        std::type_identity<ice::sonic::TFGeneratorModuleOps>,
+        const ::TFGeneratorModule* handle
+    ) const noexcept
+    {
+        return ice::sonic::TFGeneratorModuleOps{
+            m_TFGeneratorModuleOps_ops,
+            const_cast<::TFGeneratorModule*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFGeneratorCatalogOps& get_vtable() const noexcept
@@ -94,15 +140,30 @@ public:
         return m_vtable;
     }
 
-    const TFGeneratorCatalog& get_handle() const noexcept
+    const ::TFGeneratorCatalog& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFGeneratorCatalogOps*>(&m_vtable));
+    }
 
 private:
     ::TFGeneratorCatalogOps m_vtable;
-    TFGeneratorCatalog m_handle;
+    ::TFGeneratorCatalog m_handle;
+
+    const ::TFGeneratorModuleOps* m_TFGeneratorModuleOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -10,13 +10,14 @@ module;
 export module cc_ice_extern_ops_builder:dimension_handle;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_DimensionHandleOps
 {
 public:
-    TF_DimensionHandleOps() noexcept :
+    explicit TF_DimensionHandleOps() noexcept :
         m_handle{.plugin_data = this}
     {
     }
@@ -36,22 +37,33 @@ public:
     }
 
     virtual ~TF_DimensionHandleOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void value_known(int* out_known) noexcept = 0;
     virtual void value(int64_t* out_value) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_DimensionHandle*)) noexcept
     {
         m_vtable = ::TF_DimensionHandleOps{
-            .struct_size = TF_DIMENSIONHANDLE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_DimensionHandleOps, value),
+
+            .create = create,
+            .destroy =
+                [](TF_DimensionHandle* handle) noexcept
+            {
+                auto& self = TF_DimensionHandleOps::from_handle(handle);
+                self.destroy();
+            },
             .value_known =
                 [](TF_DimensionHandle* dim_handle, int* out_known) noexcept
             {
-                TF_DimensionHandleOps::from_handle(dim_handle).value_known(out_known);
+                auto& self = TF_DimensionHandleOps::from_handle(dim_handle);
+                self.value_known(out_known);
             },
             .value =
                 [](TF_DimensionHandle* dim_handle, int64_t* out_value) noexcept
             {
-                TF_DimensionHandleOps::from_handle(dim_handle).value(out_value);
+                auto& self = TF_DimensionHandleOps::from_handle(dim_handle);
+                self.value(out_value);
             },
 
         };
@@ -62,15 +74,24 @@ public:
         return m_vtable;
     }
 
-    const TF_DimensionHandle& get_handle() const noexcept
+    const ::TF_DimensionHandle& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_DimensionHandleOps*>(&m_vtable));
+    }
 
 private:
     ::TF_DimensionHandleOps m_vtable;
-    TF_DimensionHandle m_handle;
+    ::TF_DimensionHandle m_handle;
 };
 
 } // namespace ice::builder

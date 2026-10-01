@@ -21,7 +21,8 @@ extern "C"
     typedef struct TFGeneratorBlockOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorBlock* block);
+        void (*create)(TFGeneratorBlock* out_handle);
+        void (*destroy)(TFGeneratorBlock* handle);
         void (*get_name)(TFGeneratorBlock* block, TF_String* out_name);
 
         void (*add_node)(

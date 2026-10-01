@@ -10,46 +10,77 @@ module;
 export module cc_ice_extern_grappler_sonic:item;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGrapplerItemOps : public ice::sonic::Runtime<TFGrapplerItemOps, TFGrapplerItemOps>
+class TFGrapplerItemOps : public ice::sonic::Runtime<::TFGrapplerItemOps, ::TFGrapplerItem>
 {
 public:
-    explicit TFGrapplerItemOps(TFGrapplerItemOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGrapplerItemOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "grappler";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_nodes_to_preserve_size(int* out_num_values, size_t* out_storage_size) noexcept
+    template<typename Registry>
+    TFGrapplerItemOps(
+        Registry& registry,
+        ::TFGrapplerItem* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
+    }
+
+    explicit TFGrapplerItemOps(const ::TFGrapplerItemOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGrapplerItemOps(const ::TFGrapplerItemOps* ops, ::TFGrapplerItem* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_nodes_to_preserve_size(
+        int* out_num_values,
+        size_t* out_storage_size,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
         m_ops->get_nodes_to_preserve_size(
             get_handle(),
             out_num_values,
             out_storage_size,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_nodes_to_preserve_list(
+    void get_nodes_to_preserve_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size
-    ) noexcept
+        size_t storage_size,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_nodes_to_preserve_list(
             get_handle(),
             out_values,
@@ -57,41 +88,33 @@ public:
             num_values,
             storage,
             storage_size,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_fetch_nodes_size(int* out_num_values, size_t* out_storage_size) noexcept
+    void get_fetch_nodes_size(
+        int* out_num_values,
+        size_t* out_storage_size,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_fetch_nodes_size(
             get_handle(),
             out_num_values,
             out_storage_size,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_fetch_nodes_list(
+    void get_fetch_nodes_list(
         char** out_values,
         size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size
-    ) noexcept
+        size_t storage_size,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_fetch_nodes_list(
             get_handle(),
             out_values,
@@ -99,13 +122,8 @@ public:
             num_values,
             storage,
             storage_size,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

@@ -20,8 +20,9 @@ extern "C"
     typedef struct TF_TaskOps
     {
         size_t struct_size;
+        void (*create)(TF_Task* out_handle);
+        void (*destroy)(TF_Task* handle);
 
-        void (*destroy)(TF_Task* task);
 
         void (*complete)(TF_Task* task, const TF_String* node_ref, const TF_String* output, TF_Status* out_status);
 

@@ -50,30 +50,10 @@ public:
     std::span<const helper::Parameter> extract_parameters() const noexcept
     {
         if (has_parameter()) {
-            auto params = std::span<const helper::Parameter>{m_parameters}.subspan(1);
-
-            if (is_failable() && !params.empty()) {
-                return params.first(params.size() - 1);
-            }
-
-            return params;
+            return std::span<const helper::Parameter>{m_parameters}.subspan(1);
         }
 
         return {};
-    }
-
-    std::optional<std::reference_wrapper<const helper::Parameter>> extract_failable() const noexcept
-    {
-        if (has_parameter() && is_failable()) {
-            return std::ref(m_parameters.back());
-        }
-
-        return std::nullopt;
-    }
-
-    bool is_failable() const
-    {
-        return has_parameter() && m_parameters.back().get_pointee_name() == "TF_Status";
     }
 
     bool has_parameter() const

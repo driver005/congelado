@@ -21,6 +21,8 @@ extern "C" {
     // TF_OpKernelConstructionOps
     typedef struct TF_OpKernelConstructionOps {
         size_t struct_size;
+        void (*create)(TF_OpKernelConstruction* out_handle);
+        void (*destroy)(TF_OpKernelConstruction* handle);
         void (*failure)(TF_OpKernelConstruction* ctx, TF_Status* out_status);
         void (*get_node_def)(TF_OpKernelConstruction* ctx, TF_Buffer* buffer, TF_Status* out_status);
         void (*get_attr_size)(TF_OpKernelConstruction* ctx, const TF_String* attr_name, int32_t* out_list_size, int32_t* out_total_size, TF_Status* out_status);

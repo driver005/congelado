@@ -25,7 +25,8 @@ extern "C"
     typedef struct TFGeneratorFunctionOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorFunction* function);
+        void (*create)(TFGeneratorFunction* out_handle);
+        void (*destroy)(TFGeneratorFunction* handle);
         void (*get_name)(TFGeneratorFunction* function, TF_String* out_name);
 
         void (*add_parameter)(

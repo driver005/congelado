@@ -114,6 +114,11 @@ public:
             }
         }
 
+        auto runtime = m_emitter.generate_runtime(m_repo_root, m_output_dir);
+        if (!runtime) {
+            return std::unexpected{std::move(runtime.error())};
+        }
+
         // Generate base.cppm files for each folder
         return m_emitter.generate_base_modules(m_repo_root, m_output_dir);
     }
@@ -149,7 +154,7 @@ public:
             }
         }
 
-        return true;
+        return m_emitter.check_runtime(m_repo_root, m_output_dir);
     }
 
     void set_registry(parser::Registry&& registry) noexcept

@@ -26,6 +26,8 @@ extern "C"
     typedef struct TF_ForwardListOps
     {
         size_t struct_size;
+        void (*create)(TF_ForwardList* out_handle);
+        void (*destroy)(TF_ForwardList* handle);
 
         void (*set_element_size)(TF_ForwardList* list, size_t element_size);
 
@@ -50,11 +52,10 @@ extern "C"
             void* capture
         );
 
-        void (*destroy)(TF_ForwardList* list);
 
     } TF_ForwardListOps;
 
-#define TF_FORWARD_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_ForwardListOps, destroy)
+#define TF_FORWARD_LIST_STRUCT_SIZE TF_OFFSET_OF_END(TF_ForwardListOps, for_each)
 
     TF_CAPI_EXPORT void
     create_forward_list(TF_ForwardListOps** ops, void** plugin_context, TF_Status* out_status);

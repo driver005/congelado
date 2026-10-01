@@ -10,59 +10,80 @@ module;
 export module cc_ice_extern_jobber_sonic:options;
 
 import std;
-import cc_abi_sonic_registration;
+import :job;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_OptionsOps : public ice::sonic::Runtime<TF_OptionsOps, TF_OptionsOps>
+class TF_OptionsOps : public ice::sonic::Runtime<::TF_OptionsOps, ::TF_Options>
 {
 public:
-    explicit TF_OptionsOps(TF_OptionsOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_OptionsOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_OptionsOps(
+        Registry& registry,
+        ::TF_Options* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_OptionsOps(const ::TF_OptionsOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_OptionsOps(const ::TF_OptionsOps* ops, ::TF_Options* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_options(const ice::sonic::TF_JobOps& job, TFJobOptions* out_options) noexcept
+    void get_options(
+        const ice::sonic::TF_JobOps& job,
+        TFJobOptions* out_options,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_options(get_handle(), job.get_handle(), out_options, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_options(get_handle(), job.get_handle(), out_options, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    update_options(const ice::sonic::TF_JobOps& job, const TFJobOptions* new_options) noexcept
+    void update_options(
+        const ice::sonic::TF_JobOps& job,
+        const TFJobOptions* new_options,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->update_options(get_handle(), job.get_handle(), new_options, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->update_options(get_handle(), job.get_handle(), new_options, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_priority(const ice::sonic::TF_JobOps& job, int priority) noexcept
+    void set_priority(
+        const ice::sonic::TF_JobOps& job,
+        int priority,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_priority(get_handle(), job.get_handle(), priority, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_priority(get_handle(), job.get_handle(), priority, out_status.get_handle());
     }
 };
 

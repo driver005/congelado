@@ -24,7 +24,8 @@ extern "C" {
 
     typedef struct TF_OpsOps {
         size_t struct_size;
-        void (*destroy)(TF_Ops* ops_facade);
+        void (*create)(TF_Ops* out_handle);
+        void (*destroy)(TF_Ops* handle);
         void (*get_name)(TF_Ops* ops_facade, TF_String* out_name);
     } TF_OpsOps;
 

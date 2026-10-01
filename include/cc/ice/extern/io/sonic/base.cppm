@@ -7,9 +7,10 @@ export module cc_ice_extern_io_sonic;
 
 // clang-format off
 export import :socket;
+export import :client;
 export import :server;
 export import :request;
 export import :response;
-export import :client;
+export import :connection;
 
 // clang-format on

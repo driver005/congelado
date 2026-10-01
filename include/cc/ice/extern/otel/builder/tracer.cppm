@@ -5,20 +5,32 @@
 
 module;
 
+#include "include/c/extern/otel/span.h"
 #include "include/c/extern/otel/tracer.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_otel_builder:tracer;
 
 import std;
+import cc_ice_extern_otel_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFOtelTracerOps
 {
 public:
-    TFOtelTracerOps() noexcept :
+    explicit TFOtelTracerOps(
+        const ::TFOtelSpanOps* TFOtelSpanOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TFOtelSpanOps_ops = TFOtelSpanOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFOtelTracerOps(const TFOtelTracerOps&) = delete;
@@ -38,25 +50,30 @@ public:
     virtual ~TFOtelTracerOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> start_span(
+    virtual void start_span(
         const ice::sonic::String& name,
         int kind,
-        const ice::sonic::TFOtelSpanOps& out_span
+        const ice::sonic::TFOtelSpanOps& out_span,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFOtelTracer*)) noexcept
     {
         m_vtable = ::TFOtelTracerOps{
-            .struct_size = TF_TELTRACER_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFOtelTracerOps, start_span),
+
+            .create = create,
             .destroy =
-                [](TFOtelTracer* tracer) noexcept
+                [](TFOtelTracer* handle) noexcept
             {
-                TFOtelTracerOps::from_handle(tracer).destroy();
+                auto& self = TFOtelTracerOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TFOtelTracer* tracer, TF_String* out_name) noexcept
             {
-                TFOtelTracerOps::from_handle(tracer).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TFOtelTracerOps::from_handle(tracer);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .start_span =
                 [](TFOtelTracer* tracer,
@@ -65,17 +82,34 @@ public:
                    TFOtelSpan* out_span,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFOtelTracerOps::from_handle(tracer).start_span(
-                    ice::sonic::String::wrap(name),
+                auto& self = TFOtelTracerOps::from_handle(tracer);
+                self.start_span(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     kind,
-                    ice::sonic::TFOtelSpanOps::wrap(out_span)
+                    self.wrap(std::type_identity<ice::sonic::TFOtelSpanOps>{}, out_span),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TFOtelSpanOps
+    wrap(std::type_identity<ice::sonic::TFOtelSpanOps>, const ::TFOtelSpan* handle) const noexcept
+    {
+        return ice::sonic::TFOtelSpanOps{m_TFOtelSpanOps_ops, const_cast<::TFOtelSpan*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFOtelTracerOps& get_vtable() const noexcept
@@ -83,15 +117,30 @@ public:
         return m_vtable;
     }
 
-    const TFOtelTracer& get_handle() const noexcept
+    const ::TFOtelTracer& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFOtelTracerOps*>(&m_vtable));
+    }
 
 private:
     ::TFOtelTracerOps m_vtable;
-    TFOtelTracer m_handle;
+    ::TFOtelTracer m_handle;
+
+    const ::TFOtelSpanOps* m_TFOtelSpanOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

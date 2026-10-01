@@ -1,5 +1,13 @@
 
-                        {{ extra_ctor }}
+                        explicit {{ class_name }}({% for dep in deps %}{% if not loop.is_first %},{% endif %}
+                            const ::{{ dep.struct }}* {{ dep.member }}_ops{% endfor %}) noexcept :
+                            m_handle{.plugin_data = this}
+                        {
+{% for dep in deps %}                            m_{{ dep.member }}_ops = {{ dep.member }}_ops;
+{% endfor %}                        }
+
+                        {{ class_name }}(const {{ class_name }}&) = delete;
+                        {{ class_name }}& operator=(const {{ class_name }}&) = delete;
 
                         static {{ class_name }}& from_handle(void* ctx) noexcept
                         {

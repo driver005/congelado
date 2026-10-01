@@ -1,8 +1,0 @@
-
-                );
-                if (!res) {
-                    res.error().to_c({{ status_name }});
-                    {{ error_return }}
-                }
-                {{ success_return }}
-            },

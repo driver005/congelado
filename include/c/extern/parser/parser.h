@@ -34,7 +34,8 @@ extern "C" {
 
     typedef struct TF_ParserOps {
         size_t struct_size;
-        void (*destroy)(TF_Parser* parser);
+        void (*create)(TF_Parser* out_handle);
+        void (*destroy)(TF_Parser* handle);
         void (*get_name)(TF_Parser* parser, TF_String* out_name);
     } TF_ParserOps;
     #define TF_PARSER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ParserOps, get_name)

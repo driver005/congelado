@@ -22,6 +22,8 @@ extern "C"
     typedef struct TF_DequeOps
     {
         size_t struct_size;
+        void (*create)(TF_Deque* out_handle);
+        void (*destroy)(TF_Deque* handle);
 
         void (*set_element_size)(TF_Deque* deque, size_t element_size);
 
@@ -43,11 +45,10 @@ extern "C"
         // Current element count.
         void (*size)(const TF_Deque* deque, size_t* out_size);
 
-        void (*destroy)(TF_Deque* deque);
 
     } TF_DequeOps;
 
-#define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DequeOps, destroy)
+#define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DequeOps, size)
 
     TF_CAPI_EXPORT void create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_deque(void* plugin_context);

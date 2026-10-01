@@ -20,9 +20,10 @@ extern "C"
     typedef struct TFPubSubChannelOps
     {
         size_t struct_size;
-        void (*destroy)(TFPubSubChannel* channel);
+        void (*create)(TFPubSubChannel* out_handle);
+        void (*destroy)(TFPubSubChannel* handle);
 
-        void (*create)(TFPubSubChannel* channel, const TF_String* name, const TF_Map* config, TF_Status* out_status);
+        void (*create_channel)(TFPubSubChannel* channel, const TF_String* name, const TF_Map* config, TF_Status* out_status);
         void (*drop)(TFPubSubChannel* channel, const TF_String* name, TF_Status* out_status);
         void (*get_config)(TFPubSubChannel* channel, const TF_String* name, TF_Map* out_config, TF_Status* out_status);
         void (*set_config)(TFPubSubChannel* channel, const TF_String* name, const TF_Map* config, TF_Status* out_status);

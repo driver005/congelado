@@ -27,7 +27,11 @@ congelado_module_library(
         "buffer.cppm",
         "hash.cppm",
         "bitset.cppm",
+        "runtime.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
+    deps = [
+        "//include/c:tf_c_headers",
+    ],
 )

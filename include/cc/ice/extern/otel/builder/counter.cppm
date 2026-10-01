@@ -6,19 +6,27 @@
 module;
 
 #include "include/c/extern/otel/counter.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_otel_builder:counter;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFOtelCounterOps
 {
 public:
-    TFOtelCounterOps() noexcept :
+    explicit TFOtelCounterOps(
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFOtelCounterOps(const TFOtelCounterOps&) = delete;
@@ -38,32 +46,46 @@ public:
     virtual ~TFOtelCounterOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> add(double value) noexcept = 0;
+    virtual void add(double value, const ice::sonic::Status& out_status) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFOtelCounter*)) noexcept
     {
         m_vtable = ::TFOtelCounterOps{
-            .struct_size = TF_TELCOUNTER_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFOtelCounterOps, add),
+
+            .create = create,
             .destroy =
-                [](TFOtelCounter* counter) noexcept
+                [](TFOtelCounter* handle) noexcept
             {
-                TFOtelCounterOps::from_handle(counter).destroy();
+                auto& self = TFOtelCounterOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TFOtelCounter* counter, TF_String* out_name) noexcept
             {
-                TFOtelCounterOps::from_handle(counter).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TFOtelCounterOps::from_handle(counter);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .add =
                 [](TFOtelCounter* counter, double value, TF_Status* out_status) noexcept
             {
-                auto res = TFOtelCounterOps::from_handle(counter).add(value);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFOtelCounterOps::from_handle(counter);
+                self.add(value, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFOtelCounterOps& get_vtable() const noexcept
@@ -71,15 +93,28 @@ public:
         return m_vtable;
     }
 
-    const TFOtelCounter& get_handle() const noexcept
+    const ::TFOtelCounter& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFOtelCounterOps*>(&m_vtable));
+    }
 
 private:
     ::TFOtelCounterOps m_vtable;
-    TFOtelCounter m_handle;
+    ::TFOtelCounter m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

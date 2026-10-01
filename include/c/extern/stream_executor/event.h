@@ -38,6 +38,8 @@ extern "C" {
     // TF_EventOps
     typedef struct TF_EventOps {
         size_t struct_size;
+        void (*create)(TF_Event* out_handle);
+        void (*destroy)(TF_Event* handle);
         void (*elapsed_time)(TF_Event* start, TF_Event* end, float* out_milliseconds, TF_Status* out_status);
         void (*export_ipc)(TF_Event* event, TF_IpcEventHandle* out_handle, TF_Status* out_status);
         void (*get_native_handle)(TF_Event* event, void** out_handle);

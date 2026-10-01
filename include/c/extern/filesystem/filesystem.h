@@ -44,7 +44,8 @@ extern "C"
     typedef struct TF_FilesystemOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Filesystem* filesystem);
+        void (*create)(TF_Filesystem* out_handle);
+        void (*destroy)(TF_Filesystem* handle);
         void (*get_name)(TF_Filesystem* filesystem, TF_String* out_name);
     } TF_FilesystemOps;
 

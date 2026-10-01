@@ -10,82 +10,96 @@ module;
 export module cc_ice_extern_store_sonic:transaction;
 
 import std;
-import cc_abi_sonic_registration;
+import :collection;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TFStoreTransactionOps :
-    public ice::sonic::Runtime<TFStoreTransactionOps, TFStoreTransactionOps>
+    public ice::sonic::Runtime<::TFStoreTransactionOps, ::TFStoreTransaction>
 {
 public:
-    explicit TFStoreTransactionOps(TFStoreTransactionOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFStoreTransactionOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "store";
+    template<typename Registry>
+    TFStoreTransactionOps(
+        Registry& registry,
+        ::TFStoreTransaction* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFStoreTransactionOps(const ::TFStoreTransactionOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFStoreTransactionOps(const ::TFStoreTransactionOps* ops, ::TFStoreTransaction* handle) noexcept
+        :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> begin() noexcept
+    void begin(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->begin(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->begin(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    add_collection(const ice::sonic::TFStoreCollectionOps& collection) noexcept
+    void add_collection(
+        const ice::sonic::TFStoreCollectionOps& collection,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->add_collection(get_handle(), collection.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->add_collection(get_handle(), collection.get_handle(), out_status.get_handle());
     }
 
     void get_collection(
         const ice::sonic::String& name,
         const ice::sonic::TFStoreCollectionOps& out_collection
-    ) noexcept
+    ) const noexcept
     {
         m_ops->get_collection(get_handle(), name.get_handle(), out_collection.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list_collections(TF_Tensor** out_collections) noexcept
+    void list_collections(
+        TF_Tensor** out_collections,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list_collections(get_handle(), out_collections, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list_collections(get_handle(), out_collections, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    commit(TFStoreAckFn completion, void* user_data) noexcept
+    void commit(
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->commit(get_handle(), completion, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->commit(get_handle(), completion, user_data, out_status.get_handle());
     }
 
-    void rollback() noexcept
+    void rollback() const noexcept
     {
         m_ops->rollback(get_handle());
     }

@@ -20,7 +20,8 @@ extern "C"
     typedef struct TFGeneratorModuleOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorModule* module);
+        void (*create)(TFGeneratorModule* out_handle);
+        void (*destroy)(TFGeneratorModule* handle);
         void (*get_name)(TFGeneratorModule* module, TF_String* out_name);
 
         void (*add_function)(

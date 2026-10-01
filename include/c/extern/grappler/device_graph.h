@@ -5,7 +5,7 @@
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/status.h"
 #include "include/c/extern/stream_executor/stream.h"
-#include "include/c/extern/memory/mem_pool.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
 #include "include/c/extern/random_generator/random_generator.h"
 
 #include <stddef.h>
@@ -28,6 +28,8 @@ extern "C" {
     // TFGrapplerDeviceGraphOps — created by TF_GrapplerOps::create_device_graph_internal. Replaces XPUGraph (command_graph modifiable/executable).
     typedef struct TFGrapplerDeviceGraphOps {
         size_t struct_size;
+        void (*create)(TFGrapplerDeviceGraph* out_handle);
+        void (*destroy)(TFGrapplerDeviceGraph* handle);
         void (*capture_begin)(TFGrapplerDeviceGraph* graph, TF_Stream* capture_stream, const TF_PoolId* pool_id, TF_CaptureMode mode, TF_Status* out_status);
         void (*capture_end)(TFGrapplerDeviceGraph* graph, TF_Status* out_status);
         void (*instantiate)(TFGrapplerDeviceGraph* graph, TF_Status* out_status);

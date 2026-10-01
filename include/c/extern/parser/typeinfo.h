@@ -14,6 +14,8 @@ extern "C" {
 
     typedef struct TFParserTypeInfoOps {
         size_t struct_size;
+        void (*create)(TFParserTypeInfo* out_handle);
+        void (*destroy)(TFParserTypeInfo* handle);
         void (*get_dtype)(TFParserTypeInfo* typeinfo, int* out_dtype, TF_Status* out_status);
         void (*get_shape)(TFParserTypeInfo* typeinfo, int64_t** out_dims, int* out_num_dims, TF_Status* out_status);
     } TFParserTypeInfoOps;

@@ -10,35 +10,65 @@ module;
 export module cc_ice_extern_store_sonic:query;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreQueryOps : public ice::sonic::Runtime<TFStoreQueryOps, TFStoreQueryOps>
+class TFStoreQueryOps : public ice::sonic::Runtime<::TFStoreQueryOps, ::TFStoreQuery>
 {
 public:
-    explicit TFStoreQueryOps(TFStoreQueryOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFStoreQueryOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "store";
+    template<typename Registry>
+    TFStoreQueryOps(
+        Registry& registry,
+        ::TFStoreQuery* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFStoreQueryOps(const ::TFStoreQueryOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFStoreQueryOps(const ::TFStoreQueryOps* ops, ::TFStoreQuery* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    run(const ice::sonic::TF_MapOps& filters,
+    void run(
+        const ice::sonic::TF_MapOps& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
         size_t offset,
         size_t limit,
         TFStoreQueryFn completion,
-        void* user_data) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->run(
             get_handle(),
             filters.get_handle(),
@@ -48,13 +78,8 @@ public:
             limit,
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

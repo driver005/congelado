@@ -10,13 +10,14 @@ module;
 export module cc_ice_extern_stream_executor_builder:timer;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_TimerOps
 {
 public:
-    TF_TimerOps() noexcept :
+    explicit TF_TimerOps() noexcept :
         m_handle{.plugin_data = this}
     {
     }
@@ -36,15 +37,26 @@ public:
     }
 
     virtual ~TF_TimerOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void nanoseconds(uint64_t* out_nanoseconds) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Timer*)) noexcept
     {
         m_vtable = ::TF_TimerOps{
-            .struct_size = TF_TIMER_STRUCT_SIZE,
-            .nanoseconds = [](TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
+            .struct_size = TF_OFFSET_OF_END(::TF_TimerOps, nanoseconds),
+
+            .create = create,
+            .destroy =
+                [](TF_Timer* handle) noexcept
             {
-                TF_TimerOps::from_handle(timer).nanoseconds(out_nanoseconds);
+                auto& self = TF_TimerOps::from_handle(handle);
+                self.destroy();
+            },
+            .nanoseconds =
+                [](TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
+            {
+                auto& self = TF_TimerOps::from_handle(timer);
+                self.nanoseconds(out_nanoseconds);
             },
 
         };
@@ -55,15 +67,24 @@ public:
         return m_vtable;
     }
 
-    const TF_Timer& get_handle() const noexcept
+    const ::TF_Timer& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_TimerOps*>(&m_vtable));
+    }
 
 private:
     ::TF_TimerOps m_vtable;
-    TF_Timer m_handle;
+    ::TF_Timer m_handle;
 };
 
 } // namespace ice::builder

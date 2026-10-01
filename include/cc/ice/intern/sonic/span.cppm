@@ -10,57 +10,83 @@ module;
 export module cc_ice_intern_sonic:span;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :status;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_SpanOps : public ice::sonic::Runtime<TF_SpanOps, TF_SpanOps>
+class TF_SpanOps : public ice::sonic::Runtime<::TF_SpanOps, ::TF_Span>
 {
 public:
-    explicit TF_SpanOps(TF_SpanOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_SpanOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get(size_t index, const void** out_value) noexcept
+    template<typename Registry>
+    TF_SpanOps(
+        Registry& registry,
+        ::TF_Span* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->get(get_handle(), index, out_value, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    void size(size_t* out_size) noexcept
+    explicit TF_SpanOps(const ::TF_SpanOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_SpanOps(const ::TF_SpanOps* ops, ::TF_Span* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get(
+        size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get(get_handle(), index, out_value, out_status.get_handle());
+    }
+
+    void size(size_t* out_size) const noexcept
     {
         m_ops->size(get_handle(), out_size);
     }
 
-    void data(void** out_data) noexcept
+    void data(void** out_data) const noexcept
     {
         m_ops->data(get_handle(), out_data);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    subspan(size_t offset, size_t count, const ice::sonic::TF_SpanOps& out_span) noexcept
+    void subspan(
+        size_t offset,
+        size_t count,
+        const ice::sonic::TF_SpanOps& out_span,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->subspan(get_handle(), offset, count, out_span.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
-    }
-
-    void destroy() noexcept
-    {
-        m_ops->destroy(get_handle());
+        m_ops->subspan(get_handle(), offset, count, out_span.get_handle(), out_status.get_handle());
     }
 };
 

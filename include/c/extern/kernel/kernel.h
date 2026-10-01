@@ -22,7 +22,8 @@ extern "C" {
 
     typedef struct TF_KernelOps {
         size_t struct_size;
-        void (*destroy)(TF_Kernel* kernel);
+        void (*create)(TF_Kernel* out_handle);
+        void (*destroy)(TF_Kernel* handle);
         void (*get_name)(TF_Kernel* kernel, TF_String* out_name);
     } TF_KernelOps;
 

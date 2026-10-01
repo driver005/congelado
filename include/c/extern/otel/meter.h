@@ -20,7 +20,8 @@ extern "C"
     typedef struct TFOtelMeterOps
     {
         size_t struct_size;
-        void (*destroy)(TFOtelMeter* meter);
+        void (*create)(TFOtelMeter* out_handle);
+        void (*destroy)(TFOtelMeter* handle);
         void (*get_name)(TFOtelMeter* meter, TF_String* out_name);
 
         void (*create_counter)(

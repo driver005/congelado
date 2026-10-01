@@ -10,28 +10,59 @@ module;
 export module cc_ice_intern_sonic:time_point;
 
 import std;
-import cc_abi_sonic_registration;
+import :duration;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_TimePointOps : public ice::sonic::Runtime<TF_TimePointOps, TF_TimePointOps>
+class TF_TimePointOps : public ice::sonic::Runtime<::TF_TimePointOps, ::TF_TimePoint>
 {
 public:
-    explicit TF_TimePointOps(TF_TimePointOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_TimePointOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
-
-    void get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) noexcept
+    template<typename Registry>
+    TF_TimePointOps(
+        Registry& registry,
+        ::TF_TimePoint* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        m_ops->get_duration_since_epoch(get_handle(), out_duration.get_handle());
     }
 
-    void destroy() noexcept
+    explicit TF_TimePointOps(const ::TF_TimePointOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_TimePointOps(const ::TF_TimePointOps* ops, ::TF_TimePoint* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
+    }
+
+    void get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) const noexcept
+    {
+        m_ops->get_duration_since_epoch(get_handle(), out_duration.get_handle());
     }
 };
 

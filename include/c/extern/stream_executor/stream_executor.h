@@ -34,7 +34,8 @@ extern "C" {
 
     typedef struct TF_StreamExecutorOps {
         size_t struct_size;
-        void (*destroy)(TF_StreamExecutor* facade);
+        void (*create)(TF_StreamExecutor* out_handle);
+        void (*destroy)(TF_StreamExecutor* handle);
         void (*get_name)(TF_StreamExecutor* facade, TF_String* out_name);
     } TF_StreamExecutorOps;
 

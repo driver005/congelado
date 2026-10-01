@@ -10,109 +10,110 @@ module;
 export module cc_ice_extern_jobber_sonic:schedule;
 
 import std;
-import cc_abi_sonic_registration;
+import :job;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ScheduleOps : public ice::sonic::Runtime<TF_ScheduleOps, TF_ScheduleOps>
+class TF_ScheduleOps : public ice::sonic::Runtime<::TF_ScheduleOps, ::TF_Schedule>
 {
 public:
-    explicit TF_ScheduleOps(TF_ScheduleOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_ScheduleOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_ScheduleOps(
+        Registry& registry,
+        ::TF_Schedule* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_ScheduleOps(const ::TF_ScheduleOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_ScheduleOps(const ::TF_ScheduleOps* ops, ::TF_Schedule* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> add_dependency(
+    void add_dependency(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_JobOps& depends_on
-    ) noexcept
+        const ice::sonic::TF_JobOps& depends_on,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->add_dependency(
             get_handle(),
             job.get_handle(),
             depends_on.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> list_dependencies(
+    void list_dependencies(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_job_ids
-    ) noexcept
+        const ice::sonic::TF_VectorOps& out_job_ids,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->list_dependencies(
             get_handle(),
             job.get_handle(),
             out_job_ids.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    pause(const ice::sonic::TF_JobOps& job) noexcept
+    void pause(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->pause(get_handle(), job.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->pause(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    resume(const ice::sonic::TF_JobOps& job) noexcept
+    void resume(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->resume(get_handle(), job.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->resume(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    cancel(const ice::sonic::TF_JobOps& job) noexcept
+    void cancel(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->cancel(get_handle(), job.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->cancel(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    stop(const ice::sonic::TF_JobOps& job) noexcept
+    void stop(const ice::sonic::TF_JobOps& job, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->stop(get_handle(), job.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->stop(get_handle(), job.get_handle(), out_status.get_handle());
     }
 };
 

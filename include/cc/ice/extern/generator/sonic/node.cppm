@@ -10,86 +10,105 @@ module;
 export module cc_ice_extern_generator_sonic:node;
 
 import std;
-import cc_abi_sonic_registration;
+import :definition;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorNodeOps : public ice::sonic::Runtime<TFGeneratorNodeOps, TFGeneratorNodeOps>
+class TFGeneratorNodeOps : public ice::sonic::Runtime<::TFGeneratorNodeOps, ::TFGeneratorNode>
 {
 public:
-    explicit TFGeneratorNodeOps(TFGeneratorNodeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGeneratorNodeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "generator";
+    template<typename Registry>
+    TFGeneratorNodeOps(
+        Registry& registry,
+        ::TFGeneratorNode* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFGeneratorNodeOps(const ::TFGeneratorNodeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGeneratorNodeOps(const ::TFGeneratorNodeOps* ops, ::TFGeneratorNode* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_operand(int index, const ice::sonic::String& var_name) noexcept
+    void set_operand(
+        int index,
+        const ice::sonic::String& var_name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_operand(get_handle(), index, var_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_operand(get_handle(), index, var_name.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_output_name(int index, const ice::sonic::String& var_name) noexcept
+    void set_output_name(
+        int index,
+        const ice::sonic::String& var_name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_output_name(get_handle(), index, var_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_output_name(get_handle(), index, var_name.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_attr(const ice::sonic::String& name, const void* value, size_t value_size) noexcept
+    void set_attr(
+        const ice::sonic::String& name,
+        const void* value,
+        size_t value_size,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_attr(get_handle(), name.get_handle(), value, value_size, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops
+            ->set_attr(get_handle(), name.get_handle(), value, value_size, out_status.get_handle());
     }
 
-    void get_operand(int index, const ice::sonic::String& out_operand) noexcept
+    void get_operand(int index, const ice::sonic::String& out_operand) const noexcept
     {
         m_ops->get_operand(get_handle(), index, out_operand.get_handle());
     }
 
-    void get_output_name(int index, const ice::sonic::String& out_output_name) noexcept
+    void get_output_name(int index, const ice::sonic::String& out_output_name) const noexcept
     {
         m_ops->get_output_name(get_handle(), index, out_output_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_definition(const ice::sonic::TFGeneratorDefinitionOps& out_definition) noexcept
+    void get_definition(
+        const ice::sonic::TFGeneratorDefinitionOps& out_definition,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_definition(get_handle(), out_definition.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_definition(get_handle(), out_definition.get_handle(), out_status.get_handle());
     }
 };
 

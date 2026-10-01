@@ -10,75 +10,88 @@ module;
 export module cc_ice_extern_pubsub_sonic:subscription;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TFPubSubSubscriptionOps :
-    public ice::sonic::Runtime<TFPubSubSubscriptionOps, TFPubSubSubscriptionOps>
+    public ice::sonic::Runtime<::TFPubSubSubscriptionOps, ::TFPubSubSubscription>
 {
 public:
-    explicit TFPubSubSubscriptionOps(TFPubSubSubscriptionOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFPubSubSubscriptionOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "pubsub";
+    template<typename Registry>
+    TFPubSubSubscriptionOps(
+        Registry& registry,
+        ::TFPubSubSubscription* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFPubSubSubscriptionOps(const ::TFPubSubSubscriptionOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFPubSubSubscriptionOps(
+        const ::TFPubSubSubscriptionOps* ops,
+        ::TFPubSubSubscription* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void unsubscribe() noexcept
+    void unsubscribe() const noexcept
     {
         m_ops->unsubscribe(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> ack() noexcept
+    void ack(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->ack(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->ack(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> nack() noexcept
+    void nack(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->nack(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->nack(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    seek(const ice::sonic::String& position) noexcept
+    void seek(
+        const ice::sonic::String& position,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->seek(get_handle(), position.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->seek(get_handle(), position.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_lag(TFPubSubIntFn completion, void* user_data) noexcept
+    void get_lag(
+        TFPubSubIntFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_lag(get_handle(), completion, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_lag(get_handle(), completion, user_data, out_status.get_handle());
     }
 };
 

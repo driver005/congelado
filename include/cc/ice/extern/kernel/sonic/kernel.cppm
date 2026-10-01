@@ -10,26 +10,55 @@ module;
 export module cc_ice_extern_kernel_sonic:kernel;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_KernelOps : public ice::sonic::Runtime<TF_KernelOps, TF_KernelOps>
+class TF_KernelOps : public ice::sonic::Runtime<::TF_KernelOps, ::TF_Kernel>
 {
 public:
-    explicit TF_KernelOps(TF_KernelOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_KernelOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "kernel";
+    template<typename Registry>
+    TF_KernelOps(
+        Registry& registry,
+        ::TF_Kernel* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_KernelOps(const ::TF_KernelOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_KernelOps(const ::TF_KernelOps* ops, ::TF_Kernel* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }

@@ -5,20 +5,32 @@
 
 module;
 
+#include "include/c/extern/store/collection.h"
 #include "include/c/extern/store/transaction.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_store_builder:transaction;
 
 import std;
+import cc_ice_extern_store_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFStoreTransactionOps
 {
 public:
-    TFStoreTransactionOps() noexcept :
+    explicit TFStoreTransactionOps(
+        const ::TFStoreCollectionOps* TFStoreCollectionOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TFStoreCollectionOps_ops = TFStoreCollectionOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFStoreTransactionOps(const TFStoreTransactionOps&) = delete;
@@ -37,68 +49,79 @@ public:
 
     virtual ~TFStoreTransactionOps() = default;
     virtual void destroy() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> begin() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    add_collection(const ice::sonic::TFStoreCollectionOps& collection) noexcept = 0;
+    virtual void begin(const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void add_collection(
+        const ice::sonic::TFStoreCollectionOps& collection,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_collection(
         const ice::sonic::String& name,
         const ice::sonic::TFStoreCollectionOps& out_collection
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    list_collections(TF_Tensor** out_collections) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    commit(TFStoreAckFn completion, void* user_data) noexcept = 0;
+    virtual void list_collections(
+        TF_Tensor** out_collections,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void commit(
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void rollback() noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFStoreTransaction*)) noexcept
     {
         m_vtable = ::TFStoreTransactionOps{
-            .struct_size = TF_TORETRANSACTION_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFStoreTransactionOps, rollback),
+
+            .create = create,
             .destroy =
-                [](TFStoreTransaction* transaction) noexcept
+                [](TFStoreTransaction* handle) noexcept
             {
-                TFStoreTransactionOps::from_handle(transaction).destroy();
+                auto& self = TFStoreTransactionOps::from_handle(handle);
+                self.destroy();
             },
             .begin =
                 [](TFStoreTransaction* transaction, TF_Status* out_status) noexcept
             {
-                auto res = TFStoreTransactionOps::from_handle(transaction).begin();
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.begin(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .add_collection =
                 [](TFStoreTransaction* transaction,
                    TFStoreCollection* collection,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreTransactionOps::from_handle(transaction)
-                               .add_collection(ice::sonic::TFStoreCollectionOps::wrap(collection));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.add_collection(
+                    self.wrap(std::type_identity<ice::sonic::TFStoreCollectionOps>{}, collection),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_collection =
                 [](TFStoreTransaction* transaction,
                    const TF_String* name,
                    TFStoreCollection* out_collection) noexcept
             {
-                TFStoreTransactionOps::from_handle(transaction)
-                    .get_collection(
-                        ice::sonic::String::wrap(name),
-                        ice::sonic::TFStoreCollectionOps::wrap(out_collection)
-                    );
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.get_collection(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(
+                        std::type_identity<ice::sonic::TFStoreCollectionOps>{},
+                        out_collection
+                    )
+                );
             },
             .list_collections =
                 [](TFStoreTransaction* transaction,
                    TF_Tensor** out_collections,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreTransactionOps::from_handle(transaction)
-                               .list_collections(out_collections);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.list_collections(
+                    out_collections,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .commit =
                 [](TFStoreTransaction* transaction,
@@ -106,19 +129,44 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreTransactionOps::from_handle(transaction).commit(completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.commit(
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .rollback =
                 [](TFStoreTransaction* transaction) noexcept
             {
-                TFStoreTransactionOps::from_handle(transaction).rollback();
+                auto& self = TFStoreTransactionOps::from_handle(transaction);
+                self.rollback();
             },
 
         };
+    }
+
+    ice::sonic::TFStoreCollectionOps wrap(
+        std::type_identity<ice::sonic::TFStoreCollectionOps>,
+        const ::TFStoreCollection* handle
+    ) const noexcept
+    {
+        return ice::sonic::TFStoreCollectionOps{
+            m_TFStoreCollectionOps_ops,
+            const_cast<::TFStoreCollection*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFStoreTransactionOps& get_vtable() const noexcept
@@ -126,15 +174,30 @@ public:
         return m_vtable;
     }
 
-    const TFStoreTransaction& get_handle() const noexcept
+    const ::TFStoreTransaction& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFStoreTransactionOps*>(&m_vtable));
+    }
 
 private:
     ::TFStoreTransactionOps m_vtable;
-    TFStoreTransaction m_handle;
+    ::TFStoreTransaction m_handle;
+
+    const ::TFStoreCollectionOps* m_TFStoreCollectionOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

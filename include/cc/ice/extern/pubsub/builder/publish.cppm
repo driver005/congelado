@@ -6,19 +6,30 @@
 module;
 
 #include "include/c/extern/pubsub/publish.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/intern/vector.h"
 
 export module cc_ice_extern_pubsub_builder:publish;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFPubSubPublishOps
 {
 public:
-    TFPubSubPublishOps() noexcept :
+    explicit TFPubSubPublishOps(
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops,
+        const ::TF_VectorOps* TF_VectorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
+        m_TF_VectorOps_ops = TF_VectorOps_ops;
     }
 
     TFPubSubPublishOps(const TFPubSubPublishOps&) = delete;
@@ -37,33 +48,42 @@ public:
 
     virtual ~TFPubSubPublishOps() = default;
     virtual void destroy() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> publish(
+    virtual void publish(
         const ice::sonic::String& channel,
         const ice::sonic::String& payload,
-        int retain
+        int retain,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> publish_batch(
+    virtual void publish_batch(
         const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    flush(TFPubSubAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> get_retained(
+    virtual void flush(
+        TFPubSubAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void get_retained(
         const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFPubSubPublish*)) noexcept
     {
         m_vtable = ::TFPubSubPublishOps{
-            .struct_size = TF_UBSUBPUBLISH_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFPubSubPublishOps, get_retained),
+
+            .create = create,
             .destroy =
-                [](TFPubSubPublish* publish) noexcept
+                [](TFPubSubPublish* handle) noexcept
             {
-                TFPubSubPublishOps::from_handle(publish).destroy();
+                auto& self = TFPubSubPublishOps::from_handle(handle);
+                self.destroy();
             },
             .publish =
                 [](TFPubSubPublish* publish,
@@ -72,14 +92,13 @@ public:
                    int retain,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubPublishOps::from_handle(publish).publish(
-                    ice::sonic::String::wrap(channel),
-                    ice::sonic::String::wrap(payload),
-                    retain
+                auto& self = TFPubSubPublishOps::from_handle(publish);
+                self.publish(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, channel),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, payload),
+                    retain,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .publish_batch =
                 [](TFPubSubPublish* publish,
@@ -89,15 +108,14 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubPublishOps::from_handle(publish).publish_batch(
-                    ice::sonic::String::wrap(channel),
-                    ice::sonic::TF_VectorOps::wrap(payloads),
+                auto& self = TFPubSubPublishOps::from_handle(publish);
+                self.publish_batch(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, channel),
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, payloads),
                     completion,
-                    user_data
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .flush =
                 [](TFPubSubPublish* publish,
@@ -105,10 +123,12 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubPublishOps::from_handle(publish).flush(completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFPubSubPublishOps::from_handle(publish);
+                self.flush(
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_retained =
                 [](TFPubSubPublish* publish,
@@ -117,17 +137,34 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFPubSubPublishOps::from_handle(publish).get_retained(
-                    ice::sonic::String::wrap(channel),
+                auto& self = TFPubSubPublishOps::from_handle(publish);
+                self.get_retained(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, channel),
                     completion,
-                    user_data
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+    }
+
+    ice::sonic::TF_VectorOps
+    wrap(std::type_identity<ice::sonic::TF_VectorOps>, const ::TF_Vector* handle) const noexcept
+    {
+        return ice::sonic::TF_VectorOps{m_TF_VectorOps_ops, const_cast<::TF_Vector*>(handle)};
     }
 
     const ::TFPubSubPublishOps& get_vtable() const noexcept
@@ -135,15 +172,30 @@ public:
         return m_vtable;
     }
 
-    const TFPubSubPublish& get_handle() const noexcept
+    const ::TFPubSubPublish& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFPubSubPublishOps*>(&m_vtable));
+    }
 
 private:
     ::TFPubSubPublishOps m_vtable;
-    TFPubSubPublish m_handle;
+    ::TFPubSubPublish m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
+
+    const ::TF_VectorOps* m_TF_VectorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

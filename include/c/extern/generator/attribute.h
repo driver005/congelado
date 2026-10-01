@@ -20,7 +20,8 @@ extern "C"
     typedef struct TFGeneratorAttributeOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorAttribute* attr_context);
+        void (*create)(TFGeneratorAttribute* out_handle);
+        void (*destroy)(TFGeneratorAttribute* handle);
         void (*get_name)(TFGeneratorAttribute* attr_context, TF_String* out_name);
 
         void (*set_name)(TFGeneratorAttribute* attr_context, const TF_String* name);

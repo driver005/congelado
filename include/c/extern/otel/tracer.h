@@ -19,7 +19,8 @@ extern "C"
     typedef struct TFOtelTracerOps
     {
         size_t struct_size;
-        void (*destroy)(TFOtelTracer* tracer);
+        void (*create)(TFOtelTracer* out_handle);
+        void (*destroy)(TFOtelTracer* handle);
         void (*get_name)(TFOtelTracer* tracer, TF_String* out_name);
 
         void (*start_span)(

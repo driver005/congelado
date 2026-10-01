@@ -20,6 +20,8 @@ extern "C"
     typedef struct TF_HashOps
     {
         size_t struct_size;
+        void (*create)(TF_Hash* out_handle);
+        void (*destroy)(TF_Hash* handle);
 
         void (*get_name)(TF_Hash* hash, TF_String* out_name);
 

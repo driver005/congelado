@@ -6,19 +6,31 @@
 module;
 
 #include "include/c/extern/parser/block.h"
+#include "include/c/extern/parser/node.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_parser_builder:block;
 
 import std;
+import cc_ice_extern_parser_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFParserBlockOps
 {
 public:
-    TFParserBlockOps() noexcept :
+    explicit TFParserBlockOps(
+        const ::TFParserNodeOps* TFParserNodeOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TFParserNodeOps_ops = TFParserNodeOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFParserBlockOps(const TFParserBlockOps&) = delete;
@@ -36,34 +48,45 @@ public:
     }
 
     virtual ~TFParserBlockOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_node_count(int* out_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_node(int index, const ice::sonic::TFParserNodeOps& out_node) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void
+    get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_node_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_node(
+        int index,
+        const ice::sonic::TFParserNodeOps& out_node,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFParserBlock*)) noexcept
     {
         m_vtable = ::TFParserBlockOps{
-            .struct_size = TF_ARSERBLOCK_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFParserBlockOps, get_node),
+
+            .create = create,
+            .destroy =
+                [](TFParserBlock* handle) noexcept
+            {
+                auto& self = TFParserBlockOps::from_handle(handle);
+                self.destroy();
+            },
             .get_name =
                 [](TFParserBlock* block, TF_String* out_name, TF_Status* out_status) noexcept
             {
-                auto res = TFParserBlockOps::from_handle(block).get_name(
-                    ice::sonic::String::wrap(out_name)
+                auto& self = TFParserBlockOps::from_handle(block);
+                self.get_name(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_name),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .get_node_count =
                 [](TFParserBlock* block, int* out_count, TF_Status* out_status) noexcept
             {
-                auto res = TFParserBlockOps::from_handle(block).get_node_count(out_count);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFParserBlockOps::from_handle(block);
+                self.get_node_count(
+                    out_count,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_node =
                 [](TFParserBlock* block,
@@ -71,16 +94,38 @@ public:
                    TFParserNode* out_node,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFParserBlockOps::from_handle(block).get_node(
+                auto& self = TFParserBlockOps::from_handle(block);
+                self.get_node(
                     index,
-                    ice::sonic::TFParserNodeOps::wrap(out_node)
+                    self.wrap(std::type_identity<ice::sonic::TFParserNodeOps>{}, out_node),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TFParserNodeOps wrap(
+        std::type_identity<ice::sonic::TFParserNodeOps>,
+        const ::TFParserNode* handle
+    ) const noexcept
+    {
+        return ice::sonic::TFParserNodeOps{
+            m_TFParserNodeOps_ops,
+            const_cast<::TFParserNode*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFParserBlockOps& get_vtable() const noexcept
@@ -88,15 +133,30 @@ public:
         return m_vtable;
     }
 
-    const TFParserBlock& get_handle() const noexcept
+    const ::TFParserBlock& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFParserBlockOps*>(&m_vtable));
+    }
 
 private:
     ::TFParserBlockOps m_vtable;
-    TFParserBlock m_handle;
+    ::TFParserBlock m_handle;
+
+    const ::TFParserNodeOps* m_TFParserNodeOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -1,5 +1,4 @@
 
-            ) noexcept
+            ) const noexcept
             {
-                {{ status_type }} status;
-                {{ result_prefix }}m_ops->{{ method_name }}(get_handle(),
+                m_ops->{{ method_name }}(get_handle()

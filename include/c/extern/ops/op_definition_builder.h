@@ -20,6 +20,8 @@ extern "C" {
     // TF_OpDefinitionBuilderOps
     typedef struct TF_OpDefinitionBuilderOps {
         size_t struct_size;
+        void (*create)(TF_OpDefinitionBuilder* out_handle);
+        void (*destroy)(TF_OpDefinitionBuilder* handle);
         void (*add_attr)(TF_OpDefinitionBuilder* builder, const TF_String* attr_spec);
         void (*add_input)(TF_OpDefinitionBuilder* builder, const TF_String* input_spec);
         void (*add_output)(TF_OpDefinitionBuilder* builder, const TF_String* output_spec);

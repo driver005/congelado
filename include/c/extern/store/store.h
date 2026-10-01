@@ -31,8 +31,9 @@ extern "C"
     typedef struct TF_StoreOps
     {
         size_t struct_size;
+        void (*create)(TF_Store* out_handle);
+        void (*destroy)(TF_Store* handle);
 
-        void (*destroy)(TF_Store* store);
         void (*get_name)(TF_Store* store, TF_String* out_name);
 
     } TF_StoreOps;

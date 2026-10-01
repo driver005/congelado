@@ -31,7 +31,8 @@ extern "C"
     typedef struct TF_JobberOps
     {
         size_t struct_size;
-        void (*destroy)(TF_Jobber* jobber);
+        void (*create)(TF_Jobber* out_handle);
+        void (*destroy)(TF_Jobber* handle);
         void (*get_name)(TF_Jobber* jobber, TF_String* out_name);
     } TF_JobberOps;
 

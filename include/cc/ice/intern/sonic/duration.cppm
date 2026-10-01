@@ -10,38 +10,68 @@ module;
 export module cc_ice_intern_sonic:duration;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_DurationOps : public ice::sonic::Runtime<TF_DurationOps, TF_DurationOps>
+class TF_DurationOps : public ice::sonic::Runtime<::TF_DurationOps, ::TF_Duration>
 {
 public:
-    explicit TF_DurationOps(TF_DurationOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_DurationOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_DurationOps(
+        Registry& registry,
+        ::TF_Duration* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_ticks(int64_t* out_ticks) noexcept
+    explicit TF_DurationOps(const ::TF_DurationOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_DurationOps(const ::TF_DurationOps* ops, ::TF_Duration* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_ticks(int64_t* out_ticks) const noexcept
     {
         m_ops->get_ticks(get_handle(), out_ticks);
     }
 
-    void get_ratio_num(int64_t* out_num) noexcept
+    void get_ratio_num(int64_t* out_num) const noexcept
     {
         m_ops->get_ratio_num(get_handle(), out_num);
     }
 
-    void get_ratio_den(int64_t* out_den) noexcept
+    void get_ratio_den(int64_t* out_den) const noexcept
     {
         m_ops->get_ratio_den(get_handle(), out_den);
-    }
-
-    void destroy() noexcept
-    {
-        m_ops->destroy(get_handle());
     }
 };
 

@@ -22,6 +22,8 @@ extern "C" {
     // TF_StreamOps
     typedef struct TF_StreamOps {
         size_t struct_size;
+        void (*create)(TF_Stream* out_handle);
+        void (*destroy)(TF_Stream* handle);
         void (*get_priority)(TF_Stream* stream, int32_t* out_priority);
         void (*get_device_index)(TF_Stream* stream, int* out_device_index);
         void (*query)(TF_Stream* stream, bool* out_idle, TF_Status* out_status);

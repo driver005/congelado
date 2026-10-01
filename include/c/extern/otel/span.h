@@ -18,7 +18,8 @@ extern "C"
     typedef struct TFOtelSpanOps
     {
         size_t struct_size;
-        void (*destroy)(TFOtelSpan* span);
+        void (*create)(TFOtelSpan* out_handle);
+        void (*destroy)(TFOtelSpan* handle);
         void (*get_name)(TFOtelSpan* span, TF_String* out_name);
 
         void (*set_attribute)(

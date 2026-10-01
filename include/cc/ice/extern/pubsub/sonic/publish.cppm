@@ -10,100 +10,111 @@ module;
 export module cc_ice_extern_pubsub_sonic:publish;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFPubSubPublishOps : public ice::sonic::Runtime<TFPubSubPublishOps, TFPubSubPublishOps>
+class TFPubSubPublishOps : public ice::sonic::Runtime<::TFPubSubPublishOps, ::TFPubSubPublish>
 {
 public:
-    explicit TFPubSubPublishOps(TFPubSubPublishOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFPubSubPublishOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "pubsub";
+    template<typename Registry>
+    TFPubSubPublishOps(
+        Registry& registry,
+        ::TFPubSubPublish* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFPubSubPublishOps(const ::TFPubSubPublishOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFPubSubPublishOps(const ::TFPubSubPublishOps* ops, ::TFPubSubPublish* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> publish(
+    void publish(
         const ice::sonic::String& channel,
         const ice::sonic::String& payload,
-        int retain
-    ) noexcept
+        int retain,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->publish(
             get_handle(),
             channel.get_handle(),
             payload.get_handle(),
             retain,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> publish_batch(
+    void publish_batch(
         const ice::sonic::String& channel,
         const ice::sonic::TF_VectorOps& payloads,
         TFPubSubAckFn completion,
-        void* user_data
-    ) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->publish_batch(
             get_handle(),
             channel.get_handle(),
             payloads.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    flush(TFPubSubAckFn completion, void* user_data) noexcept
+    void flush(
+        TFPubSubAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->flush(get_handle(), completion, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->flush(get_handle(), completion, user_data, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_retained(
+    void get_retained(
         const ice::sonic::String& channel,
         TFPubSubRetainedFn completion,
-        void* user_data
-    ) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_retained(
             get_handle(),
             channel.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

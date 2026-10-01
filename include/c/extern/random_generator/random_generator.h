@@ -29,6 +29,8 @@ extern "C" {
     // TF_RandomGeneratorOps — created by TF_ExecutorOps::create_random_generator_internal. Replaces XPUGeneratorImpl. Not to be confused with TF_Generator (code-gen catalog).
     typedef struct TF_RandomGeneratorOps {
         size_t struct_size;
+        void (*create)(TF_RandomGenerator* out_handle);
+        void (*destroy)(TF_RandomGenerator* handle);
         void (*set_seed)(TF_RandomGenerator* generator, uint64_t seed);
         void (*get_seed)(TF_RandomGenerator* generator, uint64_t* out_seed);
         void (*reseed_nondeterministic)(TF_RandomGenerator* generator, uint64_t* out_seed);

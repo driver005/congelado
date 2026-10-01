@@ -20,8 +20,9 @@ extern "C"
     typedef struct TFStoreIndexOps
     {
         size_t struct_size;
-        void (*destroy)(TFStoreIndex* index);
-        void (*create)(TFStoreIndex* index, const TF_String* name, const TF_Map* field_config, TF_Status* out_status);
+        void (*create)(TFStoreIndex* out_handle);
+        void (*destroy)(TFStoreIndex* handle);
+        void (*create_index)(TFStoreIndex* index, const TF_String* name, const TF_Map* field_config, TF_Status* out_status);
         void (*drop)(TFStoreIndex* index, const TF_String* name, TF_Status* out_status);
         void (*list)(TFStoreIndex* index, TF_Vector* out_names, TF_Status* out_status);
     } TFStoreIndexOps;

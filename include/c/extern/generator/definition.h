@@ -21,7 +21,8 @@ extern "C"
     typedef struct TFGeneratorDefinitionOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorDefinition* def_context);
+        void (*create)(TFGeneratorDefinition* out_handle);
+        void (*destroy)(TFGeneratorDefinition* handle);
         void (*get_name)(TFGeneratorDefinition* def_context, TF_String* out_name);
 
         void (*set_name)(TFGeneratorDefinition* def_context, const TF_String* name);

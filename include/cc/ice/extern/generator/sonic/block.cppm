@@ -10,73 +10,90 @@ module;
 export module cc_ice_extern_generator_sonic:block;
 
 import std;
-import cc_abi_sonic_registration;
+import :definition;
+import :node;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorBlockOps : public ice::sonic::Runtime<TFGeneratorBlockOps, TFGeneratorBlockOps>
+class TFGeneratorBlockOps : public ice::sonic::Runtime<::TFGeneratorBlockOps, ::TFGeneratorBlock>
 {
 public:
-    explicit TFGeneratorBlockOps(TFGeneratorBlockOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGeneratorBlockOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "generator";
+    template<typename Registry>
+    TFGeneratorBlockOps(
+        Registry& registry,
+        ::TFGeneratorBlock* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFGeneratorBlockOps(const ::TFGeneratorBlockOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGeneratorBlockOps(const ::TFGeneratorBlockOps* ops, ::TFGeneratorBlock* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> add_node(
+    void add_node(
         const ice::sonic::TFGeneratorDefinitionOps& definition,
-        const ice::sonic::TFGeneratorNodeOps& out_node
-    ) noexcept
+        const ice::sonic::TFGeneratorNodeOps& out_node,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->add_node(
             get_handle(),
             definition.get_handle(),
             out_node.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_node(int index, const ice::sonic::TFGeneratorNodeOps& out_node) noexcept
+    void get_node(
+        int index,
+        const ice::sonic::TFGeneratorNodeOps& out_node,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_node(get_handle(), index, out_node.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_node(get_handle(), index, out_node.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> list_nodes(TF_Tensor** out_nodes) noexcept
+    void list_nodes(TF_Tensor** out_nodes, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list_nodes(get_handle(), out_nodes, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list_nodes(get_handle(), out_nodes, out_status.get_handle());
     }
 
-    void set_name(const ice::sonic::String& name) noexcept
+    void set_name(const ice::sonic::String& name) const noexcept
     {
         m_ops->set_name(get_handle(), name.get_handle());
     }

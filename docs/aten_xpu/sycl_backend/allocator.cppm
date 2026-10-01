@@ -9,7 +9,7 @@
 
 module;
 
-#include "include/c/extern/memory/allocator.h"
+#include "include/c/extern/stream_executor/allocator.h"
 
 export module sycl_backend:allocator;
 

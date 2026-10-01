@@ -6,19 +6,33 @@
 module;
 
 #include "include/c/extern/store/collection.h"
+#include "include/c/intern/map.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/intern/vector.h"
 
 export module cc_ice_extern_store_builder:collection;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFStoreCollectionOps
 {
 public:
-    TFStoreCollectionOps() noexcept :
+    explicit TFStoreCollectionOps(
+        const ::TF_MapOps* TF_MapOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops,
+        const ::TF_VectorOps* TF_VectorOps_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
+        m_TF_VectorOps_ops = TF_VectorOps_ops;
     }
 
     TFStoreCollectionOps(const TFStoreCollectionOps&) = delete;
@@ -38,115 +52,150 @@ public:
     virtual ~TFStoreCollectionOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void close() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    list(const ice::sonic::TF_VectorOps& out_names) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    drop(const ice::sonic::String& name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_stats(const ice::sonic::TF_MapOps& out_stats) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    virtual void list(
+        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
+    drop(const ice::sonic::String& name, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_stats(
+        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void
     get(const ice::sonic::String& key,
         TFStoreGetCompletionFn completion,
-        void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_get(
+        void* user_data,
+        const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void multi_get(
         const ice::sonic::TF_VectorOps& keys,
         TFStoreMultiGetCompletionFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
+    virtual void
     set(const ice::sonic::String& key,
         const ice::sonic::String& value,
         int64_t ttl_seconds,
         TFStoreSetCompletionFn completion,
-        void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_set(
+        void* user_data,
+        const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void multi_set(
         const ice::sonic::TF_MapOps& entries,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    erase(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> multi_erase(
+    virtual void erase(
+        const ice::sonic::String& key,
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void multi_erase(
         const ice::sonic::TF_VectorOps& keys,
         TFStoreAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    exists(const ice::sonic::String& key, TFStoreExistsFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> rename(
+    virtual void exists(
+        const ice::sonic::String& key,
+        TFStoreExistsFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void rename(
         const ice::sonic::String& old_key,
         const ice::sonic::String& new_key,
         TFStoreAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    clear(TFStoreAckFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> increment(
+    virtual void clear(
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void increment(
         const ice::sonic::String& key,
         int64_t delta,
         TFStoreIntFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> compare_and_swap(
+    virtual void compare_and_swap(
         const ice::sonic::String& key,
         const ice::sonic::String& expected_value,
         const ice::sonic::String& new_value,
         TFStoreBoolFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> expire(
+    virtual void expire(
         const ice::sonic::String& key,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_ttl(const ice::sonic::String& key, TFStoreIntFn completion, void* user_data) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    persist(const ice::sonic::String& key, TFStoreAckFn completion, void* user_data) noexcept = 0;
+    virtual void get_ttl(
+        const ice::sonic::String& key,
+        TFStoreIntFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void persist(
+        const ice::sonic::String& key,
+        TFStoreAckFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFStoreCollection*)) noexcept
     {
         m_vtable = ::TFStoreCollectionOps{
-            .struct_size = TF_TORECOLLECTION_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFStoreCollectionOps, persist),
+
+            .create = create,
             .destroy =
-                [](TFStoreCollection* collection) noexcept
+                [](TFStoreCollection* handle) noexcept
             {
-                TFStoreCollectionOps::from_handle(collection).destroy();
+                auto& self = TFStoreCollectionOps::from_handle(handle);
+                self.destroy();
             },
             .close =
                 [](TFStoreCollection* collection) noexcept
             {
-                TFStoreCollectionOps::from_handle(collection).close();
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.close();
             },
             .list =
                 [](TFStoreCollection* store, TF_Vector* out_names, TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(store).list(
-                    ice::sonic::TF_VectorOps::wrap(out_names)
+                auto& self = TFStoreCollectionOps::from_handle(store);
+                self.list(
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, out_names),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .drop =
                 [](TFStoreCollection* store, const TF_String* name, TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(store).drop(ice::sonic::String::wrap(name));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(store);
+                self.drop(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_stats =
                 [](TFStoreCollection* collection, TF_Map* out_stats, TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .get_stats(ice::sonic::TF_MapOps::wrap(out_stats));
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.get_stats(
+                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, out_stats),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get =
                 [](TFStoreCollection* collection,
@@ -155,11 +204,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .get(ice::sonic::String::wrap(key), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.get(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .multi_get =
                 [](TFStoreCollection* collection,
@@ -168,12 +219,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(collection)
-                        .multi_get(ice::sonic::TF_VectorOps::wrap(keys), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.multi_get(
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, keys),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set =
                 [](TFStoreCollection* collection,
@@ -184,17 +236,15 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .set(
-                                   ice::sonic::String::wrap(key),
-                                   ice::sonic::String::wrap(value),
-                                   ttl_seconds,
-                                   completion,
-                                   user_data
-                               );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.set(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, value),
+                    ttl_seconds,
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .multi_set =
                 [](TFStoreCollection* collection,
@@ -204,16 +254,14 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .multi_set(
-                                   ice::sonic::TF_MapOps::wrap(entries),
-                                   ttl_seconds,
-                                   completion,
-                                   user_data
-                               );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.multi_set(
+                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, entries),
+                    ttl_seconds,
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .erase =
                 [](TFStoreCollection* collection,
@@ -222,11 +270,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .erase(ice::sonic::String::wrap(key), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.erase(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .multi_erase =
                 [](TFStoreCollection* collection,
@@ -235,12 +285,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(collection)
-                        .multi_erase(ice::sonic::TF_VectorOps::wrap(keys), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.multi_erase(
+                    self.wrap(std::type_identity<ice::sonic::TF_VectorOps>{}, keys),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .exists =
                 [](TFStoreCollection* collection,
@@ -249,11 +300,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .exists(ice::sonic::String::wrap(key), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.exists(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .rename =
                 [](TFStoreCollection* collection,
@@ -263,16 +316,14 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .rename(
-                                   ice::sonic::String::wrap(old_key),
-                                   ice::sonic::String::wrap(new_key),
-                                   completion,
-                                   user_data
-                               );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.rename(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, old_key),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, new_key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .clear =
                 [](TFStoreCollection* collection,
@@ -280,11 +331,12 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(collection).clear(completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.clear(
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .increment =
                 [](TFStoreCollection* collection,
@@ -294,12 +346,14 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(collection)
-                        .increment(ice::sonic::String::wrap(key), delta, completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.increment(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    delta,
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .compare_and_swap =
                 [](TFStoreCollection* collection,
@@ -310,17 +364,15 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .compare_and_swap(
-                                   ice::sonic::String::wrap(key),
-                                   ice::sonic::String::wrap(expected_value),
-                                   ice::sonic::String::wrap(new_value),
-                                   completion,
-                                   user_data
-                               );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.compare_and_swap(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, expected_value),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, new_value),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .expire =
                 [](TFStoreCollection* collection,
@@ -330,12 +382,14 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res =
-                    TFStoreCollectionOps::from_handle(collection)
-                        .expire(ice::sonic::String::wrap(key), ttl_seconds, completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.expire(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    ttl_seconds,
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_ttl =
                 [](TFStoreCollection* collection,
@@ -344,11 +398,13 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .get_ttl(ice::sonic::String::wrap(key), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.get_ttl(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .persist =
                 [](TFStoreCollection* collection,
@@ -357,14 +413,40 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFStoreCollectionOps::from_handle(collection)
-                               .persist(ice::sonic::String::wrap(key), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TFStoreCollectionOps::from_handle(collection);
+                self.persist(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, key),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
 
         };
+    }
+
+    ice::sonic::TF_MapOps
+    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    {
+        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+    }
+
+    ice::sonic::TF_VectorOps
+    wrap(std::type_identity<ice::sonic::TF_VectorOps>, const ::TF_Vector* handle) const noexcept
+    {
+        return ice::sonic::TF_VectorOps{m_TF_VectorOps_ops, const_cast<::TF_Vector*>(handle)};
     }
 
     const ::TFStoreCollectionOps& get_vtable() const noexcept
@@ -372,15 +454,32 @@ public:
         return m_vtable;
     }
 
-    const TFStoreCollection& get_handle() const noexcept
+    const ::TFStoreCollection& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFStoreCollectionOps*>(&m_vtable));
+    }
 
 private:
     ::TFStoreCollectionOps m_vtable;
-    TFStoreCollection m_handle;
+    ::TFStoreCollection m_handle;
+
+    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
+
+    const ::TF_VectorOps* m_TF_VectorOps_ops{nullptr};
 };
 
 } // namespace ice::builder

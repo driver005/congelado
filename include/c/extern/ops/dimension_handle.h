@@ -17,6 +17,8 @@ extern "C" {
     // TF_DimensionHandleOps
     typedef struct TF_DimensionHandleOps {
         size_t struct_size;
+        void (*create)(TF_DimensionHandle* out_handle);
+        void (*destroy)(TF_DimensionHandle* handle);
         void (*value_known)(TF_DimensionHandle* dim_handle, int* out_known);
         void (*value)(TF_DimensionHandle* dim_handle, int64_t* out_value);
     } TF_DimensionHandleOps;

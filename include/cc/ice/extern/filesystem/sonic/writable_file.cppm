@@ -10,84 +10,85 @@ module;
 export module cc_ice_extern_filesystem_sonic:writable_file;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_WritableFileOps : public ice::sonic::Runtime<TF_WritableFileOps, TF_WritableFileOps>
+class TF_WritableFileOps : public ice::sonic::Runtime<::TF_WritableFileOps, ::TF_WritableFile>
 {
 public:
-    explicit TF_WritableFileOps(TF_WritableFileOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_WritableFileOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "filesystem";
+    template<typename Registry>
+    TF_WritableFileOps(
+        Registry& registry,
+        ::TF_WritableFile* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_WritableFileOps(const ::TF_WritableFileOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_WritableFileOps(const ::TF_WritableFileOps* ops, ::TF_WritableFile* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    append(const ice::sonic::String& buffer) noexcept
+    void append(
+        const ice::sonic::String& buffer,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->append(get_handle(), buffer.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->append(get_handle(), buffer.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> tell(int64_t* out_position) noexcept
+    void tell(int64_t* out_position, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->tell(get_handle(), out_position, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->tell(get_handle(), out_position, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> flush() noexcept
+    void flush(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->flush(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->flush(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> sync() noexcept
+    void sync(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->sync(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->sync(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> close() noexcept
+    void close(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->close(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->close(get_handle(), out_status.get_handle());
     }
 };
 

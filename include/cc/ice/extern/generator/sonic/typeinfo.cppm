@@ -10,66 +10,95 @@ module;
 export module cc_ice_extern_generator_sonic:typeinfo;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_TypeInfoOps : public ice::sonic::Runtime<TF_TypeInfoOps, TF_TypeInfoOps>
+class TF_TypeInfoOps : public ice::sonic::Runtime<::TF_TypeInfoOps, ::TF_TypeInfo>
 {
 public:
-    explicit TF_TypeInfoOps(TF_TypeInfoOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_TypeInfoOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "generator";
+    template<typename Registry>
+    TF_TypeInfoOps(
+        Registry& registry,
+        ::TF_TypeInfo* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_TypeInfoOps(const ::TF_TypeInfoOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_TypeInfoOps(const ::TF_TypeInfoOps* ops, ::TF_TypeInfo* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept
+    void set_type_attr_name(const ice::sonic::String& type_attr_name) const noexcept
     {
         m_ops->set_type_attr_name(get_handle(), type_attr_name.get_handle());
     }
 
-    void set_data_type(int data_type) noexcept
+    void set_data_type(int data_type) const noexcept
     {
         m_ops->set_data_type(get_handle(), data_type);
     }
 
-    void set_read_only(_Bool read_only) noexcept
+    void set_read_only(_Bool read_only) const noexcept
     {
         m_ops->set_read_only(get_handle(), read_only);
     }
 
-    void set_list(_Bool is_list) noexcept
+    void set_list(_Bool is_list) const noexcept
     {
         m_ops->set_list(get_handle(), is_list);
     }
 
-    void get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept
+    void get_type_attr_name(const ice::sonic::String& out_type_attr_name) const noexcept
     {
         m_ops->get_type_attr_name(get_handle(), out_type_attr_name.get_handle());
     }
 
-    void get_data_type(int* out_data_type) noexcept
+    void get_data_type(int* out_data_type) const noexcept
     {
         m_ops->get_data_type(get_handle(), out_data_type);
     }
 
-    void is_read_only(int* out_is_read_only) noexcept
+    void is_read_only(int* out_is_read_only) const noexcept
     {
         m_ops->is_read_only(get_handle(), out_is_read_only);
     }
 
-    void is_list(int* out_is_list) noexcept
+    void is_list(int* out_is_list) const noexcept
     {
         m_ops->is_list(get_handle(), out_is_list);
     }

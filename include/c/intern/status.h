@@ -72,6 +72,8 @@ extern "C"
     typedef struct TF_StatusOps
     {
         size_t struct_size;
+        void (*create)(TF_Status* out_handle);
+        void (*destroy)(TF_Status* handle);
 
         // Delete a previously created status object.
         void (*delete_status)(TF_Status* s);

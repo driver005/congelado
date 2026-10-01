@@ -19,7 +19,8 @@ extern "C"
     typedef struct TFGeneratorParameterOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorParameter* param_context);
+        void (*create)(TFGeneratorParameter* out_handle);
+        void (*destroy)(TFGeneratorParameter* handle);
         void (*get_name)(TFGeneratorParameter* param_context, TF_String* out_name);
 
         void (*set_name)(TFGeneratorParameter* param_context, const TF_String* name);

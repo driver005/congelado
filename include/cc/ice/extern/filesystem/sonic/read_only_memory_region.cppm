@@ -10,40 +10,69 @@ module;
 export module cc_ice_extern_filesystem_sonic:read_only_memory_region;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TF_ReadOnlyMemoryRegionOps :
-    public ice::sonic::Runtime<TF_ReadOnlyMemoryRegionOps, TF_ReadOnlyMemoryRegionOps>
+    public ice::sonic::Runtime<::TF_ReadOnlyMemoryRegionOps, ::TF_ReadOnlyMemoryRegion>
 {
 public:
-    explicit TF_ReadOnlyMemoryRegionOps(
-        TF_ReadOnlyMemoryRegionOps* ops,
-        void* plugin_context
+    template<typename Registry>
+    TF_ReadOnlyMemoryRegionOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
     ) noexcept :
-        Runtime(ops, plugin_context)
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "filesystem";
+    template<typename Registry>
+    TF_ReadOnlyMemoryRegionOps(
+        Registry& registry,
+        ::TF_ReadOnlyMemoryRegion* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_ReadOnlyMemoryRegionOps(const ::TF_ReadOnlyMemoryRegionOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_ReadOnlyMemoryRegionOps(
+        const ::TF_ReadOnlyMemoryRegionOps* ops,
+        ::TF_ReadOnlyMemoryRegion* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void data(const void** out_data) noexcept
+    void data(const void** out_data) const noexcept
     {
         m_ops->data(get_handle(), out_data);
     }
 
-    void length(uint64_t* out_length) noexcept
+    void length(uint64_t* out_length) const noexcept
     {
         m_ops->length(get_handle(), out_length);
     }

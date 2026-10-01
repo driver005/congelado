@@ -21,6 +21,8 @@ extern "C"
     typedef struct TFStoreAdminOps
     {
         size_t struct_size;
+        void (*create)(TFStoreAdmin* out_handle);
+        void (*destroy)(TFStoreAdmin* handle);
 
         void (*is_connected)(TFStoreAdmin* manager, int* out_connected);
 

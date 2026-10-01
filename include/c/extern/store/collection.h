@@ -32,7 +32,8 @@ extern "C"
     typedef struct TFStoreCollectionOps
     {
         size_t struct_size;
-        void (*destroy)(TFStoreCollection* collection);
+        void (*create)(TFStoreCollection* out_handle);
+        void (*destroy)(TFStoreCollection* handle);
 
         // Collection lifecycle.
         void (*close)(TFStoreCollection* collection);

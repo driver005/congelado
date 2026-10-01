@@ -24,8 +24,9 @@ extern "C"
     typedef struct TF_ObserveOps
     {
         size_t struct_size;
+        void (*create)(TF_Observe* out_handle);
+        void (*destroy)(TF_Observe* handle);
 
-        void (*destroy)(TF_Observe* observe);
 
         void (*get_status)(TF_Observe* observe, TF_Job* job, TFObserveStatusFn completion, void* user_data, TF_Status* out_status);
         void (*get_result)(TF_Observe* observe, TF_Job* job, TFObserveResultFn completion, void* user_data, TF_Status* out_status);

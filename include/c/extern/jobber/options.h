@@ -33,8 +33,9 @@ extern "C"
     typedef struct TF_OptionsOps
     {
         size_t struct_size;
+        void (*create)(TF_Options* out_handle);
+        void (*destroy)(TF_Options* handle);
 
-        void (*destroy)(TF_Options* options);
 
         void (*get_options)(TF_Options* options, TF_Job* job, TFJobOptions* out_options, TF_Status* out_status);
         void (*update_options)(TF_Options* options, TF_Job* job, const TFJobOptions* new_options, TF_Status* out_status);

@@ -10,114 +10,127 @@ module;
 export module cc_ice_extern_jobber_sonic:observe;
 
 import std;
-import cc_abi_sonic_registration;
+import :job;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ObserveOps : public ice::sonic::Runtime<TF_ObserveOps, TF_ObserveOps>
+class TF_ObserveOps : public ice::sonic::Runtime<::TF_ObserveOps, ::TF_Observe>
 {
 public:
-    explicit TF_ObserveOps(TF_ObserveOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_ObserveOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_ObserveOps(
+        Registry& registry,
+        ::TF_Observe* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_ObserveOps(const ::TF_ObserveOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_ObserveOps(const ::TF_ObserveOps* ops, ::TF_Observe* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_status(
+    void get_status(
         const ice::sonic::TF_JobOps& job,
         TFObserveStatusFn completion,
-        void* user_data
-    ) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_status(
             get_handle(),
             job.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_result(
+    void get_result(
         const ice::sonic::TF_JobOps& job,
         TFObserveResultFn completion,
-        void* user_data
-    ) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_result(
             get_handle(),
             job.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_history(
+    void get_history(
         const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_transitions
-    ) noexcept
+        const ice::sonic::TF_VectorOps& out_transitions,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_history(
             get_handle(),
             job.get_handle(),
             out_transitions.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_metrics(const ice::sonic::TF_JobOps& job, const ice::sonic::TF_MapOps& out_metrics) noexcept
+    void get_metrics(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::TF_MapOps& out_metrics,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_metrics(
             get_handle(),
             job.get_handle(),
             out_metrics.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_logs(const ice::sonic::TF_JobOps& job, const ice::sonic::TF_VectorOps& out_lines) noexcept
+    void get_logs(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::TF_VectorOps& out_lines,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops
-            ->get_logs(get_handle(), job.get_handle(), out_lines.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_logs(
+            get_handle(),
+            job.get_handle(),
+            out_lines.get_handle(),
+            out_status.get_handle()
+        );
     }
 };
 

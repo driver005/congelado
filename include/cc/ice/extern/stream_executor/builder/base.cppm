@@ -6,12 +6,15 @@
 export module cc_ice_extern_stream_executor_builder;
 
 // clang-format off
+export import :memory;
+export import :mem_pool;
 export import :stream_executor;
 export import :platform;
 export import :event;
-export import :timer;
-export import :stream;
-export import :device;
+export import :allocator;
 export import :executor;
+export import :stream;
+export import :timer;
+export import :device;
 
 // clang-format on

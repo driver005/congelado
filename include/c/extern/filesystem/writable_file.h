@@ -21,7 +21,8 @@ extern "C"
     typedef struct TF_WritableFileOps
     {
         size_t struct_size;
-        void (*destroy)(TF_WritableFile* file);
+        void (*create)(TF_WritableFile* out_handle);
+        void (*destroy)(TF_WritableFile* handle);
         void (*get_name)(TF_WritableFile* file, TF_String* out_name);
         void (*append)(TF_WritableFile* file, const TF_String* buffer, TF_Status* out_status);
         void (*tell)(TF_WritableFile* file, int64_t* out_position, TF_Status* out_status);

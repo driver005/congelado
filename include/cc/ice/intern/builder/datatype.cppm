@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/intern/datatype.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_builder:datatype;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_DataTypeOps
 {
 public:
-    TF_DataTypeOps() noexcept :
+    explicit TF_DataTypeOps(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_String_ops = String_ops;
     }
 
     TF_DataTypeOps(const TF_DataTypeOps&) = delete;
@@ -36,25 +39,42 @@ public:
     }
 
     virtual ~TF_DataTypeOps() = default;
+    virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void datatype_size(TFDataTypeEnum dt, size_t* out_size) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_DataType*)) noexcept
     {
         m_vtable = ::TF_DataTypeOps{
-            .struct_size = TF_DATATYPE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_DataTypeOps, datatype_size),
+
+            .create = create,
+            .destroy =
+                [](TF_DataType* handle) noexcept
+            {
+                auto& self = TF_DataTypeOps::from_handle(handle);
+                self.destroy();
+            },
             .get_name =
                 [](TF_DataType* datatype, TF_String* out_name) noexcept
             {
-                TF_DataTypeOps::from_handle(datatype).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_DataTypeOps::from_handle(datatype);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .datatype_size =
                 [](TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size) noexcept
             {
-                TF_DataTypeOps::from_handle(datatype).datatype_size(dt, out_size);
+                auto& self = TF_DataTypeOps::from_handle(datatype);
+                self.datatype_size(dt, out_size);
             },
 
         };
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_DataTypeOps& get_vtable() const noexcept
@@ -62,15 +82,26 @@ public:
         return m_vtable;
     }
 
-    const TF_DataType& get_handle() const noexcept
+    const ::TF_DataType& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_DataTypeOps*>(&m_vtable));
+    }
 
 private:
     ::TF_DataTypeOps m_vtable;
-    TF_DataType m_handle;
+    ::TF_DataType m_handle;
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

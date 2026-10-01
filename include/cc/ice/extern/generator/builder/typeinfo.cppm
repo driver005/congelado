@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/extern/generator/typeinfo.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_generator_builder:typeinfo;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_TypeInfoOps
 {
 public:
-    TF_TypeInfoOps() noexcept :
+    explicit TF_TypeInfoOps(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_String_ops = String_ops;
     }
 
     TF_TypeInfoOps(const TF_TypeInfoOps&) = delete;
@@ -47,65 +50,84 @@ public:
     virtual void is_read_only(int* out_is_read_only) noexcept = 0;
     virtual void is_list(int* out_is_list) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_TypeInfo*)) noexcept
     {
         m_vtable = ::TF_TypeInfoOps{
-            .struct_size = TF_TYPEINFO_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_TypeInfoOps, is_list),
+
+            .create = create,
             .destroy =
-                [](TF_TypeInfo* type_context) noexcept
+                [](TF_TypeInfo* handle) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).destroy();
+                auto& self = TF_TypeInfoOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_TypeInfo* type_context, TF_String* out_name) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context)
-                    .get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_type_attr_name =
                 [](TF_TypeInfo* type_context, const TF_String* type_attr_name) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context)
-                    .set_type_attr_name(ice::sonic::String::wrap(type_attr_name));
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.set_type_attr_name(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, type_attr_name)
+                );
             },
             .set_data_type =
                 [](TF_TypeInfo* type_context, int data_type) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).set_data_type(data_type);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.set_data_type(data_type);
             },
             .set_read_only =
                 [](TF_TypeInfo* type_context, _Bool read_only) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).set_read_only(read_only);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.set_read_only(read_only);
             },
             .set_list =
                 [](TF_TypeInfo* type_context, _Bool is_list) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).set_list(is_list);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.set_list(is_list);
             },
             .get_type_attr_name =
                 [](TF_TypeInfo* type_context, TF_String* out_type_attr_name) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context)
-                    .get_type_attr_name(ice::sonic::String::wrap(out_type_attr_name));
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.get_type_attr_name(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_type_attr_name)
+                );
             },
             .get_data_type =
                 [](TF_TypeInfo* type_context, int* out_data_type) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).get_data_type(out_data_type);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.get_data_type(out_data_type);
             },
             .is_read_only =
                 [](TF_TypeInfo* type_context, int* out_is_read_only) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).is_read_only(out_is_read_only);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.is_read_only(out_is_read_only);
             },
             .is_list =
                 [](TF_TypeInfo* type_context, int* out_is_list) noexcept
             {
-                TF_TypeInfoOps::from_handle(type_context).is_list(out_is_list);
+                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                self.is_list(out_is_list);
             },
 
         };
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_TypeInfoOps& get_vtable() const noexcept
@@ -113,15 +135,26 @@ public:
         return m_vtable;
     }
 
-    const TF_TypeInfo& get_handle() const noexcept
+    const ::TF_TypeInfo& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_TypeInfoOps*>(&m_vtable));
+    }
 
 private:
     ::TF_TypeInfoOps m_vtable;
-    TF_TypeInfo m_handle;
+    ::TF_TypeInfo m_handle;
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

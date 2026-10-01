@@ -10,26 +10,55 @@ module;
 export module cc_ice_extern_filesystem_sonic:filesystem;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_FilesystemOps : public ice::sonic::Runtime<TF_FilesystemOps, TF_FilesystemOps>
+class TF_FilesystemOps : public ice::sonic::Runtime<::TF_FilesystemOps, ::TF_Filesystem>
 {
 public:
-    explicit TF_FilesystemOps(TF_FilesystemOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_FilesystemOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "filesystem";
+    template<typename Registry>
+    TF_FilesystemOps(
+        Registry& registry,
+        ::TF_Filesystem* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_FilesystemOps(const ::TF_FilesystemOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_FilesystemOps(const ::TF_FilesystemOps* ops, ::TF_Filesystem* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }

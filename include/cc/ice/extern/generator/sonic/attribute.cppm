@@ -10,72 +10,104 @@ module;
 export module cc_ice_extern_generator_sonic:attribute;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TFGeneratorAttributeOps :
-    public ice::sonic::Runtime<TFGeneratorAttributeOps, TFGeneratorAttributeOps>
+    public ice::sonic::Runtime<::TFGeneratorAttributeOps, ::TFGeneratorAttribute>
 {
 public:
-    explicit TFGeneratorAttributeOps(TFGeneratorAttributeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGeneratorAttributeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "generator";
+    template<typename Registry>
+    TFGeneratorAttributeOps(
+        Registry& registry,
+        ::TFGeneratorAttribute* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFGeneratorAttributeOps(const ::TFGeneratorAttributeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGeneratorAttributeOps(
+        const ::TFGeneratorAttributeOps* ops,
+        ::TFGeneratorAttribute* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_name(const ice::sonic::String& name) noexcept
+    void set_name(const ice::sonic::String& name) const noexcept
     {
         m_ops->set_name(get_handle(), name.get_handle());
     }
 
-    void set_description(const ice::sonic::String& description) noexcept
+    void set_description(const ice::sonic::String& description) const noexcept
     {
         m_ops->set_description(get_handle(), description.get_handle());
     }
 
-    void set_full_type(const ice::sonic::String& full_type) noexcept
+    void set_full_type(const ice::sonic::String& full_type) const noexcept
     {
         m_ops->set_full_type(get_handle(), full_type.get_handle());
     }
 
-    void set_base_type(const ice::sonic::String& base_type) noexcept
+    void set_base_type(const ice::sonic::String& base_type) const noexcept
     {
         m_ops->set_base_type(get_handle(), base_type.get_handle());
     }
 
-    void set_is_list(_Bool is_list) noexcept
+    void set_is_list(_Bool is_list) const noexcept
     {
         m_ops->set_is_list(get_handle(), is_list);
     }
 
-    void get_description(const ice::sonic::String& out_description) noexcept
+    void get_description(const ice::sonic::String& out_description) const noexcept
     {
         m_ops->get_description(get_handle(), out_description.get_handle());
     }
 
-    void get_full_type(const ice::sonic::String& out_full_type) noexcept
+    void get_full_type(const ice::sonic::String& out_full_type) const noexcept
     {
         m_ops->get_full_type(get_handle(), out_full_type.get_handle());
     }
 
-    void get_base_type(const ice::sonic::String& out_base_type) noexcept
+    void get_base_type(const ice::sonic::String& out_base_type) const noexcept
     {
         m_ops->get_base_type(get_handle(), out_base_type.get_handle());
     }
 
-    void is_list(int* out_is_list) noexcept
+    void is_list(int* out_is_list) const noexcept
     {
         m_ops->is_list(get_handle(), out_is_list);
     }

@@ -10,65 +10,83 @@ module;
 export module cc_ice_extern_stream_executor_sonic:stream;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_StreamOps : public ice::sonic::Runtime<TF_StreamOps, TF_StreamOps>
+class TF_StreamOps : public ice::sonic::Runtime<::TF_StreamOps, ::TF_Stream>
 {
 public:
-    explicit TF_StreamOps(TF_StreamOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_StreamOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "stream_executor";
+    template<typename Registry>
+    TF_StreamOps(
+        Registry& registry,
+        ::TF_Stream* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_priority(int32_t* out_priority) noexcept
+    explicit TF_StreamOps(const ::TF_StreamOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_StreamOps(const ::TF_StreamOps* ops, ::TF_Stream* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_priority(int32_t* out_priority) const noexcept
     {
         m_ops->get_priority(get_handle(), out_priority);
     }
 
-    void get_device_index(int* out_device_index) noexcept
+    void get_device_index(int* out_device_index) const noexcept
     {
         m_ops->get_device_index(get_handle(), out_device_index);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> query(_Bool* out_idle) noexcept
+    void query(_Bool* out_idle, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->query(get_handle(), out_idle, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->query(get_handle(), out_idle, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> synchronize() noexcept
+    void synchronize(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->synchronize(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->synchronize(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_capture_status(TF_CaptureStatus* out_capture_status) noexcept
+    void get_capture_status(
+        TF_CaptureStatus* out_capture_status,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_capture_status(get_handle(), out_capture_status, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_capture_status(get_handle(), out_capture_status, out_status.get_handle());
     }
 
-    void get_native_handle(void** out_handle) noexcept
+    void get_native_handle(void** out_handle) const noexcept
     {
         m_ops->get_native_handle(get_handle(), out_handle);
     }

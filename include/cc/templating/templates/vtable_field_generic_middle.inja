@@ -1,3 +1,0 @@
-
-            ) noexcept {{ trailing_return }} {
-                auto res = {{ class_name }}::from_handle({{ self_param_name }}).{{ slot_name }}(

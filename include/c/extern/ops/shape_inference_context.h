@@ -21,6 +21,8 @@ extern "C" {
     // TF_ShapeInferenceContextOps
     typedef struct TF_ShapeInferenceContextOps {
         size_t struct_size;
+        void (*create)(TF_ShapeInferenceContext* out_handle);
+        void (*destroy)(TF_ShapeInferenceContext* handle);
         void (*num_inputs)(TF_ShapeInferenceContext* ctx, int64_t* out_num);
         void (*get_input)(TF_ShapeInferenceContext* ctx, int i, TF_ShapeHandle* handle, TF_Status* out_status);
         void (*set_output)(TF_ShapeInferenceContext* ctx, int i, TF_ShapeHandle* handle, TF_Status* out_status);

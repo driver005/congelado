@@ -19,7 +19,8 @@ extern "C"
     typedef struct TFGeneratorNodeOps
     {
         size_t struct_size;
-        void (*destroy)(TFGeneratorNode* node_context);
+        void (*create)(TFGeneratorNode* out_handle);
+        void (*destroy)(TFGeneratorNode* handle);
         void (*get_name)(TFGeneratorNode* node_context, TF_String* out_name);
 
         void (*set_operand)(

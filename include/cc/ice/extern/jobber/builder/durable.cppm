@@ -6,19 +6,31 @@
 module;
 
 #include "include/c/extern/jobber/durable.h"
+#include "include/c/extern/jobber/job.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_jobber_builder:durable;
 
 import std;
+import cc_ice_extern_jobber_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_DurableOps
 {
 public:
-    TF_DurableOps() noexcept :
+    explicit TF_DurableOps(
+        const ::TF_JobOps* TF_JobOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_JobOps_ops = TF_JobOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TF_DurableOps(const TF_DurableOps&) = delete;
@@ -37,27 +49,34 @@ public:
 
     virtual ~TF_DurableOps() = default;
     virtual void destroy() noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> signal(
+    virtual void signal(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::String& signal_name,
-        const ice::sonic::String& payload
+        const ice::sonic::String& payload,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> checkpoint(
+    virtual void checkpoint(
         const ice::sonic::TF_JobOps& job,
         TFDurableAckFn completion,
-        void* user_data
+        void* user_data,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    restore_checkpoint(const ice::sonic::TF_JobOps& job) noexcept = 0;
+    virtual void restore_checkpoint(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Durable*)) noexcept
     {
         m_vtable = ::TF_DurableOps{
-            .struct_size = TF_DURABLE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_DurableOps, restore_checkpoint),
+
+            .create = create,
             .destroy =
-                [](TF_Durable* durable) noexcept
+                [](TF_Durable* handle) noexcept
             {
-                TF_DurableOps::from_handle(durable).destroy();
+                auto& self = TF_DurableOps::from_handle(handle);
+                self.destroy();
             },
             .signal =
                 [](TF_Durable* durable,
@@ -66,14 +85,13 @@ public:
                    const TF_String* payload,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_DurableOps::from_handle(durable).signal(
-                    ice::sonic::TF_JobOps::wrap(job),
-                    ice::sonic::String::wrap(signal_name),
-                    ice::sonic::String::wrap(payload)
+                auto& self = TF_DurableOps::from_handle(durable);
+                self.signal(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, signal_name),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, payload),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .checkpoint =
                 [](TF_Durable* durable,
@@ -82,24 +100,43 @@ public:
                    void* user_data,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_DurableOps::from_handle(durable)
-                               .checkpoint(ice::sonic::TF_JobOps::wrap(job), completion, user_data);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_DurableOps::from_handle(durable);
+                self.checkpoint(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    completion,
+                    user_data,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .restore_checkpoint =
                 [](TF_Durable* durable, TF_Job* job, TF_Status* out_status) noexcept
             {
-                auto res = TF_DurableOps::from_handle(durable).restore_checkpoint(
-                    ice::sonic::TF_JobOps::wrap(job)
+                auto& self = TF_DurableOps::from_handle(durable);
+                self.restore_checkpoint(
+                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TF_JobOps
+    wrap(std::type_identity<ice::sonic::TF_JobOps>, const ::TF_Job* handle) const noexcept
+    {
+        return ice::sonic::TF_JobOps{m_TF_JobOps_ops, const_cast<::TF_Job*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_DurableOps& get_vtable() const noexcept
@@ -107,15 +144,30 @@ public:
         return m_vtable;
     }
 
-    const TF_Durable& get_handle() const noexcept
+    const ::TF_Durable& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_DurableOps*>(&m_vtable));
+    }
 
 private:
     ::TF_DurableOps m_vtable;
-    TF_Durable m_handle;
+    ::TF_Durable m_handle;
+
+    const ::TF_JobOps* m_TF_JobOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

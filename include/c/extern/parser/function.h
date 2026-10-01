@@ -15,6 +15,8 @@ extern "C" {
 
     typedef struct TFParserFunctionOps {
         size_t struct_size;
+        void (*create)(TFParserFunction* out_handle);
+        void (*destroy)(TFParserFunction* handle);
         void (*get_name)(TFParserFunction* function, TF_String* out_name, TF_Status* out_status);
         void (*get_parameter_count)(TFParserFunction* function, int* out_count, TF_Status* out_status);
         void (*get_parameter)(TFParserFunction* function, int index, TFParserParameter* out_parameter, TF_Status* out_status);

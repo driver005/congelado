@@ -49,6 +49,8 @@ extern "C"
     typedef struct TF_AttrTypeOps
     {
         size_t struct_size;
+        void (*create)(TF_AttrType* out_handle);
+        void (*destroy)(TF_AttrType* handle);
 
         void (*get_name)(TF_AttrType* attrtype, TF_String* out_name);
 

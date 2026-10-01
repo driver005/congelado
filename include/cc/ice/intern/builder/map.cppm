@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/intern/map.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_intern_builder:map;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_MapOps
 {
 public:
-    TF_MapOps() noexcept :
+    explicit TF_MapOps(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
     }
 
     TF_MapOps(const TF_MapOps&) = delete;
@@ -36,29 +39,41 @@ public:
     }
 
     virtual ~TF_MapOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    insert(const void* key, const void* value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    find(const void* key, const void** out_value) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    erase(const void* key) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    contains(const void* key, int* out_found) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void
+    insert(const void* key, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void find(
+        const void* key,
+        const void** out_value,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void erase(const void* key, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    contains(const void* key, int* out_found, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void size(size_t* out_size) noexcept = 0;
     virtual void for_each(TF_MapVisitor visitor, void* capture) noexcept = 0;
-    virtual void destroy() noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Map*)) noexcept
     {
         m_vtable = ::TF_MapOps{
-            .struct_size = TF_MAP_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_MapOps, for_each),
+
+            .create = create,
+            .destroy =
+                [](TF_Map* handle) noexcept
+            {
+                auto& self = TF_MapOps::from_handle(handle);
+                self.destroy();
+            },
             .insert =
                 [](TF_Map* map, const void* key, const void* value, TF_Status* out_status) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).insert(key, value);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_MapOps::from_handle(map);
+                self.insert(
+                    key,
+                    value,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .find =
                 [](const TF_Map* map,
@@ -66,44 +81,49 @@ public:
                    const void** out_value,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).find(key, out_value);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_MapOps::from_handle(map);
+                self.find(
+                    key,
+                    out_value,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .erase =
                 [](TF_Map* map, const void* key, TF_Status* out_status) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).erase(key);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_MapOps::from_handle(map);
+                self.erase(key, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .contains =
                 [](TF_Map* map, const void* key, int* out_found, TF_Status* out_status) noexcept
             {
-                auto res = TF_MapOps::from_handle(map).contains(key, out_found);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_MapOps::from_handle(map);
+                self.contains(
+                    key,
+                    out_found,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .size =
                 [](const TF_Map* map, size_t* out_size) noexcept
             {
-                TF_MapOps::from_handle(map).size(out_size);
+                auto& self = TF_MapOps::from_handle(map);
+                self.size(out_size);
             },
             .for_each =
                 [](const TF_Map* map, TF_MapVisitor visitor, void* capture) noexcept
             {
-                TF_MapOps::from_handle(map).for_each(visitor, capture);
-            },
-            .destroy =
-                [](TF_Map* map) noexcept
-            {
-                TF_MapOps::from_handle(map).destroy();
+                auto& self = TF_MapOps::from_handle(map);
+                self.for_each(visitor, capture);
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TF_MapOps& get_vtable() const noexcept
@@ -111,15 +131,26 @@ public:
         return m_vtable;
     }
 
-    const TF_Map& get_handle() const noexcept
+    const ::TF_Map& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_MapOps*>(&m_vtable));
+    }
 
 private:
     ::TF_MapOps m_vtable;
-    TF_Map m_handle;
+    ::TF_Map m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

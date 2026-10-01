@@ -6,19 +6,27 @@
 module;
 
 #include "include/c/extern/serde/serde.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_serde_builder:serde;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_SerdeOps
 {
 public:
-    TF_SerdeOps() noexcept :
+    explicit TF_SerdeOps(
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TF_SerdeOps(const TF_SerdeOps&) = delete;
@@ -40,39 +48,49 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
     virtual void get_format_name(const ice::sonic::String& out_format_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> encode(
+    virtual void encode(
         const ice::sonic::String& value_json,
-        const ice::sonic::String& out_encoded
+        const ice::sonic::String& out_encoded,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept = 0;
+    virtual void decode(
+        const ice::sonic::String& data,
+        const ice::sonic::String& out_json,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Serde*)) noexcept
     {
         m_vtable = ::TF_SerdeOps{
-            .struct_size = TF_SERDE_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_SerdeOps, decode),
+
+            .create = create,
             .destroy =
-                [](TF_Serde* serde) noexcept
+                [](TF_Serde* handle) noexcept
             {
-                TF_SerdeOps::from_handle(serde).destroy();
+                auto& self = TF_SerdeOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_Serde* serde, TF_String* out_name) noexcept
             {
-                TF_SerdeOps::from_handle(serde).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_SerdeOps::from_handle(serde);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .get_content_type =
                 [](TF_Serde* serde, TF_String* out_content_type) noexcept
             {
-                TF_SerdeOps::from_handle(serde).get_content_type(
-                    ice::sonic::String::wrap(out_content_type)
+                auto& self = TF_SerdeOps::from_handle(serde);
+                self.get_content_type(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_content_type)
                 );
             },
             .get_format_name =
                 [](TF_Serde* serde, TF_String* out_format_name) noexcept
             {
-                TF_SerdeOps::from_handle(serde).get_format_name(
-                    ice::sonic::String::wrap(out_format_name)
+                auto& self = TF_SerdeOps::from_handle(serde);
+                self.get_format_name(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_format_name)
                 );
             },
             .encode =
@@ -81,13 +99,12 @@ public:
                    TF_String* out_encoded,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_SerdeOps::from_handle(serde).encode(
-                    ice::sonic::String::wrap(value_json),
-                    ice::sonic::String::wrap(out_encoded)
+                auto& self = TF_SerdeOps::from_handle(serde);
+                self.encode(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, value_json),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_encoded),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .decode =
                 [](TF_Serde* serde,
@@ -95,16 +112,27 @@ public:
                    TF_String* out_json,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_SerdeOps::from_handle(serde).decode(
-                    ice::sonic::String::wrap(data),
-                    ice::sonic::String::wrap(out_json)
+                auto& self = TF_SerdeOps::from_handle(serde);
+                self.decode(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, data),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, out_json),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_SerdeOps& get_vtable() const noexcept
@@ -112,15 +140,28 @@ public:
         return m_vtable;
     }
 
-    const TF_Serde& get_handle() const noexcept
+    const ::TF_Serde& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_SerdeOps*>(&m_vtable));
+    }
 
 private:
     ::TF_SerdeOps m_vtable;
-    TF_Serde m_handle;
+    ::TF_Serde m_handle;
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

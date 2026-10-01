@@ -8,7 +8,7 @@ export module cc_ice_extern_generator_builder;
 // clang-format off
 export import :node;
 export import :catalog;
-export import :module;
+export import :module_;
 export import :attribute;
 export import :block;
 export import :definition;

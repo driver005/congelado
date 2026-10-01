@@ -23,6 +23,8 @@ extern "C"
     typedef struct TF_SetOps
     {
         size_t struct_size;
+        void (*create)(TF_Set* out_handle);
+        void (*destroy)(TF_Set* handle);
 
         void (*insert)(TF_Set* set, const void* key, TF_Status* out_status);
         void (*find)(const TF_Set* set, const void* key, const void** out_value, TF_Status* out_status);
@@ -30,11 +32,10 @@ extern "C"
         void (*contains)(const TF_Set* set, const void* key, int* out_found, TF_Status* out_status);
         void (*size)(const TF_Set* set, size_t* out_size);
         void (*for_each)(const TF_Set* set, TF_SetVisitor visitor, void* capture);
-        void (*destroy)(TF_Set* set);
 
     } TF_SetOps;
 
-#define TF_SET_STRUCT_SIZE TF_OFFSET_OF_END(TF_SetOps, destroy)
+#define TF_SET_STRUCT_SIZE TF_OFFSET_OF_END(TF_SetOps, for_each)
 
     TF_CAPI_EXPORT void create_set(TF_SetOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_set(void* plugin_context);

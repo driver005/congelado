@@ -10,40 +10,73 @@ module;
 export module cc_ice_extern_grappler_sonic:optimizer;
 
 import std;
-import cc_abi_sonic_registration;
+import :item;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TFGrapplerOptimizerOps :
-    public ice::sonic::Runtime<TFGrapplerOptimizerOps, TFGrapplerOptimizerOps>
+    public ice::sonic::Runtime<::TFGrapplerOptimizerOps, ::TFGrapplerOptimizer>
 {
 public:
-    explicit TFGrapplerOptimizerOps(TFGrapplerOptimizerOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFGrapplerOptimizerOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "grappler";
+    template<typename Registry>
+    TFGrapplerOptimizerOps(
+        Registry& registry,
+        ::TFGrapplerOptimizer* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> optimize(
+    explicit TFGrapplerOptimizerOps(const ::TFGrapplerOptimizerOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFGrapplerOptimizerOps(
+        const ::TFGrapplerOptimizerOps* ops,
+        ::TFGrapplerOptimizer* handle
+    ) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void optimize(
         const ice::sonic::TF_BufferOps& graph_buf,
         const ice::sonic::TFGrapplerItemOps& item,
-        const ice::sonic::TF_BufferOps& out_optimized_graph_buf
-    ) noexcept
+        const ice::sonic::TF_BufferOps& out_optimized_graph_buf,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->optimize(
             get_handle(),
             graph_buf.get_handle(),
             item.get_handle(),
             out_optimized_graph_buf.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

@@ -21,7 +21,8 @@ extern "C"
     typedef struct TFStoreWatchOps
     {
         size_t struct_size;
-        void (*destroy)(TFStoreWatch* watch);
+        void (*create)(TFStoreWatch* out_handle);
+        void (*destroy)(TFStoreWatch* handle);
         void (*cancel)(TFStoreWatch* watch);
     } TFStoreWatchOps;
 

@@ -10,56 +10,81 @@ module;
 export module cc_ice_extern_parser_sonic:catalog;
 
 import std;
-import cc_abi_sonic_registration;
+import :module_;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserCatalogOps : public ice::sonic::Runtime<TFParserCatalogOps, TFParserCatalogOps>
+class TFParserCatalogOps : public ice::sonic::Runtime<::TFParserCatalogOps, ::TFParserCatalog>
 {
 public:
-    explicit TFParserCatalogOps(TFParserCatalogOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFParserCatalogOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "parser";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status> parse_file(
-        const ice::sonic::String& file_path,
-        const ice::sonic::TFParserModuleOps& out_module
-    ) noexcept
+    template<typename Registry>
+    TFParserCatalogOps(
+        Registry& registry,
+        ::TFParserCatalog* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
+    }
+
+    explicit TFParserCatalogOps(const ::TFParserCatalogOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFParserCatalogOps(const ::TFParserCatalogOps* ops, ::TFParserCatalog* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void parse_file(
+        const ice::sonic::String& file_path,
+        const ice::sonic::TFParserModuleOps& out_module,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
         m_ops->parse_file(
             get_handle(),
             file_path.get_handle(),
             out_module.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> parse_buffer(
+    void parse_buffer(
         const ice::sonic::TF_BufferOps& buffer,
-        const ice::sonic::TFParserModuleOps& out_module
-    ) noexcept
+        const ice::sonic::TFParserModuleOps& out_module,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->parse_buffer(
             get_handle(),
             buffer.get_handle(),
             out_module.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

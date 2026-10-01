@@ -13,6 +13,8 @@ extern "C" {
 
     typedef struct TFParserDefinitionOps {
         size_t struct_size;
+        void (*create)(TFParserDefinition* out_handle);
+        void (*destroy)(TFParserDefinition* handle);
         void (*get_name)(TFParserDefinition* definition, TF_String* out_name, TF_Status* out_status);
         void (*get_source_file)(TFParserDefinition* definition, TF_String* out_source_file, TF_Status* out_status);
         void (*get_line_number)(TFParserDefinition* definition, int* out_line_number, TF_Status* out_status);

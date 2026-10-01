@@ -25,7 +25,8 @@ extern "C"
     typedef struct TF_PubSubOps
     {
         size_t struct_size;
-        void (*destroy)(TF_PubSub* pubsub);
+        void (*create)(TF_PubSub* out_handle);
+        void (*destroy)(TF_PubSub* handle);
         void (*get_name)(TF_PubSub* pubsub, TF_String* out_name);
     } TF_PubSubOps;
 

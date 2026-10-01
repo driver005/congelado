@@ -10,41 +10,65 @@ module;
 export module cc_ice_extern_parser_sonic:attribute;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserAttributeOps : public ice::sonic::Runtime<TFParserAttributeOps, TFParserAttributeOps>
+class TFParserAttributeOps : public ice::sonic::Runtime<::TFParserAttributeOps, ::TFParserAttribute>
 {
 public:
-    explicit TFParserAttributeOps(TFParserAttributeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFParserAttributeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "parser";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_name(const ice::sonic::String& out_name) noexcept
+    template<typename Registry>
+    TFParserAttributeOps(
+        Registry& registry,
+        ::TFParserAttribute* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->get_name(get_handle(), out_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_value(TF_Tensor** out_value) noexcept
+    explicit TFParserAttributeOps(const ::TFParserAttributeOps* ops) noexcept :
+        Runtime(ops)
     {
-        ice::sonic::Status status;
-        m_ops->get_value(get_handle(), out_value, status.get_handle());
+    }
 
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+    TFParserAttributeOps(const ::TFParserAttributeOps* ops, ::TFParserAttribute* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(
+        const ice::sonic::String& out_name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get_name(get_handle(), out_name.get_handle(), out_status.get_handle());
+    }
+
+    void get_value(TF_Tensor** out_value, const ice::sonic::Status& out_status) const noexcept
+    {
+        m_ops->get_value(get_handle(), out_value, out_status.get_handle());
     }
 };
 

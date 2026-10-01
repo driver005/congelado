@@ -10,67 +10,95 @@ module;
 export module cc_ice_extern_serde_sonic:serde;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_SerdeOps : public ice::sonic::Runtime<TF_SerdeOps, TF_SerdeOps>
+class TF_SerdeOps : public ice::sonic::Runtime<::TF_SerdeOps, ::TF_Serde>
 {
 public:
-    explicit TF_SerdeOps(TF_SerdeOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_SerdeOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "serde";
+    template<typename Registry>
+    TF_SerdeOps(
+        Registry& registry,
+        ::TF_Serde* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_SerdeOps(const ::TF_SerdeOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_SerdeOps(const ::TF_SerdeOps* ops, ::TF_Serde* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void get_content_type(const ice::sonic::String& out_content_type) noexcept
+    void get_content_type(const ice::sonic::String& out_content_type) const noexcept
     {
         m_ops->get_content_type(get_handle(), out_content_type.get_handle());
     }
 
-    void get_format_name(const ice::sonic::String& out_format_name) noexcept
+    void get_format_name(const ice::sonic::String& out_format_name) const noexcept
     {
         m_ops->get_format_name(get_handle(), out_format_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    encode(const ice::sonic::String& value_json, const ice::sonic::String& out_encoded) noexcept
+    void encode(
+        const ice::sonic::String& value_json,
+        const ice::sonic::String& out_encoded,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->encode(
             get_handle(),
             value_json.get_handle(),
             out_encoded.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    decode(const ice::sonic::String& data, const ice::sonic::String& out_json) noexcept
+    void decode(
+        const ice::sonic::String& data,
+        const ice::sonic::String& out_json,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->decode(get_handle(), data.get_handle(), out_json.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->decode(
+            get_handle(),
+            data.get_handle(),
+            out_json.get_handle(),
+            out_status.get_handle()
+        );
     }
 };
 

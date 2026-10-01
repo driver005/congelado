@@ -21,6 +21,8 @@ extern "C" {
     // TF_KernelBuilderOps
     typedef struct TF_KernelBuilderOps {
         size_t struct_size;
+        void (*create)(TF_KernelBuilder* out_handle);
+        void (*destroy)(TF_KernelBuilder* handle);
         void (*type_constraint)(TF_KernelBuilder* kernel_builder, const TF_String* attr_name, TFDataTypeEnum type, TF_Status* out_status);
         void (*host_memory)(TF_KernelBuilder* kernel_builder, const TF_String* arg_name);
         void (*priority)(TF_KernelBuilder* kernel_builder, int32_t priority_number);

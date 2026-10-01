@@ -10,77 +10,93 @@ module;
 export module cc_ice_extern_jobber_sonic:durable;
 
 import std;
-import cc_abi_sonic_registration;
+import :job;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_DurableOps : public ice::sonic::Runtime<TF_DurableOps, TF_DurableOps>
+class TF_DurableOps : public ice::sonic::Runtime<::TF_DurableOps, ::TF_Durable>
 {
 public:
-    explicit TF_DurableOps(TF_DurableOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_DurableOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_DurableOps(
+        Registry& registry,
+        ::TF_Durable* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_DurableOps(const ::TF_DurableOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_DurableOps(const ::TF_DurableOps* ops, ::TF_Durable* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> signal(
+    void signal(
         const ice::sonic::TF_JobOps& job,
         const ice::sonic::String& signal_name,
-        const ice::sonic::String& payload
-    ) noexcept
+        const ice::sonic::String& payload,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->signal(
             get_handle(),
             job.get_handle(),
             signal_name.get_handle(),
             payload.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> checkpoint(
+    void checkpoint(
         const ice::sonic::TF_JobOps& job,
         TFDurableAckFn completion,
-        void* user_data
-    ) noexcept
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->checkpoint(
             get_handle(),
             job.get_handle(),
             completion,
             user_data,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    restore_checkpoint(const ice::sonic::TF_JobOps& job) noexcept
+    void restore_checkpoint(
+        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->restore_checkpoint(get_handle(), job.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->restore_checkpoint(get_handle(), job.get_handle(), out_status.get_handle());
     }
 };
 

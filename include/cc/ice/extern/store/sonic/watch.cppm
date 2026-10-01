@@ -10,26 +10,55 @@ module;
 export module cc_ice_extern_store_sonic:watch;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreWatchOps : public ice::sonic::Runtime<TFStoreWatchOps, TFStoreWatchOps>
+class TFStoreWatchOps : public ice::sonic::Runtime<::TFStoreWatchOps, ::TFStoreWatch>
 {
 public:
-    explicit TFStoreWatchOps(TFStoreWatchOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFStoreWatchOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "store";
+    template<typename Registry>
+    TFStoreWatchOps(
+        Registry& registry,
+        ::TFStoreWatch* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFStoreWatchOps(const ::TFStoreWatchOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFStoreWatchOps(const ::TFStoreWatchOps* ops, ::TFStoreWatch* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void cancel() noexcept
+    void cancel() const noexcept
     {
         m_ops->cancel(get_handle());
     }

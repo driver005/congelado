@@ -20,7 +20,8 @@ extern "C"
     typedef struct TF_TypeInfoOps
     {
         size_t struct_size;
-        void (*destroy)(TF_TypeInfo* type_context);
+        void (*create)(TF_TypeInfo* out_handle);
+        void (*destroy)(TF_TypeInfo* handle);
         void (*get_name)(TF_TypeInfo* type_context, TF_String* out_name);
 
         void (*set_type_attr_name)(TF_TypeInfo* type_context, const TF_String* type_attr_name);

@@ -14,8 +14,7 @@ into one module's partitions):
 - `parser/` (`cc_abi_gen_parser`) — Clang AST walk → `VtableModel`. The only place that
   `#include`s `<clang/...>` headers.
 - `generator/` (`cc_abi_gen_generator`) — `VtableModel` → generated `.cppm` text
-  (`BuilderEmitter`/`SonicEmitter`), plus `SlotClassifier`/`TypeRegistry`/`KnownType` (see
-  below).
+  (`VTableEmitter`, `RuntimeEmitter`; see below).
 - `writer/` (`cc_abi_gen_writer`) — formats the generated text (`clang-format -style=file`) and
   either writes it to disk or diffs it against a real file.
 - Top level (`cc_abi_gen_lib`/`cc_abi_gen`) — CLI parsing/orchestration (`cli_options.cppm`,
@@ -57,35 +56,42 @@ that already exists (`SlotClassifier::middle_parameters`) — never a throwaway 
 - Parameter names come from each field's `FunctionProtoTypeLoc` (the written declarator), since
   the canonical `FunctionProtoType` itself is name-erased.
 
-## Slot classification (`generator/slot_classifier.cppm`)
+## Slot rules
 
-1. `destroy: void(void*)` — absorbed into the destructor (builder) / `Runtime<T,Ops>`'s own
-   destructor (sonic, no method emitted).
-2. `get_name: void(void*, TF_String*)` — special-cased on both sides.
-3. Any other slot whose last parameter's pointee is `TF_Status` — becomes
-   `std::expected<void, ice::Status>` (the only shape `cache`/`logger` exercise; a
-   non-void-return variant is documented but untested — needed by later rollout domains).
-4. Every other pointer-shaped parameter type is looked up in the `TypeRegistry` (see below); a
-   non-pointer type (a callback typedef like `TF_Cache_CompletionFn`, `void*`, an enum, a
-   builtin) passes through unchanged.
+There are no special slot names, except the `create` slot on the builder side. Every slot becomes exactly one
+`void` method; a `TF_Status*` parameter is an ordinary parameter (`const ice::sonic::Status&` in C++), filled by
+the callee. There is no `std::expected`, no hidden temporary and no ownership in the generated code.
 
-## Type registry (`generator/type_registry.cppm`, `known_type.cppm`)
+- Sonic (caller) methods are `const` and call `m_ops->slot(get_handle(), args...)`.
+- Builder (implementer) callbacks resolve the object with `Class::from_handle(handle)` and call the virtual
+  method with every pointer parameter wrapped by the builder's held ops
+  (`self.wrap(std::type_identity<ice::sonic::X>{}, handle)`); the plugin fills the status itself.
+- A pointer parameter whose pointee names a registered domain becomes `const ice::sonic::X&`; anything else
+  passes through.
 
-Every C intern/value type this generator knows how to wrap across the ABI boundary is one
-`KnownType` entry — pointee name, the C++ parameter type it substitutes, and the wrap/unwrap
-`std::format` patterns for the builder-lambda and sonic-call boundaries respectively (e.g.
-`TF_TString` → `const ice::String&`, wrap `ice::String::create({})`, unwrap `{}.get_handle()`).
-Seeded with `TF_TString`/`TF_String`/`TF_Status` — the ones the pilot actually exercises and that
-have been verified against the real hand-written files.
+## Runtime (generated)
 
-A type a domain's header references but that isn't registered yet is queued in the registry's
-pending list (not guessed at — it passes through unconverted for that run, which would be wrong
-if it actually needed wrapping) instead of failing immediately. Once a domain is itself
-generated, its own type is registered and cleared from pending. If anything is still pending
-after every domain in the run has been processed, the run fails and lists what's missing — this
-only works within one process (see `CliRunner::fail_if_types_pending`), which is exactly why the
-build-time wiring is one consolidated genrule covering every domain rather than one genrule per
-domain.
+The only generated runtime piece is `ice::sonic::Runtime<Ops, Handle>` (partition `:runtime` of `intern/sonic`),
+rendered by `RuntimeEmitter` from `runtime_base.inja`. There is no global state and no default backends, and
+nothing in the runtime owns a plugin object.
+
+- Runtime holds two members: `m_ops` (the plugin's ops table: what the object can do) and `m_handle` (the C
+  handle struct by value: which object to do it on). Copying or moving it is trivial.
+- Every ops struct in the C headers starts with `create(Handle*)` and `destroy(Handle*)`. The caller creates and
+  destroys plugin objects with the ordinary slot methods `x.create()` and `x.destroy()`.
+- The registry (`include/c/extern/registration/registration.h`) maps a type `String` and a provider `String` to an
+  ops pointer; the caller builds those Strings (generated code never calls `copy`). `X{registry, type, provider}`
+  looks the ops up with the registry's `get` slot and gives an empty handle; `X{registry, handle, type,
+  provider}` and `X{ops, handle}` wrap a host handle (the struct is copied); `X{ops}` is the raw form used for
+  the registry and String roots, which cannot look themselves up.
+- A builder class holds the ops of the domains it wraps (`m_<Dependency>_ops`), is built with `X{deps_ops...}` and
+  gets `get_generic_vtable(create)`: the plugin passes its `create` function (the one slot that cannot be dispatched
+  through `from_handle`). `register_ops(registry, type, provider)` puts the ops table into the registry.
+- The String, Status and registry backends are provided by plugins; without them nothing works.
+
+A folder under `include/c/` becomes one C++ module, so keep the C headers acyclic at folder level: two folders
+whose headers include each other (for example `memory/` and `stream_executor/` used to) cannot be built, and
+belong in one folder. A domain's imports and BUILD `deps` are computed from the registry.
 
 ## Known intentional deviations from the pre-pilot hand-written files
 

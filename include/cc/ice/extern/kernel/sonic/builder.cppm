@@ -10,76 +10,102 @@ module;
 export module cc_ice_extern_kernel_sonic:builder;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_KernelBuilderOps : public ice::sonic::Runtime<TF_KernelBuilderOps, TF_KernelBuilderOps>
+class TF_KernelBuilderOps : public ice::sonic::Runtime<::TF_KernelBuilderOps, ::TF_KernelBuilder>
 {
 public:
-    explicit TF_KernelBuilderOps(TF_KernelBuilderOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_KernelBuilderOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "kernel";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    type_constraint(const ice::sonic::String& attr_name, TFDataTypeEnum type) noexcept
+    template<typename Registry>
+    TF_KernelBuilderOps(
+        Registry& registry,
+        ::TF_KernelBuilder* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->type_constraint(get_handle(), attr_name.get_handle(), type, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    void host_memory(const ice::sonic::String& arg_name) noexcept
+    explicit TF_KernelBuilderOps(const ::TF_KernelBuilderOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_KernelBuilderOps(const ::TF_KernelBuilderOps* ops, ::TF_KernelBuilder* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void type_constraint(
+        const ice::sonic::String& attr_name,
+        TFDataTypeEnum type,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->type_constraint(get_handle(), attr_name.get_handle(), type, out_status.get_handle());
+    }
+
+    void host_memory(const ice::sonic::String& arg_name) const noexcept
     {
         m_ops->host_memory(get_handle(), arg_name.get_handle());
     }
 
-    void priority(int32_t priority_number) noexcept
+    void priority(int32_t priority_number) const noexcept
     {
         m_ops->priority(get_handle(), priority_number);
     }
 
-    void label(const ice::sonic::String& label) noexcept
+    void label(const ice::sonic::String& label) const noexcept
     {
         m_ops->label(get_handle(), label.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    register_kernel_builder(const ice::sonic::String& kernel_name) noexcept
+    void register_kernel_builder(
+        const ice::sonic::String& kernel_name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->register_kernel_builder(get_handle(), kernel_name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->register_kernel_builder(
+            get_handle(),
+            kernel_name.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> register_kernel_builder_with_kernel_def(
+    void register_kernel_builder_with_kernel_def(
         const ice::sonic::String& serialized_kernel_def,
-        const ice::sonic::String& name
-    ) noexcept
+        const ice::sonic::String& name,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->register_kernel_builder_with_kernel_def(
             get_handle(),
             serialized_kernel_def.get_handle(),
             name.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

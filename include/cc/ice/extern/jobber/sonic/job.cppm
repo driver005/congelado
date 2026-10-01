@@ -10,95 +10,110 @@ module;
 export module cc_ice_extern_jobber_sonic:job;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_JobOps : public ice::sonic::Runtime<TF_JobOps, TF_JobOps>
+class TF_JobOps : public ice::sonic::Runtime<::TF_JobOps, ::TF_Job>
 {
 public:
-    explicit TF_JobOps(TF_JobOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_JobOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "jobber";
+    template<typename Registry>
+    TF_JobOps(
+        Registry& registry,
+        ::TF_Job* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TF_JobOps(const ::TF_JobOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_JobOps(const ::TF_JobOps* ops, ::TF_Job* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    execute(const ice::sonic::String& input, const ice::sonic::String& out_output) noexcept
+    void execute(
+        const ice::sonic::String& input,
+        const ice::sonic::String& out_output,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->execute(
             get_handle(),
             input.get_handle(),
             out_output.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> resubmit() noexcept
+    void resubmit(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->resubmit(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->resubmit(get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    wait(int64_t timeout_ms, TFJobCompletionFn completion, void* user_data) noexcept
+    void wait(
+        int64_t timeout_ms,
+        TFJobCompletionFn completion,
+        void* user_data,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->wait(get_handle(), timeout_ms, completion, user_data, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->wait(get_handle(), timeout_ms, completion, user_data, out_status.get_handle());
     }
 
-    void on_complete(TFJobCompletionFn completion, void* user_data) noexcept
+    void on_complete(TFJobCompletionFn completion, void* user_data) const noexcept
     {
         m_ops->on_complete(get_handle(), completion, user_data);
     }
 
-    void on_progress(TFJobProgressFn progress, void* user_data) noexcept
+    void on_progress(TFJobProgressFn progress, void* user_data) const noexcept
     {
         m_ops->on_progress(get_handle(), progress, user_data);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list(const ice::sonic::TF_MapOps& filters, const ice::sonic::TF_VectorOps& out_job_ids) noexcept
+    void list(
+        const ice::sonic::TF_MapOps& filters,
+        const ice::sonic::TF_VectorOps& out_job_ids,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->list(
             get_handle(),
             filters.get_handle(),
             out_job_ids.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 };
 

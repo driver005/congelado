@@ -10,68 +10,90 @@ module;
 export module cc_ice_extern_otel_sonic:span;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelSpanOps : public ice::sonic::Runtime<TFOtelSpanOps, TFOtelSpanOps>
+class TFOtelSpanOps : public ice::sonic::Runtime<::TFOtelSpanOps, ::TFOtelSpan>
 {
 public:
-    explicit TFOtelSpanOps(TFOtelSpanOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFOtelSpanOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "otel";
+    template<typename Registry>
+    TFOtelSpanOps(
+        Registry& registry,
+        ::TFOtelSpan* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFOtelSpanOps(const ::TFOtelSpanOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFOtelSpanOps(const ::TFOtelSpanOps* ops, ::TFOtelSpan* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_attribute(const ice::sonic::String& key, const ice::sonic::String& value) noexcept
+    void set_attribute(
+        const ice::sonic::String& key,
+        const ice::sonic::String& value,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->set_attribute(
             get_handle(),
             key.get_handle(),
             value.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_status(int status_code, const ice::sonic::String& description) noexcept
+    void set_status(
+        int status_code,
+        const ice::sonic::String& description,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_status(get_handle(), status_code, description.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_status(
+            get_handle(),
+            status_code,
+            description.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> end() noexcept
+    void end(const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->end(get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->end(get_handle(), out_status.get_handle());
     }
 };
 

@@ -1,5 +1,5 @@
 
-            void get_generic_vtable() noexcept
+            void get_generic_vtable(void (*create)(::{{ handle_name }}*)) noexcept
             {
                 m_vtable = ::{{ struct_name }}{
                     .struct_size = {{ struct_size_macro }},

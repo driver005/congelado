@@ -21,7 +21,8 @@ extern "C"
     typedef struct TFStoreTransactionOps
     {
         size_t struct_size;
-        void (*destroy)(TFStoreTransaction* transaction);
+        void (*create)(TFStoreTransaction* out_handle);
+        void (*destroy)(TFStoreTransaction* handle);
         void (*begin)(TFStoreTransaction* transaction, TF_Status* out_status);
         void (*add_collection)(TFStoreTransaction* transaction, TFStoreCollection* collection, TF_Status* out_status);
         void (*get_collection)(TFStoreTransaction* transaction, const TF_String* name, TFStoreCollection* out_collection);

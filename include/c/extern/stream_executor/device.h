@@ -87,6 +87,8 @@ extern "C" {
     // TF_DeviceOps
     typedef struct TF_DeviceOps {
         size_t struct_size;
+        void (*create)(TF_Device* out_handle);
+        void (*destroy)(TF_Device* handle);
         void (*get_numa_node)(TF_Device* device, int32_t* out_numa_node);
         void (*get_memory_bandwidth)(TF_Device* device, int64_t* out_bandwidth);
         void (*get_gflops)(TF_Device* device, double* out_gflops);

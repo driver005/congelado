@@ -44,8 +44,9 @@ extern "C"
     typedef struct TF_SocketOps
     {
         size_t struct_size;
+        void (*create)(TF_Socket* out_handle);
+        void (*destroy)(TF_Socket* handle);
 
-        void (*destroy)(TF_Socket* socket);
         void (*get_name)(TF_Socket* socket, TF_String* out_name);
 
         void (*close_socket)(TF_Socket* socket);

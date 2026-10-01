@@ -80,13 +80,11 @@ private:
             {"build_domain", cc_templating_generated::k_build_domain},
             {"parameter", cc_templating_generated::k_parameter},
             {"method_signature", cc_templating_generated::k_method_signature},
-            {"method_signature_void", cc_templating_generated::k_method_signature_void},
-            {"method_body_void_start", cc_templating_generated::k_method_body_void_start},
-            {"vtable_field_void_middle", cc_templating_generated::k_vtable_field_void_middle},
+            {"vtable_field_middle", cc_templating_generated::k_vtable_field_middle},
             {"vtable_accessor_start", cc_templating_generated::k_vtable_accessor_start},
             {"vtable_field_generic_start", cc_templating_generated::k_vtable_field_generic_start},
-            {"vtable_field_generic_middle", cc_templating_generated::k_vtable_field_generic_middle},
-            {"vtable_field_generic_end", cc_templating_generated::k_vtable_field_generic_end},
+            {"runtime_base", cc_templating_generated::k_runtime_base},
+            {"builder_footer", cc_templating_generated::k_builder_footer},
             {"method_body_start", cc_templating_generated::k_method_body_start}
         };
 

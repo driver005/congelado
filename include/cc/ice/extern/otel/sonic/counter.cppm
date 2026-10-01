@@ -10,39 +10,62 @@ module;
 export module cc_ice_extern_otel_sonic:counter;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelCounterOps : public ice::sonic::Runtime<TFOtelCounterOps, TFOtelCounterOps>
+class TFOtelCounterOps : public ice::sonic::Runtime<::TFOtelCounterOps, ::TFOtelCounter>
 {
 public:
-    explicit TFOtelCounterOps(TFOtelCounterOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFOtelCounterOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "otel";
+    template<typename Registry>
+    TFOtelCounterOps(
+        Registry& registry,
+        ::TFOtelCounter* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFOtelCounterOps(const ::TFOtelCounterOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFOtelCounterOps(const ::TFOtelCounterOps* ops, ::TFOtelCounter* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> add(double value) noexcept
+    void add(double value, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->add(get_handle(), value, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->add(get_handle(), value, out_status.get_handle());
     }
 };
 

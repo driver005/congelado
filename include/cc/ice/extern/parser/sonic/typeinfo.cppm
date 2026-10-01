@@ -10,41 +10,66 @@ module;
 export module cc_ice_extern_parser_sonic:typeinfo;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserTypeInfoOps : public ice::sonic::Runtime<TFParserTypeInfoOps, TFParserTypeInfoOps>
+class TFParserTypeInfoOps : public ice::sonic::Runtime<::TFParserTypeInfoOps, ::TFParserTypeInfo>
 {
 public:
-    explicit TFParserTypeInfoOps(TFParserTypeInfoOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFParserTypeInfoOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "parser";
-
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_dtype(int* out_dtype) noexcept
+    template<typename Registry>
+    TFParserTypeInfoOps(
+        Registry& registry,
+        ::TFParserTypeInfo* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
     {
-        ice::sonic::Status status;
-        m_ops->get_dtype(get_handle(), out_dtype, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_shape(int64_t** out_dims, int* out_num_dims) noexcept
+    explicit TFParserTypeInfoOps(const ::TFParserTypeInfoOps* ops) noexcept :
+        Runtime(ops)
     {
-        ice::sonic::Status status;
-        m_ops->get_shape(get_handle(), out_dims, out_num_dims, status.get_handle());
+    }
 
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+    TFParserTypeInfoOps(const ::TFParserTypeInfoOps* ops, ::TFParserTypeInfo* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_dtype(int* out_dtype, const ice::sonic::Status& out_status) const noexcept
+    {
+        m_ops->get_dtype(get_handle(), out_dtype, out_status.get_handle());
+    }
+
+    void get_shape(
+        int64_t** out_dims,
+        int* out_num_dims,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->get_shape(get_handle(), out_dims, out_num_dims, out_status.get_handle());
     }
 };
 

@@ -1,7 +1,22 @@
 
-                        explicit {{ class_name }}({{ struct_name }}* ops, void* plugin_context) noexcept
-                            : Runtime(ops, plugin_context)
+                        template<typename Registry>
+                        {{ class_name }}(Registry& registry, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
+                            : Runtime(registry, type, provider)
                         {
                         }
 
-                        static constexpr std::string_view domain_name = "{{ target_name }}";
+                        template<typename Registry>
+                        {{ class_name }}(Registry& registry, ::{{ handle_name }}* handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
+                            : Runtime(registry, handle, type, provider)
+                        {
+                        }
+
+                        explicit {{ class_name }}(const ::{{ struct_name }}* ops) noexcept
+                            : Runtime(ops)
+                        {
+                        }
+
+                        {{ class_name }}(const ::{{ struct_name }}* ops, ::{{ handle_name }}* handle) noexcept
+                            : Runtime(ops, handle)
+                        {
+                        }

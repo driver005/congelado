@@ -10,175 +10,168 @@ module;
 export module cc_ice_extern_pubsub_sonic:channel;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFPubSubChannelOps : public ice::sonic::Runtime<TFPubSubChannelOps, TFPubSubChannelOps>
+class TFPubSubChannelOps : public ice::sonic::Runtime<::TFPubSubChannelOps, ::TFPubSubChannel>
 {
 public:
-    explicit TFPubSubChannelOps(TFPubSubChannelOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TFPubSubChannelOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "pubsub";
+    template<typename Registry>
+    TFPubSubChannelOps(
+        Registry& registry,
+        ::TFPubSubChannel* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void destroy() noexcept
+    explicit TFPubSubChannelOps(const ::TFPubSubChannelOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TFPubSubChannelOps(const ::TFPubSubChannelOps* ops, ::TFPubSubChannel* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
     {
         m_ops->destroy(get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    create(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept
+    void create_channel(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& config,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->create(get_handle(), name.get_handle(), config.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->create_channel(
+            get_handle(),
+            name.get_handle(),
+            config.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    drop(const ice::sonic::String& name) noexcept
+    void drop(const ice::sonic::String& name, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->drop(get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->drop(get_handle(), name.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_config(const ice::sonic::String& name, const ice::sonic::TF_MapOps& out_config) noexcept
+    void get_config(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& out_config,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_config(
             get_handle(),
             name.get_handle(),
             out_config.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_config(const ice::sonic::String& name, const ice::sonic::TF_MapOps& config) noexcept
+    void set_config(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& config,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops
-            ->set_config(get_handle(), name.get_handle(), config.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_config(
+            get_handle(),
+            name.get_handle(),
+            config.get_handle(),
+            out_status.get_handle()
+        );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_stats(const ice::sonic::String& name, const ice::sonic::TF_MapOps& out_stats) noexcept
+    void get_stats(
+        const ice::sonic::String& name,
+        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->get_stats(
             get_handle(),
             name.get_handle(),
             out_stats.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    purge(const ice::sonic::String& name) noexcept
+    void purge(const ice::sonic::String& name, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->purge(get_handle(), name.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->purge(get_handle(), name.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> set_dead_letter(
+    void set_dead_letter(
         const ice::sonic::String& target_channel,
-        const ice::sonic::String& dead_letter_channel
-    ) noexcept
+        const ice::sonic::String& dead_letter_channel,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->set_dead_letter(
             get_handle(),
             target_channel.get_handle(),
             dead_letter_channel.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> list_dead_letters(
+    void list_dead_letters(
         const ice::sonic::String& target_channel,
-        const ice::sonic::TF_VectorOps& out_payloads
-    ) noexcept
+        const ice::sonic::TF_VectorOps& out_payloads,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->list_dead_letters(
             get_handle(),
             target_channel.get_handle(),
             out_payloads.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> requeue_dead_letter(
+    void requeue_dead_letter(
         const ice::sonic::String& target_channel,
-        const ice::sonic::String& payload
-    ) noexcept
+        const ice::sonic::String& payload,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->requeue_dead_letter(
             get_handle(),
             target_channel.get_handle(),
             payload.get_handle(),
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    list(const ice::sonic::TF_VectorOps& out_channels) noexcept
+    void list(
+        const ice::sonic::TF_VectorOps& out_channels,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->list(get_handle(), out_channels.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->list(get_handle(), out_channels.get_handle(), out_status.get_handle());
     }
 };
 

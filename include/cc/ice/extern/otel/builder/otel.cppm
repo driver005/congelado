@@ -6,19 +6,22 @@
 module;
 
 #include "include/c/extern/otel/otel.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_otel_builder:otel;
 
 import std;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_OtelOps
 {
 public:
-    TF_OtelOps() noexcept :
+    explicit TF_OtelOps(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_String_ops = String_ops;
     }
 
     TF_OtelOps(const TF_OtelOps&) = delete;
@@ -39,22 +42,32 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Otel*)) noexcept
     {
         m_vtable = ::TF_OtelOps{
-            .struct_size = TF_OTEL_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_OtelOps, get_name),
+
+            .create = create,
             .destroy =
-                [](TF_Otel* otel) noexcept
+                [](TF_Otel* handle) noexcept
             {
-                TF_OtelOps::from_handle(otel).destroy();
+                auto& self = TF_OtelOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TF_Otel* otel, TF_String* out_name) noexcept
             {
-                TF_OtelOps::from_handle(otel).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TF_OtelOps::from_handle(otel);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
         };
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TF_OtelOps& get_vtable() const noexcept
@@ -62,15 +75,26 @@ public:
         return m_vtable;
     }
 
-    const TF_Otel& get_handle() const noexcept
+    const ::TF_Otel& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_OtelOps*>(&m_vtable));
+    }
 
 private:
     ::TF_OtelOps m_vtable;
-    TF_Otel m_handle;
+    ::TF_Otel m_handle;
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

@@ -37,8 +37,9 @@ extern "C"
     typedef struct TF_ServerOps
     {
         size_t struct_size;
+        void (*create)(TF_Server* out_handle);
+        void (*destroy)(TF_Server* handle);
 
-        void (*destroy)(TF_Server* server);
         void (*get_name)(TF_Server* server, TF_String* out_name);
 
         // Bind configuration.
@@ -70,13 +71,8 @@ extern "C"
         void (*set_max_connections)(TF_Server* server, size_t max_connections, TF_Status* out_status);
         void (*get_max_connections)(TF_Server* server, size_t* out_max_connections);
         void (*find_connection)(TF_Server* server, const TF_String* connection_id, TFServerConnection* out_connection, TF_Status* out_status);
-        void (*get_connection_id)(TFServerConnection* connection, TF_String* out_connection_id);
-
-        void (*send_response)(TFServerConnection* connection, TF_Response* response, TF_Status* out_status);
-
         // Send the same response to every currently active connection.
         void (*broadcast)(TF_Server* server, TF_Response* response, TF_Status* out_status);
-        void (*close_connection)(TFServerConnection* connection, TF_Status* out_status);
         void (*list_connections)(TF_Server* server, TF_Vector* out_connections, TF_Status* out_status);
         void (*get_connection_count)(TF_Server* server, size_t* out_count);
 

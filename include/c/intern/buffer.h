@@ -55,6 +55,8 @@ extern "C"
     typedef struct TF_BufferOps
     {
         size_t struct_size;
+        void (*create)(TF_Buffer* out_handle);
+        void (*destroy)(TF_Buffer* handle);
 
         // Return the backend's name (e.g. "buffer") into *out.
         void (*get_name)(TF_Buffer* buffer, TF_String* out_name);

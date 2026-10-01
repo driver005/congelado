@@ -26,6 +26,8 @@ extern "C"
     typedef struct TF_HiveOps
     {
         size_t struct_size;
+        void (*create)(TF_Hive* out_handle);
+        void (*destroy)(TF_Hive* handle);
 
         void (*set_element_size)(TF_Hive* hive, size_t element_size);
 
@@ -48,11 +50,10 @@ extern "C"
         // Current live element count.
         void (*size)(const TF_Hive* hive, size_t* out_size);
 
-        void (*destroy)(TF_Hive* hive);
 
     } TF_HiveOps;
 
-#define TF_HIVE_STRUCT_SIZE TF_OFFSET_OF_END(TF_HiveOps, destroy)
+#define TF_HIVE_STRUCT_SIZE TF_OFFSET_OF_END(TF_HiveOps, size)
 
     TF_CAPI_EXPORT void create_hive(TF_HiveOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_hive(void* plugin_context);

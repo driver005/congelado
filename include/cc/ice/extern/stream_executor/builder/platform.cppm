@@ -5,20 +5,32 @@
 
 module;
 
+#include "include/c/extern/stream_executor/device.h"
+#include "include/c/extern/stream_executor/executor.h"
 #include "include/c/extern/stream_executor/platform.h"
+#include "include/c/intern/status.h"
 
 export module cc_ice_extern_stream_executor_builder:platform;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TF_PlatformOps
 {
 public:
-    TF_PlatformOps() noexcept :
+    explicit TF_PlatformOps(
+        const ::TF_DeviceOps* TF_DeviceOps_ops,
+        const ::TF_ExecutorOps* TF_ExecutorOps_ops,
+        const ::TF_StatusOps* Status_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TF_DeviceOps_ops = TF_DeviceOps_ops;
+        m_TF_ExecutorOps_ops = TF_ExecutorOps_ops;
+        m_Status_ops = Status_ops;
     }
 
     TF_PlatformOps(const TF_PlatformOps&) = delete;
@@ -36,86 +48,108 @@ public:
     }
 
     virtual ~TF_PlatformOps() = default;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_device_count(int* out_device_count) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    create_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept = 0;
+    virtual void destroy() noexcept = 0;
+    virtual void
+    get_device_count(int* out_device_count, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void create_device_internal(
+        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void destroy_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    create_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept = 0;
+    virtual void create_executor_internal(
+        const ice::sonic::TF_ExecutorOps& executor,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_current_device(int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    set_current_device(int device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    get_device_for_pointer(const void* pointer, int* out_device_index) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status>
-    can_access_peer(int device_index, int peer_device_index, _Bool* out_can_access) noexcept = 0;
+    virtual void
+    get_current_device(int* out_device_index, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_current_device(int device_index, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_device_for_pointer(
+        const void* pointer,
+        int* out_device_index,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
+    virtual void can_access_peer(
+        int device_index,
+        int peer_device_index,
+        _Bool* out_can_access,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TF_Platform*)) noexcept
     {
         m_vtable = ::TF_PlatformOps{
-            .struct_size = TF_PLATFORM_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TF_PlatformOps, get_native_handle),
+
+            .create = create,
+            .destroy =
+                [](TF_Platform* handle) noexcept
+            {
+                auto& self = TF_PlatformOps::from_handle(handle);
+                self.destroy();
+            },
             .get_device_count =
                 [](TF_Platform* platform, int* out_device_count, TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).get_device_count(out_device_count);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.get_device_count(
+                    out_device_count,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .create_device_internal =
                 [](TF_Platform* platform, TF_Device* device, TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).create_device_internal(
-                    ice::sonic::TF_DeviceOps::wrap(device)
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.create_device_internal(
+                    self.wrap(std::type_identity<ice::sonic::TF_DeviceOps>{}, device),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .destroy_device_internal =
                 [](TF_Platform* platform, TF_Device* device) noexcept
             {
-                TF_PlatformOps::from_handle(platform).destroy_device_internal(
-                    ice::sonic::TF_DeviceOps::wrap(device)
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.destroy_device_internal(
+                    self.wrap(std::type_identity<ice::sonic::TF_DeviceOps>{}, device)
                 );
             },
             .create_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor, TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).create_executor_internal(
-                    ice::sonic::TF_ExecutorOps::wrap(executor)
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.create_executor_internal(
+                    self.wrap(std::type_identity<ice::sonic::TF_ExecutorOps>{}, executor),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .destroy_executor_internal =
                 [](TF_Platform* platform, TF_Executor* executor) noexcept
             {
-                TF_PlatformOps::from_handle(platform).destroy_executor_internal(
-                    ice::sonic::TF_ExecutorOps::wrap(executor)
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.destroy_executor_internal(
+                    self.wrap(std::type_identity<ice::sonic::TF_ExecutorOps>{}, executor)
                 );
             },
             .get_current_device =
                 [](TF_Platform* platform, int* out_device_index, TF_Status* out_status) noexcept
             {
-                auto res =
-                    TF_PlatformOps::from_handle(platform).get_current_device(out_device_index);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.get_current_device(
+                    out_device_index,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .set_current_device =
                 [](TF_Platform* platform, int device_index, TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).set_current_device(device_index);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.set_current_device(
+                    device_index,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_device_for_pointer =
                 [](TF_Platform* platform,
@@ -123,13 +157,12 @@ public:
                    int* out_device_index,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform).get_device_for_pointer(
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.get_device_for_pointer(
                     pointer,
-                    out_device_index
+                    out_device_index,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .can_access_peer =
                 [](TF_Platform* platform,
@@ -138,19 +171,40 @@ public:
                    _Bool* out_can_access,
                    TF_Status* out_status) noexcept
             {
-                auto res = TF_PlatformOps::from_handle(platform)
-                               .can_access_peer(device_index, peer_device_index, out_can_access);
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.can_access_peer(
+                    device_index,
+                    peer_device_index,
+                    out_can_access,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
             },
             .get_native_handle =
                 [](TF_Platform* platform, void** out_handle) noexcept
             {
-                TF_PlatformOps::from_handle(platform).get_native_handle(out_handle);
+                auto& self = TF_PlatformOps::from_handle(platform);
+                self.get_native_handle(out_handle);
             },
 
         };
+    }
+
+    ice::sonic::TF_DeviceOps
+    wrap(std::type_identity<ice::sonic::TF_DeviceOps>, const ::TF_Device* handle) const noexcept
+    {
+        return ice::sonic::TF_DeviceOps{m_TF_DeviceOps_ops, const_cast<::TF_Device*>(handle)};
+    }
+
+    ice::sonic::TF_ExecutorOps
+    wrap(std::type_identity<ice::sonic::TF_ExecutorOps>, const ::TF_Executor* handle) const noexcept
+    {
+        return ice::sonic::TF_ExecutorOps{m_TF_ExecutorOps_ops, const_cast<::TF_Executor*>(handle)};
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
     }
 
     const ::TF_PlatformOps& get_vtable() const noexcept
@@ -158,15 +212,30 @@ public:
         return m_vtable;
     }
 
-    const TF_Platform& get_handle() const noexcept
+    const ::TF_Platform& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TF_PlatformOps*>(&m_vtable));
+    }
 
 private:
     ::TF_PlatformOps m_vtable;
-    TF_Platform m_handle;
+    ::TF_Platform m_handle;
+
+    const ::TF_DeviceOps* m_TF_DeviceOps_ops{nullptr};
+
+    const ::TF_ExecutorOps* m_TF_ExecutorOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
 };
 
 } // namespace ice::builder

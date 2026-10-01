@@ -10,138 +10,146 @@ module;
 export module cc_ice_extern_random_generator_sonic:random_generator;
 
 import std;
-import cc_abi_sonic_registration;
+import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
 class TF_RandomGeneratorOps :
-    public ice::sonic::Runtime<TF_RandomGeneratorOps, TF_RandomGeneratorOps>
+    public ice::sonic::Runtime<::TF_RandomGeneratorOps, ::TF_RandomGenerator>
 {
 public:
-    explicit TF_RandomGeneratorOps(TF_RandomGeneratorOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_RandomGeneratorOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "random_generator";
+    template<typename Registry>
+    TF_RandomGeneratorOps(
+        Registry& registry,
+        ::TF_RandomGenerator* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void set_seed(uint64_t seed) noexcept
+    explicit TF_RandomGeneratorOps(const ::TF_RandomGeneratorOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_RandomGeneratorOps(const ::TF_RandomGeneratorOps* ops, ::TF_RandomGenerator* handle) noexcept
+        :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void set_seed(uint64_t seed) const noexcept
     {
         m_ops->set_seed(get_handle(), seed);
     }
 
-    void get_seed(uint64_t* out_seed) noexcept
+    void get_seed(uint64_t* out_seed) const noexcept
     {
         m_ops->get_seed(get_handle(), out_seed);
     }
 
-    void reseed_nondeterministic(uint64_t* out_seed) noexcept
+    void reseed_nondeterministic(uint64_t* out_seed) const noexcept
     {
         m_ops->reseed_nondeterministic(get_handle(), out_seed);
     }
 
-    void set_offset(uint64_t offset) noexcept
+    void set_offset(uint64_t offset) const noexcept
     {
         m_ops->set_offset(get_handle(), offset);
     }
 
-    void get_offset(uint64_t* out_offset) noexcept
+    void get_offset(uint64_t* out_offset) const noexcept
     {
         m_ops->get_offset(get_handle(), out_offset);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_state(const ice::sonic::TF_TensorOps& state) noexcept
+    void set_state(
+        const ice::sonic::TF_TensorOps& state,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->set_state(get_handle(), state.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->set_state(get_handle(), state.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> get_state(TF_Tensor** out_state) noexcept
+    void get_state(TF_Tensor** out_state, const ice::sonic::Status& out_status) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->get_state(get_handle(), out_state, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->get_state(get_handle(), out_state, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    graphsafe_set_state(const ice::sonic::TF_RandomGeneratorOps& other) noexcept
+    void graphsafe_set_state(
+        const ice::sonic::TF_RandomGeneratorOps& other,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->graphsafe_set_state(get_handle(), other.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->graphsafe_set_state(get_handle(), other.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    graphsafe_get_state(const ice::sonic::TF_RandomGeneratorOps& out_other) noexcept
+    void graphsafe_get_state(
+        const ice::sonic::TF_RandomGeneratorOps& out_other,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->graphsafe_get_state(get_handle(), out_other.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->graphsafe_get_state(get_handle(), out_other.get_handle(), out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    philox_state(uint64_t increment, TF_PhiloxState* out_state) noexcept
+    void philox_state(
+        uint64_t increment,
+        TF_PhiloxState* out_state,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->philox_state(get_handle(), increment, out_state, status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->philox_state(get_handle(), increment, out_state, out_status.get_handle());
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    philox_engine_inputs(uint64_t increment, uint64_t* out_seed, uint64_t* out_offset) noexcept
+    void philox_engine_inputs(
+        uint64_t increment,
+        uint64_t* out_seed,
+        uint64_t* out_offset,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
         m_ops->philox_engine_inputs(
             get_handle(),
             increment,
             out_seed,
             out_offset,
-            status.get_handle()
+            out_status.get_handle()
         );
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
     }
 
-    void get_device_index(int* out_device_index) noexcept
+    void get_device_index(int* out_device_index) const noexcept
     {
         m_ops->get_device_index(get_handle(), out_device_index);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    clone(const ice::sonic::TF_RandomGeneratorOps& out_clone) noexcept
+    void clone(
+        const ice::sonic::TF_RandomGeneratorOps& out_clone,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
-        ice::sonic::Status status;
-        m_ops->clone(get_handle(), out_clone.get_handle(), status.get_handle());
-
-        if (!status.ok()) {
-            return std::unexpected{status};
-        }
-        return {};
+        m_ops->clone(get_handle(), out_clone.get_handle(), out_status.get_handle());
     }
 };
 

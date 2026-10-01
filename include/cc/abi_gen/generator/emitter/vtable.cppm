@@ -11,6 +11,8 @@ import cc_abi_gen_writer;
 import :helper_formatter;
 import :helper_module_naming;
 import :helper_types;
+import :runtime_spec;
+import :runtime_emitter;
 
 export namespace cc_abi_gen::generator::emitter {
 
@@ -102,7 +104,12 @@ public:
             return std::unexpected(std::move(module_name.error()));
         }
 
-        auto rendered = render(base_path, model, mode, *module_name);
+        auto imports = collect_imports(base_path, model, mode, path.parent_path());
+        if (!imports) {
+            return std::unexpected(std::move(imports.error()));
+        }
+
+        auto rendered = render(base_path, model, mode, *module_name, *imports);
         if (!rendered) {
             return std::unexpected(rendered.error());
         }
@@ -111,6 +118,11 @@ public:
         if (!write_result) {
             return write_result;
         }
+
+        m_dependencies_by_folder[path.parent_path()].insert(
+            m_scratch_dependencies.begin(),
+            m_scratch_dependencies.end()
+        );
 
 
         // Dynamically build the graph folder-by-folder explicitly from the model's structure
@@ -163,6 +175,15 @@ public:
 
                 imports.push_back(std::move(*child_module));
                 deps.push_back(std::move(*child_label));
+            }
+
+            if (auto extra = m_dependencies_by_folder.find(dir_path);
+                extra != m_dependencies_by_folder.end()) {
+                for (const auto& label: extra->second) {
+                    if (std::ranges::find(deps, label) == deps.end()) {
+                        deps.push_back(label);
+                    }
+                }
             }
 
             auto base_rendered = helper::format_base_module(m_base_folder, *module_name, imports);
@@ -230,12 +251,17 @@ public:
             return std::unexpected(std::move(module_name.error()));
         }
 
-        auto rendered = render(base_path, model, mode, *module_name);
+        auto imports = collect_imports(base_path, model, mode, real_path.parent_path());
+        if (!imports) {
+            return std::unexpected{std::move(imports.error())};
+        }
+
+        auto rendered = render(base_path, model, mode, *module_name, *imports);
         if (!rendered) {
             return std::unexpected{std::move(rendered.error())};
         }
 
-        auto diff_result = m_file_writer.diff(*rendered, real_path, base_path);
+        auto diff_result = m_file_writer.diff(*rendered, real_path, root);
         if (!diff_result) {
             return std::unexpected{std::move(diff_result.error())};
         }
@@ -249,6 +275,111 @@ public:
         }
 
         return true;
+    }
+
+    std::expected<void, std::string>
+    generate_runtime(std::filesystem::path& root, std::string_view out_dir)
+    {
+        auto base_path = root / out_dir;
+
+        auto prepared = prepare_runtime(base_path);
+        if (!prepared) {
+            return prepared;
+        }
+
+        for (const auto& spec: RuntimeEmitter::get_specs()) {
+            auto target = runtime_target(base_path, spec);
+            if (!target) {
+                return std::unexpected(std::move(target.error()));
+            }
+
+            auto module_name = helper::ModuleNaming::module_name(*target);
+            if (!module_name) {
+                return std::unexpected(std::move(module_name.error()));
+            }
+
+            auto rendered = m_runtime_emitter.render(spec, *module_name);
+            if (!rendered) {
+                return std::unexpected(std::move(rendered.error()));
+            }
+
+            auto path = *target / std::format("{}.cppm", spec.get_partition());
+            auto write_result = m_file_writer.write(*rendered, path, root);
+            if (!write_result) {
+                return write_result;
+            }
+
+            auto& children = m_partitions_by_folder[*target];
+            if (std::ranges::find(children, std::string{spec.get_partition()}) == children.end()) {
+                children.emplace_back(spec.get_partition());
+            }
+
+            auto runtime_dir = runtime_directory(base_path);
+            if (!runtime_dir) {
+                return std::unexpected(std::move(runtime_dir.error()));
+            }
+
+            auto anchor = m_registry.get().find(std::string{spec.get_anchor_struct()});
+
+            m_scratch_imports.clear();
+            m_scratch_dependencies.clear();
+            m_scratch_dependencies.insert(c_headers_label(anchor->get()));
+            auto added = add_import(*runtime_dir, std::string{RuntimeEmitter::k_runtime_partition}, *target);
+            if (!added) {
+                return added;
+            }
+            m_dependencies_by_folder[*target].insert(
+                m_scratch_dependencies.begin(),
+                m_scratch_dependencies.end()
+            );
+        }
+
+        return {};
+    }
+
+    std::expected<bool, std::string>
+    check_runtime(std::filesystem::path& root, std::string_view out_dir)
+    {
+        auto base_path = root / out_dir;
+
+        auto prepared = prepare_runtime(base_path);
+        if (!prepared) {
+            return std::unexpected(std::move(prepared.error()));
+        }
+
+        bool identical = true;
+        for (const auto& spec: RuntimeEmitter::get_specs()) {
+            auto target = runtime_target(base_path, spec);
+            if (!target) {
+                return std::unexpected(std::move(target.error()));
+            }
+
+            auto module_name = helper::ModuleNaming::module_name(*target);
+            if (!module_name) {
+                return std::unexpected(std::move(module_name.error()));
+            }
+
+            auto rendered = m_runtime_emitter.render(spec, *module_name);
+            if (!rendered) {
+                return std::unexpected(std::move(rendered.error()));
+            }
+
+            auto path = *target / std::format("{}.cppm", spec.get_partition());
+            auto diff_result = m_file_writer.diff(*rendered, path, root);
+            if (!diff_result) {
+                return std::unexpected(std::move(diff_result.error()));
+            }
+
+            if (diff_result->get_identical()) {
+                std::println(stderr, "[cc_abi_gen] up to date: {}", path.string());
+            } else {
+                std::println("--- {} differs ---", path.string());
+                std::print("{}", diff_result->get_unified_diff());
+                identical = false;
+            }
+        }
+
+        return identical;
     }
 
     void set_path_callback(PathCallback&& path_callback) noexcept
@@ -348,14 +479,37 @@ private:
         std::filesystem::path& root,
         const parser::vtable::Model& model,
         const Mode& mode,
-        std::string_view module_name
+        std::string_view module_name,
+        std::string_view imports
     )
     {
         m_writer.clear();
 
+        auto handle_name = c_handle_name(model);
+        if (handle_name.empty()) {
+            return std::unexpected(
+                std::format("No C handle struct found for '{}'", model.get_struct_name())
+            );
+        }
+
         auto partition = model.to_file_name();
         if (!partition.has_value()) {
             return std::unexpected("Failed to get partition name");
+        }
+
+        auto members = member_dependencies(model, mode);
+        if (!members) {
+            return std::unexpected(std::move(members.error()));
+        }
+
+        auto string_type = runtime_type_name(RuntimeEmitter::k_string_struct);
+        if (!string_type) {
+            return std::unexpected(std::move(string_type.error()));
+        }
+
+        auto includes = dependency_includes(model, *members);
+        if (!includes) {
+            return std::unexpected(std::move(includes.error()));
         }
 
         auto header_result = helper::format_header(
@@ -369,7 +523,11 @@ private:
             module_name,
             model.get_struct_name(),
             *partition,
-            mode == Mode::Builder ? c_handle_name(model) : std::string{}
+            handle_name,
+            imports,
+            *members,
+            *string_type,
+            *includes
         );
         if (!header_result) {
             return std::unexpected(header_result.error());
@@ -378,6 +536,10 @@ private:
         m_writer += *header_result;
 
         for (const parser::slot::Slot& slot: model.get_slots()) {
+            if (mode == Mode::Builder && slot.get_name() == RuntimeEmitter::k_create_slot) {
+                continue;
+            }
+
             auto method = write_method(root, slot, mode);
             if (!method.has_value()) {
                 return std::unexpected(method.error());
@@ -395,9 +557,9 @@ private:
 
         auto footer_result = helper::format_footer(
             to_gen_target(mode),
-            model.get_class_name(),
             model.get_struct_name(),
-            c_handle_name(model),
+            handle_name,
+            *members,
             root
         );
         if (!footer_result) {
@@ -428,11 +590,12 @@ private:
             return std::unexpected{tier.error()};
         }
 
-        const auto domain = model.get_domain_name();
+        std::string domain{model.get_domain_name()};
         auto file = model.to_file_name();
         if (!file.has_value()) {
             return std::unexpected{std::move(file.error())};
         }
+
 
         std::string mode_str;
         if (mode == emitter::Mode::Sonic) {
@@ -447,7 +610,7 @@ private:
 
         return PathComponents{
             .tier = *std::move(tier),
-            .domain = std::string{domain},
+            .domain = std::move(domain),
             .mode = std::move(mode_str),
             .file = *std::move(file)
         };
@@ -468,17 +631,7 @@ private:
     std::expected<void, std::string>
     write_method(std::filesystem::path& root, const parser::slot::Slot& slot, const Mode& mode)
     {
-        auto status_type = status_type_name(slot);
-        if (!status_type.has_value()) {
-            return std::unexpected(status_type.error());
-        }
-
-        auto ms_result = helper::format_method_signature(
-            slot.get_name(),
-            *status_type,
-            mode == Mode::Builder,
-            slot.is_failable()
-        );
+        auto ms_result = helper::format_method_signature(slot.get_name(), mode == Mode::Builder);
         if (!ms_result) {
             return std::unexpected(ms_result.error());
         }
@@ -490,44 +643,27 @@ private:
         }
 
         if (mode == Mode::Builder) {
-            auto vme_result = helper::format_virtual_method_end(root);
-            m_writer += vme_result;
-        } else if (mode == Mode::Sonic && !slot.is_failable()) {
-            auto mbs_result = helper::format_method_body_void_start(slot.get_name());
-            if (!mbs_result) {
-                return std::unexpected(mbs_result.error());
-            }
-            m_writer += *mbs_result;
+            m_writer += helper::format_virtual_method_end(root);
 
-            if (!slot.extract_parameters().empty()) {
-                m_writer += ", ";
-            }
-            auto call_arguments = write_call_arguments(slot, mode);
-            if (!call_arguments.has_value()) {
-                return call_arguments;
-            }
-
-            m_writer += helper::format_method_body_void_end();
-        } else if (mode == Mode::Sonic) {
-            auto mbs_result =
-                helper::format_method_body_start(slot.get_name(), *status_type, root);
-            if (!mbs_result) {
-                return std::unexpected(mbs_result.error());
-            }
-            m_writer += *mbs_result;
-
-            auto call_arguments = write_call_arguments(slot, mode);
-            if (!call_arguments.has_value()) {
-                return call_arguments;
-            }
-            if (!slot.extract_parameters().empty()) {
-                m_writer += ", ";
-            }
-
-            m_writer += helper::format_method_body_end(root);
-        } else {
-            return std::unexpected(std::format("Invalid mode for write_method function: {}", mode));
+            return {};
         }
+
+        auto mbs_result = helper::format_method_body_start(slot.get_name());
+        if (!mbs_result) {
+            return std::unexpected(mbs_result.error());
+        }
+        m_writer += *mbs_result;
+
+        if (!slot.extract_parameters().empty()) {
+            m_writer += ", ";
+        }
+
+        auto call_arguments = write_call_arguments(slot, mode);
+        if (!call_arguments.has_value()) {
+            return call_arguments;
+        }
+
+        m_writer += helper::format_method_body_end();
 
         return {};
     }
@@ -608,7 +744,12 @@ private:
     {
         auto vtas_result = helper::format_vtable_accessor_start(
             model.get_struct_name(),
-            model.get_struct_size_macro(),
+            std::format(
+                "TF_OFFSET_OF_END(::{}, {})",
+                model.get_struct_name(),
+                model.get_slots().back().get_name()
+            ),
+            c_handle_name(model),
             root
         );
         if (!vtas_result) {
@@ -635,6 +776,12 @@ private:
         const Mode& mode
     )
     {
+        if (slot.get_name() == RuntimeEmitter::k_create_slot) {
+            m_writer += "\n            .create = create,\n";
+
+            return {};
+        }
+
         auto vtfgs_result = helper::format_vtable_field_generic_start(slot.get_name());
         if (!vtfgs_result) {
             return std::unexpected(vtfgs_result.error());
@@ -643,49 +790,22 @@ private:
 
         write_c_parameter_list(slot.get_parameters());
 
-        if (!slot.is_failable()) {
-            auto vtfvm_result = helper::format_vtable_field_void_middle(
-                model.get_class_name(),
-                slot.get_name(),
-                self_parameter_name(slot)
-            );
-            if (!vtfvm_result) {
-                return std::unexpected(vtfvm_result.error());
-            }
-            m_writer += *vtfvm_result;
-
-            auto call_arguments = write_call_arguments(slot, mode);
-            if (!call_arguments.has_value()) {
-                return call_arguments;
-            }
-
-            m_writer += helper::format_vtable_field_void_end();
-
-            return {};
-        }
-
-        auto vtfgm_result = helper::format_vtable_field_generic_middle(
+        auto vtfm_result = helper::format_vtable_field_middle(
             model.get_class_name(),
             slot.get_name(),
-            self_parameter_name(slot),
-            root
+            self_parameter_name(slot)
         );
-        if (!vtfgm_result) {
-            return std::unexpected(vtfgm_result.error());
+        if (!vtfm_result) {
+            return std::unexpected(vtfm_result.error());
         }
-        m_writer += *vtfgm_result;
+        m_writer += *vtfm_result;
 
         auto call_arguments = write_call_arguments(slot, mode);
         if (!call_arguments.has_value()) {
             return call_arguments;
         }
 
-        auto vtfge_result =
-            helper::format_vtable_field_generic_end(failable_parameter_name(slot), root);
-        if (!vtfge_result) {
-            return std::unexpected(vtfge_result.error());
-        }
-        m_writer += *vtfge_result;
+        m_writer += helper::format_vtable_field_end();
 
         return {};
     }
@@ -735,28 +855,281 @@ private:
         }
     }
 
-    std::expected<std::string, std::string> status_type_name(const parser::slot::Slot& slot) const
+    std::expected<void, std::string> add_import(
+        const std::filesystem::path& dependency_directory,
+        std::string_view partition,
+        const std::filesystem::path& module_directory
+    )
     {
-        auto failable = slot.extract_failable();
-        if (!failable.has_value()) {
-            return std::string{};
+        if (dependency_directory == module_directory) {
+            m_scratch_imports.insert(std::format("import :{};", partition));
+
+            return {};
         }
 
-        auto model = m_registry.get().find(failable->get().get_registry_key());
+        auto module_name = helper::ModuleNaming::module_name(dependency_directory);
+        if (!module_name) {
+            return std::unexpected(std::move(module_name.error()));
+        }
+
+        auto label = helper::ModuleNaming::bazel_label(dependency_directory);
+        if (!label) {
+            return std::unexpected(std::move(label.error()));
+        }
+
+        m_scratch_imports.insert(std::format("import {};", *module_name));
+        m_scratch_dependencies.insert(std::move(*label));
+
+        return {};
+    }
+
+    std::expected<std::filesystem::path, std::string> module_directory(
+        const std::filesystem::path& base_path,
+        const parser::vtable::Model& model,
+        const Mode& mode
+    ) const
+    {
+        auto components = extract_path_components(model, mode);
+        if (!components) {
+            return std::unexpected(std::move(components.error()));
+        }
+
+        return build_output_path(base_path, *components).parent_path();
+    }
+
+    std::expected<std::filesystem::path, std::string>
+    runtime_directory(const std::filesystem::path& base_path) const
+    {
+        auto anchor = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
+        if (!anchor.has_value()) {
+            return std::unexpected(std::format(
+                "Runtime anchor '{}' is not part of the parsed headers",
+                RuntimeEmitter::k_string_struct
+            ));
+        }
+
+        return module_directory(base_path, anchor->get(), Mode::Sonic);
+    }
+
+    std::expected<void, std::string> add_model_import(
+        const std::filesystem::path& base_path,
+        const parser::vtable::Model& dependency,
+        const parser::vtable::Model& model,
+        const Mode& mode,
+        const std::filesystem::path& module_dir
+    )
+    {
+        if (mode == Mode::Sonic && dependency.get_struct_name() == model.get_struct_name()) {
+            return {};
+        }
+
+        auto dependency_directory = module_directory(base_path, dependency, Mode::Sonic);
+        if (!dependency_directory) {
+            return std::unexpected(std::move(dependency_directory.error()));
+        }
+
+        auto partition = dependency.to_file_name();
+        if (!partition) {
+            return std::unexpected(std::move(partition.error()));
+        }
+
+        return add_import(*dependency_directory, *partition, module_dir);
+    }
+
+    std::expected<std::string, std::string> dependency_includes(
+        const parser::vtable::Model& model,
+        std::span<const helper::DependencyInfo> members
+    ) const
+    {
+        m_scratch_includes.clear();
+
+        for (const helper::DependencyInfo& member: members) {
+            m_scratch_includes.insert(member.get_header_path());
+        }
+        m_scratch_includes.erase(std::string{model.get_header_path()});
+
+        std::string joined;
+        for (const auto& header: m_scratch_includes) {
+            joined += std::format("#include \"{}\"\n", header);
+        }
+
+        return joined;
+    }
+
+    std::expected<std::string, std::string> runtime_type_name(std::string_view struct_name) const
+    {
+        auto model = m_registry.get().find(std::string{struct_name});
         if (!model.has_value()) {
             return std::unexpected(std::format(
-                "No registered domain for status type '{}' in slot '{}'",
-                failable->get().get_pointee_name(),
-                slot.get_name()
+                "Runtime anchor '{}' is not part of the parsed headers",
+                struct_name
             ));
         }
 
         return model->get().to_sonic_type(m_namespace_name);
     }
 
-    std::string_view failable_parameter_name(const parser::slot::Slot& slot)
+    std::expected<std::vector<helper::DependencyInfo>, std::string>
+    member_dependencies(const parser::vtable::Model& model, const Mode& mode) const
     {
-        return slot.extract_failable()->get().get_name();
+        std::vector<helper::DependencyInfo> infos;
+        if (mode != Mode::Builder) {
+            return infos;
+        }
+
+        auto dependencies = dependencies_of(model);
+        if (!dependencies) {
+            return std::unexpected(std::move(dependencies.error()));
+        }
+
+        std::map<std::string, const parser::vtable::Model*> unique;
+        for (const parser::vtable::Model* dependency: *dependencies) {
+            unique.emplace(dependency->get_struct_name(), dependency);
+        }
+
+        for (const auto& [struct_name, member]: unique) {
+            auto handle_name = c_handle_name(*member);
+            if (handle_name.empty()) {
+                return std::unexpected(std::format(
+                    "No C handle struct found for '{}'",
+                    member->get_struct_name()
+                ));
+            }
+
+            infos.emplace_back(
+                member->to_sonic_type(m_namespace_name),
+                std::string{member->get_struct_name()},
+                std::string{member->get_class_name()},
+                std::move(handle_name),
+                std::string{member->get_header_path()}
+            );
+        }
+
+        return infos;
+    }
+
+    std::expected<std::vector<const parser::vtable::Model*>, std::string>
+    dependencies_of(const parser::vtable::Model& model) const
+    {
+        std::vector<const parser::vtable::Model*> dependencies;
+
+        for (const parser::slot::Slot& slot: model.get_slots()) {
+            for (const parser::helper::Parameter& parameter: slot.extract_parameters()) {
+                auto dependency = parameter.has_pointee()
+                                      ? m_registry.get().find(parameter.get_registry_key())
+                                      : std::nullopt;
+                if (dependency.has_value()) {
+                    dependencies.push_back(&dependency->get());
+                }
+            }
+        }
+
+        return dependencies;
+    }
+
+    static std::string c_headers_label(const parser::vtable::Model& model)
+    {
+        const std::filesystem::path header{model.get_header_path()};
+
+        std::string package;
+        for (const auto& part: header | std::views::take(2)) {
+            package += package.empty() ? part.string() : "/" + part.string();
+        }
+
+        return std::format("//{}:tf_c_headers", package);
+    }
+
+    std::expected<std::string, std::string> collect_imports(
+        const std::filesystem::path& base_path,
+        const parser::vtable::Model& model,
+        const Mode& mode,
+        const std::filesystem::path& module_dir
+    )
+    {
+        m_scratch_imports.clear();
+        m_scratch_dependencies.clear();
+        m_scratch_dependencies.insert(c_headers_label(model));
+
+        auto runtime_dir = runtime_directory(base_path);
+        if (!runtime_dir) {
+            return std::unexpected(std::move(runtime_dir.error()));
+        }
+
+        auto runtime_import =
+            add_import(*runtime_dir, std::string{RuntimeEmitter::k_runtime_partition}, module_dir);
+        if (!runtime_import) {
+            return std::unexpected(std::move(runtime_import.error()));
+        }
+
+        auto dependencies = dependencies_of(model);
+        if (!dependencies) {
+            return std::unexpected(std::move(dependencies.error()));
+        }
+
+        for (const parser::vtable::Model* dependency: *dependencies) {
+            auto added = add_model_import(base_path, *dependency, model, mode, module_dir);
+            if (!added) {
+                return std::unexpected(std::move(added.error()));
+            }
+        }
+
+        auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
+        if (!string_model.has_value()) {
+            return std::unexpected(std::format(
+                "Runtime anchor '{}' is not part of the parsed headers",
+                RuntimeEmitter::k_string_struct
+            ));
+        }
+
+        auto string_import =
+            add_model_import(base_path, string_model->get(), model, mode, module_dir);
+        if (!string_import) {
+            return std::unexpected(std::move(string_import.error()));
+        }
+
+        std::string joined;
+        for (const auto& import_line: m_scratch_imports) {
+            joined += import_line;
+            joined += '\n';
+        }
+
+        return joined;
+    }
+
+    std::expected<void, std::string> prepare_runtime(const std::filesystem::path& base_path)
+    {
+        m_runtime_emitter.clear_values();
+
+        auto runtime_dir = runtime_directory(base_path);
+        if (!runtime_dir) {
+            return std::unexpected(std::move(runtime_dir.error()));
+        }
+
+        auto runtime_module = helper::ModuleNaming::module_name(*runtime_dir);
+        if (!runtime_module) {
+            return std::unexpected(std::move(runtime_module.error()));
+        }
+
+        m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})
+            .add_value("runtime_module", std::move(*runtime_module));
+
+        return {};
+    }
+
+    std::expected<std::filesystem::path, std::string> runtime_target(
+        const std::filesystem::path& base_path,
+        const RuntimeSpec& spec
+    ) const
+    {
+        auto anchor = m_registry.get().find(std::string{spec.get_anchor_struct()});
+        if (!anchor.has_value()) {
+            return std::unexpected(std::format(
+                "Runtime anchor '{}' is not part of the parsed headers",
+                spec.get_anchor_struct()
+            ));
+        }
+
+        return module_directory(base_path, anchor->get(), Mode::Sonic);
     }
 
     std::string m_writer;
@@ -766,6 +1139,11 @@ private:
     std::reference_wrapper<const parser::Registry> m_registry;
     PathCallback m_path_callback;
     std::map<std::filesystem::path, std::vector<std::string>> m_partitions_by_folder;
+    std::map<std::filesystem::path, std::set<std::string>> m_dependencies_by_folder;
+    std::set<std::string> m_scratch_imports;
+    std::set<std::string> m_scratch_dependencies;
+    mutable std::set<std::string> m_scratch_includes;
+    RuntimeEmitter m_runtime_emitter;
 };
 
 } // namespace cc_abi_gen::generator::emitter

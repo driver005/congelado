@@ -14,6 +14,8 @@ extern "C" {
 
     typedef struct TFGrapplerFunctionLibraryOps {
         size_t struct_size;
+        void (*create)(TFGrapplerFunctionLibrary* out_handle);
+        void (*destroy)(TFGrapplerFunctionLibrary* handle);
         void (*look_up_op_def)(TFGrapplerFunctionLibrary* lib, const TF_String* name, TF_Buffer* out_buf, TF_Status* out_status);
     } TFGrapplerFunctionLibraryOps;
     #define TF_GRAPPLER_FUNCTION_LIBRARY_STRUCT_SIZE TF_OFFSET_OF_END(TFGrapplerFunctionLibraryOps, look_up_op_def)

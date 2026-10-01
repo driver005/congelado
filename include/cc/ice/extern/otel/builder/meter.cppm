@@ -5,20 +5,35 @@
 
 module;
 
+#include "include/c/extern/otel/counter.h"
+#include "include/c/extern/otel/histogram.h"
 #include "include/c/extern/otel/meter.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_otel_builder:meter;
 
 import std;
+import cc_ice_extern_otel_sonic;
+import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
 class TFOtelMeterOps
 {
 public:
-    TFOtelMeterOps() noexcept :
+    explicit TFOtelMeterOps(
+        const ::TFOtelCounterOps* TFOtelCounterOps_ops,
+        const ::TFOtelHistogramOps* TFOtelHistogramOps_ops,
+        const ::TF_StatusOps* Status_ops,
+        const ::TF_StringOps* String_ops
+    ) noexcept :
         m_handle{.plugin_data = this}
     {
+        m_TFOtelCounterOps_ops = TFOtelCounterOps_ops;
+        m_TFOtelHistogramOps_ops = TFOtelHistogramOps_ops;
+        m_Status_ops = Status_ops;
+        m_String_ops = String_ops;
     }
 
     TFOtelMeterOps(const TFOtelMeterOps&) = delete;
@@ -38,32 +53,38 @@ public:
     virtual ~TFOtelMeterOps() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_counter(
+    virtual void create_counter(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelCounterOps& out_counter
+        const ice::sonic::TFOtelCounterOps& out_counter,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
-    [[nodiscard]] virtual std::expected<void, ice::sonic::Status> create_histogram(
+    virtual void create_histogram(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelHistogramOps& out_histogram
+        const ice::sonic::TFOtelHistogramOps& out_histogram,
+        const ice::sonic::Status& out_status
     ) noexcept = 0;
 
-    void get_generic_vtable() noexcept
+    void get_generic_vtable(void (*create)(::TFOtelMeter*)) noexcept
     {
         m_vtable = ::TFOtelMeterOps{
-            .struct_size = TF_TELMETER_STRUCT_SIZE,
+            .struct_size = TF_OFFSET_OF_END(::TFOtelMeterOps, create_histogram),
+
+            .create = create,
             .destroy =
-                [](TFOtelMeter* meter) noexcept
+                [](TFOtelMeter* handle) noexcept
             {
-                TFOtelMeterOps::from_handle(meter).destroy();
+                auto& self = TFOtelMeterOps::from_handle(handle);
+                self.destroy();
             },
             .get_name =
                 [](TFOtelMeter* meter, TF_String* out_name) noexcept
             {
-                TFOtelMeterOps::from_handle(meter).get_name(ice::sonic::String::wrap(out_name));
+                auto& self = TFOtelMeterOps::from_handle(meter);
+                self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .create_counter =
                 [](TFOtelMeter* meter,
@@ -73,15 +94,14 @@ public:
                    TFOtelCounter* out_counter,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFOtelMeterOps::from_handle(meter).create_counter(
-                    ice::sonic::String::wrap(name),
-                    ice::sonic::String::wrap(description),
-                    ice::sonic::String::wrap(unit),
-                    ice::sonic::TFOtelCounterOps::wrap(out_counter)
+                auto& self = TFOtelMeterOps::from_handle(meter);
+                self.create_counter(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, description),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, unit),
+                    self.wrap(std::type_identity<ice::sonic::TFOtelCounterOps>{}, out_counter),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
             .create_histogram =
                 [](TFOtelMeter* meter,
@@ -91,18 +111,51 @@ public:
                    TFOtelHistogram* out_histogram,
                    TF_Status* out_status) noexcept
             {
-                auto res = TFOtelMeterOps::from_handle(meter).create_histogram(
-                    ice::sonic::String::wrap(name),
-                    ice::sonic::String::wrap(description),
-                    ice::sonic::String::wrap(unit),
-                    ice::sonic::TFOtelHistogramOps::wrap(out_histogram)
+                auto& self = TFOtelMeterOps::from_handle(meter);
+                self.create_histogram(
+                    self.wrap(std::type_identity<ice::sonic::String>{}, name),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, description),
+                    self.wrap(std::type_identity<ice::sonic::String>{}, unit),
+                    self.wrap(std::type_identity<ice::sonic::TFOtelHistogramOps>{}, out_histogram),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
-                if (!res) {
-                    res.error().to_c(out_status);
-                }
             },
 
         };
+    }
+
+    ice::sonic::TFOtelCounterOps wrap(
+        std::type_identity<ice::sonic::TFOtelCounterOps>,
+        const ::TFOtelCounter* handle
+    ) const noexcept
+    {
+        return ice::sonic::TFOtelCounterOps{
+            m_TFOtelCounterOps_ops,
+            const_cast<::TFOtelCounter*>(handle)
+        };
+    }
+
+    ice::sonic::TFOtelHistogramOps wrap(
+        std::type_identity<ice::sonic::TFOtelHistogramOps>,
+        const ::TFOtelHistogram* handle
+    ) const noexcept
+    {
+        return ice::sonic::TFOtelHistogramOps{
+            m_TFOtelHistogramOps_ops,
+            const_cast<::TFOtelHistogram*>(handle)
+        };
+    }
+
+    ice::sonic::Status
+    wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
+    {
+        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+    }
+
+    ice::sonic::String
+    wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
+    {
+        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
     }
 
     const ::TFOtelMeterOps& get_vtable() const noexcept
@@ -110,15 +163,32 @@ public:
         return m_vtable;
     }
 
-    const TFOtelMeter& get_handle() const noexcept
+    const ::TFOtelMeter& get_handle() const noexcept
     {
         return m_handle;
     }
 
+    template<typename Registry, typename StringType>
+    void register_ops(
+        Registry& registry,
+        const StringType& type,
+        const StringType& provider
+    ) const noexcept
+    {
+        registry.register_op(type, provider, const_cast<::TFOtelMeterOps*>(&m_vtable));
+    }
 
 private:
     ::TFOtelMeterOps m_vtable;
-    TFOtelMeter m_handle;
+    ::TFOtelMeter m_handle;
+
+    const ::TFOtelCounterOps* m_TFOtelCounterOps_ops{nullptr};
+
+    const ::TFOtelHistogramOps* m_TFOtelHistogramOps_ops{nullptr};
+
+    const ::TF_StatusOps* m_Status_ops{nullptr};
+
+    const ::TF_StringOps* m_String_ops{nullptr};
 };
 
 } // namespace ice::builder

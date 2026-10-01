@@ -10,36 +10,71 @@ module;
 export module cc_ice_intern_sonic:buffer;
 
 import std;
-import cc_abi_sonic_registration;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_BufferOps : public ice::sonic::Runtime<TF_BufferOps, TF_BufferOps>
+class TF_BufferOps : public ice::sonic::Runtime<::TF_BufferOps, ::TF_Buffer>
 {
 public:
-    explicit TF_BufferOps(TF_BufferOps* ops, void* plugin_context) noexcept :
-        Runtime(ops, plugin_context)
+    template<typename Registry>
+    TF_BufferOps(
+        Registry& registry,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, type, provider)
     {
     }
 
-    static constexpr std::string_view domain_name = "intern";
+    template<typename Registry>
+    TF_BufferOps(
+        Registry& registry,
+        ::TF_Buffer* handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
+    ) noexcept :
+        Runtime(registry, handle, type, provider)
+    {
+    }
 
-    void get_name(const ice::sonic::String& out_name) noexcept
+    explicit TF_BufferOps(const ::TF_BufferOps* ops) noexcept :
+        Runtime(ops)
+    {
+    }
+
+    TF_BufferOps(const ::TF_BufferOps* ops, ::TF_Buffer* handle) noexcept :
+        Runtime(ops, handle)
+    {
+    }
+
+    void create() const noexcept
+    {
+        m_ops->create(get_handle());
+    }
+
+    void destroy() const noexcept
+    {
+        m_ops->destroy(get_handle());
+    }
+
+    void get_name(const ice::sonic::String& out_name) const noexcept
     {
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void assign_from_string(const void* proto, size_t proto_len) noexcept
+    void assign_from_string(const void* proto, size_t proto_len) const noexcept
     {
         m_ops->assign_from_string(get_handle(), proto, proto_len);
     }
 
-    void delete_buffer() noexcept
+    void delete_buffer() const noexcept
     {
         m_ops->delete_buffer(get_handle());
     }
 
-    void get_buffer(TFBufferData* out_buffer) noexcept
+    void get_buffer(TFBufferData* out_buffer) const noexcept
     {
         m_ops->get_buffer(get_handle(), out_buffer);
     }

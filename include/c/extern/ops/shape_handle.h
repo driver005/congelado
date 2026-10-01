@@ -17,8 +17,10 @@ extern "C" {
     // TF_ShapeHandleOps
     typedef struct TF_ShapeHandleOps {
         size_t struct_size;
+        void (*create)(TF_ShapeHandle* out_handle);
+        void (*destroy)(TF_ShapeHandle* handle);
     } TF_ShapeHandleOps;
-    #define TF_SHAPE_HANDLE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ShapeHandleOps, struct_size)
+    #define TF_SHAPE_HANDLE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ShapeHandleOps, destroy)
     TF_CAPI_EXPORT void create_shape_handle(TF_ShapeHandleOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_shape_handle(void* plugin_context);
 
